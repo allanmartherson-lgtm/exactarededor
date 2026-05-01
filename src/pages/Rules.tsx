@@ -19,7 +19,7 @@ import {
   RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2 } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
