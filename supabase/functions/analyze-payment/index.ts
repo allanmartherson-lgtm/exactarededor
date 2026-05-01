@@ -37,6 +37,16 @@ interface ItemRow {
   description: string | null;
   gross_amount: number;
   raw_data: unknown;
+  company_name?: string | null;
+  attendance_number?: string | null;
+  procedure_code?: string | null;
+  procedure_name?: string | null;
+  access_route?: string | null;
+  doctor_role?: string | null;
+  agreement_text?: string | null;
+  procedure_amount?: number | null;
+  quantity?: number | null;
+  procedure_date?: string | null;
 }
 
 serve(async (req) => {
@@ -86,7 +96,10 @@ serve(async (req) => {
         if (t) t.portValues[String(pv.port)] = Number(pv.amount);
       }
     }
-    const { data: items } = await supabase.from("payment_items").select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data").eq("payment_id", payment_id);
+    const { data: items } = await supabase
+      .from("payment_items")
+      .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
+      .eq("payment_id", payment_id);
     const { data: history } = await supabase
       .from("payment_observations")
       .select("author_type, message")
@@ -142,9 +155,18 @@ serve(async (req) => {
 
     const itemsForAi = (items as ItemRow[]).map((it) => ({
       id: it.id,
+      empresa: it.company_name,
+      atendimento: it.attendance_number,
       medico: it.doctor_name,
+      funcao: it.doctor_role,
       documento: it.doctor_document,
+      codigo_tuss: it.procedure_code,
       descricao: it.description,
+      via_acesso: it.access_route,
+      acordo_percentual: it.agreement_text,
+      valor_procedimento_tabela: it.procedure_amount,
+      quantidade: it.quantity,
+      data: it.procedure_date,
       valor_bruto: Number(it.gross_amount),
       raw: it.raw_data,
     }));
@@ -166,6 +188,13 @@ CÁLCULO DE VALOR ESPERADO (quando a regra tem rule_type diferente de 'informati
 - bonus: valor esperado = valor_bruto (do convênio, vindo da planilha) + bonus_amount OU + (valor_bruto * bonus_pct/100).
 - complemento: valor esperado = target_amount; "valor a complementar" = target_amount - valor_bruto.
 - Se procedure_codes da regra estiver preenchido, ela só se aplica quando o item tiver um desses códigos.
+
+CONTEXTO ADICIONAL DOS ITENS:
+- Cada item traz "empresa" (PJ executora extraída do nome do arquivo), "atendimento" (Nr. Atendimento — pode repetir entre itens da mesma cirurgia), "codigo_tuss", "via_acesso", "funcao" (Cirurgião Principal / Primeiro Auxiliar / Segundo Auxiliar / Instrumentador / etc), "acordo_percentual" (texto livre da coluna Percentual: pode ser "100", "ACORDO", "CBHPM 2018 x 1.5", etc), "valor_procedimento_tabela" (valor cheio do convênio antes da função) e "valor_bruto" (= Vl. Repasse, valor que SERÁ pago).
+- Via de acesso: "Única" ou "Principal" = 100%; "Diferente" = 70%; "Mesma via" = 50%. O "valor_procedimento_tabela" geralmente já vem com esse percentual aplicado.
+- Função: Cirurgião Principal = 100% do acordo; 1º Auxiliar = 30%; 2º Auxiliar e demais = 20%; Instrumentador = 10%. Verifique se o valor_bruto do auxiliar é coerente com o valor do cirurgião principal do MESMO atendimento (mesmo Nr. Atendimento).
+- Quando "acordo_percentual" disser "ACORDO" ou citar "CBHPM 2018 x 1.5" (ou variação), use a tabela CBHPM correspondente nas TABELAS DE REFERÊNCIA para calcular o esperado, multiplicando pelo fator e aplicando a função.
+- Quando for um número simples (ex: "100", "70"), o esperado já está em "valor_procedimento_tabela" e o valor_bruto deve bater (após aplicar percentual da função quando relevante).
 
 Se calculou um expected_amount, compare com valor_bruto:
 - diferença ≤ 1% → status 'aprovado'
