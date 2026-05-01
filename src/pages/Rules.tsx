@@ -113,7 +113,7 @@ const Rules = () => {
     }
     const { error } = await supabase.from("rules").insert(payload);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); load(); toast({ title: "Regra criada" });
+    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); setCodesInput(""); load(); toast({ title: "Regra criada" });
   };
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
