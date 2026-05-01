@@ -409,6 +409,104 @@ const CostCenters = () => {
             )}
           </CardContent>
         </Card>
+
+        <Card className="shadow-card">
+          <Collapsible open={showHistory} onOpenChange={setShowHistory}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4" /> Histórico de importações
+                  <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${showHistory ? "rotate-180" : ""}`} />
+                </CardTitle>
+                <CardDescription>Últimas 20 importações. Apenas a mais recente pode ser desfeita.</CardDescription>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                {logs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma importação registrada ainda.</p>
+                ) : (
+                  <div className="overflow-x-auto border border-border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium">Quando</th>
+                          <th className="text-left px-3 py-2 font-medium">Por</th>
+                          <th className="text-left px-3 py-2 font-medium">Arquivo</th>
+                          <th className="text-right px-3 py-2 font-medium">Linhas</th>
+                          <th className="text-right px-3 py-2 font-medium">Criados</th>
+                          <th className="text-right px-3 py-2 font-medium">Atualizados</th>
+                          <th className="text-right px-3 py-2 font-medium">Desativados</th>
+                          <th className="text-left px-3 py-2 font-medium">Status</th>
+                          {canManage && <th className="text-right px-3 py-2 font-medium">Ações</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logs.map((l) => {
+                          const isLast = l.id === lastAppliedId;
+                          const isApplied = l.status === "aplicada";
+                          return (
+                            <tr key={l.id} className="border-t border-border hover:bg-muted/30">
+                              <td className="px-3 py-2 whitespace-nowrap">{formatDate(l.imported_at)}</td>
+                              <td className="px-3 py-2">{l.importer?.full_name ?? l.importer?.email ?? "—"}</td>
+                              <td className="px-3 py-2 truncate max-w-[200px]" title={l.file_name ?? ""}>{l.file_name ?? "—"}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{l.rows_in_file}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-success">{l.created_count}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{l.updated_count}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{l.deactivated_count}</td>
+                              <td className="px-3 py-2">
+                                {isApplied ? (
+                                  <Badge variant="outline" className="text-success border-success/30 bg-success-soft">Aplicada</Badge>
+                                ) : (
+                                  <div className="flex flex-col gap-0.5">
+                                    <Badge variant="outline" className="text-muted-foreground w-fit">Revertida</Badge>
+                                    {l.reverter && (
+                                      <span className="text-[10px] text-muted-foreground">
+                                        por {l.reverter.full_name ?? l.reverter.email} · {formatDate(l.reverted_at)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              {canManage && (
+                                <td className="px-3 py-2 text-right">
+                                  {isApplied && isLast ? (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="outline" size="sm" disabled={!!reverting}>
+                                          {reverting === l.id ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Undo2 className="h-3.5 w-3.5 mr-1" />}
+                                          Desfazer
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Desfazer esta importação?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            O catálogo voltará ao estado anterior a esta importação. Centros criados serão removidos e os alterados/desativados voltarão aos valores antigos.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => revertImport(l.id)}>Desfazer</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  ) : isApplied ? (
+                                    <span className="text-xs text-muted-foreground">só a última</span>
+                                  ) : null}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
       </div>
     </>
   );
