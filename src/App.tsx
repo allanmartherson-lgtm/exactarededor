@@ -17,6 +17,7 @@ import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
 import Companies from "./pages/Companies.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
+import AuditLog from "./pages/AuditLog.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
               <Route path="/centros-de-custo" element={<CostCenters />} />
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
+              <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
