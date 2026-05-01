@@ -24,6 +24,7 @@ import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
+import { recordAudit, buildDiff } from "@/lib/audit";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -264,14 +265,35 @@ const Rules = () => {
       // normaliza para formato com máscara antes de salvar
       payload.target_identifier = formatCNPJ(cnpj);
     }
+    // Resolve a empresa vinculada (quando aplicável) para o registro de auditoria.
+    const linkedCompany = (isEspecifica && targetType === "empresa")
+      ? companies.find((c) => c.name === payload.target_name || (c.document && payload.target_identifier && onlyDigits(c.document) === onlyDigits(payload.target_identifier))) ?? null
+      : null;
+    const auditCompany = (isEspecifica && targetType === "empresa") ? {
+      id: linkedCompany?.id ?? null,
+      name: payload.target_name ?? linkedCompany?.name ?? null,
+      document: payload.target_identifier ?? linkedCompany?.document ?? null,
+    } : null;
+
     if (editingId) {
+      const before = rules.find((r) => r.id === editingId) ?? null;
       const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      await recordAudit({
+        entityType: "rule", entityId: editingId, action: "update",
+        actorId: user!.id, company: auditCompany,
+        diff: buildDiff(before as any, payload),
+      });
       toast({ title: "Regra atualizada" });
     } else {
       payload.created_by = user!.id;
-      const { error } = await supabase.from("rules").insert(payload);
-      if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      const { data: created, error } = await supabase.from("rules").insert(payload).select("id").single();
+      if (error || !created) return toast({ title: "Erro", description: error?.message ?? "Falha ao criar", variant: "destructive" });
+      await recordAudit({
+        entityType: "rule", entityId: created.id, action: "create",
+        actorId: user!.id, company: auditCompany,
+        diff: buildDiff(null, payload),
+      });
       toast({ title: "Regra criada" });
     }
     setOpen(false); resetForm(); load();
@@ -369,8 +391,22 @@ const Rules = () => {
       doctors: d.doctors,
       created_by: user!.id,
     }));
-    const { error } = await supabase.from("rules").insert(toInsert);
+    const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    // Registra auditoria por regra criada
+    await Promise.all((insertedRows ?? []).map((row, idx) => {
+      const d = sel[idx];
+      const company = (d?.scope === "especifica" && d?.target_type === "empresa") ? {
+        id: companies.find((c) => c.name === d.target_name || (c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier)))?.id ?? null,
+        name: d.target_name ?? null,
+        document: d.target_identifier ?? null,
+      } : null;
+      return recordAudit({
+        entityType: "rule", entityId: row.id, action: "create",
+        actorId: user!.id, company,
+        diff: buildDiff(null, toInsert[idx] as any),
+      });
+    }));
     setReviewOpen(false); setDrafts([]); load();
     toast({ title: `${toInsert.length} regra(s) salva(s)` });
   };
