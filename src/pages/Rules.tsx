@@ -252,6 +252,18 @@ const Rules = () => {
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
+    if (isEspecifica && targetType === "empresa") {
+      const cnpj = payload.target_identifier;
+      if (!cnpj || !isValidCNPJ(cnpj)) {
+        return toast({
+          title: "CNPJ inválido",
+          description: "Para regras aplicadas a uma empresa o CNPJ é obrigatório e deve ser válido.",
+          variant: "destructive",
+        });
+      }
+      // normaliza para formato com máscara antes de salvar
+      payload.target_identifier = formatCNPJ(cnpj);
+    }
     if (editingId) {
       const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
