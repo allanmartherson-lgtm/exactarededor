@@ -133,6 +133,13 @@ const Rules = () => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  // janela temporal
+  const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
+  const [fWeekdays, setFWeekdays] = useState<number[]>([]);
+  const [fIncludesHolidays, setFIncludesHolidays] = useState(false);
+  const [fTimeStart, setFTimeStart] = useState<string>("");
+  const [fTimeEnd, setFTimeEnd] = useState<string>("");
+  const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
 
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
