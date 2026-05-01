@@ -121,11 +121,30 @@ const ReferenceTables = () => {
         const portsSheet = allSheets.find((s) => classifySheet(s.rows) === "ports");
         const codesSheet = allSheets.find((s) => classifySheet(s.rows) === "codes");
 
+        // Diagnóstico claro do que foi detectado em cada aba
+        const detected = allSheets
+          .map((s) => `${s.name}: ${classifySheet(s.rows)} (${s.rows.length} linhas)`)
+          .join(" | ");
+        console.log("[CBHPM import] arquivos detectados:", detected);
+
         if (!portsSheet && !codesSheet) {
           return toast({
             title: "Nenhuma planilha reconhecida",
-            description:
-              "Suba 1 arquivo com as 2 abas OU 2 arquivos separados (porte+valor e código+porte).",
+            description: `Detectado: ${detected}. Suba 1 arquivo com 2 abas OU 2 arquivos separados.`,
+            variant: "destructive",
+          });
+        }
+        if (!portsSheet) {
+          toast({
+            title: "Aba de portes não encontrada",
+            description: `Você precisa do arquivo "VALORES POR PORTE" também. Detectado: ${detected}`,
+            variant: "destructive",
+          });
+        }
+        if (!codesSheet) {
+          toast({
+            title: "Aba de códigos não encontrada",
+            description: `Detectado: ${detected}`,
             variant: "destructive",
           });
         }
@@ -177,6 +196,13 @@ const ReferenceTables = () => {
           return toast({ title: "Nenhum dado reconhecido", variant: "destructive" });
         }
 
+        // Limpa dados antigos antes de reimportar (evita duplicatas)
+        if (portsToInsert.length > 0) {
+          await supabase.from("reference_table_port_values").delete().eq("reference_table_id", selected.id);
+        }
+        if (itemsToInsert.length > 0) {
+          await supabase.from("reference_table_items").delete().eq("reference_table_id", selected.id);
+        }
         for (const c of chunk(portsToInsert, 500)) {
           const { error } = await supabase.from("reference_table_port_values").insert(c);
           if (error) throw error;
@@ -188,8 +214,8 @@ const ReferenceTables = () => {
         loadItems(selected.id);
         loadPortValues(selected.id);
         toast({
-          title: "CBHPM importada",
-          description: `${portsToInsert.length} portes e ${itemsToInsert.length} códigos.`,
+          title: "✅ CBHPM importada",
+          description: `${portsToInsert.length} portes · ${itemsToInsert.length} códigos (${itemsToInsert.filter((i: any) => i.port).length} com porte)`,
         });
       } else {
         const rows = allSheets[0]?.rows ?? [];
