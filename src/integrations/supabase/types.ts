@@ -265,7 +265,12 @@ export type Database = {
           name: string
           rule_json: Json | null
           rule_text: string
+          scope: Database["public"]["Enums"]["rule_scope"]
+          sector: Database["public"]["Enums"]["rule_sector"]
           severity: Database["public"]["Enums"]["rule_severity"]
+          target_identifier: string | null
+          target_name: string | null
+          target_type: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at: string
         }
         Insert: {
@@ -277,7 +282,12 @@ export type Database = {
           name: string
           rule_json?: Json | null
           rule_text: string
+          scope?: Database["public"]["Enums"]["rule_scope"]
+          sector?: Database["public"]["Enums"]["rule_sector"]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          target_identifier?: string | null
+          target_name?: string | null
+          target_type?: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at?: string
         }
         Update: {
@@ -289,7 +299,12 @@ export type Database = {
           name?: string
           rule_json?: Json | null
           rule_text?: string
+          scope?: Database["public"]["Enums"]["rule_scope"]
+          sector?: Database["public"]["Enums"]["rule_sector"]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          target_identifier?: string | null
+          target_name?: string | null
+          target_type?: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at?: string
         }
         Relationships: []
@@ -352,7 +367,17 @@ export type Database = {
         | "nf_divergente"
         | "pago"
         | "rejeitado"
+      rule_scope: "master" | "especifica"
+      rule_sector:
+        | "cirurgia"
+        | "hemodinamica"
+        | "parecer"
+        | "visita"
+        | "procedimento"
+        | "consulta"
+        | "outro"
       rule_severity: "info" | "aviso" | "bloqueio"
+      rule_target_type: "medico" | "empresa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -499,7 +524,18 @@ export const Constants = {
         "pago",
         "rejeitado",
       ],
+      rule_scope: ["master", "especifica"],
+      rule_sector: [
+        "cirurgia",
+        "hemodinamica",
+        "parecer",
+        "visita",
+        "procedimento",
+        "consulta",
+        "outro",
+      ],
       rule_severity: ["info", "aviso", "bloqueio"],
+      rule_target_type: ["medico", "empresa"],
     },
   },
 } as const
