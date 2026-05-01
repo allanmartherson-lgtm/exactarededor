@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,37 @@ import { ArrowLeft, Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Fil
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
+};
+
+const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
+
+type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
+const RuleTooltipContent = ({
+  rules,
+  fallbackNames,
+}: {
+  rules: RuleLite[];
+  fallbackNames: string[];
+}) => {
+  const blocks = rules.length
+    ? rules.map((r) => ({
+        name: r.name,
+        text: truncate((r.rule_text ?? "").trim(), 220),
+        desc: r.description ? truncate(r.description.trim(), 140) : "",
+      }))
+    : fallbackNames.map((n) => ({ name: n, text: "", desc: "" }));
+
+  return (
+    <div className="space-y-2 text-xs leading-snug">
+      {blocks.map((b, i) => (
+        <div key={i} className={i > 0 ? "border-t border-border/40 pt-2" : ""}>
+          <div className="font-semibold">{truncate(b.name, 80)}</div>
+          {b.text && <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{b.text}</p>}
+          {b.desc && <p className="mt-0.5 italic text-muted-foreground/80">{b.desc}</p>}
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const PaymentDetail = () => {
