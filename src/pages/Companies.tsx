@@ -174,12 +174,17 @@ const Companies = () => {
       }
       // Deduplica o próprio lote por CNPJ
       const seenCnpj = new Set<string>();
+      const dupExamples: string[] = [];
       let dupInBatch = 0;
       let inserted = 0, updated = 0, failed = 0;
       for (const row of valid) {
         const d = onlyDigits(row.document ?? "");
         if (d) {
-          if (seenCnpj.has(d)) { dupInBatch++; continue; }
+          if (seenCnpj.has(d)) {
+            dupInBatch++;
+            if (dupExamples.length < 3) dupExamples.push(`${row.name} (${formatCNPJ(d)})`);
+            continue;
+          }
           seenCnpj.add(d);
         }
         const id = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
@@ -187,7 +192,10 @@ const Companies = () => {
           ? await supabase.from("companies").update(row).eq("id", id)
           : await supabase.from("companies").insert(row);
         if (error) {
-          if ((error as any).code === "23505") dupInBatch++;
+          if ((error as any).code === "23505") {
+            dupInBatch++;
+            if (dupExamples.length < 3 && d) dupExamples.push(`${row.name} (${formatCNPJ(d)})`);
+          }
           else failed++;
         }
         else if (id) updated++;
@@ -199,7 +207,10 @@ const Companies = () => {
         description:
           `${inserted} criada(s), ${updated} atualizada(s)` +
           (failed ? `, ${failed} com erro` : "") +
-          (dupInBatch ? `, ${dupInBatch} ignorada(s) por CNPJ duplicado` : "") +
+          (dupInBatch
+            ? `. ${dupInBatch} linha(s) ignorada(s) por CNPJ duplicado` +
+              (dupExamples.length ? ` (ex.: ${dupExamples.join("; ")}${dupInBatch > dupExamples.length ? "…" : ""})` : "")
+            : "") +
           (skipped.length ? `. ${skipped.length} ignorada(s) por CNPJ inválido.` : ""),
       });
       load();
