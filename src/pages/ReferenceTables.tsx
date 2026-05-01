@@ -38,6 +38,7 @@ const ReferenceTables = () => {
   const [portValues, setPortValues] = useState<PortValue[]>([]);
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [search, setSearch] = useState("");
 
   const loadTables = () =>
     supabase.from("reference_tables").select("*").order("created_at", { ascending: false })
@@ -280,6 +281,15 @@ const ReferenceTables = () => {
 
   if (selected) {
     const isCbhpm = selected.kind === "cbhpm";
+    const q = search.trim().toLowerCase();
+    const filteredItems = q
+      ? items.filter(
+          (it) =>
+            it.code.toLowerCase().includes(q) ||
+            (it.description ?? "").toLowerCase().includes(q) ||
+            (it.port ?? "").toLowerCase().includes(q),
+        )
+      : items;
     return (
       <>
         <PageHeader
@@ -358,15 +368,27 @@ const ReferenceTables = () => {
           <Card className="shadow-card">
             <CardContent className="p-0">
               <div className="px-6 py-3 border-b border-border bg-muted/30 text-sm font-medium">
-                Códigos ({items.length}){items.length > 200 ? " · mostrando 200 primeiros" : ""}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span>
+                    Códigos ({filteredItems.length}
+                    {q ? ` de ${items.length}` : ""})
+                    {filteredItems.length > 200 ? " · mostrando 200 primeiros" : ""}
+                  </span>
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por código, descrição ou porte…"
+                    className="h-8 ml-auto w-full sm:w-72"
+                  />
+                </div>
               </div>
-              {items.length === 0 ? (
+              {filteredItems.length === 0 ? (
                 <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-                  Nenhum item. Importe uma planilha.
+                  {items.length === 0 ? "Nenhum item. Importe uma planilha." : "Nenhum resultado para a busca."}
                 </p>
               ) : (
                 <div className="divide-y divide-border">
-                  {items.slice(0, 200).map((it) => (
+                  {filteredItems.slice(0, 200).map((it) => (
                     <div key={it.id} className="px-6 py-3 flex items-center gap-4">
                       <span className="font-mono text-sm text-muted-foreground w-28">{it.code}</span>
                       <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
