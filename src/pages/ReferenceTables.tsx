@@ -365,8 +365,12 @@ const ReferenceTables = () => {
                       <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
                       {isCbhpm ? (
                         <>
-                          <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-16 text-center">
-                            {it.port ?? "—"}
+                          <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-24 text-center">
+                            {it.port
+                              ? it.port_multiplier && it.port_multiplier !== 1
+                                ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
+                                : it.port
+                              : "—"}
                           </span>
                           <span className="text-xs text-muted-foreground w-16 text-center">
                             {it.aux_count != null ? `${it.aux_count} aux` : "—"}
