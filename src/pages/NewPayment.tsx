@@ -349,6 +349,10 @@ const NewPayment = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="cc">Centro de custos</Label>
+                <Input id="cc" value={costCenter} onChange={(e) => setCostCenter(e.target.value)} placeholder="Ex: CC-001 / Cirurgia Geral" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="desc">Descrição</Label>
