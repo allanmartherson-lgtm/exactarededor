@@ -614,7 +614,7 @@ const Rules = () => {
                                       return (
                                         <CommandItem key={c.id} value={`${c.name} ${c.document ?? ""}`} onSelect={() => {
                                           setFTargetName(c.name);
-                                          setFTargetIdentifier(c.document ?? "");
+                                          setFTargetIdentifier(c.document ? formatCNPJ(c.document) : "");
                                           setCompanyPickerOpen(false);
                                         }}>
                                           <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
