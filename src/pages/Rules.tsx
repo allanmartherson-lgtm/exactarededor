@@ -21,6 +21,8 @@ import {
 } from "@/lib/status";
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
+import { COMMON_SPECIALTIES } from "@/lib/specialties";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -41,6 +43,9 @@ type DraftRule = {
   target_amount: number | null; multiplier: number | null; deflator_pct: number | null;
   reference_table_id: string | null; procedure_codes: string[];
   payment_term: PaymentTerm; applies_payment_types: PaymentType[];
+  sectors: string[]; specialties: string[];
+  valid_from: string | null; valid_until: string | null;
+  doctors: { name: string; crm?: string }[];
 };
 
 const num = (v: any): number | null => {
@@ -54,6 +59,7 @@ const num = (v: any): number | null => {
 const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [
   { key: "payment_term", label: "Prazo de pagamento", isMissing: (r) => !r.payment_term || r.payment_term === "qualquer" ? false : false }, // tem default 'qualquer', considere preenchido
   { key: "applies_payment_types", label: "Tipos de pagamento aplicáveis", isMissing: (r) => !r.applies_payment_types || r.applies_payment_types.length === 0 },
+  { key: "sectors", label: "Setores (multi)", isMissing: (r) => !Array.isArray(r.sectors) || r.sectors.length === 0 },
 ];
 // regra fica "incompleta" se faltar QUALQUER campo novo de fato exigido
 const isIncomplete = (r: RuleRow) => REQUIRED_NEW_FIELDS.some((f) => f.isMissing(r));
@@ -95,6 +101,12 @@ const Rules = () => {
   const [fDeflatorPct, setFDeflatorPct] = useState<string>("");
   const [fIncludeAux, setFIncludeAux] = useState(false);
   const [fAuxPct, setFAuxPct] = useState<string>("");
+  // novos campos: setores multi, especialidades, vigência, médicos
+  const [fSectors, setFSectors] = useState<string[]>([]);
+  const [fSpecialties, setFSpecialties] = useState<string[]>([]);
+  const [fValidFrom, setFValidFrom] = useState<string>("");
+  const [fValidUntil, setFValidUntil] = useState<string>("");
+  const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
 
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
@@ -130,6 +142,7 @@ const Rules = () => {
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
+    setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
   };
 
   const openEdit = (r: RuleRow) => {
@@ -151,6 +164,11 @@ const Rules = () => {
     setFDeflatorPct(r.deflator_pct != null ? String(r.deflator_pct) : "");
     setFIncludeAux(!!r.include_auxiliaries);
     setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
+    setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
+    setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
+    setFValidFrom(r.valid_from ?? "");
+    setFValidUntil(r.valid_until ?? "");
+    setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
     setOpen(true);
   };
 
@@ -176,6 +194,11 @@ const Rules = () => {
       procedure_codes: parsedCodes.length ? parsedCodes : null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
+      sectors: fSectors,
+      specialties: fSpecialties,
+      valid_from: fValidFrom || null,
+      valid_until: fValidUntil || null,
+      doctors: fDoctors,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
@@ -233,6 +256,11 @@ const Rules = () => {
         reference_table_id: null, procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
         payment_term: (r.payment_term ?? "qualquer") as PaymentTerm,
         applies_payment_types: Array.isArray(r.applies_payment_types) ? r.applies_payment_types : [],
+        sectors: Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []),
+        specialties: Array.isArray(r.specialties) ? r.specialties : [],
+        valid_from: r.valid_from ?? null,
+        valid_until: r.valid_until ?? null,
+        doctors: Array.isArray(r.doctors) ? r.doctors : [],
       }));
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
     } catch (e: any) {
@@ -262,6 +290,11 @@ const Rules = () => {
       procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
       payment_term: d.payment_term,
       applies_payment_types: d.applies_payment_types.length ? d.applies_payment_types : null,
+      sectors: d.sectors,
+      specialties: d.specialties,
+      valid_from: d.valid_from,
+      valid_until: d.valid_until,
+      doctors: d.doctors,
       created_by: user!.id,
     }));
     const { error } = await supabase.from("rules").insert(toInsert);
