@@ -105,6 +105,8 @@ const Rules = () => {
       multiplier: ruleType === "tabela_diferenciada" ? num(f.get("multiplier")) : null,
       deflator_pct: ruleType === "tabela_diferenciada" ? num(f.get("deflator_pct")) : null,
       reference_table_id: ruleType === "tabela_diferenciada" && refTableId ? refTableId : null,
+      include_auxiliaries: ruleType === "tabela_diferenciada" ? f.get("include_auxiliaries") === "on" : false,
+      auxiliary_pct: ruleType === "tabela_diferenciada" ? num(f.get("auxiliary_pct")) : null,
       procedure_codes: codesRaw ? codesRaw.split(/[,;\s]+/).filter(Boolean) : null,
       created_by: user!.id,
     };
@@ -327,6 +329,14 @@ const Rules = () => {
                       <div className="space-y-1.5"><Label>Multiplicador</Label><Input name="multiplier" type="number" step="0.01" placeholder="Ex: 1.5" /></div>
                       <div className="space-y-1.5"><Label>Deflator (%)</Label><Input name="deflator_pct" type="number" step="0.01" placeholder="Ex: 5" /></div>
                     </div>
+                    <div className="flex items-start gap-2 pt-1">
+                      <Checkbox id="include_aux" name="include_auxiliaries" defaultChecked={false} />
+                      <div className="flex-1">
+                        <Label htmlFor="include_aux" className="cursor-pointer">Incluir auxiliares no valor esperado</Label>
+                        <p className="text-xs text-muted-foreground">Soma <code>valor_base × nº_aux × %_aux</code> (CBHPM informa o nº de auxiliares por código).</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label><Input name="auxiliary_pct" type="number" step="0.01" placeholder="30" /></div>
                   </div>
                 )}
                 {ruleType === "bonus" && (

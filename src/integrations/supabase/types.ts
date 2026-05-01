@@ -257,32 +257,70 @@ export type Database = {
       }
       reference_table_items: {
         Row: {
-          amount: number
+          amount: number | null
+          aux_count: number | null
           code: string
           created_at: string
           description: string | null
           id: string
+          port: string | null
           reference_table_id: string
         }
         Insert: {
-          amount?: number
+          amount?: number | null
+          aux_count?: number | null
           code: string
           created_at?: string
           description?: string | null
           id?: string
+          port?: string | null
           reference_table_id: string
         }
         Update: {
-          amount?: number
+          amount?: number | null
+          aux_count?: number | null
           code?: string
           created_at?: string
           description?: string | null
           id?: string
+          port?: string | null
           reference_table_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "reference_table_items_reference_table_id_fkey"
+            columns: ["reference_table_id"]
+            isOneToOne: false
+            referencedRelation: "reference_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reference_table_port_values: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          port: string
+          reference_table_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          port: string
+          reference_table_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          port?: string
+          reference_table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_table_port_values_reference_table_id_fkey"
             columns: ["reference_table_id"]
             isOneToOne: false
             referencedRelation: "reference_tables"
@@ -296,6 +334,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          kind: Database["public"]["Enums"]["reference_table_kind"]
           name: string
           updated_at: string
           year: number | null
@@ -305,6 +344,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          kind?: Database["public"]["Enums"]["reference_table_kind"]
           name: string
           updated_at?: string
           year?: number | null
@@ -314,6 +354,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          kind?: Database["public"]["Enums"]["reference_table_kind"]
           name?: string
           updated_at?: string
           year?: number | null
@@ -323,6 +364,7 @@ export type Database = {
       rules: {
         Row: {
           active: boolean
+          auxiliary_pct: number | null
           bonus_amount: number | null
           bonus_pct: number | null
           created_at: string
@@ -330,6 +372,7 @@ export type Database = {
           deflator_pct: number | null
           description: string | null
           id: string
+          include_auxiliaries: boolean
           multiplier: number | null
           name: string
           package_amount: number | null
@@ -349,6 +392,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
           created_at?: string
@@ -356,6 +400,7 @@ export type Database = {
           deflator_pct?: number | null
           description?: string | null
           id?: string
+          include_auxiliaries?: boolean
           multiplier?: number | null
           name: string
           package_amount?: number | null
@@ -375,6 +420,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
           created_at?: string
@@ -382,6 +428,7 @@ export type Database = {
           deflator_pct?: number | null
           description?: string | null
           id?: string
+          include_auxiliaries?: boolean
           multiplier?: number | null
           name?: string
           package_amount?: number | null
@@ -467,6 +514,7 @@ export type Database = {
         | "nf_divergente"
         | "pago"
         | "rejeitado"
+      reference_table_kind: "simples" | "cbhpm"
       rule_scope: "master" | "especifica"
       rule_sector:
         | "cirurgia"
@@ -630,6 +678,7 @@ export const Constants = {
         "pago",
         "rejeitado",
       ],
+      reference_table_kind: ["simples", "cbhpm"],
       rule_scope: ["master", "especifica"],
       rule_sector: [
         "cirurgia",
