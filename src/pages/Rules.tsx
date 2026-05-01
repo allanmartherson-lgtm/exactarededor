@@ -25,11 +25,21 @@ import {
   RULE_TYPE_LABELS,
   RULE_TYPE_DESCRIPTIONS,
   formatCurrency,
+  PAYMENT_TYPE_LABELS,
+  type PaymentType,
 } from "@/lib/status";
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
+
+type PaymentTerm = "qualquer" | "prioridade" | "habitual";
+const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
+  qualquer: "Qualquer prazo",
+  prioridade: "Empresa Prioridade",
+  habitual: "Prazo Habitual",
+};
+const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao", "misto"];
 
 type RuleRow = any;
 type DraftRule = {
@@ -41,6 +51,7 @@ type DraftRule = {
   package_amount: number | null; bonus_amount: number | null; bonus_pct: number | null;
   target_amount: number | null; multiplier: number | null; deflator_pct: number | null;
   reference_table_id: string | null; procedure_codes: string[];
+  payment_term: PaymentTerm; applies_payment_types: PaymentType[];
 };
 
 const num = (v: any): number | null => {
@@ -67,6 +78,8 @@ const Rules = () => {
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
   const [refTableId, setRefTableId] = useState<string>("");
   const [codesInput, setCodesInput] = useState<string>("");
+  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
+  const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
     [codesInput]
@@ -104,10 +117,12 @@ const Rules = () => {
       target_amount: ruleType === "complemento" ? num(f.get("target_amount")) : null,
       multiplier: ruleType === "tabela_diferenciada" ? num(f.get("multiplier")) : null,
       deflator_pct: ruleType === "tabela_diferenciada" ? num(f.get("deflator_pct")) : null,
-      reference_table_id: ruleType === "tabela_diferenciada" && refTableId ? refTableId : null,
+      reference_table_id: refTableId || null,
       include_auxiliaries: ruleType === "tabela_diferenciada" ? f.get("include_auxiliaries") === "on" : false,
       auxiliary_pct: ruleType === "tabela_diferenciada" ? num(f.get("auxiliary_pct")) : null,
       procedure_codes: codesRaw ? codesRaw.split(/[,;\s]+/).filter(Boolean) : null,
+      payment_term: paymentTerm,
+      applies_payment_types: appliesTypes.length ? appliesTypes : null,
       created_by: user!.id,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
@@ -115,7 +130,7 @@ const Rules = () => {
     }
     const { error } = await supabase.from("rules").insert(payload);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); setCodesInput(""); load(); toast({ title: "Regra criada" });
+    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); setCodesInput(""); setPaymentTerm("qualquer"); setAppliesTypes([]); load(); toast({ title: "Regra criada" });
   };
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -158,6 +173,8 @@ const Rules = () => {
         package_amount: r.package_amount ?? null, bonus_amount: r.bonus_amount ?? null, bonus_pct: r.bonus_pct ?? null,
         target_amount: r.target_amount ?? null, multiplier: r.multiplier ?? null, deflator_pct: r.deflator_pct ?? null,
         reference_table_id: null, procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
+        payment_term: (r.payment_term ?? "qualquer") as PaymentTerm,
+        applies_payment_types: Array.isArray(r.applies_payment_types) ? r.applies_payment_types : [],
       }));
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
     } catch (e: any) {
@@ -183,8 +200,10 @@ const Rules = () => {
       target_amount: d.rule_type === "complemento" ? d.target_amount : null,
       multiplier: d.rule_type === "tabela_diferenciada" ? d.multiplier : null,
       deflator_pct: d.rule_type === "tabela_diferenciada" ? d.deflator_pct : null,
-      reference_table_id: d.rule_type === "tabela_diferenciada" ? d.reference_table_id : null,
+      reference_table_id: d.reference_table_id || null,
       procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
+      payment_term: d.payment_term,
+      applies_payment_types: d.applies_payment_types.length ? d.applies_payment_types : null,
       created_by: user!.id,
     }));
     const { error } = await supabase.from("rules").insert(toInsert);
@@ -281,7 +300,7 @@ const Rules = () => {
                       <SelectContent>{Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5"><Label>Setor</Label>
+                  <div className="space-y-1.5"><Label>Setor / Item Pagamento</Label>
                     <Select name="sector" defaultValue="outro">
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
@@ -314,17 +333,49 @@ const Rules = () => {
                   <p className="text-xs text-muted-foreground">{RULE_TYPE_DESCRIPTIONS[ruleType]}</p>
                 </div>
 
+                {/* Vinculação opcional a tabela de referência (qualquer tipo de regra) */}
+                <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                  <Label>Tabela de referência (opcional)</Label>
+                  <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder={refTables.length ? "Sem vínculo" : "Cadastre uma tabela"} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Sem vínculo</SelectItem>
+                      {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Vincular a uma tabela já cadastrada simplifica a regra — basta complementar com os pontos específicos.</p>
+                </div>
+
+                {/* Prazo de pagamento + tipos aplicáveis */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
+                    <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5"><Label>Tipos de pagamento aplicáveis</Label>
+                    <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                      {PAYMENT_TYPE_KEYS.map((k) => {
+                        const checked = appliesTypes.includes(k);
+                        return (
+                          <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                            onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
+                            {PAYMENT_TYPE_LABELS[k]}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Vazio = aplica a todos.</p>
+                  </div>
+                </div>
+
                 {ruleType === "pacote" && (
                   <div className="space-y-1.5"><Label>Valor do pacote (R$)</Label><Input name="package_amount" type="number" step="0.01" required /></div>
                 )}
                 {ruleType === "tabela_diferenciada" && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                    <div className="space-y-1.5"><Label>Tabela de referência</Label>
-                      <Select value={refTableId} onValueChange={setRefTableId}>
-                        <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecione" : "Cadastre uma tabela primeiro"} /></SelectTrigger>
-                        <SelectContent>{refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
+                    <p className="text-xs text-muted-foreground">A tabela vinculada acima será usada como base do cálculo.</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5"><Label>Multiplicador</Label><Input name="multiplier" type="number" step="0.01" placeholder="Ex: 1.5" /></div>
                       <div className="space-y-1.5"><Label>Deflator (%)</Label><Input name="deflator_pct" type="number" step="0.01" placeholder="Ex: 5" /></div>
@@ -399,9 +450,9 @@ const Rules = () => {
             </SelectContent>
           </Select>
           <Select value={filterSector} onValueChange={(v) => setFilterSector(v as any)}>
-            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos os setores</SelectItem>
+              <SelectItem value="todos">Todos (setor / item pgto)</SelectItem>
               {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -445,6 +496,18 @@ const Rules = () => {
                               <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
                               <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                               {renderCalcBadge(r)}
+                              {r.payment_term && r.payment_term !== "qualquer" && (
+                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
+                              )}
+                              {r.applies_payment_types && r.applies_payment_types.length > 0 && (
+                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                                  {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
+                                </span>
+                              )}
+                              {r.reference_table_id && r.rule_type !== "tabela_diferenciada" && (() => {
+                                const ref = refTables.find((t) => t.id === r.reference_table_id);
+                                return ref ? <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">📋 {ref.name}</span> : null;
+                              })()}
                               {r.procedure_codes && r.procedure_codes.length > 0 && (
                                 <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{r.procedure_codes.join(", ")}</span>
                               )}
@@ -491,7 +554,7 @@ const Rules = () => {
                       <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1"><Label className="text-xs">Setor</Label>
+                  <div className="space-y-1"><Label className="text-xs">Setor / Item Pagamento</Label>
                     <Select value={d.sector} onValueChange={(v) => updateDraft(i, { sector: v as RuleSector })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
@@ -527,14 +590,38 @@ const Rules = () => {
                     <Input type="number" step="0.01" value={d.package_amount ?? ""} onChange={(e) => updateDraft(i, { package_amount: num(e.target.value) })} />
                   </div>
                 )}
-                {d.rule_type === "tabela_diferenciada" && (
-                  <div className="grid grid-cols-3 gap-3 mb-3">
-                    <div className="space-y-1"><Label className="text-xs">Tabela</Label>
-                      <Select value={d.reference_table_id ?? ""} onValueChange={(v) => updateDraft(i, { reference_table_id: v })}>
-                        <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecione" : "Cadastre uma tabela"} /></SelectTrigger>
-                        <SelectContent>{refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div className="space-y-1"><Label className="text-xs">Tabela vinculada (opcional)</Label>
+                    <Select value={d.reference_table_id ?? "__none"} onValueChange={(v) => updateDraft(i, { reference_table_id: v === "__none" ? null : v })}>
+                      <SelectTrigger><SelectValue placeholder={refTables.length ? "Sem vínculo" : "Cadastre uma tabela"} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Sem vínculo</SelectItem>
+                        {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1"><Label className="text-xs">Prazo de pagamento</Label>
+                    <Select value={d.payment_term} onValueChange={(v) => updateDraft(i, { payment_term: v as PaymentTerm })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1"><Label className="text-xs">Tipos de pagamento</Label>
+                    <div className="flex flex-wrap gap-1 rounded-md border border-input bg-background p-1.5 min-h-9">
+                      {PAYMENT_TYPE_KEYS.map((k) => {
+                        const checked = d.applies_payment_types.includes(k);
+                        return (
+                          <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"} className="h-7 px-2 text-xs"
+                            onClick={() => updateDraft(i, { applies_payment_types: checked ? d.applies_payment_types.filter((x) => x !== k) : [...d.applies_payment_types, k] })}>
+                            {PAYMENT_TYPE_LABELS[k]}
+                          </Button>
+                        );
+                      })}
                     </div>
+                  </div>
+                </div>
+                {d.rule_type === "tabela_diferenciada" && (
+                  <div className="grid grid-cols-2 gap-3 mb-3">
                     <div className="space-y-1"><Label className="text-xs">Multiplicador</Label>
                       <Input type="number" step="0.01" value={d.multiplier ?? ""} onChange={(e) => updateDraft(i, { multiplier: num(e.target.value) })} />
                     </div>

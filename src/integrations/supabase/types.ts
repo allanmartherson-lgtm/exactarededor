@@ -557,6 +557,9 @@ export type Database = {
       rules: {
         Row: {
           active: boolean
+          applies_payment_types:
+            | Database["public"]["Enums"]["payment_type"][]
+            | null
           auxiliary_pct: number | null
           bonus_amount: number | null
           bonus_pct: number | null
@@ -569,6 +572,7 @@ export type Database = {
           multiplier: number | null
           name: string
           package_amount: number | null
+          payment_term: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes: string[] | null
           reference_table_id: string | null
           rule_json: Json | null
@@ -585,6 +589,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          applies_payment_types?:
+            | Database["public"]["Enums"]["payment_type"][]
+            | null
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
@@ -597,6 +604,7 @@ export type Database = {
           multiplier?: number | null
           name: string
           package_amount?: number | null
+          payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
           rule_json?: Json | null
@@ -613,6 +621,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          applies_payment_types?:
+            | Database["public"]["Enums"]["payment_type"][]
+            | null
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
@@ -625,6 +636,7 @@ export type Database = {
           multiplier?: number | null
           name?: string
           package_amount?: number | null
+          payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
           rule_json?: Json | null
@@ -712,6 +724,7 @@ export type Database = {
         | "cancelado"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao" | "misto"
       reference_table_kind: "simples" | "cbhpm"
+      rule_payment_term: "qualquer" | "prioridade" | "habitual"
       rule_scope: "master" | "especifica"
       rule_sector:
         | "cirurgia"
@@ -879,6 +892,7 @@ export const Constants = {
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao", "misto"],
       reference_table_kind: ["simples", "cbhpm"],
+      rule_payment_term: ["qualquer", "prioridade", "habitual"],
       rule_scope: ["master", "especifica"],
       rule_sector: [
         "cirurgia",
