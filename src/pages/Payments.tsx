@@ -8,11 +8,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { FileUp, Search, X, ChevronsUpDown, Check } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
-import { cn } from "@/lib/utils";
+import { FileUp, Search, X } from "lucide-react";
+import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 
 interface Row {
   id: string;
@@ -27,15 +24,11 @@ interface Row {
   payment_kind: PaymentKind | null;
 }
 
-interface Company { id: string; name: string; document: string | null; }
-
 const Payments = () => {
   const { roles } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [companyFilter, setCompanyFilter] = useState<Company | null>(null);
-  const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
+  const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
   const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
 
   useEffect(() => {
@@ -45,8 +38,6 @@ const Payments = () => {
       .select("id,reference,status,total_amount,items_count,created_at,competence_month,payment_due_date,payment_type,payment_kind")
       .order("created_at", { ascending: false })
       .then(({ data }) => setRows((data ?? []) as Row[]));
-    supabase.from("companies").select("id,name,document").order("name")
-      .then(({ data }) => setCompanies((data ?? []) as Company[]));
   }, []);
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
@@ -94,53 +85,12 @@ const Payments = () => {
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por referência..." className="pl-9" />
           </div>
-          <Popover open={companyPickerOpen} onOpenChange={setCompanyPickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" role="combobox" className={cn("min-w-[260px] justify-between font-normal", !companyFilter && "text-muted-foreground")}>
-                {companyFilter
-                  ? `${companyFilter.name}${companyFilter.document ? ` · ${formatCNPJ(companyFilter.document)}` : ""}`
-                  : "Filtrar por empresa (CNPJ)…"}
-                <ChevronsUpDown className="h-4 w-4 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[360px] p-0" align="start">
-              <Command
-                filter={(value, search) => {
-                  const v = value.toLowerCase();
-                  const s = search.toLowerCase();
-                  if (v.includes(s)) return 1;
-                  // permite buscar por dígitos do CNPJ
-                  const digits = onlyDigits(search);
-                  if (digits && v.includes(digits)) return 1;
-                  return 0;
-                }}
-              >
-                <CommandInput placeholder="Buscar por nome ou CNPJ…" />
-                <CommandList>
-                  <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-                  <CommandGroup>
-                    {companies.map((c) => {
-                      const checked = companyFilter?.id === c.id;
-                      const docMasked = c.document ? formatCNPJ(c.document) : "—";
-                      return (
-                        <CommandItem
-                          key={c.id}
-                          value={`${c.name} ${c.document ?? ""} ${onlyDigits(c.document ?? "")}`}
-                          onSelect={() => { setCompanyFilter(c); setCompanyPickerOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
-                          <div className="flex flex-col">
-                            <span>{c.name}</span>
-                            <span className="text-xs text-muted-foreground">CNPJ {docMasked}</span>
-                          </div>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          <CompanyCombobox
+            value={companyFilter}
+            onChange={setCompanyFilter}
+            placeholder="Filtrar por empresa (CNPJ)…"
+            className="min-w-[260px]"
+          />
           {companyFilter && (
             <Button variant="ghost" size="sm" onClick={() => setCompanyFilter(null)}>
               <X className="h-4 w-4 mr-1" /> Limpar
