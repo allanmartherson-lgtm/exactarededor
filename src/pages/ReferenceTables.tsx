@@ -83,66 +83,95 @@ const ReferenceTables = () => {
     if (selected) loadItems(selected.id);
   };
 
-  const importFile = async (file: File) => {
+  // Classifica uma aba como tabela de "portes" (porte→valor) ou "códigos" (id/descrição/porte).
+  // Permite tanto 1 arquivo com 2 abas quanto 2 arquivos separados.
+  const classifySheet = (rows: any[]): "ports" | "codes" | "unknown" => {
+    if (rows.length === 0) return "unknown";
+    const keys = Object.keys(rows[0]).map((k) => norm(k.trim()));
+    const hasPorte = keys.some((k) => k === "porte" || k.startsWith("porte"));
+    const hasValor = keys.some((k) => /valor|amount|preco/.test(k));
+    const hasCodigo = keys.some(
+      (k) => /id do procedim|codigo|code/.test(k) && !/grupo|subgrupo/.test(k),
+    );
+    const hasDescricao = keys.some((k) => /descri/.test(k));
+    if (hasPorte && hasValor && keys.length <= 4) return "ports";
+    if (hasCodigo && hasDescricao) return "codes";
+    return "unknown";
+  };
+
+  const importFiles = async (files: FileList) => {
     if (!selected) return;
     setImporting(true);
     try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const allSheets: { name: string; rows: any[] }[] = [];
+      for (const file of Array.from(files)) {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        for (const sn of wb.SheetNames) {
+          allSheets.push({
+            name: `${file.name} → ${sn}`,
+            rows: XLSX.utils.sheet_to_json<any>(wb.Sheets[sn], { defval: "" }),
+          });
+        }
+      }
 
-      const portSheetName = wb.SheetNames.find((n) => /porte/i.test(n));
-      const codesSheetName =
-        wb.SheetNames.find((n) => /codigo|código|procedim/i.test(n)) ?? wb.SheetNames[0];
-      const isCbhpm = selected.kind === "cbhpm" || !!portSheetName;
+      const isCbhpm = selected.kind === "cbhpm";
 
       if (isCbhpm) {
-        if (!portSheetName) {
+        const portsSheet = allSheets.find((s) => classifySheet(s.rows) === "ports");
+        const codesSheet = allSheets.find((s) => classifySheet(s.rows) === "codes");
+
+        if (!portsSheet && !codesSheet) {
           return toast({
-            title: "Aba de portes não encontrada",
-            description: "Para CBHPM o .xlsx precisa de uma aba com 'porte' no nome (ex.: VALORES POR PORTE).",
+            title: "Nenhuma planilha reconhecida",
+            description:
+              "Suba 1 arquivo com as 2 abas OU 2 arquivos separados (porte+valor e código+porte).",
             variant: "destructive",
           });
         }
-        const portRows = XLSX.utils.sheet_to_json<any>(wb.Sheets[portSheetName], { defval: "" });
-        const portsToInsert = portRows
-          .map((row) => {
-            const pKey = findKey(row, ["porte"]);
-            const vKey = findKey(row, ["valor", "amount", "preco", "preço"]);
-            const port = pKey ? String(row[pKey]).trim() : "";
-            const amount = parseNumber(vKey ? row[vKey] : null);
-            if (!port || amount == null) return null;
-            return { reference_table_id: selected.id, port, amount };
-          })
-          .filter(Boolean) as any[];
 
-        const codeRows = XLSX.utils.sheet_to_json<any>(wb.Sheets[codesSheetName], { defval: "" });
-        const itemsToInsert = codeRows
-          .map((row) => {
-            const codeKey = Object.keys(row).find(
-              (k) => /id do procedim|c[oó]digo/i.test(k) && !/grupo|subgrupo/i.test(k),
-            );
-            const descKey = Object.keys(row).find((k) => /descri.*procedim/i.test(k))
-              ?? findKey(row, ["descrição", "descricao", "procedimento"]);
-            // Porte fica em coluna chamada "Porte" ou, no caso do CBHPM oficial, vem em "Unnamed: 9"
-            const portKey =
-              Object.keys(row).find((k) => k.trim().toLowerCase() === "porte") ??
-              Object.keys(row).find((k) => /unnamed:\s*9/i.test(k));
-            const auxKey = Object.keys(row).find((k) => /n[º°ºo]?\s*de\s*aux|aux/i.test(k));
-            const code = codeKey ? String(row[codeKey]).trim() : "";
-            if (!code || /^id do/i.test(code)) return null;
-            let port: string | null = portKey ? String(row[portKey]).trim() : null;
-            if (!port || port === "" || port.toLowerCase() === "nan") port = null;
-            const auxRaw = auxKey ? parseNumber(row[auxKey]) : null;
-            return {
-              reference_table_id: selected.id,
-              code,
-              description: descKey ? String(row[descKey]) : null,
-              port,
-              aux_count: auxRaw != null ? Math.round(auxRaw) : null,
-              amount: null,
-            };
-          })
-          .filter(Boolean) as any[];
+        const portsToInsert = portsSheet
+          ? (portsSheet.rows
+              .map((row) => {
+                const pKey = Object.keys(row).find((k) => norm(k.trim()).startsWith("porte"));
+                const vKey = findKey(row, ["valor", "amount", "preco", "preço"]);
+                const port = pKey ? String(row[pKey]).trim() : "";
+                const amount = parseNumber(vKey ? row[vKey] : null);
+                if (!port || amount == null) return null;
+                return { reference_table_id: selected.id, port, amount };
+              })
+              .filter(Boolean) as any[])
+          : [];
+
+        const itemsToInsert = codesSheet
+          ? (codesSheet.rows
+              .map((row) => {
+                const codeKey = Object.keys(row).find(
+                  (k) => /id do procedim|c[oó]digo/i.test(k) && !/grupo|subgrupo/i.test(k),
+                );
+                const descKey =
+                  Object.keys(row).find((k) => /descri.*procedim/i.test(k)) ??
+                  findKey(row, ["descrição", "descricao", "procedimento"]);
+                const portKey =
+                  Object.keys(row).find((k) => k.trim().toLowerCase() === "porte") ??
+                  Object.keys(row).find((k) => /unnamed:\s*9/i.test(k));
+                const auxKey = Object.keys(row).find((k) => /n[º°ºo]?\s*de\s*aux|aux/i.test(k));
+                const code = codeKey ? String(row[codeKey]).trim() : "";
+                if (!code || /^id do/i.test(code)) return null;
+                let port: string | null = portKey ? String(row[portKey]).trim() : null;
+                if (!port || port === "" || port.toLowerCase() === "nan") port = null;
+                const auxRaw = auxKey ? parseNumber(row[auxKey]) : null;
+                return {
+                  reference_table_id: selected.id,
+                  code,
+                  description: descKey ? String(row[descKey]) : null,
+                  port,
+                  aux_count: auxRaw != null ? Math.round(auxRaw) : null,
+                  amount: null,
+                };
+              })
+              .filter(Boolean) as any[])
+          : [];
 
         if (portsToInsert.length === 0 && itemsToInsert.length === 0) {
           return toast({ title: "Nenhum dado reconhecido", variant: "destructive" });
@@ -163,8 +192,7 @@ const ReferenceTables = () => {
           description: `${portsToInsert.length} portes e ${itemsToInsert.length} códigos.`,
         });
       } else {
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<any>(sheet, { defval: "" });
+        const rows = allSheets[0]?.rows ?? [];
         const toInsert = rows
           .map((row) => {
             const codeKey = findKey(row, ["codigo", "código", "code"]);
@@ -216,15 +244,16 @@ const ReferenceTables = () => {
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) importFile(f);
+                    const fs = e.target.files;
+                    if (fs && fs.length) importFiles(fs);
                     e.currentTarget.value = "";
                   }}
                 />
                 <Button asChild disabled={importing}>
-                  <span><Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar planilha"}</span>
+                  <span><Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar planilha(s)"}</span>
                 </Button>
               </label>
             </>
@@ -235,10 +264,11 @@ const ReferenceTables = () => {
             <div className="rounded-lg border border-info/30 bg-info-soft text-info p-3 text-xs flex gap-2">
               <Sparkles className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                <strong>Tabela CBHPM</strong> · esperamos um <code>.xlsx</code> com 2 abas: uma com{" "}
-                <strong>porte → valor</strong> (ex.: "VALORES POR PORTE") e outra com{" "}
+                <strong>Tabela CBHPM</strong> · você pode subir <strong>1 arquivo com 2 abas</strong>{" "}
+                ou <strong>2 arquivos separados</strong> (segure Ctrl/Cmd para selecionar os dois):
+                um com <strong>porte → valor</strong> e outro com{" "}
                 <strong>códigos</strong> (ID, descrição, porte, nº de auxiliares). O valor de cada
-                código é calculado pela regra: <code>valor_porte × multiplicador − deflator</code>.
+                código é calculado por <code>valor_porte × multiplicador − deflator</code>.
               </div>
             </div>
           ) : (
