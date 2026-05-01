@@ -254,6 +254,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           competence_month: string | null
+          cost_center: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -276,6 +277,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           competence_month?: string | null
+          cost_center?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           competence_month?: string | null
+          cost_center?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -604,7 +607,7 @@ export type Database = {
         | "pago"
         | "rejeitado"
         | "cancelado"
-      payment_type: "producao" | "repasse" | "valor_fixo" | "plantao" | "misto"
+      payment_type: "producao" | "remessa" | "valor_fixo" | "plantao" | "misto"
       reference_table_kind: "simples" | "cbhpm"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -771,7 +774,7 @@ export const Constants = {
         "rejeitado",
         "cancelado",
       ],
-      payment_type: ["producao", "repasse", "valor_fixo", "plantao", "misto"],
+      payment_type: ["producao", "remessa", "valor_fixo", "plantao", "misto"],
       reference_table_kind: ["simples", "cbhpm"],
       rule_scope: ["master", "especifica"],
       rule_sector: [

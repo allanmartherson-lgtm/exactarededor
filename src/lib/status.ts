@@ -114,10 +114,18 @@ export type PaymentKind = Database["public"]["Enums"]["payment_kind"];
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   producao: "Produção",
-  repasse: "Repasse",
+  remessa: "Remessa",
   valor_fixo: "Valor fixo",
   plantao: "Plantão",
   misto: "Misto",
+};
+
+export const PAYMENT_TYPE_DESCRIPTIONS: Record<PaymentType, string> = {
+  producao: "Mês seguinte ao mês em que houve a produção",
+  remessa: "Pago só após faturamento e envio da cobrança ao convênio",
+  valor_fixo: "Coordenação, assessoria e similares",
+  plantao: "Pagamento por hora ou período",
+  misto: "Mais de um tipo no mesmo pagamento",
 };
 
 export const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {

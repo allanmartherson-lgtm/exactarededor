@@ -139,6 +139,7 @@ const NewPayment = () => {
   const [paymentDueDate, setPaymentDueDate] = useState(""); // YYYY-MM-DD
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
+  const [costCenter, setCostCenter] = useState("");
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -250,6 +251,7 @@ const NewPayment = () => {
         payment_due_date: paymentDueDate || null,
         payment_type: paymentType as PaymentType,
         payment_kind: paymentKind as PaymentKind,
+        cost_center: costCenter.trim() || null,
       })
       .select()
       .single();
@@ -346,6 +348,10 @@ const NewPayment = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="cc">Centro de custos</Label>
+                <Input id="cc" value={costCenter} onChange={(e) => setCostCenter(e.target.value)} placeholder="Ex: CC-001 / Cirurgia Geral" />
               </div>
             </div>
             <div className="space-y-2">
