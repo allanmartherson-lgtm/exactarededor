@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
+import { CostCenterCombobox } from "@/components/CostCenterCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -139,7 +140,7 @@ const NewPayment = () => {
   const [paymentDueDate, setPaymentDueDate] = useState(""); // YYYY-MM-DD
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
-  const [costCenter, setCostCenter] = useState("");
+  const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -251,7 +252,7 @@ const NewPayment = () => {
         payment_due_date: paymentDueDate || null,
         payment_type: paymentType as PaymentType,
         payment_kind: paymentKind as PaymentKind,
-        cost_center: costCenter.trim() || null,
+        cost_center_code: costCenterCode,
       })
       .select()
       .single();
@@ -350,8 +351,9 @@ const NewPayment = () => {
                 </Select>
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="cc">Centro de custos</Label>
-                <Input id="cc" value={costCenter} onChange={(e) => setCostCenter(e.target.value)} placeholder="Ex: CC-001 / Cirurgia Geral" />
+                <Label>Centro de custos (padrão do lote)</Label>
+                <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
+                <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
               </div>
             </div>
             <div className="space-y-2">

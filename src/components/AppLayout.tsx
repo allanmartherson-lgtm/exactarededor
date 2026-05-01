@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
-import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2 } from "lucide-react";
+import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -12,6 +12,7 @@ const nav = [
   { to: "/regras", label: "Regras", icon: ScrollText, roles: ["diretor", "admin"] as const },
   { to: "/tabelas", label: "Tabelas de referência", icon: Table2, roles: ["diretor", "admin"] as const },
   { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] as const },
+  { to: "/centros-de-custo", label: "Centros de custo", icon: Network, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"] as const },
 ];
 
