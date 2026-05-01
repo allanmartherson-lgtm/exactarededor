@@ -251,7 +251,7 @@ const NewPayment = () => {
         payment_due_date: paymentDueDate || null,
         payment_type: paymentType as PaymentType,
         payment_kind: paymentKind as PaymentKind,
-        cost_center: costCenter.trim() || null,
+        cost_center_code: costCenter.trim() || null,
       })
       .select()
       .single();
