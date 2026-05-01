@@ -743,7 +743,7 @@ export type Database = {
         | "pago"
         | "rejeitado"
         | "cancelado"
-      payment_type: "producao" | "remessa" | "valor_fixo" | "plantao" | "misto"
+      payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind: "simples" | "cbhpm"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
       rule_scope: "master" | "especifica"
@@ -911,7 +911,7 @@ export const Constants = {
         "rejeitado",
         "cancelado",
       ],
-      payment_type: ["producao", "remessa", "valor_fixo", "plantao", "misto"],
+      payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: ["simples", "cbhpm"],
       rule_payment_term: ["qualquer", "prioridade", "habitual"],
       rule_scope: ["master", "especifica"],
