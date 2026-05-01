@@ -62,12 +62,12 @@ serve(async (req) => {
     let refIndex: Record<string, {
       name: string;
       kind: string;
-      items: { code: string; description: string | null; amount: number | null; port: string | null; aux_count: number | null }[];
+      items: { code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number; aux_count: number | null }[];
       portValues: Record<string, number>;
     }> = {};
     if (refIds.length > 0) {
       const { data: refTables } = await supabase.from("reference_tables").select("id,name,kind").in("id", refIds);
-      const { data: refItems } = await supabase.from("reference_table_items").select("reference_table_id,code,description,amount,port,aux_count").in("reference_table_id", refIds);
+      const { data: refItems } = await supabase.from("reference_table_items").select("reference_table_id,code,description,amount,port,port_multiplier,aux_count").in("reference_table_id", refIds);
       const { data: refPortValues } = await supabase.from("reference_table_port_values").select("reference_table_id,port,amount").in("reference_table_id", refIds);
       for (const t of refTables ?? []) refIndex[t.id] = { name: t.name, kind: (t as any).kind ?? "simples", items: [], portValues: {} };
       for (const it of refItems ?? []) {
@@ -77,6 +77,7 @@ serve(async (req) => {
           description: it.description,
           amount: it.amount != null ? Number(it.amount) : null,
           port: (it as any).port ?? null,
+          port_multiplier: Number((it as any).port_multiplier ?? 1),
           aux_count: (it as any).aux_count ?? null,
         });
       }
@@ -122,7 +123,12 @@ serve(async (req) => {
       Object.entries(refIndex).map(([_id, t]) => {
         if (t.kind === "cbhpm") {
           const ports = Object.entries(t.portValues).map(([p, v]) => `${p}=R$${v}`).join("; ");
-          const sample = t.items.slice(0, 300).map(i => `${i.code}→porte:${i.port ?? "?"}${i.aux_count != null ? ` aux:${i.aux_count}` : ""}${i.description ? ` (${i.description})` : ""}`).join("; ");
+          const sample = t.items.slice(0, 300).map(i => {
+            const porteStr = i.port
+              ? (i.port_multiplier && i.port_multiplier !== 1 ? `${i.port_multiplier}×${i.port}` : i.port)
+              : "?";
+            return `${i.code}→porte:${porteStr}${i.aux_count != null ? ` aux:${i.aux_count}` : ""}${i.description ? ` (${i.description})` : ""}`;
+          }).join("; ");
           return `# ${t.name} [CBHPM]\nPORTES: ${ports}\nCÓDIGOS: ${sample}${t.items.length > 300 ? ` ...(+${t.items.length-300})` : ""}`;
         }
         const sample = t.items.slice(0, 200).map(i => `${i.code}=R$${i.amount ?? 0}${i.description ? ` (${i.description})` : ""}`).join("; ");
@@ -154,7 +160,7 @@ CÁLCULO DE VALOR ESPERADO (quando a regra tem rule_type diferente de 'informati
 - pacote: valor esperado = package_amount.
 - tabela_diferenciada:
     * Se a tabela for [SIMPLES]: valor_base = amount do código. Esperado = valor_base × multiplier (default 1) × (1 − deflator_pct/100).
-    * Se a tabela for [CBHPM]: encontre o código na lista CÓDIGOS, pegue seu PORTE; depois pegue o valor desse porte na lista PORTES. valor_base = valor_porte. Esperado = valor_porte × multiplier (default 1) × (1 − deflator_pct/100).
+    * Se a tabela for [CBHPM]: encontre o código na lista CÓDIGOS no formato "porte:FRACAO×BASE" (ex.: "0.1×1A") ou só "BASE" (ex.: "6B" = 1×6B). Pegue o valor do porte BASE na lista PORTES e multiplique pela FRACAO. valor_base = valor_porte_base × fracao. Esperado = valor_base × multiplier (default 1) × (1 − deflator_pct/100). Importante: muitos atos laboratoriais/transfusionais usam frações do porte 1A (ex.: "0.1×1A" = 10% do valor de 1A).
     * Se "AUX" estiver indicado na regra: some valor_aux = valor_base × aux_count × (auxiliary_pct/100, default 30%). Esperado_total = esperado_cirurgião + valor_aux.
     * Se a tabela não tiver o código (ou o porte não tiver valor), marque como alerta e descreva no calculation_explanation.
 - bonus: valor esperado = valor_bruto (do convênio, vindo da planilha) + bonus_amount OU + (valor_bruto * bonus_pct/100).

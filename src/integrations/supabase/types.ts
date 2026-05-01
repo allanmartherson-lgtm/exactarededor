@@ -264,6 +264,7 @@ export type Database = {
           description: string | null
           id: string
           port: string | null
+          port_multiplier: number
           reference_table_id: string
         }
         Insert: {
@@ -274,6 +275,7 @@ export type Database = {
           description?: string | null
           id?: string
           port?: string | null
+          port_multiplier?: number
           reference_table_id: string
         }
         Update: {
@@ -284,6 +286,7 @@ export type Database = {
           description?: string | null
           id?: string
           port?: string | null
+          port_multiplier?: number
           reference_table_id?: string
         }
         Relationships: [
