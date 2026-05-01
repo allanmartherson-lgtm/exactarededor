@@ -25,10 +25,8 @@ import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -160,8 +158,7 @@ const Rules = () => {
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
-  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
-  const [filterCompanyOpen, setFilterCompanyOpen] = useState(false);
+  const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -427,8 +424,8 @@ const Rules = () => {
 
   // filtered + grouped
   const filtered = useMemo(() => {
-    const company = filterCompanyId ? companies.find((c) => c.id === filterCompanyId) : null;
-    const companyDigits = company?.document ? onlyDigits(company.document) : null;
+    const filterCompanyId = filterCompany?.id ?? null;
+    const companyDigits = filterCompany?.document ? onlyDigits(filterCompany.document) : null;
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
@@ -445,7 +442,7 @@ const Rules = () => {
       }
       return true;
     });
-  }, [rules, companies, filterScope, filterSector, filterType, filterTarget, filterCompanyId, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterType, filterTarget, filterCompany, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
