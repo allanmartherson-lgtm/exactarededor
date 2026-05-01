@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/status";
+import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface ParsedRow {
@@ -134,6 +135,10 @@ const NewPayment = () => {
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
+  const [competenceMonth, setCompetenceMonth] = useState(""); // YYYY-MM
+  const [paymentDueDate, setPaymentDueDate] = useState(""); // YYYY-MM-DD
+  const [paymentType, setPaymentType] = useState<PaymentType | "">("");
+  const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -209,6 +214,15 @@ const NewPayment = () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
     }
+    if (!competenceMonth) {
+      toast({ title: "Informe a competência (mês de apuração)", variant: "destructive" }); return;
+    }
+    if (!paymentType) {
+      toast({ title: "Selecione o tipo de pagamento", variant: "destructive" }); return;
+    }
+    if (!paymentKind) {
+      toast({ title: "Selecione a categoria do pagamento", variant: "destructive" }); return;
+    }
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
@@ -232,6 +246,10 @@ const NewPayment = () => {
         items_count: allRows.length,
         source_file_path: uploadedPaths[0] ?? null,
         created_by: user!.id,
+        competence_month: `${competenceMonth}-01`,
+        payment_due_date: paymentDueDate || null,
+        payment_type: paymentType as PaymentType,
+        payment_kind: paymentKind as PaymentKind,
       })
       .select()
       .single();
