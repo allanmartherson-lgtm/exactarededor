@@ -47,6 +47,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_center_imports: {
+        Row: {
+          created_count: number
+          deactivated_count: number
+          file_name: string | null
+          id: string
+          imported_at: string
+          imported_by: string
+          reverted_at: string | null
+          reverted_by: string | null
+          rows_in_file: number
+          snapshot: Json
+          status: string
+          updated_count: number
+        }
+        Insert: {
+          created_count?: number
+          deactivated_count?: number
+          file_name?: string | null
+          id?: string
+          imported_at?: string
+          imported_by: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+          rows_in_file?: number
+          snapshot: Json
+          status?: string
+          updated_count?: number
+        }
+        Update: {
+          created_count?: number
+          deactivated_count?: number
+          file_name?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+          rows_in_file?: number
+          snapshot?: Json
+          status?: string
+          updated_count?: number
+        }
+        Relationships: []
+      }
       cost_centers: {
         Row: {
           active: boolean
@@ -637,6 +682,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "diretor" | "validador" | "analista"
