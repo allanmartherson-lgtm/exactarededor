@@ -14,7 +14,7 @@ import * as XLSX from "xlsx";
 
 type RefKind = "simples" | "cbhpm";
 type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; created_at: string };
-type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; aux_count: number | null };
+type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
 type PortValue = { id: string; port: string; amount: number };
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -171,20 +171,37 @@ const ReferenceTables = () => {
                 const descKey =
                   Object.keys(row).find((k) => /descri.*procedim/i.test(k)) ??
                   findKey(row, ["descrição", "descricao", "procedimento"]);
-                const portKey =
+                // CBHPM oficial: o "Porte" real é a leitura conjunta de 3 colunas
+                //   H = fração (0,10 / 0,04 / 1 / vazio)
+                //   I = preposição "de" (descartável)
+                //   J = porte base ("1A", "6B"…)
+                // No pandas/xlsx essas colunas chegam como "Porte" (H), "Unnamed: 8" (I) e "Unnamed: 9" (J).
+                const fractionKey =
                   Object.keys(row).find((k) => k.trim().toLowerCase() === "porte") ??
-                  Object.keys(row).find((k) => /unnamed:\s*9/i.test(k));
+                  Object.keys(row).find((k) => /unnamed:\s*7/i.test(k));
+                const portBaseKey =
+                  Object.keys(row).find((k) => /unnamed:\s*9/i.test(k)) ??
+                  Object.keys(row).find((k) => k.trim().toLowerCase() === "porte base");
                 const auxKey = Object.keys(row).find((k) => /n[º°ºo]?\s*de\s*aux|aux/i.test(k));
                 const code = codeKey ? String(row[codeKey]).trim() : "";
                 if (!code || /^id do/i.test(code)) return null;
-                let port: string | null = portKey ? String(row[portKey]).trim() : null;
+                // Porte base (chave para buscar valor monetário)
+                let port: string | null = portBaseKey ? String(row[portBaseKey]).trim() : null;
                 if (!port || port === "" || port.toLowerCase() === "nan") port = null;
+                // Fração: pode vir como número (0,10) ou texto vazio. Vazio => 1 (porte cheio).
+                const fracRaw = fractionKey ? row[fractionKey] : null;
+                let portMultiplier: number = 1;
+                if (fracRaw !== "" && fracRaw != null) {
+                  const n = parseNumber(fracRaw);
+                  if (n != null && n > 0) portMultiplier = n;
+                }
                 const auxRaw = auxKey ? parseNumber(row[auxKey]) : null;
                 return {
                   reference_table_id: selected.id,
                   code,
                   description: descKey ? String(row[descKey]) : null,
                   port,
+                  port_multiplier: portMultiplier,
                   aux_count: auxRaw != null ? Math.round(auxRaw) : null,
                   amount: null,
                 };
