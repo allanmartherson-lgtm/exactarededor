@@ -23,6 +23,7 @@ import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronR
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
