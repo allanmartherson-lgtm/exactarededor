@@ -14,16 +14,345 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      invoices: {
+        Row: {
+          created_at: string
+          expected_amount: number
+          file_path: string | null
+          id: string
+          invoice_number: string | null
+          payment_id: string
+          received_amount: number | null
+          received_at: string | null
+          recipient_email: string
+          reconciliation_notes: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          upload_token: string
+        }
+        Insert: {
+          created_at?: string
+          expected_amount: number
+          file_path?: string | null
+          id?: string
+          invoice_number?: string | null
+          payment_id: string
+          received_amount?: number | null
+          received_at?: string | null
+          recipient_email: string
+          reconciliation_notes?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+          upload_token?: string
+        }
+        Update: {
+          created_at?: string
+          expected_amount?: number
+          file_path?: string | null
+          id?: string
+          invoice_number?: string | null
+          payment_id?: string
+          received_amount?: number | null
+          received_at?: string | null
+          recipient_email?: string
+          reconciliation_notes?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+          upload_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_items: {
+        Row: {
+          ai_findings: Json | null
+          ai_status: Database["public"]["Enums"]["item_ai_status"]
+          created_at: string
+          description: string | null
+          doctor_document: string | null
+          doctor_email: string | null
+          doctor_name: string
+          gross_amount: number
+          id: string
+          payment_id: string
+          raw_data: Json | null
+        }
+        Insert: {
+          ai_findings?: Json | null
+          ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          created_at?: string
+          description?: string | null
+          doctor_document?: string | null
+          doctor_email?: string | null
+          doctor_name: string
+          gross_amount?: number
+          id?: string
+          payment_id: string
+          raw_data?: Json | null
+        }
+        Update: {
+          ai_findings?: Json | null
+          ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          created_at?: string
+          description?: string | null
+          doctor_document?: string | null
+          doctor_email?: string | null
+          doctor_name?: string
+          gross_amount?: number
+          id?: string
+          payment_id?: string
+          raw_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_observations: {
+        Row: {
+          author_id: string | null
+          author_type: Database["public"]["Enums"]["observation_author"]
+          created_at: string
+          id: string
+          item_id: string | null
+          message: string
+          payment_id: string
+          status_from: Database["public"]["Enums"]["payment_status"] | null
+          status_to: Database["public"]["Enums"]["payment_status"] | null
+        }
+        Insert: {
+          author_id?: string | null
+          author_type: Database["public"]["Enums"]["observation_author"]
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          message: string
+          payment_id: string
+          status_from?: Database["public"]["Enums"]["payment_status"] | null
+          status_to?: Database["public"]["Enums"]["payment_status"] | null
+        }
+        Update: {
+          author_id?: string | null
+          author_type?: Database["public"]["Enums"]["observation_author"]
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          message?: string
+          payment_id?: string
+          status_from?: Database["public"]["Enums"]["payment_status"] | null
+          status_to?: Database["public"]["Enums"]["payment_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_observations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_observations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          ai_summary: string | null
+          approval_pdf_path: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          items_count: number
+          reference: string
+          source_file_path: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          total_amount: number
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          approval_pdf_path?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          items_count?: number
+          reference: string
+          source_file_path?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          total_amount?: number
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          approval_pdf_path?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          items_count?: number
+          reference?: string
+          source_file_path?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          total_amount?: number
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          rule_json: Json | null
+          rule_text: string
+          severity: Database["public"]["Enums"]["rule_severity"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          rule_json?: Json | null
+          rule_text: string
+          severity?: Database["public"]["Enums"]["rule_severity"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          rule_json?: Json | null
+          rule_text?: string
+          severity?: Database["public"]["Enums"]["rule_severity"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "diretor" | "validador" | "analista"
+      invoice_status: "aguardando" | "recebida" | "conciliada" | "divergente"
+      item_ai_status: "pendente" | "aprovado" | "alerta" | "reprovado"
+      observation_author:
+        | "ia"
+        | "analista"
+        | "validador"
+        | "diretor"
+        | "sistema"
+      payment_status:
+        | "rascunho"
+        | "em_analise_ia"
+        | "aguardando_validacao"
+        | "devolvido_analista"
+        | "aguardando_aprovacao"
+        | "devolvido_validador"
+        | "aprovado"
+        | "pedido_nf_enviado"
+        | "nf_recebida"
+        | "nf_conciliada"
+        | "nf_divergente"
+        | "pago"
+        | "rejeitado"
+      rule_severity: "info" | "aviso" | "bloqueio"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +479,27 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "diretor", "validador", "analista"],
+      invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
+      item_ai_status: ["pendente", "aprovado", "alerta", "reprovado"],
+      observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
+      payment_status: [
+        "rascunho",
+        "em_analise_ia",
+        "aguardando_validacao",
+        "devolvido_analista",
+        "aguardando_aprovacao",
+        "devolvido_validador",
+        "aprovado",
+        "pedido_nf_enviado",
+        "nf_recebida",
+        "nf_conciliada",
+        "nf_divergente",
+        "pago",
+        "rejeitado",
+      ],
+      rule_severity: ["info", "aviso", "bloqueio"],
+    },
   },
 } as const
