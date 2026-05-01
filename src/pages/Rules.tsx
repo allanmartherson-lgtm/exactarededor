@@ -425,12 +425,39 @@ const Rules = () => {
                       <SelectContent>{Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5"><Label>Setor / Item Pagamento</Label>
-                    <Select value={fSector} onValueChange={(v) => setFSector(v as RuleSector)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                    </Select>
+                  <div className="space-y-1.5"><Label>Setor / Item Pagamento (multi)</Label>
+                    <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                      {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
+                        const checked = fSectors.includes(k);
+                        return (
+                          <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                            onClick={() => setFSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
+                            {RULE_SECTOR_LABELS[k]}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Vazio = aplica a todos os setores.</p>
                   </div>
+                </div>
+
+                <div className="space-y-1.5"><Label>Especialidade(s)</Label>
+                  <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5"><Label>Vigência — início</Label>
+                    <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5"><Label>Vigência — fim</Label>
+                    <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                  <Label>Médicos nomeados (opcional)</Label>
+                  <DoctorsEditor value={fDoctors} onChange={setFDoctors} />
+                  <p className="text-xs text-muted-foreground">Use quando a regra menciona médicos específicos por nome/CRM.</p>
                 </div>
 
                 {scope === "especifica" && (
