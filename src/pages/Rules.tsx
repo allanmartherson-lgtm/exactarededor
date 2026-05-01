@@ -19,7 +19,7 @@ import {
   RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2 } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
@@ -160,6 +160,8 @@ const Rules = () => {
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
+  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
+  const [filterCompanyOpen, setFilterCompanyOpen] = useState(false);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -424,13 +426,26 @@ const Rules = () => {
   };
 
   // filtered + grouped
-  const filtered = useMemo(() => rules.filter((r) =>
-    (filterScope === "todos" || r.scope === filterScope) &&
-    (filterSector === "todos" || (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector)) &&
-    (filterType === "todos" || r.rule_type === filterType) &&
-    (!onlyIncomplete || isIncomplete(r)) &&
-    (!filterTarget.trim() || `${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase()))
-  ), [rules, filterScope, filterSector, filterType, filterTarget, onlyIncomplete]);
+  const filtered = useMemo(() => {
+    const company = filterCompanyId ? companies.find((c) => c.id === filterCompanyId) : null;
+    const companyDigits = company?.document ? onlyDigits(company.document) : null;
+    return rules.filter((r) => {
+      if (filterScope !== "todos" && r.scope !== filterScope) return false;
+      const sectorOk = filterSector === "todos" ||
+        (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector);
+      if (!sectorOk) return false;
+      if (filterType !== "todos" && r.rule_type !== filterType) return false;
+      if (onlyIncomplete && !isIncomplete(r)) return false;
+      if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
+      if (filterCompanyId) {
+        const linked = r.target_company_id === filterCompanyId;
+        // fallback para regras antigas ainda não vinculadas: compara CNPJ por dígitos
+        const matchByCnpj = !linked && companyDigits && r.target_identifier && onlyDigits(r.target_identifier) === companyDigits;
+        if (!linked && !matchByCnpj) return false;
+      }
+      return true;
+    });
+  }, [rules, companies, filterScope, filterSector, filterType, filterTarget, filterCompanyId, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -904,6 +919,61 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
+          <Popover open={filterCompanyOpen} onOpenChange={setFilterCompanyOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" role="combobox"
+                className={cn("min-w-[240px] justify-between font-normal", !filterCompanyId && "text-muted-foreground")}>
+                {filterCompanyId
+                  ? (() => {
+                      const c = companies.find((x) => x.id === filterCompanyId);
+                      return c ? `${c.name}${c.document ? ` · ${formatCNPJ(c.document)}` : ""}` : "Empresa cadastrada";
+                    })()
+                  : "Filtrar por empresa (CNPJ)…"}
+                <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[360px] p-0" align="start">
+              <Command
+                filter={(value, search) => {
+                  const v = value.toLowerCase();
+                  const s = search.toLowerCase();
+                  if (v.includes(s)) return 1;
+                  const digits = onlyDigits(search);
+                  if (digits && v.includes(digits)) return 1;
+                  return 0;
+                }}
+              >
+                <CommandInput placeholder="Buscar por nome ou CNPJ…" />
+                <CommandList>
+                  <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                  <CommandGroup>
+                    {companies.map((c) => {
+                      const checked = filterCompanyId === c.id;
+                      const docMasked = c.document ? formatCNPJ(c.document) : "—";
+                      return (
+                        <CommandItem
+                          key={c.id}
+                          value={`${c.name} ${c.document ?? ""} ${onlyDigits(c.document ?? "")}`}
+                          onSelect={() => { setFilterCompanyId(c.id); setFilterCompanyOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
+                          <div className="flex flex-col">
+                            <span>{c.name}</span>
+                            <span className="text-xs text-muted-foreground">CNPJ {docMasked}</span>
+                          </div>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {filterCompanyId && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterCompanyId(null)}>
+              <X className="h-3.5 w-3.5 mr-1" /> Limpar empresa
+            </Button>
+          )}
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
             <span>Só desatualizadas</span>
