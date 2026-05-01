@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/PageHeader";
 import { CostCenterCombobox } from "@/components/CostCenterCombobox";
+import { MonthMultiSelect } from "@/components/MonthMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -139,7 +140,7 @@ const NewPayment = () => {
   const navigate = useNavigate();
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
-  const [competenceMonth, setCompetenceMonth] = useState(""); // YYYY-MM
+  const [competenceMonths, setCompetenceMonths] = useState<string[]>([]); // ["YYYY-MM", ...]
   const [paymentDueDate, setPaymentDueDate] = useState(""); // YYYY-MM-DD
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
@@ -221,8 +222,8 @@ const NewPayment = () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
     }
-    if (!competenceMonth) {
-      toast({ title: "Informe a competência (mês de apuração)", variant: "destructive" }); return;
+    if (competenceMonths.length === 0) {
+      toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
     if (!paymentType) {
       toast({ title: "Selecione o tipo de pagamento", variant: "destructive" }); return;
@@ -253,7 +254,8 @@ const NewPayment = () => {
         items_count: allRows.length,
         source_file_path: uploadedPaths[0] ?? null,
         created_by: user!.id,
-        competence_month: `${competenceMonth}-01`,
+        competence_month: `${[...competenceMonths].sort()[0]}-01`,
+        competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
         payment_type: paymentType as PaymentType,
         payment_kind: paymentKind as PaymentKind,
@@ -331,7 +333,8 @@ const NewPayment = () => {
         items_count: allRows.length,
         payment_type: paymentType,
         payment_kind: paymentKind,
-        competence_month: `${competenceMonth}-01`,
+        competence_month: `${[...competenceMonths].sort()[0]}-01`,
+        competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         sectors: pSectors,
         specialties: pSpecialties,
       };
@@ -365,7 +368,13 @@ const NewPayment = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="competence">Competência (mês de apuração) *</Label>
-                <Input id="competence" type="month" value={competenceMonth} onChange={(e) => setCompetenceMonth(e.target.value)} />
+                <MonthMultiSelect
+                  id="competence"
+                  value={competenceMonths}
+                  onChange={setCompetenceMonths}
+                  placeholder="Selecione um ou mais meses"
+                />
+                <p className="text-xs text-muted-foreground">Você pode marcar mais de um mês quando o lote cobrir várias competências.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="due">Previsão de pagamento</Label>
