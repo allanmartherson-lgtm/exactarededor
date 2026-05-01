@@ -269,6 +269,8 @@ const Rules = () => {
     const linkedCompany = (isEspecifica && targetType === "empresa")
       ? companies.find((c) => c.name === payload.target_name || (c.document && payload.target_identifier && onlyDigits(c.document) === onlyDigits(payload.target_identifier))) ?? null
       : null;
+    // Preenche o vínculo direto (FK) com a empresa cadastrada quando houver match exato de CNPJ.
+    payload.target_company_id = (isEspecifica && targetType === "empresa") ? (linkedCompany?.id ?? null) : null;
     const auditCompany = (isEspecifica && targetType === "empresa") ? {
       id: linkedCompany?.id ?? null,
       name: payload.target_name ?? linkedCompany?.name ?? null,
