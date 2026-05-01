@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          company_document: string | null
+          company_id: string | null
+          company_name: string | null
+          created_at: string
+          diff: Json
+          entity_id: string
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          company_document?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string
+          diff?: Json
+          entity_id: string
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          company_document?: string | null
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string
+          diff?: Json
+          entity_id?: string
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           aliases: string[]
