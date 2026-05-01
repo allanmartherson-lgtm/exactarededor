@@ -26,6 +26,7 @@ const PaymentDetail = () => {
   const [items, setItems] = useState<any[]>([]);
   const [obs, setObs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [rulesIndex, setRulesIndex] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -42,6 +43,16 @@ const PaymentDetail = () => {
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
+    // Carrega regras citadas pela IA para mostrar resumo + link
+    const ids = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
+    if (ids.length > 0) {
+      const { data: rs } = await supabase.from("rules").select("id,name,rule_text,description").in("id", ids);
+      const idx: Record<string, any> = {};
+      (rs ?? []).forEach((r: any) => { idx[r.id] = r; });
+      setRulesIndex(idx);
+    } else {
+      setRulesIndex({});
+    }
   }, [id]);
 
   useEffect(() => { document.title = "Pagamento | MedPay"; load(); }, [load]);
@@ -275,25 +286,78 @@ const PaymentDetail = () => {
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr><th className="px-4 py-2">Médico</th><th className="px-4 py-2">Documento</th><th className="px-4 py-2">Descrição</th><th className="px-4 py-2 text-right">Valor</th><th className="px-4 py-2">IA</th></tr>
+                  <tr>
+                    <th className="px-3 py-2">Atend.</th>
+                    <th className="px-3 py-2">Paciente</th>
+                    <th className="px-3 py-2">Convênio</th>
+                    <th className="px-3 py-2">Médico / Função</th>
+                    <th className="px-3 py-2">TUSS</th>
+                    <th className="px-3 py-2">Descrição</th>
+                    <th className="px-3 py-2 text-right">Qtd</th>
+                    <th className="px-3 py-2 text-right">Valor</th>
+                    <th className="px-3 py-2">Regra</th>
+                    <th className="px-3 py-2">IA</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {items.map((it) => (
-                    <tr key={it.id} className="align-top">
-                      <td className="px-4 py-3"><div className="font-medium">{it.doctor_name}</div><div className="text-xs text-muted-foreground">{it.doctor_email}</div></td>
-                      <td className="px-4 py-3 text-muted-foreground">{it.doctor_document ?? "—"}</td>
-                      <td className="px-4 py-3">
-                        {it.description ?? "—"}
-                        {it.ai_findings?.alerts?.length > 0 && (
-                          <ul className="mt-1 text-xs text-warning-foreground space-y-0.5">
-                            {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
-                          </ul>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCurrency(it.gross_amount)}</td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
-                    </tr>
-                  ))}
+                  {items.map((it) => {
+                    const raw = (it.raw_data ?? {}) as Record<string, any>;
+                    const paciente = raw["Paciente"] ?? raw["paciente"] ?? "—";
+                    const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
+                    const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
+                    const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
+                    return (
+                      <tr key={it.id} className="align-top">
+                        <td className="px-3 py-3 text-xs font-mono text-muted-foreground">{it.attendance_number ?? "—"}</td>
+                        <td className="px-3 py-3">{paciente}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{convenio}</td>
+                        <td className="px-3 py-3">
+                          <div className="font-medium">{it.doctor_name}</div>
+                          <div className="text-xs text-muted-foreground">{it.doctor_role ?? "—"}</div>
+                        </td>
+                        <td className="px-3 py-3 font-mono text-xs">{it.procedure_code ?? "—"}</td>
+                        <td className="px-3 py-3 max-w-[260px]">
+                          <div>{it.description ?? "—"}</div>
+                          {it.ai_findings?.alerts?.length > 0 && (
+                            <ul className="mt-1 text-xs text-warning-foreground space-y-0.5">
+                              {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
+                            </ul>
+                          )}
+                          {it.ai_findings?.calculation_explanation && (
+                            <div className="mt-1 text-xs text-muted-foreground italic">{it.ai_findings.calculation_explanation}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
+                        <td className="px-3 py-3 text-right tabular-nums font-medium">{formatCurrency(it.gross_amount)}</td>
+                        <td className="px-3 py-3 max-w-[220px]">
+                          {matchedIds.length === 0 && matchedNames.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {(matchedIds.length ? matchedIds : matchedNames).map((key, i) => {
+                                const r = matchedIds.length ? rulesIndex[key] : null;
+                                const label = r?.name ?? matchedNames[i] ?? key;
+                                const tip = r ? `${r.rule_text}${r.description ? ` — ${r.description}` : ""}` : "";
+                                return r?.id ? (
+                                  <Link
+                                    key={i}
+                                    to={`/regras?rule=${r.id}`}
+                                    title={tip}
+                                    className="text-xs text-primary hover:underline truncate"
+                                  >
+                                    {label}
+                                  </Link>
+                                ) : (
+                                  <span key={i} className="text-xs text-muted-foreground truncate" title={label}>{label}</span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </CardContent>
