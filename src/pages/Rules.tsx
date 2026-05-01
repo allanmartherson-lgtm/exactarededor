@@ -25,10 +25,8 @@ import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -96,7 +94,6 @@ const Rules = () => {
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
-  const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -160,8 +157,7 @@ const Rules = () => {
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
-  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
-  const [filterCompanyOpen, setFilterCompanyOpen] = useState(false);
+  const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -427,8 +423,8 @@ const Rules = () => {
 
   // filtered + grouped
   const filtered = useMemo(() => {
-    const company = filterCompanyId ? companies.find((c) => c.id === filterCompanyId) : null;
-    const companyDigits = company?.document ? onlyDigits(company.document) : null;
+    const filterCompanyId = filterCompany?.id ?? null;
+    const companyDigits = filterCompany?.document ? onlyDigits(filterCompany.document) : null;
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
@@ -445,7 +441,7 @@ const Rules = () => {
       }
       return true;
     });
-  }, [rules, companies, filterScope, filterSector, filterType, filterTarget, filterCompanyId, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterType, filterTarget, filterCompany, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -663,40 +659,15 @@ const Rules = () => {
                       <div className="space-y-2">
                         <div className="space-y-1.5">
                           <Label>Empresa cadastrada</Label>
-                          <Popover open={companyPickerOpen} onOpenChange={setCompanyPickerOpen}>
-                            <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !fTargetName && "text-muted-foreground")}>
-                                {fTargetName || "Selecionar empresa…"}
-                                <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Buscar empresa…" />
-                                <CommandList>
-                                  <CommandEmpty>{companies.length ? "Nenhuma empresa encontrada." : "Nenhuma empresa cadastrada."}</CommandEmpty>
-                                  <CommandGroup>
-                                    {companies.map((c) => {
-                                      const checked = fTargetName === c.name && (fTargetIdentifier ?? "") === (c.document ?? "");
-                                      return (
-                                        <CommandItem key={c.id} value={`${c.name} ${c.document ?? ""}`} onSelect={() => {
-                                          setFTargetName(c.name);
-                                          setFTargetIdentifier(c.document ? formatCNPJ(c.document) : "");
-                                          setCompanyPickerOpen(false);
-                                        }}>
-                                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
-                                          <div className="flex flex-col">
-                                            <span>{c.name}</span>
-                                            {c.document && <span className="text-xs text-muted-foreground">{c.document}</span>}
-                                          </div>
-                                        </CommandItem>
-                                      );
-                                    })}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                          <CompanyCombobox
+                            value={fTargetName ? { id: "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
+                            onChange={(c) => {
+                              setFTargetName(c?.name ?? "");
+                              setFTargetIdentifier(c?.document ? formatCNPJ(c.document) : "");
+                            }}
+                            placeholder="Selecionar empresa…"
+                            className="w-full"
+                          />
                           <p className="text-xs text-muted-foreground">Puxa nome e CNPJ direto do cadastro de empresas.</p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -919,58 +890,14 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
-          <Popover open={filterCompanyOpen} onOpenChange={setFilterCompanyOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" role="combobox"
-                className={cn("min-w-[240px] justify-between font-normal", !filterCompanyId && "text-muted-foreground")}>
-                {filterCompanyId
-                  ? (() => {
-                      const c = companies.find((x) => x.id === filterCompanyId);
-                      return c ? `${c.name}${c.document ? ` · ${formatCNPJ(c.document)}` : ""}` : "Empresa cadastrada";
-                    })()
-                  : "Filtrar por empresa (CNPJ)…"}
-                <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[360px] p-0" align="start">
-              <Command
-                filter={(value, search) => {
-                  const v = value.toLowerCase();
-                  const s = search.toLowerCase();
-                  if (v.includes(s)) return 1;
-                  const digits = onlyDigits(search);
-                  if (digits && v.includes(digits)) return 1;
-                  return 0;
-                }}
-              >
-                <CommandInput placeholder="Buscar por nome ou CNPJ…" />
-                <CommandList>
-                  <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-                  <CommandGroup>
-                    {companies.map((c) => {
-                      const checked = filterCompanyId === c.id;
-                      const docMasked = c.document ? formatCNPJ(c.document) : "—";
-                      return (
-                        <CommandItem
-                          key={c.id}
-                          value={`${c.name} ${c.document ?? ""} ${onlyDigits(c.document ?? "")}`}
-                          onSelect={() => { setFilterCompanyId(c.id); setFilterCompanyOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
-                          <div className="flex flex-col">
-                            <span>{c.name}</span>
-                            <span className="text-xs text-muted-foreground">CNPJ {docMasked}</span>
-                          </div>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {filterCompanyId && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCompanyId(null)}>
+          <CompanyCombobox
+            value={filterCompany}
+            onChange={setFilterCompany}
+            placeholder="Filtrar por empresa (CNPJ)…"
+            className="min-w-[240px] h-9"
+          />
+          {filterCompany && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)}>
               <X className="h-3.5 w-3.5 mr-1" /> Limpar empresa
             </Button>
           )}
