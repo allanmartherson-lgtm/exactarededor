@@ -343,9 +343,17 @@ const PaymentDetail = () => {
                     const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
                     const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
                     const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
-                    const matchedRuleObjs: RuleLite[] = matchedIds
-                      .map((id) => rulesIndex[id])
-                      .filter(Boolean) as RuleLite[];
+                    // Resolve regras por id (preferencial) e por nome (fallback) para manter o link sempre clicável
+                    const seen = new Set<string>();
+                    const matchedRuleObjs: RuleLite[] = [];
+                    matchedIds.forEach((rid) => {
+                      const r = rulesIndex[rid];
+                      if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
+                    });
+                    matchedNames.forEach((nm) => {
+                      const r = rulesByName[String(nm).trim().toLowerCase()];
+                      if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
+                    });
                     const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
                     const firstRule = matchedRuleObjs[0] ?? null;
                     const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
@@ -375,7 +383,21 @@ const PaymentDetail = () => {
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
                         <td className="px-3 py-3 text-right">
-                          {tooltipNode ? (
+                          {tooltipNode && firstRule?.id ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link
+                                  to={`/regras?rule=${firstRule.id}`}
+                                  className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
+                                >
+                                  {formatCurrency(it.gross_amount)}
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-xs">
+                                {tooltipNode}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : tooltipNode ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="tabular-nums font-medium underline decoration-dotted decoration-muted-foreground/50 cursor-help">
