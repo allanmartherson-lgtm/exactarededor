@@ -426,13 +426,26 @@ const Rules = () => {
   };
 
   // filtered + grouped
-  const filtered = useMemo(() => rules.filter((r) =>
-    (filterScope === "todos" || r.scope === filterScope) &&
-    (filterSector === "todos" || (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector)) &&
-    (filterType === "todos" || r.rule_type === filterType) &&
-    (!onlyIncomplete || isIncomplete(r)) &&
-    (!filterTarget.trim() || `${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase()))
-  ), [rules, filterScope, filterSector, filterType, filterTarget, onlyIncomplete]);
+  const filtered = useMemo(() => {
+    const company = filterCompanyId ? companies.find((c) => c.id === filterCompanyId) : null;
+    const companyDigits = company?.document ? onlyDigits(company.document) : null;
+    return rules.filter((r) => {
+      if (filterScope !== "todos" && r.scope !== filterScope) return false;
+      const sectorOk = filterSector === "todos" ||
+        (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector);
+      if (!sectorOk) return false;
+      if (filterType !== "todos" && r.rule_type !== filterType) return false;
+      if (onlyIncomplete && !isIncomplete(r)) return false;
+      if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
+      if (filterCompanyId) {
+        const linked = r.target_company_id === filterCompanyId;
+        // fallback para regras antigas ainda não vinculadas: compara CNPJ por dígitos
+        const matchByCnpj = !linked && companyDigits && r.target_identifier && onlyDigits(r.target_identifier) === companyDigits;
+        if (!linked && !matchByCnpj) return false;
+      }
+      return true;
+    });
+  }, [rules, companies, filterScope, filterSector, filterType, filterTarget, filterCompanyId, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
