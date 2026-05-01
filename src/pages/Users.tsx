@@ -59,6 +59,7 @@ const Users = () => {
           full_name: form.full_name.trim(),
           roles: form.roles,
           send_invite: form.send_invite,
+          app_origin: window.location.origin,
         },
       });
       if (error) throw error;
