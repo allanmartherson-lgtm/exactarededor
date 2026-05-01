@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,30 +14,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import {
   TONE_CLASSES,
-  type RuleSeverity,
-  type RuleScope,
-  type RuleSector,
-  type RuleTargetType,
-  type RuleType,
-  RULE_SCOPE_LABELS,
-  RULE_SECTOR_LABELS,
-  RULE_TARGET_TYPE_LABELS,
-  RULE_TYPE_LABELS,
-  RULE_TYPE_DESCRIPTIONS,
-  formatCurrency,
-  PAYMENT_TYPE_LABELS,
-  type PaymentType,
+  type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType, type RuleType,
+  RULE_SCOPE_LABELS, RULE_SECTOR_LABELS, RULE_TARGET_TYPE_LABELS,
+  RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS,
+  formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
 type PaymentTerm = "qualquer" | "prioridade" | "habitual";
 const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
-  qualquer: "Qualquer prazo",
-  prioridade: "Empresa Prioridade",
-  habitual: "Prazo Habitual",
+  qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
 };
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao", "misto"];
 
@@ -60,11 +49,22 @@ const num = (v: any): number | null => {
   return isFinite(n) ? n : null;
 };
 
+// Campos "novos" que toda regra deve ter preenchidos. Quando adicionar um novo campo,
+// inclua aqui para o sistema cobrar atualização nas regras antigas.
+const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [
+  { key: "payment_term", label: "Prazo de pagamento", isMissing: (r) => !r.payment_term || r.payment_term === "qualquer" ? false : false }, // tem default 'qualquer', considere preenchido
+  { key: "applies_payment_types", label: "Tipos de pagamento aplicáveis", isMissing: (r) => !r.applies_payment_types || r.applies_payment_types.length === 0 },
+];
+// regra fica "incompleta" se faltar QUALQUER campo novo de fato exigido
+const isIncomplete = (r: RuleRow) => REQUIRED_NEW_FIELDS.some((f) => f.isMissing(r));
+const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMissing(r)).map((f) => f.label);
+
 const Rules = () => {
   const { user } = useAuth();
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string }[]>([]);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [drafts, setDrafts] = useState<DraftRule[]>([]);
@@ -72,72 +72,131 @@ const Rules = () => {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
 
-  // form state
+  // form state (compartilhado entre Novo/Editar)
+  const [fName, setFName] = useState("");
+  const [fDescription, setFDescription] = useState("");
+  const [fRuleText, setFRuleText] = useState("");
+  const [fSeverity, setFSeverity] = useState<RuleSeverity>("aviso");
+  const [fSector, setFSector] = useState<RuleSector>("outro");
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
+  const [fTargetIdentifier, setFTargetIdentifier] = useState("");
+  const [fTargetName, setFTargetName] = useState("");
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
   const [refTableId, setRefTableId] = useState<string>("");
   const [codesInput, setCodesInput] = useState<string>("");
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
   const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
+  const [fPackageAmount, setFPackageAmount] = useState<string>("");
+  const [fBonusAmount, setFBonusAmount] = useState<string>("");
+  const [fBonusPct, setFBonusPct] = useState<string>("");
+  const [fTargetAmount, setFTargetAmount] = useState<string>("");
+  const [fMultiplier, setFMultiplier] = useState<string>("");
+  const [fDeflatorPct, setFDeflatorPct] = useState<string>("");
+  const [fIncludeAux, setFIncludeAux] = useState(false);
+  const [fAuxPct, setFAuxPct] = useState<string>("");
+
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
     [codesInput]
   );
+
+  // bulk update
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkPaymentTerm, setBulkPaymentTerm] = useState<PaymentTerm | "">("");
+  const [bulkAppliesTypes, setBulkAppliesTypes] = useState<PaymentType[]>([]);
+  const [bulkRefTableId, setBulkRefTableId] = useState<string>("");
 
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
+  const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
   const loadRefs = () => supabase.from("reference_tables").select("id,name").order("name").then(({ data }) => setRefTables((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); }, []);
 
-  const createRule = async (e: React.FormEvent<HTMLFormElement>) => {
+  const resetForm = () => {
+    setEditingId(null);
+    setFName(""); setFDescription(""); setFRuleText("");
+    setFSeverity("aviso"); setFSector("outro");
+    setScope("master"); setTargetType("medico");
+    setFTargetIdentifier(""); setFTargetName("");
+    setRuleType("informativo"); setRefTableId(""); setCodesInput("");
+    setPaymentTerm("qualquer"); setAppliesTypes([]);
+    setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
+    setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
+  };
+
+  const openEdit = (r: RuleRow) => {
+    setEditingId(r.id);
+    setFName(r.name ?? ""); setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
+    setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
+    setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
+    setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
+    setRuleType((r.rule_type as RuleType) ?? "informativo");
+    setRefTableId(r.reference_table_id ?? "");
+    setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
+    setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
+    setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
+    setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
+    setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
+    setFBonusPct(r.bonus_pct != null ? String(r.bonus_pct) : "");
+    setFTargetAmount(r.target_amount != null ? String(r.target_amount) : "");
+    setFMultiplier(r.multiplier != null ? String(r.multiplier) : "");
+    setFDeflatorPct(r.deflator_pct != null ? String(r.deflator_pct) : "");
+    setFIncludeAux(!!r.include_auxiliaries);
+    setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
+    setOpen(true);
+  };
+
+  const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
     const isEspecifica = scope === "especifica";
-    const codesRaw = String(f.get("procedure_codes") ?? "").trim();
     const payload: any = {
-      name: String(f.get("name")),
-      description: String(f.get("description")) || null,
-      rule_text: String(f.get("rule_text")),
-      severity: String(f.get("severity")) as RuleSeverity,
-      scope, sector: String(f.get("sector")) as RuleSector,
+      name: fName, description: fDescription || null, rule_text: fRuleText,
+      severity: fSeverity, scope, sector: fSector,
       target_type: isEspecifica ? targetType : null,
-      target_identifier: isEspecifica ? (String(f.get("target_identifier")) || null) : null,
-      target_name: isEspecifica ? (String(f.get("target_name")) || null) : null,
+      target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
+      target_name: isEspecifica ? (fTargetName || null) : null,
       rule_type: ruleType,
-      package_amount: ruleType === "pacote" ? num(f.get("package_amount")) : null,
-      bonus_amount: ruleType === "bonus" ? num(f.get("bonus_amount")) : null,
-      bonus_pct: ruleType === "bonus" ? num(f.get("bonus_pct")) : null,
-      target_amount: ruleType === "complemento" ? num(f.get("target_amount")) : null,
-      multiplier: ruleType === "tabela_diferenciada" ? num(f.get("multiplier")) : null,
-      deflator_pct: ruleType === "tabela_diferenciada" ? num(f.get("deflator_pct")) : null,
+      package_amount: ruleType === "pacote" ? num(fPackageAmount) : null,
+      bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
+      bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
+      target_amount: ruleType === "complemento" ? num(fTargetAmount) : null,
+      multiplier: ruleType === "tabela_diferenciada" ? num(fMultiplier) : null,
+      deflator_pct: ruleType === "tabela_diferenciada" ? num(fDeflatorPct) : null,
       reference_table_id: refTableId || null,
-      include_auxiliaries: ruleType === "tabela_diferenciada" ? f.get("include_auxiliaries") === "on" : false,
-      auxiliary_pct: ruleType === "tabela_diferenciada" ? num(f.get("auxiliary_pct")) : null,
-      procedure_codes: codesRaw ? codesRaw.split(/[,;\s]+/).filter(Boolean) : null,
+      include_auxiliaries: ruleType === "tabela_diferenciada" ? fIncludeAux : false,
+      auxiliary_pct: ruleType === "tabela_diferenciada" ? num(fAuxPct) : null,
+      procedure_codes: parsedCodes.length ? parsedCodes : null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
-      created_by: user!.id,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
-    const { error } = await supabase.from("rules").insert(payload);
-    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); setCodesInput(""); setPaymentTerm("qualquer"); setAppliesTypes([]); load(); toast({ title: "Regra criada" });
+    if (editingId) {
+      const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
+      if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({ title: "Regra atualizada" });
+    } else {
+      payload.created_by = user!.id;
+      const { error } = await supabase.from("rules").insert(payload);
+      if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({ title: "Regra criada" });
+    }
+    setOpen(false); resetForm(); load();
   };
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-    r.onerror = reject;
-    r.readAsDataURL(file);
+    r.onerror = reject; r.readAsDataURL(file);
   });
 
   const importWithAi = async () => {
@@ -156,8 +215,7 @@ const Rules = () => {
           const sheets = wb.SheetNames.map((n) => `# ${n}\n${XLSX.utils.sheet_to_csv(wb.Sheets[n])}`).join("\n\n");
           body.text = (body.text ? body.text + "\n\n" : "") + sheets;
         } else if (isText) {
-          const txt = await importFile.text();
-          body.text = (body.text ? body.text + "\n\n" : "") + txt;
+          body.text = (body.text ? body.text + "\n\n" : "") + (await importFile.text());
         } else {
           body.file = { name: importFile.name, mimeType: importFile.type || "application/octet-stream", dataBase64: await fileToBase64(importFile) };
         }
@@ -185,9 +243,9 @@ const Rules = () => {
   const updateDraft = (i: number, patch: Partial<DraftRule>) => setDrafts((ds) => ds.map((d, idx) => idx === i ? { ...d, ...patch } : d));
 
   const saveDrafts = async () => {
-    const selected = drafts.filter((d) => d.enabled);
-    if (selected.length === 0) return toast({ title: "Nenhuma regra selecionada", variant: "destructive" });
-    const toInsert = selected.map((d) => ({
+    const sel = drafts.filter((d) => d.enabled);
+    if (sel.length === 0) return toast({ title: "Nenhuma regra selecionada", variant: "destructive" });
+    const toInsert = sel.map((d) => ({
       name: d.name, description: d.description || null, rule_text: d.rule_text,
       severity: d.severity, scope: d.scope, sector: d.sector,
       target_type: d.scope === "especifica" ? d.target_type : null,
@@ -212,15 +270,23 @@ const Rules = () => {
     toast({ title: `${toInsert.length} regra(s) salva(s)` });
   };
 
-  const remove = async (id: string) => { await supabase.from("rules").delete().eq("id", id); load(); };
+  const remove = async (id: string) => {
+    if (!confirm("Excluir esta regra?")) return;
+    await supabase.from("rules").delete().eq("id", id);
+    setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
+    load();
+  };
 
   // filtered + grouped
   const filtered = useMemo(() => rules.filter((r) =>
     (filterScope === "todos" || r.scope === filterScope) &&
     (filterSector === "todos" || r.sector === filterSector) &&
     (filterType === "todos" || r.rule_type === filterType) &&
+    (!onlyIncomplete || isIncomplete(r)) &&
     (!filterTarget.trim() || `${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase()))
-  ), [rules, filterScope, filterSector, filterType, filterTarget]);
+  ), [rules, filterScope, filterSector, filterType, filterTarget, onlyIncomplete]);
+
+  const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
   const groups = useMemo(() => {
     const map = new Map<string, { key: string; label: string; type: "master" | "medico" | "empresa"; rules: RuleRow[] }>();
@@ -253,6 +319,29 @@ const Rules = () => {
     if (r.rule_type === "bonus") return <span className="text-xs font-medium">{r.bonus_amount != null ? `+${formatCurrency(r.bonus_amount)}` : r.bonus_pct != null ? `+${r.bonus_pct}%` : "bônus"}</span>;
     if (r.rule_type === "complemento" && r.target_amount != null) return <span className="text-xs font-medium">complementa até {formatCurrency(r.target_amount)}</span>;
     return null;
+  };
+
+  const toggleSelect = (id: string) => setSelected((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const selectAllVisible = () => setSelected(new Set(filtered.map((r) => r.id)));
+  const selectAllIncomplete = () => setSelected(new Set(rules.filter(isIncomplete).map((r) => r.id)));
+  const clearSelection = () => setSelected(new Set());
+
+  const applyBulkUpdate = async () => {
+    if (selected.size === 0) return;
+    const patch: any = {};
+    if (bulkPaymentTerm) patch.payment_term = bulkPaymentTerm;
+    if (bulkAppliesTypes.length > 0) patch.applies_payment_types = bulkAppliesTypes;
+    if (bulkRefTableId === "__none") patch.reference_table_id = null;
+    else if (bulkRefTableId) patch.reference_table_id = bulkRefTableId;
+    if (Object.keys(patch).length === 0) return toast({ title: "Selecione ao menos um campo para atualizar", variant: "destructive" });
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("rules").update(patch).in("id", ids);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: `${ids.length} regra(s) atualizadas` });
+    setBulkOpen(false); setBulkPaymentTerm(""); setBulkAppliesTypes([]); setBulkRefTableId("");
+    clearSelection(); load();
   };
 
   return (
@@ -288,11 +377,14 @@ const Rules = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>Nova regra</DialogTitle></DialogHeader>
-              <form onSubmit={createRule} className="space-y-3">
+              <DialogHeader>
+                <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
+                {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
+              </DialogHeader>
+              <form onSubmit={submitRule} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Escopo</Label>
                     <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
@@ -301,7 +393,7 @@ const Rules = () => {
                     </Select>
                   </div>
                   <div className="space-y-1.5"><Label>Setor / Item Pagamento</Label>
-                    <Select name="sector" defaultValue="outro">
+                    <Select value={fSector} onValueChange={(v) => setFSector(v as RuleSector)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
@@ -318,9 +410,11 @@ const Rules = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5"><Label>{targetType === "medico" ? "CPF" : "CNPJ"}</Label>
-                        <Input name="target_identifier" maxLength={30} />
+                        <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
                       </div>
-                      <div className="space-y-1.5"><Label>Nome</Label><Input name="target_name" maxLength={150} /></div>
+                      <div className="space-y-1.5"><Label>Nome</Label>
+                        <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -333,7 +427,6 @@ const Rules = () => {
                   <p className="text-xs text-muted-foreground">{RULE_TYPE_DESCRIPTIONS[ruleType]}</p>
                 </div>
 
-                {/* Vinculação opcional a tabela de referência (qualquer tipo de regra) */}
                 <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
                   <Label>Tabela de referência (opcional)</Label>
                   <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
@@ -346,7 +439,6 @@ const Rules = () => {
                   <p className="text-xs text-muted-foreground">Vincular a uma tabela já cadastrada simplifica a regra — basta complementar com os pontos específicos.</p>
                 </div>
 
-                {/* Prazo de pagamento + tipos aplicáveis */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
                     <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}>
@@ -371,76 +463,121 @@ const Rules = () => {
                 </div>
 
                 {ruleType === "pacote" && (
-                  <div className="space-y-1.5"><Label>Valor do pacote (R$)</Label><Input name="package_amount" type="number" step="0.01" required /></div>
+                  <div className="space-y-1.5"><Label>Valor do pacote (R$)</Label>
+                    <Input type="number" step="0.01" required value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
+                  </div>
                 )}
                 {ruleType === "tabela_diferenciada" && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <p className="text-xs text-muted-foreground">A tabela vinculada acima será usada como base do cálculo.</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5"><Label>Multiplicador</Label><Input name="multiplier" type="number" step="0.01" placeholder="Ex: 1.5" /></div>
-                      <div className="space-y-1.5"><Label>Deflator (%)</Label><Input name="deflator_pct" type="number" step="0.01" placeholder="Ex: 5" /></div>
+                      <div className="space-y-1.5"><Label>Multiplicador</Label>
+                        <Input type="number" step="0.01" placeholder="Ex: 1.5" value={fMultiplier} onChange={(e) => setFMultiplier(e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5"><Label>Deflator (%)</Label>
+                        <Input type="number" step="0.01" placeholder="Ex: 5" value={fDeflatorPct} onChange={(e) => setFDeflatorPct(e.target.value)} />
+                      </div>
                     </div>
                     <div className="flex items-start gap-2 pt-1">
-                      <Checkbox id="include_aux" name="include_auxiliaries" defaultChecked={false} />
+                      <Checkbox id="include_aux" checked={fIncludeAux} onCheckedChange={(c) => setFIncludeAux(!!c)} />
                       <div className="flex-1">
                         <Label htmlFor="include_aux" className="cursor-pointer">Incluir auxiliares no valor esperado</Label>
                         <p className="text-xs text-muted-foreground">Soma <code>valor_base × nº_aux × %_aux</code> (CBHPM informa o nº de auxiliares por código).</p>
                       </div>
                     </div>
-                    <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label><Input name="auxiliary_pct" type="number" step="0.01" placeholder="30" /></div>
+                    <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label>
+                      <Input type="number" step="0.01" placeholder="30" value={fAuxPct} onChange={(e) => setFAuxPct(e.target.value)} />
+                    </div>
                   </div>
                 )}
                 {ruleType === "bonus" && (
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5"><Label>Bônus fixo (R$)</Label><Input name="bonus_amount" type="number" step="0.01" /></div>
-                    <div className="space-y-1.5"><Label>Bônus (%)</Label><Input name="bonus_pct" type="number" step="0.01" /></div>
+                    <div className="space-y-1.5"><Label>Bônus fixo (R$)</Label>
+                      <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5"><Label>Bônus (%)</Label>
+                      <Input type="number" step="0.01" value={fBonusPct} onChange={(e) => setFBonusPct(e.target.value)} />
+                    </div>
                   </div>
                 )}
                 {ruleType === "complemento" && (
-                  <div className="space-y-1.5"><Label>Valor alvo (R$)</Label><Input name="target_amount" type="number" step="0.01" required /></div>
+                  <div className="space-y-1.5"><Label>Valor alvo (R$)</Label>
+                    <Input type="number" step="0.01" required value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
+                  </div>
                 )}
 
                 <div className="space-y-1.5"><Label>Códigos de procedimento (opcional)</Label>
-                  <Input
-                    name="procedure_codes"
-                    placeholder="Ex: 31005497, 31005470; 31002390"
-                    value={codesInput}
-                    onChange={(e) => setCodesInput(e.target.value)}
-                  />
+                  <Input placeholder="Ex: 31005497, 31005470; 31002390"
+                    value={codesInput} onChange={(e) => setCodesInput(e.target.value)} />
                   <p className="text-xs text-muted-foreground">
-                    Separe por vírgula <code>,</code>, ponto e vírgula <code>;</code> ou espaço. Limita a regra a estes códigos.
+                    Separe por vírgula <code>,</code>, ponto e vírgula <code>;</code> ou espaço.
                   </p>
                   {parsedCodes.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-1">
                       {parsedCodes.map((c, i) => (
-                        <span key={`${c}-${i}`} className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">
-                          {c}
-                        </span>
+                        <span key={`${c}-${i}`} className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{c}</span>
                       ))}
-                      <span className="text-xs text-muted-foreground self-center ml-1">
-                        {parsedCodes.length} código{parsedCodes.length > 1 ? "s" : ""} detectado{parsedCodes.length > 1 ? "s" : ""}
-                      </span>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-1.5"><Label>Nome</Label><Input name="name" required maxLength={100} /></div>
-                <div className="space-y-1.5"><Label>Descrição</Label><Input name="description" maxLength={300} /></div>
-                <div className="space-y-1.5"><Label>Texto da regra</Label><Textarea name="rule_text" required rows={3} maxLength={2000} /></div>
+                <div className="space-y-1.5"><Label>Nome</Label>
+                  <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
+                </div>
+                <div className="space-y-1.5"><Label>Descrição</Label>
+                  <Input maxLength={300} value={fDescription} onChange={(e) => setFDescription(e.target.value)} />
+                </div>
+                <div className="space-y-1.5"><Label>Texto da regra</Label>
+                  <Textarea required rows={3} maxLength={2000} value={fRuleText} onChange={(e) => setFRuleText(e.target.value)} />
+                </div>
                 <div className="space-y-1.5"><Label>Severidade</Label>
-                  <Select name="severity" defaultValue="aviso"><SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select value={fSeverity} onValueChange={(v) => setFSeverity(v as RuleSeverity)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full">Criar</Button>
+                <Button type="submit" className="w-full">{editingId ? "Salvar alterações" : "Criar"}</Button>
               </form>
             </DialogContent>
           </Dialog>
         </>}
       />
 
-      <div className="p-8">
-        <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="p-8 space-y-4">
+        {/* Banner de regras incompletas */}
+        {incompleteCount > 0 && (
+          <Card className="border-warning/50 bg-warning/5">
+            <CardContent className="px-4 py-3 flex items-center gap-3 flex-wrap">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-sm font-medium">{incompleteCount} regra{incompleteCount > 1 ? "s estão" : " está"} desatualizada{incompleteCount > 1 ? "s" : ""}</p>
+                <p className="text-xs text-muted-foreground">Faltam campos novos (ex.: tipos de pagamento aplicáveis). Atualize individualmente ou em massa.</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => { setOnlyIncomplete(true); selectAllIncomplete(); }}>
+                Selecionar todas
+              </Button>
+              <Button size="sm" onClick={() => { selectAllIncomplete(); setBulkOpen(true); }}>
+                <Wand2 className="h-4 w-4 mr-2" /> Atualizar em massa
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Barra de seleção em massa */}
+        {selected.size > 0 && (
+          <Card className="border-primary/50 bg-primary/5">
+            <CardContent className="px-4 py-3 flex items-center gap-3 flex-wrap">
+              <p className="text-sm font-medium">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
+              <Button size="sm" variant="ghost" onClick={selectAllVisible}>Selecionar visíveis</Button>
+              <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
+              <div className="ml-auto flex gap-2">
+                <Button size="sm" onClick={() => setBulkOpen(true)}><Wand2 className="h-4 w-4 mr-2" /> Atualizar em massa</Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={filterScope} onValueChange={(v) => setFilterScope(v as any)}>
             <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
@@ -467,6 +604,10 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
+            <span>Só desatualizadas</span>
+          </label>
           <p className="text-xs text-muted-foreground ml-auto">{filtered.length} de {rules.length}</p>
         </div>
 
@@ -475,49 +616,62 @@ const Rules = () => {
         ) : (
           <div className="space-y-3">
             {groups.map((g) => {
-              const isCollapsed = collapsed[g.key] === true;
+              const isCol = collapsed[g.key] === true;
               return (
                 <Card key={g.key} className="shadow-card overflow-hidden">
-                  <button onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCollapsed }))}
+                  <button onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCol }))}
                     className="w-full px-6 py-3 flex items-center gap-3 bg-muted/40 hover:bg-muted/60 text-left border-b border-border">
-                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {isCol ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     <span className="text-sm">{g.type === "master" ? "📘" : g.type === "empresa" ? "🏥" : "👤"}</span>
                     <p className="font-medium text-sm flex-1">{g.label}</p>
                     <span className="text-xs text-muted-foreground">{g.rules.length} regra{g.rules.length > 1 ? "s" : ""}</span>
                   </button>
-                  {!isCollapsed && (
+                  {!isCol && (
                     <div className="divide-y divide-border">
-                      {g.rules.map((r) => (
-                        <div key={r.id} className="px-6 py-4 flex items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <p className="font-medium text-sm">{r.name}</p>
-                              <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                              <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
-                              <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
-                              {renderCalcBadge(r)}
-                              {r.payment_term && r.payment_term !== "qualquer" && (
-                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
-                              )}
-                              {r.applies_payment_types && r.applies_payment_types.length > 0 && (
-                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
-                                  {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
-                                </span>
-                              )}
-                              {r.reference_table_id && r.rule_type !== "tabela_diferenciada" && (() => {
-                                const ref = refTables.find((t) => t.id === r.reference_table_id);
-                                return ref ? <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">📋 {ref.name}</span> : null;
-                              })()}
-                              {r.procedure_codes && r.procedure_codes.length > 0 && (
-                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{r.procedure_codes.join(", ")}</span>
-                              )}
+                      {g.rules.map((r) => {
+                        const incomplete = isIncomplete(r);
+                        const missing = missingFields(r);
+                        return (
+                          <div key={r.id} className="px-6 py-4 flex items-start gap-3">
+                            <Checkbox className="mt-1" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <p className="font-medium text-sm">{r.name}</p>
+                                <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
+                                <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
+                                <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
+                                {renderCalcBadge(r)}
+                                {r.payment_term && r.payment_term !== "qualquer" && (
+                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
+                                )}
+                                {r.applies_payment_types && r.applies_payment_types.length > 0 && (
+                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                                    {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
+                                  </span>
+                                )}
+                                {r.reference_table_id && r.rule_type !== "tabela_diferenciada" && (() => {
+                                  const ref = refTables.find((t) => t.id === r.reference_table_id);
+                                  return ref ? <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">📋 {ref.name}</span> : null;
+                                })()}
+                                {r.procedure_codes && r.procedure_codes.length > 0 && (
+                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{r.procedure_codes.join(", ")}</span>
+                                )}
+                                {incomplete && (
+                                  <span className="text-xs rounded-full border border-warning/50 bg-warning/10 text-warning-foreground px-2 py-0.5 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
+                                  </span>
+                                )}
+                              </div>
+                              {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
+                              <p className="text-sm">{r.rule_text}</p>
                             </div>
-                            {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
-                            <p className="text-sm">{r.rule_text}</p>
+                            <div className="flex flex-col gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                            </div>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </Card>
@@ -527,12 +681,64 @@ const Rules = () => {
         )}
       </div>
 
+      {/* Bulk update dialog */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atualizar {selected.size} regra{selected.size > 1 ? "s" : ""} em massa</DialogTitle>
+            <DialogDescription>Apenas os campos preenchidos abaixo serão atualizados nas regras selecionadas.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Prazo de pagamento</Label>
+              <Select value={bulkPaymentTerm || "__keep"} onValueChange={(v) => setBulkPaymentTerm(v === "__keep" ? "" : v as PaymentTerm)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__keep">Manter</SelectItem>
+                  {Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tipos de pagamento aplicáveis</Label>
+              <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                {PAYMENT_TYPE_KEYS.map((k) => {
+                  const checked = bulkAppliesTypes.includes(k);
+                  return (
+                    <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                      onClick={() => setBulkAppliesTypes((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
+                      {PAYMENT_TYPE_LABELS[k]}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">Vazio = não altera.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tabela de referência</Label>
+              <Select value={bulkRefTableId || "__keep"} onValueChange={(v) => setBulkRefTableId(v === "__keep" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__keep">Manter</SelectItem>
+                  <SelectItem value="__none">Remover vínculo</SelectItem>
+                  {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
+            <Button onClick={applyBulkUpdate}>Aplicar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Tela de revisão pós-importação */}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Revisar regras extraídas pela IA</DialogTitle>
-            <p className="text-sm text-muted-foreground">Confira, edite e selecione quais salvar. {drafts.filter(d => d.enabled).length} de {drafts.length} marcadas.</p>
+            <DialogDescription>Confira, edite e selecione quais salvar. {drafts.filter(d => d.enabled).length} de {drafts.length} marcadas.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {drafts.map((d, i) => (
