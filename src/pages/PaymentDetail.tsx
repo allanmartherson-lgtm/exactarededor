@@ -59,6 +59,7 @@ const PaymentDetail = () => {
   const [obs, setObs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [rulesIndex, setRulesIndex] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
+  const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -75,16 +76,20 @@ const PaymentDetail = () => {
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
-    // Carrega regras citadas pela IA para mostrar resumo + link
+    // Carrega regras citadas pela IA (por id e por nome) para mostrar resumo + link
     const ids = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
-    if (ids.length > 0) {
-      const { data: rs } = await supabase.from("rules").select("id,name,rule_text,description").in("id", ids);
-      const idx: Record<string, any> = {};
-      (rs ?? []).forEach((r: any) => { idx[r.id] = r; });
-      setRulesIndex(idx);
-    } else {
-      setRulesIndex({});
-    }
+    const names = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rules ?? []))).filter(Boolean) as string[];
+    const [byIdRes, byNameRes] = await Promise.all([
+      ids.length ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids) : Promise.resolve({ data: [] as any[] }),
+      names.length ? supabase.from("rules").select("id,name,rule_text,description").in("name", names) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const idx: Record<string, any> = {};
+    (byIdRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
+    (byNameRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
+    const nameIdx: Record<string, any> = {};
+    Object.values(idx).forEach((r: any) => { nameIdx[String(r.name).trim().toLowerCase()] = r; });
+    setRulesIndex(idx);
+    setRulesByName(nameIdx);
   }, [id]);
 
   useEffect(() => { document.title = "Pagamento | MedPay"; load(); }, [load]);
