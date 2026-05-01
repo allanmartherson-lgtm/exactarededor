@@ -48,6 +48,15 @@ Cada regra deve ter:
 - target_identifier: CPF (médico) ou CNPJ (empresa), apenas se scope='especifica' e mencionado
 - target_name: nome do médico ou da empresa, apenas se scope='especifica' e mencionado
 
+- rule_type: 'informativo' | 'pacote' | 'tabela_diferenciada' | 'bonus' | 'complemento'
+    * 'pacote': valor fixo para o procedimento todo. Preencha package_amount (R$).
+    * 'tabela_diferenciada': pagamento baseado em tabela de referência (ex: CBHPM 2018). Preencha multiplier (ex: 1.5) e/ou deflator_pct (ex: 5 para 5%). Se mencionar uma tabela específica, coloque o nome no campo description.
+    * 'bonus': honorário + adicional. Preencha bonus_amount (R$ fixo) OU bonus_pct (%).
+    * 'complemento': completa o valor para chegar ao acordado. Preencha target_amount (R$).
+    * 'informativo': qualquer regra que apenas alerta/bloqueia (default).
+- procedure_codes: array de códigos de procedimento (ex: ["31005497","31005470"]) quando a regra cita códigos específicos. Vazio se não houver.
+- package_amount, bonus_amount, bonus_pct, target_amount, multiplier, deflator_pct: numéricos ou null.
+
 Se o texto cita um médico, hospital ou empresa específica, marque como 'especifica'. Caso contrário, 'master'.` },
           { role: "user", content: userContent },
         ],
@@ -73,8 +82,16 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
                       target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
                       target_identifier: { type: ["string", "null"] },
                       target_name: { type: ["string", "null"] },
+                      rule_type: { type: "string", enum: ["informativo","pacote","tabela_diferenciada","bonus","complemento"] },
+                      package_amount: { type: ["number","null"] },
+                      bonus_amount: { type: ["number","null"] },
+                      bonus_pct: { type: ["number","null"] },
+                      target_amount: { type: ["number","null"] },
+                      multiplier: { type: ["number","null"] },
+                      deflator_pct: { type: ["number","null"] },
+                      procedure_codes: { type: "array", items: { type: "string" } },
                     },
-                    required: ["name", "description", "rule_text", "severity", "scope", "sector"],
+                    required: ["name", "description", "rule_text", "severity", "scope", "sector", "rule_type"],
                     additionalProperties: false,
                   },
                 },
