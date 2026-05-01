@@ -11,8 +11,17 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { TONE_CLASSES, type RuleSeverity } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText } from "lucide-react";
+import {
+  TONE_CLASSES,
+  type RuleSeverity,
+  type RuleScope,
+  type RuleSector,
+  type RuleTargetType,
+  RULE_SCOPE_LABELS,
+  RULE_SECTOR_LABELS,
+  RULE_TARGET_TYPE_LABELS,
+} from "@/lib/status";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
@@ -25,6 +34,10 @@ const Rules = () => {
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [scope, setScope] = useState<RuleScope>("master");
+  const [targetType, setTargetType] = useState<RuleTargetType>("medico");
+  const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
+  const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
   useEffect(() => { document.title = "Regras | MedPay"; load(); }, []);
@@ -32,13 +45,25 @@ const Rules = () => {
   const createRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const { error } = await supabase.from("rules").insert({
-      name: String(f.get("name")), description: String(f.get("description")) || null,
-      rule_text: String(f.get("rule_text")), severity: String(f.get("severity")) as RuleSeverity,
+    const isEspecifica = scope === "especifica";
+    const payload: any = {
+      name: String(f.get("name")),
+      description: String(f.get("description")) || null,
+      rule_text: String(f.get("rule_text")),
+      severity: String(f.get("severity")) as RuleSeverity,
+      scope,
+      sector: String(f.get("sector")) as RuleSector,
+      target_type: isEspecifica ? targetType : null,
+      target_identifier: isEspecifica ? (String(f.get("target_identifier")) || null) : null,
+      target_name: isEspecifica ? (String(f.get("target_name")) || null) : null,
       created_by: user!.id,
-    });
+    };
+    if (isEspecifica && !payload.target_identifier && !payload.target_name) {
+      return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
+    }
+    const { error } = await supabase.from("rules").insert(payload);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    setOpen(false); load(); toast({ title: "Regra criada" });
+    setOpen(false); setScope("master"); setTargetType("medico"); load(); toast({ title: "Regra criada" });
   };
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -84,7 +109,18 @@ const Rules = () => {
       if (error || !data?.rules) {
         return toast({ title: "Erro", description: error?.message ?? data?.error ?? "Falha", variant: "destructive" });
       }
-      const toInsert = data.rules.map((r: any) => ({ ...r, created_by: user!.id }));
+      const toInsert = data.rules.map((r: any) => ({
+        name: r.name,
+        description: r.description ?? null,
+        rule_text: r.rule_text,
+        severity: r.severity,
+        scope: r.scope ?? "master",
+        sector: r.sector ?? "outro",
+        target_type: r.target_type ?? null,
+        target_identifier: r.target_identifier ?? null,
+        target_name: r.target_name ?? null,
+        created_by: user!.id,
+      }));
       await supabase.from("rules").insert(toInsert);
       setImportOpen(false); setImportText(""); setImportFile(null); load();
       toast({ title: `${toInsert.length} regra(s) importada(s)` });
@@ -98,6 +134,11 @@ const Rules = () => {
   const remove = async (id: string) => {
     await supabase.from("rules").delete().eq("id", id); load();
   };
+
+  const filtered = rules.filter((r) =>
+    (filterScope === "todos" || r.scope === filterScope) &&
+    (filterSector === "todos" || r.sector === filterSector)
+  );
 
   return (
     <>
@@ -133,9 +174,48 @@ const Rules = () => {
           </Dialog>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Nova regra</DialogTitle></DialogHeader>
               <form onSubmit={createRule} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5"><Label>Escopo</Label>
+                    <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5"><Label>Setor</Label>
+                    <Select name="sector" defaultValue="outro">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {scope === "especifica" && (
+                  <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                    <div className="space-y-1.5"><Label>Aplicar a</Label>
+                      <Select value={targetType} onValueChange={(v) => setTargetType(v as RuleTargetType)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(RULE_TARGET_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5"><Label>{targetType === "medico" ? "CPF" : "CNPJ"} (opcional)</Label>
+                        <Input name="target_identifier" maxLength={30} placeholder={targetType === "medico" ? "000.000.000-00" : "00.000.000/0000-00"} />
+                      </div>
+                      <div className="space-y-1.5"><Label>Nome (opcional)</Label>
+                        <Input name="target_name" maxLength={150} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Informe CPF/CNPJ ou nome — a IA usa para casar a regra no item.</p>
+                  </div>
+                )}
                 <div className="space-y-1.5"><Label>Nome</Label><Input name="name" required maxLength={100} /></div>
                 <div className="space-y-1.5"><Label>Descrição</Label><Input name="description" maxLength={300} /></div>
                 <div className="space-y-1.5"><Label>Texto da regra</Label><Textarea name="rule_text" required rows={4} maxLength={2000} /></div>
@@ -151,14 +231,43 @@ const Rules = () => {
         </>}
       />
       <div className="p-8">
+        <div className="flex items-center gap-3 mb-4">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={filterScope} onValueChange={(v) => setFilterScope(v as any)}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Escopo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os escopos</SelectItem>
+              {Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterSector} onValueChange={(v) => setFilterSector(v as any)}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Setor" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os setores</SelectItem>
+              {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground ml-auto">{filtered.length} de {rules.length}</p>
+        </div>
         <Card className="shadow-card"><CardContent className="p-0">
-          {rules.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">Nenhuma regra ainda.</p> :
-            <div className="divide-y divide-border">{rules.map((r) => (
+          {filtered.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">Nenhuma regra encontrada.</p> :
+            <div className="divide-y divide-border">{filtered.map((r) => (
               <div key={r.id} className="px-6 py-4 flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <p className="font-medium text-sm">{r.name}</p>
                     <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
+                    <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[r.scope === "master" ? "primary" : "info"]}`}>
+                      {RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope}
+                    </span>
+                    <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
+                      {RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}
+                    </span>
+                    {r.scope === "especifica" && (r.target_name || r.target_identifier) && (
+                      <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">
+                        {r.target_type === "medico" ? "👤" : "🏥"} {r.target_name ?? r.target_identifier}
+                      </span>
+                    )}
                   </div>
                   {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
                   <p className="text-sm">{r.rule_text}</p>

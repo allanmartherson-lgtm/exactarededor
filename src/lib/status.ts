@@ -56,6 +56,30 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   analista: "Analista",
 };
 
+export type RuleScope = Database["public"]["Enums"]["rule_scope"];
+export type RuleSector = Database["public"]["Enums"]["rule_sector"];
+export type RuleTargetType = Database["public"]["Enums"]["rule_target_type"];
+
+export const RULE_SCOPE_LABELS: Record<RuleScope, string> = {
+  master: "Master (geral)",
+  especifica: "Específica",
+};
+
+export const RULE_SECTOR_LABELS: Record<RuleSector, string> = {
+  cirurgia: "Cirurgia",
+  hemodinamica: "Hemodinâmica",
+  parecer: "Parecer",
+  visita: "Visita",
+  procedimento: "Procedimento",
+  consulta: "Consulta",
+  outro: "Outro",
+};
+
+export const RULE_TARGET_TYPE_LABELS: Record<RuleTargetType, string> = {
+  medico: "Médico",
+  empresa: "Empresa",
+};
+
 export const formatCurrency = (value: number | string | null | undefined) => {
   const n = typeof value === "string" ? Number(value) : value ?? 0;
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
