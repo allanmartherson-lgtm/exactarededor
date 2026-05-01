@@ -10,7 +10,10 @@ const isAllowedOrigin = (o: string) => {
   try {
     const u = new URL(o);
     if (u.protocol !== "https:" && !(u.hostname === "localhost" || u.hostname === "127.0.0.1")) return false;
-    return /(^|\.)lovable\.(app|dev)$/.test(u.hostname) || u.hostname === "localhost" || u.hostname === "127.0.0.1";
+    return /(^|\.)lovable\.(app|dev)$/.test(u.hostname)
+      || /(^|\.)lovableproject\.com$/.test(u.hostname)
+      || u.hostname === "localhost"
+      || u.hostname === "127.0.0.1";
   } catch { return false; }
 };
 
@@ -70,7 +73,15 @@ serve(async (req) => {
 
     const linkType: "invite" | "recovery" = target.email_confirmed_at ? "recovery" : "invite";
 
-    // generateLink dispara o e-mail nativo do Supabase quando SMTP está configurado (default no Lovable Cloud).
+    if (linkType === "recovery") {
+      const mailer = createClient(SUPABASE_URL, ANON);
+      const { error: resetErr } = await mailer.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+      if (resetErr) throw resetErr;
+    }
+
+    // Gera também um link manual de contingência caso o e-mail não seja entregue.
     const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
       type: linkType,
       email,

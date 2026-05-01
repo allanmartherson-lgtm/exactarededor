@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2 } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
@@ -27,6 +27,7 @@ const Users = () => {
   });
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
 
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("*");
@@ -52,12 +53,13 @@ const Users = () => {
       if (data?.error) throw new Error(data.error);
       const kindLabel = data?.kind === "invite" ? "Convite reenviado" : "Link de redefinição enviado";
       const desc = data?.action_link
-        ? `Enviamos por e-mail para ${u.email}. Caso não chegue, copie o link abaixo manualmente.`
+        ? `Tentamos enviar por e-mail para ${u.email}. Também abrimos o link manual para copiar.`
         : `Enviamos por e-mail para ${u.email}.`;
       toast({ title: kindLabel, description: desc });
       // Disponibiliza o link manual caso o e-mail não chegue (SMTP indisponível, etc.)
       if (data?.action_link) {
         try { await navigator.clipboard.writeText(data.action_link); } catch {}
+        setManualLink({ email: u.email, link: data.action_link, kind: data?.kind === "invite" ? "invite" : "recovery" });
       }
     } catch (e: any) {
       toast({ title: "Falha ao reenviar", description: e.message, variant: "destructive" });
@@ -209,6 +211,36 @@ const Users = () => {
           </div>
         </CardContent></Card>
       </div>
+      <Dialog open={!!manualLink} onOpenChange={(o) => !o && setManualLink(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{manualLink?.kind === "invite" ? "Link de convite" : "Link de redefinição"}</DialogTitle>
+            <DialogDescription>
+              Se o e-mail não chegar para {manualLink?.email}, copie e envie este link manualmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input readOnly value={manualLink?.link ?? ""} className="font-mono text-xs" />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!manualLink?.link) return;
+                  navigator.clipboard.writeText(manualLink.link);
+                  toast({ title: "Link copiado" });
+                }}
+              >
+                <Copy className="h-4 w-4 mr-2" /> Copiar link
+              </Button>
+              <Button type="button" variant="outline" asChild>
+                <a href={manualLink?.link ?? "#"} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-2" /> Abrir link
+                </a>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
