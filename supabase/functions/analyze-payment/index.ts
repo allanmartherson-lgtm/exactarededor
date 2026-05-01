@@ -230,7 +230,7 @@ Responda APENAS via tool call, sem texto adicional.`;
             parameters: {
               type: "object",
               properties: {
-                summary: { type: "string", description: "Resumo geral em português, 2-3 frases" },
+                summary: { type: "string", description: "Resumo OBJETIVO em português, MÁXIMO 2 frases curtas e diretas. Sem floreio, sem repetir contagens (já mostradas em badges). Foque no que o gestor precisa decidir: ex. 'Auxiliares de cirurgia com valores acima do esperado em 3 atendimentos. Recomendo revisar antes de aprovar.'" },
                 items: {
                   type: "array",
                   items: {
