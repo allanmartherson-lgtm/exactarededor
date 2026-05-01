@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,18 @@ import { PageHeader } from "@/components/PageHeader";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil } from "lucide-react";
+import { Building2, Plus, Trash2, Pencil, Upload, Download } from "lucide-react";
 
 interface Company { id: string; name: string; document: string | null; aliases: string[]; notes: string | null }
 
 const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "" };
+
+const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
+const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
+  for (const k of keys) for (const rk of Object.keys(row)) if (norm(rk).includes(norm(k))) return row[rk];
+  return undefined;
+};
+const toStr = (v: unknown): string => v == null ? "" : String(v).trim();
 
 const Companies = () => {
   const [items, setItems] = useState<Company[]>([]);
@@ -21,6 +29,7 @@ const Companies = () => {
   const [editing, setEditing] = useState<Company>(empty);
   const [aliasInput, setAliasInput] = useState("");
   const [search, setSearch] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => { document.title = "Empresas | MedPay"; load(); }, []);
 
@@ -52,6 +61,69 @@ const Companies = () => {
     load();
   };
 
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["nome", "cnpj", "apelidos", "notas"],
+      ["Clínica Cirúrgica de Taguatinga Ltda", "00.000.000/0001-00", "Cirurgica Taguatinga; Tag Cirurgica", "Centro cirúrgico DF Star"],
+      ["Hemodinâmica Brasília S/S", "11.111.111/0001-11", "Hemo Brasilia", ""],
+    ]);
+    ws["!cols"] = [{ wch: 40 }, { wch: 22 }, { wch: 40 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Empresas");
+    XLSX.writeFile(wb, "modelo-empresas.xlsx");
+  };
+
+  const importFile = async (f: File) => {
+    setImporting(true);
+    try {
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf);
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+
+      const parsed = json.map((row) => {
+        const name = toStr(pick(row, ["nome", "razao social", "razão social", "empresa"]));
+        const document = toStr(pick(row, ["cnpj", "cpf", "documento", "doc"])) || null;
+        const aliasRaw = toStr(pick(row, ["apelidos", "alias", "variacoes", "variações", "nomes alternativos"]));
+        const aliases = aliasRaw
+          ? aliasRaw.split(/[;|]/).map((s) => s.trim()).filter(Boolean)
+          : [];
+        const notes = toStr(pick(row, ["notas", "observacoes", "observações", "obs"])) || null;
+        return { name, document, aliases, notes };
+      }).filter((r) => r.name);
+
+      if (!parsed.length) {
+        toast({ title: "Nenhuma linha válida encontrada", description: "Verifique se a coluna 'nome' está preenchida.", variant: "destructive" });
+        return;
+      }
+
+      // Upsert manual: atualiza por nome (case-insensitive) ou insere
+      const { data: existing } = await supabase.from("companies").select("id,name");
+      const existingMap = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
+
+      let inserted = 0, updated = 0, failed = 0;
+      for (const row of parsed) {
+        const id = existingMap.get(row.name.toLowerCase());
+        const { error } = id
+          ? await supabase.from("companies").update(row).eq("id", id)
+          : await supabase.from("companies").insert(row);
+        if (error) failed++;
+        else if (id) updated++;
+        else inserted++;
+      }
+
+      toast({
+        title: "Importação concluída",
+        description: `${inserted} criada(s), ${updated} atualizada(s)${failed ? `, ${failed} com erro` : ""}.`,
+      });
+      load();
+    } catch (e) {
+      toast({ title: "Erro ao importar", description: String(e), variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filtered = search.trim()
     ? items.filter((c) =>
         [c.name, c.document ?? "", ...(c.aliases ?? [])].join(" ").toLowerCase().includes(search.toLowerCase())
@@ -64,7 +136,25 @@ const Companies = () => {
       <div className="p-8 max-w-5xl space-y-4">
         <div className="flex items-center justify-between gap-3">
           <Input placeholder="Buscar por nome, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-2" /> Modelo
+            </Button>
+            <label>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                disabled={importing}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) { importFile(f); e.target.value = ""; } }}
+              />
+              <Button variant="outline" size="sm" disabled={importing} asChild>
+                <span className="cursor-pointer">
+                  <Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar"}
+                </span>
+              </Button>
+            </label>
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}>
             <DialogTrigger asChild>
               <Button onClick={() => setEditing(empty)}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
             </DialogTrigger>
@@ -113,7 +203,8 @@ const Companies = () => {
                 <Button onClick={save}>Salvar</Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         <Card>
