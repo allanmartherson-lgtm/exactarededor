@@ -36,7 +36,19 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
-          { role: "system", content: "Você converte texto livre em regras estruturadas para validação de pagamentos médicos. Cada regra deve ter um nome curto, descrição clara, texto da regra (em português, descrevendo a condição), e severidade ('info', 'aviso' ou 'bloqueio'). 'Bloqueio' impede pagamento; 'aviso' é alerta que validador deve revisar; 'info' é apenas observação." },
+          { role: "system", content: `Você converte texto livre em regras estruturadas para validação de pagamentos médicos.
+Cada regra deve ter:
+- name: nome curto
+- description: descrição clara
+- rule_text: texto da regra em português descrevendo a condição
+- severity: 'info' | 'aviso' | 'bloqueio' ('bloqueio' impede pagamento; 'aviso' alerta o validador; 'info' é observação)
+- scope: 'master' (regra geral, vale para todos quando não há específica) ou 'especifica' (vale apenas para um médico ou empresa)
+- sector: 'cirurgia' | 'hemodinamica' | 'parecer' | 'visita' | 'procedimento' | 'consulta' | 'outro' — identifique pelo contexto; use 'outro' se não estiver claro
+- target_type: 'medico' | 'empresa' | null — preencha apenas se scope='especifica'
+- target_identifier: CPF (médico) ou CNPJ (empresa), apenas se scope='especifica' e mencionado
+- target_name: nome do médico ou da empresa, apenas se scope='especifica' e mencionado
+
+Se o texto cita um médico, hospital ou empresa específica, marque como 'especifica'. Caso contrário, 'master'.` },
           { role: "user", content: userContent },
         ],
         tools: [{
@@ -56,8 +68,13 @@ serve(async (req) => {
                       description: { type: "string" },
                       rule_text: { type: "string" },
                       severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
+                      scope: { type: "string", enum: ["master", "especifica"] },
+                      sector: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] },
+                      target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
+                      target_identifier: { type: ["string", "null"] },
+                      target_name: { type: ["string", "null"] },
                     },
-                    required: ["name", "description", "rule_text", "severity"],
+                    required: ["name", "description", "rule_text", "severity", "scope", "sector"],
                     additionalProperties: false,
                   },
                 },
