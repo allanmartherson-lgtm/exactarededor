@@ -73,6 +73,9 @@ const CostCenters = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
+  const [logs, setLogs] = useState<ImportLog[]>([]);
+  const [reverting, setReverting] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(true);
   const PAGE_SIZE = 100;
   const reqIdRef = useRef(0);
 
@@ -92,6 +95,26 @@ const CostCenters = () => {
     ]);
     setTotalCount(total ?? 0);
     setActiveCount(active ?? 0);
+  }, []);
+
+  const loadLogs = useCallback(async () => {
+    const { data } = await supabase
+      .from("cost_center_imports")
+      .select("id,file_name,rows_in_file,created_count,updated_count,deactivated_count,imported_by,imported_at,status,reverted_by,reverted_at")
+      .order("imported_at", { ascending: false })
+      .limit(20);
+    const list = (data ?? []) as ImportLog[];
+    // Busca nomes dos autores em uma chamada
+    const ids = Array.from(new Set(list.flatMap((l) => [l.imported_by, l.reverted_by]).filter(Boolean))) as string[];
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
+      const map = new Map((profs ?? []).map((p: any) => [p.id, { full_name: p.full_name, email: p.email }]));
+      list.forEach((l) => {
+        l.importer = map.get(l.imported_by) ?? null;
+        l.reverter = l.reverted_by ? map.get(l.reverted_by) ?? null : null;
+      });
+    }
+    setLogs(list);
   }, []);
 
   // Query base com filtros aplicados
@@ -139,6 +162,7 @@ const CostCenters = () => {
 
   useEffect(() => { refreshCounts(); }, [refreshCounts]);
   useEffect(() => { loadFirstPage(); }, [loadFirstPage]);
+  useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const onImport = async (file: File) => {
     if (!canManage) return;
@@ -169,12 +193,21 @@ const CostCenters = () => {
         return;
       }
 
-      // Carrega códigos atuais ativos para detectar removidos
-      const { data: existing } = await supabase
-        .from("cost_centers")
-        .select("code_p12, active")
-        .limit(20000);
-      const existingMap = new Map((existing ?? []).map((e: any) => [e.code_p12, e.active]));
+      // Snapshot completo da tabela ANTES da importação (em páginas)
+      const snapshot: any[] = [];
+      const SNAP_PAGE = 1000;
+      for (let from = 0; ; from += SNAP_PAGE) {
+        const { data: page, error: snapErr } = await supabase
+          .from("cost_centers")
+          .select("code_p12,code_p10,code_pai,level1,level2,level3,level4,level5,status,active")
+          .order("code_p12")
+          .range(from, from + SNAP_PAGE - 1);
+        if (snapErr) throw snapErr;
+        if (!page || page.length === 0) break;
+        snapshot.push(...page);
+        if (page.length < SNAP_PAGE) break;
+      }
+      const existingMap = new Map(snapshot.map((e: any) => [e.code_p12, e.active]));
       const incomingCodes = new Set(rows.map((r) => r.code_p12!));
 
       // Upsert em lotes de 500
@@ -207,17 +240,49 @@ const CostCenters = () => {
 
       const created = rows.filter((r) => !existingMap.has(r.code_p12!)).length;
       const updated = upserted - created;
+
+      // Grava log de importação
+      const { error: logErr } = await supabase.from("cost_center_imports").insert({
+        file_name: file.name,
+        rows_in_file: rows.length,
+        created_count: created,
+        updated_count: updated,
+        deactivated_count: toDeactivate.length,
+        snapshot,
+        imported_by: user!.id,
+      });
+      if (logErr) console.warn("Falha ao registrar histórico:", logErr.message);
+
       toast({
         title: "Importação concluída",
         description: `${created} criados · ${updated} atualizados · ${toDeactivate.length} desativados`,
       });
-      await Promise.all([refreshCounts(), loadFirstPage()]);
+      await Promise.all([refreshCounts(), loadFirstPage(), loadLogs()]);
     } catch (e: any) {
       toast({ title: "Erro na importação", description: String(e?.message ?? e), variant: "destructive" });
     } finally {
       setImporting(false);
     }
   };
+
+  const revertImport = async (logId: string) => {
+    setReverting(logId);
+    const { data, error } = await supabase.rpc("revert_cost_center_import", { _import_id: logId });
+    setReverting(null);
+    if (error) {
+      toast({ title: "Não foi possível desfazer", description: error.message, variant: "destructive" });
+      return;
+    }
+    const result = data as { restored: number; removed: number } | null;
+    toast({
+      title: "Importação revertida",
+      description: result ? `${result.restored} restaurados · ${result.removed} removidos` : undefined,
+    });
+    await Promise.all([refreshCounts(), loadFirstPage(), loadLogs()]);
+  };
+
+  // Só a última aplicada pode ser desfeita
+  const lastAppliedId = logs.find((l) => l.status === "aplicada")?.id ?? null;
 
   const filteredCount = items.length; // página atual carregada
 
