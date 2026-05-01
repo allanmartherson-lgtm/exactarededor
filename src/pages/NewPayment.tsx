@@ -362,6 +362,25 @@ const NewPayment = () => {
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
                 <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
               </div>
+              <div className="space-y-2">
+                <Label>Setor(es) / Item Pagamento</Label>
+                <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                  {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
+                    const checked = pSectors.includes(k);
+                    return (
+                      <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                        onClick={() => setPSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
+                        {RULE_SECTOR_LABELS[k]}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Vazio = todos. Ajuda a IA a filtrar regras aplicáveis.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Especialidade(s)</Label>
+                <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="desc">Descrição</Label>
