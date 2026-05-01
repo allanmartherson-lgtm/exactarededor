@@ -40,6 +40,17 @@ serve(async (req) => {
     const fullName = String(body.full_name ?? "").trim();
     const roles: string[] = Array.isArray(body.roles) ? body.roles : [];
     const sendInvite = body.send_invite !== false; // default true
+    const rawOrigin = String(body.app_origin ?? "").trim();
+    // Sanitiza origem para evitar open-redirect: aceita apenas https://*.lovable.app, *.lovable.dev ou localhost.
+    const isAllowedOrigin = (o: string) => {
+      try {
+        const u = new URL(o);
+        if (u.protocol !== "https:" && !(u.hostname === "localhost" || u.hostname === "127.0.0.1")) return false;
+        return /(^|\.)lovable\.(app|dev)$/.test(u.hostname) || u.hostname === "localhost" || u.hostname === "127.0.0.1";
+      } catch { return false; }
+    };
+    const appOrigin = isAllowedOrigin(rawOrigin) ? rawOrigin.replace(/\/+$/, "") : "";
+    const redirectTo = appOrigin ? `${appOrigin}/definir-senha` : undefined;
 
     if (!email) {
       return new Response(JSON.stringify({ error: "E-mail obrigatório" }), {
@@ -53,6 +64,7 @@ serve(async (req) => {
     if (sendInvite) {
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
         data: { full_name: fullName },
+        redirectTo,
       });
       if (error) throw error;
       newUserId = data.user?.id ?? null;

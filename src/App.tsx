@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
+import SetPassword from "./pages/SetPassword.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Payments from "./pages/Payments.tsx";
 import NewPayment from "./pages/NewPayment.tsx";
@@ -31,6 +32,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/definir-senha" element={<SetPassword />} />
+            <Route path="/reset-password" element={<SetPassword />} />
             <Route path="/portal/nota/:token" element={<InvoicePortal />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
