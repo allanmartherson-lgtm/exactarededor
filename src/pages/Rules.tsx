@@ -542,7 +542,7 @@ const Rules = () => {
                       <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1"><Label className="text-xs">Setor</Label>
+                  <div className="space-y-1"><Label className="text-xs">Setor / Item Pagamento</Label>
                     <Select value={d.sector} onValueChange={(v) => updateDraft(i, { sector: v as RuleSector })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
@@ -578,14 +578,38 @@ const Rules = () => {
                     <Input type="number" step="0.01" value={d.package_amount ?? ""} onChange={(e) => updateDraft(i, { package_amount: num(e.target.value) })} />
                   </div>
                 )}
-                {d.rule_type === "tabela_diferenciada" && (
-                  <div className="grid grid-cols-3 gap-3 mb-3">
-                    <div className="space-y-1"><Label className="text-xs">Tabela</Label>
-                      <Select value={d.reference_table_id ?? ""} onValueChange={(v) => updateDraft(i, { reference_table_id: v })}>
-                        <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecione" : "Cadastre uma tabela"} /></SelectTrigger>
-                        <SelectContent>{refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div className="space-y-1"><Label className="text-xs">Tabela vinculada (opcional)</Label>
+                    <Select value={d.reference_table_id ?? "__none"} onValueChange={(v) => updateDraft(i, { reference_table_id: v === "__none" ? null : v })}>
+                      <SelectTrigger><SelectValue placeholder={refTables.length ? "Sem vínculo" : "Cadastre uma tabela"} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Sem vínculo</SelectItem>
+                        {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1"><Label className="text-xs">Prazo de pagamento</Label>
+                    <Select value={d.payment_term} onValueChange={(v) => updateDraft(i, { payment_term: v as PaymentTerm })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1"><Label className="text-xs">Tipos de pagamento</Label>
+                    <div className="flex flex-wrap gap-1 rounded-md border border-input bg-background p-1.5 min-h-9">
+                      {PAYMENT_TYPE_KEYS.map((k) => {
+                        const checked = d.applies_payment_types.includes(k);
+                        return (
+                          <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"} className="h-7 px-2 text-xs"
+                            onClick={() => updateDraft(i, { applies_payment_types: checked ? d.applies_payment_types.filter((x) => x !== k) : [...d.applies_payment_types, k] })}>
+                            {PAYMENT_TYPE_LABELS[k]}
+                          </Button>
+                        );
+                      })}
                     </div>
+                  </div>
+                </div>
+                {d.rule_type === "tabela_diferenciada" && (
+                  <div className="grid grid-cols-2 gap-3 mb-3">
                     <div className="space-y-1"><Label className="text-xs">Multiplicador</Label>
                       <Input type="number" step="0.01" value={d.multiplier ?? ""} onChange={(e) => updateDraft(i, { multiplier: num(e.target.value) })} />
                     </div>
