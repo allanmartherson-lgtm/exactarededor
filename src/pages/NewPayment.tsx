@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle } from "lucide-react";
+import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
+import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { COMMON_SPECIALTIES } from "@/lib/specialties";
 
 interface ParsedRow {
   doctor_name: string;
@@ -141,6 +144,8 @@ const NewPayment = () => {
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
+  const [pSectors, setPSectors] = useState<string[]>([]);
+  const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -253,6 +258,8 @@ const NewPayment = () => {
         payment_type: paymentType as PaymentType,
         payment_kind: paymentKind as PaymentKind,
         cost_center_code: costCenterCode,
+        sectors: pSectors,
+        specialties: pSpecialties,
       })
       .select()
       .single();
@@ -354,6 +361,25 @@ const NewPayment = () => {
                 <Label>Centro de custos (padrão do lote)</Label>
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
                 <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Setor(es) / Item Pagamento</Label>
+                <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                  {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
+                    const checked = pSectors.includes(k);
+                    return (
+                      <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                        onClick={() => setPSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
+                        {RULE_SECTOR_LABELS[k]}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Vazio = todos. Ajuda a IA a filtrar regras aplicáveis.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Especialidade(s)</Label>
+                <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
               </div>
             </div>
             <div className="space-y-2">

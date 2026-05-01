@@ -366,7 +366,9 @@ export type Database = {
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_type: Database["public"]["Enums"]["payment_type"] | null
           reference: string
+          sectors: string[]
           source_file_path: string | null
+          specialties: string[]
           status: Database["public"]["Enums"]["payment_status"]
           total_amount: number
           updated_at: string
@@ -389,7 +391,9 @@ export type Database = {
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: Database["public"]["Enums"]["payment_type"] | null
           reference: string
+          sectors?: string[]
           source_file_path?: string | null
+          specialties?: string[]
           status?: Database["public"]["Enums"]["payment_status"]
           total_amount?: number
           updated_at?: string
@@ -412,7 +416,9 @@ export type Database = {
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: Database["public"]["Enums"]["payment_type"] | null
           reference?: string
+          sectors?: string[]
           source_file_path?: string | null
+          specialties?: string[]
           status?: Database["public"]["Enums"]["payment_status"]
           total_amount?: number
           updated_at?: string
@@ -567,6 +573,7 @@ export type Database = {
           created_by: string | null
           deflator_pct: number | null
           description: string | null
+          doctors: Json
           id: string
           include_auxiliaries: boolean
           multiplier: number | null
@@ -580,12 +587,16 @@ export type Database = {
           rule_type: Database["public"]["Enums"]["rule_type"]
           scope: Database["public"]["Enums"]["rule_scope"]
           sector: Database["public"]["Enums"]["rule_sector"]
+          sectors: string[]
           severity: Database["public"]["Enums"]["rule_severity"]
+          specialties: string[]
           target_amount: number | null
           target_identifier: string | null
           target_name: string | null
           target_type: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at: string
+          valid_from: string | null
+          valid_until: string | null
         }
         Insert: {
           active?: boolean
@@ -599,6 +610,7 @@ export type Database = {
           created_by?: string | null
           deflator_pct?: number | null
           description?: string | null
+          doctors?: Json
           id?: string
           include_auxiliaries?: boolean
           multiplier?: number | null
@@ -612,12 +624,16 @@ export type Database = {
           rule_type?: Database["public"]["Enums"]["rule_type"]
           scope?: Database["public"]["Enums"]["rule_scope"]
           sector?: Database["public"]["Enums"]["rule_sector"]
+          sectors?: string[]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          specialties?: string[]
           target_amount?: number | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
         }
         Update: {
           active?: boolean
@@ -631,6 +647,7 @@ export type Database = {
           created_by?: string | null
           deflator_pct?: number | null
           description?: string | null
+          doctors?: Json
           id?: string
           include_auxiliaries?: boolean
           multiplier?: number | null
@@ -644,12 +661,16 @@ export type Database = {
           rule_type?: Database["public"]["Enums"]["rule_type"]
           scope?: Database["public"]["Enums"]["rule_scope"]
           sector?: Database["public"]["Enums"]["rule_sector"]
+          sectors?: string[]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          specialties?: string[]
           target_amount?: number | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
         }
         Relationships: [
           {
