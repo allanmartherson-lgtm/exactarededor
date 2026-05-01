@@ -189,6 +189,13 @@ CÁLCULO DE VALOR ESPERADO (quando a regra tem rule_type diferente de 'informati
 - complemento: valor esperado = target_amount; "valor a complementar" = target_amount - valor_bruto.
 - Se procedure_codes da regra estiver preenchido, ela só se aplica quando o item tiver um desses códigos.
 
+CONTEXTO ADICIONAL DOS ITENS:
+- Cada item traz "empresa" (PJ executora extraída do nome do arquivo), "atendimento" (Nr. Atendimento — pode repetir entre itens da mesma cirurgia), "codigo_tuss", "via_acesso", "funcao" (Cirurgião Principal / Primeiro Auxiliar / Segundo Auxiliar / Instrumentador / etc), "acordo_percentual" (texto livre da coluna Percentual: pode ser "100", "ACORDO", "CBHPM 2018 x 1.5", etc), "valor_procedimento_tabela" (valor cheio do convênio antes da função) e "valor_bruto" (= Vl. Repasse, valor que SERÁ pago).
+- Via de acesso: "Única" ou "Principal" = 100%; "Diferente" = 70%; "Mesma via" = 50%. O "valor_procedimento_tabela" geralmente já vem com esse percentual aplicado.
+- Função: Cirurgião Principal = 100% do acordo; 1º Auxiliar = 30%; 2º Auxiliar e demais = 20%; Instrumentador = 10%. Verifique se o valor_bruto do auxiliar é coerente com o valor do cirurgião principal do MESMO atendimento (mesmo Nr. Atendimento).
+- Quando "acordo_percentual" disser "ACORDO" ou citar "CBHPM 2018 x 1.5" (ou variação), use a tabela CBHPM correspondente nas TABELAS DE REFERÊNCIA para calcular o esperado, multiplicando pelo fator e aplicando a função.
+- Quando for um número simples (ex: "100", "70"), o esperado já está em "valor_procedimento_tabela" e o valor_bruto deve bater (após aplicar percentual da função quando relevante).
+
 Se calculou um expected_amount, compare com valor_bruto:
 - diferença ≤ 1% → status 'aprovado'
 - diferença até 10% → 'alerta'
