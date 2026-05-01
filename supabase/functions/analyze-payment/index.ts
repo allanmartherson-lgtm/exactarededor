@@ -177,7 +177,7 @@ serve(async (req) => {
         : "";
       const term = r.payment_term && r.payment_term !== "qualquer" ? ` [prazo:${r.payment_term}]` : "";
       const types = Array.isArray(r.applies_payment_types) && r.applies_payment_types.length ? ` [tipos:${r.applies_payment_types.join(",")}]` : "";
-      return `R${i + 1} [${tag}] [setor:${sectorList || "—"}]${specList}${validity}${docs}${term}${types} (${r.severity.toUpperCase()})${calcTag}: ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
+      return `R${i + 1} id=${r.id} [${tag}] [setor:${sectorList || "—"}]${specList}${validity}${docs}${term}${types} (${r.severity.toUpperCase()})${calcTag}: ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
     };
     const rulesText = filteredRules.length === 0
       ? "Nenhuma regra cadastrada (ou aplicável a este pagamento) — apenas verifique consistência básica (valor positivo, dados preenchidos, possíveis duplicatas)."
@@ -266,6 +266,7 @@ Para cada item, retorne:
 - status: "aprovado" | "alerta" | "reprovado"
 - alerts: array de strings (curtas, em português) descrevendo problemas encontrados; vazio se ok
 - matched_rules: nomes das regras aplicadas/violadas
+- matched_rule_ids: ids (UUIDs) das mesmas regras aplicadas/violadas, na MESMA ordem de matched_rules. Use exatamente o id= mostrado em cada regra acima.
 - expected_amount: número | null (valor esperado calculado, se houver)
 - calculation_explanation: string curta explicando o cálculo (ex: "CBHPM 2018 R$1.200 x 1.5 - 5% = R$1.710")
 
@@ -301,6 +302,7 @@ Responda APENAS via tool call, sem texto adicional.`;
                       status: { type: "string", enum: ["aprovado", "alerta", "reprovado"] },
                       alerts: { type: "array", items: { type: "string" } },
                       matched_rules: { type: "array", items: { type: "string" } },
+                      matched_rule_ids: { type: "array", items: { type: "string" } },
                       expected_amount: { type: ["number","null"] },
                       calculation_explanation: { type: ["string","null"] },
                     },
@@ -336,7 +338,13 @@ Responda APENAS via tool call, sem texto adicional.`;
     for (const r of result.items) {
       await supabase.from("payment_items").update({
         ai_status: r.status,
-        ai_findings: { alerts: r.alerts, matched_rules: r.matched_rules, expected_amount: r.expected_amount ?? null, calculation_explanation: r.calculation_explanation ?? null },
+        ai_findings: {
+          alerts: r.alerts,
+          matched_rules: r.matched_rules,
+          matched_rule_ids: r.matched_rule_ids ?? [],
+          expected_amount: r.expected_amount ?? null,
+          calculation_explanation: r.calculation_explanation ?? null,
+        },
       }).eq("id", r.id);
       if (r.status === "alerta") alerts++;
       if (r.status === "reprovado") blocks++;
