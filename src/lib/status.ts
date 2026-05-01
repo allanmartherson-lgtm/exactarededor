@@ -132,10 +132,24 @@ export const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
   misto: "Misto (atual + pendência)",
 };
 
-export const formatCompetence = (value: string | null | undefined) => {
+const MONTH_FMT = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
+const MONTH_SHORT_FMT = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" });
+
+const fmtSingle = (value: string) => MONTH_FMT.format(new Date(value));
+const fmtSingleShort = (value: string) => MONTH_SHORT_FMT.format(new Date(value)).replace(".", "");
+
+export const formatCompetence = (
+  value: string | string[] | null | undefined,
+) => {
   if (!value) return "—";
-  const d = new Date(value);
-  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(d);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    if (value.length === 1) return fmtSingle(value[0]);
+    const sorted = [...value].sort();
+    if (sorted.length <= 3) return sorted.map(fmtSingleShort).join(" • ");
+    return `${fmtSingleShort(sorted[0])} → ${fmtSingleShort(sorted[sorted.length - 1])} (${sorted.length})`;
+  }
+  return fmtSingle(value);
 };
 
 export const formatDateOnly = (value: string | null | undefined) => {
