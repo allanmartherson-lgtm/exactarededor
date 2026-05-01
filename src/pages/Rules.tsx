@@ -105,6 +105,8 @@ const Rules = () => {
       multiplier: ruleType === "tabela_diferenciada" ? num(f.get("multiplier")) : null,
       deflator_pct: ruleType === "tabela_diferenciada" ? num(f.get("deflator_pct")) : null,
       reference_table_id: ruleType === "tabela_diferenciada" && refTableId ? refTableId : null,
+      include_auxiliaries: ruleType === "tabela_diferenciada" ? f.get("include_auxiliaries") === "on" : false,
+      auxiliary_pct: ruleType === "tabela_diferenciada" ? num(f.get("auxiliary_pct")) : null,
       procedure_codes: codesRaw ? codesRaw.split(/[,;\s]+/).filter(Boolean) : null,
       created_by: user!.id,
     };
