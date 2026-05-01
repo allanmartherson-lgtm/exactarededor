@@ -94,7 +94,6 @@ const Rules = () => {
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
-  const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
