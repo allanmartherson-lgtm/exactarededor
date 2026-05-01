@@ -82,8 +82,8 @@ const Users = () => {
 
   return (
     <>
-      <PageHeader title="Usuários" description="Atribua papéis para controlar quem valida e aprova.">
-        {isAdmin && (
+      <PageHeader title="Usuários" description="Atribua papéis para controlar quem valida e aprova."
+        actions={isAdmin ? (
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />Novo usuário</Button>
@@ -150,8 +150,8 @@ const Users = () => {
               )}
             </DialogContent>
           </Dialog>
-        )}
-      </PageHeader>
+        ) : undefined}
+      />
       <div className="p-8">
         <Card className="shadow-card"><CardContent className="p-0">
           <div className="divide-y divide-border">
