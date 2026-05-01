@@ -28,6 +28,13 @@ interface RuleRow {
   reference_table_id: string | null;
   include_auxiliaries: boolean | null;
   auxiliary_pct: number | null;
+  sectors: string[] | null;
+  specialties: string[] | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  doctors: { name?: string; crm?: string }[] | null;
+  payment_term: string | null;
+  applies_payment_types: string[] | null;
 }
 interface ItemRow {
   id: string;
@@ -62,13 +69,51 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
+    // Cabeçalho do pagamento (setores/especialidades/datas/tipo) para filtrar regras aplicáveis
+    const { data: paymentHeader } = await supabase
+      .from("payments")
+      .select("sectors,specialties,competence_month,payment_due_date,payment_type")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const paySectors: string[] = (paymentHeader?.sectors as string[] | null) ?? [];
+    const paySpecialties: string[] = (paymentHeader?.specialties as string[] | null) ?? [];
+    const payType: string | null = (paymentHeader?.payment_type as string | null) ?? null;
+    const refDate: string =
+      (paymentHeader?.payment_due_date as string | null) ??
+      (paymentHeader?.competence_month as string | null) ??
+      new Date().toISOString().slice(0, 10);
+
     const { data: rules } = await supabase
       .from("rules")
-      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name,rule_type,package_amount,bonus_amount,bonus_pct,target_amount,multiplier,deflator_pct,procedure_codes,reference_table_id,include_auxiliaries,auxiliary_pct")
+      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name,rule_type,package_amount,bonus_amount,bonus_pct,target_amount,multiplier,deflator_pct,procedure_codes,reference_table_id,include_auxiliaries,auxiliary_pct,sectors,specialties,valid_from,valid_until,doctors,payment_term,applies_payment_types")
       .eq("active", true);
 
-    // Carrega itens das tabelas de referência usadas pelas regras
-    const refIds = Array.from(new Set((rules ?? []).map((r: any) => r.reference_table_id).filter(Boolean)));
+    // Pré-filtra regras pela interseção com o pagamento.
+    // Regra com array vazio em sectors/specialties/applies_payment_types = aplica a TODOS.
+    const intersects = (a: string[] | null | undefined, b: string[] | null | undefined): boolean => {
+      const A = a ?? [], B = b ?? [];
+      if (A.length === 0 || B.length === 0) return true; // vazio em qualquer lado = aplica
+      return A.some((x) => B.includes(x));
+    };
+    const inValidity = (r: any): boolean => {
+      if (r.valid_from && refDate < r.valid_from) return false;
+      if (r.valid_until && refDate > r.valid_until) return false;
+      return true;
+    };
+    const ruleSectorsArray = (r: any): string[] => {
+      const arr = Array.isArray(r.sectors) ? r.sectors : [];
+      return arr.length ? arr : (r.sector ? [r.sector] : []);
+    };
+    const filteredRules = (rules ?? []).filter((r: any) =>
+      inValidity(r) &&
+      intersects(ruleSectorsArray(r), paySectors) &&
+      intersects(r.specialties, paySpecialties) &&
+      intersects(r.applies_payment_types, payType ? [payType] : [])
+    );
+    const skippedCount = (rules ?? []).length - filteredRules.length;
+
+    // Carrega itens das tabelas de referência usadas pelas regras filtradas
+    const refIds = Array.from(new Set(filteredRules.map((r: any) => r.reference_table_id).filter(Boolean)));
     let refIndex: Record<string, {
       name: string;
       kind: string;
@@ -124,11 +169,27 @@ serve(async (req) => {
       if (r.rule_type === "complemento" && r.target_amount != null) calc.push(`COMPLEMENTO até R$${r.target_amount}`);
       if (r.procedure_codes && r.procedure_codes.length) calc.push(`códigos:${r.procedure_codes.join(",")}`);
       const calcTag = calc.length ? ` {${r.rule_type}: ${calc.join(" | ")}}` : ` {${r.rule_type}}`;
-      return `R${i + 1} [${tag}] [setor:${r.sector}] (${r.severity.toUpperCase()})${calcTag}: ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
+      const sectorList = (Array.isArray(r.sectors) && r.sectors.length ? r.sectors : [r.sector]).filter(Boolean).join(",");
+      const specList = Array.isArray(r.specialties) && r.specialties.length ? ` [esp:${r.specialties.join(",")}]` : "";
+      const validity = (r.valid_from || r.valid_until) ? ` [vig:${r.valid_from ?? "—"}→${r.valid_until ?? "—"}]` : "";
+      const docs = Array.isArray(r.doctors) && r.doctors.length
+        ? ` [médicos:${r.doctors.map((d) => `${d.name ?? "?"}${d.crm ? `/CRM ${d.crm}` : ""}`).join("; ")}]`
+        : "";
+      const term = r.payment_term && r.payment_term !== "qualquer" ? ` [prazo:${r.payment_term}]` : "";
+      const types = Array.isArray(r.applies_payment_types) && r.applies_payment_types.length ? ` [tipos:${r.applies_payment_types.join(",")}]` : "";
+      return `R${i + 1} [${tag}] [setor:${sectorList || "—"}]${specList}${validity}${docs}${term}${types} (${r.severity.toUpperCase()})${calcTag}: ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
     };
-    const rulesText = (rules ?? []).length === 0
-      ? "Nenhuma regra cadastrada — apenas verifique consistência básica (valor positivo, dados preenchidos, possíveis duplicatas)."
-      : (rules as RuleRow[]).map(fmtRule).join("\n");
+    const rulesText = filteredRules.length === 0
+      ? "Nenhuma regra cadastrada (ou aplicável a este pagamento) — apenas verifique consistência básica (valor positivo, dados preenchidos, possíveis duplicatas)."
+      : (filteredRules as unknown as RuleRow[]).map(fmtRule).join("\n");
+
+    const filterContext =
+      `\n\nCONTEXTO DO PAGAMENTO PARA FILTRO DAS REGRAS:\n` +
+      `- setores do pagamento: ${paySectors.length ? paySectors.join(", ") : "(não informados — aplica todos)"}\n` +
+      `- especialidades do pagamento: ${paySpecialties.length ? paySpecialties.join(", ") : "(não informadas — aplica todas)"}\n` +
+      `- tipo de pagamento: ${payType ?? "(não informado)"}\n` +
+      `- data de referência (vigência): ${refDate}\n` +
+      `- regras pré-filtradas: ${filteredRules.length}/${(rules ?? []).length} (${skippedCount} descartadas por setor/especialidade/vigência/tipo)`;
 
     // Texto compacto das tabelas de referência
     const refText = Object.keys(refIndex).length === 0 ? "" :
@@ -208,8 +269,8 @@ Para cada item, retorne:
 - expected_amount: número | null (valor esperado calculado, se houver)
 - calculation_explanation: string curta explicando o cálculo (ex: "CBHPM 2018 R$1.200 x 1.5 - 5% = R$1.710")
 
-REGRAS:
-${rulesText}${refText}${historyText}
+REGRAS APLICÁVEIS A ESTE PAGAMENTO (já filtradas por setor, especialidade, vigência e tipo de pagamento):
+${rulesText}${filterContext}${refText}${historyText}
 
 Responda APENAS via tool call, sem texto adicional.`;
 
