@@ -19,6 +19,7 @@ interface Row {
   items_count: number;
   created_at: string;
   competence_month: string | null;
+  competence_months: string[] | null;
   payment_due_date: string | null;
   payment_type: PaymentType | null;
   payment_kind: PaymentKind | null;
@@ -35,7 +36,7 @@ const Payments = () => {
     document.title = "Pagamentos | MedPay Approval";
     supabase
       .from("payments")
-      .select("id,reference,status,total_amount,items_count,created_at,competence_month,payment_due_date,payment_type,payment_kind")
+      .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,payment_due_date,payment_type,payment_kind")
       .order("created_at", { ascending: false })
       .then(({ data }) => setRows((data ?? []) as Row[]));
   }, []);
@@ -108,7 +109,7 @@ const Payments = () => {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{p.reference}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_month)}</span>
+                        Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
                         {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
                         {p.payment_type && ` · ${PAYMENT_TYPE_LABELS[p.payment_type]}`}
                         {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}

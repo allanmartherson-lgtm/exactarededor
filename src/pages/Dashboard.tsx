@@ -17,6 +17,7 @@ interface PaymentRow {
   items_count: number;
   created_at: string;
   competence_month: string | null;
+  competence_months: string[] | null;
 }
 
 const Dashboard = () => {
@@ -29,7 +30,7 @@ const Dashboard = () => {
     const load = async () => {
       const { data } = await supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at,competence_month")
+        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months")
         .order("created_at", { ascending: false })
         .limit(8);
       setPayments((data ?? []) as PaymentRow[]);
@@ -96,7 +97,7 @@ const Dashboard = () => {
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{p.reference}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        <span className="capitalize">{formatCompetence(p.competence_month)}</span> · {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
+                        <span className="capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span> · {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
                       </p>
                     </div>
                     <StatusBadge status={p.status} />

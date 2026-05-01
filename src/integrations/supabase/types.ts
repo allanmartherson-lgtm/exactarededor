@@ -395,6 +395,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           competence_month: string | null
+          competence_months: string[]
           cost_center_code: string | null
           created_at: string
           created_by: string
@@ -420,6 +421,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           competence_month?: string | null
+          competence_months?: string[]
           cost_center_code?: string | null
           created_at?: string
           created_by: string
@@ -445,6 +447,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           competence_month?: string | null
+          competence_months?: string[]
           cost_center_code?: string | null
           created_at?: string
           created_by?: string
