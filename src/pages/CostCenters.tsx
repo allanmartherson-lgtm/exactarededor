@@ -8,7 +8,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Network, Upload, Loader2, Search, AlertCircle, ChevronDown } from "lucide-react";
+import { Network, Upload, Loader2, Search, AlertCircle, ChevronDown, History, Undo2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { formatDate } from "@/lib/status";
 
 interface CostCenter {
   id: string;
@@ -23,6 +26,22 @@ interface CostCenter {
   status: string | null;
   active: boolean;
   imported_at: string;
+}
+
+interface ImportLog {
+  id: string;
+  file_name: string | null;
+  rows_in_file: number;
+  created_count: number;
+  updated_count: number;
+  deactivated_count: number;
+  imported_by: string;
+  imported_at: string;
+  status: string;
+  reverted_by: string | null;
+  reverted_at: string | null;
+  importer?: { full_name: string | null; email: string } | null;
+  reverter?: { full_name: string | null; email: string } | null;
 }
 
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
