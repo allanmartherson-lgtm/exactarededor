@@ -699,7 +699,24 @@ const Rules = () => {
                                 <p className="font-medium text-sm">{r.name}</p>
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
                                 <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
-                                <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
+                                {Array.isArray(r.sectors) && r.sectors.length > 0 ? (
+                                  <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
+                                    {(r.sectors as RuleSector[]).map((s) => RULE_SECTOR_LABELS[s] ?? s).join(" · ")}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
+                                )}
+                                {Array.isArray(r.specialties) && r.specialties.length > 0 && (
+                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">🩺 {r.specialties.join(" · ")}</span>
+                                )}
+                                {(r.valid_from || r.valid_until) && (
+                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                                    Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
+                                  </span>
+                                )}
+                                {Array.isArray(r.doctors) && r.doctors.length > 0 && (
+                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">👤 {r.doctors.length} médico{r.doctors.length > 1 ? "s" : ""}</span>
+                                )}
                                 {renderCalcBadge(r)}
                                 {r.payment_term && r.payment_term !== "qualquer" && (
                                   <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
