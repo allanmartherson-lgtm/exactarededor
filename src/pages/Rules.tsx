@@ -160,6 +160,8 @@ const Rules = () => {
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
+  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
+  const [filterCompanyOpen, setFilterCompanyOpen] = useState(false);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
