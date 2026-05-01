@@ -450,9 +450,9 @@ const Rules = () => {
             </SelectContent>
           </Select>
           <Select value={filterSector} onValueChange={(v) => setFilterSector(v as any)}>
-            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos os setores</SelectItem>
+              <SelectItem value="todos">Todos (setor / item pgto)</SelectItem>
               {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
