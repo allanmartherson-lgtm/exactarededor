@@ -891,58 +891,14 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
-          <Popover open={filterCompanyOpen} onOpenChange={setFilterCompanyOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" role="combobox"
-                className={cn("min-w-[240px] justify-between font-normal", !filterCompanyId && "text-muted-foreground")}>
-                {filterCompanyId
-                  ? (() => {
-                      const c = companies.find((x) => x.id === filterCompanyId);
-                      return c ? `${c.name}${c.document ? ` · ${formatCNPJ(c.document)}` : ""}` : "Empresa cadastrada";
-                    })()
-                  : "Filtrar por empresa (CNPJ)…"}
-                <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[360px] p-0" align="start">
-              <Command
-                filter={(value, search) => {
-                  const v = value.toLowerCase();
-                  const s = search.toLowerCase();
-                  if (v.includes(s)) return 1;
-                  const digits = onlyDigits(search);
-                  if (digits && v.includes(digits)) return 1;
-                  return 0;
-                }}
-              >
-                <CommandInput placeholder="Buscar por nome ou CNPJ…" />
-                <CommandList>
-                  <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-                  <CommandGroup>
-                    {companies.map((c) => {
-                      const checked = filterCompanyId === c.id;
-                      const docMasked = c.document ? formatCNPJ(c.document) : "—";
-                      return (
-                        <CommandItem
-                          key={c.id}
-                          value={`${c.name} ${c.document ?? ""} ${onlyDigits(c.document ?? "")}`}
-                          onSelect={() => { setFilterCompanyId(c.id); setFilterCompanyOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
-                          <div className="flex flex-col">
-                            <span>{c.name}</span>
-                            <span className="text-xs text-muted-foreground">CNPJ {docMasked}</span>
-                          </div>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {filterCompanyId && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCompanyId(null)}>
+          <CompanyCombobox
+            value={filterCompany}
+            onChange={setFilterCompany}
+            placeholder="Filtrar por empresa (CNPJ)…"
+            className="min-w-[240px] h-9"
+          />
+          {filterCompany && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)}>
               <X className="h-3.5 w-3.5 mr-1" /> Limpar empresa
             </Button>
           )}
