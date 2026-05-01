@@ -10,6 +10,7 @@ import Payments from "./pages/Payments.tsx";
 import NewPayment from "./pages/NewPayment.tsx";
 import PaymentDetail from "./pages/PaymentDetail.tsx";
 import Rules from "./pages/Rules.tsx";
+import ReferenceTables from "./pages/ReferenceTables.tsx";
 import Users from "./pages/Users.tsx";
 import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/pagamentos/:id" element={<PaymentDetail />} />
               <Route path="/notas-fiscais" element={<Invoices />} />
               <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
+              <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
