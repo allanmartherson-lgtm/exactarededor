@@ -157,8 +157,10 @@ const ReferenceTables = () => {
                 const entries = Object.entries(row).filter(([, value]) => String(value ?? "").trim() !== "");
                 const pKey = Object.keys(row).find((k) => norm(k.trim()).startsWith("porte"));
                 const vKey = findKey(row, ["valor", "amount", "preco", "preço"]);
-                const portValue = pKey ? row[pKey] : entries.find(([, value]) => /^\d+[A-C]$/i.test(String(value).trim()))?.[1];
-                const amountValue = vKey ? row[vKey] : entries.map(([, value]) => parseNumber(value)).find((value) => value != null && value > 1);
+                const explicitPortValue = pKey ? String(row[pKey] ?? "").trim() : "";
+                const portValue = explicitPortValue || entries.find(([, value]) => /^\d+[A-C]$/i.test(String(value).trim()))?.[1];
+                const explicitAmount = vKey ? parseNumber(row[vKey]) : null;
+                const amountValue = explicitAmount ?? entries.map(([, value]) => parseNumber(value)).find((value) => value != null && value > 1);
                 const port = portValue ? String(portValue).trim().toUpperCase() : "";
                 const amount = parseNumber(amountValue);
                 if (!port || amount == null) return null;
