@@ -207,7 +207,21 @@ const Companies = () => {
                 </div>
                 <div className="space-y-1.5">
                   <Label>CNPJ</Label>
-                  <Input value={editing.document ?? ""} onChange={(e) => setEditing({ ...editing, document: e.target.value })} placeholder="00.000.000/0001-00" />
+                  <Input
+                    value={editing.document ?? ""}
+                    onChange={(e) => setEditing({ ...editing, document: formatCNPJ(e.target.value) })}
+                    placeholder="00.000.000/0001-00"
+                    inputMode="numeric"
+                    maxLength={18}
+                  />
+                  {(() => {
+                    const d = onlyDigits(editing.document ?? "");
+                    if (!d) return <p className="text-xs text-muted-foreground">Opcional. Se preenchido, deve ser um CNPJ válido.</p>;
+                    if (d.length < 14) return <p className="text-xs text-muted-foreground">Continue digitando — {d.length}/14 dígitos.</p>;
+                    return isValidCNPJ(d)
+                      ? <p className="text-xs text-emerald-600 inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" /> CNPJ válido.</p>
+                      : <p className="text-xs text-destructive inline-flex items-center gap-1"><ShieldAlert className="h-3.5 w-3.5" /> CNPJ inválido — confira os dígitos.</p>;
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Apelidos / variações de nome</Label>
@@ -266,7 +280,16 @@ const Companies = () => {
                   {filtered.map((c) => (
                     <tr key={c.id}>
                       <td className="px-4 py-2 font-medium flex items-center gap-2"><Building2 className="h-4 w-4 text-muted-foreground" />{c.name}</td>
-                      <td className="px-4 py-2 text-muted-foreground tabular-nums">{c.document ?? "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                        {c.document ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            {c.document}
+                            {isValidCNPJ(c.document)
+                              ? <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                              : <ShieldAlert className="h-3.5 w-3.5 text-destructive" />}
+                          </span>
+                        ) : "—"}
+                      </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-wrap gap-1">
                           {(c.aliases ?? []).map((a, i) => <Badge key={i} variant="outline" className="text-xs">{a}</Badge>)}
