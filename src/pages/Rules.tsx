@@ -392,6 +392,9 @@ const Rules = () => {
       valid_until: d.valid_until,
       doctors: d.doctors,
       created_by: user!.id,
+      target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
+        ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
+        : null,
     }));
     const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
