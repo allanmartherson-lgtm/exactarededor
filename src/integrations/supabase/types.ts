@@ -255,19 +255,93 @@ export type Database = {
         }
         Relationships: []
       }
-      rules: {
+      reference_table_items: {
         Row: {
-          active: boolean
+          amount: number
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          reference_table_id: string
+        }
+        Insert: {
+          amount?: number
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_table_id: string
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_table_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_table_items_reference_table_id_fkey"
+            columns: ["reference_table_id"]
+            isOneToOne: false
+            referencedRelation: "reference_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reference_tables: {
+        Row: {
           created_at: string
           created_by: string | null
           description: string | null
           id: string
           name: string
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      rules: {
+        Row: {
+          active: boolean
+          bonus_amount: number | null
+          bonus_pct: number | null
+          created_at: string
+          created_by: string | null
+          deflator_pct: number | null
+          description: string | null
+          id: string
+          multiplier: number | null
+          name: string
+          package_amount: number | null
+          procedure_codes: string[] | null
+          reference_table_id: string | null
           rule_json: Json | null
           rule_text: string
+          rule_type: Database["public"]["Enums"]["rule_type"]
           scope: Database["public"]["Enums"]["rule_scope"]
           sector: Database["public"]["Enums"]["rule_sector"]
           severity: Database["public"]["Enums"]["rule_severity"]
+          target_amount: number | null
           target_identifier: string | null
           target_name: string | null
           target_type: Database["public"]["Enums"]["rule_target_type"] | null
@@ -275,16 +349,25 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          bonus_amount?: number | null
+          bonus_pct?: number | null
           created_at?: string
           created_by?: string | null
+          deflator_pct?: number | null
           description?: string | null
           id?: string
+          multiplier?: number | null
           name: string
+          package_amount?: number | null
+          procedure_codes?: string[] | null
+          reference_table_id?: string | null
           rule_json?: Json | null
           rule_text: string
+          rule_type?: Database["public"]["Enums"]["rule_type"]
           scope?: Database["public"]["Enums"]["rule_scope"]
           sector?: Database["public"]["Enums"]["rule_sector"]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          target_amount?: number | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
@@ -292,22 +375,39 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          bonus_amount?: number | null
+          bonus_pct?: number | null
           created_at?: string
           created_by?: string | null
+          deflator_pct?: number | null
           description?: string | null
           id?: string
+          multiplier?: number | null
           name?: string
+          package_amount?: number | null
+          procedure_codes?: string[] | null
+          reference_table_id?: string | null
           rule_json?: Json | null
           rule_text?: string
+          rule_type?: Database["public"]["Enums"]["rule_type"]
           scope?: Database["public"]["Enums"]["rule_scope"]
           sector?: Database["public"]["Enums"]["rule_sector"]
           severity?: Database["public"]["Enums"]["rule_severity"]
+          target_amount?: number | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rules_reference_table_fk"
+            columns: ["reference_table_id"]
+            isOneToOne: false
+            referencedRelation: "reference_tables"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -378,6 +478,12 @@ export type Database = {
         | "outro"
       rule_severity: "info" | "aviso" | "bloqueio"
       rule_target_type: "medico" | "empresa"
+      rule_type:
+        | "informativo"
+        | "pacote"
+        | "tabela_diferenciada"
+        | "bonus"
+        | "complemento"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -536,6 +642,13 @@ export const Constants = {
       ],
       rule_severity: ["info", "aviso", "bloqueio"],
       rule_target_type: ["medico", "empresa"],
+      rule_type: [
+        "informativo",
+        "pacote",
+        "tabela_diferenciada",
+        "bonus",
+        "complemento",
+      ],
     },
   },
 } as const

@@ -59,6 +59,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 export type RuleScope = Database["public"]["Enums"]["rule_scope"];
 export type RuleSector = Database["public"]["Enums"]["rule_sector"];
 export type RuleTargetType = Database["public"]["Enums"]["rule_target_type"];
+export type RuleType = Database["public"]["Enums"]["rule_type"];
 
 export const RULE_SCOPE_LABELS: Record<RuleScope, string> = {
   master: "Master (geral)",
@@ -78,6 +79,22 @@ export const RULE_SECTOR_LABELS: Record<RuleSector, string> = {
 export const RULE_TARGET_TYPE_LABELS: Record<RuleTargetType, string> = {
   medico: "Médico",
   empresa: "Empresa",
+};
+
+export const RULE_TYPE_LABELS: Record<RuleType, string> = {
+  informativo: "Informativa / bloqueio",
+  pacote: "Pacote (valor fixo)",
+  tabela_diferenciada: "Tabela diferenciada",
+  bonus: "Bônus",
+  complemento: "Complemento",
+};
+
+export const RULE_TYPE_DESCRIPTIONS: Record<RuleType, string> = {
+  informativo: "Apenas alerta/bloqueia o validador, não calcula valor esperado.",
+  pacote: "Valor fixo para a cirurgia/procedimento toda.",
+  tabela_diferenciada: "Referência (ex: CBHPM 2018) × multiplicador − deflator.",
+  bonus: "Honorário do convênio + um valor ou % adicional.",
+  complemento: "Completa o que faltou para chegar ao valor acordado.",
 };
 
 export const formatCurrency = (value: number | string | null | undefined) => {
