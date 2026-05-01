@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -383,52 +384,86 @@ const PaymentDetail = () => {
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
                         <td className="px-3 py-3 text-right">
-                          {tooltipNode && firstRule?.id ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Link
-                                  to={`/regras?rule=${firstRule.id}`}
-                                  className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
-                                >
-                                  {formatCurrency(it.gross_amount)}
-                                </Link>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" className="max-w-xs">
-                                {tooltipNode}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : tooltipNode ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="tabular-nums font-medium underline decoration-dotted decoration-muted-foreground/50 cursor-help">
-                                  {formatCurrency(it.gross_amount)}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" className="max-w-xs">
-                                {tooltipNode}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <div className="tabular-nums font-medium">{formatCurrency(it.gross_amount)}</div>
-                          )}
-                          {firstRuleLabel && (
-                            firstRule?.id ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto">
-                                    {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
-                                  </Link>
-                                </TooltipTrigger>
-                                <TooltipContent side="left" className="max-w-xs">
-                                  {tooltipNode}
-                                </TooltipContent>
-                              </Tooltip>
+                          {(() => {
+                            const totalRules = matchedRuleObjs.length || matchedNames.length;
+                            const extra = Math.max(0, totalRules - 1);
+                            const valueEl = firstRule?.id ? (
+                              <Link
+                                to={`/regras?rule=${firstRule.id}`}
+                                className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
+                              >
+                                {formatCurrency(it.gross_amount)}
+                              </Link>
                             ) : (
-                              <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto">
-                                {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
+                              <span className={`tabular-nums font-medium ${tooltipNode ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help" : ""}`}>
+                                {formatCurrency(it.gross_amount)}
                               </span>
-                            )
-                          )}
+                            );
+                            return (
+                              <>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {tooltipNode ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>{valueEl}</TooltipTrigger>
+                                      <TooltipContent side="left" className="max-w-xs">{tooltipNode}</TooltipContent>
+                                    </Tooltip>
+                                  ) : valueEl}
+                                  {extra > 0 && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition"
+                                          title={`${totalRules} regras aplicadas`}
+                                        >
+                                          +{extra}
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent side="left" align="end" className="w-80 p-0">
+                                        <div className="px-3 py-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                          {totalRules} regras aplicadas
+                                        </div>
+                                        <ul className="max-h-72 overflow-y-auto divide-y divide-border/60">
+                                          {(matchedRuleObjs.length ? matchedRuleObjs : matchedNames.map((n) => ({ id: "", name: n, rule_text: "", description: null }))).map((r, i) => (
+                                            <li key={i} className="px-3 py-2 text-xs">
+                                              {r.id ? (
+                                                <Link to={`/regras?rule=${r.id}`} className="font-medium text-primary hover:underline">
+                                                  {truncate(r.name, 80)}
+                                                </Link>
+                                              ) : (
+                                                <span className="font-medium">{truncate(r.name, 80)}</span>
+                                              )}
+                                              {r.rule_text && (
+                                                <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground leading-snug">
+                                                  {truncate(r.rule_text.trim(), 180)}
+                                                </p>
+                                              )}
+                                              {r.description && (
+                                                <p className="mt-0.5 italic text-muted-foreground/80 leading-snug">
+                                                  {truncate(r.description.trim(), 120)}
+                                                </p>
+                                              )}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </div>
+                                {firstRuleLabel && (
+                                  firstRule?.id ? (
+                                    <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto">
+                                      {firstRuleLabel}
+                                    </Link>
+                                  ) : (
+                                    <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto">
+                                      {firstRuleLabel}
+                                    </span>
+                                  )
+                                )}
+                              </>
+                            );
+                          })()}
                         </td>
                         <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
                       </tr>
