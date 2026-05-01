@@ -47,6 +47,60 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_centers: {
+        Row: {
+          active: boolean
+          code_p10: string | null
+          code_p12: string
+          code_pai: string | null
+          created_at: string
+          id: string
+          imported_at: string
+          imported_by: string | null
+          level1: string | null
+          level2: string | null
+          level3: string | null
+          level4: string | null
+          level5: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code_p10?: string | null
+          code_p12: string
+          code_pai?: string | null
+          created_at?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          level1?: string | null
+          level2?: string | null
+          level3?: string | null
+          level4?: string | null
+          level5?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code_p10?: string | null
+          code_p12?: string
+          code_pai?: string | null
+          created_at?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          level1?: string | null
+          level2?: string | null
+          level3?: string | null
+          level4?: string | null
+          level5?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           created_at: string
@@ -115,6 +169,7 @@ export type Database = {
           attendance_number: string | null
           company_id: string | null
           company_name: string | null
+          cost_center_code: string | null
           created_at: string
           description: string | null
           doctor_document: string | null
@@ -139,6 +194,7 @@ export type Database = {
           attendance_number?: string | null
           company_id?: string | null
           company_name?: string | null
+          cost_center_code?: string | null
           created_at?: string
           description?: string | null
           doctor_document?: string | null
@@ -163,6 +219,7 @@ export type Database = {
           attendance_number?: string | null
           company_id?: string | null
           company_name?: string | null
+          cost_center_code?: string | null
           created_at?: string
           description?: string | null
           doctor_document?: string | null
@@ -254,7 +311,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           competence_month: string | null
-          cost_center: string | null
+          cost_center_code: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -277,7 +334,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           competence_month?: string | null
-          cost_center?: string | null
+          cost_center_code?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -300,7 +357,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           competence_month?: string | null
-          cost_center?: string | null
+          cost_center_code?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
