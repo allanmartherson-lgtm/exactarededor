@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy } from "lucide-react";
+import { Plus, Copy, Send, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
@@ -26,6 +26,7 @@ const Users = () => {
     email: "", full_name: "", roles: [] as AppRole[], send_invite: true,
   });
   const [tempPwd, setTempPwd] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("*");
@@ -39,6 +40,30 @@ const Users = () => {
     if (has) await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
     else await supabase.from("user_roles").insert({ user_id: userId, role });
     load(); toast({ title: "Atualizado" });
+  };
+
+  const resendInvite = async (u: { id: string; email: string }) => {
+    setResendingId(u.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-resend-invite", {
+        body: { email: u.email, app_origin: window.location.origin },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const kindLabel = data?.kind === "invite" ? "Convite reenviado" : "Link de redefinição enviado";
+      const desc = data?.action_link
+        ? `Enviamos por e-mail para ${u.email}. Caso não chegue, copie o link abaixo manualmente.`
+        : `Enviamos por e-mail para ${u.email}.`;
+      toast({ title: kindLabel, description: desc });
+      // Disponibiliza o link manual caso o e-mail não chegue (SMTP indisponível, etc.)
+      if (data?.action_link) {
+        try { await navigator.clipboard.writeText(data.action_link); } catch {}
+      }
+    } catch (e: any) {
+      toast({ title: "Falha ao reenviar", description: e.message, variant: "destructive" });
+    } finally {
+      setResendingId(null);
+    }
   };
 
   const resetForm = () => {
@@ -159,11 +184,25 @@ const Users = () => {
             {users.map((u) => (
               <div key={u.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
                 <div><p className="font-medium text-sm">{u.full_name || u.email}</p><p className="text-xs text-muted-foreground">{u.email}</p></div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {ROLES.map((r) => {
                     const has = u.roles.includes(r);
                     return <Button key={r} size="sm" variant={has ? "default" : "outline"} onClick={() => toggle(u.id, r, has)}>{ROLE_LABELS[r]}</Button>;
                   })}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => resendInvite({ id: u.id, email: u.email })}
+                      disabled={resendingId === u.id}
+                      title="Reenvia o link de definição/redefinição de senha por e-mail"
+                    >
+                      {resendingId === u.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                      Reenviar convite
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
