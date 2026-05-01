@@ -1,15 +1,31 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
+import { Plus, Copy } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
 
 const Users = () => {
+  const { roles: myRoles } = useAuth();
+  const isAdmin = myRoles.includes("admin");
   const [users, setUsers] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    email: "", full_name: "", roles: [] as AppRole[], send_invite: true,
+  });
+  const [tempPwd, setTempPwd] = useState<string | null>(null);
 
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("*");
@@ -25,9 +41,117 @@ const Users = () => {
     load(); toast({ title: "Atualizado" });
   };
 
+  const resetForm = () => {
+    setForm({ email: "", full_name: "", roles: [], send_invite: true });
+    setTempPwd(null);
+  };
+
+  const submit = async () => {
+    if (!form.email.trim()) {
+      toast({ title: "E-mail obrigatório", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          email: form.email.trim(),
+          full_name: form.full_name.trim(),
+          roles: form.roles,
+          send_invite: form.send_invite,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.temp_password) {
+        setTempPwd(data.temp_password);
+        toast({ title: "Usuário criado", description: "Compartilhe a senha temporária abaixo." });
+      } else {
+        toast({ title: "Convite enviado", description: `Enviamos um e-mail para ${form.email}.` });
+        setOpen(false);
+        resetForm();
+      }
+      load();
+    } catch (e: any) {
+      toast({ title: "Erro ao criar usuário", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
-      <PageHeader title="Usuários" description="Atribua papéis para controlar quem valida e aprova." />
+      <PageHeader title="Usuários" description="Atribua papéis para controlar quem valida e aprova.">
+        {isAdmin && (
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />Novo usuário</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Novo usuário</DialogTitle>
+                <DialogDescription>Crie uma conta e atribua papéis. O usuário definirá a senha no primeiro acesso.</DialogDescription>
+              </DialogHeader>
+              {tempPwd ? (
+                <div className="space-y-3">
+                  <p className="text-sm">Senha temporária gerada. Compartilhe com o usuário — ele deverá alterá-la no primeiro acesso.</p>
+                  <div className="flex items-center gap-2">
+                    <Input readOnly value={tempPwd} className="font-mono" />
+                    <Button size="icon" variant="outline" onClick={() => { navigator.clipboard.writeText(tempPwd); toast({ title: "Copiado" }); }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => { setOpen(false); resetForm(); }}>Concluir</Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nome completo</Label>
+                    <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Maria Silva" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>E-mail *</Label>
+                    <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="maria@empresa.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Papéis</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {ROLES.map((r) => {
+                        const checked = form.roles.includes(r);
+                        return (
+                          <Button key={r} type="button" size="sm" variant={checked ? "default" : "outline"}
+                            onClick={() => setForm({ ...form, roles: checked ? form.roles.filter((x) => x !== r) : [...form.roles, r] })}>
+                            {ROLE_LABELS[r]}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 pt-2 border-t">
+                    <Checkbox id="send_invite" checked={form.send_invite}
+                      onCheckedChange={(c) => setForm({ ...form, send_invite: !!c })} />
+                    <div className="grid gap-1">
+                      <Label htmlFor="send_invite" className="cursor-pointer">Enviar convite por e-mail</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {form.send_invite
+                          ? "O usuário receberá um link para definir a senha."
+                          : "Será gerada uma senha temporária para você compartilhar manualmente."}
+                      </p>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
+                    <Button onClick={submit} disabled={saving}>{saving ? "Criando..." : "Criar usuário"}</Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
+      </PageHeader>
       <div className="p-8">
         <Card className="shadow-card"><CardContent className="p-0">
           <div className="divide-y divide-border">
