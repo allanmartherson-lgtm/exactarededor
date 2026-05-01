@@ -26,6 +26,8 @@ interface RuleRow {
   deflator_pct: number | null;
   procedure_codes: string[] | null;
   reference_table_id: string | null;
+  include_auxiliaries: boolean | null;
+  auxiliary_pct: number | null;
 }
 interface ItemRow {
   id: string;
@@ -52,19 +54,35 @@ serve(async (req) => {
 
     const { data: rules } = await supabase
       .from("rules")
-      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name,rule_type,package_amount,bonus_amount,bonus_pct,target_amount,multiplier,deflator_pct,procedure_codes,reference_table_id")
+      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name,rule_type,package_amount,bonus_amount,bonus_pct,target_amount,multiplier,deflator_pct,procedure_codes,reference_table_id,include_auxiliaries,auxiliary_pct")
       .eq("active", true);
 
     // Carrega itens das tabelas de referência usadas pelas regras
     const refIds = Array.from(new Set((rules ?? []).map((r: any) => r.reference_table_id).filter(Boolean)));
-    let refIndex: Record<string, { name: string; items: { code: string; description: string | null; amount: number }[] }> = {};
+    let refIndex: Record<string, {
+      name: string;
+      kind: string;
+      items: { code: string; description: string | null; amount: number | null; port: string | null; aux_count: number | null }[];
+      portValues: Record<string, number>;
+    }> = {};
     if (refIds.length > 0) {
-      const { data: refTables } = await supabase.from("reference_tables").select("id,name").in("id", refIds);
-      const { data: refItems } = await supabase.from("reference_table_items").select("reference_table_id,code,description,amount").in("reference_table_id", refIds);
-      for (const t of refTables ?? []) refIndex[t.id] = { name: t.name, items: [] };
+      const { data: refTables } = await supabase.from("reference_tables").select("id,name,kind").in("id", refIds);
+      const { data: refItems } = await supabase.from("reference_table_items").select("reference_table_id,code,description,amount,port,aux_count").in("reference_table_id", refIds);
+      const { data: refPortValues } = await supabase.from("reference_table_port_values").select("reference_table_id,port,amount").in("reference_table_id", refIds);
+      for (const t of refTables ?? []) refIndex[t.id] = { name: t.name, kind: (t as any).kind ?? "simples", items: [], portValues: {} };
       for (const it of refItems ?? []) {
         const t = refIndex[it.reference_table_id];
-        if (t) t.items.push({ code: it.code, description: it.description, amount: Number(it.amount) });
+        if (t) t.items.push({
+          code: it.code,
+          description: it.description,
+          amount: it.amount != null ? Number(it.amount) : null,
+          port: (it as any).port ?? null,
+          aux_count: (it as any).aux_count ?? null,
+        });
+      }
+      for (const pv of refPortValues ?? []) {
+        const t = refIndex[pv.reference_table_id];
+        if (t) t.portValues[String(pv.port)] = Number(pv.amount);
       }
     }
     const { data: items } = await supabase.from("payment_items").select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data").eq("payment_id", payment_id);
@@ -82,8 +100,8 @@ serve(async (req) => {
       const calc: string[] = [];
       if (r.rule_type === "pacote" && r.package_amount != null) calc.push(`PACOTE=R$${r.package_amount}`);
       if (r.rule_type === "tabela_diferenciada") {
-        const ref = r.reference_table_id ? refIndex[r.reference_table_id]?.name : null;
-        calc.push(`TABELA${ref ? `=${ref}` : ""}${r.multiplier ? ` x${r.multiplier}` : ""}${r.deflator_pct ? ` deflator ${r.deflator_pct}%` : ""}`);
+        const ref = r.reference_table_id ? refIndex[r.reference_table_id] : null;
+        calc.push(`TABELA${ref ? `=${ref.name}(${ref.kind})` : ""}${r.multiplier ? ` x${r.multiplier}` : ""}${r.deflator_pct ? ` deflator ${r.deflator_pct}%` : ""}${r.include_auxiliaries ? ` +AUX${r.auxiliary_pct ? ` ${r.auxiliary_pct}%` : " 30%"}` : ""}`);
       }
       if (r.rule_type === "bonus") {
         if (r.bonus_amount != null) calc.push(`BONUS=+R$${r.bonus_amount}`);
@@ -98,12 +116,17 @@ serve(async (req) => {
       ? "Nenhuma regra cadastrada — apenas verifique consistência básica (valor positivo, dados preenchidos, possíveis duplicatas)."
       : (rules as RuleRow[]).map(fmtRule).join("\n");
 
-    // Texto compacto das tabelas de referência (limitado para não estourar contexto)
+    // Texto compacto das tabelas de referência
     const refText = Object.keys(refIndex).length === 0 ? "" :
-      "\n\nTABELAS DE REFERÊNCIA (código → valor base):\n" +
+      "\n\nTABELAS DE REFERÊNCIA:\n" +
       Object.entries(refIndex).map(([_id, t]) => {
-        const sample = t.items.slice(0, 200).map(i => `${i.code}=R$${i.amount}${i.description ? ` (${i.description})` : ""}`).join("; ");
-        return `# ${t.name}\n${sample}${t.items.length > 200 ? ` ...(+${t.items.length-200})` : ""}`;
+        if (t.kind === "cbhpm") {
+          const ports = Object.entries(t.portValues).map(([p, v]) => `${p}=R$${v}`).join("; ");
+          const sample = t.items.slice(0, 300).map(i => `${i.code}→porte:${i.port ?? "?"}${i.aux_count != null ? ` aux:${i.aux_count}` : ""}${i.description ? ` (${i.description})` : ""}`).join("; ");
+          return `# ${t.name} [CBHPM]\nPORTES: ${ports}\nCÓDIGOS: ${sample}${t.items.length > 300 ? ` ...(+${t.items.length-300})` : ""}`;
+        }
+        const sample = t.items.slice(0, 200).map(i => `${i.code}=R$${i.amount ?? 0}${i.description ? ` (${i.description})` : ""}`).join("; ");
+        return `# ${t.name} [SIMPLES]\n${sample}${t.items.length > 200 ? ` ...(+${t.items.length-200})` : ""}`;
       }).join("\n");
 
     const historyText = (history ?? []).length === 0
@@ -129,7 +152,11 @@ Para CADA item, aplique as regras seguindo este princípio de precedência:
 
 CÁLCULO DE VALOR ESPERADO (quando a regra tem rule_type diferente de 'informativo'):
 - pacote: valor esperado = package_amount.
-- tabela_diferenciada: localize o código do procedimento na TABELA DE REFERÊNCIA indicada, pegue o valor base, multiplique por 'multiplier' (default 1) e aplique deflator (-deflator_pct%). Se a tabela não tiver o código, marque como alerta.
+- tabela_diferenciada:
+    * Se a tabela for [SIMPLES]: valor_base = amount do código. Esperado = valor_base × multiplier (default 1) × (1 − deflator_pct/100).
+    * Se a tabela for [CBHPM]: encontre o código na lista CÓDIGOS, pegue seu PORTE; depois pegue o valor desse porte na lista PORTES. valor_base = valor_porte. Esperado = valor_porte × multiplier (default 1) × (1 − deflator_pct/100).
+    * Se "AUX" estiver indicado na regra: some valor_aux = valor_base × aux_count × (auxiliary_pct/100, default 30%). Esperado_total = esperado_cirurgião + valor_aux.
+    * Se a tabela não tiver o código (ou o porte não tiver valor), marque como alerta e descreva no calculation_explanation.
 - bonus: valor esperado = valor_bruto (do convênio, vindo da planilha) + bonus_amount OU + (valor_bruto * bonus_pct/100).
 - complemento: valor esperado = target_amount; "valor a complementar" = target_amount - valor_bruto.
 - Se procedure_codes da regra estiver preenchido, ela só se aplica quando o item tiver um desses códigos.
