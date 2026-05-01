@@ -496,6 +496,18 @@ const Rules = () => {
                               <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
                               <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                               {renderCalcBadge(r)}
+                              {r.payment_term && r.payment_term !== "qualquer" && (
+                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
+                              )}
+                              {r.applies_payment_types && r.applies_payment_types.length > 0 && (
+                                <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                                  {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
+                                </span>
+                              )}
+                              {r.reference_table_id && r.rule_type !== "tabela_diferenciada" && (() => {
+                                const ref = refTables.find((t) => t.id === r.reference_table_id);
+                                return ref ? <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">📋 {ref.name}</span> : null;
+                              })()}
                               {r.procedure_codes && r.procedure_codes.length > 0 && (
                                 <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{r.procedure_codes.join(", ")}</span>
                               )}
