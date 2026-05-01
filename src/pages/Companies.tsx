@@ -164,17 +164,32 @@ const Companies = () => {
         return;
       }
 
-      // Upsert manual: atualiza por nome (case-insensitive) ou insere
-      const { data: existing } = await supabase.from("companies").select("id,name");
-      const existingMap = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
-
+      // Upsert manual: prioriza match por CNPJ; se não houver, casa por nome.
+      const { data: existing } = await supabase.from("companies").select("id,name,document");
+      const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
+      const byCnpj = new Map(
+        (existing ?? [])
+          .map((c: any) => [onlyDigits(c.document ?? ""), c.id])
+          .filter(([d]) => d && (d as string).length === 14)
+      );
+      // Deduplica o próprio lote por CNPJ
+      const seenCnpj = new Set<string>();
+      let dupInBatch = 0;
       let inserted = 0, updated = 0, failed = 0;
       for (const row of valid) {
-        const id = existingMap.get(row.name.toLowerCase());
+        const d = onlyDigits(row.document ?? "");
+        if (d) {
+          if (seenCnpj.has(d)) { dupInBatch++; continue; }
+          seenCnpj.add(d);
+        }
+        const id = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
         const { error } = id
           ? await supabase.from("companies").update(row).eq("id", id)
           : await supabase.from("companies").insert(row);
-        if (error) failed++;
+        if (error) {
+          if ((error as any).code === "23505") dupInBatch++;
+          else failed++;
+        }
         else if (id) updated++;
         else inserted++;
       }
@@ -184,6 +199,7 @@ const Companies = () => {
         description:
           `${inserted} criada(s), ${updated} atualizada(s)` +
           (failed ? `, ${failed} com erro` : "") +
+          (dupInBatch ? `, ${dupInBatch} ignorada(s) por CNPJ duplicado` : "") +
           (skipped.length ? `. ${skipped.length} ignorada(s) por CNPJ inválido.` : ""),
       });
       load();
