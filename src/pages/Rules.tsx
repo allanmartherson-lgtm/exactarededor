@@ -23,6 +23,10 @@ import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronR
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -30,7 +34,7 @@ type PaymentTerm = "qualquer" | "prioridade" | "habitual";
 const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
   qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
 };
-const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao", "misto"];
+const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type RuleRow = any;
 type DraftRule = {
@@ -69,6 +73,8 @@ const Rules = () => {
   const { user } = useAuth();
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string }[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
+  const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -130,7 +136,8 @@ const Rules = () => {
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
   const loadRefs = () => supabase.from("reference_tables").select("id,name").order("name").then(({ data }) => setRefTables((data ?? []) as any));
-  useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); }, []);
+  const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
+  useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
   const resetForm = () => {
     setEditingId(null);
@@ -468,14 +475,65 @@ const Rules = () => {
                         <SelectContent>{Object.entries(RULE_TARGET_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5"><Label>{targetType === "medico" ? "CPF" : "CNPJ"}</Label>
-                        <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                    {targetType === "empresa" ? (
+                      <div className="space-y-2">
+                        <div className="space-y-1.5">
+                          <Label>Empresa cadastrada</Label>
+                          <Popover open={companyPickerOpen} onOpenChange={setCompanyPickerOpen}>
+                            <PopoverTrigger asChild>
+                              <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !fTargetName && "text-muted-foreground")}>
+                                {fTargetName || "Selecionar empresa…"}
+                                <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Buscar empresa…" />
+                                <CommandList>
+                                  <CommandEmpty>{companies.length ? "Nenhuma empresa encontrada." : "Nenhuma empresa cadastrada."}</CommandEmpty>
+                                  <CommandGroup>
+                                    {companies.map((c) => {
+                                      const checked = fTargetName === c.name && (fTargetIdentifier ?? "") === (c.document ?? "");
+                                      return (
+                                        <CommandItem key={c.id} value={`${c.name} ${c.document ?? ""}`} onSelect={() => {
+                                          setFTargetName(c.name);
+                                          setFTargetIdentifier(c.document ?? "");
+                                          setCompanyPickerOpen(false);
+                                        }}>
+                                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
+                                          <div className="flex flex-col">
+                                            <span>{c.name}</span>
+                                            {c.document && <span className="text-xs text-muted-foreground">{c.document}</span>}
+                                          </div>
+                                        </CommandItem>
+                                      );
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <p className="text-xs text-muted-foreground">Puxa nome e CNPJ direto do cadastro de empresas.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5"><Label>CNPJ</Label>
+                            <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                          </div>
+                          <div className="space-y-1.5"><Label>Nome</Label>
+                            <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1.5"><Label>Nome</Label>
-                        <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5"><Label>CPF</Label>
+                          <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                        </div>
+                        <div className="space-y-1.5"><Label>Nome</Label>
+                          <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
