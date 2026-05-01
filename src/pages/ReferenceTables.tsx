@@ -85,7 +85,9 @@ const ReferenceTables = () => {
 
   // Classifica uma aba como tabela de "portes" (porte→valor) ou "códigos" (id/descrição/porte).
   // Permite tanto 1 arquivo com 2 abas quanto 2 arquivos separados.
-  const classifySheet = (rows: any[]): "ports" | "codes" | "unknown" => {
+  const classifySheet = (rows: any[], sheetName = ""): "ports" | "codes" | "unknown" => {
+    const normalizedName = norm(sheetName);
+    if (/valores?\s+por\s+porte|valores?\s+portes?/.test(normalizedName)) return "ports";
     if (rows.length === 0) return "unknown";
     const keys = Object.keys(rows[0]).map((k) => norm(k.trim()));
     const hasPorte = keys.some((k) => k === "porte" || k.startsWith("porte"));
@@ -118,12 +120,12 @@ const ReferenceTables = () => {
       const isCbhpm = selected.kind === "cbhpm";
 
       if (isCbhpm) {
-        const portsSheet = allSheets.find((s) => classifySheet(s.rows) === "ports");
-        const codesSheet = allSheets.find((s) => classifySheet(s.rows) === "codes");
+        const portsSheet = allSheets.find((s) => classifySheet(s.rows, s.name) === "ports");
+        const codesSheet = allSheets.find((s) => classifySheet(s.rows, s.name) === "codes");
 
         // Diagnóstico claro do que foi detectado em cada aba
         const detected = allSheets
-          .map((s) => `${s.name}: ${classifySheet(s.rows)} (${s.rows.length} linhas)`)
+          .map((s) => `${s.name}: ${classifySheet(s.rows, s.name)} (${s.rows.length} linhas)`)
           .join(" | ");
         console.log("[CBHPM import] arquivos detectados:", detected);
 
@@ -152,10 +154,15 @@ const ReferenceTables = () => {
         const portsToInsert = portsSheet
           ? (portsSheet.rows
               .map((row) => {
+                const entries = Object.entries(row).filter(([, value]) => String(value ?? "").trim() !== "");
                 const pKey = Object.keys(row).find((k) => norm(k.trim()).startsWith("porte"));
                 const vKey = findKey(row, ["valor", "amount", "preco", "preço"]);
-                const port = pKey ? String(row[pKey]).trim() : "";
-                const amount = parseNumber(vKey ? row[vKey] : null);
+                const explicitPortValue = pKey ? String(row[pKey] ?? "").trim() : "";
+                const portValue = explicitPortValue || entries.find(([, value]) => /^\d+[A-C]$/i.test(String(value).trim()))?.[1];
+                const explicitAmount = vKey ? parseNumber(row[vKey]) : null;
+                const amountValue = explicitAmount ?? entries.map(([, value]) => parseNumber(value)).find((value) => value != null && value > 1);
+                const port = portValue ? String(portValue).trim().toUpperCase() : "";
+                const amount = parseNumber(amountValue);
                 if (!port || amount == null) return null;
                 return { reference_table_id: selected.id, port, amount };
               })
