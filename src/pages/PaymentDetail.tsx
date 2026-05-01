@@ -1,17 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, FileDown, Mail, RotateCcw, ShieldCheck, Sparkles, XCircle } from "lucide-react";
+import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
+import { ArrowLeft, Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, FileDown, Mail, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -19,6 +20,7 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 
 const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const [payment, setPayment] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -109,6 +111,35 @@ const PaymentDetail = () => {
   const canApprove = isDiretor && payment.status === "aguardando_aprovacao";
   const canResend = isAnalista && (payment.status === "devolvido_analista");
   const canRequestNf = isDiretor && payment.status === "aprovado";
+  const isOwner = payment.created_by === user?.id;
+  const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
+  const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
+  const canDelete = (isOwner || isDiretor) && editableStatuses.includes(payment.status as PaymentStatus);
+
+  const cancelPayment = async () => {
+    if (!id) return;
+    setBusy(true);
+    await supabase.from("payments").update({ status: "cancelado" }).eq("id", id);
+    await supabase.from("payment_observations").insert({
+      payment_id: id, author_type: isOwner ? "analista" : "diretor", author_id: user!.id,
+      message: "Lote cancelado pelo responsável.", status_from: payment.status, status_to: "cancelado",
+    });
+    setBusy(false);
+    toast({ title: "Lote cancelado" });
+    load();
+  };
+
+  const deletePayment = async () => {
+    if (!id) return;
+    setBusy(true);
+    await supabase.from("payment_items").delete().eq("payment_id", id);
+    await supabase.from("payment_observations").delete().eq("payment_id", id);
+    const { error } = await supabase.from("payments").delete().eq("id", id);
+    setBusy(false);
+    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Lote excluído" });
+    navigate("/pagamentos");
+  };
 
   // Resumo objetivo a partir dos itens
   const counts = items.reduce(
@@ -137,6 +168,55 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-8 space-y-6">
+        <Card className="shadow-card">
+          <CardContent className="p-4 flex flex-wrap gap-x-6 gap-y-2 items-center text-sm">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Competência:</span>
+              <span className="font-medium capitalize">{formatCompetence(payment.competence_month)}</span>
+            </div>
+            <div><span className="text-muted-foreground">Previsão pgto:</span> <span className="font-medium">{formatDateOnly(payment.payment_due_date)}</span></div>
+            {payment.payment_type && <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS]}</span></div>}
+            {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
+            <div className="ml-auto flex gap-2">
+              {canCancel && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={busy}><Ban className="h-4 w-4 mr-1" /> Cancelar</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                      <AlertDialogDescription>O lote ficará marcado como cancelado e sairá do fluxo. Use esta opção se anexou os arquivos errados.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Voltar</AlertDialogCancel>
+                      <AlertDialogAction onClick={cancelPayment}>Confirmar cancelamento</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {canDelete && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={busy}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                      <AlertDialogDescription>Esta ação remove o lote, todos os itens e o histórico. Não pode ser desfeita. Use para refazer o anexo a partir do zero em <strong>Nova base</strong>.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Voltar</AlertDialogCancel>
+                      <AlertDialogAction onClick={deletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir definitivamente</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
             <CardHeader className="pb-2">
