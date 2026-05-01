@@ -59,6 +59,7 @@ const PaymentDetail = () => {
   const [obs, setObs] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [rulesIndex, setRulesIndex] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
+  const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -75,16 +76,20 @@ const PaymentDetail = () => {
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
-    // Carrega regras citadas pela IA para mostrar resumo + link
+    // Carrega regras citadas pela IA (por id e por nome) para mostrar resumo + link
     const ids = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
-    if (ids.length > 0) {
-      const { data: rs } = await supabase.from("rules").select("id,name,rule_text,description").in("id", ids);
-      const idx: Record<string, any> = {};
-      (rs ?? []).forEach((r: any) => { idx[r.id] = r; });
-      setRulesIndex(idx);
-    } else {
-      setRulesIndex({});
-    }
+    const names = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rules ?? []))).filter(Boolean) as string[];
+    const [byIdRes, byNameRes] = await Promise.all([
+      ids.length ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids) : Promise.resolve({ data: [] as any[] }),
+      names.length ? supabase.from("rules").select("id,name,rule_text,description").in("name", names) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const idx: Record<string, any> = {};
+    (byIdRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
+    (byNameRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
+    const nameIdx: Record<string, any> = {};
+    Object.values(idx).forEach((r: any) => { nameIdx[String(r.name).trim().toLowerCase()] = r; });
+    setRulesIndex(idx);
+    setRulesByName(nameIdx);
   }, [id]);
 
   useEffect(() => { document.title = "Pagamento | MedPay"; load(); }, [load]);
@@ -338,9 +343,17 @@ const PaymentDetail = () => {
                     const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
                     const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
                     const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
-                    const matchedRuleObjs: RuleLite[] = matchedIds
-                      .map((id) => rulesIndex[id])
-                      .filter(Boolean) as RuleLite[];
+                    // Resolve regras por id (preferencial) e por nome (fallback) para manter o link sempre clicável
+                    const seen = new Set<string>();
+                    const matchedRuleObjs: RuleLite[] = [];
+                    matchedIds.forEach((rid) => {
+                      const r = rulesIndex[rid];
+                      if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
+                    });
+                    matchedNames.forEach((nm) => {
+                      const r = rulesByName[String(nm).trim().toLowerCase()];
+                      if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
+                    });
                     const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
                     const firstRule = matchedRuleObjs[0] ?? null;
                     const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
@@ -370,7 +383,21 @@ const PaymentDetail = () => {
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
                         <td className="px-3 py-3 text-right">
-                          {tooltipNode ? (
+                          {tooltipNode && firstRule?.id ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link
+                                  to={`/regras?rule=${firstRule.id}`}
+                                  className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
+                                >
+                                  {formatCurrency(it.gross_amount)}
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-xs">
+                                {tooltipNode}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : tooltipNode ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="tabular-nums font-medium underline decoration-dotted decoration-muted-foreground/50 cursor-help">
