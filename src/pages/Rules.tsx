@@ -66,6 +66,11 @@ const Rules = () => {
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
   const [refTableId, setRefTableId] = useState<string>("");
+  const [codesInput, setCodesInput] = useState<string>("");
+  const parsedCodes = useMemo(
+    () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
+    [codesInput]
+  );
 
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
@@ -108,7 +113,7 @@ const Rules = () => {
     }
     const { error } = await supabase.from("rules").insert(payload);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); load(); toast({ title: "Regra criada" });
+    setOpen(false); setScope("master"); setTargetType("medico"); setRuleType("informativo"); setRefTableId(""); setCodesInput(""); load(); toast({ title: "Regra criada" });
   };
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -335,8 +340,27 @@ const Rules = () => {
                 )}
 
                 <div className="space-y-1.5"><Label>Códigos de procedimento (opcional)</Label>
-                  <Input name="procedure_codes" placeholder="Ex: 31005497, 31005470" />
-                  <p className="text-xs text-muted-foreground">Separe por vírgula. Limita a regra a estes códigos.</p>
+                  <Input
+                    name="procedure_codes"
+                    placeholder="Ex: 31005497, 31005470; 31002390"
+                    value={codesInput}
+                    onChange={(e) => setCodesInput(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Separe por vírgula <code>,</code>, ponto e vírgula <code>;</code> ou espaço. Limita a regra a estes códigos.
+                  </p>
+                  {parsedCodes.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {parsedCodes.map((c, i) => (
+                        <span key={`${c}-${i}`} className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">
+                          {c}
+                        </span>
+                      ))}
+                      <span className="text-xs text-muted-foreground self-center ml-1">
+                        {parsedCodes.length} código{parsedCodes.length > 1 ? "s" : ""} detectado{parsedCodes.length > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5"><Label>Nome</Label><Input name="name" required maxLength={100} /></div>
