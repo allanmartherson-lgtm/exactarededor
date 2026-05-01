@@ -309,6 +309,42 @@ const NewPayment = () => {
       status_to: "em_analise_ia",
     });
 
+    // Histórico de auditoria — registra a(s) empresa(s) vinculada(s) ao pagamento criado.
+    try {
+      const { recordAudit, buildDiff } = await import("@/lib/audit");
+      const seen = new Set<string>();
+      const companyEntries = buckets
+        .map((b) => ({
+          id: b.matchedCompany?.id ?? null,
+          name: b.matchedCompany?.name ?? b.rawCompanyName ?? null,
+          document: null as string | null,
+        }))
+        .filter((c) => {
+          const k = `${c.id ?? ""}|${c.name ?? ""}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      const snapshot = {
+        reference: reference.trim(),
+        total_amount: total,
+        items_count: allRows.length,
+        payment_type: paymentType,
+        payment_kind: paymentKind,
+        competence_month: `${competenceMonth}-01`,
+        sectors: pSectors,
+        specialties: pSpecialties,
+      };
+      const diff = buildDiff(null, snapshot as any);
+      const targets = companyEntries.length ? companyEntries : [null];
+      await Promise.all(targets.map((c) => recordAudit({
+        entityType: "payment", entityId: payment.id, action: "create",
+        actorId: user!.id, company: c, diff,
+      })));
+    } catch (e) {
+      console.warn("[audit] falha não-fatal ao registrar pagamento", e);
+    }
+
     toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
     supabase.functions.invoke("analyze-payment", { body: { payment_id: payment.id } });
 
