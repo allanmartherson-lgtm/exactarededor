@@ -316,6 +316,38 @@ const NewPayment = () => {
               <Label htmlFor="ref">Referência do lote *</Label>
               <Input id="ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ex: Pagamento Médicos Maio/2026" />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="competence">Competência (mês de apuração) *</Label>
+                <Input id="competence" type="month" value={competenceMonth} onChange={(e) => setCompetenceMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="due">Previsão de pagamento</Label>
+                <Input id="due" type="date" value={paymentDueDate} onChange={(e) => setPaymentDueDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de pagamento *</Label>
+                <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((k) => (
+                      <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABELS[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria *</Label>
+                <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
+                  <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto" /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
+                      <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="desc">Descrição</Label>
               <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Observações iniciais (opcional)" />
