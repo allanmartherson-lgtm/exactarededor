@@ -632,6 +632,7 @@ export type Database = {
           severity: Database["public"]["Enums"]["rule_severity"]
           specialties: string[]
           target_amount: number | null
+          target_company_id: string | null
           target_identifier: string | null
           target_name: string | null
           target_type: Database["public"]["Enums"]["rule_target_type"] | null
@@ -675,6 +676,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["rule_severity"]
           specialties?: string[]
           target_amount?: number | null
+          target_company_id?: string | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
@@ -718,6 +720,7 @@ export type Database = {
           severity?: Database["public"]["Enums"]["rule_severity"]
           specialties?: string[]
           target_amount?: number | null
+          target_company_id?: string | null
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
@@ -735,6 +738,13 @@ export type Database = {
             columns: ["reference_table_id"]
             isOneToOne: false
             referencedRelation: "reference_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rules_target_company_id_fkey"
+            columns: ["target_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
