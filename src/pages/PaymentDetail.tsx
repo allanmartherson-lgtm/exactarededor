@@ -295,7 +295,6 @@ const PaymentDetail = () => {
                     <th className="px-3 py-2">Descrição</th>
                     <th className="px-3 py-2 text-right">Qtd</th>
                     <th className="px-3 py-2 text-right">Valor</th>
-                    <th className="px-3 py-2">Regra</th>
                     <th className="px-3 py-2">IA</th>
                   </tr>
                 </thead>
@@ -306,6 +305,16 @@ const PaymentDetail = () => {
                     const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
                     const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
                     const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
+                    const ruleTooltip = (matchedIds.length ? matchedIds : matchedNames)
+                      .map((key, i) => {
+                        const r = matchedIds.length ? rulesIndex[key] : null;
+                        const label = r?.name ?? matchedNames[i] ?? key;
+                        const detail = r ? ` — ${r.rule_text}${r.description ? ` (${r.description})` : ""}` : "";
+                        return `${label}${detail}`;
+                      })
+                      .join("\n");
+                    const firstRule = matchedIds.length ? rulesIndex[matchedIds[0]] : null;
+                    const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
                     return (
                       <tr key={it.id} className="align-top">
                         <td className="px-3 py-3 text-xs font-mono text-muted-foreground">{it.attendance_number ?? "—"}</td>
@@ -328,30 +337,23 @@ const PaymentDetail = () => {
                           )}
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
-                        <td className="px-3 py-3 text-right tabular-nums font-medium">{formatCurrency(it.gross_amount)}</td>
-                        <td className="px-3 py-3 max-w-[220px]">
-                          {matchedIds.length === 0 && matchedNames.length === 0 ? (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          ) : (
-                            <div className="flex flex-col gap-1">
-                              {(matchedIds.length ? matchedIds : matchedNames).map((key, i) => {
-                                const r = matchedIds.length ? rulesIndex[key] : null;
-                                const label = r?.name ?? matchedNames[i] ?? key;
-                                const tip = r ? `${r.rule_text}${r.description ? ` — ${r.description}` : ""}` : "";
-                                return r?.id ? (
-                                  <Link
-                                    key={i}
-                                    to={`/regras?rule=${r.id}`}
-                                    title={tip}
-                                    className="text-xs text-primary hover:underline truncate"
-                                  >
-                                    {label}
-                                  </Link>
-                                ) : (
-                                  <span key={i} className="text-xs text-muted-foreground truncate" title={label}>{label}</span>
-                                );
-                              })}
-                            </div>
+                        <td className="px-3 py-3 text-right">
+                          <div
+                            className={`tabular-nums font-medium ${ruleTooltip ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help" : ""}`}
+                            title={ruleTooltip || undefined}
+                          >
+                            {formatCurrency(it.gross_amount)}
+                          </div>
+                          {firstRuleLabel && (
+                            firstRule?.id ? (
+                              <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto" title={ruleTooltip}>
+                                {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
+                              </Link>
+                            ) : (
+                              <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto" title={ruleTooltip}>
+                                {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
+                              </span>
+                            )
                           )}
                         </td>
                         <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
