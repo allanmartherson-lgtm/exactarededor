@@ -177,6 +177,8 @@ const Rules = () => {
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
+    setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
+    setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
 
   const openEdit = (r: RuleRow) => {
@@ -203,6 +205,12 @@ const Rules = () => {
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
+    setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
+    setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
+    setFIncludesHolidays(!!r.includes_holidays);
+    setFTimeStart(r.time_start ? String(r.time_start).slice(0, 5) : "");
+    setFTimeEnd(r.time_end ? String(r.time_end).slice(0, 5) : "");
+    setFElectiveMode((r.elective_mode as ElectiveMode) ?? "qualquer");
     setOpen(true);
   };
 
