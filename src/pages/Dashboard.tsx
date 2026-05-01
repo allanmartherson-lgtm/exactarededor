@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, type PaymentStatus } from "@/lib/status";
+import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { ArrowRight, FileUp, ListChecks, Sparkles, ShieldCheck } from "lucide-react";
 
 interface PaymentRow {
@@ -16,6 +16,7 @@ interface PaymentRow {
   total_amount: number | string;
   items_count: number;
   created_at: string;
+  competence_month: string | null;
 }
 
 const Dashboard = () => {
@@ -28,7 +29,7 @@ const Dashboard = () => {
     const load = async () => {
       const { data } = await supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at")
+        .select("id,reference,status,total_amount,items_count,created_at,competence_month")
         .order("created_at", { ascending: false })
         .limit(8);
       setPayments((data ?? []) as PaymentRow[]);
@@ -95,7 +96,7 @@ const Dashboard = () => {
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{p.reference}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
+                        <span className="capitalize">{formatCompetence(p.competence_month)}</span> · {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
                       </p>
                     </div>
                     <StatusBadge status={p.status} />
