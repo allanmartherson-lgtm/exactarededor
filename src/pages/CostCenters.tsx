@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Network, Upload, Loader2, Search, AlertCircle } from "lucide-react";
+import { Network, Upload, Loader2, Search, AlertCircle, ChevronDown } from "lucide-react";
 
 interface CostCenter {
   id: string;
@@ -47,19 +47,79 @@ const CostCenters = () => {
   const canManage = roles.includes("admin") || roles.includes("diretor");
   const [items, setItems] = useState<CostCenter[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [importing, setImporting] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const PAGE_SIZE = 100;
+  const reqIdRef = useRef(0);
 
-  useEffect(() => { document.title = "Centros de custo | MedPay"; load(); }, []);
+  useEffect(() => { document.title = "Centros de custo | MedPay"; }, []);
 
-  const load = async () => {
-    const { data } = await supabase
+  // Debounce da busca
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Contagens globais (independem do filtro/busca)
+  const refreshCounts = useCallback(async () => {
+    const [{ count: total }, { count: active }] = await Promise.all([
+      supabase.from("cost_centers").select("id", { count: "exact", head: true }),
+      supabase.from("cost_centers").select("id", { count: "exact", head: true }).eq("active", true),
+    ]);
+    setTotalCount(total ?? 0);
+    setActiveCount(active ?? 0);
+  }, []);
+
+  // Query base com filtros aplicados
+  const buildQuery = useCallback(() => {
+    let q = supabase
       .from("cost_centers")
-      .select("*")
-      .order("code_p12")
-      .limit(2000);
+      .select("*", { count: "exact" })
+      .order("code_p12");
+    if (!showInactive) q = q.eq("active", true);
+    if (debouncedSearch.trim()) {
+      const s = debouncedSearch.trim().replace(/[%,]/g, " ");
+      const like = `%${s}%`;
+      q = q.or(
+        [
+          `code_p12.ilike.${like}`,
+          `code_p10.ilike.${like}`,
+          `level2.ilike.${like}`,
+          `level3.ilike.${like}`,
+          `level4.ilike.${like}`,
+          `level5.ilike.${like}`,
+        ].join(","),
+      );
+    }
+    return q;
+  }, [debouncedSearch, showInactive]);
+
+  // Carrega primeira página sempre que filtros mudam
+  const loadFirstPage = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
+    setLoading(true);
+    const { data } = await buildQuery().range(0, PAGE_SIZE - 1);
+    if (reqId !== reqIdRef.current) return; // resposta obsoleta
     setItems((data ?? []) as CostCenter[]);
-  };
+    setLoading(false);
+  }, [buildQuery]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading) return;
+    setLoadingMore(true);
+    const from = items.length;
+    const { data } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+    setItems((prev) => [...prev, ...((data ?? []) as CostCenter[])]);
+    setLoadingMore(false);
+  }, [items.length, buildQuery, loading, loadingMore]);
+
+  useEffect(() => { refreshCounts(); }, [refreshCounts]);
+  useEffect(() => { loadFirstPage(); }, [loadFirstPage]);
 
   const onImport = async (file: File) => {
     if (!canManage) return;
@@ -132,7 +192,7 @@ const CostCenters = () => {
         title: "Importação concluída",
         description: `${created} criados · ${updated} atualizados · ${toDeactivate.length} desativados`,
       });
-      await load();
+      await Promise.all([refreshCounts(), loadFirstPage()]);
     } catch (e: any) {
       toast({ title: "Erro na importação", description: String(e?.message ?? e), variant: "destructive" });
     } finally {
@@ -140,22 +200,7 @@ const CostCenters = () => {
     }
   };
 
-  const filtered = useMemo(() => {
-    const q = norm(search);
-    return items
-      .filter((it) => showInactive || it.active)
-      .filter((it) => {
-        if (!q) return true;
-        return [it.code_p12, it.code_p10, it.level1, it.level2, it.level3, it.level4, it.level5]
-          .some((v) => v && norm(v).includes(q));
-      })
-      .slice(0, 500);
-  }, [items, search, showInactive]);
-
-  const totals = useMemo(() => ({
-    total: items.length,
-    active: items.filter((i) => i.active).length,
-  }), [items]);
+  const filteredCount = items.length; // página atual carregada
 
   return (
     <>
@@ -202,7 +247,7 @@ const CostCenters = () => {
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Network className="h-4 w-4" /> Catálogo</CardTitle>
               <CardDescription>
-                {totals.active} ativos · {totals.total} no total
+                {activeCount.toLocaleString("pt-BR")} ativos · {totalCount.toLocaleString("pt-BR")} no total
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -221,10 +266,16 @@ const CostCenters = () => {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {items.length === 0 ? (
+            {loading && items.length === 0 ? (
+              <div className="flex items-center justify-center py-12 text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+              </div>
+            ) : items.length === 0 ? (
               <div className="text-center py-12 text-sm text-muted-foreground">
                 <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                Nenhum centro de custos cadastrado. {canManage && "Importe a planilha P12 acima."}
+                {debouncedSearch
+                  ? "Nenhum resultado para a busca."
+                  : <>Nenhum centro de custos cadastrado. {canManage && "Importe a planilha P12 acima."}</>}
               </div>
             ) : (
               <div className="overflow-x-auto border border-border rounded-lg">
@@ -240,7 +291,7 @@ const CostCenters = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((it) => (
+                    {items.map((it) => (
                       <tr key={it.id} className="border-t border-border hover:bg-muted/30">
                         <td className="px-3 py-2 font-mono text-xs">{it.code_p12}</td>
                         <td className="px-3 py-2">{it.level2}</td>
@@ -258,9 +309,18 @@ const CostCenters = () => {
                     ))}
                   </tbody>
                 </table>
-                {filtered.length === 500 && (
-                  <p className="text-xs text-muted-foreground p-3 text-center">Mostrando os primeiros 500 — refine a busca para ver mais.</p>
-                )}
+                <div className="flex items-center justify-between gap-3 p-3 border-t border-border bg-muted/20">
+                  <p className="text-xs text-muted-foreground">
+                    Mostrando {filteredCount.toLocaleString("pt-BR")} {debouncedSearch || !showInactive ? "registros filtrados" : "de " + totalCount.toLocaleString("pt-BR")}
+                  </p>
+                  {/* Heurística: se voltou uma página cheia, provavelmente há mais */}
+                  {filteredCount > 0 && filteredCount % PAGE_SIZE === 0 && (
+                    <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+                      {loadingMore ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+                      Carregar mais
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
