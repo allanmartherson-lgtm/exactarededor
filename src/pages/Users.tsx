@@ -29,6 +29,15 @@ const Users = () => {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
 
+  const copyText = async (text: string, successTitle = "Copiado") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: successTitle });
+    } catch {
+      toast({ title: "Não foi possível copiar automaticamente", description: "Selecione o texto e copie manualmente." });
+    }
+  };
+
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("*");
     const { data: roles } = await supabase.from("user_roles").select("*");
@@ -58,7 +67,6 @@ const Users = () => {
       toast({ title: kindLabel, description: desc });
       // Disponibiliza o link manual caso o e-mail não chegue (SMTP indisponível, etc.)
       if (data?.action_link) {
-        try { await navigator.clipboard.writeText(data.action_link); } catch {}
         setManualLink({ email: u.email, link: data.action_link, kind: data?.kind === "invite" ? "invite" : "recovery" });
       }
     } catch (e: any) {
@@ -126,7 +134,7 @@ const Users = () => {
                   <p className="text-sm">Senha temporária gerada. Compartilhe com o usuário — ele deverá alterá-la no primeiro acesso.</p>
                   <div className="flex items-center gap-2">
                     <Input readOnly value={tempPwd} className="font-mono" />
-                    <Button size="icon" variant="outline" onClick={() => { navigator.clipboard.writeText(tempPwd); toast({ title: "Copiado" }); }}>
+                    <Button size="icon" variant="outline" onClick={() => copyText(tempPwd)}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -226,8 +234,7 @@ const Users = () => {
                 type="button"
                 onClick={() => {
                   if (!manualLink?.link) return;
-                  navigator.clipboard.writeText(manualLink.link);
-                  toast({ title: "Link copiado" });
+                  copyText(manualLink.link, "Link copiado");
                 }}
               >
                 <Copy className="h-4 w-4 mr-2" /> Copiar link

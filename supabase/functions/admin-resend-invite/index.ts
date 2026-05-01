@@ -89,10 +89,15 @@ serve(async (req) => {
     });
     if (genErr) throw genErr;
 
+    const tokenHash = gen?.properties?.hashed_token ?? null;
+    const appLink = redirectTo && tokenHash
+      ? `${redirectTo}?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(linkType)}`
+      : null;
+
     return new Response(JSON.stringify({
       success: true,
       kind: linkType,                 // "invite" (primeiro acesso) ou "recovery" (redefinir senha)
-      action_link: gen?.properties?.action_link ?? null, // backup manual caso e-mail não chegue
+      action_link: appLink ?? gen?.properties?.action_link ?? null, // backup manual caso e-mail não chegue
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("admin-resend-invite error", e);

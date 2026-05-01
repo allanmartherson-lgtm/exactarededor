@@ -53,11 +53,24 @@ const SetPassword = () => {
 
         const code = params.get("code");
         const type = (hashParams.get("type") ?? params.get("type") ?? "") as "invite" | "recovery" | "";
+        const tokenHash = params.get("token_hash") ?? hashParams.get("token_hash");
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
 
         if (type === "invite") setFlow("invite");
         else if (type === "recovery") setFlow("recovery");
+
+        // Caminho 0 — link manual gerado pelo admin (?token_hash=...&type=invite|recovery)
+        if (tokenHash && (type === "invite" || type === "recovery")) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type,
+          });
+          if (error) throw error;
+          window.history.replaceState({}, "", window.location.pathname);
+          if (!cancelled) setPhase("ready");
+          return;
+        }
 
         // Caminho 1 — fluxo PKCE moderno (?code=...)
         if (code) {
