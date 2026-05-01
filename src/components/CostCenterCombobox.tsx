@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronsUpDown, Network, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronsUpDown, Loader2, Network, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,28 +25,58 @@ export const CostCenterCombobox = ({ value, onChange, placeholder = "Selecione u
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CC[]>([]);
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<CC | null>(null);
+  const reqIdRef = useRef(0);
+  const PAGE_SIZE = 50;
 
+  // Busca o centro selecionado para exibir o rótulo (independente da lista)
   useEffect(() => {
+    if (!value) { setSelected(null); return; }
+    if (selected?.code_p12 === value) return;
+    let alive = true;
     supabase
       .from("cost_centers")
       .select("code_p12, level2, level3, level4, level5")
-      .eq("active", true)
-      .order("code_p12")
-      .limit(5000)
-      .then(({ data }) => setItems((data ?? []) as CC[]));
-  }, []);
+      .eq("code_p12", value)
+      .maybeSingle()
+      .then(({ data }) => { if (alive) setSelected((data as CC) ?? null); });
+    return () => { alive = false; };
+  }, [value, selected?.code_p12]);
 
-  const selected = useMemo(() => items.find((i) => i.code_p12 === value) ?? null, [items, value]);
-
-  const filtered = useMemo(() => {
-    if (!query) return items.slice(0, 100);
-    const q = query.toLowerCase();
-    return items
-      .filter((i) =>
-        [i.code_p12, i.level2, i.level3, i.level4, i.level5].some((v) => v && v.toLowerCase().includes(q))
-      )
-      .slice(0, 100);
-  }, [items, query]);
+  // Busca server-side com debounce, só quando o popover está aberto
+  useEffect(() => {
+    if (!open) return;
+    const reqId = ++reqIdRef.current;
+    setLoading(true);
+    const handle = setTimeout(async () => {
+      let q = supabase
+        .from("cost_centers")
+        .select("code_p12, level2, level3, level4, level5")
+        .eq("active", true)
+        .order("code_p12")
+        .limit(PAGE_SIZE);
+      const term = query.trim().replace(/[%,]/g, " ");
+      if (term) {
+        const like = `%${term}%`;
+        q = q.or(
+          [
+            `code_p12.ilike.${like}`,
+            `code_p10.ilike.${like}`,
+            `level2.ilike.${like}`,
+            `level3.ilike.${like}`,
+            `level4.ilike.${like}`,
+            `level5.ilike.${like}`,
+          ].join(","),
+        );
+      }
+      const { data } = await q;
+      if (reqId !== reqIdRef.current) return;
+      setItems((data ?? []) as CC[]);
+      setLoading(false);
+    }, query ? 250 : 0);
+    return () => clearTimeout(handle);
+  }, [open, query]);
 
   const renderLabel = (it: CC) => it.level5 || it.level4 || it.level3 || it.code_p12;
   const renderHint = (it: CC) => [it.level3, it.level4].filter(Boolean).join(" · ");
@@ -75,13 +105,17 @@ export const CostCenterCombobox = ({ value, onChange, placeholder = "Selecione u
           <Command shouldFilter={false}>
             <CommandInput placeholder="Digite código ou nome…" value={query} onValueChange={setQuery} />
             <CommandList>
-              <CommandEmpty>
-                {items.length === 0
-                  ? "Nenhum centro cadastrado. Importe a base na página Centros de custo."
-                  : "Nada encontrado."}
-              </CommandEmpty>
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Buscando…
+                </div>
+              ) : (
+                <CommandEmpty>
+                  {query ? "Nada encontrado." : "Digite para buscar (ou selecione abaixo)."}
+                </CommandEmpty>
+              )}
               <CommandGroup>
-                {filtered.map((it) => (
+                {!loading && items.map((it) => (
                   <CommandItem
                     key={it.code_p12}
                     value={it.code_p12}
@@ -97,6 +131,11 @@ export const CostCenterCombobox = ({ value, onChange, placeholder = "Selecione u
                     </div>
                   </CommandItem>
                 ))}
+                {!loading && items.length === PAGE_SIZE && (
+                  <p className="text-[11px] text-muted-foreground text-center py-2">
+                    Mostrando os primeiros {PAGE_SIZE} resultados — refine a busca para ver mais.
+                  </p>
+                )}
               </CommandGroup>
             </CommandList>
           </Command>
