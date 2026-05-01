@@ -23,6 +23,7 @@ import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronR
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -251,6 +252,18 @@ const Rules = () => {
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
+    if (isEspecifica && targetType === "empresa") {
+      const cnpj = payload.target_identifier;
+      if (!cnpj || !isValidCNPJ(cnpj)) {
+        return toast({
+          title: "CNPJ inválido",
+          description: "Para regras aplicadas a uma empresa o CNPJ é obrigatório e deve ser válido.",
+          variant: "destructive",
+        });
+      }
+      // normaliza para formato com máscara antes de salvar
+      payload.target_identifier = formatCNPJ(cnpj);
+    }
     if (editingId) {
       const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -321,11 +334,22 @@ const Rules = () => {
   const saveDrafts = async () => {
     const sel = drafts.filter((d) => d.enabled);
     if (sel.length === 0) return toast({ title: "Nenhuma regra selecionada", variant: "destructive" });
+    // Bloqueia drafts de empresa sem CNPJ válido — mesma regra do form manual.
+    const invalid = sel.filter((d) => d.scope === "especifica" && d.target_type === "empresa" && !isValidCNPJ(d.target_identifier ?? ""));
+    if (invalid.length) {
+      return toast({
+        title: `CNPJ inválido em ${invalid.length} regra(s)`,
+        description: "Corrija o CNPJ das regras de empresa antes de salvar (14 dígitos, com dígitos verificadores válidos).",
+        variant: "destructive",
+      });
+    }
     const toInsert = sel.map((d) => ({
       name: d.name, description: d.description || null, rule_text: d.rule_text,
       severity: d.severity, scope: d.scope, sector: d.sector,
       target_type: d.scope === "especifica" ? d.target_type : null,
-      target_identifier: d.scope === "especifica" ? d.target_identifier : null,
+      target_identifier: d.scope === "especifica"
+        ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
+        : null,
       target_name: d.scope === "especifica" ? d.target_name : null,
       rule_type: d.rule_type,
       package_amount: d.rule_type === "pacote" ? d.package_amount : null,
@@ -601,7 +625,7 @@ const Rules = () => {
                                       return (
                                         <CommandItem key={c.id} value={`${c.name} ${c.document ?? ""}`} onSelect={() => {
                                           setFTargetName(c.name);
-                                          setFTargetIdentifier(c.document ?? "");
+                                          setFTargetIdentifier(c.document ? formatCNPJ(c.document) : "");
                                           setCompanyPickerOpen(false);
                                         }}>
                                           <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
@@ -621,7 +645,20 @@ const Rules = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5"><Label>CNPJ</Label>
-                            <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                            <Input
+                              value={fTargetIdentifier}
+                              onChange={(e) => setFTargetIdentifier(formatCNPJ(e.target.value))}
+                              placeholder="00.000.000/0000-00"
+                              inputMode="numeric"
+                              maxLength={18}
+                              aria-invalid={!!fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)}
+                              className={cn(
+                                fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && "border-destructive focus-visible:ring-destructive"
+                              )}
+                            />
+                            {fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && (
+                              <p className="text-xs text-destructive">CNPJ inválido — confira os 14 dígitos.</p>
+                            )}
                           </div>
                           <div className="space-y-1.5"><Label>Nome</Label>
                             <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
