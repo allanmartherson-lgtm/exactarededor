@@ -241,6 +241,12 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
+      time_mode: fTimeMode,
+      weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
+      includes_holidays: fIncludesHolidays,
+      time_start: fTimeStart || null,
+      time_end: fTimeEnd || null,
+      elective_mode: fElectiveMode,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
