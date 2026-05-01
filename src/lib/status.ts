@@ -20,6 +20,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   nf_divergente: "NF divergente",
   pago: "Pago",
   rejeitado: "Rejeitado",
+  cancelado: "Cancelado",
 };
 
 type Tone = "info" | "success" | "warning" | "destructive" | "muted" | "primary";
@@ -38,6 +39,7 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   nf_divergente: "destructive",
   pago: "success",
   rejeitado: "destructive",
+  cancelado: "muted",
 };
 
 export const TONE_CLASSES: Record<Tone, string> = {
@@ -105,4 +107,32 @@ export const formatCurrency = (value: number | string | null | undefined) => {
 export const formatDate = (value: string | null | undefined) => {
   if (!value) return "—";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+};
+
+export type PaymentType = Database["public"]["Enums"]["payment_type"];
+export type PaymentKind = Database["public"]["Enums"]["payment_kind"];
+
+export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
+  producao: "Produção",
+  repasse: "Repasse",
+  valor_fixo: "Valor fixo",
+  plantao: "Plantão",
+  misto: "Misto",
+};
+
+export const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
+  atual: "Pagamento atual",
+  pendencia: "Pendência",
+  misto: "Misto (atual + pendência)",
+};
+
+export const formatCompetence = (value: string | null | undefined) => {
+  if (!value) return "—";
+  const d = new Date(value);
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(d);
+};
+
+export const formatDateOnly = (value: string | null | undefined) => {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
 };

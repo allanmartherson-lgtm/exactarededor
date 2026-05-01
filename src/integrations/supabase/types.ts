@@ -253,11 +253,15 @@ export type Database = {
           approval_pdf_path: string | null
           approved_at: string | null
           approved_by: string | null
+          competence_month: string | null
           created_at: string
           created_by: string
           description: string | null
           id: string
           items_count: number
+          payment_due_date: string | null
+          payment_kind: Database["public"]["Enums"]["payment_kind"] | null
+          payment_type: Database["public"]["Enums"]["payment_type"] | null
           reference: string
           source_file_path: string | null
           status: Database["public"]["Enums"]["payment_status"]
@@ -271,11 +275,15 @@ export type Database = {
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          competence_month?: string | null
           created_at?: string
           created_by: string
           description?: string | null
           id?: string
           items_count?: number
+          payment_due_date?: string | null
+          payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
+          payment_type?: Database["public"]["Enums"]["payment_type"] | null
           reference: string
           source_file_path?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
@@ -289,11 +297,15 @@ export type Database = {
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          competence_month?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
           id?: string
           items_count?: number
+          payment_due_date?: string | null
+          payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
+          payment_type?: Database["public"]["Enums"]["payment_type"] | null
           reference?: string
           source_file_path?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
@@ -576,6 +588,7 @@ export type Database = {
         | "validador"
         | "diretor"
         | "sistema"
+      payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
         | "em_analise_ia"
@@ -590,6 +603,8 @@ export type Database = {
         | "nf_divergente"
         | "pago"
         | "rejeitado"
+        | "cancelado"
+      payment_type: "producao" | "repasse" | "valor_fixo" | "plantao" | "misto"
       reference_table_kind: "simples" | "cbhpm"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -739,6 +754,7 @@ export const Constants = {
       invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
       item_ai_status: ["pendente", "aprovado", "alerta", "reprovado"],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
+      payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
         "rascunho",
         "em_analise_ia",
@@ -753,7 +769,9 @@ export const Constants = {
         "nf_divergente",
         "pago",
         "rejeitado",
+        "cancelado",
       ],
+      payment_type: ["producao", "repasse", "valor_fixo", "plantao", "misto"],
       reference_table_kind: ["simples", "cbhpm"],
       rule_scope: ["master", "especifica"],
       rule_sector: [
