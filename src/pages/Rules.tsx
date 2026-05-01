@@ -313,7 +313,7 @@ const Rules = () => {
   // filtered + grouped
   const filtered = useMemo(() => rules.filter((r) =>
     (filterScope === "todos" || r.scope === filterScope) &&
-    (filterSector === "todos" || r.sector === filterSector) &&
+    (filterSector === "todos" || (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector)) &&
     (filterType === "todos" || r.rule_type === filterType) &&
     (!onlyIncomplete || isIncomplete(r)) &&
     (!filterTarget.trim() || `${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase()))
