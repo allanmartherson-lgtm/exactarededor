@@ -41,7 +41,7 @@ export const recordAudit = async (params: {
   diff?: AuditDiff;
 }): Promise<void> => {
   const { entityType, entityId, action, actorId, company, diff } = params;
-  const { error } = await supabase.from("audit_log").insert({
+  const { error } = await supabase.from("audit_log").insert([{
     entity_type: entityType,
     entity_id: entityId,
     action,
@@ -49,7 +49,7 @@ export const recordAudit = async (params: {
     company_id: company?.id ?? null,
     company_name: company?.name ?? null,
     company_document: company?.document ?? null,
-    diff: diff ?? {},
-  });
+    diff: (diff ?? {}) as any,
+  }]);
   if (error) console.warn("[audit] falha ao registrar histórico:", error.message);
 };
