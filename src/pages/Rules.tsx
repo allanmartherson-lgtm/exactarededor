@@ -391,8 +391,22 @@ const Rules = () => {
       doctors: d.doctors,
       created_by: user!.id,
     }));
-    const { error } = await supabase.from("rules").insert(toInsert);
+    const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    // Registra auditoria por regra criada
+    await Promise.all((insertedRows ?? []).map((row, idx) => {
+      const d = sel[idx];
+      const company = (d?.scope === "especifica" && d?.target_type === "empresa") ? {
+        id: companies.find((c) => c.name === d.target_name || (c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier)))?.id ?? null,
+        name: d.target_name ?? null,
+        document: d.target_identifier ?? null,
+      } : null;
+      return recordAudit({
+        entityType: "rule", entityId: row.id, action: "create",
+        actorId: user!.id, company,
+        diff: buildDiff(null, toInsert[idx] as any),
+      });
+    }));
     setReviewOpen(false); setDrafts([]); load();
     toast({ title: `${toInsert.length} regra(s) salva(s)` });
   };
