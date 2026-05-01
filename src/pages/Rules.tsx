@@ -269,6 +269,8 @@ const Rules = () => {
     const linkedCompany = (isEspecifica && targetType === "empresa")
       ? companies.find((c) => c.name === payload.target_name || (c.document && payload.target_identifier && onlyDigits(c.document) === onlyDigits(payload.target_identifier))) ?? null
       : null;
+    // Preenche o vínculo direto (FK) com a empresa cadastrada quando houver match exato de CNPJ.
+    payload.target_company_id = (isEspecifica && targetType === "empresa") ? (linkedCompany?.id ?? null) : null;
     const auditCompany = (isEspecifica && targetType === "empresa") ? {
       id: linkedCompany?.id ?? null,
       name: payload.target_name ?? linkedCompany?.name ?? null,
@@ -390,6 +392,9 @@ const Rules = () => {
       valid_until: d.valid_until,
       doctors: d.doctors,
       created_by: user!.id,
+      target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
+        ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
+        : null,
     }));
     const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
