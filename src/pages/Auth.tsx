@@ -127,6 +127,14 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={submitting}>
                     {submitting ? "Entrando..." : "Entrar"}
                   </Button>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetting}
+                    className="block w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {resetting ? "Enviando…" : "Esqueci minha senha"}
+                  </button>
                 </form>
               </TabsContent>
               <TabsContent value="signup">
