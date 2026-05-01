@@ -574,8 +574,10 @@ export type Database = {
           deflator_pct: number | null
           description: string | null
           doctors: Json
+          elective_mode: string
           id: string
           include_auxiliaries: boolean
+          includes_holidays: boolean
           multiplier: number | null
           name: string
           package_amount: number | null
@@ -594,9 +596,13 @@ export type Database = {
           target_identifier: string | null
           target_name: string | null
           target_type: Database["public"]["Enums"]["rule_target_type"] | null
+          time_end: string | null
+          time_mode: string
+          time_start: string | null
           updated_at: string
           valid_from: string | null
           valid_until: string | null
+          weekdays: number[]
         }
         Insert: {
           active?: boolean
@@ -611,8 +617,10 @@ export type Database = {
           deflator_pct?: number | null
           description?: string | null
           doctors?: Json
+          elective_mode?: string
           id?: string
           include_auxiliaries?: boolean
+          includes_holidays?: boolean
           multiplier?: number | null
           name: string
           package_amount?: number | null
@@ -631,9 +639,13 @@ export type Database = {
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
+          time_end?: string | null
+          time_mode?: string
+          time_start?: string | null
           updated_at?: string
           valid_from?: string | null
           valid_until?: string | null
+          weekdays?: number[]
         }
         Update: {
           active?: boolean
@@ -648,8 +660,10 @@ export type Database = {
           deflator_pct?: number | null
           description?: string | null
           doctors?: Json
+          elective_mode?: string
           id?: string
           include_auxiliaries?: boolean
+          includes_holidays?: boolean
           multiplier?: number | null
           name?: string
           package_amount?: number | null
@@ -668,9 +682,13 @@ export type Database = {
           target_identifier?: string | null
           target_name?: string | null
           target_type?: Database["public"]["Enums"]["rule_target_type"] | null
+          time_end?: string | null
+          time_mode?: string
+          time_start?: string | null
           updated_at?: string
           valid_from?: string | null
           valid_until?: string | null
+          weekdays?: number[]
         }
         Relationships: [
           {

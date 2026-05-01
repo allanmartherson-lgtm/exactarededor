@@ -36,6 +36,26 @@ const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
 };
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
+type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
+const TIME_MODE_LABELS: Record<TimeMode, string> = {
+  qualquer: "Qualquer dia/horário (livre)",
+  comercial: "Horário comercial (seg–sex 07–19h)",
+  fora_comercial: "Fora do horário comercial",
+  fim_de_semana: "Fim de semana (sáb/dom)",
+  feriado: "Apenas feriados",
+  personalizado: "Personalizado (escolher dias/horas)",
+};
+type ElectiveMode = "qualquer" | "eletiva" | "urgencia";
+const ELECTIVE_MODE_LABELS: Record<ElectiveMode, string> = {
+  qualquer: "Qualquer (eletiva ou urgência)",
+  eletiva: "Apenas eletivas",
+  urgencia: "Apenas urgência/emergência",
+};
+const WEEKDAY_LABELS: { v: number; label: string }[] = [
+  { v: 0, label: "Dom" }, { v: 1, label: "Seg" }, { v: 2, label: "Ter" },
+  { v: 3, label: "Qua" }, { v: 4, label: "Qui" }, { v: 5, label: "Sex" }, { v: 6, label: "Sáb" },
+];
+
 type RuleRow = any;
 type DraftRule = {
   enabled: boolean;
@@ -113,6 +133,13 @@ const Rules = () => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  // janela temporal
+  const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
+  const [fWeekdays, setFWeekdays] = useState<number[]>([]);
+  const [fIncludesHolidays, setFIncludesHolidays] = useState(false);
+  const [fTimeStart, setFTimeStart] = useState<string>("");
+  const [fTimeEnd, setFTimeEnd] = useState<string>("");
+  const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
 
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
@@ -150,6 +177,8 @@ const Rules = () => {
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
+    setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
+    setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
 
   const openEdit = (r: RuleRow) => {
@@ -176,6 +205,12 @@ const Rules = () => {
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
+    setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
+    setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
+    setFIncludesHolidays(!!r.includes_holidays);
+    setFTimeStart(r.time_start ? String(r.time_start).slice(0, 5) : "");
+    setFTimeEnd(r.time_end ? String(r.time_end).slice(0, 5) : "");
+    setFElectiveMode((r.elective_mode as ElectiveMode) ?? "qualquer");
     setOpen(true);
   };
 
@@ -206,6 +241,12 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
+      time_mode: fTimeMode,
+      weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
+      includes_holidays: fIncludesHolidays,
+      time_start: fTimeStart || null,
+      time_end: fTimeEnd || null,
+      elective_mode: fElectiveMode,
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
@@ -465,6 +506,69 @@ const Rules = () => {
                   <Label>Médicos nomeados (opcional)</Label>
                   <DoctorsEditor value={fDoctors} onChange={setFDoctors} />
                   <p className="text-xs text-muted-foreground">Use quando a regra menciona médicos específicos por nome/CRM.</p>
+                </div>
+
+                <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Janela de aplicação</Label>
+                    <span className="text-xs text-muted-foreground">Quando esta regra vale</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Dias / período</Label>
+                      <Select value={fTimeMode} onValueChange={(v) => setFTimeMode(v as TimeMode)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tipo de atendimento</Label>
+                      <Select value={fElectiveMode} onValueChange={(v) => setFElectiveMode(v as ElectiveMode)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {fTimeMode === "personalizado" && (
+                    <div className="space-y-1.5">
+                      <Label>Dias da semana</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {WEEKDAY_LABELS.map((d) => {
+                          const checked = fWeekdays.includes(d.v);
+                          return (
+                            <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
+                              onClick={() => setFWeekdays((p) => checked ? p.filter((x) => x !== d.v) : [...p, d.v])}>
+                              {d.label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div className="space-y-1.5">
+                      <Label>Hora início (opcional)</Label>
+                      <Input type="time" value={fTimeStart} onChange={(e) => setFTimeStart(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Hora fim (opcional)</Label>
+                      <Input type="time" value={fTimeEnd} onChange={(e) => setFTimeEnd(e.target.value)} />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm pb-2">
+                      <Checkbox checked={fIncludesHolidays} onCheckedChange={(v) => setFIncludesHolidays(!!v)} />
+                      Inclui feriados
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Se ultrapassar a meia-noite (ex.: 19:00 → 07:00), o sistema interpreta como janela noturna.
+                  </p>
                 </div>
 
                 {scope === "especifica" && (
