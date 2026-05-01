@@ -782,6 +782,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      only_digits: { Args: { txt: string }; Returns: string }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
     }
     Enums: {

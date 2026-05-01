@@ -51,6 +51,24 @@ const Companies = () => {
       });
       return;
     }
+    // Verificação prévia de duplicidade por CNPJ (independente de máscara)
+    if (docDigits) {
+      const { data: dups } = await supabase
+        .from("companies")
+        .select("id, name, document")
+        .or(`document.eq.${docDigits},document.eq.${formatCNPJ(docDigits)}`);
+      const conflict = (dups ?? []).find(
+        (c: any) => onlyDigits(c.document ?? "") === docDigits && c.id !== editing.id
+      );
+      if (conflict) {
+        toast({
+          title: "CNPJ já cadastrado",
+          description: `Este CNPJ já pertence à empresa "${conflict.name}". Edite o registro existente em vez de criar um duplicado.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const payload = {
       name: editing.name.trim(),
       // Persiste sempre normalizado com máscara (ou null se vazio)
@@ -61,7 +79,19 @@ const Companies = () => {
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
       : await supabase.from("companies").insert(payload);
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (error) {
+      // 23505 = unique_violation (índice único do CNPJ no banco)
+      if ((error as any).code === "23505") {
+        toast({
+          title: "CNPJ já cadastrado",
+          description: "Já existe uma empresa com este CNPJ no sistema.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      }
+      return;
+    }
     toast({ title: editing.id ? "Empresa atualizada" : "Empresa criada" });
     setOpen(false); setEditing(empty); setAliasInput(""); load();
   };
@@ -134,17 +164,32 @@ const Companies = () => {
         return;
       }
 
-      // Upsert manual: atualiza por nome (case-insensitive) ou insere
-      const { data: existing } = await supabase.from("companies").select("id,name");
-      const existingMap = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
-
+      // Upsert manual: prioriza match por CNPJ; se não houver, casa por nome.
+      const { data: existing } = await supabase.from("companies").select("id,name,document");
+      const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
+      const byCnpj = new Map<string, string>();
+      for (const c of (existing ?? []) as any[]) {
+        const d = onlyDigits(c.document ?? "");
+        if (d.length === 14) byCnpj.set(d, c.id);
+      }
+      // Deduplica o próprio lote por CNPJ
+      const seenCnpj = new Set<string>();
+      let dupInBatch = 0;
       let inserted = 0, updated = 0, failed = 0;
       for (const row of valid) {
-        const id = existingMap.get(row.name.toLowerCase());
+        const d = onlyDigits(row.document ?? "");
+        if (d) {
+          if (seenCnpj.has(d)) { dupInBatch++; continue; }
+          seenCnpj.add(d);
+        }
+        const id = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
         const { error } = id
           ? await supabase.from("companies").update(row).eq("id", id)
           : await supabase.from("companies").insert(row);
-        if (error) failed++;
+        if (error) {
+          if ((error as any).code === "23505") dupInBatch++;
+          else failed++;
+        }
         else if (id) updated++;
         else inserted++;
       }
@@ -154,6 +199,7 @@ const Companies = () => {
         description:
           `${inserted} criada(s), ${updated} atualizada(s)` +
           (failed ? `, ${failed} com erro` : "") +
+          (dupInBatch ? `, ${dupInBatch} ignorada(s) por CNPJ duplicado` : "") +
           (skipped.length ? `. ${skipped.length} ignorada(s) por CNPJ inválido.` : ""),
       });
       load();
