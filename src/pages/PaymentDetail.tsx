@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowLeft, CheckCircle2, FileDown, Mail, RotateCcw, ShieldCheck, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, FileDown, Mail, RotateCcw, ShieldCheck, Sparkles, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -26,6 +26,7 @@ const PaymentDetail = () => {
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -109,6 +110,20 @@ const PaymentDetail = () => {
   const canResend = isAnalista && (payment.status === "devolvido_analista");
   const canRequestNf = isDiretor && payment.status === "aprovado";
 
+  // Resumo objetivo a partir dos itens
+  const counts = items.reduce(
+    (acc, it) => {
+      const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+      acc[s] = (acc[s] ?? 0) + 1;
+      return acc;
+    },
+    { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
+  );
+  const topAlerts: { item: any; alerts: string[] }[] = items
+    .filter((it) => it.ai_findings?.alerts?.length)
+    .slice(0, 6)
+    .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
+
   return (
     <>
       <PageHeader
@@ -121,14 +136,40 @@ const PaymentDetail = () => {
           </>
         }
       />
-      <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {payment.ai_summary && (
-            <Card className="shadow-card border-info/30 bg-info-soft/40">
-              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Sparkles className="h-4 w-4" /> Resumo da IA</CardTitle></CardHeader>
-              <CardContent className="text-sm">{payment.ai_summary}</CardContent>
-            </Card>
-          )}
+      <div className="p-8 space-y-6">
+        {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
+          <Card className="shadow-card border-info/30 bg-info-soft/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2"><Sparkles className="h-4 w-4" /> Parecer da IA</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovados</span>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} a validar</span>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} possível erro</span>
+                {counts.pendente > 0 && (
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.muted}`}>• {counts.pendente} pendentes</span>
+                )}
+              </div>
+              {topAlerts.length > 0 && (
+                <ul className="text-sm space-y-1">
+                  {topAlerts.map(({ item, alerts }, idx) => (
+                    <li key={idx} className="flex gap-2">
+                      <span className="text-muted-foreground">•</span>
+                      <span><span className="font-medium">{item.doctor_name}</span> — {alerts[0]}{alerts.length > 1 && <span className="text-muted-foreground"> (+{alerts.length - 1})</span>}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {payment.ai_summary && (
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Resumo detalhado</summary>
+                  <p className="mt-2 whitespace-pre-wrap">{payment.ai_summary}</p>
+                </details>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
           <Card className="shadow-card">
             <CardHeader><CardTitle className="text-base">Itens ({items.length})</CardTitle></CardHeader>
@@ -199,14 +240,25 @@ const PaymentDetail = () => {
               </CardContent>
             </Card>
           )}
-        </div>
 
-        <Card className="shadow-card h-fit">
-          <CardHeader><CardTitle className="text-base">Histórico de observações</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
-              {obs.length === 0 ? <p className="px-4 py-6 text-sm text-muted-foreground text-center">Sem observações</p> : obs.map((o) => (
-                <div key={o.id} className="px-4 py-3">
+        <Card className="shadow-card">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/40 transition"
+          >
+            <div>
+              <CardTitle className="text-base">Histórico de observações</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{obs.length} {obs.length === 1 ? "registro" : "registros"}</p>
+            </div>
+            {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          {historyOpen && (
+            <div className="border-t border-border divide-y divide-border max-h-[600px] overflow-y-auto">
+              {obs.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground text-center">Sem observações</p>
+              ) : obs.map((o) => (
+                <div key={o.id} className="px-6 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                     <span className="font-medium uppercase tracking-wide">{o.author_type}{o.author_id && ` · ${profiles[o.author_id] ?? ""}`}</span>
                     <span>{formatDate(o.created_at)}</span>
@@ -215,7 +267,7 @@ const PaymentDetail = () => {
                 </div>
               ))}
             </div>
-          </CardContent>
+          )}
         </Card>
       </div>
     </>
