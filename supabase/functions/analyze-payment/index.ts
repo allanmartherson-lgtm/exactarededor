@@ -6,7 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface RuleRow { id: string; name: string; description: string | null; rule_text: string; severity: string; }
+interface RuleRow {
+  id: string;
+  name: string;
+  description: string | null;
+  rule_text: string;
+  severity: string;
+  scope: string;
+  sector: string;
+  target_type: string | null;
+  target_identifier: string | null;
+  target_name: string | null;
+}
 interface ItemRow {
   id: string;
   doctor_name: string;
@@ -30,7 +41,10 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    const { data: rules } = await supabase.from("rules").select("id,name,description,rule_text,severity").eq("active", true);
+    const { data: rules } = await supabase
+      .from("rules")
+      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name")
+      .eq("active", true);
     const { data: items } = await supabase.from("payment_items").select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data").eq("payment_id", payment_id);
     const { data: history } = await supabase
       .from("payment_observations")
@@ -39,9 +53,15 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(20);
 
+    const fmtRule = (r: RuleRow, i: number) => {
+      const tag = r.scope === "especifica"
+        ? `ESPECÍFICA→${r.target_type ?? "?"}:${r.target_name ?? r.target_identifier ?? "?"}`
+        : "MASTER";
+      return `R${i + 1} [${tag}] [setor:${r.sector}] (${r.severity.toUpperCase()}): ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
+    };
     const rulesText = (rules ?? []).length === 0
       ? "Nenhuma regra cadastrada — apenas verifique consistência básica (valor positivo, dados preenchidos, possíveis duplicatas)."
-      : (rules as RuleRow[]).map((r, i) => `R${i + 1} (${r.severity.toUpperCase()}): ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`).join("\n");
+      : (rules as RuleRow[]).map(fmtRule).join("\n");
 
     const historyText = (history ?? []).length === 0
       ? ""
@@ -54,12 +74,20 @@ serve(async (req) => {
       documento: it.doctor_document,
       descricao: it.description,
       valor_bruto: Number(it.gross_amount),
+      raw: it.raw_data,
     }));
 
-    const systemPrompt = `Você é um auditor financeiro de pagamentos médicos. Analise CADA item da lista contra as regras abaixo. Para cada item, retorne:
+    const systemPrompt = `Você é um auditor financeiro de pagamentos médicos.
+Para CADA item, aplique as regras seguindo este princípio de precedência:
+1. Identifique o SETOR do item (cirurgia, hemodinâmica, parecer, visita, procedimento, consulta, outro) a partir da descrição e dos dados brutos.
+2. Procure regras ESPECÍFICAS aplicáveis ao médico (CPF/nome) ou empresa (CNPJ/nome) do item, no setor correspondente. Se houver, elas têm prioridade.
+3. Se não houver regra específica que cubra o ponto, aplique a regra MASTER do mesmo setor.
+4. Regras MASTER de setor "outro" valem para todos os setores como fallback geral.
+
+Para cada item, retorne:
 - status: "aprovado" | "alerta" | "reprovado"
 - alerts: array de strings (curtas, em português) descrevendo problemas encontrados; vazio se ok
-- matched_rules: nomes das regras violadas/aplicáveis
+- matched_rules: nomes das regras aplicadas/violadas
 
 REGRAS:
 ${rulesText}${historyText}
