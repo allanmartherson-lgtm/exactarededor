@@ -660,40 +660,15 @@ const Rules = () => {
                       <div className="space-y-2">
                         <div className="space-y-1.5">
                           <Label>Empresa cadastrada</Label>
-                          <Popover open={companyPickerOpen} onOpenChange={setCompanyPickerOpen}>
-                            <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between font-normal", !fTargetName && "text-muted-foreground")}>
-                                {fTargetName || "Selecionar empresa…"}
-                                <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Buscar empresa…" />
-                                <CommandList>
-                                  <CommandEmpty>{companies.length ? "Nenhuma empresa encontrada." : "Nenhuma empresa cadastrada."}</CommandEmpty>
-                                  <CommandGroup>
-                                    {companies.map((c) => {
-                                      const checked = fTargetName === c.name && (fTargetIdentifier ?? "") === (c.document ?? "");
-                                      return (
-                                        <CommandItem key={c.id} value={`${c.name} ${c.document ?? ""}`} onSelect={() => {
-                                          setFTargetName(c.name);
-                                          setFTargetIdentifier(c.document ? formatCNPJ(c.document) : "");
-                                          setCompanyPickerOpen(false);
-                                        }}>
-                                          <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
-                                          <div className="flex flex-col">
-                                            <span>{c.name}</span>
-                                            {c.document && <span className="text-xs text-muted-foreground">{c.document}</span>}
-                                          </div>
-                                        </CommandItem>
-                                      );
-                                    })}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                          <CompanyCombobox
+                            value={fTargetName ? { id: "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
+                            onChange={(c) => {
+                              setFTargetName(c?.name ?? "");
+                              setFTargetIdentifier(c?.document ? formatCNPJ(c.document) : "");
+                            }}
+                            placeholder="Selecionar empresa…"
+                            className="w-full"
+                          />
                           <p className="text-xs text-muted-foreground">Puxa nome e CNPJ direto do cadastro de empresas.</p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
