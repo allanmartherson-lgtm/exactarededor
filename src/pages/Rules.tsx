@@ -334,11 +334,22 @@ const Rules = () => {
   const saveDrafts = async () => {
     const sel = drafts.filter((d) => d.enabled);
     if (sel.length === 0) return toast({ title: "Nenhuma regra selecionada", variant: "destructive" });
+    // Bloqueia drafts de empresa sem CNPJ válido — mesma regra do form manual.
+    const invalid = sel.filter((d) => d.scope === "especifica" && d.target_type === "empresa" && !isValidCNPJ(d.target_identifier ?? ""));
+    if (invalid.length) {
+      return toast({
+        title: `CNPJ inválido em ${invalid.length} regra(s)`,
+        description: "Corrija o CNPJ das regras de empresa antes de salvar (14 dígitos, com dígitos verificadores válidos).",
+        variant: "destructive",
+      });
+    }
     const toInsert = sel.map((d) => ({
       name: d.name, description: d.description || null, rule_text: d.rule_text,
       severity: d.severity, scope: d.scope, sector: d.sector,
       target_type: d.scope === "especifica" ? d.target_type : null,
-      target_identifier: d.scope === "especifica" ? d.target_identifier : null,
+      target_identifier: d.scope === "especifica"
+        ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
+        : null,
       target_name: d.scope === "especifica" ? d.target_name : null,
       rule_type: d.rule_type,
       package_amount: d.rule_type === "pacote" ? d.package_amount : null,
