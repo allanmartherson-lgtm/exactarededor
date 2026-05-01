@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle } from "lucide-react";
+import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
+import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { COMMON_SPECIALTIES } from "@/lib/specialties";
 
 interface ParsedRow {
   doctor_name: string;
@@ -141,6 +144,8 @@ const NewPayment = () => {
   const [paymentType, setPaymentType] = useState<PaymentType | "">("");
   const [paymentKind, setPaymentKind] = useState<PaymentKind | "">("");
   const [costCenterCode, setCostCenterCode] = useState<string | null>(null);
+  const [pSectors, setPSectors] = useState<string[]>([]);
+  const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
@@ -253,6 +258,8 @@ const NewPayment = () => {
         payment_type: paymentType as PaymentType,
         payment_kind: paymentKind as PaymentKind,
         cost_center_code: costCenterCode,
+        sectors: pSectors,
+        specialties: pSpecialties,
       })
       .select()
       .single();
