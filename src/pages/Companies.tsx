@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download } from "lucide-react";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 
 interface Company { id: string; name: string; document: string | null; aliases: string[]; notes: string | null }
 
@@ -40,9 +42,19 @@ const Companies = () => {
 
   const save = async () => {
     if (!editing.name.trim()) { toast({ title: "Nome obrigatório", variant: "destructive" }); return; }
+    const docDigits = onlyDigits(editing.document ?? "");
+    if (docDigits && !isValidCNPJ(docDigits)) {
+      toast({
+        title: "CNPJ inválido",
+        description: "Confira os dígitos verificadores. O cadastro só é salvo com CNPJ válido (deixe em branco se não souber).",
+        variant: "destructive",
+      });
+      return;
+    }
     const payload = {
       name: editing.name.trim(),
-      document: editing.document?.trim() || null,
+      // Persiste sempre normalizado com máscara (ou null se vazio)
+      document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
     };
@@ -83,17 +95,42 @@ const Companies = () => {
 
       const parsed = json.map((row) => {
         const name = toStr(pick(row, ["nome", "razao social", "razão social", "empresa"]));
-        const document = toStr(pick(row, ["cnpj", "cpf", "documento", "doc"])) || null;
+        const documentRaw = toStr(pick(row, ["cnpj", "cpf", "documento", "doc"])) || null;
         const aliasRaw = toStr(pick(row, ["apelidos", "alias", "variacoes", "variações", "nomes alternativos"]));
         const aliases = aliasRaw
           ? aliasRaw.split(/[;|]/).map((s) => s.trim()).filter(Boolean)
           : [];
         const notes = toStr(pick(row, ["notas", "observacoes", "observações", "obs"])) || null;
-        return { name, document, aliases, notes };
+        return { name, documentRaw, aliases, notes };
       }).filter((r) => r.name);
 
       if (!parsed.length) {
         toast({ title: "Nenhuma linha válida encontrada", description: "Verifique se a coluna 'nome' está preenchida.", variant: "destructive" });
+        return;
+      }
+
+      // Validação de CNPJ por linha (não bloqueia o lote — pula linhas inválidas e relata)
+      const skipped: string[] = [];
+      const valid = parsed.filter((r) => {
+        const d = onlyDigits(r.documentRaw ?? "");
+        if (d && !isValidCNPJ(d)) {
+          skipped.push(`${r.name} (${r.documentRaw})`);
+          return false;
+        }
+        return true;
+      }).map((r) => ({
+        name: r.name,
+        document: r.documentRaw ? (onlyDigits(r.documentRaw) ? formatCNPJ(onlyDigits(r.documentRaw)) : null) : null,
+        aliases: r.aliases,
+        notes: r.notes,
+      }));
+
+      if (!valid.length) {
+        toast({
+          title: "Importação bloqueada",
+          description: `Nenhuma linha com CNPJ válido. ${skipped.length} ignorada(s).`,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -102,7 +139,7 @@ const Companies = () => {
       const existingMap = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
 
       let inserted = 0, updated = 0, failed = 0;
-      for (const row of parsed) {
+      for (const row of valid) {
         const id = existingMap.get(row.name.toLowerCase());
         const { error } = id
           ? await supabase.from("companies").update(row).eq("id", id)
@@ -114,7 +151,10 @@ const Companies = () => {
 
       toast({
         title: "Importação concluída",
-        description: `${inserted} criada(s), ${updated} atualizada(s)${failed ? `, ${failed} com erro` : ""}.`,
+        description:
+          `${inserted} criada(s), ${updated} atualizada(s)` +
+          (failed ? `, ${failed} com erro` : "") +
+          (skipped.length ? `. ${skipped.length} ignorada(s) por CNPJ inválido.` : ""),
       });
       load();
     } catch (e) {
@@ -167,7 +207,21 @@ const Companies = () => {
                 </div>
                 <div className="space-y-1.5">
                   <Label>CNPJ</Label>
-                  <Input value={editing.document ?? ""} onChange={(e) => setEditing({ ...editing, document: e.target.value })} placeholder="00.000.000/0001-00" />
+                  <Input
+                    value={editing.document ?? ""}
+                    onChange={(e) => setEditing({ ...editing, document: formatCNPJ(e.target.value) })}
+                    placeholder="00.000.000/0001-00"
+                    inputMode="numeric"
+                    maxLength={18}
+                  />
+                  {(() => {
+                    const d = onlyDigits(editing.document ?? "");
+                    if (!d) return <p className="text-xs text-muted-foreground">Opcional. Se preenchido, deve ser um CNPJ válido.</p>;
+                    if (d.length < 14) return <p className="text-xs text-muted-foreground">Continue digitando — {d.length}/14 dígitos.</p>;
+                    return isValidCNPJ(d)
+                      ? <p className="text-xs text-emerald-600 inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" /> CNPJ válido.</p>
+                      : <p className="text-xs text-destructive inline-flex items-center gap-1"><ShieldAlert className="h-3.5 w-3.5" /> CNPJ inválido — confira os dígitos.</p>;
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Apelidos / variações de nome</Label>
@@ -226,7 +280,16 @@ const Companies = () => {
                   {filtered.map((c) => (
                     <tr key={c.id}>
                       <td className="px-4 py-2 font-medium flex items-center gap-2"><Building2 className="h-4 w-4 text-muted-foreground" />{c.name}</td>
-                      <td className="px-4 py-2 text-muted-foreground tabular-nums">{c.document ?? "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                        {c.document ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            {c.document}
+                            {isValidCNPJ(c.document)
+                              ? <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                              : <ShieldAlert className="h-3.5 w-3.5 text-destructive" />}
+                          </span>
+                        ) : "—"}
+                      </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-wrap gap-1">
                           {(c.aliases ?? []).map((a, i) => <Badge key={i} variant="outline" className="text-xs">{a}</Badge>)}
