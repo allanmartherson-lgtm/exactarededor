@@ -109,7 +109,7 @@ const Payments = () => {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{p.reference}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_month)}</span>
+                        Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
                         {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
                         {p.payment_type && ` · ${PAYMENT_TYPE_LABELS[p.payment_type]}`}
                         {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}

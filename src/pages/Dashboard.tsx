@@ -97,7 +97,7 @@ const Dashboard = () => {
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{p.reference}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        <span className="capitalize">{formatCompetence(p.competence_month)}</span> · {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
+                        <span className="capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span> · {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
                       </p>
                     </div>
                     <StatusBadge status={p.status} />
