@@ -1,0 +1,13 @@
+project_id = "ftzwhfieicgvsgbsltcx"
+
+[functions.submit-invoice]
+verify_jwt = false
+
+[functions.analyze-payment]
+verify_jwt = false
+
+[functions.convert-rules]
+verify_jwt = false
+
+[functions.send-invoice-request]
+verify_jwt = false
