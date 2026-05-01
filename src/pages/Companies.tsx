@@ -51,6 +51,24 @@ const Companies = () => {
       });
       return;
     }
+    // Verificação prévia de duplicidade por CNPJ (independente de máscara)
+    if (docDigits) {
+      const { data: dups } = await supabase
+        .from("companies")
+        .select("id, name, document")
+        .or(`document.eq.${docDigits},document.eq.${formatCNPJ(docDigits)}`);
+      const conflict = (dups ?? []).find(
+        (c: any) => onlyDigits(c.document ?? "") === docDigits && c.id !== editing.id
+      );
+      if (conflict) {
+        toast({
+          title: "CNPJ já cadastrado",
+          description: `Este CNPJ já pertence à empresa "${conflict.name}". Edite o registro existente em vez de criar um duplicado.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     const payload = {
       name: editing.name.trim(),
       // Persiste sempre normalizado com máscara (ou null se vazio)
@@ -61,7 +79,19 @@ const Companies = () => {
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
       : await supabase.from("companies").insert(payload);
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    if (error) {
+      // 23505 = unique_violation (índice único do CNPJ no banco)
+      if ((error as any).code === "23505") {
+        toast({
+          title: "CNPJ já cadastrado",
+          description: "Já existe uma empresa com este CNPJ no sistema.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      }
+      return;
+    }
     toast({ title: editing.id ? "Empresa atualizada" : "Empresa criada" });
     setOpen(false); setEditing(empty); setAliasInput(""); load();
   };
