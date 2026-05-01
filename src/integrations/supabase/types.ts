@@ -590,6 +590,7 @@ export type Database = {
         | "nf_divergente"
         | "pago"
         | "rejeitado"
+        | "cancelado"
       reference_table_kind: "simples" | "cbhpm"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -753,6 +754,7 @@ export const Constants = {
         "nf_divergente",
         "pago",
         "rejeitado",
+        "cancelado",
       ],
       reference_table_kind: ["simples", "cbhpm"],
       rule_scope: ["master", "especifica"],
