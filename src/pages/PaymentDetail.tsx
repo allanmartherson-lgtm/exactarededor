@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,37 @@ import { ArrowLeft, Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Fil
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
+};
+
+const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
+
+type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
+const RuleTooltipContent = ({
+  rules,
+  fallbackNames,
+}: {
+  rules: RuleLite[];
+  fallbackNames: string[];
+}) => {
+  const blocks = rules.length
+    ? rules.map((r) => ({
+        name: r.name,
+        text: truncate((r.rule_text ?? "").trim(), 220),
+        desc: r.description ? truncate(r.description.trim(), 140) : "",
+      }))
+    : fallbackNames.map((n) => ({ name: n, text: "", desc: "" }));
+
+  return (
+    <div className="space-y-2 text-xs leading-snug">
+      {blocks.map((b, i) => (
+        <div key={i} className={i > 0 ? "border-t border-border/40 pt-2" : ""}>
+          <div className="font-semibold">{truncate(b.name, 80)}</div>
+          {b.text && <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{b.text}</p>}
+          {b.desc && <p className="mt-0.5 italic text-muted-foreground/80">{b.desc}</p>}
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const PaymentDetail = () => {
@@ -284,6 +316,7 @@ const PaymentDetail = () => {
           <Card className="shadow-card">
             <CardHeader><CardTitle className="text-base">Itens ({items.length})</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
+              <TooltipProvider delayDuration={150}>
               <table className="w-full text-sm">
                 <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
@@ -305,16 +338,15 @@ const PaymentDetail = () => {
                     const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
                     const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
                     const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
-                    const ruleTooltip = (matchedIds.length ? matchedIds : matchedNames)
-                      .map((key, i) => {
-                        const r = matchedIds.length ? rulesIndex[key] : null;
-                        const label = r?.name ?? matchedNames[i] ?? key;
-                        const detail = r ? ` — ${r.rule_text}${r.description ? ` (${r.description})` : ""}` : "";
-                        return `${label}${detail}`;
-                      })
-                      .join("\n");
-                    const firstRule = matchedIds.length ? rulesIndex[matchedIds[0]] : null;
+                    const matchedRuleObjs: RuleLite[] = matchedIds
+                      .map((id) => rulesIndex[id])
+                      .filter(Boolean) as RuleLite[];
+                    const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
+                    const firstRule = matchedRuleObjs[0] ?? null;
                     const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
+                    const tooltipNode = hasRule ? (
+                      <RuleTooltipContent rules={matchedRuleObjs} fallbackNames={matchedNames} />
+                    ) : null;
                     return (
                       <tr key={it.id} className="align-top">
                         <td className="px-3 py-3 text-xs font-mono text-muted-foreground">{it.attendance_number ?? "—"}</td>
@@ -338,19 +370,34 @@ const PaymentDetail = () => {
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
                         <td className="px-3 py-3 text-right">
-                          <div
-                            className={`tabular-nums font-medium ${ruleTooltip ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help" : ""}`}
-                            title={ruleTooltip || undefined}
-                          >
-                            {formatCurrency(it.gross_amount)}
-                          </div>
+                          {tooltipNode ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="tabular-nums font-medium underline decoration-dotted decoration-muted-foreground/50 cursor-help">
+                                  {formatCurrency(it.gross_amount)}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-xs">
+                                {tooltipNode}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <div className="tabular-nums font-medium">{formatCurrency(it.gross_amount)}</div>
+                          )}
                           {firstRuleLabel && (
                             firstRule?.id ? (
-                              <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto" title={ruleTooltip}>
-                                {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
-                              </Link>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto">
+                                    {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
+                                  </Link>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-xs">
+                                  {tooltipNode}
+                                </TooltipContent>
+                              </Tooltip>
                             ) : (
-                              <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto" title={ruleTooltip}>
+                              <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto">
                                 {firstRuleLabel}{matchedNames.length > 1 ? ` +${matchedNames.length - 1}` : ""}
                               </span>
                             )
@@ -362,6 +409,7 @@ const PaymentDetail = () => {
                   })}
                 </tbody>
               </table>
+              </TooltipProvider>
             </CardContent>
           </Card>
 
