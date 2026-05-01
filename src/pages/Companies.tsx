@@ -167,11 +167,11 @@ const Companies = () => {
       // Upsert manual: prioriza match por CNPJ; se não houver, casa por nome.
       const { data: existing } = await supabase.from("companies").select("id,name,document");
       const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
-      const byCnpj = new Map(
-        (existing ?? [])
-          .map((c: any) => [onlyDigits(c.document ?? ""), c.id])
-          .filter(([d]) => d && (d as string).length === 14)
-      );
+      const byCnpj = new Map<string, string>();
+      for (const c of (existing ?? []) as any[]) {
+        const d = onlyDigits(c.document ?? "");
+        if (d.length === 14) byCnpj.set(d, c.id);
+      }
       // Deduplica o próprio lote por CNPJ
       const seenCnpj = new Set<string>();
       let dupInBatch = 0;
