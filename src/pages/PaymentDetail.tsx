@@ -95,10 +95,28 @@ const PaymentDetail = () => {
 
   const sendInvoiceRequest = async () => {
     setBusy(true);
-    const { error } = await supabase.functions.invoke("send-invoice-request", { body: { payment_id: id } });
+    const { data, error } = await supabase.functions.invoke("send-invoice-request", { body: { payment_id: id } });
     setBusy(false);
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Pedido de NF enviado" });
+    // Erro de validação (CNPJ inválido) chega no body com status 422
+    const payload = (data ?? {}) as any;
+    if (payload?.error === "cnpj_invalido") {
+      const detail = (payload.invalid ?? []).slice(0, 3).map((x: any) =>
+        `• ${x.company_name ?? x.doctor_name}: ${x.reason}`
+      ).join("\n");
+      const more = (payload.invalid?.length ?? 0) > 3 ? `\n…e mais ${payload.invalid.length - 3} item(ns).` : "";
+      toast({
+        title: "Envio bloqueado: CNPJ inválido",
+        description: `${payload.message}\n${detail}${more}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (error || payload?.error) {
+      toast({ title: "Erro", description: payload?.message ?? error?.message ?? "Falha ao enviar.", variant: "destructive" });
+      return;
+    }
+    const n = payload?.invoices_created ?? 0;
+    toast({ title: "Pedido(s) de NF enviado(s)", description: `${n} destinatário(s) notificado(s) com resumo validado.` });
     load();
   };
 
