@@ -17,6 +17,15 @@ interface RuleRow {
   target_type: string | null;
   target_identifier: string | null;
   target_name: string | null;
+  rule_type: string;
+  package_amount: number | null;
+  bonus_amount: number | null;
+  bonus_pct: number | null;
+  target_amount: number | null;
+  multiplier: number | null;
+  deflator_pct: number | null;
+  procedure_codes: string[] | null;
+  reference_table_id: string | null;
 }
 interface ItemRow {
   id: string;
@@ -43,8 +52,21 @@ serve(async (req) => {
 
     const { data: rules } = await supabase
       .from("rules")
-      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name")
+      .select("id,name,description,rule_text,severity,scope,sector,target_type,target_identifier,target_name,rule_type,package_amount,bonus_amount,bonus_pct,target_amount,multiplier,deflator_pct,procedure_codes,reference_table_id")
       .eq("active", true);
+
+    // Carrega itens das tabelas de referência usadas pelas regras
+    const refIds = Array.from(new Set((rules ?? []).map((r: any) => r.reference_table_id).filter(Boolean)));
+    let refIndex: Record<string, { name: string; items: { code: string; description: string | null; amount: number }[] }> = {};
+    if (refIds.length > 0) {
+      const { data: refTables } = await supabase.from("reference_tables").select("id,name").in("id", refIds);
+      const { data: refItems } = await supabase.from("reference_table_items").select("reference_table_id,code,description,amount").in("reference_table_id", refIds);
+      for (const t of refTables ?? []) refIndex[t.id] = { name: t.name, items: [] };
+      for (const it of refItems ?? []) {
+        const t = refIndex[it.reference_table_id];
+        if (t) t.items.push({ code: it.code, description: it.description, amount: Number(it.amount) });
+      }
+    }
     const { data: items } = await supabase.from("payment_items").select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data").eq("payment_id", payment_id);
     const { data: history } = await supabase
       .from("payment_observations")
@@ -57,11 +79,32 @@ serve(async (req) => {
       const tag = r.scope === "especifica"
         ? `ESPECÍFICA→${r.target_type ?? "?"}:${r.target_name ?? r.target_identifier ?? "?"}`
         : "MASTER";
-      return `R${i + 1} [${tag}] [setor:${r.sector}] (${r.severity.toUpperCase()}): ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
+      const calc: string[] = [];
+      if (r.rule_type === "pacote" && r.package_amount != null) calc.push(`PACOTE=R$${r.package_amount}`);
+      if (r.rule_type === "tabela_diferenciada") {
+        const ref = r.reference_table_id ? refIndex[r.reference_table_id]?.name : null;
+        calc.push(`TABELA${ref ? `=${ref}` : ""}${r.multiplier ? ` x${r.multiplier}` : ""}${r.deflator_pct ? ` deflator ${r.deflator_pct}%` : ""}`);
+      }
+      if (r.rule_type === "bonus") {
+        if (r.bonus_amount != null) calc.push(`BONUS=+R$${r.bonus_amount}`);
+        if (r.bonus_pct != null) calc.push(`BONUS=+${r.bonus_pct}%`);
+      }
+      if (r.rule_type === "complemento" && r.target_amount != null) calc.push(`COMPLEMENTO até R$${r.target_amount}`);
+      if (r.procedure_codes && r.procedure_codes.length) calc.push(`códigos:${r.procedure_codes.join(",")}`);
+      const calcTag = calc.length ? ` {${r.rule_type}: ${calc.join(" | ")}}` : ` {${r.rule_type}}`;
+      return `R${i + 1} [${tag}] [setor:${r.sector}] (${r.severity.toUpperCase()})${calcTag}: ${r.name} — ${r.rule_text}${r.description ? ` [${r.description}]` : ""}`;
     };
     const rulesText = (rules ?? []).length === 0
       ? "Nenhuma regra cadastrada — apenas verifique consistência básica (valor positivo, dados preenchidos, possíveis duplicatas)."
       : (rules as RuleRow[]).map(fmtRule).join("\n");
+
+    // Texto compacto das tabelas de referência (limitado para não estourar contexto)
+    const refText = Object.keys(refIndex).length === 0 ? "" :
+      "\n\nTABELAS DE REFERÊNCIA (código → valor base):\n" +
+      Object.entries(refIndex).map(([_id, t]) => {
+        const sample = t.items.slice(0, 200).map(i => `${i.code}=R$${i.amount}${i.description ? ` (${i.description})` : ""}`).join("; ");
+        return `# ${t.name}\n${sample}${t.items.length > 200 ? ` ...(+${t.items.length-200})` : ""}`;
+      }).join("\n");
 
     const historyText = (history ?? []).length === 0
       ? ""
@@ -84,13 +127,27 @@ Para CADA item, aplique as regras seguindo este princípio de precedência:
 3. Se não houver regra específica que cubra o ponto, aplique a regra MASTER do mesmo setor.
 4. Regras MASTER de setor "outro" valem para todos os setores como fallback geral.
 
+CÁLCULO DE VALOR ESPERADO (quando a regra tem rule_type diferente de 'informativo'):
+- pacote: valor esperado = package_amount.
+- tabela_diferenciada: localize o código do procedimento na TABELA DE REFERÊNCIA indicada, pegue o valor base, multiplique por 'multiplier' (default 1) e aplique deflator (-deflator_pct%). Se a tabela não tiver o código, marque como alerta.
+- bonus: valor esperado = valor_bruto (do convênio, vindo da planilha) + bonus_amount OU + (valor_bruto * bonus_pct/100).
+- complemento: valor esperado = target_amount; "valor a complementar" = target_amount - valor_bruto.
+- Se procedure_codes da regra estiver preenchido, ela só se aplica quando o item tiver um desses códigos.
+
+Se calculou um expected_amount, compare com valor_bruto:
+- diferença ≤ 1% → status 'aprovado'
+- diferença até 10% → 'alerta'
+- > 10% ou códigos não encontrados → 'reprovado'
+
 Para cada item, retorne:
 - status: "aprovado" | "alerta" | "reprovado"
 - alerts: array de strings (curtas, em português) descrevendo problemas encontrados; vazio se ok
 - matched_rules: nomes das regras aplicadas/violadas
+- expected_amount: número | null (valor esperado calculado, se houver)
+- calculation_explanation: string curta explicando o cálculo (ex: "CBHPM 2018 R$1.200 x 1.5 - 5% = R$1.710")
 
 REGRAS:
-${rulesText}${historyText}
+${rulesText}${refText}${historyText}
 
 Responda APENAS via tool call, sem texto adicional.`;
 
@@ -121,6 +178,8 @@ Responda APENAS via tool call, sem texto adicional.`;
                       status: { type: "string", enum: ["aprovado", "alerta", "reprovado"] },
                       alerts: { type: "array", items: { type: "string" } },
                       matched_rules: { type: "array", items: { type: "string" } },
+                      expected_amount: { type: ["number","null"] },
+                      calculation_explanation: { type: ["string","null"] },
                     },
                     required: ["id", "status", "alerts", "matched_rules"],
                     additionalProperties: false,
@@ -154,7 +213,7 @@ Responda APENAS via tool call, sem texto adicional.`;
     for (const r of result.items) {
       await supabase.from("payment_items").update({
         ai_status: r.status,
-        ai_findings: { alerts: r.alerts, matched_rules: r.matched_rules },
+        ai_findings: { alerts: r.alerts, matched_rules: r.matched_rules, expected_amount: r.expected_amount ?? null, calculation_explanation: r.calculation_explanation ?? null },
       }).eq("id", r.id);
       if (r.status === "alerta") alerts++;
       if (r.status === "reprovado") blocks++;
