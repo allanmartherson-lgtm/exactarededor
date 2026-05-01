@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          created_by: string | null
+          document: string | null
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          created_by?: string | null
+          document?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          created_by?: string | null
+          document?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           created_at: string
@@ -75,45 +108,85 @@ export type Database = {
       }
       payment_items: {
         Row: {
+          access_route: string | null
+          agreement_text: string | null
           ai_findings: Json | null
           ai_status: Database["public"]["Enums"]["item_ai_status"]
+          attendance_number: string | null
+          company_id: string | null
+          company_name: string | null
           created_at: string
           description: string | null
           doctor_document: string | null
           doctor_email: string | null
           doctor_name: string
+          doctor_role: string | null
           gross_amount: number
           id: string
           payment_id: string
+          procedure_amount: number | null
+          procedure_code: string | null
+          procedure_date: string | null
+          procedure_name: string | null
+          quantity: number | null
           raw_data: Json | null
         }
         Insert: {
+          access_route?: string | null
+          agreement_text?: string | null
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          attendance_number?: string | null
+          company_id?: string | null
+          company_name?: string | null
           created_at?: string
           description?: string | null
           doctor_document?: string | null
           doctor_email?: string | null
           doctor_name: string
+          doctor_role?: string | null
           gross_amount?: number
           id?: string
           payment_id: string
+          procedure_amount?: number | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          quantity?: number | null
           raw_data?: Json | null
         }
         Update: {
+          access_route?: string | null
+          agreement_text?: string | null
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          attendance_number?: string | null
+          company_id?: string | null
+          company_name?: string | null
           created_at?: string
           description?: string | null
           doctor_document?: string | null
           doctor_email?: string | null
           doctor_name?: string
+          doctor_role?: string | null
           gross_amount?: number
           id?: string
           payment_id?: string
+          procedure_amount?: number | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          quantity?: number | null
           raw_data?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_items_payment_id_fkey"
             columns: ["payment_id"]
