@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const signInSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
@@ -22,6 +23,7 @@ const Auth = () => {
   const { user, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     document.title = "Entrar | Aprovação de Pagamentos Médicos";
@@ -29,6 +31,26 @@ const Auth = () => {
 
   if (loading) return null;
   if (user) return <Navigate to="/" replace />;
+
+  const handleForgotPassword = async () => {
+    const emailEl = document.getElementById("signin-email") as HTMLInputElement | null;
+    const email = (emailEl?.value ?? "").trim();
+    const parsed = z.string().email().safeParse(email);
+    if (!parsed.success) {
+      toast({ title: "Informe seu email", description: "Preencha o campo de email para enviarmos o link de recuperação.", variant: "destructive" });
+      return;
+    }
+    setResetting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
+      redirectTo: `${window.location.origin}/definir-senha`,
+    });
+    setResetting(false);
+    if (error) {
+      toast({ title: "Não foi possível enviar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Email enviado", description: "Confira sua caixa de entrada para redefinir a senha." });
+  };
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
