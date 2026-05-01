@@ -37,6 +37,16 @@ interface ItemRow {
   description: string | null;
   gross_amount: number;
   raw_data: unknown;
+  company_name?: string | null;
+  attendance_number?: string | null;
+  procedure_code?: string | null;
+  procedure_name?: string | null;
+  access_route?: string | null;
+  doctor_role?: string | null;
+  agreement_text?: string | null;
+  procedure_amount?: number | null;
+  quantity?: number | null;
+  procedure_date?: string | null;
 }
 
 serve(async (req) => {
@@ -86,7 +96,10 @@ serve(async (req) => {
         if (t) t.portValues[String(pv.port)] = Number(pv.amount);
       }
     }
-    const { data: items } = await supabase.from("payment_items").select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data").eq("payment_id", payment_id);
+    const { data: items } = await supabase
+      .from("payment_items")
+      .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
+      .eq("payment_id", payment_id);
     const { data: history } = await supabase
       .from("payment_observations")
       .select("author_type, message")
@@ -142,9 +155,18 @@ serve(async (req) => {
 
     const itemsForAi = (items as ItemRow[]).map((it) => ({
       id: it.id,
+      empresa: it.company_name,
+      atendimento: it.attendance_number,
       medico: it.doctor_name,
+      funcao: it.doctor_role,
       documento: it.doctor_document,
+      codigo_tuss: it.procedure_code,
       descricao: it.description,
+      via_acesso: it.access_route,
+      acordo_percentual: it.agreement_text,
+      valor_procedimento_tabela: it.procedure_amount,
+      quantidade: it.quantity,
+      data: it.procedure_date,
       valor_bruto: Number(it.gross_amount),
       raw: it.raw_data,
     }));
