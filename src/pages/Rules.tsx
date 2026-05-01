@@ -36,6 +36,26 @@ const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
 };
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
+type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
+const TIME_MODE_LABELS: Record<TimeMode, string> = {
+  qualquer: "Qualquer dia/horário (livre)",
+  comercial: "Horário comercial (seg–sex 07–19h)",
+  fora_comercial: "Fora do horário comercial",
+  fim_de_semana: "Fim de semana (sáb/dom)",
+  feriado: "Apenas feriados",
+  personalizado: "Personalizado (escolher dias/horas)",
+};
+type ElectiveMode = "qualquer" | "eletiva" | "urgencia";
+const ELECTIVE_MODE_LABELS: Record<ElectiveMode, string> = {
+  qualquer: "Qualquer (eletiva ou urgência)",
+  eletiva: "Apenas eletivas",
+  urgencia: "Apenas urgência/emergência",
+};
+const WEEKDAY_LABELS: { v: number; label: string }[] = [
+  { v: 0, label: "Dom" }, { v: 1, label: "Seg" }, { v: 2, label: "Ter" },
+  { v: 3, label: "Qua" }, { v: 4, label: "Qui" }, { v: 5, label: "Sex" }, { v: 6, label: "Sáb" },
+];
+
 type RuleRow = any;
 type DraftRule = {
   enabled: boolean;
