@@ -634,7 +634,20 @@ const Rules = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5"><Label>CNPJ</Label>
-                            <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                            <Input
+                              value={fTargetIdentifier}
+                              onChange={(e) => setFTargetIdentifier(formatCNPJ(e.target.value))}
+                              placeholder="00.000.000/0000-00"
+                              inputMode="numeric"
+                              maxLength={18}
+                              aria-invalid={!!fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)}
+                              className={cn(
+                                fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && "border-destructive focus-visible:ring-destructive"
+                              )}
+                            />
+                            {fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && (
+                              <p className="text-xs text-destructive">CNPJ inválido — confira os 14 dígitos.</p>
+                            )}
                           </div>
                           <div className="space-y-1.5"><Label>Nome</Label>
                             <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
