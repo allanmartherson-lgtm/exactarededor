@@ -73,12 +73,30 @@ serve(async (req) => {
 
     const linkType: "invite" | "recovery" = target.email_confirmed_at ? "recovery" : "invite";
 
-    if (linkType === "recovery") {
-      const mailer = createClient(SUPABASE_URL, ANON);
-      const { error: resetErr } = await mailer.auth.resetPasswordForEmail(email, {
-        redirectTo,
-      });
-      if (resetErr) throw resetErr;
+    // Tenta disparar o e-mail oficial. Se cair em rate-limit (429), seguimos
+    // adiante e devolvemos o link manual de contingência sem falhar a requisição.
+    let emailSent = true;
+    let emailWarning: string | null = null;
+    try {
+      if (linkType === "recovery") {
+        const mailer = createClient(SUPABASE_URL, ANON);
+        const { error: resetErr } = await mailer.auth.resetPasswordForEmail(email, { redirectTo });
+        if (resetErr) throw resetErr;
+      } else {
+        const { error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
+          redirectTo,
+        });
+        // 422 = usuário já existe (esperado em reenvio) — ignoramos
+        if (invErr && (invErr as any).status !== 422) throw invErr;
+      }
+    } catch (mailErr: any) {
+      const status = mailErr?.status ?? 0;
+      if (status === 429) {
+        emailSent = false;
+        emailWarning = "Limite de envio atingido. Use o link manual abaixo.";
+      } else {
+        throw mailErr;
+      }
     }
 
     // Gera também um link manual de contingência caso o e-mail não seja entregue.
@@ -97,6 +115,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       kind: linkType,                 // "invite" (primeiro acesso) ou "recovery" (redefinir senha)
+      email_sent: emailSent,
+      warning: emailWarning,
       action_link: appLink ?? gen?.properties?.action_link ?? null, // backup manual caso e-mail não chegue
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
