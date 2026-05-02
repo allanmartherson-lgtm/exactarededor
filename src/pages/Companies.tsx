@@ -80,27 +80,30 @@ const Companies = () => {
         return;
       }
     }
+    // Aproveita e-mail digitado mas não confirmado com Enter (evita perder o que o usuário "esqueceu" no input)
+    const finalEmails = [...(editing.invoice_emails ?? [])];
+    const pendingEmail = emailInput.trim().toLowerCase();
+    if (pendingEmail) {
+      if (!isValidEmail(pendingEmail)) {
+        toast({
+          title: "E-mail inválido no campo",
+          description: `"${pendingEmail}" não é um e-mail válido. Corrija ou apague antes de salvar.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!finalEmails.includes(pendingEmail)) finalEmails.push(pendingEmail);
+    }
+
     const payload = {
       name: editing.name.trim(),
       // Persiste sempre normalizado com máscara (ou null se vazio)
       document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
-      invoice_emails: (() => {
-        // Aproveita e-mail digitado mas ainda não confirmado com Enter
-        const list = [...(editing.invoice_emails ?? [])];
-        const pending = emailInput.trim().toLowerCase();
-        if (pending) {
-          if (!isValidEmail(pending)) {
-            // Sinaliza fora deste IIFE — armazenamos numa flag via throw controlado
-            throw new Error(`__EMAIL_INVALIDO__:${pending}`);
-          }
-          if (!list.includes(pending)) list.push(pending);
-        }
-        return list
-          .map((e) => e.trim().toLowerCase())
-          .filter((e) => isValidEmail(e));
-      })(),
+      invoice_emails: finalEmails
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => isValidEmail(e)),
     };
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
