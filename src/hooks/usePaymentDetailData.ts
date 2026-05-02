@@ -56,9 +56,14 @@ export function usePaymentDetailData(id: string | undefined) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const loadTokenRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
+    // Cancela request anterior em voo (se houver) antes de iniciar a nova.
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     const myToken = ++loadTokenRef.current;
     const [
       { data: p },
@@ -70,32 +75,36 @@ export function usePaymentDetailData(id: string | undefined) {
       { data: inv },
       { data: qs },
     ] = await Promise.all([
-      supabase.from("payments").select("*").eq("id", id).single(),
-      supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
+      supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
+      supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").abortSignal(ac.signal),
       supabase
         .from("payment_observations")
         .select("*")
         .eq("payment_id", id)
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id,full_name,email"),
+        .order("created_at", { ascending: false })
+        .abortSignal(ac.signal),
+      supabase.from("profiles").select("id,full_name,email").abortSignal(ac.signal),
       supabase
         .from("ai_analysis_versions")
         .select("*")
         .eq("payment_id", id)
-        .order("version", { ascending: false }),
+        .order("version", { ascending: false })
+        .abortSignal(ac.signal),
       supabase
         .from("payment_company_groups")
         .select("*")
         .eq("payment_id", id)
-        .order("company_name"),
-      supabase.from("invoices").select("*").eq("payment_id", id),
+        .order("company_name")
+        .abortSignal(ac.signal),
+      supabase.from("invoices").select("*").eq("payment_id", id).abortSignal(ac.signal),
       supabase
         .from("invoice_questions")
         .select("id, invoice_id, author_type, author_name, message, created_at, read_at")
         .eq("payment_id", id)
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: true })
+        .abortSignal(ac.signal),
     ]);
-    if (myToken !== loadTokenRef.current) return;
+    if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
     setPayment(p);
     setItems((it ?? []) as unknown as PaymentItemRow[]);
     setObs(o ?? []);
@@ -127,13 +136,13 @@ export function usePaymentDetailData(id: string | undefined) {
     ).filter(Boolean) as string[];
     const [byIdRes, byNameRes] = await Promise.all([
       ids.length
-        ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids)
+        ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids).abortSignal(ac.signal)
         : Promise.resolve({ data: [] as RuleLite[] }),
       names.length
-        ? supabase.from("rules").select("id,name,rule_text,description").in("name", names)
+        ? supabase.from("rules").select("id,name,rule_text,description").in("name", names).abortSignal(ac.signal)
         : Promise.resolve({ data: [] as RuleLite[] }),
     ]);
-    if (myToken !== loadTokenRef.current) return;
+    if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
     const idx: Record<string, RuleLite> = {};
     (byIdRes.data ?? []).forEach((r) => {
       idx[(r as RuleLite).id] = r as RuleLite;
@@ -151,9 +160,12 @@ export function usePaymentDetailData(id: string | undefined) {
 
   useEffect(() => {
     load();
-    // Cleanup: invalida cargas em voo ao trocar :id ou desmontar.
+    // Cleanup: aborta o request HTTP em voo + invalida o token (defesa em
+    // profundidade) ao trocar :id ou desmontar.
     return () => {
       loadTokenRef.current++;
+      abortRef.current?.abort();
+      abortRef.current = null;
     };
   }, [load]);
 
