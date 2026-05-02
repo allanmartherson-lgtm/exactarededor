@@ -829,12 +829,17 @@ const PipelineStep = ({
   const iconNode = (
     <div
       className={cn(
-        "rounded-md flex items-center justify-center",
+        "rounded-md flex items-center justify-center transition-[width,height] duration-200 ease-out motion-reduce:transition-none",
         isComfortable ? "h-9 w-9" : "h-7 w-7",
         toneBg[tone],
       )}
     >
-      <Icon className={cn(isComfortable ? "h-5 w-5" : "h-4 w-4")} />
+      <Icon
+        className={cn(
+          "transition-[width,height] duration-200 ease-out motion-reduce:transition-none",
+          isComfortable ? "h-5 w-5" : "h-4 w-4",
+        )}
+      />
     </div>
   );
   const tooltipNode = (

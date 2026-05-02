@@ -169,11 +169,16 @@ export const StatTile = ({
     >
       <CardContent
         className={cn(
-          "h-full flex flex-col",
+          "h-full flex flex-col transition-[padding,gap] duration-200 ease-out motion-reduce:transition-none",
           isCompact ? "p-3 gap-2" : "p-3 sm:p-4 lg:p-5 gap-3",
         )}
       >
-        <div className={cn("flex items-start justify-between", isCompact ? "gap-2" : "gap-2 sm:gap-3")}>
+        <div
+          className={cn(
+            "flex items-start justify-between transition-[gap] duration-200 ease-out motion-reduce:transition-none",
+            isCompact ? "gap-2" : "gap-2 sm:gap-3",
+          )}
+        >
           {isBottomLabel ? (
             // Apenas o ícone no topo; espaço do label vai para o rodapé.
             <span aria-hidden className="flex-1 min-w-0" />
@@ -181,7 +186,10 @@ export const StatTile = ({
             labelNode
           )}
           {icon && (
-            <div aria-hidden="true" className="flex-shrink-0">
+            <div
+              aria-hidden="true"
+              className="flex-shrink-0 transition-[width,height] duration-200 ease-out motion-reduce:transition-none"
+            >
               {icon}
             </div>
           )}
@@ -191,7 +199,7 @@ export const StatTile = ({
           data-testid="stat-card-value"
           className={cn(
             isCompact ? "text-2xl" : "text-2xl sm:text-3xl",
-            "font-semibold tabular-nums leading-none",
+            "font-semibold tabular-nums leading-none transition-[font-size] duration-200 ease-out motion-reduce:transition-none",
           )}
         >
           {value}
