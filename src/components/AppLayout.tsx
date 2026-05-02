@@ -379,19 +379,13 @@ export const AppLayout = () => {
                   aria-label={item.label}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "side-nav-item outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isActive ? "side-nav-active" : "side-nav-idle",
                     )
                   }
-                  style={{
-                    height: 40,
-                    padding: "0 12px",
-                    borderRadius: 8,
-                    fontSize: 13.5,
-                  }}
                 >
-                  <item.icon size={18} strokeWidth={1.75} className="flex-shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <item.icon size={18} strokeWidth={1.75} aria-hidden />
+                  <span>{item.label}</span>
                 </NavLink>
               </TooltipTrigger>
               <TooltipContent side="right">{item.label}</TooltipContent>
