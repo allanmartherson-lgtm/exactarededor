@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "audit:tables": "bun run scripts/audit-tables.ts"
   },
   "dependencies": {
     "@carbon/react": "^1.106.0",
