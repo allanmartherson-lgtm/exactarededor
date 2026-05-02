@@ -19,23 +19,27 @@ import type { Json } from "@/integrations/supabase/types";
 export type PipelineLayout = "auto" | "rows2" | "rows3";
 export type PipelineOwnerFilter = "all" | "analista" | "validador" | "diretor";
 export type PipelineWindowFilter = "7" | "30" | "90" | "all";
+export type PipelineDensity = "compact" | "comfortable";
 
 export interface PipelinePreferences {
   layout: PipelineLayout;
   owner: PipelineOwnerFilter;
   window: PipelineWindowFilter;
+  density: PipelineDensity;
 }
 
 const DEFAULTS: PipelinePreferences = {
   layout: "auto",
   owner: "all",
   window: "all",
+  density: "compact",
 };
 
 const LS_KEYS = {
   layout: "dashboard.pipelineLayout",
   owner: "dashboard.pipelineOwner",
   window: "dashboard.pipelineWindow",
+  density: "dashboard.pipelineDensity",
 } as const;
 
 /** Chaves usadas dentro do JSONB `profiles.preferences`. */
@@ -43,6 +47,7 @@ const REMOTE_KEYS = {
   layout: "dashboard.pipelineLayout",
   owner: "dashboard.pipelineOwner",
   window: "dashboard.pipelineWindow",
+  density: "dashboard.pipelineDensity",
 } as const;
 
 const isLayout = (v: unknown): v is PipelineLayout =>
@@ -51,16 +56,20 @@ const isOwner = (v: unknown): v is PipelineOwnerFilter =>
   v === "all" || v === "analista" || v === "validador" || v === "diretor";
 const isWindow = (v: unknown): v is PipelineWindowFilter =>
   v === "7" || v === "30" || v === "90" || v === "all";
+const isDensity = (v: unknown): v is PipelineDensity =>
+  v === "compact" || v === "comfortable";
 
 const readFromLocalStorage = (): PipelinePreferences => {
   if (typeof window === "undefined") return DEFAULTS;
   const layout = window.localStorage.getItem(LS_KEYS.layout);
   const owner = window.localStorage.getItem(LS_KEYS.owner);
   const win = window.localStorage.getItem(LS_KEYS.window);
+  const density = window.localStorage.getItem(LS_KEYS.density);
   return {
     layout: isLayout(layout) ? layout : DEFAULTS.layout,
     owner: isOwner(owner) ? owner : DEFAULTS.owner,
     window: isWindow(win) ? win : DEFAULTS.window,
+    density: isDensity(density) ? density : DEFAULTS.density,
   };
 };
 
@@ -69,6 +78,7 @@ const writeToLocalStorage = (prefs: PipelinePreferences) => {
   window.localStorage.setItem(LS_KEYS.layout, prefs.layout);
   window.localStorage.setItem(LS_KEYS.owner, prefs.owner);
   window.localStorage.setItem(LS_KEYS.window, prefs.window);
+  window.localStorage.setItem(LS_KEYS.density, prefs.density);
 };
 
 const fromRemoteJson = (raw: unknown): Partial<PipelinePreferences> => {
@@ -78,9 +88,11 @@ const fromRemoteJson = (raw: unknown): Partial<PipelinePreferences> => {
   const layout = obj[REMOTE_KEYS.layout];
   const owner = obj[REMOTE_KEYS.owner];
   const win = obj[REMOTE_KEYS.window];
+  const density = obj[REMOTE_KEYS.density];
   if (isLayout(layout)) out.layout = layout;
   if (isOwner(owner)) out.owner = owner;
   if (isWindow(win)) out.window = win;
+  if (isDensity(density)) out.density = density;
   return out;
 };
 
@@ -116,7 +128,8 @@ export function usePipelinePreferences() {
         if (
           local.layout !== DEFAULTS.layout ||
           local.owner !== DEFAULTS.owner ||
-          local.window !== DEFAULTS.window
+          local.window !== DEFAULTS.window ||
+          local.density !== DEFAULTS.density
         ) {
           void persistRemote(user.id, local);
         }
@@ -126,6 +139,7 @@ export function usePipelinePreferences() {
         layout: remote.layout ?? prefs.layout,
         owner: remote.owner ?? prefs.owner,
         window: remote.window ?? prefs.window,
+        density: remote.density ?? prefs.density,
       };
       writeToLocalStorage(merged);
       setPrefs(merged);
@@ -153,6 +167,7 @@ export function usePipelinePreferences() {
       [REMOTE_KEYS.layout]: next.layout,
       [REMOTE_KEYS.owner]: next.owner,
       [REMOTE_KEYS.window]: next.window,
+      [REMOTE_KEYS.density]: next.density,
     };
     await supabase.from("profiles").update({ preferences: merged }).eq("id", userId);
   };
@@ -194,8 +209,10 @@ export function usePipelinePreferences() {
     layout: prefs.layout,
     owner: prefs.owner,
     window: prefs.window,
+    density: prefs.density,
     setLayout: (v: PipelineLayout) => update({ layout: v }),
     setOwner: (v: PipelineOwnerFilter) => update({ owner: v }),
     setWindow: (v: PipelineWindowFilter) => update({ window: v }),
+    setDensity: (v: PipelineDensity) => update({ density: v }),
   };
 }

@@ -9,6 +9,7 @@ import {
   type PipelineLayout,
   type PipelineOwnerFilter,
   type PipelineWindowFilter,
+  type PipelineDensity,
 } from "@/hooks/use-pipeline-preferences";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +52,10 @@ const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
   auto: "Auto",
   rows2: "2 linhas",
   rows3: "3 linhas",
+};
+const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
+  compact: "Compacto",
+  comfortable: "Confortável",
 };
 
 /** Filtros rápidos do pipeline. */
@@ -172,9 +177,11 @@ const Dashboard = () => {
     layout: pipelineLayout,
     owner: pipelineOwner,
     window: pipelineWindow,
+    density: pipelineDensity,
     setLayout: setPipelineLayout,
     setOwner: setPipelineOwner,
     setWindow: setPipelineWindow,
+    setDensity: setPipelineDensity,
   } = usePipelinePreferences();
 
   useEffect(() => {
@@ -565,6 +572,33 @@ const Dashboard = () => {
                   );
                 })}
               </div>
+              <div
+                role="radiogroup"
+                aria-label="Densidade dos cards do pipeline"
+                className="inline-flex rounded-md border border-border bg-card p-0.5"
+              >
+                {(["compact", "comfortable"] as PipelineDensity[]).map((opt) => {
+                  const active = pipelineDensity === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPipelineDensity(opt)}
+                      className={cn(
+                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
+                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                        active
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      {PIPELINE_DENSITY_LABEL[opt]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <div
@@ -578,23 +612,23 @@ const Dashboard = () => {
           >
             {loading ? (
               Array.from({ length: 7 }).map((_, i) => (
-                <StatTileSkeleton key={i} density="compact" />
+                <StatTileSkeleton key={i} density={pipelineDensity === "compact" ? "compact" : "default"} />
               ))
             ) : (
               <>
-                <PipelineStep step={1} totalSteps={7} icon={Bot} label="Análise" value={pipeCounts.pipeAnaliseIA} tone="info"
+                <PipelineStep density={pipelineDensity} step={1} totalSteps={7} icon={Bot} label="Análise" value={pipeCounts.pipeAnaliseIA} tone="info"
                   to={`/pagamentos?status=em_analise_ia${pipelineQuery}`} />
-                <PipelineStep step={2} totalSteps={7} icon={ListChecks} label="Validação" value={pipeCounts.pipeValidacao} tone="warning"
+                <PipelineStep density={pipelineDensity} step={2} totalSteps={7} icon={ListChecks} label="Validação" value={pipeCounts.pipeValidacao} tone="warning"
                   to={`/pagamentos?status=aguardando_validacao${pipelineQuery}`} />
-                <PipelineStep step={3} totalSteps={7} icon={ShieldCheck} label="Aprovação" value={pipeCounts.pipeAprovacao} tone="warning"
+                <PipelineStep density={pipelineDensity} step={3} totalSteps={7} icon={ShieldCheck} label="Aprovação" value={pipeCounts.pipeAprovacao} tone="warning"
                   to={`/pagamentos?status=aguardando_aprovacao${pipelineQuery}`} />
-                <PipelineStep step={4} totalSteps={7} icon={Send} label="NF solicitada" value={pipeCounts.pipeNFSolicitada} tone="info"
+                <PipelineStep density={pipelineDensity} step={4} totalSteps={7} icon={Send} label="NF solicitada" value={pipeCounts.pipeNFSolicitada} tone="info"
                   to={`/pagamentos?status=pedido_nf_enviado${pipelineQuery}`} />
-                <PipelineStep step={5} totalSteps={7} icon={Receipt} label="NF recebida" value={pipeCounts.pipeNFRecebida} tone="info"
+                <PipelineStep density={pipelineDensity} step={5} totalSteps={7} icon={Receipt} label="NF recebida" value={pipeCounts.pipeNFRecebida} tone="info"
                   to={`/pagamentos?status=nf_recebida${pipelineQuery}`} />
-                <PipelineStep step={6} totalSteps={7} icon={CheckCircle2} label="Conciliada" value={pipeCounts.pipeNFConciliada} tone="success"
+                <PipelineStep density={pipelineDensity} step={6} totalSteps={7} icon={CheckCircle2} label="Conciliada" value={pipeCounts.pipeNFConciliada} tone="success"
                   to={`/pagamentos?status=nf_conciliada${pipelineQuery}`} />
-                <PipelineStep step={7} totalSteps={7} icon={Wallet} label="Pago" value={pipeCounts.pipePago} tone="success"
+                <PipelineStep density={pipelineDensity} step={7} totalSteps={7} icon={Wallet} label="Pago" value={pipeCounts.pipePago} tone="success"
                   to={`/pagamentos?status=pago${pipelineQuery}`} />
               </>
             )}
@@ -769,6 +803,7 @@ const PipelineStep = ({
   value,
   tone,
   to,
+  density = "compact",
 }: {
   step: number;
   totalSteps: number;
@@ -777,7 +812,13 @@ const PipelineStep = ({
   value: number;
   tone: StatCardTone;
   to: string;
+  /**
+   * Densidade do tile. `compact` mantém o tamanho atual; `comfortable`
+   * aumenta padding, ícone e permite 3 linhas de label sem truncar.
+   */
+  density?: PipelineDensity;
 }) => {
+  const isComfortable = density === "comfortable";
   const toneBg: Record<StatCardTone, string> = {
     info: "bg-info-soft text-info",
     warning: "bg-warning-soft text-warning-foreground",
@@ -786,8 +827,14 @@ const PipelineStep = ({
   const itemCount = `${value} ${value === 1 ? "pagamento" : "pagamentos"}`;
   const desc = PIPELINE_STEP_DESCRIPTION[step] ?? { full: label, helper: "" };
   const iconNode = (
-    <div className={cn("h-7 w-7 rounded-md flex items-center justify-center", toneBg[tone])}>
-      <Icon className="h-4 w-4" />
+    <div
+      className={cn(
+        "rounded-md flex items-center justify-center",
+        isComfortable ? "h-9 w-9" : "h-7 w-7",
+        toneBg[tone],
+      )}
+    >
+      <Icon className={cn(isComfortable ? "h-5 w-5" : "h-4 w-4")} />
     </div>
   );
   const stepBadge = (
@@ -817,7 +864,8 @@ const PipelineStep = ({
         value={value}
         icon={iconNode}
         badge={stepBadge}
-        density="compact"
+        density={isComfortable ? "default" : "compact"}
+        labelLines={isComfortable ? 3 : 2}
         to={to}
         tooltip={tooltipNode}
         ariaLabel={`Etapa ${step} de ${totalSteps}: ${desc.full}. ${itemCount}. ${desc.helper} Abrir lista filtrada.`}
