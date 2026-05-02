@@ -824,13 +824,22 @@ const PaymentDetail = () => {
                         {isGroupAiOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                         <Sparkles className="h-3.5 w-3.5" />
                         <span className="font-semibold">Parecer da IA</span>
-                        <span className="text-muted-foreground">— {groupAlerts.length} item(ns) com observação</span>
+                        <span className="text-muted-foreground">
+                          — {groupAlerts.length} item(ns) com observação
+                          {analystDone && " · revisado pelo analista"}
+                        </span>
                       </button>
                       {isGroupAiOpen && (
                         <ul className="divide-y divide-border/40 border-t border-border/40 bg-background/60">
                           {groupAlerts.map(({ item, alerts }) => {
-                            const tone: keyof typeof TONE_CLASSES =
-                              item.ai_status === "reprovado" ? "destructive" : item.ai_status === "alerta" ? "warning" : "muted";
+                            // Quando o analista já concluiu, baixamos o tom do alerta: vira info, não destrutivo.
+                            const tone: keyof typeof TONE_CLASSES = analystDone
+                              ? "muted"
+                              : item.ai_status === "reprovado"
+                                ? "destructive"
+                                : item.ai_status === "alerta"
+                                  ? "warning"
+                                  : "muted";
                             const raw = (item.raw_data ?? {}) as Record<string, any>;
                             const paciente = raw["Paciente"] ?? raw["paciente"] ?? null;
                             return (
