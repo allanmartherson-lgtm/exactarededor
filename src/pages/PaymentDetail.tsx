@@ -765,11 +765,10 @@ const PaymentDetail = () => {
                 .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
               const gCounts = groupItems.reduce(
                 (acc, it) => {
-                  // mascara reprovado/alerta da IA quando o analista já passou adiante
-                  const rawS = (it.ai_status as ItemAiStatus) ?? "pendente";
-                  const s: ItemAiStatus =
-                    analystDone && (rawS === "reprovado" || rawS === "alerta") ? "aprovado" : rawS;
-                  acc[s] = (acc[s] ?? 0) + 1;
+                  const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
+                  // "seguido" conta como aprovado para fins de resumo no header da empresa.
+                  const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : eff;
+                  acc[bucket] = (acc[bucket] ?? 0) + 1;
                   return acc;
                 },
                 { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
