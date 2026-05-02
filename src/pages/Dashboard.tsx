@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatCard, StatCardSkeleton } from "@/components/dashboard/StatCard";
+import { StatCard, StatCardSkeleton, type StatCardTone } from "@/components/dashboard/StatCard";
+import { StatTile, StatTileSkeleton } from "@/components/ui/stat-tile";
 import { StatCardsGrid } from "@/components/dashboard/StatCardsGrid";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
