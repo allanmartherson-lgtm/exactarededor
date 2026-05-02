@@ -31,6 +31,7 @@ import {
   Receipt,
   Bot,
   Send,
+  MailPlus,
   CheckCircle2,
   Wallet,
   AlertTriangle,
