@@ -9,6 +9,7 @@ import {
   type PipelineLayout,
   type PipelineOwnerFilter,
   type PipelineWindowFilter,
+  type PipelineDensity,
 } from "@/hooks/use-pipeline-preferences";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +52,10 @@ const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
   auto: "Auto",
   rows2: "2 linhas",
   rows3: "3 linhas",
+};
+const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
+  compact: "Compacto",
+  comfortable: "Confortável",
 };
 
 /** Filtros rápidos do pipeline. */
@@ -172,9 +177,11 @@ const Dashboard = () => {
     layout: pipelineLayout,
     owner: pipelineOwner,
     window: pipelineWindow,
+    density: pipelineDensity,
     setLayout: setPipelineLayout,
     setOwner: setPipelineOwner,
     setWindow: setPipelineWindow,
+    setDensity: setPipelineDensity,
   } = usePipelinePreferences();
 
   useEffect(() => {
