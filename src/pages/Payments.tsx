@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { FileUp, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 
 interface Row {

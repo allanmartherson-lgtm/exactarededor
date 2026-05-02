@@ -26,7 +26,6 @@ import {
   Send,
   FileWarning,
   BarChart3,
-  Plus,
   type LucideIcon,
 } from "lucide-react";
 
