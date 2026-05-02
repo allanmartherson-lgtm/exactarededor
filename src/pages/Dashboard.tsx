@@ -49,6 +49,36 @@ const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
   rows3: "3 linhas",
 };
 
+/** Filtros rápidos do pipeline. */
+type PipelineOwnerFilter = "all" | "analista" | "validador" | "diretor";
+type PipelineWindowFilter = "7" | "30" | "90" | "all";
+const PIPELINE_OWNER_KEY = "dashboard.pipelineOwner";
+const PIPELINE_WINDOW_KEY = "dashboard.pipelineWindow";
+const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
+  all: "Todos",
+  analista: "Analista",
+  validador: "Validador",
+  diretor: "Diretor",
+};
+const PIPELINE_WINDOW_LABEL: Record<PipelineWindowFilter, string> = {
+  "7": "7 dias",
+  "30": "30 dias",
+  "90": "90 dias",
+  all: "Tudo",
+};
+const PIPELINE_WINDOW_DAYS: Record<PipelineWindowFilter, number | null> = {
+  "7": 7,
+  "30": 30,
+  "90": 90,
+  all: null,
+};
+/** Status que cada papel é responsável por agir. */
+const STATUSES_BY_OWNER: Record<Exclude<PipelineOwnerFilter, "all">, PaymentStatus[]> = {
+  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
+  validador: ["aguardando_validacao", "devolvido_validador"],
+  diretor: ["aguardando_aprovacao"],
+};
+
 interface PaymentRow {
   id: string;
   reference: string;
