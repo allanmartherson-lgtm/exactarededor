@@ -75,8 +75,8 @@ const PaymentDetail = () => {
   const [groups, setGroups] = useState<any[]>([]);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [aiOpinionOpen, setAiOpinionOpen] = useState(false);
-  const [aiAlertExpanded, setAiAlertExpanded] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -89,6 +89,8 @@ const PaymentDetail = () => {
       supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
     ]);
     setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []);
+    // Por padrão, todos os grupos começam expandidos para manter a UX atual
+    setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
@@ -645,96 +647,29 @@ const PaymentDetail = () => {
 
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
-            <button
-              type="button"
-              onClick={() => setAiOpinionOpen((v) => !v)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-info-soft/60 transition-colors"
-              aria-expanded={aiOpinionOpen}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-semibold">Parecer da IA</span>
-                <div className="flex flex-wrap gap-1.5 ml-2">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado}</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta}</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado}</span>
-                  {counts.pendente > 0 && (
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente}</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-                <span className="hidden sm:inline">{topAlerts.length} alerta(s)</span>
-                {aiOpinionOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </div>
-            </button>
-            {aiOpinionOpen && (
-              <CardContent className="pt-0 space-y-2">
-                {topAlerts.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">Nenhum alerta gerado pela IA.</p>
-                ) : (
-                  <ul className="divide-y divide-border/40 rounded-md border border-border/40 bg-background/50">
-                    {topAlerts.map(({ item, alerts }) => {
-                      const expanded = aiAlertExpanded.has(item.id);
-                      const tone: keyof typeof TONE_CLASSES =
-                        item.ai_status === "reprovado" ? "destructive" : item.ai_status === "alerta" ? "warning" : "muted";
-                      return (
-                        <li key={item.id} className="text-xs">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAiAlertExpanded((prev) => {
-                                const n = new Set(prev);
-                                n.has(item.id) ? n.delete(item.id) : n.add(item.id);
-                                return n;
-                              })
-                            }
-                            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
-                          >
-                            {expanded ? <ChevronDown className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />}
-                            <span className={`inline-block h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${tone === "destructive" ? "bg-destructive" : tone === "warning" ? "bg-warning" : "bg-muted-foreground"}`} />
-                            <div className="min-w-0 flex-1 space-y-0.5">
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                <span className="font-medium">{item.doctor_name}</span>
-                                {item.attendance_number && <span className="text-muted-foreground font-mono">#{item.attendance_number}</span>}
-                                {item.patient_name && <span className="text-muted-foreground truncate">· {item.patient_name}</span>}
-                                {item.procedure_code && <span className="text-muted-foreground font-mono">· {item.procedure_code}</span>}
-                              </div>
-                              {!expanded && (
-                                <p className="text-muted-foreground line-clamp-1">
-                                  {alerts[0]}{alerts.length > 1 && <span> (+{alerts.length - 1})</span>}
-                                </p>
-                              )}
-                              {expanded && (
-                                <div className="space-y-1 pt-1">
-                                  {item.description && (
-                                    <p className="text-muted-foreground italic">{item.description}</p>
-                                  )}
-                                  <ul className="space-y-1">
-                                    {alerts.map((a, i) => (
-                                      <li key={i} className="flex gap-1.5 text-foreground">
-                                        <span className="text-muted-foreground">•</span>
-                                        <span className="whitespace-pre-wrap">{a}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+            <CardContent className="p-3 flex items-center gap-3 flex-wrap">
+              <Sparkles className="h-4 w-4 shrink-0" />
+              <span className="text-sm font-semibold">Resumo da IA</span>
+              <div className="flex flex-wrap gap-1.5">
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovado(s)</span>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} alerta(s)</span>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} reprovado(s)</span>
+                {counts.pendente > 0 && (
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente} pendente(s)</span>
                 )}
-                {payment.ai_summary && (
-                  <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer hover:text-foreground">Resumo detalhado</summary>
-                    <p className="mt-2 whitespace-pre-wrap">{payment.ai_summary}</p>
-                  </details>
-                )}
-              </CardContent>
-            )}
+              </div>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {topAlerts.length > 0
+                  ? `${topAlerts.length} item(ns) com observação — veja por empresa abaixo.`
+                  : "Nenhum alerta gerado."}
+              </span>
+              {payment.ai_summary && (
+                <details className="basis-full text-xs text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Resumo detalhado</summary>
+                  <p className="mt-2 whitespace-pre-wrap">{payment.ai_summary}</p>
+                </details>
+              )}
+            </CardContent>
           </Card>
         )}
 
@@ -763,20 +698,103 @@ const PaymentDetail = () => {
               const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
               const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
               const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
+              const isGroupExpanded = expandedGroups.has(g.id);
+              const groupAlerts = groupItems
+                .filter((it) => it.ai_findings?.alerts?.length)
+                .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
+              const gCounts = groupItems.reduce(
+                (acc, it) => {
+                  const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+                  acc[s] = (acc[s] ?? 0) + 1;
+                  return acc;
+                },
+                { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
+              );
+              const isGroupAiOpen = groupAiOpen.has(g.id);
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
-                  <CardHeader className="pb-3 bg-muted/30">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <CardTitle className="text-base truncate">{g.company_name}</CardTitle>
-                        <span className="text-xs text-muted-foreground">
-                          · {g.items_count} itens · {formatCurrency(g.total_amount)}
-                        </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedGroups((prev) => {
+                        const n = new Set(prev);
+                        n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                        return n;
+                      })
+                    }
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                    aria-expanded={isGroupExpanded}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isGroupExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-base font-semibold truncate">{g.company_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        · {g.items_count} itens · {formatCurrency(g.total_amount)}
+                      </span>
+                      <div className="hidden md:flex items-center gap-1 ml-2">
+                        {gCounts.aprovado > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>✓ {gCounts.aprovado}</span>}
+                        {gCounts.alerta > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.warning}`}>⚠ {gCounts.alerta}</span>}
+                        {gCounts.reprovado > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>✕ {gCounts.reprovado}</span>}
                       </div>
-                      <StatusBadge status={gStatus} />
                     </div>
-                  </CardHeader>
+                    <StatusBadge status={gStatus} />
+                  </button>
+                  {isGroupExpanded && groupAlerts.length > 0 && (
+                    <div className="border-t border-border/60 bg-info-soft/30">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGroupAiOpen((prev) => {
+                            const n = new Set(prev);
+                            n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                            return n;
+                          })
+                        }
+                        className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-info-soft/50 transition-colors text-xs"
+                        aria-expanded={isGroupAiOpen}
+                      >
+                        {isGroupAiOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span className="font-semibold">Parecer da IA</span>
+                        <span className="text-muted-foreground">— {groupAlerts.length} item(ns) com observação</span>
+                      </button>
+                      {isGroupAiOpen && (
+                        <ul className="divide-y divide-border/40 border-t border-border/40 bg-background/60">
+                          {groupAlerts.map(({ item, alerts }) => {
+                            const tone: keyof typeof TONE_CLASSES =
+                              item.ai_status === "reprovado" ? "destructive" : item.ai_status === "alerta" ? "warning" : "muted";
+                            const raw = (item.raw_data ?? {}) as Record<string, any>;
+                            const paciente = raw["Paciente"] ?? raw["paciente"] ?? null;
+                            return (
+                              <li key={item.id} className="px-4 py-2 text-xs">
+                                <div className="flex items-start gap-2">
+                                  <span className={`inline-block h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${tone === "destructive" ? "bg-destructive" : tone === "warning" ? "bg-warning" : "bg-muted-foreground"}`} />
+                                  <div className="min-w-0 flex-1 space-y-1">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                                      {item.attendance_number && <span className="font-mono">Atend. #{item.attendance_number}</span>}
+                                      {paciente && <span>· Paciente: <span className="text-foreground">{paciente}</span></span>}
+                                      <span>· Médico: <span className="text-foreground">{item.doctor_name}</span></span>
+                                      {item.procedure_code && <span>· Procedimento: <span className="font-mono text-foreground">{item.procedure_code}</span></span>}
+                                    </div>
+                                    <ul className="space-y-0.5">
+                                      {alerts.map((a, i) => (
+                                        <li key={i} className="flex gap-1.5">
+                                          <span className="text-muted-foreground">•</span>
+                                          <span className="whitespace-pre-wrap">{a}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                  {isGroupExpanded && (
                   <CardContent className="p-0 overflow-x-auto">
                     <table className="w-full text-sm table-fixed">
                       <colgroup>
@@ -978,7 +996,8 @@ const PaymentDetail = () => {
                       </tbody>
                     </table>
                   </CardContent>
-                  {(isGroupAnalista || isGroupValidador || isGroupDiretor) && (
+                  )}
+                  {isGroupExpanded && (isGroupAnalista || isGroupValidador || isGroupDiretor) && (
                     <div className="border-t border-border bg-muted/20 p-4 space-y-2">
                       <Textarea
                         rows={2}
