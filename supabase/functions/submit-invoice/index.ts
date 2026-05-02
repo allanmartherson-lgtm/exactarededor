@@ -85,10 +85,10 @@ serve(async (req) => {
     const form = await req.formData();
     const token = String(form.get("token") ?? "");
     const invoiceNumber = String(form.get("invoice_number") ?? "").trim();
-    const receivedAmount = Number(form.get("received_amount"));
+    const rawReceived = form.get("received_amount");
     const file = form.get("file") as File | null;
 
-    if (!token || !invoiceNumber || !file || isNaN(receivedAmount)) {
+    if (!token || !invoiceNumber || !file) {
       return new Response(JSON.stringify({ error: "Dados inválidos" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -100,6 +100,13 @@ serve(async (req) => {
     if (invoice.status !== "aguardando") {
       return new Response(JSON.stringify({ error: "Esta NF já foi enviada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Recebedor não digita mais o valor — assumimos o valor esperado para fins
+    // do registro. A conciliação real fica por conta da IA (valor extraído da NF).
+    const expected = Number(invoice.expected_amount);
+    const receivedAmount = rawReceived != null && String(rawReceived).trim() !== ""
+      ? Number(rawReceived)
+      : expected;
 
     const ext = file.name.split(".").pop() ?? "pdf";
     const path = `${invoice.payment_id}/${invoice.id}.${ext}`;
