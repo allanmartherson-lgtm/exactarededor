@@ -114,8 +114,7 @@ serve(async (req) => {
     const { error: upErr } = await supabase.storage.from("invoices").upload(path, buf, { contentType: file.type, upsert: true });
     if (upErr) throw upErr;
 
-    // Conciliação pelo valor digitado pelo recebedor.
-    const expected = Number(invoice.expected_amount);
+    // Conciliação pelo valor (esperado/digitado) e pelo extraído pela IA.
     const tolerance = 0.01;
     const formDiff = Math.abs(expected - receivedAmount);
     const matchesByForm = formDiff <= tolerance;
