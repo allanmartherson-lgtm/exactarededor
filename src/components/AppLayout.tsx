@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
@@ -331,6 +332,7 @@ export const AppLayout = () => {
           style={{ marginLeft: 0, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
         >
           <div className="mx-auto w-full" style={{ maxWidth: 1080, padding: "32px 28px" }}>
+            <Breadcrumbs />
             <Outlet />
           </div>
         </main>
@@ -454,6 +456,7 @@ export const AppLayout = () => {
 
         <main className="flex-1 min-w-0">
           <div style={{ padding: "28px 32px" }}>
+            <Breadcrumbs />
             <Outlet />
           </div>
         </main>
