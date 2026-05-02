@@ -151,7 +151,7 @@ const PaymentDetail = () => {
       status_from: payment.status, status_to: newStatus,
     });
     if (!obsRes.ok) {
-      toast({ title: "Status atualizado, mas falha no histórico", description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+      toast({ title: "Status atualizado, mas falha no histórico", description: obsRes.error, variant: "destructive" });
     }
     await load();
     setComment("");
@@ -209,7 +209,7 @@ const PaymentDetail = () => {
       status_from: g.status, status_to: newStatus,
     });
     if (!obsRes.ok) {
-      toast({ title: "Histórico não registrado", description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
     }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
@@ -249,7 +249,7 @@ const PaymentDetail = () => {
       status_to: target.nextStatus,
     });
     if (!obsRes.ok) {
-      toast({ title: "Histórico não registrado", description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
     }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
@@ -307,7 +307,7 @@ const PaymentDetail = () => {
         status_to: g.status,
       });
       if (!obsRes.ok) {
-        toast({ title: "Histórico não registrado", description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+        toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
       }
       await load();
       toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
@@ -341,7 +341,7 @@ const PaymentDetail = () => {
         status_from: g.status, status_to: "aguardando_validacao",
       });
       if (!obsRes.ok) {
-        toast({ title: `Histórico não registrado em ${g.company_name}`, description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
       }
     }
     await load();
@@ -469,7 +469,7 @@ const PaymentDetail = () => {
       message: "Lote cancelado pelo responsável.", status_from: payment.status, status_to: "cancelado",
     });
     if (!obsRes.ok) {
-      toast({ title: "Histórico não registrado", description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
     }
     setBusy(false);
     toast({ title: "Lote cancelado" });
@@ -546,7 +546,7 @@ const PaymentDetail = () => {
     });
     setBusy(false);
     if (!obsRes.ok) {
-      toast({ title: "Erro ao salvar", description: !obsRes.ok ? obsRes.error : "", variant: "destructive" });
+      toast({ title: "Erro ao salvar", description: obsRes.error, variant: "destructive" });
       return;
     }
     setItemCommentDraft((m) => ({ ...m, [itemId]: "" }));

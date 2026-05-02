@@ -15,9 +15,13 @@ export type RecordObservationInput = {
   status_to?: PaymentStatus | null;
 };
 
-export type RecordObservationResult =
-  | { ok: true; data: ObservationRow }
-  | { ok: false; error: string };
+export type RecordObservationResult = {
+  ok: boolean;
+  /** Mensagem de erro quando ok=false. String vazia em caso de sucesso. */
+  error: string;
+  /** Linha inserida quando ok=true. null em caso de erro. */
+  data: ObservationRow | null;
+};
 
 /**
  * Insere uma observação no histórico do pagamento de forma consistente.
@@ -49,7 +53,7 @@ export async function recordObservation(
     .single();
 
   if (error || !data) {
-    return { ok: false, error: error?.message ?? "Falha ao salvar observação." };
+    return { ok: false, error: error?.message ?? "Falha ao salvar observação.", data: null };
   }
-  return { ok: true, data: data as ObservationRow };
+  return { ok: true, data: data as ObservationRow, error: "" };
 }
