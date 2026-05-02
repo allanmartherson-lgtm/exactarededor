@@ -30,7 +30,8 @@ All colors MUST be HSL.
     --muted: 210 30% 96%;
     --muted-foreground: 215 18% 38%;
 
-    --accent: 188 70% 42%;
+    /* Accent é usado em hovers de ghost/outline — precisa contrastar com texto branco (AA 4.5:1) */
+    --accent: 195 75% 24%;
     --accent-foreground: 0 0% 100%;
 
     /* Status semantics */
@@ -91,7 +92,7 @@ All colors MUST be HSL.
     --secondary-foreground: 210 30% 92%;
     --muted: 215 30% 16%;
     --muted-foreground: 215 15% 65%;
-    --accent: 188 70% 42%;
+    --accent: 188 65% 28%;
     --accent-foreground: 0 0% 100%;
     --success: 152 55% 45%;
     --success-soft: 152 30% 16%;
