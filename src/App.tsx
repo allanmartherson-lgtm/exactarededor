@@ -25,6 +25,7 @@ import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
+import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +37,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-          <Routes>
+          <ErrorBoundary>
+            <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/definir-senha" element={<SetPassword />} />
             <Route path="/reset-password" element={<SetPassword />} />
@@ -58,7 +60,8 @@ const App = () => (
               <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
             </Route>
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </ErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
