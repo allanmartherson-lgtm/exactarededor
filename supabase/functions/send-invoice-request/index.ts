@@ -126,16 +126,35 @@ serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const payment_id = body?.payment_id as string | undefined;
-    if (!payment_id) {
-      return new Response(JSON.stringify({ error: "payment_id obrigatório" }), {
+    const invoice_id = body?.invoice_id as string | undefined;
+    if (!payment_id && !invoice_id) {
+      return new Response(JSON.stringify({ error: "payment_id ou invoice_id obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { data: payment } = await supabase.from("payments").select("*").eq("id", payment_id).single();
-    const { data: items } = await supabase.from("payment_items").select("*").eq("payment_id", payment_id);
+    // ---- Modo reenvio individual (invoice_id) ----
+    let resolvedPaymentId = payment_id ?? null;
+    let targetInvoice: any = null;
+    if (invoice_id) {
+      const { data: inv } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("id", invoice_id)
+        .single();
+      if (!inv) {
+        return new Response(JSON.stringify({ error: "invoice_id não encontrado" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targetInvoice = inv;
+      resolvedPaymentId = inv.payment_id;
+    }
+
+    const { data: payment } = await supabase.from("payments").select("*").eq("id", resolvedPaymentId).single();
+    const { data: items } = await supabase.from("payment_items").select("*").eq("payment_id", resolvedPaymentId);
     if (!payment || !items) throw new Error("Pagamento não encontrado");
 
     // ---- Pré-validação: CNPJ + carrega lista de e-mails das empresas ----
