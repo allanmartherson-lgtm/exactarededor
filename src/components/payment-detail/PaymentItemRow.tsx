@@ -393,8 +393,47 @@ export const PaymentItemRow = ({
                 </dl>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(alerts.length > 0 || it.ai_findings?.calculation_explanation) && (
-                  <div className="md:col-span-2 space-y-1.5">
+                {(alerts.length > 0 || it.ai_findings?.calculation_explanation || engine || expectedAmount != null) && (
+                  <div className="md:col-span-2 space-y-2">
+                    {(engine || expectedAmount != null) && (
+                      <div className="rounded-md border border-border/70 bg-background/80 p-2.5 text-xs space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-semibold uppercase tracking-wide text-[10px] text-muted-foreground">
+                            Motor
+                          </span>
+                          {priority && (
+                            <span
+                              className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]]}`}
+                              title="Nível de precedência da regra escolhida"
+                            >
+                              {RULE_MATCH_PRIORITY_LABELS[priority]}
+                            </span>
+                          )}
+                          {calcTypeLabel && (
+                            <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.muted}`}>
+                              {calcTypeLabel}
+                            </span>
+                          )}
+                          {expectedAmount != null && (
+                            <span className="ml-auto tabular-nums text-foreground">
+                              esperado: <strong>{formatCurrency(expectedAmount)}</strong>
+                              {diffPct != null && (
+                                <span
+                                  className={`ml-1 ${
+                                    Math.abs(diffPct) > 0.01 ? "text-warning-foreground" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                        {engine?.ai_note && (
+                          <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
+                        )}
+                      </div>
+                    )}
                     {alerts.length > 0 && (
                       <ul className="text-xs text-warning-foreground space-y-0.5">
                         {alerts.map((a, i) => (
