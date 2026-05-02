@@ -192,4 +192,21 @@ All colors MUST be HSL.
   .pipeline-col:hover {
     background: hsl(var(--hover-surface));
   }
+
+  .side-nav-idle {
+    color: hsl(var(--muted-foreground));
+    border-left: 3px solid transparent;
+    padding-left: 9px !important;
+  }
+  .side-nav-idle:hover {
+    background: hsl(var(--hover-surface));
+    color: hsl(var(--foreground));
+  }
+  .side-nav-active {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    font-weight: 500;
+    border-left: 3px solid hsl(var(--primary));
+    padding-left: 9px !important;
+  }
 }
