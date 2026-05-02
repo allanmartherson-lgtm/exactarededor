@@ -824,6 +824,15 @@ const Dashboard = () => {
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <ChipGroup
+                ariaLabel="Modo do pipeline"
+                value={pipelineMode}
+                onChange={setPipelineMode}
+                options={(["full", "queue"] as PipelineMode[]).map((v) => ({
+                  v,
+                  label: PIPELINE_MODE_LABEL[v],
+                }))}
+              />
+              <ChipGroup
                 ariaLabel="Filtrar por papel"
                 value={pipelineOwner}
                 onChange={setPipelineOwner}
