@@ -153,6 +153,8 @@ const Rules = () => {
   const [fDeflatorPct, setFDeflatorPct] = useState<string>("");
   const [fIncludeAux, setFIncludeAux] = useState(false);
   const [fAuxPct, setFAuxPct] = useState<string>("");
+  const [fRepassePct, setFRepassePct] = useState<string>("");
+  const [fApplyAccessRoute, setFApplyAccessRoute] = useState(false);
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
@@ -204,6 +206,7 @@ const Rules = () => {
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
+    setFRepassePct(""); setFApplyAccessRoute(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -232,6 +235,8 @@ const Rules = () => {
     setFDeflatorPct(r.deflator_pct != null ? String(r.deflator_pct) : "");
     setFIncludeAux(!!r.include_auxiliaries);
     setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
+    setFRepassePct(r.repasse_pct != null ? String(r.repasse_pct) : "");
+    setFApplyAccessRoute(!!r.apply_access_route);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
@@ -271,6 +276,8 @@ const Rules = () => {
       reference_table_id: refTableId || null,
       include_auxiliaries: ruleType === "tabela_diferenciada" ? fIncludeAux : false,
       auxiliary_pct: ruleType === "tabela_diferenciada" ? num(fAuxPct) : null,
+      repasse_pct: ruleType === "tabela_diferenciada" ? num(fRepassePct) : null,
+      apply_access_route: ruleType === "tabela_diferenciada" ? fApplyAccessRoute : false,
       procedure_codes: parsedCodes.length ? parsedCodes : null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
