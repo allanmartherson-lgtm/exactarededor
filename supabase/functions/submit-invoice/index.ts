@@ -55,9 +55,11 @@ serve(async (req) => {
         if (!token) {
           return new Response(JSON.stringify({ error: "token obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+        const justification = String(body?.justification ?? "").trim().slice(0, 2000);
+        const authorName = String(body?.author_name ?? "").trim().slice(0, 120) || null;
         const { data: invoice } = await supabase
           .from("invoices")
-          .select("id, payment_id, status, file_path")
+          .select("id, payment_id, status, file_path, invoice_number, received_amount")
           .eq("upload_token", token)
           .maybeSingle();
         if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -66,6 +68,10 @@ serve(async (req) => {
         if (invoice.status !== "divergente" && invoice.status !== "aguardando") {
           return new Response(JSON.stringify({ error: "Esta NF já foi conciliada — fale com o analista para refazer." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+        // Snapshot do envio anterior pra ficar registrado no histórico antes de descartar.
+        const previousSnapshot = invoice.invoice_number || invoice.received_amount
+          ? `NF anterior: ${invoice.invoice_number ?? "—"} / valor ${invoice.received_amount ?? "—"}.`
+          : "Nenhum upload anterior registrado.";
         // Apaga o arquivo anterior pra não acumular lixo no storage.
         if (invoice.file_path) {
           await supabase.storage.from("invoices").remove([invoice.file_path]).catch(() => null);
@@ -90,11 +96,28 @@ serve(async (req) => {
         if (!anyDone) {
           await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", invoice.payment_id);
         }
+        // Histórico interno (visível para analista/validador no detalhe do pagamento).
+        const obsMessage = [
+          `Recebedor${authorName ? ` (${authorName})` : ""} reabriu o portal para reenviar a NF.`,
+          previousSnapshot,
+          justification ? `Justificativa: ${justification}` : "Justificativa não informada.",
+        ].join(" ");
         await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
           author_type: "sistema",
-          message: "Recebedor reabriu o portal para reenviar a NF (envio anterior descartado).",
+          message: obsMessage,
         });
+        // Também registra na thread do portal pra ficar visível na próxima conversa
+        // entre recebedor e analista (e aparecer na aba "Tenho uma dúvida").
+        if (justification) {
+          await supabase.from("invoice_questions").insert({
+            invoice_id: invoice.id,
+            payment_id: invoice.payment_id,
+            author_type: "recebedor",
+            author_name: authorName,
+            message: `[Reenvio de NF] ${justification}`,
+          });
+        }
         return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 

@@ -39,6 +39,11 @@ const InvoicePortal = () => {
   const [questionDraft, setQuestionDraft] = useState("");
   const [questionAuthor, setQuestionAuthor] = useState("");
   const [sendingQuestion, setSendingQuestion] = useState(false);
+  // Estado do fluxo de "corrigir e enviar novamente": mostra textarea pra
+  // justificar a divergência antes de descartar a NF anterior.
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetJustification, setResetJustification] = useState("");
+  const [resetAuthor, setResetAuthor] = useState("");
 
   const refresh = () => {
     fetch(`${FN_URL}?token=${token}`, { headers: { Authorization: AUTH } })
@@ -96,21 +101,61 @@ const InvoicePortal = () => {
 
   // Reabre o formulário após uma divergência: chama o backend pra apagar o
   // arquivo anterior e voltar a NF para "aguardando", depois limpa o estado local.
+  // A justificativa entra no histórico do pagamento (e na thread, se preenchida).
   const resetUpload = async () => {
-    if (!confirm("Tem certeza que quer descartar o envio anterior e enviar uma nova nota?")) return;
     setSubmitting(true);
     const r = await fetch(FN_URL, {
       method: "POST",
       headers: { Authorization: AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify({ token, action: "reset" }),
+      body: JSON.stringify({
+        token,
+        action: "reset",
+        justification: resetJustification.trim() || null,
+        author_name: resetAuthor.trim() || null,
+      }),
     });
     const data = await r.json();
     setSubmitting(false);
     if (!r.ok) return toast({ title: "Erro", description: data.error, variant: "destructive" });
     setDone(null);
+    setResetOpen(false);
+    setResetJustification("");
     refresh();
-    toast({ title: "Pronto", description: "Você já pode enviar a nota corrigida." });
+    toast({ title: "Pronto", description: "Justificativa registrada — você já pode enviar a nota corrigida." });
   };
+
+  // Bloco de justificativa renderizado inline (não como componente — evita
+  // remontagem que tira o foco do textarea a cada keystroke).
+  const resetForm = (
+    <div className="space-y-3 rounded-lg border bg-background/60 p-3">
+      <div className="space-y-1.5">
+        <Label htmlFor="reset-author">Seu nome (opcional)</Label>
+        <Input id="reset-author" value={resetAuthor} onChange={(e) => setResetAuthor(e.target.value)} maxLength={120} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="reset-just">Justificativa / observação</Label>
+        <Textarea
+          id="reset-just"
+          placeholder="Ex.: NF anterior emitida com valor errado por equívoco no sistema da contabilidade. Cancelada via inutilização nº…"
+          value={resetJustification}
+          onChange={(e) => setResetJustification(e.target.value)}
+          rows={4}
+          maxLength={2000}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Esta observação fica registrada no histórico do pagamento e visível para o time fiscal.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" size="sm" className="flex-1" onClick={() => setResetOpen(false)} disabled={submitting}>
+          Cancelar
+        </Button>
+        <Button type="button" size="sm" className="flex-1" onClick={resetUpload} disabled={submitting}>
+          {submitting ? "Aguarde..." : "Confirmar reenvio"}
+        </Button>
+      </div>
+    </div>
+  );
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Carregando...</div>;
   if (info?.error || !info?.invoice) return <div className="min-h-screen flex items-center justify-center"><Card className="max-w-md"><CardContent className="p-8 text-center"><p className="font-medium">Link inválido ou expirado.</p></CardContent></Card></div>;
@@ -199,16 +244,17 @@ const InvoicePortal = () => {
                       Por favor, cancele a nota junto à sua contabilidade, emita uma nova com os dados corretos
                       e reenvie pelo botão abaixo.
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full mt-2"
-                      onClick={resetUpload}
-                      disabled={submitting}
-                    >
-                      {submitting ? "Aguarde..." : "Corrigir e enviar novamente"}
-                    </Button>
+                    {resetOpen ? resetForm : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => setResetOpen(true)}
+                      >
+                        Corrigir e enviar novamente
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -221,11 +267,11 @@ const InvoicePortal = () => {
                     ? "Esta nota já foi recebida e conciliada — nada mais a fazer por aqui."
                     : "Esta nota já foi enviada anteriormente."}
                 </p>
-                {inv.status === "divergente" && (
-                  <Button type="button" variant="outline" className="w-full" onClick={resetUpload} disabled={submitting}>
-                    {submitting ? "Aguarde..." : "Corrigir e enviar novamente"}
+                {inv.status === "divergente" && (resetOpen ? resetForm : (
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setResetOpen(true)}>
+                    Corrigir e enviar novamente
                   </Button>
-                )}
+                ))}
               </div>
             ) : (
               <Tabs defaultValue="upload">
