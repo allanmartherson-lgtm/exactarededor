@@ -192,6 +192,52 @@ const PaymentDetail = () => {
     toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
   };
 
+  // Quem foi o último a devolver este grupo ao analista? Usado para o reencaminhamento direto.
+  // Retorna "diretor" | "validador" | null.
+  const lastReturnerFor = (groupId: string, companyName: string): "diretor" | "validador" | null => {
+    // observações de devolução para este grupo (filtramos por company_name no message prefix)
+    const prefix = `[${companyName}]`;
+    const returns = obs
+      .filter(
+        (o) =>
+          o.status_to === "devolvido_analista" &&
+          typeof o.message === "string" &&
+          o.message.startsWith(prefix),
+      )
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const last = returns[0];
+    if (!last) return null;
+    if (last.author_type === "diretor") return "diretor";
+    if (last.author_type === "validador") return "validador";
+    return null;
+  };
+
+  // Reencaminhar grupo do analista direto para quem devolveu (diretor → aprovação; validador → validação).
+  const resendGroup = async (groupId: string) => {
+    if (!id) return;
+    const g = groups.find((x) => x.id === groupId);
+    if (!g) return;
+    const target = lastReturnerFor(groupId, g.company_name);
+    const newStatus: PaymentStatus =
+      target === "diretor" ? "aguardando_aprovacao" : "aguardando_validacao";
+    const label = target === "diretor" ? "diretor" : "validador";
+    const text = (groupComment[groupId] ?? "").trim();
+    setBusy(true);
+    await supabase.from("payment_company_groups").update({ status: newStatus }).eq("id", groupId);
+    await supabase.from("payment_observations").insert({
+      payment_id: id,
+      author_type: "analista",
+      author_id: user!.id,
+      message: `[${g.company_name}] Reencaminhado ao ${label} pelo analista${text ? `: ${text}` : ""}.`,
+      status_from: g.status,
+      status_to: newStatus,
+    });
+    setGroupComment((m) => ({ ...m, [groupId]: "" }));
+    await load();
+    setBusy(false);
+    toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${label}.` });
+  };
+
   // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
   const sendForValidation = async (onlyGroupId?: string) => {
     if (!id) return;
