@@ -359,12 +359,28 @@ const PaymentDetail = () => {
       });
       return;
     }
+    if (payload?.error === "empresa_sem_email") {
+      const detail = (payload.missing_company_emails ?? []).slice(0, 5).map((x: any) =>
+        `• ${x.company_name}`
+      ).join("\n");
+      const total = payload.missing_company_emails?.length ?? 0;
+      const more = total > 5 ? `\n…e mais ${total - 5} empresa(s).` : "";
+      toast({
+        title: "Empresas sem e-mail de NF",
+        description: `${payload.message}\n${detail}${more}\n\nAbra Empresas → editar a empresa → "E-mails para pedido de NF".`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (error || payload?.error) {
       toast({ title: "Erro", description: payload?.message ?? error?.message ?? "Falha ao enviar.", variant: "destructive" });
       return;
     }
     const n = payload?.invoices_created ?? 0;
-    toast({ title: "Pedido(s) de NF enviado(s)", description: `${n} destinatário(s) notificado(s) com resumo validado.` });
+    toast({
+      title: "Pedido(s) de NF enviado(s)",
+      description: `${n} pedido(s) gerado(s). Empresas recebem como destinatário (TO) e os médicos correspondentes em cópia (CC).`,
+    });
     load();
   };
 
