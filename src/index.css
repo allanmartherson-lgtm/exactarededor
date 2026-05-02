@@ -275,6 +275,49 @@ All colors MUST be HSL.
   table tbody td.cell-nowrap,
   table thead th.cell-nowrap {
     white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+  }
+
+  /* Numeric / monetary cells: nowrap + tabular figures + right-align by default */
+  table tbody td.cell-num,
+  table thead th.cell-num {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Status / badge cells: nowrap, sit tight */
+  table tbody td.cell-status,
+  table thead th.cell-status {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+  }
+
+  /* Date/time cells: nowrap so DD/MM/YYYY HH:mm never breaks */
+  table tbody td.cell-date,
+  table thead th.cell-date {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+  }
+
+  /* Monospaced identifier cells (P12, CNPJ, codes) */
+  table tbody td.cell-mono,
+  table thead th.cell-mono {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
   }
 
   /* ============ Compact density mode ============
