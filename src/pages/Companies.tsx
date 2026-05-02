@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
+import { dedupEmails, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/email";
 
 interface Company {
   id: string;
@@ -25,8 +26,6 @@ interface Company {
 }
 
 const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "", invoice_emails: [] };
-
-const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
@@ -80,19 +79,20 @@ const Companies = () => {
         return;
       }
     }
-    // Aproveita e-mail digitado mas não confirmado com Enter (evita perder o que o usuário "esqueceu" no input)
-    const finalEmails = [...(editing.invoice_emails ?? [])];
-    const pendingEmail = emailInput.trim().toLowerCase();
-    if (pendingEmail) {
-      if (!isValidEmail(pendingEmail)) {
+    // Aproveita e-mail digitado mas não confirmado (Enter/blur).
+    // tryAddEmail aplica trim+lowercase+dedup — mesmo helper usado no chip.
+    let finalEmails = dedupEmails(editing.invoice_emails ?? []);
+    if (emailInput.trim()) {
+      const result = tryAddEmail(finalEmails, emailInput);
+      if (!result.ok) {
         toast({
           title: "E-mail inválido no campo",
-          description: `"${pendingEmail}" não é um e-mail válido. Corrija ou apague antes de salvar.`,
+          description: `"${normalizeEmail(emailInput)}" não é um e-mail válido. Corrija ou apague antes de salvar.`,
           variant: "destructive",
         });
         return;
       }
-      if (!finalEmails.includes(pendingEmail)) finalEmails.push(pendingEmail);
+      finalEmails = result.emails;
     }
 
     const payload = {
@@ -101,9 +101,7 @@ const Companies = () => {
       document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
-      invoice_emails: finalEmails
-        .map((e) => e.trim().toLowerCase())
-        .filter((e) => isValidEmail(e)),
+      invoice_emails: finalEmails,
     };
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
@@ -160,9 +158,7 @@ const Companies = () => {
           ? aliasRaw.split(/[;|]/).map((s) => s.trim()).filter(Boolean)
           : [];
         const emailsRaw = toStr(pick(row, ["emails_nf", "emails nf", "email nf", "email", "emails", "e-mails"]));
-        const invoice_emails = emailsRaw
-          ? emailsRaw.split(/[;|,]/).map((s) => s.trim().toLowerCase()).filter((s) => s && isValidEmail(s))
-          : [];
+        const invoice_emails = parseEmailList(emailsRaw);
         const notes = toStr(pick(row, ["notas", "observacoes", "observações", "obs"])) || null;
         return { name, documentRaw, aliases, invoice_emails, notes };
       }).filter((r) => r.name);
@@ -349,30 +345,26 @@ const Companies = () => {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onBlur={() => {
-                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado)
-                      const v = emailInput.trim().toLowerCase();
-                      if (!v) return;
-                      if (!isValidEmail(v)) return; // mantém no input para o usuário corrigir
-                      if ((editing.invoice_emails ?? []).includes(v)) {
-                        setEmailInput("");
-                        return;
-                      }
-                      setEditing({ ...editing, invoice_emails: [...(editing.invoice_emails ?? []), v] });
+                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado).
+                      // tryAddEmail cuida de trim/lowercase/dedup/validação.
+                      const result = tryAddEmail(editing.invoice_emails ?? [], emailInput);
+                      if (!result.ok) return; // inválido: mantém no input pra o usuário corrigir
+                      setEditing({ ...editing, invoice_emails: result.emails });
                       setEmailInput("");
                     }}
                     onKeyDown={(e) => {
                       if ((e.key === "Enter" || e.key === "," || e.key === ";") && emailInput.trim()) {
                         e.preventDefault();
-                        const v = emailInput.trim().toLowerCase();
-                        if (!isValidEmail(v)) {
-                          toast({ title: "E-mail inválido", description: v, variant: "destructive" });
+                        const result = tryAddEmail(editing.invoice_emails ?? [], emailInput);
+                        if (!result.ok) {
+                          toast({
+                            title: "E-mail inválido",
+                            description: normalizeEmail(emailInput),
+                            variant: "destructive",
+                          });
                           return;
                         }
-                        if ((editing.invoice_emails ?? []).includes(v)) {
-                          setEmailInput("");
-                          return;
-                        }
-                        setEditing({ ...editing, invoice_emails: [...(editing.invoice_emails ?? []), v] });
+                        setEditing({ ...editing, invoice_emails: result.emails });
                         setEmailInput("");
                       }
                     }}
