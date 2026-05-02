@@ -263,11 +263,11 @@ All colors MUST be HSL.
   }
 
   table tbody tr {
-    border-bottom: 1px solid hsl(var(--secondary));
+    border-bottom: 1px solid hsl(var(--table-border-light));
     transition: background-color 0.1s ease;
   }
   table tbody tr:hover {
-    background: hsl(var(--muted));
+    background: hsl(var(--table-row-hover));
   }
   table tbody tr:last-child {
     border-bottom: 0;
