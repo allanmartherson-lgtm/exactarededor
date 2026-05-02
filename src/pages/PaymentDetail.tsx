@@ -30,7 +30,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquare, MessageSquarePlus, Pencil, Receipt, RefreshCcw, RotateCcw, Save, Search, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquare, MessageSquarePlus, Receipt, RefreshCcw, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
