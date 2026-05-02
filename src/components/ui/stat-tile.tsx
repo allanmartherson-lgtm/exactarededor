@@ -138,7 +138,7 @@ export const StatTile = ({
           <TruncatedText
             as="p"
             text={label}
-            truncation={tooltip ? { ref: labelTruncation.ref, isTruncated: false } as any : labelTruncation}
+            truncation={tooltip ? { ref: labelTruncation.ref, isTruncated: false } : labelTruncation}
             data-testid="stat-card-label"
             className={cn(
               "font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-tight line-clamp-2 min-h-[2lh]",
@@ -169,7 +169,7 @@ export const StatTile = ({
             <TruncatedText
               as="p"
               text={hint}
-              truncation={tooltip ? { ref: hintTruncation.ref, isTruncated: false } as any : hintTruncation}
+              truncation={tooltip ? { ref: hintTruncation.ref, isTruncated: false } : hintTruncation}
               data-testid="stat-card-hint"
               className="text-[11px] text-muted-foreground leading-tight line-clamp-1 min-w-0"
             />
