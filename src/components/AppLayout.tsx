@@ -19,6 +19,7 @@ import {
   ScrollText,
   PanelLeft,
   PanelTop,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -38,9 +39,10 @@ const nav = [
   { to: "/pagamentos", label: "Pagamentos", icon: Wallet, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/kpis", label: "KPIs", icon: BarChart2, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/regras", label: "Regras", icon: ScrollText, roles: ["diretor", "admin"] as const },
-  { to: "/tabelas", label: "Tabelas", icon: Table, roles: ["diretor", "admin"] as const },
+  { to: "/regras", label: "Regras", icon: ShieldCheck, roles: ["diretor", "admin"] as const },
+  { to: "/tabelas", label: "Tabelas de referência", icon: Table, roles: ["diretor", "admin"] as const },
   { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] as const },
+  { to: "/centros-de-custo", label: "Centros de custo", icon: Network, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"] as const },
   { to: "/auditoria", label: "Auditoria", icon: History, roles: ["diretor", "admin"] as const },
 ];
