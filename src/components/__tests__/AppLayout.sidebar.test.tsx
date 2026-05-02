@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock contexts before importing AppLayout
 vi.mock("@/contexts/AuthContext", () => ({
@@ -36,21 +37,24 @@ const EXPECTED_ORDER = [
 
 function renderLayout() {
   return render(
-    <MemoryRouter initialEntries={["/"]}>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<div>home</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <TooltipProvider>
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<div>home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </TooltipProvider>,
   );
 }
 
 describe("AppLayout sidebar navigation", () => {
   it("renders exactly 10 nav items in the fixed order for admin", () => {
     renderLayout();
-    const sidebar = screen.getByRole("navigation", { name: /navegação lateral/i });
-    const links = within(sidebar).getAllByRole("link");
+    const sidebar = screen.getByLabelText(/navegação lateral/i);
+    const nav = sidebar.querySelector("nav") as HTMLElement;
+    const links = within(nav).getAllByRole("link");
     const labels = links.map((l) => l.textContent?.trim());
     expect(labels).toEqual(EXPECTED_ORDER);
     expect(labels).toHaveLength(10);
@@ -58,9 +62,10 @@ describe("AppLayout sidebar navigation", () => {
 
   it("preserves the fixed order without omissions", () => {
     renderLayout();
-    const sidebar = screen.getByRole("navigation", { name: /navegação lateral/i });
+    const sidebar = screen.getByLabelText(/navegação lateral/i);
+    const nav = sidebar.querySelector("nav") as HTMLElement;
     EXPECTED_ORDER.forEach((label) => {
-      expect(within(sidebar).getByText(label)).toBeInTheDocument();
+      expect(within(nav).getByText(label)).toBeInTheDocument();
     });
   });
 });
