@@ -146,13 +146,17 @@ const PaymentDetail = () => {
       updates.approved_by = user!.id; updates.approved_at = new Date().toISOString();
     }
     await supabase.from("payments").update(updates).eq("id", id);
-    await supabase.from("payment_observations").insert({
-      payment_id: id, author_type: authorType, author_id: user!.id, message, status_from: payment.status, status_to: newStatus,
+    const obsRes = await recordObservation({
+      payment_id: id, author_type: authorType, author_id: user!.id, message,
+      status_from: payment.status, status_to: newStatus,
     });
+    if (!obsRes.ok) {
+      toast({ title: "Status atualizado, mas falha no histórico", description: obsRes.error, variant: "destructive" });
+    }
     await load();
     setComment("");
     setBusy(false);
-    toast({ title: "Status atualizado", description: message });
+    if (obsRes.ok) toast({ title: "Status atualizado", description: message });
   };
 
   const requireComment = (cb: () => void) => {
@@ -199,11 +203,14 @@ const PaymentDetail = () => {
     }
     const { error } = await supabase.from("payment_company_groups").update(updates).eq("id", groupId);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setBusy(false); return; }
-    await supabase.from("payment_observations").insert({
+    const obsRes = await recordObservation({
       payment_id: id, author_type: authorType, author_id: user!.id,
       message: `[${g.company_name}] ${messagePrefix}${text ? `: ${text}` : ""}`,
       status_from: g.status, status_to: newStatus,
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
     setBusy(false);
@@ -226,8 +233,14 @@ const PaymentDetail = () => {
     }
     const text = (groupComment[groupId] ?? "").trim();
     setBusy(true);
-    await supabase.from("payment_company_groups").update({ status: target.nextStatus }).eq("id", groupId);
-    await supabase.from("payment_observations").insert({
+    const { error: upErr } = await supabase.from("payment_company_groups")
+      .update({ status: target.nextStatus }).eq("id", groupId);
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Falha ao reencaminhar", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    const obsRes = await recordObservation({
       payment_id: id,
       author_type: "analista",
       author_id: user!.id,
@@ -235,6 +248,9 @@ const PaymentDetail = () => {
       status_from: g.status,
       status_to: target.nextStatus,
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
     setBusy(false);
@@ -282,7 +298,7 @@ const PaymentDetail = () => {
         body: { payment_id: id, company_name: g.company_name },
       });
       if (error) throw error;
-      await supabase.from("payment_observations").insert({
+      const obsRes = await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user!.id,
@@ -290,6 +306,9 @@ const PaymentDetail = () => {
         status_from: g.status,
         status_to: g.status,
       });
+      if (!obsRes.ok) {
+        toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+      }
       await load();
       toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
     } catch (e: any) {
@@ -310,12 +329,20 @@ const PaymentDetail = () => {
     }
     setBusy(true);
     for (const g of targets) {
-      await supabase.from("payment_company_groups").update({ status: "aguardando_validacao" }).eq("id", g.id);
-      await supabase.from("payment_observations").insert({
+      const { error: upErr } = await supabase.from("payment_company_groups")
+        .update({ status: "aguardando_validacao" }).eq("id", g.id);
+      if (upErr) {
+        toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
+        continue;
+      }
+      const obsRes = await recordObservation({
         payment_id: id, author_type: "analista", author_id: user!.id,
         message: `[${g.company_name}] Enviado para validação pelo analista.`,
         status_from: g.status, status_to: "aguardando_validacao",
       });
+      if (!obsRes.ok) {
+        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
+      }
     }
     await load();
     setBusy(false);
@@ -430,11 +457,20 @@ const PaymentDetail = () => {
   const cancelPayment = async () => {
     if (!id) return;
     setBusy(true);
-    await supabase.from("payments").update({ status: "cancelado" }).eq("id", id);
-    await supabase.from("payment_observations").insert({
+    const { error: upErr } = await supabase.from("payments")
+      .update({ status: "cancelado" }).eq("id", id);
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Falha ao cancelar", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    const obsRes = await recordObservation({
       payment_id: id, author_type: isOwner ? "analista" : "diretor", author_id: user!.id,
       message: "Lote cancelado pelo responsável.", status_from: payment.status, status_to: "cancelado",
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setBusy(false);
     toast({ title: "Lote cancelado" });
     load();
@@ -505,11 +541,14 @@ const PaymentDetail = () => {
     const text = (itemCommentDraft[itemId] ?? "").trim();
     if (!text) return;
     setBusy(true);
-    const { error } = await supabase.from("payment_observations").insert({
-      payment_id: id, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
+    const obsRes = await recordObservation({
+      payment_id: id!, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
     });
     setBusy(false);
-    if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
+    if (!obsRes.ok) {
+      toast({ title: "Erro ao salvar", description: obsRes.error, variant: "destructive" });
+      return;
+    }
     setItemCommentDraft((m) => ({ ...m, [itemId]: "" }));
     load();
   };
