@@ -11,6 +11,10 @@ interface PageHeaderProps {
   showBack?: boolean;
   /** Rota de fallback caso não haja histórico (ex: usuário entrou direto via URL). */
   backFallback?: string;
+  /** Fixa o cabeçalho no topo da viewport ao rolar. Default: false. */
+  sticky?: boolean;
+  /** Offset (em px) onde o header deve "grudar". Útil quando há topbar global. Default: 56. */
+  stickyOffset?: number;
 }
 
 export const PageHeader = ({
@@ -19,6 +23,8 @@ export const PageHeader = ({
   actions,
   showBack = true,
   backFallback = "/",
+  sticky = false,
+  stickyOffset = 56,
 }: PageHeaderProps) => {
   const navigate = useNavigate();
 
@@ -32,7 +38,14 @@ export const PageHeader = ({
   };
 
   return (
-    <div className="border-b border-border bg-card px-8 py-6">
+    <div
+      className={
+        sticky
+          ? "border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-8 py-4 sticky z-30 shadow-sm"
+          : "border-b border-border bg-card px-8 py-6"
+      }
+      style={sticky ? { top: stickyOffset } : undefined}
+    >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3">
           {showBack && (
@@ -48,9 +61,9 @@ export const PageHeader = ({
             </Button>
           )}
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className={sticky ? "text-xl font-semibold tracking-tight" : "text-2xl font-semibold tracking-tight"}>{title}</h1>
             {description && (
-              <p className="text-sm text-muted-foreground mt-1">{description}</p>
+              <p className={sticky ? "text-xs text-muted-foreground mt-0.5" : "text-sm text-muted-foreground mt-1"}>{description}</p>
             )}
           </div>
         </div>

@@ -791,9 +791,9 @@ const PaymentDetail = () => {
       <PageHeader
         title={payment.reference}
         description={payment.description ?? `${items.length} itens · ${formatCurrency(payment.total_amount)}`}
+        sticky
         actions={
           <>
-            <Button asChild variant="ghost" size="sm"><Link to="/pagamentos"><ArrowLeft className="h-4 w-4 mr-1" /> Voltar</Link></Button>
             <StatusBadge status={payment.status} />
           </>
         }
