@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
 import {
   ArrowRight,
+  ArrowRightCircle,
   FileUp,
   ListChecks,
   Sparkles,
@@ -372,25 +373,27 @@ const Dashboard = () => {
           </div>
           <div
             data-testid="pipeline-grid"
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 items-stretch auto-rows-fr"
+            className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 items-stretch auto-rows-fr"
           >
             {loading ? (
-              Array.from({ length: 7 }).map((_, i) => <StatCardSkeleton key={i} />)
+              Array.from({ length: 7 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 rounded-lg" />
+              ))
             ) : (
               <>
-                <StatCard icon={Bot} label="1. Análise IA" value={counts.pipeAnaliseIA} tone="info"
+                <PipelineStep step={1} icon={Bot} label="Análise" value={counts.pipeAnaliseIA} tone="info"
                   to="/pagamentos?status=em_analise_ia" />
-                <StatCard icon={ListChecks} label="2. Validação" value={counts.pipeValidacao} tone="warning"
+                <PipelineStep step={2} icon={ListChecks} label="Validação" value={counts.pipeValidacao} tone="warning"
                   to="/pagamentos?status=aguardando_validacao" />
-                <StatCard icon={ShieldCheck} label="3. Aprovação" value={counts.pipeAprovacao} tone="warning"
+                <PipelineStep step={3} icon={ShieldCheck} label="Aprovação" value={counts.pipeAprovacao} tone="warning"
                   to="/pagamentos?status=aguardando_aprovacao" />
-                <StatCard icon={Send} label="4. NF solicitada" value={counts.pipeNFSolicitada} tone="info"
+                <PipelineStep step={4} icon={Send} label="NF solicitada" value={counts.pipeNFSolicitada} tone="info"
                   to="/pagamentos?status=pedido_nf_enviado" />
-                <StatCard icon={Receipt} label="5. NF recebida" value={counts.pipeNFRecebida} tone="info"
+                <PipelineStep step={5} icon={Receipt} label="NF recebida" value={counts.pipeNFRecebida} tone="info"
                   to="/pagamentos?status=nf_recebida" />
-                <StatCard icon={CheckCircle2} label="6. NF conciliada" value={counts.pipeNFConciliada} tone="success"
+                <PipelineStep step={6} icon={CheckCircle2} label="Conciliada" value={counts.pipeNFConciliada} tone="success"
                   to="/pagamentos?status=nf_conciliada" />
-                <StatCard icon={Wallet} label="7. Pago" value={counts.pipePago} tone="success"
+                <PipelineStep step={7} icon={Wallet} label="Pago" value={counts.pipePago} tone="success"
                   to="/pagamentos?status=pago" />
               </>
             )}
@@ -538,6 +541,55 @@ const AttChip = ({
     </Link>
   );
 };
+
+/**
+ * PipelineStep — tile compacto do funil. Layout vertical (ícone+nº em cima,
+ * label embaixo) para caber 7 colunas sem truncar.
+ */
+const PipelineStep = ({
+  step,
+  icon: Icon,
+  label,
+  value,
+  tone,
+  to,
+}: {
+  step: number;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  tone: "info" | "warning" | "success";
+  to: string;
+}) => {
+  const toneBg: Record<string, string> = {
+    info: "bg-info-soft text-info",
+    warning: "bg-warning-soft text-warning-foreground",
+    success: "bg-success-soft text-success",
+  };
+  return (
+    <Link
+      to={to}
+      aria-label={`Etapa ${step}: ${label}, ${value} ${value === 1 ? "pagamento" : "pagamentos"}`}
+      className="group h-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <div className="h-full rounded-lg border bg-card shadow-soft hover:shadow-card transition p-3 flex flex-col items-center text-center gap-1.5">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{step}</span>
+          <div className={`h-7 w-7 rounded-md flex items-center justify-center ${toneBg[tone]}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        <p className="text-2xl font-semibold tabular-nums leading-none mt-1">{value}</p>
+        <p className="text-[11px] font-medium text-foreground/80 leading-tight line-clamp-2 mt-auto">
+          {label}
+        </p>
+      </div>
+    </Link>
+  );
+};
+
+// silencia import não usado
+void ArrowRightCircle;
 
 const PaymentRowItem = ({ p, mine, profiles }: { p: PaymentRow; mine: boolean; profiles: Record<string, string> }) => {
   const owner = ownerRoleFor(p.status);
