@@ -377,15 +377,48 @@ export const AppLayout = () => {
                   to={item.to}
                   end={item.to === "/"}
                   aria-label={item.label}
-                  className={({ isActive }) =>
-                    cn(
-                      "side-nav-item outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isActive ? "side-nav-active" : "side-nav-idle",
-                    )
-                  }
+                  className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  style={({ isActive }) => ({
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 11,
+                    padding: "10px 12px",
+                    paddingLeft: isActive ? 9 : 12,
+                    borderRadius: 8,
+                    fontSize: 13.5,
+                    lineHeight: 1.2,
+                    cursor: "pointer",
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.12s ease",
+                    borderLeft: isActive
+                      ? "3px solid hsl(var(--primary))"
+                      : "3px solid transparent",
+                    background: isActive ? "hsl(var(--accent))" : "transparent",
+                    color: isActive
+                      ? "hsl(var(--accent-foreground))"
+                      : "hsl(var(--secondary-foreground))",
+                    fontWeight: isActive ? 500 : 400,
+                  })}
                 >
-                  <item.icon size={18} strokeWidth={1.75} aria-hidden />
-                  <span>{item.label}</span>
+                  <item.icon
+                    size={18}
+                    strokeWidth={1.75}
+                    aria-hidden
+                    style={{ width: 18, height: 18, flexShrink: 0, color: "inherit" }}
+                  />
+                  <span
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minWidth: 0,
+                      color: "inherit",
+                    }}
+                  >
+                    {item.label}
+                  </span>
                 </NavLink>
               </TooltipTrigger>
               <TooltipContent side="right">{item.label}</TooltipContent>
