@@ -304,7 +304,7 @@ const Dashboard = () => {
       pipelineOwner === "all" ? null : new Set<PaymentStatus>(STATUSES_BY_OWNER[pipelineOwner]);
     const c = {
       pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
-      pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
+      pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
     };
     for (const p of allPayments) {
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
@@ -318,6 +318,7 @@ const Dashboard = () => {
         case "aguardando_aprovacao":
           c.pipeAprovacao++; break;
         case "aprovado":
+          c.pipeAguardandoEnvio++; break;
         case "pedido_nf_enviado":
           c.pipeNFSolicitada++; break;
         case "nf_recebida":
