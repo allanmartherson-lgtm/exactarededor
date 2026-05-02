@@ -415,7 +415,7 @@ const Companies = () => {
                 <thead className="bg-muted">
                   <tr className="text-left">
                     <th className="px-4 py-2 font-medium">Nome</th>
-                    <th className="px-4 py-2 font-medium">CNPJ</th>
+                    <th className="px-4 py-2 font-medium cell-mono">CNPJ</th>
                     <th className="px-4 py-2 font-medium">Apelidos</th>
                     <th className="px-4 py-2 font-medium">E-mails NF</th>
                     <th className="px-4 py-2"></th>
@@ -425,7 +425,7 @@ const Companies = () => {
                   {filtered.map((c) => (
                     <tr key={c.id}>
                       <td className="px-4 py-2 font-medium flex items-center gap-2"><Building2 className="h-4 w-4 text-muted-foreground" />{c.name}</td>
-                      <td className="px-4 py-2 text-muted-foreground tabular-nums">
+                      <td className="px-4 py-2 text-muted-foreground cell-mono">
                         {c.document ? (
                           <span className="inline-flex items-center gap-1.5">
                             {c.document}
