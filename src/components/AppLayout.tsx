@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
-import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2, Network, History, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2, Network, History, Sun, Moon, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -10,6 +10,7 @@ const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/pagamentos", label: "Pagamentos", icon: FileText, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, roles: ["analista", "validador", "diretor", "admin"] as const },
+  { to: "/kpis", label: "KPIs", icon: BarChart3, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/regras", label: "Regras", icon: ScrollText, roles: ["diretor", "admin"] as const },
   { to: "/tabelas", label: "Tabelas de referência", icon: Table2, roles: ["diretor", "admin"] as const },
   { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] as const },
