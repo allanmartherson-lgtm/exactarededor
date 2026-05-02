@@ -128,13 +128,6 @@ const Payments = () => {
       <PageHeader
         title="Pagamentos"
         description="Todos os lotes de pagamento e seu status no fluxo."
-        actions={
-          isAnalista && (
-            <Button asChild>
-              <Link to="/pagamentos/novo"><FileUp className="h-4 w-4 mr-2" /> Nova base</Link>
-            </Button>
-          )
-        }
       />
       <div className="p-8 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
