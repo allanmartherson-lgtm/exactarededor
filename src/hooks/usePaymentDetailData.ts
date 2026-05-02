@@ -169,6 +169,32 @@ export function usePaymentDetailData(id: string | undefined) {
     };
   }, [load]);
 
+  /**
+   * Realtime: assina mudanças em payment_observations e invoice_questions
+   * filtradas pelo payment atual. Em qualquer evento (INSERT/UPDATE/DELETE),
+   * recarrega — é simples, evita merge manual e é barato porque o usuário
+   * está olhando ativamente esta tela.
+   */
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`payment-detail:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_observations", filter: `payment_id=eq.${id}` },
+        () => { load(); },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "invoice_questions", filter: `payment_id=eq.${id}` },
+        () => { load(); },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, load]);
+
   return {
     // state
     payment,

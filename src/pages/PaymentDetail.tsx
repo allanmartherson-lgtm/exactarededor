@@ -23,6 +23,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import type {
+  PaymentItemRow as PaymentItemRowType,
+  GroupRow,
+  AiVersionRow,
+} from "@/hooks/usePaymentDetailData";
+import type { Database } from "@/integrations/supabase/types";
+
+type PaymentUpdate = Database["public"]["Tables"]["payments"]["Update"];
+type GroupUpdate = Database["public"]["Tables"]["payment_company_groups"]["Update"];
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
 import {
   ANALYST_DONE_STATUSES,
@@ -78,7 +87,7 @@ const PaymentDetail = () => {
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
     setBusy(true);
-    const updates: any = { status: newStatus };
+    const updates: PaymentUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
       updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
     }
@@ -130,7 +139,7 @@ const PaymentDetail = () => {
       return;
     }
     setBusy(true);
-    const updates: any = { status: newStatus };
+    const updates: GroupUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
       updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
     }
@@ -199,7 +208,7 @@ const PaymentDetail = () => {
 
   // Analista reaplica as regras (reanálise da IA) APENAS para os itens da empresa devolvida,
   // antes de reencaminhar. Isso recalcula expected_amount, alerts e matched_rules.
-  const reanalyzeGroup = async (g: any) => {
+  const reanalyzeGroup = async (g: GroupRow) => {
     if (!id) return;
     setReanalyzingGroupId(g.id);
     try {
@@ -220,8 +229,9 @@ const PaymentDetail = () => {
       }
       await load();
       toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
-    } catch (e: any) {
-      toast({ title: "Falha ao reaplicar regras", description: e?.message ?? String(e), variant: "destructive" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao reaplicar regras", description: msg, variant: "destructive" });
     } finally {
       setReanalyzingGroupId(null);
     }
@@ -293,9 +303,20 @@ const PaymentDetail = () => {
     const { data, error } = await supabase.functions.invoke("send-invoice-request", { body: { payment_id: id } });
     setBusy(false);
     // Erro de validação (CNPJ inválido) chega no body com status 422
-    const payload = (data ?? {}) as any;
+    type InvalidEntry = { company_name?: string; doctor_name?: string; reason: string };
+    type MissingCompanyEmail = { company_name: string };
+    type SendInvoiceRequestResponse = {
+      error?: string;
+      message?: string;
+      invalid?: InvalidEntry[];
+      missing_company_emails?: MissingCompanyEmail[];
+      invoices_created?: number;
+      sent_ok?: number;
+      sent_error?: number;
+    };
+    const payload = (data ?? {}) as SendInvoiceRequestResponse;
     if (payload?.error === "cnpj_invalido") {
-      const detail = (payload.invalid ?? []).slice(0, 3).map((x: any) =>
+      const detail = (payload.invalid ?? []).slice(0, 3).map((x) =>
         `• ${x.company_name ?? x.doctor_name}: ${x.reason}`
       ).join("\n");
       const more = (payload.invalid?.length ?? 0) > 3 ? `\n…e mais ${payload.invalid.length - 3} item(ns).` : "";
@@ -307,7 +328,7 @@ const PaymentDetail = () => {
       return;
     }
     if (payload?.error === "empresa_sem_email") {
-      const detail = (payload.missing_company_emails ?? []).slice(0, 5).map((x: any) =>
+      const detail = (payload.missing_company_emails ?? []).slice(0, 5).map((x) =>
         `• ${x.company_name}`
       ).join("\n");
       const total = payload.missing_company_emails?.length ?? 0;
@@ -403,7 +424,7 @@ const PaymentDetail = () => {
   groups.forEach((g) => {
     groupStatusByCompany[g.company_name.toLowerCase()] = g.status as PaymentStatus;
   });
-  const itemAnalystDone = (it: any) => {
+  const itemAnalystDone = (it: PaymentItemRowType) => {
     const gs = groupStatusByCompany[(it.company_name ?? "Sem empresa").trim().toLowerCase()];
     return gs ? ANALYST_DONE_STATUSES.has(gs) : false;
   };
@@ -417,9 +438,9 @@ const PaymentDetail = () => {
     },
     { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
   );
-  const topAlerts: { item: any; alerts: string[] }[] = items
+  const topAlerts: { item: PaymentItemRowType; alerts: string[] }[] = items
     .filter((it) => it.ai_findings?.alerts?.length && !itemAnalystDone(it))
-    .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
+    .map((it) => ({ item: it, alerts: (it.ai_findings?.alerts ?? []) as string[] }));
 
   // ===== Histórico (timeline + comparador de versões da IA) =====
   const itemLabel = (itemId: string | null | undefined) => {
@@ -468,7 +489,7 @@ const PaymentDetail = () => {
       : t === "diretor" ? TONE_CLASSES.success
       : TONE_CLASSES.muted;
 
-  const VersionCell = ({ v }: { v: any }) => (
+  const VersionCell = ({ v }: { v: AiVersionRow }) => (
     <div className="space-y-2 text-xs">
       <div className="flex items-center justify-between">
         <span className="font-mono">v{v.version}</span>
@@ -478,11 +499,11 @@ const PaymentDetail = () => {
       <div><span className="text-muted-foreground">Esperado:</span> <span className="tabular-nums">{v.expected_amount != null ? formatCurrency(v.expected_amount) : "—"}</span></div>
       <div><span className="text-muted-foreground">Bruto:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
       {Array.isArray(v.matched_rules) && v.matched_rules.length > 0 && (
-        <div><span className="text-muted-foreground">Regras:</span> {(v.matched_rules as string[]).join(", ")}</div>
+        <div><span className="text-muted-foreground">Regras:</span> {v.matched_rules.join(", ")}</div>
       )}
       {Array.isArray(v.alerts) && v.alerts.length > 0 && (
         <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
-          {(v.alerts as string[]).map((a, i) => <li key={i}>{a}</li>)}
+          {v.alerts.map((a, i) => <li key={i}>{a}</li>)}
         </ul>
       )}
       {v.calculation_explanation && <p className="italic text-muted-foreground">{v.calculation_explanation}</p>}
@@ -778,7 +799,7 @@ const PaymentDetail = () => {
         {(() => {
           // Agrupa por invoice_id e pega o último de cada thread.
           const byInvoice = new Map<string, InvoiceQuestion[]>();
-          (questions as any[]).forEach((q) => {
+          questions.forEach((q) => {
             const list = byInvoice.get(q.invoice_id) ?? [];
             list.push(q);
             byInvoice.set(q.invoice_id, list);
@@ -891,7 +912,7 @@ const PaymentDetail = () => {
           <TooltipProvider delayDuration={150}>
             {(() => {
               const sq = itemSearch.trim().toLowerCase();
-              const itemMatches = (it: any) => {
+              const itemMatches = (it: PaymentItemRowType) => {
                 if (!sq) return true;
                 const haystack = [
                   it.company_name,
@@ -1011,7 +1032,7 @@ const PaymentDetail = () => {
           </SheetHeader>
           {openQuestionInvoiceId && (() => {
             const inv = invoices.find((i) => i.id === openQuestionInvoiceId);
-            const initial = (questions as any[]).filter((q) => q.invoice_id === openQuestionInvoiceId);
+            const initial = questions.filter((q) => q.invoice_id === openQuestionInvoiceId);
             return (
               <div className="mt-4">
                 {inv && (

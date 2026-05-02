@@ -1,124 +1,68 @@
+/**
+ * send-invoice-request — Cria/atualiza invoices do pagamento e dispara
+ * o e-mail de pedido de Nota Fiscal para empresa (TO) + médico em CC.
+ *
+ * Modos:
+ *  - lote   (body: { payment_id })  → processa todos os buckets do pagamento
+ *  - único  (body: { invoice_id })  → reenvia somente a invoice indicada
+ *
+ * Pré-validações (retornam 422 sem enviar nada):
+ *  - CNPJ inválido  → { error: "cnpj_invalido", invalid: [...] }
+ *  - Empresa sem e-mail de NF → { error: "empresa_sem_email", missing_company_emails: [...] }
+ *
+ * Toda a formatação textual (saudação, competência, dinheiro), validação de
+ * CNPJ/CPF e geração do template do e-mail vivem em módulos irmãos
+ * (`docs.ts`, `text.ts`, `templates.ts`).
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
+import { fmtMoney } from "./text.ts";
+import { buildEmail } from "./templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ---- CNPJ/CPF helpers (cópia local — edge não compartilha src/) ----
-const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "");
-const formatCNPJ = (raw: string) => {
-  const d = onlyDigits(raw).slice(0, 14);
-  if (d.length !== 14) return raw ?? "";
-  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+// ---- Tipos locais (subset dos rows do banco usados aqui) ----
+type Item = {
+  id: string;
+  payment_id: string;
+  doctor_name: string;
+  doctor_email: string | null;
+  description: string | null;
+  procedure_name: string | null;
+  procedure_date: string | null;
+  gross_amount: number | null;
+  company_id: string | null;
+  company_name: string | null;
+  company_document: string | null;
 };
-const formatCPF = (raw: string) => {
-  const d = onlyDigits(raw).slice(0, 11);
-  if (d.length !== 11) return raw ?? "";
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
+type CompanyBucket = {
+  company_id: string;
+  company_name: string;
+  to: string[];
+  cc: Set<string>;
+  total: number;
+  items: Item[];
 };
-const isValidCNPJ = (raw: string | null | undefined): boolean => {
-  const d = onlyDigits(raw ?? "");
-  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
-  const calc = (base: string, weights: number[]) => {
-    const sum = base.split("").reduce((a, c, i) => a + Number(c) * weights[i], 0);
-    const r = sum % 11;
-    return r < 2 ? 0 : 11 - r;
-  };
-  const w1 = [5,4,3,2,9,8,7,6,5,4,3,2];
-  const w2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
-  return calc(d.slice(0,12), w1) === Number(d[12]) && calc(d.slice(0,13), w2) === Number(d[13]);
+type DoctorBucket = { doctor_email: string; total: number; items: Item[] };
+type InvoiceRow = {
+  id: string;
+  upload_token: string;
+  company_id: string | null;
+  recipient_email: string | null;
+  payment_id: string;
 };
-const isValidCPF = (raw: string | null | undefined): boolean => {
-  const d = onlyDigits(raw ?? "");
-  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
-  const calc = (len: number) => {
-    let sum = 0;
-    for (let i = 0; i < len; i++) sum += Number(d[i]) * (len + 1 - i);
-    const r = (sum * 10) % 11;
-    return r === 10 ? 0 : r;
-  };
-  return calc(9) === Number(d[9]) && calc(10) === Number(d[10]);
-};
-const formatDoc = (raw: string | null | undefined) => {
-  const d = onlyDigits(raw ?? "");
-  if (d.length === 14) return formatCNPJ(d);
-  if (d.length === 11) return formatCPF(d);
-  return raw ?? "—";
-};
-const validateDoc = (raw: string | null | undefined): { kind: "cnpj" | "cpf" | "indefinido"; valid: boolean } => {
-  const d = onlyDigits(raw ?? "");
-  if (d.length === 14) return { kind: "cnpj", valid: isValidCNPJ(d) };
-  if (d.length === 11) return { kind: "cpf", valid: isValidCPF(d) };
-  return { kind: "indefinido", valid: false };
-};
-
-const fmtMoney = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-// Saudação dinâmica em horário de Brasília (UTC-3)
-const greetingBrasilia = (now = new Date()) => {
-  const brHour = (now.getUTCHours() - 3 + 24) % 24;
-  if (brHour >= 5 && brHour < 12) return "Bom dia";
-  if (brHour >= 12 && brHour < 18) return "Boa tarde";
-  return "Boa noite";
-};
-
-// Junta lista com vírgulas e "e" no último ("A, B e C")
-const joinPt = (arr: string[]) => {
-  const a = arr.filter(Boolean);
-  if (a.length === 0) return "";
-  if (a.length === 1) return a[0];
-  return `${a.slice(0, -1).join(", ")} e ${a[a.length - 1]}`;
-};
-
-// "ao" (1) / "aos" (2+)
-const aoAos = (n: number) => (n > 1 ? "aos" : "ao");
-
-// Formata competência (YYYY-MM-DD ou array) como "Mês de YYYY"
-const MONTH_NAMES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-const formatCompetenceBR = (value: string | string[] | null | undefined): string => {
-  if (!value) return "";
-  const arr = Array.isArray(value) ? value : [value];
-  const parts = arr
-    .map((v) => /^(\d{4})-(\d{2})/.exec(v))
-    .filter(Boolean)
-    .map((m) => `${MONTH_NAMES[Number(m![2]) - 1]} de ${m![1]}`);
-  return joinPt(Array.from(new Set(parts)));
-};
-
-// Soma N dias úteis (seg-sex) a partir de uma data
-const addBusinessDays = (date: Date, days: number): Date => {
-  const d = new Date(date);
-  let added = 0;
-  const step = days >= 0 ? 1 : -1;
-  while (added < Math.abs(days)) {
-    d.setUTCDate(d.getUTCDate() + step);
-    const w = d.getUTCDay();
-    if (w !== 0 && w !== 6) added++;
-  }
-  return d;
-};
-
-const formatDateBR = (d: Date) =>
-  `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
-
-const BUSINESS_DAYS_BEFORE_DUE = 10;
-
-// Bloco fixo de dados cadastrais (HIG / DF Star)
-const DADOS_CADASTRAIS = `Hospitais Integrados da Gávea S.A - DF Star
-CNPJ: 31.635.857/0006-16   C.C.M: 07.895.204/001-40
-SGAS 914 Conjunto H - Parte
-Asa Sul - CEP: 70.390-140`;
-
-// Assinatura padrão GHM DF Star
-const ASSINATURA = `Atenciosamente,
-
-GHM DF Star
-Tel: (11) 2142-4879
-ghm.repassedfstar@rededor.com.br
-www.rededor.com.br`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -128,46 +72,39 @@ serve(async (req) => {
     const payment_id = body?.payment_id as string | undefined;
     const invoice_id = body?.invoice_id as string | undefined;
     if (!payment_id && !invoice_id) {
-      return new Response(JSON.stringify({ error: "payment_id ou invoice_id obrigatório" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "payment_id ou invoice_id obrigatório" }, 400);
     }
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
-    // ---- Modo reenvio individual (invoice_id) ----
+    // ---- Resolução do modo (lote x reenvio individual) ----
     let resolvedPaymentId = payment_id ?? null;
-    let targetInvoice: any = null;
+    let targetInvoice: InvoiceRow | null = null;
     if (invoice_id) {
-      const { data: inv } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("id", invoice_id)
-        .single();
-      if (!inv) {
-        return new Response(JSON.stringify({ error: "invoice_id não encontrado" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      targetInvoice = inv;
+      const { data: inv } = await supabase.from("invoices").select("*").eq("id", invoice_id).single();
+      if (!inv) return json({ error: "invoice_id não encontrado" }, 404);
+      targetInvoice = inv as InvoiceRow;
       resolvedPaymentId = inv.payment_id;
     }
 
     const { data: payment } = await supabase.from("payments").select("*").eq("id", resolvedPaymentId).single();
-    const { data: items } = await supabase.from("payment_items").select("*").eq("payment_id", resolvedPaymentId);
-    if (!payment || !items) throw new Error("Pagamento não encontrado");
+    const { data: itemsRaw } = await supabase.from("payment_items").select("*").eq("payment_id", resolvedPaymentId);
+    if (!payment || !itemsRaw) throw new Error("Pagamento não encontrado");
+    const items = itemsRaw as Item[];
 
     // ---- Pré-validação: CNPJ + carrega lista de e-mails das empresas ----
-    type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
     const invalid: Array<{ item_id: string; doctor_name: string; document: string | null; company_name: string | null; reason: string }> = [];
-    const companyIds = Array.from(new Set(items.map((i: any) => i.company_id).filter(Boolean)));
+    const companyIds = Array.from(new Set(items.map((i) => i.company_id).filter(Boolean))) as string[];
     const companyMap = new Map<string, CompanyInfo>();
     if (companyIds.length) {
       const { data: comps } = await supabase
         .from("companies")
         .select("id,name,document,invoice_emails")
         .in("id", companyIds);
-      (comps ?? []).forEach((c: any) =>
+      (comps ?? []).forEach((c: { id: string; name: string; document: string | null; invoice_emails: string[] | null }) =>
         companyMap.set(c.id, {
           name: c.name,
           document: c.document,
@@ -176,7 +113,7 @@ serve(async (req) => {
       );
     }
 
-    for (const it of items as any[]) {
+    for (const it of items) {
       if (it.company_id) {
         const c = companyMap.get(it.company_id);
         if (c?.document && !isValidCNPJ(c.document)) {
@@ -196,41 +133,25 @@ serve(async (req) => {
     }
 
     if (invalid.length > 0) {
-      return new Response(JSON.stringify({
+      return json({
         error: "cnpj_invalido",
         message: `Envio bloqueado: ${invalid.length} item(ns) com CNPJ inválido.`,
         invalid,
-      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }, 422);
     }
 
-    // ---- Agrupamento ----
-    // Por padrão agrupa por EMPRESA (TO = invoice_emails da empresa, CC = médicos).
-    // Se o item não tem company_id, faz fallback agrupando por médico.
-    type CompanyBucket = {
-      company_id: string;
-      company_name: string;
-      to: string[];
-      cc: Set<string>;
-      total: number;
-      items: any[];
-    };
-    type DoctorBucket = {
-      doctor_email: string;
-      total: number;
-      items: any[];
-    };
-
+    // ---- Agrupamento por EMPRESA (com fallback por médico para itens sem empresa) ----
     const byCompany = new Map<string, CompanyBucket>();
     const byDoctorFallback = new Map<string, DoctorBucket>();
     const missingCompanyEmails: Array<{ company_id: string; company_name: string }> = [];
 
-    for (const it of items as any[]) {
+    for (const it of items) {
       const docEmail = (it.doctor_email ?? "").trim().toLowerCase();
       if (it.company_id && companyMap.has(it.company_id)) {
         const c = companyMap.get(it.company_id)!;
         if (!c.invoice_emails.length) {
           if (!missingCompanyEmails.find((m) => m.company_id === it.company_id)) {
-            missingCompanyEmails.push({ company_id: it.company_id, company_name: c.name });
+            missingCompanyEmails.push({ company_id: it.company_id!, company_name: c.name });
           }
           continue;
         }
@@ -240,7 +161,7 @@ serve(async (req) => {
           to: c.invoice_emails,
           cc: new Set<string>(),
           total: 0,
-          items: [],
+          items: [] as Item[],
         };
         cur.total += Number(it.gross_amount ?? 0);
         cur.items.push(it);
@@ -251,7 +172,7 @@ serve(async (req) => {
         const cur = byDoctorFallback.get(docEmail) ?? {
           doctor_email: docEmail,
           total: 0,
-          items: [],
+          items: [] as Item[],
         };
         cur.total += Number(it.gross_amount ?? 0);
         cur.items.push(it);
@@ -260,16 +181,15 @@ serve(async (req) => {
     }
 
     if (missingCompanyEmails.length > 0) {
-      return new Response(JSON.stringify({
+      return json({
         error: "empresa_sem_email",
         message: `Envio bloqueado: ${missingCompanyEmails.length} empresa(s) sem e-mail de NF cadastrado. Cadastre em Empresas → editar → "E-mails para pedido de NF".`,
         missing_company_emails: missingCompanyEmails,
-      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }, 422);
     }
 
     if (byCompany.size === 0 && byDoctorFallback.size === 0) {
-      return new Response(JSON.stringify({ error: "Nenhum destinatário válido (sem empresa com e-mail e sem e-mail de médico)." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return json({ error: "Nenhum destinatário válido (sem empresa com e-mail e sem e-mail de médico)." }, 400);
     }
 
     const baseUrl = req.headers.get("origin") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
@@ -277,18 +197,16 @@ serve(async (req) => {
     let sentOk = 0;
     let sentErr = 0;
     const sendErrors: string[] = [];
-    const summaries: any[] = [];
+    const summaries: Record<string, unknown>[] = [];
 
-    // Já existem invoices para este payment? No fluxo de "lote" (sem invoice_id),
-    // não criamos novas — apenas reenviamos cada uma individualmente, atualizando o
-    // registro existente. Isso evita duplicação ao reenviar em lote.
+    // Reaproveita invoices existentes para evitar duplicação no reenvio em lote
     const { data: existingForPayment } = await supabase
       .from("invoices")
-      .select("id, company_id, recipient_email")
+      .select("id, company_id, recipient_email, upload_token")
       .eq("payment_id", resolvedPaymentId);
-    const existingByCompany = new Map<string, any>();
-    const existingByEmail = new Map<string, any>();
-    (existingForPayment ?? []).forEach((inv: any) => {
+    const existingByCompany = new Map<string, InvoiceRow>();
+    const existingByEmail = new Map<string, InvoiceRow>();
+    (existingForPayment ?? []).forEach((inv: InvoiceRow) => {
       if (inv.company_id) existingByCompany.set(inv.company_id, inv);
       if (inv.recipient_email) existingByEmail.set(String(inv.recipient_email).toLowerCase(), inv);
     });
@@ -297,20 +215,20 @@ serve(async (req) => {
       to: string[];
       cc: string[];
       total: number;
-      items: any[];
+      items: Item[];
       company_id: string | null;
       company_name: string | null;
       recipient_label: string;
-      reuse_invoice?: any | null;
+      reuse_invoice?: InvoiceRow | null;
     }) => {
-      // Reusa invoice existente se possível (evita duplicar no reenvio).
-      let invoice: any = opts.reuse_invoice ?? null;
+      // Reusa invoice existente (por id passado, por company_id, ou por recipient_email)
+      let invoice: InvoiceRow | null = opts.reuse_invoice ?? null;
       if (!invoice && opts.company_id && existingByCompany.has(opts.company_id)) {
-        invoice = existingByCompany.get(opts.company_id);
+        invoice = existingByCompany.get(opts.company_id) ?? null;
       }
       if (!invoice && opts.to[0]) {
         const k = opts.to[0].toLowerCase();
-        if (existingByEmail.has(k)) invoice = existingByEmail.get(k);
+        if (existingByEmail.has(k)) invoice = existingByEmail.get(k) ?? null;
       }
       if (invoice) {
         await supabase.from("invoices").update({
@@ -333,14 +251,14 @@ serve(async (req) => {
           company_id: opts.company_id,
           company_name: opts.company_name,
         }).select().single();
-        invoice = inserted;
+        invoice = inserted as InvoiceRow;
         if (!invoice) return;
         created.push(invoice.id);
       }
 
       const uploadUrl = `${baseUrl}/portal/nota/${invoice.upload_token}`;
 
-      const itemSummaries = opts.items.map((it: any) => {
+      const itemSummaries = opts.items.map((it) => {
         const company = it.company_id ? companyMap.get(it.company_id) : null;
         const cnpjRaw = company?.document ?? it.company_document ?? null;
         const v = validateDoc(cnpjRaw);
@@ -358,18 +276,36 @@ serve(async (req) => {
         };
       });
 
-      const summary = {
+      const totalFormatted = fmtMoney(opts.total);
+
+      // Gera assunto + corpo via template module
+      const { subject: emailSubject, body: requestMessage } = buildEmail({
+        recipient_label: opts.recipient_label,
+        total_amount_formatted: totalFormatted,
+        upload_url: uploadUrl,
+        payment_due_date: payment.payment_due_date ?? null,
+        competence:
+          Array.isArray(payment.competence_months) && payment.competence_months.length
+            ? payment.competence_months
+            : payment.competence_month,
+        sectors: payment.sectors ?? [],
+        specialties: payment.specialties ?? [],
+      });
+
+      const summary: Record<string, unknown> = {
         invoice_id: invoice.id,
         recipient_to: opts.to,
         recipient_cc: opts.cc,
         recipient_label: opts.recipient_label,
         reference: payment.reference,
         total_amount: opts.total,
-        total_amount_formatted: fmtMoney(opts.total),
+        total_amount_formatted: totalFormatted,
         items_count: opts.items.length,
         all_documents_valid: itemSummaries.every((s) => s.document_valid || s.document_kind === "indefinido"),
         items: itemSummaries,
         upload_url: uploadUrl,
+        email_subject: emailSubject,
+        request_message: requestMessage,
       };
       summaries.push(summary);
 
@@ -380,75 +316,16 @@ serve(async (req) => {
         (s.document_raw ? ` · ${s.document_kind.toUpperCase()} ${s.document_formatted} ${s.document_valid ? "✓" : "⚠"}` : "")
       ).join("\n");
 
-      // ---- Texto-padrão do pedido (template HIG) ----
-      // Setores: combina sectors + specialties do pagamento (fallback "Produção")
-      const setoresArr: string[] = Array.from(new Set([
-        ...(Array.isArray(payment.sectors) ? payment.sectors : []),
-        ...(Array.isArray(payment.specialties) ? payment.specialties : []),
-      ].filter(Boolean)));
-      const setoresStr = setoresArr.length ? joinPt(setoresArr) : "Produção médica";
-      const competenciaStr = formatCompetenceBR(
-        Array.isArray(payment.competence_months) && payment.competence_months.length
-          ? payment.competence_months
-          : payment.competence_month,
-      );
-      // Assunto padronizado:
-      // "Solicitação de Nota Fiscal - DF Star - Produção - {Setores} - {Competência}"
-      const subjectParts = [
-        "Solicitação de Nota Fiscal",
-        "DF Star",
-        "Produção",
-        setoresStr,
-      ];
-      if (competenciaStr) subjectParts.push(competenciaStr);
-      const emailSubject = subjectParts.join(" - ");
-      summary["email_subject"] = emailSubject;
-      // Prazo = data pgto - 10 dias úteis (se houver due_date)
-      let prazoLine = "";
-      if (payment.payment_due_date) {
-        // payment_due_date vem como "YYYY-MM-DD" — parse como UTC pra evitar shift
-        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(payment.payment_due_date));
-        if (m) {
-          const due = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-          const prazo = addBusinessDays(due, -BUSINESS_DAYS_BEFORE_DUE);
-          prazoLine = `Favor emitir a Nota Fiscal e nos encaminhar até o dia ${formatDateBR(prazo)}.`;
-        }
-      }
-
-      const greeting = greetingBrasilia();
-      // Mesmo link atende upload da NF e envio de dúvidas/divergências (o portal tem ambas as abas)
-      const portalUrl = uploadUrl;
-      const requestMessage =
-`Prezados,
-${greeting}!
-
-Solicitamos, por gentileza, a emissão de Nota Fiscal referente ${aoAos(setoresArr.length)} Produção de ${setoresStr}${competenciaStr ? ` ${competenciaStr}` : ""}:
-
-${opts.recipient_label} - ${setoresStr}
-Valor: ${summary.total_amount_formatted}
-Previsão de pagamento: 10 dias úteis após o envio da NF.
-Para envio da NF ou caso tenha dúvidas ou questionamentos, utilize o link abaixo:
-
-${portalUrl}
-
-Dados Cadastrais do Hospital:
-${DADOS_CADASTRAIS}
-${prazoLine ? `\n${prazoLine}\n` : ""}
-${ASSINATURA}`;
-
       await supabase.from("invoices").update({ request_message: requestMessage }).eq("id", invoice.id);
-      summary["request_message"] = requestMessage;
 
-      // SIMULAÇÃO: enquanto o provedor de e-mail (Resend/Lovable Emails) não está
-      // conectado, registramos o conteúdo no log para inspeção.
-      console.log("[send-invoice-request] PEDIDO DE NF (simulado)", {
+      console.log("[send-invoice-request] PEDIDO DE NF", {
         invoice_id: invoice.id,
         to: opts.to,
         cc: opts.cc,
         recipient_label: opts.recipient_label,
-        total: summary.total_amount_formatted,
+        total: totalFormatted,
         upload_url: uploadUrl,
-        items_count: summary.items_count,
+        items_count: opts.items.length,
       });
 
       try {
@@ -462,7 +339,7 @@ ${ASSINATURA}`;
             templateData: {
               recipientLabel: opts.recipient_label,
               reference: payment.reference,
-              totalAmount: summary.total_amount_formatted,
+              totalAmount: totalFormatted,
               uploadUrl,
               itemsList,
               requestMessage,
@@ -479,9 +356,7 @@ ${ASSINATURA}`;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.warn("[send-invoice-request] falha ao despachar e-mail:", msg);
-        await supabase.from("invoices").update({
-          send_error: msg.slice(0, 500),
-        }).eq("id", invoice.id);
+        await supabase.from("invoices").update({ send_error: msg.slice(0, 500) }).eq("id", invoice.id);
         sentErr++;
         sendErrors.push(`${opts.recipient_label}: ${msg}`);
       }
@@ -497,10 +372,10 @@ ${ASSINATURA}`;
         doctorBucket = byDoctorFallback.get(k);
       }
       if (!bucket && !doctorBucket) {
-        return new Response(JSON.stringify({
+        return json({
           error: "sem_itens",
           message: "Não há itens elegíveis para reenviar esta NF (a empresa pode ter sido removida do pagamento).",
-        }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }, 422);
       }
       if (bucket) {
         await processBucket({
@@ -525,18 +400,17 @@ ${ASSINATURA}`;
           reuse_invoice: targetInvoice,
         });
       }
-
-      return new Response(JSON.stringify({
+      return json({
         ok: true,
         mode: "single",
         invoice_id: targetInvoice.id,
         sent_ok: sentOk,
         sent_error: sentErr,
         send_errors: sendErrors,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      });
     }
 
-    // 1) Buckets por empresa
+    // ---- Modo lote ----
     for (const bucket of byCompany.values()) {
       await processBucket({
         to: bucket.to,
@@ -548,7 +422,6 @@ ${ASSINATURA}`;
         recipient_label: bucket.company_name,
       });
     }
-    // 2) Fallback por médico (itens sem empresa)
     for (const bucket of byDoctorFallback.values()) {
       await processBucket({
         to: [bucket.doctor_email],
@@ -561,9 +434,6 @@ ${ASSINATURA}`;
       });
     }
 
-    // Só avança o pagamento se ao menos um envio teve sucesso. Se TODOS falharam,
-    // o pagamento permanece "aprovado" (= aguardando envio) e as invoices
-    // ficam visíveis em /notas-fiscais com a mensagem de erro do provedor.
     if (sentOk > 0) {
       await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", resolvedPaymentId);
       await supabase.from("payment_observations").insert({
@@ -584,18 +454,17 @@ ${ASSINATURA}`;
       });
     }
 
-    return new Response(JSON.stringify({
+    return json({
       ok: true,
       invoices_created: created.length,
       sent_ok: sentOk,
       sent_error: sentErr,
       send_errors: sendErrors,
       summaries,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     console.error("[send-invoice-request] erro:", msg);
-    return new Response(JSON.stringify({ error: msg }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return json({ error: msg }, 500);
   }
 });
