@@ -26,11 +26,14 @@ export const InvoiceQuestionsThread = ({
   paymentId,
   initial,
   onSent,
+  notifyOnReply = true,
 }: {
   invoiceId: string;
   paymentId: string;
   initial?: InvoiceQuestion[];
   onSent?: () => void;
+  /** Dispara a edge `notify-question-reply` para avisar o recebedor por e-mail. */
+  notifyOnReply?: boolean;
 }) => {
   const { user } = useAuth();
   const [items, setItems] = useState<InvoiceQuestion[]>(initial ?? []);
@@ -75,6 +78,20 @@ export const InvoiceQuestionsThread = ({
     setItems((prev) => [...prev, data as InvoiceQuestion]);
     setDraft("");
     onSent?.();
+    if (notifyOnReply) {
+      // Best-effort: não bloqueia a UI se o provedor de e-mail estiver indisponível.
+      void supabase.functions
+        .invoke("notify-question-reply", {
+          body: {
+            invoice_id: invoiceId,
+            message,
+            author_name: user.user_metadata?.full_name ?? user.email ?? null,
+          },
+        })
+        .then(({ error: e }) => {
+          if (e) console.warn("[InvoiceQuestionsThread] notify falhou:", e.message);
+        });
+    }
   };
 
   return (
