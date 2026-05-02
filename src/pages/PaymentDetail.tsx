@@ -377,10 +377,25 @@ const PaymentDetail = () => {
       return;
     }
     const n = payload?.invoices_created ?? 0;
-    toast({
-      title: "Pedido(s) de NF enviado(s)",
-      description: `${n} pedido(s) gerado(s). Empresas recebem como destinatário (TO) e os médicos correspondentes em cópia (CC).`,
-    });
+    const ok = payload?.sent_ok ?? n;
+    const err = payload?.sent_error ?? 0;
+    if (err > 0 && ok === 0) {
+      toast({
+        title: "Falha no envio",
+        description: `Nenhum e-mail foi enviado (${err} erro${err === 1 ? "" : "s"}). Verifique o provedor em Notas Fiscais.`,
+        variant: "destructive",
+      });
+    } else if (err > 0) {
+      toast({
+        title: `${ok} pedido(s) enviado(s), ${err} com erro`,
+        description: `Veja em Notas Fiscais para reenviar os que falharam.`,
+      });
+    } else {
+      toast({
+        title: "Pedido(s) de NF enviado(s)",
+        description: `${n} pedido(s) gerado(s). Empresas recebem como destinatário (TO) e os médicos correspondentes em cópia (CC).`,
+      });
+    }
     load();
   };
 
@@ -389,7 +404,10 @@ const PaymentDetail = () => {
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalista = hasRole("analista") || hasRole("admin");
-  const canRequestNf = isDiretor && payment.status === "aprovado";
+  // Analista também precisa poder disparar o pedido de NF assim que o
+  // pagamento for aprovado (era restrito a diretor/admin antes).
+  const canRequestNf =
+    (isAnalista || isValidador || isDiretor) && payment.status === "aprovado";
   // Para o botão "Enviar para validação" do analista no header
   const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
   const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;

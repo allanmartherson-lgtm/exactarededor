@@ -12,7 +12,7 @@ import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import {
   MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet,
-  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp,
+  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning,
 } from "lucide-react";
 
 const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
@@ -45,6 +45,7 @@ interface InvoiceRow {
   invoice_number: string | null;
   status: InvoiceStatus;
   sent_at: string | null;
+  send_error: string | null;
   reconciliation_notes: string | null;
   ai_validation: { divergences?: string[]; confidence?: string; notes?: string } | null;
   ai_extracted_amount: number | null;
@@ -224,9 +225,19 @@ const Invoices = () => {
                     {ccCount > 0 && (
                       <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />+{ccCount} em cópia</span>
                     )}
-                    {age != null && (
+                    {i.sent_at && age != null && (
                       <span className={`inline-flex items-center gap-1 ${TONE_CLASSES[ageTone(age) as keyof typeof TONE_CLASSES]?.split(" ")[1] ?? ""}`}>
                         <Clock className="h-3 w-3" /> enviado há {age === 0 ? "hoje" : `${age}d`}
+                      </span>
+                    )}
+                    {!i.sent_at && !i.send_error && (
+                      <span className="inline-flex items-center gap-1 text-warning-foreground">
+                        <Clock className="h-3 w-3" /> aguardando envio
+                      </span>
+                    )}
+                    {i.send_error && (
+                      <span className="inline-flex items-center gap-1 text-destructive">
+                        <MailWarning className="h-3 w-3" /> erro no envio
                       </span>
                     )}
                   </p>
@@ -238,6 +249,12 @@ const Invoices = () => {
                     {" "}· {formatDate(i.sent_at)}
                   </p>
                   {i.reconciliation_notes && <p className="text-xs mt-1">{i.reconciliation_notes}</p>}
+                  {i.send_error && (
+                    <p className="text-xs mt-1 text-destructive flex items-start gap-1.5">
+                      <MailWarning className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span><strong>Falha do provedor de e-mail:</strong> {i.send_error}</span>
+                    </p>
+                  )}
                   {i.ai_validation && (
                     <div className="mt-1.5 flex items-start gap-1.5 text-xs">
                       <Bot className="h-3.5 w-3.5 text-info shrink-0 mt-0.5" />

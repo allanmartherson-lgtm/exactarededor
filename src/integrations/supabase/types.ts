@@ -297,6 +297,7 @@ export type Database = {
           recipient_email: string
           reconciliation_notes: string | null
           request_message: string | null
+          send_error: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           updated_at: string
@@ -323,6 +324,7 @@ export type Database = {
           recipient_email: string
           reconciliation_notes?: string | null
           request_message?: string | null
+          send_error?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           updated_at?: string
@@ -349,6 +351,7 @@ export type Database = {
           recipient_email?: string
           reconciliation_notes?: string | null
           request_message?: string | null
+          send_error?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           updated_at?: string

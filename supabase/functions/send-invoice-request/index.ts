@@ -255,6 +255,9 @@ serve(async (req) => {
 
     const baseUrl = req.headers.get("origin") ?? Deno.env.get("PUBLIC_APP_URL") ?? "";
     const created: string[] = [];
+    let sentOk = 0;
+    let sentErr = 0;
+    const sendErrors: string[] = [];
     const summaries: any[] = [];
 
     const processBucket = async (opts: {
@@ -273,7 +276,7 @@ serve(async (req) => {
         recipient_cc: opts.cc,
         items_count: opts.items.length,
         status: "aguardando",
-        sent_at: new Date().toISOString(),
+        // sent_at só é preenchido quando o provedor confirma o envio (logo abaixo)
         company_id: opts.company_id,
         company_name: opts.company_name,
       }).select().single();
@@ -403,8 +406,19 @@ ${ASSINATURA}`;
             },
           },
         });
+        await supabase.from("invoices").update({
+          sent_at: new Date().toISOString(),
+          send_error: null,
+        }).eq("id", invoice.id);
+        sentOk++;
       } catch (e) {
-        console.warn("[send-invoice-request] provedor de e-mail não configurado:", e);
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[send-invoice-request] falha ao despachar e-mail:", msg);
+        await supabase.from("invoices").update({
+          send_error: msg.slice(0, 500),
+        }).eq("id", invoice.id);
+        sentErr++;
+        sendErrors.push(`${opts.recipient_label}: ${msg}`);
       }
     };
 
@@ -433,17 +447,35 @@ ${ASSINATURA}`;
       });
     }
 
-    await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", payment_id);
-    await supabase.from("payment_observations").insert({
-      payment_id,
-      author_type: "sistema",
-      message: `${created.length} pedido(s) de NF enviado(s). ${byCompany.size} para empresa(s) e ${byDoctorFallback.size} para médico(s) sem empresa vinculada.`,
-      status_to: "pedido_nf_enviado",
-    });
+    // Só avança o pagamento se ao menos um envio teve sucesso. Se TODOS falharam,
+    // o pagamento permanece "aprovado" (= aguardando envio) e as invoices
+    // ficam visíveis em /notas-fiscais com a mensagem de erro do provedor.
+    if (sentOk > 0) {
+      await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", payment_id);
+      await supabase.from("payment_observations").insert({
+        payment_id,
+        author_type: "sistema",
+        message:
+          `${sentOk} pedido(s) de NF enviado(s) com sucesso` +
+          (sentErr > 0 ? ` · ${sentErr} falharam: ${sendErrors.join("; ")}` : "") +
+          `. ${byCompany.size} para empresa(s) e ${byDoctorFallback.size} para médico(s) sem empresa vinculada.`,
+        status_to: "pedido_nf_enviado",
+      });
+    } else if (sentErr > 0) {
+      await supabase.from("payment_observations").insert({
+        payment_id,
+        author_type: "sistema",
+        message: `Falha ao enviar ${sentErr} pedido(s) de NF: ${sendErrors.join("; ")}. Configure o provedor de e-mail e use "Reenviar" em /notas-fiscais.`,
+        status_to: null,
+      });
+    }
 
     return new Response(JSON.stringify({
       ok: true,
       invoices_created: created.length,
+      sent_ok: sentOk,
+      sent_error: sentErr,
+      send_errors: sendErrors,
       summaries,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
