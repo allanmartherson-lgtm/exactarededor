@@ -201,21 +201,51 @@ All colors MUST be HSL.
     background: hsl(var(--hover-surface));
   }
 
-  .side-nav-idle {
-    color: hsl(var(--secondary-foreground));
+  /* ============ Sidebar nav items ============
+   * Spec: row, items-center, gap 11px, padding 10px 12px, border-radius 8px,
+   * font-size 13.5px. Single line. Tokens only — no hardcoded colors. */
+  .side-nav-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    line-height: 1.2;
     border-left: 3px solid transparent;
-    padding-left: 9px !important;
+    /* compensate for left border so text aligns with the 12px spec */
+    padding-left: 9px;
+    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .side-nav-item > svg {
+    flex-shrink: 0;
+  }
+  .side-nav-item > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .side-nav-idle {
+    color: hsl(var(--secondary-foreground));   /* text-secondary */
+    background: transparent;
   }
   .side-nav-idle:hover {
-    background: hsl(var(--muted));
-    color: hsl(var(--foreground));
+    background: hsl(var(--muted));              /* bg-hover */
+    color: hsl(var(--foreground));              /* text-primary */
   }
-  .side-nav-active {
-    background: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
+
+  .side-nav-active,
+  .side-nav-active:hover {
+    background: hsl(var(--accent));             /* accent-light */
+    color: hsl(var(--accent-foreground));       /* accent-text */
     font-weight: 500;
-    border-left: 3px solid hsl(var(--primary));
-    padding-left: 9px !important;
+    border-left-color: hsl(var(--primary));     /* accent */
+  }
+  .side-nav-active > svg {
+    color: hsl(var(--accent-foreground));
   }
 }
 
