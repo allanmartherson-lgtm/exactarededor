@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowLeft, Ban, CalendarDays, CheckCircle2, FileDown, GitCompare, History, Mail, MessageSquarePlus, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, RotateCcw, Send, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -72,17 +72,21 @@ const PaymentDetail = () => {
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [groupComment, setGroupComment] = useState<Record<string, string>>({});
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,full_name,email"),
       supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
+      supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
     ]);
-    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []);
+    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []);
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
