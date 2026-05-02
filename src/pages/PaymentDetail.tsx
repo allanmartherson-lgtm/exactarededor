@@ -31,41 +31,10 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquare, MessageSquarePlus, Receipt, RefreshCcw, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, Receipt, RefreshCcw, RotateCcw, Search, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
-};
-
-const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
-
-type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
-const RuleTooltipContent = ({
-  rules,
-  fallbackNames,
-}: {
-  rules: RuleLite[];
-  fallbackNames: string[];
-}) => {
-  const blocks = rules.length
-    ? rules.map((r) => ({
-        name: r.name,
-        text: truncate((r.rule_text ?? "").trim(), 220),
-        desc: r.description ? truncate(r.description.trim(), 140) : "",
-      }))
-    : fallbackNames.map((n) => ({ name: n, text: "", desc: "" }));
-
-  return (
-    <div className="space-y-2 text-xs leading-snug">
-      {blocks.map((b, i) => (
-        <div key={i} className={i > 0 ? "border-t border-border/40 pt-2" : ""}>
-          <div className="font-semibold">{truncate(b.name, 80)}</div>
-          {b.text && <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{b.text}</p>}
-          {b.desc && <p className="mt-0.5 italic text-muted-foreground/80">{b.desc}</p>}
-        </div>
-      ))}
-    </div>
-  );
 };
 
 const PaymentDetail = () => {
