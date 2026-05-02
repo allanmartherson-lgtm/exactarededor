@@ -83,21 +83,21 @@ const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  const [payment, setPayment] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [obs, setObs] = useState<any[]>([]);
+  const [payment, setPayment] = useState<PaymentRow | null>(null);
+  const [items, setItems] = useState<PaymentItemRow[]>([]);
+  const [obs, setObs] = useState<ObservationRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [rulesIndex, setRulesIndex] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
-  const [aiVersions, setAiVersions] = useState<any[]>([]);
+  const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
-  const [groups, setGroups] = useState<any[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -105,7 +105,7 @@ const PaymentDetail = () => {
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [questions, setQuestions] = useState<InvoiceQuestion[] & { invoice_id: string }[]>([] as any);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
