@@ -90,7 +90,7 @@ export const AppLayout = () => {
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground"
+            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
             aria-label={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
           >
             {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
@@ -100,7 +100,7 @@ export const AppLayout = () => {
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground"
+            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
           >
             <LogOut className="h-4 w-4 mr-2" /> Sair
           </Button>
