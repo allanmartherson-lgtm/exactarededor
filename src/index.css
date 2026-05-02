@@ -235,6 +235,16 @@ All colors MUST be HSL.
     vertical-align: middle;
     padding: 12px 16px;
     color: hsl(var(--foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+  }
+  table tbody td.cell-wrap {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
   }
 
   table tbody tr {
