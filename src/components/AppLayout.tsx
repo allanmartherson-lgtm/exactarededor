@@ -2,28 +2,61 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
-import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2, Network, History, Sun, Moon, BarChart3 } from "lucide-react";
+import {
+  LayoutDashboard,
+  Wallet,
+  Receipt,
+  BarChart2,
+  ShieldCheck,
+  Table,
+  Building2,
+  Users,
+  History,
+  Sun,
+  Moon,
+  Plus,
+  LogOut,
+  ScrollText,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/pagamentos", label: "Pagamentos", icon: FileText, roles: ["analista", "validador", "diretor", "admin"] as const },
+  { to: "/pagamentos", label: "Pagamentos", icon: Wallet, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/kpis", label: "KPIs", icon: BarChart3, roles: ["analista", "validador", "diretor", "admin"] as const },
+  { to: "/kpis", label: "KPIs", icon: BarChart2, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/regras", label: "Regras", icon: ScrollText, roles: ["diretor", "admin"] as const },
-  { to: "/tabelas", label: "Tabelas de referência", icon: Table2, roles: ["diretor", "admin"] as const },
+  { to: "/tabelas", label: "Tabelas", icon: Table, roles: ["diretor", "admin"] as const },
   { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] as const },
-  { to: "/centros-de-custo", label: "Centros de custo", icon: Network, roles: ["analista", "validador", "diretor", "admin"] as const },
   { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"] as const },
   { to: "/auditoria", label: "Auditoria", icon: History, roles: ["diretor", "admin"] as const },
 ];
+
+function getInitials(email?: string | null) {
+  if (!email) return "AA";
+  const name = email.split("@")[0].replace(/[._-]+/g, " ").trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "AA";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
+  const initials = getInitials(user?.email);
+  const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
 
   const handleSignOut = async () => {
     await signOut();
@@ -31,85 +64,114 @@ export const AppLayout = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
-      <aside className="w-56 lg:w-64 xl:w-72 bg-sidebar text-sidebar-foreground flex-shrink-0 flex flex-col border-r border-sidebar-border shadow-[1px_0_3px_0_hsl(var(--foreground)/0.04),4px_0_12px_-6px_hsl(var(--foreground)/0.06)] dark:shadow-[1px_0_0_0_hsl(var(--sidebar-border))] sticky top-0 h-screen self-start">
-        <div className="px-4 lg:px-5 py-5 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-gradient-brand flex items-center justify-center flex-shrink-0">
-              <ShieldCheck className="h-5 w-5 text-primary-foreground" />
+    <div className="min-h-screen bg-background flex flex-col">
+      <header
+        className="sticky top-0 z-40 h-14 bg-card border-b border-border shadow-soft"
+        style={{ height: "56px" }}
+      >
+        <div className="h-full max-w-[1400px] mx-auto px-5 flex items-center gap-5">
+          {/* Logo */}
+          <NavLink to="/" className="flex items-center gap-2.5 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
+            <div
+              className="flex items-center justify-center flex-shrink-0 bg-primary"
+              style={{ width: 30, height: 30, borderRadius: 8 }}
+            >
+              <ShieldCheck className="h-4 w-4 text-primary-foreground" />
             </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-sm leading-tight text-sidebar-foreground truncate">MedPay</p>
-              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/75 truncate">Approval Flow</p>
+            <div className="min-w-0 leading-tight hidden sm:block">
+              <p className="font-bold text-[13px] text-foreground leading-none">MedPay</p>
+              <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5 leading-none">
+                Approval Flow
+              </p>
             </div>
-          </div>
-        </div>
+          </NavLink>
 
-        <nav className="flex-1 px-2 lg:px-3 py-4 space-y-0.5 overflow-y-auto">
-          {nav
-            .filter((item) => item.roles.some((r) => roles.includes(r)))
-            .map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/"}
-                className={({ isActive }) =>
-                  cn(
-                    "group relative flex items-center gap-2.5 pl-3 pr-2.5 lg:pr-3 py-2 rounded-md text-[13px] lg:text-sm leading-tight transition-all outline-none",
-                    "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-sm hover:bg-sidebar-accent/90 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-full before:bg-sidebar-primary"
-                      : "text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground hover:translate-x-0.5 focus-visible:bg-sidebar-hover focus-visible:text-sidebar-hover-foreground",
-                  )
-                }
+          {/* Center nav */}
+          <nav
+            className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-none"
+            style={{ gap: "1px" }}
+            aria-label="Navegação principal"
+          >
+            {nav
+              .filter((item) => item.roles.some((r) => roles.includes(r)))
+              .map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === "/"}
+                  className={({ isActive }) =>
+                    cn(
+                      "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isActive
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )
+                  }
+                  style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
+                >
+                  <item.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+          </nav>
+
+          {/* Right cluster */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {canCreate && (
+              <Button
+                onClick={() => navigate("/pagamentos/novo")}
+                className="h-9 px-3 text-[13px] font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                style={{ borderRadius: 7 }}
               >
-                {({ isActive }) => (
-                  <>
-                    <item.icon
-                      className={cn(
-                        "h-4 w-4 flex-shrink-0 transition-colors",
-                        isActive
-                          ? "text-sidebar-primary"
-                          : "text-sidebar-foreground/60 group-hover:text-sidebar-hover-foreground group-focus-visible:text-sidebar-hover-foreground",
-                      )}
-                    />
-                    <span className="truncate">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
-            ))}
-        </nav>
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Nova base</span>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              aria-label={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
 
-        <div className="px-2 lg:px-3 py-3 border-t border-sidebar-border space-y-2">
-          <div className="px-2 py-2 rounded-md bg-sidebar-hover min-w-0">
-            <p className="text-[12px] font-medium text-sidebar-foreground truncate" title={user?.email ?? undefined}>{user?.email}</p>
-            <p className="text-[10px] text-sidebar-muted-foreground mt-0.5 truncate">
-              {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-            </p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="h-9 w-9 rounded-full bg-accent text-accent-foreground text-[12px] font-semibold flex items-center justify-center hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Menu do usuário"
+                >
+                  {initials}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-[13px] font-medium truncate">{user?.email}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" /> Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleTheme}
-            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
-            aria-label={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
-            {theme === "dark" ? "Modo claro" : "Modo escuro"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
-          >
-            <LogOut className="h-4 w-4 mr-2" /> Sair
-          </Button>
         </div>
-      </aside>
+      </header>
 
-      <main className="flex-1 min-w-0 overflow-x-auto min-h-screen">
-        <Outlet />
+      <main className="flex-1 min-w-0">
+        <div
+          className="mx-auto w-full"
+          style={{ maxWidth: "1080px", padding: "32px 28px" }}
+        >
+          <Outlet />
+        </div>
       </main>
     </div>
   );
