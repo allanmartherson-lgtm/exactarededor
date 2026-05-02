@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, MessageCircleQuestion } from "lucide-react";
+import { ShieldCheck, MessageCircleQuestion, Clock } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/status";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-invoice`;
@@ -26,6 +26,7 @@ const InvoicePortal = () => {
   const [info, setInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [now, setNow] = useState<Date>(new Date());
   const [done, setDone] = useState<{
     matches: boolean;
     form_diff?: number;
@@ -54,6 +55,12 @@ const InvoicePortal = () => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Relógio do momento do envio — exibido como informação travada (read-only).
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -91,7 +98,30 @@ const InvoicePortal = () => {
   if (info?.error || !info?.invoice) return <div className="min-h-screen flex items-center justify-center"><Card className="max-w-md"><CardContent className="p-8 text-center"><p className="font-medium">Link inválido ou expirado.</p></CardContent></Card></div>;
 
   const inv = info.invoice;
+  const pay = info.payment ?? {};
   const expired = inv.status !== "aguardando";
+
+  // Competência: prefere o array (suporta múltiplos meses), cai para o singular.
+  const competenceList: string[] = Array.isArray(pay.competence_months) && pay.competence_months.length > 0
+    ? pay.competence_months
+    : (pay.competence_month ? [pay.competence_month] : []);
+  const competenceLabel = competenceList
+    .map((d: string) => {
+      const [y, m] = String(d).split("-");
+      return m && y ? `${m}/${y}` : String(d);
+    })
+    .join(", ");
+
+  const sectorsLabel = [
+    ...(Array.isArray(pay.sectors) ? pay.sectors : []),
+    ...(Array.isArray(pay.specialties) ? pay.specialties : []),
+  ].join(", ");
+
+  const itemLabel = pay.description || pay.payment_kind || pay.reference;
+
+  const sentAtLabel = inv.received_at
+    ? formatDate(inv.received_at)
+    : now.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
   return (
     <div className="min-h-screen bg-gradient-soft p-4 flex items-center justify-center">
@@ -99,16 +129,45 @@ const InvoicePortal = () => {
         <header className="text-center mb-6">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand mb-3"><ShieldCheck className="h-6 w-6 text-primary-foreground" /></div>
           <h1 className="text-xl font-semibold">Envio de Nota Fiscal</h1>
-          <p className="text-sm text-muted-foreground mt-1">{info.payment?.reference}</p>
+          <p className="text-sm text-muted-foreground mt-1">{pay.reference}</p>
         </header>
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-base">Pedido aprovado</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm mb-4">
-              Valor a ser emitido: <strong>{formatCurrency(inv.expected_amount)}</strong>
-            </p>
+            {/* Cabeçalho com dados do pedido — ajuda o recebedor a confirmar
+                que está no link correto antes de enviar a NF. */}
+            <dl className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1.5 mb-4">
+              {inv.company_name && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">PJ</dt>
+                  <dd className="font-medium text-right">{inv.company_name}</dd>
+                </div>
+              )}
+              {itemLabel && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Item de pagamento</dt>
+                  <dd className="font-medium text-right">{itemLabel}</dd>
+                </div>
+              )}
+              {sectorsLabel && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Setor / Especialidade</dt>
+                  <dd className="font-medium text-right">{sectorsLabel}</dd>
+                </div>
+              )}
+              {competenceLabel && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Competência</dt>
+                  <dd className="font-medium text-right">{competenceLabel}</dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-3 pt-1.5 border-t">
+                <dt className="text-muted-foreground">Valor a ser emitido</dt>
+                <dd className="font-semibold text-right">{formatCurrency(inv.expected_amount)}</dd>
+              </div>
+            </dl>
             {done ? (
               <div className={`rounded-lg p-4 text-sm space-y-2 ${done.matches ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}>
                 {done.matches ? (
@@ -139,8 +198,16 @@ const InvoicePortal = () => {
                 <TabsContent value="upload" className="mt-4">
                   <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-1.5"><Label>Número da NF</Label><Input name="invoice_number" required maxLength={50} /></div>
-                    <div className="space-y-1.5"><Label>Valor bruto da nota (R$)</Label><Input name="received_amount" type="number" step="0.01" required /></div>
                     <div className="space-y-1.5"><Label>Arquivo (PDF/XML)</Label><Input name="file" type="file" accept=".pdf,.xml" required /></div>
+                    {/* Data/hora do envio — somente leitura. Reforça para o
+                        recebedor o instante em que a NF está sendo registrada. */}
+                    <div className="space-y-1.5">
+                      <Label>Data e hora do envio</Label>
+                      <div className="flex items-center gap-2 rounded-md border border-input bg-muted/40 px-3 h-10 text-sm text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>{sentAtLabel}</span>
+                      </div>
+                    </div>
                     <Button type="submit" disabled={submitting} className="w-full">{submitting ? "Enviando..." : "Enviar nota"}</Button>
                   </form>
                 </TabsContent>
