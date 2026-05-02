@@ -324,6 +324,49 @@ const Companies = () => {
                   </div>
                 </div>
                 <div className="space-y-1.5">
+                  <Label>E-mails para pedido de NF</Label>
+                  <p className="text-xs text-muted-foreground">
+                    O pedido de Nota Fiscal será enviado a estes endereços (TO).
+                    O e-mail do médico será incluído como cópia (CC). Pressione Enter, vírgula ou ponto-e-vírgula para adicionar.
+                  </p>
+                  <Input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === "," || e.key === ";") && emailInput.trim()) {
+                        e.preventDefault();
+                        const v = emailInput.trim().toLowerCase();
+                        if (!isValidEmail(v)) {
+                          toast({ title: "E-mail inválido", description: v, variant: "destructive" });
+                          return;
+                        }
+                        if ((editing.invoice_emails ?? []).includes(v)) {
+                          setEmailInput("");
+                          return;
+                        }
+                        setEditing({ ...editing, invoice_emails: [...(editing.invoice_emails ?? []), v] });
+                        setEmailInput("");
+                      }
+                    }}
+                    placeholder="financeiro@empresa.com"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {(editing.invoice_emails ?? []).map((a, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1">
+                        <Mail className="h-3 w-3" />
+                        {a}
+                        <button
+                          aria-label={`Remover ${a}`}
+                          onClick={() => setEditing({ ...editing, invoice_emails: editing.invoice_emails.filter((_, j) => j !== i) })}
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
                   <Label>Notas</Label>
                   <Textarea rows={2} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
                 </div>
@@ -349,6 +392,7 @@ const Companies = () => {
                     <th className="px-4 py-2 font-medium">Nome</th>
                     <th className="px-4 py-2 font-medium">CNPJ</th>
                     <th className="px-4 py-2 font-medium">Apelidos</th>
+                    <th className="px-4 py-2 font-medium">E-mails NF</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
@@ -370,6 +414,19 @@ const Companies = () => {
                         <div className="flex flex-wrap gap-1">
                           {(c.aliases ?? []).map((a, i) => <Badge key={i} variant="outline" className="text-xs">{a}</Badge>)}
                           {(c.aliases ?? []).length === 0 && <span className="text-muted-foreground">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {(c.invoice_emails ?? []).map((a, i) => (
+                            <Badge key={i} variant="outline" className="text-xs gap-1">
+                              <Mail className="h-3 w-3" />
+                              {a}
+                            </Badge>
+                          ))}
+                          {(c.invoice_emails ?? []).length === 0 && (
+                            <span className="text-muted-foreground text-xs">— sem cadastro</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right">
