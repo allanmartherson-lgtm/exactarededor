@@ -5,6 +5,7 @@ import {
   type PipelineOwnerFilter,
   type PipelineWindowFilter,
   type PipelineDensity,
+  type PipelineMode,
 } from "@/hooks/use-pipeline-preferences";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -50,6 +51,19 @@ const PIPELINE_WINDOW_DAYS: Record<PipelineWindowFilter, number | null> = {
 const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
   compact: "Compacto",
   comfortable: "Confortável",
+};
+const PIPELINE_MODE_LABEL: Record<PipelineMode, string> = {
+  full: "Pipeline completo",
+  queue: "Minha fila de ação",
+};
+/**
+ * Quando o modo é "Minha fila de ação", apenas as colunas associadas ao
+ * papel selecionado são exibidas. "Todos" cai de volta no pipeline completo.
+ */
+const QUEUE_COLUMNS: Record<Exclude<PipelineOwnerFilter, "all">, ReadonlySet<string>> = {
+  analista: new Set(["Análise", "Divergente"]),
+  validador: new Set(["Validação"]),
+  diretor: new Set(["Aprovação"]),
 };
 /**
  * Status que indicam que o pagamento já chegou (ou passou) pela alçada do diretor.
