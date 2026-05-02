@@ -1211,8 +1211,8 @@ const PaymentDetail = () => {
                     </div>
                   )}
                   {isGroupExpanded && (
-                  <CardContent className="p-0 overflow-x-auto print:overflow-visible">
-                    <table className="w-full min-w-[980px] text-[12px] table-fixed print:min-w-0 print:text-[10px]">
+                  <CardContent className="p-0 print:overflow-visible">
+                    <table className="w-full text-[12px] table-fixed print:text-[10px]">
                       <colgroup>
                         <col className="w-6" />
                         <col className="w-[68px]" />
