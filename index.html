@@ -24,6 +24,17 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Apply nav layout preference before render to avoid flash.
+      (function () {
+        try {
+          var v = localStorage.getItem("nav-layout");
+          document.documentElement.dataset.navLayout = v === "side" ? "side" : "top";
+        } catch (e) {
+          document.documentElement.dataset.navLayout = "top";
+        }
+      })();
+    </script>
   </head>
 
   <body>
