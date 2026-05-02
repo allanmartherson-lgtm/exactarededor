@@ -36,8 +36,8 @@ export const AppLayout = () => {
               <ShieldCheck className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="font-semibold text-sm leading-tight text-sidebar-accent-foreground">MedPay</p>
-              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">Approval Flow</p>
+              <p className="font-semibold text-sm leading-tight text-sidebar-foreground">MedPay</p>
+              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/55">Approval Flow</p>
             </div>
           </div>
         </div>

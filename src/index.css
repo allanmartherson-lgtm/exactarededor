@@ -64,14 +64,14 @@ All colors MUST be HSL.
     --shadow-elevated: 0 12px 30px -8px hsl(195 75% 24% / 0.18);
 
     /* Sidebar */
-    --sidebar-background: 215 40% 13%;
-    --sidebar-foreground: 210 30% 88%;
-    --sidebar-primary: 188 70% 50%;
-    --sidebar-primary-foreground: 215 40% 13%;
-    --sidebar-accent: 215 35% 18%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 215 30% 22%;
-    --sidebar-ring: 188 70% 50%;
+    --sidebar-background: 210 25% 97%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 188 70% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 188 55% 92%;
+    --sidebar-accent-foreground: 188 80% 22%;
+    --sidebar-border: 215 20% 90%;
+    --sidebar-ring: 188 70% 45%;
   }
 
   .dark {
