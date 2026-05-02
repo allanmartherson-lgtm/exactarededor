@@ -75,6 +75,8 @@ const PaymentDetail = () => {
   const [groups, setGroups] = useState<any[]>([]);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [aiOpinionOpen, setAiOpinionOpen] = useState(false);
+  const [aiAlertExpanded, setAiAlertExpanded] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -304,7 +306,6 @@ const PaymentDetail = () => {
   );
   const topAlerts: { item: any; alerts: string[] }[] = items
     .filter((it) => it.ai_findings?.alerts?.length)
-    .slice(0, 6)
     .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
 
   // ===== Histórico (timeline + comparador de versões da IA) =====
@@ -644,35 +645,96 @@ const PaymentDetail = () => {
 
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2"><Sparkles className="h-4 w-4" /> Parecer da IA</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovados</span>
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} a validar</span>
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} possível erro</span>
-                {counts.pendente > 0 && (
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${TONE_CLASSES.muted}`}>• {counts.pendente} pendentes</span>
-                )}
+            <button
+              type="button"
+              onClick={() => setAiOpinionOpen((v) => !v)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-info-soft/60 transition-colors"
+              aria-expanded={aiOpinionOpen}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-semibold">Parecer da IA</span>
+                <div className="flex flex-wrap gap-1.5 ml-2">
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado}</span>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta}</span>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado}</span>
+                  {counts.pendente > 0 && (
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente}</span>
+                  )}
+                </div>
               </div>
-              {topAlerts.length > 0 && (
-                <ul className="text-sm space-y-1">
-                  {topAlerts.map(({ item, alerts }, idx) => (
-                    <li key={idx} className="flex gap-2">
-                      <span className="text-muted-foreground">•</span>
-                      <span><span className="font-medium">{item.doctor_name}</span> — {alerts[0]}{alerts.length > 1 && <span className="text-muted-foreground"> (+{alerts.length - 1})</span>}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {payment.ai_summary && (
-                <details className="text-xs text-muted-foreground">
-                  <summary className="cursor-pointer hover:text-foreground">Resumo detalhado</summary>
-                  <p className="mt-2 whitespace-pre-wrap">{payment.ai_summary}</p>
-                </details>
-              )}
-            </CardContent>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                <span className="hidden sm:inline">{topAlerts.length} alerta(s)</span>
+                {aiOpinionOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </div>
+            </button>
+            {aiOpinionOpen && (
+              <CardContent className="pt-0 space-y-2">
+                {topAlerts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Nenhum alerta gerado pela IA.</p>
+                ) : (
+                  <ul className="divide-y divide-border/40 rounded-md border border-border/40 bg-background/50">
+                    {topAlerts.map(({ item, alerts }) => {
+                      const expanded = aiAlertExpanded.has(item.id);
+                      const tone: keyof typeof TONE_CLASSES =
+                        item.ai_status === "reprovado" ? "destructive" : item.ai_status === "alerta" ? "warning" : "muted";
+                      return (
+                        <li key={item.id} className="text-xs">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAiAlertExpanded((prev) => {
+                                const n = new Set(prev);
+                                n.has(item.id) ? n.delete(item.id) : n.add(item.id);
+                                return n;
+                              })
+                            }
+                            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
+                          >
+                            {expanded ? <ChevronDown className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />}
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${tone === "destructive" ? "bg-destructive" : tone === "warning" ? "bg-warning" : "bg-muted-foreground"}`} />
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                <span className="font-medium">{item.doctor_name}</span>
+                                {item.attendance_number && <span className="text-muted-foreground font-mono">#{item.attendance_number}</span>}
+                                {item.patient_name && <span className="text-muted-foreground truncate">· {item.patient_name}</span>}
+                                {item.procedure_code && <span className="text-muted-foreground font-mono">· {item.procedure_code}</span>}
+                              </div>
+                              {!expanded && (
+                                <p className="text-muted-foreground line-clamp-1">
+                                  {alerts[0]}{alerts.length > 1 && <span> (+{alerts.length - 1})</span>}
+                                </p>
+                              )}
+                              {expanded && (
+                                <div className="space-y-1 pt-1">
+                                  {item.description && (
+                                    <p className="text-muted-foreground italic">{item.description}</p>
+                                  )}
+                                  <ul className="space-y-1">
+                                    {alerts.map((a, i) => (
+                                      <li key={i} className="flex gap-1.5 text-foreground">
+                                        <span className="text-muted-foreground">•</span>
+                                        <span className="whitespace-pre-wrap">{a}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {payment.ai_summary && (
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer hover:text-foreground">Resumo detalhado</summary>
+                    <p className="mt-2 whitespace-pre-wrap">{payment.ai_summary}</p>
+                  </details>
+                )}
+              </CardContent>
+            )}
           </Card>
         )}
 
