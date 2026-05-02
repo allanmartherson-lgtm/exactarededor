@@ -1034,34 +1034,34 @@ const PaymentDetail = () => {
                     </div>
                   )}
                   {isGroupExpanded && (
-                  <CardContent className="p-0 overflow-x-auto">
-                    <table className="w-full text-sm table-fixed">
+                  <CardContent className="p-0 overflow-x-auto print:overflow-visible">
+                    <table className="w-full min-w-[960px] text-sm table-fixed print:min-w-0 print:text-[10px]">
                       <colgroup>
                         <col className="w-8" />
-                        <col className="w-[88px]" />
-                        <col className="w-[15%]" />
-                        <col className="w-[13%]" />
-                        <col className="w-[18%]" />
-                        <col className="w-[92px]" />
+                        <col className="w-[80px]" />
+                        <col className="w-[14%]" />
+                        <col className="w-[12%] hidden md:table-column print:table-column" />
+                        <col className="w-[16%]" />
+                        <col className="w-[80px] hidden lg:table-column print:table-column" />
                         <col />
-                        <col className="w-[48px]" />
-                        <col className="w-[120px]" />
-                        <col className="w-[96px]" />
-                        <col className="w-10" />
+                        <col className="w-[44px]" />
+                        <col className="w-[110px]" />
+                        <col className="w-[88px] hidden sm:table-column print:table-column" />
+                        <col className="w-10 print:hidden" />
                       </colgroup>
                       <thead className="bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-2 py-2"></th>
+                          <th className="px-2 py-2 print:hidden"></th>
                           <th className="px-2 py-2">Atend.</th>
                           <th className="px-2 py-2">Paciente</th>
-                          <th className="px-2 py-2">Convênio</th>
+                          <th className="px-2 py-2 hidden md:table-cell print:table-cell">Convênio</th>
                           <th className="px-2 py-2">Médico / Função</th>
-                          <th className="px-2 py-2">TUSS</th>
+                          <th className="px-2 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
                           <th className="px-2 py-2">Descrição</th>
                           <th className="px-2 py-2 text-right">Qtd</th>
                           <th className="px-2 py-2 text-right">Valor</th>
-                          <th className="px-2 py-2">IA</th>
-                          <th className="px-2 py-2"></th>
+                          <th className="px-2 py-2 hidden sm:table-cell print:table-cell">IA</th>
+                          <th className="px-2 py-2 print:hidden"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -1107,17 +1107,17 @@ const PaymentDetail = () => {
                           return (
                             <>
                               <tr key={it.id} className="align-top hover:bg-muted/20 cursor-pointer" onClick={() => toggleItemExpanded(it.id)}>
-                                <td className="px-2 py-2 text-muted-foreground">
+                                <td className="px-2 py-2 text-muted-foreground print:hidden">
                                   {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                 </td>
                                 <td className="px-2 py-2 text-xs font-mono text-muted-foreground break-all">{it.attendance_number ?? "—"}</td>
                                 <td className="px-2 py-2 text-[13px] leading-snug break-words">{paciente}</td>
-                                <td className="px-2 py-2 text-[13px] leading-snug text-muted-foreground break-words">{convenio}</td>
+                                <td className="px-2 py-2 text-[13px] leading-snug text-muted-foreground break-words hidden md:table-cell print:table-cell">{convenio}</td>
                                 <td className="px-2 py-2 leading-snug">
                                   <div className="font-medium text-[13px] break-words">{it.doctor_name}</div>
                                   <div className="text-[11px] text-muted-foreground break-words">{it.doctor_role ?? "—"}</div>
                                 </td>
-                                <td className="px-2 py-2 font-mono text-xs break-all">{it.procedure_code ?? "—"}</td>
+                                <td className="px-2 py-2 font-mono text-xs break-all hidden lg:table-cell print:table-cell">{it.procedure_code ?? "—"}</td>
                                 <td className="px-2 py-2 leading-snug">
                                   <div className="text-[13px] line-clamp-2">{it.description ?? "—"}</div>
                                   {!isExpanded && it.ai_findings?.alerts?.length > 0 && (
@@ -1157,7 +1157,7 @@ const PaymentDetail = () => {
                                     <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-2 py-2">
+                                <td className="px-2 py-2 hidden sm:table-cell print:table-cell">
                                   {(() => {
                                     const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
                                     // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
@@ -1180,7 +1180,7 @@ const PaymentDetail = () => {
                                     );
                                   })()}
                                 </td>
-                                <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-2 py-2 text-right print:hidden" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
                                     onClick={() => toggleItemExpanded(it.id)}
