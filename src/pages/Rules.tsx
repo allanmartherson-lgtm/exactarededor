@@ -136,6 +136,11 @@ const Rules = () => {
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
+  // === Novo motor (Fase 4) ===
+  const [fCalculationType, setFCalculationType] = useState<RuleCalculationType>("informativo");
+  const [fConvenioPct, setFConvenioPct] = useState<string>("");
+  const [fFixedAmount, setFFixedAmount] = useState<string>("");
+  const [fExtrasCodes, setFExtrasCodes] = useState<string>("");
   const [refTableId, setRefTableId] = useState<string>("");
   const [codesInput, setCodesInput] = useState<string>("");
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
@@ -195,6 +200,7 @@ const Rules = () => {
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
     setRuleType("informativo"); setRefTableId(""); setCodesInput("");
+    setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
@@ -210,6 +216,10 @@ const Rules = () => {
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setRuleType((r.rule_type as RuleType) ?? "informativo");
+    setFCalculationType((r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo"));
+    setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
+    setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
+    setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
     setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
