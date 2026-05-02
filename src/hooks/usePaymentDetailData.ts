@@ -5,11 +5,27 @@ import type { InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 
 type Tables = Database["public"]["Tables"];
 export type PaymentRow = Tables["payments"]["Row"];
+export type AiFindingsEngine = {
+  calculation_type_used?: string;
+  matched_priority?:
+    | "medico_codigo"
+    | "medico"
+    | "empresa_codigo"
+    | "empresa"
+    | "setor_codigo"
+    | "setor"
+    | "setor_outro"
+    | "default_setor";
+  diff_pct?: number | null;
+  ai_note?: string | null;
+};
 export type AiFindings = {
   alerts?: string[];
   matched_rules?: string[];
   matched_rule_ids?: string[];
   calculation_explanation?: string;
+  expected_amount?: number | null;
+  engine?: AiFindingsEngine | null;
   [k: string]: unknown;
 };
 export type PaymentItemRow = Omit<Tables["payment_items"]["Row"], "ai_findings"> & {
