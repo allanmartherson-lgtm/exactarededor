@@ -389,7 +389,10 @@ const PaymentDetail = () => {
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalista = hasRole("analista") || hasRole("admin");
-  const canRequestNf = isDiretor && payment.status === "aprovado";
+  // Analista também precisa poder disparar o pedido de NF assim que o
+  // pagamento for aprovado (era restrito a diretor/admin antes).
+  const canRequestNf =
+    (isAnalista || isValidador || isDiretor) && payment.status === "aprovado";
   // Para o botão "Enviar para validação" do analista no header
   const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
   const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
