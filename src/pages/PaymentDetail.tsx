@@ -5,6 +5,9 @@ import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowLeft, Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, FileDown, Mail, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, CalendarDays, CheckCircle2, FileDown, GitCompare, History, Mail, MessageSquarePlus, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
