@@ -345,30 +345,26 @@ const Companies = () => {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onBlur={() => {
-                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado)
-                      const v = emailInput.trim().toLowerCase();
-                      if (!v) return;
-                      if (!isValidEmail(v)) return; // mantém no input para o usuário corrigir
-                      if ((editing.invoice_emails ?? []).includes(v)) {
-                        setEmailInput("");
-                        return;
-                      }
-                      setEditing({ ...editing, invoice_emails: [...(editing.invoice_emails ?? []), v] });
+                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado).
+                      // tryAddEmail cuida de trim/lowercase/dedup/validação.
+                      const result = tryAddEmail(editing.invoice_emails ?? [], emailInput);
+                      if (!result.ok) return; // inválido: mantém no input pra o usuário corrigir
+                      setEditing({ ...editing, invoice_emails: result.emails });
                       setEmailInput("");
                     }}
                     onKeyDown={(e) => {
                       if ((e.key === "Enter" || e.key === "," || e.key === ";") && emailInput.trim()) {
                         e.preventDefault();
-                        const v = emailInput.trim().toLowerCase();
-                        if (!isValidEmail(v)) {
-                          toast({ title: "E-mail inválido", description: v, variant: "destructive" });
+                        const result = tryAddEmail(editing.invoice_emails ?? [], emailInput);
+                        if (!result.ok) {
+                          toast({
+                            title: "E-mail inválido",
+                            description: normalizeEmail(emailInput),
+                            variant: "destructive",
+                          });
                           return;
                         }
-                        if ((editing.invoice_emails ?? []).includes(v)) {
-                          setEmailInput("");
-                          return;
-                        }
-                        setEditing({ ...editing, invoice_emails: [...(editing.invoice_emails ?? []), v] });
+                        setEditing({ ...editing, invoice_emails: result.emails });
                         setEmailInput("");
                       }
                     }}
