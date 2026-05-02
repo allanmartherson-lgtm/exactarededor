@@ -112,6 +112,14 @@ CNPJ: 31.635.857/0006-16   C.C.M: 07.895.204/001-40
 SGAS 914 Conjunto H - Parte
 Asa Sul - CEP: 70.390-140`;
 
+// Assinatura padrão GHM DF Star
+const ASSINATURA = `Atenciosamente,
+
+GHM DF Star
+Tel: (11) 2142-4879
+ghm.repassedfstar@rededor.com.br
+www.rededor.com.br`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -339,22 +347,28 @@ serve(async (req) => {
       }
 
       const greeting = greetingBrasilia();
+      // Mesmo link atende upload da NF e envio de dúvidas/divergências (o portal tem ambas as abas)
+      const portalUrl = uploadUrl;
       const requestMessage =
 `Prezados,
 ${greeting}!
 
-Solicitamos, por gentileza, a emissão de Nota Fiscal referente ${aoAos(setoresArr.length)} Produção de ${setoresStr}${competenciaStr ? ` — ${competenciaStr}` : ""}:
+Solicitamos, por gentileza, a emissão de Nota Fiscal referente ${aoAos(setoresArr.length)} Produção de ${setoresStr}${competenciaStr ? ` ${competenciaStr}` : ""}:
 
 ${opts.recipient_label} - ${setoresStr}
 Valor: ${summary.total_amount_formatted}
-Previsão de pagamento: 10 dias úteis após o envio da NF no link abaixo.
+Previsão de pagamento: 10 dias úteis após o envio da NF no link abaixo:
 
-Link único para upload da Nota Fiscal:
-${uploadUrl}
+${portalUrl}
 
-Dados Cadastrais:
+Dados Cadastrais do Hospital:
 ${DADOS_CADASTRAIS}
-${prazoLine ? `\n${prazoLine}` : ""}`;
+${prazoLine ? `\n${prazoLine}\n` : ""}
+Caso tenha alguma dúvida ou identifique alguma divergência, favor nos informar no link abaixo:
+
+${portalUrl}
+
+${ASSINATURA}`;
 
       await supabase.from("invoices").update({ request_message: requestMessage }).eq("id", invoice.id);
       summary["request_message"] = requestMessage;
