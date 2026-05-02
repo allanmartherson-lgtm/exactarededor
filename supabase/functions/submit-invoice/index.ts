@@ -24,7 +24,7 @@ serve(async (req) => {
       if (!invoice) return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const { data: payment } = await supabase
         .from("payments")
-        .select("reference, description, sectors, specialties, competence_months, competence_month, payment_kind")
+        .select("reference, description, sectors, specialties, competence_months, competence_month, payment_kind, status")
         .eq("id", invoice.payment_id)
         .single();
       // Inclui a thread de questionamentos pra renderizar no portal
