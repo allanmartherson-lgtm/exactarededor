@@ -176,14 +176,14 @@ const Invoices = () => {
   const resend = async (inv: InvoiceRow) => {
     setBusyId(inv.id);
     const { error } = await supabase.functions.invoke("send-invoice-request", {
-      body: { payment_id: inv.payment_id },
+      body: { invoice_id: inv.id },
     });
     setBusyId(null);
     if (error) {
       toast({ title: "Falha ao reenviar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Pedido reenviado" });
+    toast({ title: "Pedido reenviado", description: inv.company_name ?? inv.recipient_email });
     await load();
   };
 
@@ -201,19 +201,18 @@ const Invoices = () => {
   const resendAllFailed = async () => {
     if (failedInvoices.length === 0) return;
     setBulkBusy(true);
-    const paymentIds = Array.from(new Set(failedInvoices.map((i) => i.payment_id)));
     let ok = 0;
     let fail = 0;
     const errors: string[] = [];
-    for (const pid of paymentIds) {
+    for (const inv of failedInvoices) {
       const { data, error } = await supabase.functions.invoke("send-invoice-request", {
-        body: { payment_id: pid },
+        body: { invoice_id: inv.id },
       });
       const payload = (data ?? {}) as { sent_ok?: number; sent_error?: number; error?: string; message?: string };
       if (error || payload.error) {
         fail++;
         const msg = payload.message ?? error?.message ?? "erro desconhecido";
-        errors.push(`${pid.slice(0, 8)}…: ${msg}`);
+        errors.push(`${(inv.company_name ?? inv.recipient_email).slice(0, 32)}: ${msg}`);
         continue;
       }
       ok += payload.sent_ok ?? 0;
