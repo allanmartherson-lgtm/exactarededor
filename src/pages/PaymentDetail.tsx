@@ -778,20 +778,33 @@ const PaymentDetail = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col className="w-8" />
+                        <col className="w-20" />
+                        <col className="w-[14%]" />
+                        <col className="w-[10%]" />
+                        <col className="w-[16%]" />
+                        <col className="w-24" />
+                        <col />
+                        <col className="w-12" />
+                        <col className="w-28" />
+                        <col className="w-24" />
+                        <col className="w-10" />
+                      </colgroup>
+                      <thead className="bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-3 py-2 w-8"></th>
-                          <th className="px-3 py-2">Atend.</th>
-                          <th className="px-3 py-2">Paciente</th>
-                          <th className="px-3 py-2">Convênio</th>
-                          <th className="px-3 py-2">Médico / Função</th>
-                          <th className="px-3 py-2">TUSS</th>
-                          <th className="px-3 py-2">Descrição</th>
-                          <th className="px-3 py-2 text-right">Qtd</th>
-                          <th className="px-3 py-2 text-right">Valor</th>
-                          <th className="px-3 py-2">IA</th>
-                          <th className="px-3 py-2 w-10"></th>
+                          <th className="px-2 py-2"></th>
+                          <th className="px-2 py-2">Atend.</th>
+                          <th className="px-2 py-2">Paciente</th>
+                          <th className="px-2 py-2">Convênio</th>
+                          <th className="px-2 py-2">Médico / Função</th>
+                          <th className="px-2 py-2">TUSS</th>
+                          <th className="px-2 py-2">Descrição</th>
+                          <th className="px-2 py-2 text-right">Qtd</th>
+                          <th className="px-2 py-2 text-right">Valor</th>
+                          <th className="px-2 py-2">IA</th>
+                          <th className="px-2 py-2"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -837,30 +850,25 @@ const PaymentDetail = () => {
                           return (
                             <>
                               <tr key={it.id} className="align-top hover:bg-muted/20 cursor-pointer" onClick={() => toggleItemExpanded(it.id)}>
-                                <td className="px-3 py-3 text-muted-foreground">
+                                <td className="px-2 py-2 text-muted-foreground">
                                   {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                 </td>
-                                <td className="px-3 py-3 text-xs font-mono text-muted-foreground">{it.attendance_number ?? "—"}</td>
-                                <td className="px-3 py-3">{paciente}</td>
-                                <td className="px-3 py-3 text-muted-foreground">{convenio}</td>
-                                <td className="px-3 py-3">
-                                  <div className="font-medium">{it.doctor_name}</div>
-                                  <div className="text-xs text-muted-foreground">{it.doctor_role ?? "—"}</div>
+                                <td className="px-2 py-2 text-xs font-mono text-muted-foreground whitespace-nowrap">{it.attendance_number ?? "—"}</td>
+                                <td className="px-2 py-2 text-[13px] leading-snug">{paciente}</td>
+                                <td className="px-2 py-2 text-[13px] leading-snug text-muted-foreground">{convenio}</td>
+                                <td className="px-2 py-2 leading-snug">
+                                  <div className="font-medium text-[13px]">{it.doctor_name}</div>
+                                  <div className="text-[11px] text-muted-foreground">{it.doctor_role ?? "—"}</div>
                                 </td>
-                                <td className="px-3 py-3 font-mono text-xs">{it.procedure_code ?? "—"}</td>
-                                <td className="px-3 py-3 max-w-[260px]">
-                                  <div>{it.description ?? "—"}</div>
-                                  {it.ai_findings?.alerts?.length > 0 && (
-                                    <ul className="mt-1 text-xs text-warning-foreground space-y-0.5">
-                                      {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
-                                    </ul>
-                                  )}
-                                  {it.ai_findings?.calculation_explanation && (
-                                    <div className="mt-1 text-xs text-muted-foreground italic">{it.ai_findings.calculation_explanation}</div>
+                                <td className="px-2 py-2 font-mono text-xs whitespace-nowrap">{it.procedure_code ?? "—"}</td>
+                                <td className="px-2 py-2 leading-snug">
+                                  <div className="text-[13px] line-clamp-2">{it.description ?? "—"}</div>
+                                  {!isExpanded && it.ai_findings?.alerts?.length > 0 && (
+                                    <div className="mt-0.5 text-[11px] text-warning-foreground line-clamp-1">⚠ {it.ai_findings.alerts[0]}{it.ai_findings.alerts.length > 1 && ` (+${it.ai_findings.alerts.length - 1})`}</div>
                                   )}
                                 </td>
-                                <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
-                                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-2 py-2 text-right tabular-nums text-[13px]">{it.quantity ?? "—"}</td>
+                                <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-end gap-1.5">
                                     {tooltipNode ? (
                                       <Tooltip>
@@ -892,8 +900,8 @@ const PaymentDetail = () => {
                                     <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
-                                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-2 py-2"><span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
+                                <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
                                     onClick={() => toggleItemExpanded(it.id)}
@@ -913,6 +921,18 @@ const PaymentDetail = () => {
                                 <tr key={`${it.id}-x`} className="bg-muted/20">
                                   <td colSpan={11} className="px-6 py-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {(it.ai_findings?.alerts?.length > 0 || it.ai_findings?.calculation_explanation) && (
+                                        <div className="md:col-span-2 space-y-1.5">
+                                          {it.ai_findings?.alerts?.length > 0 && (
+                                            <ul className="text-xs text-warning-foreground space-y-0.5">
+                                              {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
+                                            </ul>
+                                          )}
+                                          {it.ai_findings?.calculation_explanation && (
+                                            <div className="text-xs text-muted-foreground italic">{it.ai_findings.calculation_explanation}</div>
+                                          )}
+                                        </div>
+                                      )}
                                       <div>
                                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Histórico deste item</p>
                                         {itemObs.length === 0 ? (
