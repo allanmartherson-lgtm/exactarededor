@@ -31,6 +31,10 @@ const Payments = () => {
   const [q, setQ] = useState("");
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
   const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
+  // Busca cruzada em itens (médico, atendimento, descrição, especialidade,
+  // procedimento, CC). Acionada com 3+ chars e debounced.
+  const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
@@ -57,14 +61,66 @@ const Payments = () => {
     return () => { cancelled = true; };
   }, [companyFilter]);
 
+  // Busca cruzada em payment_items quando o termo for ≥3 chars.
+  useEffect(() => {
+    let cancelled = false;
+    const term = q.trim();
+    if (term.length < 3) { setPaymentIdsForQuery(null); setSearching(false); return; }
+    setSearching(true);
+    const handle = setTimeout(async () => {
+      const like = `%${term}%`;
+      // .or() em payment_items + busca em payments (pra cobrir CC e specialties).
+      const [itemsRes, paysRes] = await Promise.all([
+        supabase
+          .from("payment_items")
+          .select("payment_id")
+          .or(
+            [
+              `doctor_name.ilike.${like}`,
+              `attendance_number.ilike.${like}`,
+              `description.ilike.${like}`,
+              `procedure_code.ilike.${like}`,
+              `procedure_name.ilike.${like}`,
+              `cost_center_code.ilike.${like}`,
+              `company_name.ilike.${like}`,
+            ].join(","),
+          )
+          .limit(2000),
+        supabase
+          .from("payments")
+          .select("id")
+          .or(`cost_center_code.ilike.${like},specialties.cs.{${term}},sectors.cs.{${term}}`)
+          .limit(500),
+      ]);
+      if (cancelled) return;
+      const ids = new Set<string>();
+      (itemsRes.data ?? []).forEach((r: any) => r.payment_id && ids.add(r.payment_id));
+      (paysRes.data ?? []).forEach((r: any) => r.id && ids.add(r.id));
+      setPaymentIdsForQuery(ids);
+      setSearching(false);
+    }, 250);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [q]);
+
   const filtered = useMemo(() => rows.filter((r) => {
-    if (q && !r.reference.toLowerCase().includes(q.toLowerCase())) return false;
+    const term = q.trim().toLowerCase();
+    if (term) {
+      const refMatches = r.reference.toLowerCase().includes(term);
+      // Termo curto (<3): só filtra pela referência (busca cruzada não rodou).
+      if (term.length < 3) {
+        if (!refMatches) return false;
+      } else {
+        // Termo longo: união entre referência local e payment_ids do cruzamento.
+        const crossMatches = paymentIdsForQuery?.has(r.id) ?? false;
+        if (!refMatches && !crossMatches) return false;
+      }
+    }
     if (companyFilter) {
       if (!paymentIdsForCompany) return false;
       if (!paymentIdsForCompany.has(r.id)) return false;
     }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   return (
@@ -84,7 +140,17 @@ const Payments = () => {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative max-w-sm flex-1 min-w-[220px]">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por referência..." className="pl-9" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar referência, PJ, médico, atendimento, CC, especialidade…"
+              className="pl-9"
+            />
+            {searching && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                buscando…
+              </span>
+            )}
           </div>
           <CompanyCombobox
             value={companyFilter}
