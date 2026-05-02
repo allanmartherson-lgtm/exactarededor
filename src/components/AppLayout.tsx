@@ -41,24 +41,24 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * read from this. Items with `children` become dropdown groups
  * in topbar mode and are flattened in sidebar mode.
  * ============================================================ */
-type Role = "analista" | "validador" | "diretor" | "admin";
-type NavLeaf = {
+export type Role = "analista" | "validador" | "diretor" | "admin";
+export type NavLeaf = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   roles: readonly Role[];
 };
-type NavGroup = {
+export type NavGroup = {
   label: string;
   icon: typeof LayoutDashboard;
   roles: readonly Role[];
   children: NavLeaf[];
 };
-type NavItem = NavLeaf | NavGroup;
+export type NavItem = NavLeaf | NavGroup;
 
-const ALL_ROLES = ["analista", "validador", "diretor", "admin"] as const;
+export const ALL_ROLES = ["analista", "validador", "diretor", "admin"] as const;
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ALL_ROLES },
   {
     label: "Financeiro",
@@ -92,10 +92,10 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-const isGroup = (n: NavItem): n is NavGroup => "children" in n;
+export const isGroup = (n: NavItem): n is NavGroup => "children" in n;
 
 /** Flatten groups into a single list for sidebar mode. */
-function flattenNav(items: NavItem[]): NavLeaf[] {
+export function flattenNav(items: NavItem[]): NavLeaf[] {
   const out: NavLeaf[] = [];
   for (const it of items) {
     if (isGroup(it)) out.push(...it.children);
@@ -105,7 +105,7 @@ function flattenNav(items: NavItem[]): NavLeaf[] {
 }
 
 /** Filter visible items by user roles, recursively for groups. */
-function filterNav(items: NavItem[], roles: string[]): NavItem[] {
+export function filterNav(items: NavItem[], roles: string[]): NavItem[] {
   return items
     .map((it) => {
       if (isGroup(it)) {
