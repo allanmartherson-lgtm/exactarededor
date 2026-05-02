@@ -6,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, type PaymentStatus } from "@/lib/status";
-import { ownerRoleFor, type OwnerRole } from "@/lib/paymentFlow";
 import { Activity, Clock, RotateCcw, CheckCircle2, Receipt, AlertTriangle, TrendingUp } from "lucide-react";
 
 type Range = 7 | 30 | 90;
@@ -256,9 +255,5 @@ const StageBreakdown = ({ payments }: { payments: PaymentLite[] }) => {
     </div>
   );
 };
-
-// helper só pra silenciar import não-usado se precisar — mantemos o tipo OwnerRole para futuras quebras por papel.
-void (null as unknown as OwnerRole | undefined);
-void ownerRoleFor;
 
 export default Kpis;
