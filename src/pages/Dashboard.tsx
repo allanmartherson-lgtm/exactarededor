@@ -10,7 +10,7 @@ import { Header, HeaderName } from "@carbon/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowRight, FileUp, ListChecks, Sparkles, ShieldCheck, Inbox, Users } from "lucide-react";
+import { ArrowRight, FileUp, ListChecks, Sparkles, ShieldCheck, Inbox, Users, Receipt } from "lucide-react";
 
 interface PaymentRow {
   id: string;
@@ -57,6 +57,7 @@ const Dashboard = () => {
   const [counts, setCounts] = useState({
     mineAnalista: 0, mineValidador: 0, mineDiretor: 0,
     teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, aprovados: 0,
+    mineInvoicesDivergentes: 0, teamInvoicesDivergentes: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +65,7 @@ const Dashboard = () => {
     document.title = "Dashboard | MedPay Approval";
     const load = async () => {
       setLoading(true);
-      const [{ data }, { data: pr }, { data: all }] = await Promise.all([
+      const [{ data }, { data: pr }, { data: all }, { data: invDiv }] = await Promise.all([
         supabase
         .from("payments")
           .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by")
@@ -72,6 +73,10 @@ const Dashboard = () => {
           .limit(20),
         supabase.from("profiles").select("id,full_name,email"),
         supabase.from("payments").select("status,created_by,validated_by"),
+        supabase
+          .from("invoices")
+          .select("id, payment:payments!inner(created_by)")
+          .eq("status", "divergente"),
       ]);
       setPayments((data ?? []) as PaymentRow[]);
       const pmap: Record<string, string> = {};
@@ -79,7 +84,11 @@ const Dashboard = () => {
       setProfiles(pmap);
 
       const uid = user?.id;
-      const c = { mineAnalista: 0, mineValidador: 0, mineDiretor: 0, teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, aprovados: 0 };
+      const c = {
+        mineAnalista: 0, mineValidador: 0, mineDiretor: 0,
+        teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, aprovados: 0,
+        mineInvoicesDivergentes: 0, teamInvoicesDivergentes: 0,
+      };
       (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
         if (owner === "analista") {
@@ -96,6 +105,13 @@ const Dashboard = () => {
           c.aprovados++;
         }
       });
+
+      // NFs divergentes (precisam de lançamento manual no financeiro)
+      (invDiv ?? []).forEach((row: any) => {
+        c.teamInvoicesDivergentes++;
+        if (uid && row.payment?.created_by === uid) c.mineInvoicesDivergentes++;
+      });
+
       setCounts(c);
       setLoading(false);
     };
