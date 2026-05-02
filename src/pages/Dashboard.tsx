@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/StatCard";
@@ -162,6 +162,10 @@ const Dashboard = () => {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
+  /** Lista crua de pagamentos (com created_at) para recomputar o pipeline ao filtrar. */
+  const [allPayments, setAllPayments] = useState<
+    Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [pipelineLayout, setPipelineLayout] = useState<PipelineLayout>(() => {
     if (typeof window === "undefined") return "auto";
@@ -173,6 +177,26 @@ const Dashboard = () => {
       window.localStorage.setItem(PIPELINE_LAYOUT_KEY, pipelineLayout);
     }
   }, [pipelineLayout]);
+  const [pipelineOwner, setPipelineOwner] = useState<PipelineOwnerFilter>(() => {
+    if (typeof window === "undefined") return "all";
+    const saved = window.localStorage.getItem(PIPELINE_OWNER_KEY);
+    return saved === "analista" || saved === "validador" || saved === "diretor" || saved === "all" ? saved : "all";
+  });
+  const [pipelineWindow, setPipelineWindow] = useState<PipelineWindowFilter>(() => {
+    if (typeof window === "undefined") return "all";
+    const saved = window.localStorage.getItem(PIPELINE_WINDOW_KEY);
+    return saved === "7" || saved === "30" || saved === "90" || saved === "all" ? saved : "all";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PIPELINE_OWNER_KEY, pipelineOwner);
+    }
+  }, [pipelineOwner]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PIPELINE_WINDOW_KEY, pipelineWindow);
+    }
+  }, [pipelineWindow]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
@@ -185,7 +209,7 @@ const Dashboard = () => {
         .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("profiles").select("id,full_name,email"),
-        supabase.from("payments").select("status,created_by,validated_by"),
+        supabase.from("payments").select("status,created_by,validated_by,created_at"),
         supabase
           .from("invoices")
           .select("id, payment:payments!inner(created_by)")
@@ -195,6 +219,14 @@ const Dashboard = () => {
         Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
       ]);
       setPayments((data ?? []) as PaymentRow[]);
+      setAllPayments(
+        (all ?? []) as Array<{
+          status: PaymentStatus;
+          created_by: string | null;
+          validated_by: string | null;
+          created_at: string;
+        }>,
+      );
       const pmap: Record<string, string> = {};
       (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
       setProfiles(pmap);
@@ -274,6 +306,49 @@ const Dashboard = () => {
     };
     load();
   }, [user?.id]);
+
+  /** Contagens do pipeline filtradas por papel responsável + janela de datas. */
+  const pipeCounts = useMemo(() => {
+    const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
+    const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
+    const allowedStatuses =
+      pipelineOwner === "all" ? null : new Set<PaymentStatus>(STATUSES_BY_OWNER[pipelineOwner]);
+    const c = {
+      pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
+      pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
+    };
+    for (const p of allPayments) {
+      if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
+      if (allowedStatuses && !allowedStatuses.has(p.status)) continue;
+      switch (p.status) {
+        case "em_analise_ia":
+        case "revisao_analista":
+          c.pipeAnaliseIA++; break;
+        case "aguardando_validacao":
+          c.pipeValidacao++; break;
+        case "aguardando_aprovacao":
+          c.pipeAprovacao++; break;
+        case "aprovado":
+        case "pedido_nf_enviado":
+          c.pipeNFSolicitada++; break;
+        case "nf_recebida":
+          c.pipeNFRecebida++; break;
+        case "nf_conciliada":
+          c.pipeNFConciliada++; break;
+        case "pago":
+          c.pipePago++; break;
+      }
+    }
+    return c;
+  }, [allPayments, pipelineOwner, pipelineWindow]);
+
+  /** Querystring extra a propagar nos links das etapas (forward-compatível). */
+  const pipelineQuery = useMemo(() => {
+    const parts: string[] = [];
+    if (pipelineOwner !== "all") parts.push(`owner=${pipelineOwner}`);
+    if (pipelineWindow !== "all") parts.push(`days=${pipelineWindow}`);
+    return parts.length ? `&${parts.join("&")}` : "";
+  }, [pipelineOwner, pipelineWindow]);
 
   const isAnalista = roles.includes("analista") || roles.includes("admin");
   const isValidador = roles.includes("validador") || roles.includes("admin");
