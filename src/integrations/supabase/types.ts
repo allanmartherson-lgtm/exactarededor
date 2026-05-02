@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_analysis_versions: {
+        Row: {
+          ai_status: string
+          alerts: Json
+          calculation_explanation: string | null
+          created_at: string
+          expected_amount: number | null
+          gross_amount_at_time: number | null
+          id: string
+          item_id: string
+          matched_rule_ids: Json
+          matched_rules: Json
+          model: string | null
+          payment_id: string
+          triggered_by: string | null
+          version: number
+        }
+        Insert: {
+          ai_status: string
+          alerts?: Json
+          calculation_explanation?: string | null
+          created_at?: string
+          expected_amount?: number | null
+          gross_amount_at_time?: number | null
+          id?: string
+          item_id: string
+          matched_rule_ids?: Json
+          matched_rules?: Json
+          model?: string | null
+          payment_id: string
+          triggered_by?: string | null
+          version: number
+        }
+        Update: {
+          ai_status?: string
+          alerts?: Json
+          calculation_explanation?: string | null
+          created_at?: string
+          expected_amount?: number | null
+          gross_amount_at_time?: number | null
+          id?: string
+          item_id?: string
+          matched_rule_ids?: Json
+          matched_rules?: Json
+          model?: string | null
+          payment_id?: string
+          triggered_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
