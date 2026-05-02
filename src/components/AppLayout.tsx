@@ -29,20 +29,20 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="w-64 bg-sidebar text-sidebar-foreground flex-shrink-0 flex flex-col border-r border-sidebar-border">
-        <div className="px-5 py-5 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-gradient-brand flex items-center justify-center">
+      <aside className="w-56 lg:w-64 xl:w-72 bg-sidebar text-sidebar-foreground flex-shrink-0 flex flex-col border-r border-sidebar-border">
+        <div className="px-4 lg:px-5 py-5 border-b border-sidebar-border">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-9 w-9 rounded-lg bg-gradient-brand flex items-center justify-center flex-shrink-0">
               <ShieldCheck className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
-              <p className="font-semibold text-sm leading-tight text-sidebar-foreground">MedPay</p>
-              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/55">Approval Flow</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm leading-tight text-sidebar-foreground truncate">MedPay</p>
+              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/55 truncate">Approval Flow</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-2 lg:px-3 py-4 space-y-0.5 overflow-y-auto">
           {nav
             .filter((item) => item.roles.some((r) => roles.includes(r)))
             .map((item) => (
@@ -52,23 +52,23 @@ export const AppLayout = () => {
                 end={item.to === "/"}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                    "flex items-center gap-2.5 px-2.5 lg:px-3 py-2 rounded-md text-[13px] lg:text-sm leading-tight transition-colors",
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
                   )
                 }
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
               </NavLink>
             ))}
         </nav>
 
-        <div className="px-3 py-4 border-t border-sidebar-border space-y-2">
-          <div className="px-2 py-2 rounded-md bg-sidebar-accent/40">
-            <p className="text-xs font-medium text-sidebar-accent-foreground truncate">{user?.email}</p>
-            <p className="text-[10px] text-sidebar-foreground/70 mt-0.5">
+        <div className="px-2 lg:px-3 py-3 border-t border-sidebar-border space-y-2">
+          <div className="px-2 py-2 rounded-md bg-sidebar-accent/40 min-w-0">
+            <p className="text-[12px] font-medium text-sidebar-accent-foreground truncate" title={user?.email ?? undefined}>{user?.email}</p>
+            <p className="text-[10px] text-sidebar-foreground/70 mt-0.5 truncate">
               {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
             </p>
           </div>
@@ -76,7 +76,7 @@ export const AppLayout = () => {
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            className="w-full justify-start text-[13px] text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
           >
             <LogOut className="h-4 w-4 mr-2" /> Sair
           </Button>
