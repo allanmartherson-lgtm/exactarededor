@@ -457,7 +457,7 @@ ${ASSINATURA}`;
             templateName: "invoice-request",
             recipientEmail: opts.to[0],
             cc: [...opts.to.slice(1), ...opts.cc],
-            idempotencyKey: `inv-${invoice.id}`,
+            idempotencyKey: `inv-${invoice.id}-${Date.now()}`,
             subject: emailSubject,
             templateData: {
               recipientLabel: opts.recipient_label,
