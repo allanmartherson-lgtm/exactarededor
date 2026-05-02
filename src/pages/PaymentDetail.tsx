@@ -778,20 +778,33 @@ const PaymentDetail = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col className="w-8" />
+                        <col className="w-20" />
+                        <col className="w-[14%]" />
+                        <col className="w-[10%]" />
+                        <col className="w-[16%]" />
+                        <col className="w-24" />
+                        <col />
+                        <col className="w-12" />
+                        <col className="w-28" />
+                        <col className="w-24" />
+                        <col className="w-10" />
+                      </colgroup>
+                      <thead className="bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-3 py-2 w-8"></th>
-                          <th className="px-3 py-2">Atend.</th>
-                          <th className="px-3 py-2">Paciente</th>
-                          <th className="px-3 py-2">Convênio</th>
-                          <th className="px-3 py-2">Médico / Função</th>
-                          <th className="px-3 py-2">TUSS</th>
-                          <th className="px-3 py-2">Descrição</th>
-                          <th className="px-3 py-2 text-right">Qtd</th>
-                          <th className="px-3 py-2 text-right">Valor</th>
-                          <th className="px-3 py-2">IA</th>
-                          <th className="px-3 py-2 w-10"></th>
+                          <th className="px-2 py-2"></th>
+                          <th className="px-2 py-2">Atend.</th>
+                          <th className="px-2 py-2">Paciente</th>
+                          <th className="px-2 py-2">Convênio</th>
+                          <th className="px-2 py-2">Médico / Função</th>
+                          <th className="px-2 py-2">TUSS</th>
+                          <th className="px-2 py-2">Descrição</th>
+                          <th className="px-2 py-2 text-right">Qtd</th>
+                          <th className="px-2 py-2 text-right">Valor</th>
+                          <th className="px-2 py-2">IA</th>
+                          <th className="px-2 py-2"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
