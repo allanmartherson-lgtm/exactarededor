@@ -9,115 +9,122 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Surfaces */
-    --background: 210 40% 98%;
-    --foreground: 215 35% 15%;
+    --background: 204 24% 97%;          /* #f4f7f9 */
+    --foreground: 211 62% 13%;          /* #0d2137 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 35% 15%;
+    --card: 0 0% 100%;                  /* #ffffff */
+    --card-foreground: 211 62% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 35% 15%;
+    --popover-foreground: 211 62% 13%;
 
-    /* Brand: deep medical teal */
-    --primary: 195 75% 24%;
+    /* Brand: teal accent */
+    --primary: 173 83% 33%;             /* #0e9a8a */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 195 60% 94%;
-    --primary-glow: 188 70% 42%;
+    --primary-soft: 171 50% 94%;        /* #e6f7f5 */
+    --primary-glow: 173 82% 45%;
 
-    --secondary: 210 30% 94%;
-    --secondary-foreground: 215 35% 20%;
+    --secondary: 207 24% 94%;           /* border-light */
+    --secondary-foreground: 213 25% 32%;
 
-    --muted: 210 30% 96%;
-    --muted-foreground: 215 18% 38%;
+    --muted: 204 19% 95%;               /* bg-hover */
+    --muted-foreground: 209 19% 58%;    /* text-muted */
 
-    /* Accent é usado em hovers de ghost/outline — precisa contrastar com texto branco (AA 4.5:1) */
-    --accent: 195 75% 24%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 171 50% 94%;              /* accent-light */
+    --accent-foreground: 173 84% 26%;   /* accent-text */
 
     /* Status semantics */
-    --success: 152 60% 30%;
-    --success-foreground: 0 0% 100%;
-    --success-soft: 152 55% 94%;
+    --success: 151 100% 41%;            /* #00d26a */
+    --success-foreground: 156 84% 25%;  /* #0a7a45 */
+    --success-soft: 145 67% 94%;        /* #e6faf1 */
 
-    --warning: 35 92% 50%;
-    --warning-foreground: 30 60% 10%;
-    --warning-soft: 40 95% 94%;
+    --warning: 38 92% 50%;              /* #f59e0b */
+    --warning-foreground: 26 84% 31%;   /* #92400e */
+    --warning-soft: 48 100% 96%;        /* #fffbeb */
 
-    --info: 215 80% 42%;
-    --info-foreground: 0 0% 100%;
-    --info-soft: 215 80% 95%;
+    --info: 191 91% 36%;                /* #0891b2 */
+    --info-foreground: 192 82% 31%;     /* #0e7490 */
+    --info-soft: 184 100% 96%;          /* #ecfeff */
 
-    --destructive: 0 75% 50%;
+    --destructive: 0 84% 60%;           /* #ef4444 */
     --destructive-foreground: 0 0% 100%;
-    --destructive-soft: 0 70% 96%;
+    --destructive-soft: 0 86% 97%;      /* #fef2f2 */
 
-    --border: 215 25% 88%;
-    --input: 215 25% 88%;
-    --ring: 195 75% 24%;
+    --border: 213 22% 89%;              /* #dde4ec */
+    --input: 213 22% 89%;
+    --ring: 173 83% 33%;
 
     --radius: 0.625rem;
 
     /* Gradients & shadows */
-    --gradient-brand: linear-gradient(135deg, hsl(195 75% 24%), hsl(188 70% 42%));
-    --gradient-soft: linear-gradient(135deg, hsl(195 60% 96%), hsl(210 40% 98%));
-    --shadow-soft: 0 1px 2px 0 hsl(215 30% 15% / 0.04), 0 1px 3px 0 hsl(215 30% 15% / 0.06);
-    --shadow-card: 0 4px 12px -2px hsl(215 30% 15% / 0.06), 0 2px 4px -2px hsl(215 30% 15% / 0.04);
-    --shadow-elevated: 0 12px 30px -8px hsl(195 75% 24% / 0.18);
+    --gradient-brand: linear-gradient(135deg, hsl(173 83% 33%), hsl(173 82% 45%));
+    --gradient-soft: linear-gradient(135deg, hsl(171 50% 94%), hsl(204 24% 97%));
+    --shadow-soft: 0 1px 2px 0 hsl(211 62% 13% / 0.04), 0 1px 3px 0 hsl(211 62% 13% / 0.06);
+    --shadow-card: 0 4px 12px -2px hsl(211 62% 13% / 0.06), 0 2px 4px -2px hsl(211 62% 13% / 0.04);
+    --shadow-elevated: 0 12px 30px -8px hsl(173 83% 33% / 0.18);
 
     /* Sidebar — light */
-    --sidebar-background: 210 30% 98%;
-    --sidebar-foreground: 215 25% 27%;
-    --sidebar-muted-foreground: 215 18% 35%;
-    --sidebar-primary: 195 80% 32%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 213 25% 32%;
+    --sidebar-muted-foreground: 209 19% 58%;
+    --sidebar-primary: 173 83% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 210 30% 93%;
-    --sidebar-hover-foreground: 215 30% 18%;
-    --sidebar-accent: 188 60% 90%;
-    --sidebar-accent-foreground: 188 85% 20%;
-    --sidebar-border: 215 20% 90%;
-    --sidebar-ring: 188 70% 45%;
+    --sidebar-hover: 204 19% 95%;
+    --sidebar-hover-foreground: 211 62% 13%;
+    --sidebar-accent: 171 50% 94%;
+    --sidebar-accent-foreground: 173 84% 26%;
+    --sidebar-border: 207 24% 94%;
+    --sidebar-ring: 173 83% 33%;
   }
 
   .dark {
-    --background: 215 40% 8%;
-    --foreground: 210 30% 92%;
-    --card: 215 38% 11%;
-    --card-foreground: 210 30% 92%;
-    --popover: 215 38% 11%;
-    --popover-foreground: 210 30% 92%;
-    --primary: 188 70% 50%;
-    --primary-foreground: 215 40% 8%;
-    --primary-soft: 195 50% 18%;
-    --secondary: 215 30% 16%;
-    --secondary-foreground: 210 30% 92%;
-    --muted: 215 30% 16%;
-    --muted-foreground: 215 15% 65%;
-    --accent: 188 65% 28%;
-    --accent-foreground: 0 0% 100%;
-    --success: 152 55% 45%;
-    --success-soft: 152 30% 16%;
-    --warning: 35 90% 55%;
-    --warning-foreground: 35 90% 92%;
-    --warning-soft: 35 30% 18%;
-    --info: 215 80% 65%;
-    --info-soft: 215 30% 18%;
-    --destructive: 0 75% 65%;
-    --destructive-soft: 0 30% 18%;
-    --border: 215 30% 20%;
-    --input: 215 30% 20%;
-    --ring: 188 70% 50%;
+    --background: 215 28% 7%;           /* #0d1117 */
+    --foreground: 213 27% 93%;          /* #e6edf3 */
+    --card: 220 26% 12%;                /* #161b26 */
+    --card-foreground: 213 27% 93%;
+    --popover: 220 26% 12%;
+    --popover-foreground: 213 27% 93%;
+    --primary: 173 82% 39%;             /* #12b5a3 */
+    --primary-foreground: 215 28% 7%;
+    --primary-soft: 172 56% 11%;        /* accent-light dark */
+    --primary-glow: 168 76% 64%;
+    --secondary: 224 29% 16%;           /* bg-hover */
+    --secondary-foreground: 213 27% 93%;
+    --muted: 224 29% 16%;
+    --muted-foreground: 213 9% 58%;     /* text-secondary */
+    --accent: 172 56% 11%;              /* accent-light */
+    --accent-foreground: 168 76% 64%;   /* accent-text */
+    --success: 142 71% 58%;             /* green-text */
+    --success-foreground: 215 28% 7%;
+    --success-soft: 142 51% 10%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 215 28% 7%;
+    --warning-soft: 41 100% 9%;
+    --info: 213 94% 68%;
+    --info-foreground: 215 28% 7%;
+    --info-soft: 220 60% 15%;
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 215 28% 7%;
+    --destructive-soft: 0 36% 13%;
+    --border: 222 28% 18%;              /* #21293a */
+    --input: 222 28% 18%;
+    --ring: 173 82% 39%;
+
+    --gradient-brand: linear-gradient(135deg, hsl(173 82% 39%), hsl(168 76% 64%));
+    --gradient-soft: linear-gradient(135deg, hsl(172 56% 11%), hsl(215 28% 7%));
+
     /* Sidebar — dark */
-    --sidebar-background: 215 42% 9%;
-    --sidebar-foreground: 210 25% 82%;
-    --sidebar-muted-foreground: 215 15% 60%;
-    --sidebar-primary: 188 70% 55%;
-    --sidebar-primary-foreground: 215 45% 8%;
-    --sidebar-hover: 215 35% 14%;
-    --sidebar-hover-foreground: 0 0% 100%;
-    --sidebar-accent: 188 55% 22%;
-    --sidebar-accent-foreground: 188 90% 88%;
-    --sidebar-border: 215 30% 18%;
-    --sidebar-ring: 188 70% 55%;
+    --sidebar-background: 220 26% 12%;
+    --sidebar-foreground: 213 9% 58%;
+    --sidebar-muted-foreground: 212 12% 45%;
+    --sidebar-primary: 173 82% 39%;
+    --sidebar-primary-foreground: 215 28% 7%;
+    --sidebar-hover: 224 29% 16%;
+    --sidebar-hover-foreground: 213 27% 93%;
+    --sidebar-accent: 172 56% 11%;
+    --sidebar-accent-foreground: 168 76% 64%;
+    --sidebar-border: 224 36% 16%;
+    --sidebar-ring: 173 82% 39%;
   }
 }
 
@@ -128,10 +135,12 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: "cv11", "ss01";
   }
 
   h1, h2, h3, h4 {
     @apply tracking-tight text-foreground;
+    font-family: "Inter", system-ui, sans-serif;
   }
 }
