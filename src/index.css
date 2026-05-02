@@ -24,10 +24,10 @@ All colors MUST be HSL.
     --primary-soft: 171 50% 94%;        /* #e6f7f5 */
     --primary-glow: 173 82% 45%;
 
-    --secondary: 207 24% 94%;           /* border-light */
+    --secondary: 207 28% 94%;           /* border-light #eaf0f5 */
     --secondary-foreground: 213 25% 32%;
 
-    --muted: 204 19% 95%;               /* bg-hover */
+    --muted: 204 24% 94%;               /* bg-hover #edf2f5 */
     --muted-foreground: 209 19% 58%;    /* text-muted */
 
     --accent: 171 50% 94%;              /* accent-light */
@@ -77,7 +77,11 @@ All colors MUST be HSL.
     --bubble-teal-bg: 171 50% 92%;
     --bubble-teal-fg: 173 84% 26%;
 
-    --hover-surface: 204 24% 93%;
+    /* Table-specific surfaces (kept in sync with bg-hover / border-light spec) */
+    --table-row-hover: 204 24% 94%;     /* #edf2f5 */
+    --table-border-light: 207 28% 94%;  /* #eaf0f5 */
+
+    --hover-surface: 204 24% 94%;       /* #edf2f5 */
     --shadow-hover: 0 4px 20px hsl(173 83% 33% / 0.08);
 
     /* Sidebar — light */
@@ -105,9 +109,9 @@ All colors MUST be HSL.
     --primary-foreground: 215 28% 7%;
     --primary-soft: 172 56% 11%;        /* accent-light dark */
     --primary-glow: 168 76% 64%;
-    --secondary: 224 29% 16%;           /* bg-hover */
+    --secondary: 225 36% 16%;           /* border-light #1a2236 */
     --secondary-foreground: 213 27% 93%;
-    --muted: 224 29% 16%;
+    --muted: 224 29% 15%;               /* bg-hover #1c2333 */
     --muted-foreground: 213 9% 58%;     /* text-secondary */
     --accent: 172 56% 11%;              /* accent-light */
     --accent-foreground: 168 76% 64%;   /* accent-text */
@@ -142,6 +146,10 @@ All colors MUST be HSL.
     --bubble-green-fg: 142 71% 58%;
     --bubble-teal-bg: 172 56% 14%;
     --bubble-teal-fg: 168 76% 64%;
+
+    /* Table-specific surfaces (kept in sync with bg-hover / border-light spec) */
+    --table-row-hover: 224 29% 15%;     /* #1c2333 */
+    --table-border-light: 225 36% 16%;  /* #1a2236 */
 
     --hover-surface: 224 29% 18%;
     --shadow-hover: 0 4px 20px hsl(173 82% 39% / 0.18);
@@ -255,11 +263,11 @@ All colors MUST be HSL.
   }
 
   table tbody tr {
-    border-bottom: 1px solid hsl(var(--secondary));
+    border-bottom: 1px solid hsl(var(--table-border-light));
     transition: background-color 0.1s ease;
   }
   table tbody tr:hover {
-    background: hsl(var(--muted));
+    background: hsl(var(--table-row-hover));
   }
   table tbody tr:last-child {
     border-bottom: 0;
