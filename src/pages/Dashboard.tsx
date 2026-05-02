@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard, StatCardSkeleton } from "@/components/dashboard/StatCard";
+import { StatCardsGrid } from "@/components/dashboard/StatCardsGrid";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -143,7 +145,7 @@ const Dashboard = () => {
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch auto-rows-fr">
+        <StatCardsGrid>
           {loading ? (
             Array.from({ length: isAnalista ? 4 : 3 }).map((_, i) => <StatCardSkeleton key={i} />)
           ) : (
@@ -180,7 +182,7 @@ const Dashboard = () => {
           <StatCard icon={FileUp} label="Aprovados / em NF" value={counts.aprovados} tone="success" />
             </>
           )}
-        </div>
+        </StatCardsGrid>
 
         {/* Suas tarefas */}
         <Card className="shadow-card border-primary/30">
@@ -278,90 +280,6 @@ const PaymentRowItem = ({ p, mine, profiles }: { p: PaymentRow; mine: boolean; p
     </Link>
   );
 };
-
-const toneBg: Record<string, string> = {
-  info: "bg-info-soft text-info",
-  warning: "bg-warning-soft text-warning-foreground",
-  success: "bg-success-soft text-success",
-};
-
-const StatCard = ({
-  icon: Icon,
-  label,
-  value,
-  tone,
-  hint,
-  mine,
-  to,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  tone: "info" | "warning" | "success";
-  hint?: string;
-  mine?: boolean;
-  to?: string;
-}) => {
-  const inner = (
-    <Card className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}>
-      <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
-        {/* Cabeçalho: label + ícone, altura reservada para 2 linhas */}
-        <div className="flex items-start justify-between gap-2 sm:gap-3">
-          <p
-            className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-tight line-clamp-2 min-h-[2lh]"
-            title={label}
-          >
-            {label}
-          </p>
-          <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
-            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-        </div>
-
-        {/* Valor: tipografia consistente em todos os cards */}
-        <p className="text-2xl sm:text-3xl font-semibold tabular-nums leading-none">
-          {value}
-        </p>
-
-        {/* Footer: badge OU hint OU placeholder — sempre mesma altura */}
-        <div className="mt-auto flex items-center min-h-[20px]">
-          {mine ? (
-            <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 leading-none ${TONE_CLASSES.info}`}>
-              Sua vez
-            </span>
-          ) : hint ? (
-            <p className="text-[11px] text-muted-foreground leading-tight line-clamp-1" title={hint}>
-              {hint}
-            </p>
-          ) : (
-            <span className="text-[11px] text-transparent select-none" aria-hidden>
-              &nbsp;
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-  return to ? <Link to={to} className="block h-full">{inner}</Link> : inner;
-};
-
-const StatCardSkeleton = () => (
-  <Card className="shadow-soft h-full" aria-hidden>
-    <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2 sm:gap-3">
-        <div className="flex flex-col gap-1.5 min-w-0 flex-1 min-h-[2lh] justify-start">
-          <Skeleton className="h-2.5 w-3/4" />
-          <Skeleton className="h-2.5 w-1/2" />
-        </div>
-        <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex-shrink-0" />
-      </div>
-      <Skeleton className="h-7 sm:h-8 w-12" />
-      <div className="mt-auto flex items-center min-h-[20px]">
-        <Skeleton className="h-3 w-20" />
-      </div>
-    </CardContent>
-  </Card>
-);
 
 const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
   <div className="divide-y divide-border" aria-hidden>
