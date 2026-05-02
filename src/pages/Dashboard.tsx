@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   usePipelinePreferences,
@@ -967,15 +967,7 @@ const TaskRow = ({
   );
 };
 
-const PipelineCol = ({
-  icon: Icon,
-  color,
-  label,
-  value,
-  to,
-  density,
-  separated,
-}: {
+const PipelineCol = forwardRef<HTMLAnchorElement, {
   icon: LucideIcon;
   color: BubbleColor;
   label: string;
@@ -983,10 +975,19 @@ const PipelineCol = ({
   to: string;
   density: PipelineDensity;
   separated: boolean;
-}) => {
+}>(({
+  icon: Icon,
+  color,
+  label,
+  value,
+  to,
+  density,
+  separated,
+}, ref) => {
   const comfortable = density === "comfortable";
   return (
     <Link
+      ref={ref}
       to={to}
       className="pipeline-col"
       style={{
@@ -1043,10 +1044,13 @@ const PipelineCol = ({
     </div>
     </Link>
   );
-};
+});
+PipelineCol.displayName = "PipelineCol";
 
-const PipelineColSkeleton = ({ density, separated }: { density: PipelineDensity; separated: boolean }) => (
+const PipelineColSkeleton = forwardRef<HTMLDivElement, { density: PipelineDensity; separated: boolean }>(
+  ({ density, separated }, ref) => (
   <div
+    ref={ref}
     className="flex flex-col items-center"
     style={{
       gap: density === "comfortable" ? 12 : 8,
@@ -1058,7 +1062,9 @@ const PipelineColSkeleton = ({ density, separated }: { density: PipelineDensity;
     <Skeleton className={cn(density === "comfortable" ? "h-8 w-10" : "h-6 w-9")} />
     <Skeleton className="h-2.5 w-16" />
   </div>
+  ),
 );
+PipelineColSkeleton.displayName = "PipelineColSkeleton";
 
 const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
   <div aria-hidden>
