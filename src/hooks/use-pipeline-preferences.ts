@@ -20,12 +20,14 @@ export type PipelineLayout = "auto" | "rows2" | "rows3";
 export type PipelineOwnerFilter = "all" | "analista" | "validador" | "diretor";
 export type PipelineWindowFilter = "7" | "30" | "90" | "all";
 export type PipelineDensity = "compact" | "comfortable";
+export type PipelineMode = "full" | "queue";
 
 export interface PipelinePreferences {
   layout: PipelineLayout;
   owner: PipelineOwnerFilter;
   window: PipelineWindowFilter;
   density: PipelineDensity;
+  mode: PipelineMode;
 }
 
 const DEFAULTS: PipelinePreferences = {
@@ -33,6 +35,7 @@ const DEFAULTS: PipelinePreferences = {
   owner: "all",
   window: "all",
   density: "compact",
+  mode: "full",
 };
 
 const LS_KEYS = {
@@ -40,6 +43,7 @@ const LS_KEYS = {
   owner: "dashboard.pipelineOwner",
   window: "dashboard.pipelineWindow",
   density: "dashboard.pipelineDensity",
+  mode: "dashboard.pipelineMode",
 } as const;
 
 /** Chaves usadas dentro do JSONB `profiles.preferences`. */
@@ -48,6 +52,7 @@ const REMOTE_KEYS = {
   owner: "dashboard.pipelineOwner",
   window: "dashboard.pipelineWindow",
   density: "dashboard.pipelineDensity",
+  mode: "dashboard.pipelineMode",
 } as const;
 
 const isLayout = (v: unknown): v is PipelineLayout =>
@@ -58,6 +63,7 @@ const isWindow = (v: unknown): v is PipelineWindowFilter =>
   v === "7" || v === "30" || v === "90" || v === "all";
 const isDensity = (v: unknown): v is PipelineDensity =>
   v === "compact" || v === "comfortable";
+const isMode = (v: unknown): v is PipelineMode => v === "full" || v === "queue";
 
 const readFromLocalStorage = (): PipelinePreferences => {
   if (typeof window === "undefined") return DEFAULTS;
@@ -65,11 +71,13 @@ const readFromLocalStorage = (): PipelinePreferences => {
   const owner = window.localStorage.getItem(LS_KEYS.owner);
   const win = window.localStorage.getItem(LS_KEYS.window);
   const density = window.localStorage.getItem(LS_KEYS.density);
+  const mode = window.localStorage.getItem(LS_KEYS.mode);
   return {
     layout: isLayout(layout) ? layout : DEFAULTS.layout,
     owner: isOwner(owner) ? owner : DEFAULTS.owner,
     window: isWindow(win) ? win : DEFAULTS.window,
     density: isDensity(density) ? density : DEFAULTS.density,
+    mode: isMode(mode) ? mode : DEFAULTS.mode,
   };
 };
 
@@ -79,6 +87,7 @@ const writeToLocalStorage = (prefs: PipelinePreferences) => {
   window.localStorage.setItem(LS_KEYS.owner, prefs.owner);
   window.localStorage.setItem(LS_KEYS.window, prefs.window);
   window.localStorage.setItem(LS_KEYS.density, prefs.density);
+  window.localStorage.setItem(LS_KEYS.mode, prefs.mode);
 };
 
 const fromRemoteJson = (raw: unknown): Partial<PipelinePreferences> => {
@@ -89,10 +98,12 @@ const fromRemoteJson = (raw: unknown): Partial<PipelinePreferences> => {
   const owner = obj[REMOTE_KEYS.owner];
   const win = obj[REMOTE_KEYS.window];
   const density = obj[REMOTE_KEYS.density];
+  const mode = obj[REMOTE_KEYS.mode];
   if (isLayout(layout)) out.layout = layout;
   if (isOwner(owner)) out.owner = owner;
   if (isWindow(win)) out.window = win;
   if (isDensity(density)) out.density = density;
+  if (isMode(mode)) out.mode = mode;
   return out;
 };
 
@@ -129,7 +140,8 @@ export function usePipelinePreferences() {
           local.layout !== DEFAULTS.layout ||
           local.owner !== DEFAULTS.owner ||
           local.window !== DEFAULTS.window ||
-          local.density !== DEFAULTS.density
+          local.density !== DEFAULTS.density ||
+          local.mode !== DEFAULTS.mode
         ) {
           void persistRemote(user.id, local);
         }
@@ -140,6 +152,7 @@ export function usePipelinePreferences() {
         owner: remote.owner ?? prefs.owner,
         window: remote.window ?? prefs.window,
         density: remote.density ?? prefs.density,
+        mode: remote.mode ?? prefs.mode,
       };
       writeToLocalStorage(merged);
       setPrefs(merged);
@@ -168,6 +181,7 @@ export function usePipelinePreferences() {
       [REMOTE_KEYS.owner]: next.owner,
       [REMOTE_KEYS.window]: next.window,
       [REMOTE_KEYS.density]: next.density,
+      [REMOTE_KEYS.mode]: next.mode,
     };
     await supabase.from("profiles").update({ preferences: merged }).eq("id", userId);
   };
@@ -210,9 +224,11 @@ export function usePipelinePreferences() {
     owner: prefs.owner,
     window: prefs.window,
     density: prefs.density,
+    mode: prefs.mode,
     setLayout: (v: PipelineLayout) => update({ layout: v }),
     setOwner: (v: PipelineOwnerFilter) => update({ owner: v }),
     setWindow: (v: PipelineWindowFilter) => update({ window: v }),
     setDensity: (v: PipelineDensity) => update({ density: v }),
+    setMode: (v: PipelineMode) => update({ mode: v }),
   };
 }

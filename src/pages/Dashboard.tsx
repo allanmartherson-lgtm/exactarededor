@@ -5,6 +5,7 @@ import {
   type PipelineOwnerFilter,
   type PipelineWindowFilter,
   type PipelineDensity,
+  type PipelineMode,
 } from "@/hooks/use-pipeline-preferences";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -50,6 +51,19 @@ const PIPELINE_WINDOW_DAYS: Record<PipelineWindowFilter, number | null> = {
 const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
   compact: "Compacto",
   comfortable: "Confortável",
+};
+const PIPELINE_MODE_LABEL: Record<PipelineMode, string> = {
+  full: "Pipeline completo",
+  queue: "Minha fila de ação",
+};
+/**
+ * Quando o modo é "Minha fila de ação", apenas as colunas associadas ao
+ * papel selecionado são exibidas. "Todos" cai de volta no pipeline completo.
+ */
+const QUEUE_COLUMNS: Record<Exclude<PipelineOwnerFilter, "all">, ReadonlySet<string>> = {
+  analista: new Set(["Análise", "Divergente"]),
+  validador: new Set(["Validação"]),
+  diretor: new Set(["Aprovação"]),
 };
 /**
  * Status que indicam que o pagamento já chegou (ou passou) pela alçada do diretor.
@@ -461,9 +475,11 @@ const Dashboard = () => {
     owner: pipelineOwner,
     window: pipelineWindow,
     density: pipelineDensity,
+    mode: pipelineMode,
     setOwner: setPipelineOwner,
     setWindow: setPipelineWindow,
     setDensity: setPipelineDensity,
+    setMode: setPipelineMode,
   } = usePipelinePreferences();
 
   useEffect(() => {
@@ -563,8 +579,9 @@ const Dashboard = () => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
     const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
     /**
-     * Filtro por "fila de ação": cada papel só conta pagamentos cujo status
-     * atual aguarda ação dele. "Todos" mostra o pipeline inteiro.
+     * Filtro por "fila de ação": apenas quando o modo é `queue` E um papel
+     * específico está selecionado, contamos só os status que aguardam ação
+     * desse papel. Caso contrário, contamos tudo (pipeline completo).
      */
     const ACTION_QUEUE: Record<Exclude<typeof pipelineOwner, "all">, Set<PaymentStatus>> = {
       analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada"]),
@@ -572,7 +589,9 @@ const Dashboard = () => {
       diretor: new Set<PaymentStatus>(["aguardando_aprovacao"]),
     };
     const matchesOwner = (p: { status: PaymentStatus }) =>
-      pipelineOwner === "all" ? true : ACTION_QUEUE[pipelineOwner].has(p.status);
+      pipelineMode !== "queue" || pipelineOwner === "all"
+        ? true
+        : ACTION_QUEUE[pipelineOwner].has(p.status);
     const c = {
       pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
       pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
@@ -604,7 +623,7 @@ const Dashboard = () => {
       }
     }
     return c;
-  }, [allPayments, pipelineOwner, pipelineWindow]);
+  }, [allPayments, pipelineOwner, pipelineWindow, pipelineMode]);
 
   const pipelineQuery = useMemo(() => {
     const parts: string[] = [];
@@ -805,6 +824,15 @@ const Dashboard = () => {
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <ChipGroup
+                ariaLabel="Modo do pipeline"
+                value={pipelineMode}
+                onChange={setPipelineMode}
+                options={(["full", "queue"] as PipelineMode[]).map((v) => ({
+                  v,
+                  label: PIPELINE_MODE_LABEL[v],
+                }))}
+              />
+              <ChipGroup
                 ariaLabel="Filtrar por papel"
                 value={pipelineOwner}
                 onChange={setPipelineOwner}
@@ -833,35 +861,56 @@ const Dashboard = () => {
               />
             </div>
           </div>
-          <div
-            style={{
-              padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
-              display: "grid",
-              gridTemplateColumns: "repeat(9, minmax(0, 1fr))",
-              gap: 0,
-              minWidth: 0,
-            }}
-          >
-            {loading ? (
-              Array.from({ length: 9 }).map((_, i) => (
-                <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
-              ))
-            ) : (
-              [
-                { icon: FileText, color: "purple" as const, label: "Análise", value: pipeCounts.pipeAnaliseIA, to: `/pagamentos?status=em_analise_ia${pipelineQuery}` },
-                { icon: ListChecks, color: "yellow" as const, label: "Validação", value: pipeCounts.pipeValidacao, to: `/pagamentos?status=aguardando_validacao${pipelineQuery}` },
-                { icon: ShieldCheck, color: "blue" as const, label: "Aprovação", value: pipeCounts.pipeAprovacao, to: `/pagamentos?status=aguardando_aprovacao${pipelineQuery}` },
-                { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
-                { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
-                { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
-                { icon: AlertCircle, color: "red" as const, label: "Divergente", value: pipeCounts.pipeDivergente, to: `/pagamentos?status=nf_questionada${pipelineQuery}` },
-                { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
-                { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
-              ].map((item, index) => (
-                <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
-              ))
-            )}
-          </div>
+          {(() => {
+            const allCols = [
+              { icon: FileText, color: "purple" as const, label: "Análise", value: pipeCounts.pipeAnaliseIA, to: `/pagamentos?status=em_analise_ia${pipelineQuery}` },
+              { icon: ListChecks, color: "yellow" as const, label: "Validação", value: pipeCounts.pipeValidacao, to: `/pagamentos?status=aguardando_validacao${pipelineQuery}` },
+              { icon: ShieldCheck, color: "blue" as const, label: "Aprovação", value: pipeCounts.pipeAprovacao, to: `/pagamentos?status=aguardando_aprovacao${pipelineQuery}` },
+              { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
+              { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
+              { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
+              { icon: AlertCircle, color: "red" as const, label: "Divergente", value: pipeCounts.pipeDivergente, to: `/pagamentos?status=nf_questionada${pipelineQuery}` },
+              { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
+              { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
+            ];
+            const visibleCols =
+              pipelineMode === "queue" && pipelineOwner !== "all"
+                ? allCols.filter((c) => QUEUE_COLUMNS[pipelineOwner].has(c.label))
+                : allCols;
+            const colCount = Math.max(visibleCols.length, 1);
+            return (
+              <div
+                style={{
+                  padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+                  gap: 0,
+                  minWidth: 0,
+                }}
+              >
+                {loading ? (
+                  Array.from({ length: colCount }).map((_, i) => (
+                    <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
+                  ))
+                ) : visibleCols.length === 0 ? (
+                  <div
+                    style={{
+                      padding: "24px",
+                      textAlign: "center",
+                      color: "hsl(var(--muted-foreground))",
+                      fontSize: 13,
+                    }}
+                  >
+                    Nenhuma coluna nesta fila.
+                  </div>
+                ) : (
+                  visibleCols.map((item, index) => (
+                    <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
+                  ))
+                )}
+              </div>
+            );
+          })()}
         </SurfaceCard>
       </section>
 
