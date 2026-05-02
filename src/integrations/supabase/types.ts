@@ -111,6 +111,7 @@ export type Database = {
           created_by: string | null
           document: string | null
           id: string
+          invoice_emails: string[]
           name: string
           notes: string | null
           updated_at: string
@@ -121,6 +122,7 @@ export type Database = {
           created_by?: string | null
           document?: string | null
           id?: string
+          invoice_emails?: string[]
           name: string
           notes?: string | null
           updated_at?: string
@@ -131,6 +133,7 @@ export type Database = {
           created_by?: string | null
           document?: string | null
           id?: string
+          invoice_emails?: string[]
           name?: string
           notes?: string | null
           updated_at?: string
