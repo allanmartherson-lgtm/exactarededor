@@ -24,7 +24,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, RotateCcw, Send, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, Pencil, RefreshCcw, RotateCcw, Save, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -84,6 +84,9 @@ const PaymentDetail = () => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
+  const [editingObsId, setEditingObsId] = useState<string | null>(null);
+  const [editingObsDraft, setEditingObsDraft] = useState<string>("");
+  const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
