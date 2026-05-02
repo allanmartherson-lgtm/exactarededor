@@ -126,16 +126,35 @@ serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const payment_id = body?.payment_id as string | undefined;
-    if (!payment_id) {
-      return new Response(JSON.stringify({ error: "payment_id obrigatório" }), {
+    const invoice_id = body?.invoice_id as string | undefined;
+    if (!payment_id && !invoice_id) {
+      return new Response(JSON.stringify({ error: "payment_id ou invoice_id obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { data: payment } = await supabase.from("payments").select("*").eq("id", payment_id).single();
-    const { data: items } = await supabase.from("payment_items").select("*").eq("payment_id", payment_id);
+    // ---- Modo reenvio individual (invoice_id) ----
+    let resolvedPaymentId = payment_id ?? null;
+    let targetInvoice: any = null;
+    if (invoice_id) {
+      const { data: inv } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("id", invoice_id)
+        .single();
+      if (!inv) {
+        return new Response(JSON.stringify({ error: "invoice_id não encontrado" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targetInvoice = inv;
+      resolvedPaymentId = inv.payment_id;
+    }
+
+    const { data: payment } = await supabase.from("payments").select("*").eq("id", resolvedPaymentId).single();
+    const { data: items } = await supabase.from("payment_items").select("*").eq("payment_id", resolvedPaymentId);
     if (!payment || !items) throw new Error("Pagamento não encontrado");
 
     // ---- Pré-validação: CNPJ + carrega lista de e-mails das empresas ----
@@ -260,6 +279,20 @@ serve(async (req) => {
     const sendErrors: string[] = [];
     const summaries: any[] = [];
 
+    // Já existem invoices para este payment? No fluxo de "lote" (sem invoice_id),
+    // não criamos novas — apenas reenviamos cada uma individualmente, atualizando o
+    // registro existente. Isso evita duplicação ao reenviar em lote.
+    const { data: existingForPayment } = await supabase
+      .from("invoices")
+      .select("id, company_id, recipient_email")
+      .eq("payment_id", resolvedPaymentId);
+    const existingByCompany = new Map<string, any>();
+    const existingByEmail = new Map<string, any>();
+    (existingForPayment ?? []).forEach((inv: any) => {
+      if (inv.company_id) existingByCompany.set(inv.company_id, inv);
+      if (inv.recipient_email) existingByEmail.set(String(inv.recipient_email).toLowerCase(), inv);
+    });
+
     const processBucket = async (opts: {
       to: string[];
       cc: string[];
@@ -268,20 +301,42 @@ serve(async (req) => {
       company_id: string | null;
       company_name: string | null;
       recipient_label: string;
+      reuse_invoice?: any | null;
     }) => {
-      const { data: invoice } = await supabase.from("invoices").insert({
-        payment_id,
-        expected_amount: opts.total,
-        recipient_email: opts.to[0],
-        recipient_cc: opts.cc,
-        items_count: opts.items.length,
-        status: "aguardando",
-        // sent_at só é preenchido quando o provedor confirma o envio (logo abaixo)
-        company_id: opts.company_id,
-        company_name: opts.company_name,
-      }).select().single();
-      if (!invoice) return;
-      created.push(invoice.id);
+      // Reusa invoice existente se possível (evita duplicar no reenvio).
+      let invoice: any = opts.reuse_invoice ?? null;
+      if (!invoice && opts.company_id && existingByCompany.has(opts.company_id)) {
+        invoice = existingByCompany.get(opts.company_id);
+      }
+      if (!invoice && opts.to[0]) {
+        const k = opts.to[0].toLowerCase();
+        if (existingByEmail.has(k)) invoice = existingByEmail.get(k);
+      }
+      if (invoice) {
+        await supabase.from("invoices").update({
+          expected_amount: opts.total,
+          recipient_email: opts.to[0],
+          recipient_cc: opts.cc,
+          items_count: opts.items.length,
+          company_id: opts.company_id,
+          company_name: opts.company_name,
+          send_error: null,
+        }).eq("id", invoice.id);
+      } else {
+        const { data: inserted } = await supabase.from("invoices").insert({
+          payment_id: resolvedPaymentId,
+          expected_amount: opts.total,
+          recipient_email: opts.to[0],
+          recipient_cc: opts.cc,
+          items_count: opts.items.length,
+          status: "aguardando",
+          company_id: opts.company_id,
+          company_name: opts.company_name,
+        }).select().single();
+        invoice = inserted;
+        if (!invoice) return;
+        created.push(invoice.id);
+      }
 
       const uploadUrl = `${baseUrl}/portal/nota/${invoice.upload_token}`;
 
@@ -402,7 +457,7 @@ ${ASSINATURA}`;
             templateName: "invoice-request",
             recipientEmail: opts.to[0],
             cc: [...opts.to.slice(1), ...opts.cc],
-            idempotencyKey: `inv-${invoice.id}`,
+            idempotencyKey: `inv-${invoice.id}-${Date.now()}`,
             subject: emailSubject,
             templateData: {
               recipientLabel: opts.recipient_label,
@@ -431,6 +486,55 @@ ${ASSINATURA}`;
         sendErrors.push(`${opts.recipient_label}: ${msg}`);
       }
     };
+
+    // ---- Modo reenvio individual: processa SOMENTE o bucket da invoice alvo ----
+    if (targetInvoice) {
+      let bucket: CompanyBucket | undefined;
+      if (targetInvoice.company_id) bucket = byCompany.get(targetInvoice.company_id);
+      let doctorBucket: DoctorBucket | undefined;
+      if (!bucket) {
+        const k = String(targetInvoice.recipient_email ?? "").toLowerCase();
+        doctorBucket = byDoctorFallback.get(k);
+      }
+      if (!bucket && !doctorBucket) {
+        return new Response(JSON.stringify({
+          error: "sem_itens",
+          message: "Não há itens elegíveis para reenviar esta NF (a empresa pode ter sido removida do pagamento).",
+        }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (bucket) {
+        await processBucket({
+          to: bucket.to,
+          cc: Array.from(bucket.cc),
+          total: bucket.total,
+          items: bucket.items,
+          company_id: bucket.company_id,
+          company_name: bucket.company_name,
+          recipient_label: bucket.company_name,
+          reuse_invoice: targetInvoice,
+        });
+      } else if (doctorBucket) {
+        await processBucket({
+          to: [doctorBucket.doctor_email],
+          cc: [],
+          total: doctorBucket.total,
+          items: doctorBucket.items,
+          company_id: null,
+          company_name: null,
+          recipient_label: doctorBucket.items[0]?.doctor_name ?? doctorBucket.doctor_email,
+          reuse_invoice: targetInvoice,
+        });
+      }
+
+      return new Response(JSON.stringify({
+        ok: true,
+        mode: "single",
+        invoice_id: targetInvoice.id,
+        sent_ok: sentOk,
+        sent_error: sentErr,
+        send_errors: sendErrors,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // 1) Buckets por empresa
     for (const bucket of byCompany.values()) {
@@ -461,9 +565,9 @@ ${ASSINATURA}`;
     // o pagamento permanece "aprovado" (= aguardando envio) e as invoices
     // ficam visíveis em /notas-fiscais com a mensagem de erro do provedor.
     if (sentOk > 0) {
-      await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", payment_id);
+      await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", resolvedPaymentId);
       await supabase.from("payment_observations").insert({
-        payment_id,
+        payment_id: resolvedPaymentId,
         author_type: "sistema",
         message:
           `${sentOk} pedido(s) de NF enviado(s) com sucesso` +
@@ -473,7 +577,7 @@ ${ASSINATURA}`;
       });
     } else if (sentErr > 0) {
       await supabase.from("payment_observations").insert({
-        payment_id,
+        payment_id: resolvedPaymentId,
         author_type: "sistema",
         message: `Falha ao enviar ${sentErr} pedido(s) de NF: ${sendErrors.join("; ")}. Configure o provedor de e-mail e use "Reenviar" em /notas-fiscais.`,
         status_to: null,
