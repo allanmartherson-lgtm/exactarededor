@@ -57,6 +57,61 @@ const validateDoc = (raw: string | null | undefined): { kind: "cnpj" | "cpf" | "
 const fmtMoney = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Saudação dinâmica em horário de Brasília (UTC-3)
+const greetingBrasilia = (now = new Date()) => {
+  const brHour = (now.getUTCHours() - 3 + 24) % 24;
+  if (brHour >= 5 && brHour < 12) return "Bom dia";
+  if (brHour >= 12 && brHour < 18) return "Boa tarde";
+  return "Boa noite";
+};
+
+// Junta lista com vírgulas e "e" no último ("A, B e C")
+const joinPt = (arr: string[]) => {
+  const a = arr.filter(Boolean);
+  if (a.length === 0) return "";
+  if (a.length === 1) return a[0];
+  return `${a.slice(0, -1).join(", ")} e ${a[a.length - 1]}`;
+};
+
+// "ao" (1) / "aos" (2+)
+const aoAos = (n: number) => (n > 1 ? "aos" : "ao");
+
+// Formata competência (YYYY-MM-DD ou array) como "Mês de YYYY"
+const MONTH_NAMES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const formatCompetenceBR = (value: string | string[] | null | undefined): string => {
+  if (!value) return "";
+  const arr = Array.isArray(value) ? value : [value];
+  const parts = arr
+    .map((v) => /^(\d{4})-(\d{2})/.exec(v))
+    .filter(Boolean)
+    .map((m) => `${MONTH_NAMES[Number(m![2]) - 1]} de ${m![1]}`);
+  return joinPt(Array.from(new Set(parts)));
+};
+
+// Soma N dias úteis (seg-sex) a partir de uma data
+const addBusinessDays = (date: Date, days: number): Date => {
+  const d = new Date(date);
+  let added = 0;
+  const step = days >= 0 ? 1 : -1;
+  while (added < Math.abs(days)) {
+    d.setUTCDate(d.getUTCDate() + step);
+    const w = d.getUTCDay();
+    if (w !== 0 && w !== 6) added++;
+  }
+  return d;
+};
+
+const formatDateBR = (d: Date) =>
+  `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
+
+const BUSINESS_DAYS_BEFORE_DUE = 10;
+
+// Bloco fixo de dados cadastrais (HIG / DF Star)
+const DADOS_CADASTRAIS = `Hospitais Integrados da Gávea S.A - DF Star
+CNPJ: 31.635.857/0006-16   C.C.M: 07.895.204/001-40
+SGAS 914 Conjunto H - Parte
+Asa Sul - CEP: 70.390-140`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -259,14 +314,47 @@ serve(async (req) => {
         (s.document_raw ? ` · ${s.document_kind.toUpperCase()} ${s.document_formatted} ${s.document_valid ? "✓" : "⚠"}` : "")
       ).join("\n");
 
-      // Texto-padrão do pedido (será o corpo do e-mail e fica gravado no histórico)
+      // ---- Texto-padrão do pedido (template HIG) ----
+      // Setores: combina sectors + specialties do pagamento (fallback "Produção")
+      const setoresArr: string[] = Array.from(new Set([
+        ...(Array.isArray(payment.sectors) ? payment.sectors : []),
+        ...(Array.isArray(payment.specialties) ? payment.specialties : []),
+      ].filter(Boolean)));
+      const setoresStr = setoresArr.length ? joinPt(setoresArr) : "Produção médica";
+      const competenciaStr = formatCompetenceBR(
+        Array.isArray(payment.competence_months) && payment.competence_months.length
+          ? payment.competence_months
+          : payment.competence_month,
+      );
+      // Prazo = data pgto - 10 dias úteis (se houver due_date)
+      let prazoLine = "";
+      if (payment.payment_due_date) {
+        // payment_due_date vem como "YYYY-MM-DD" — parse como UTC pra evitar shift
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(payment.payment_due_date));
+        if (m) {
+          const due = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+          const prazo = addBusinessDays(due, -BUSINESS_DAYS_BEFORE_DUE);
+          prazoLine = `Favor emitir a Nota Fiscal e nos encaminhar até o dia ${formatDateBR(prazo)}.`;
+        }
+      }
+
+      const greeting = greetingBrasilia();
       const requestMessage =
-        `Olá ${opts.recipient_label},\n\n` +
-        `Solicitamos a emissão de Nota Fiscal referente ao pagamento ${payment.reference}.\n` +
-        `Valor total: ${summary.total_amount_formatted} (${summary.items_count} item${summary.items_count === 1 ? "" : "ns"}).\n\n` +
-        `Itens:\n${itemsList}\n\n` +
-        `Após emitir, faça o upload da nota neste link único e seguro:\n${uploadUrl}\n\n` +
-        `Em caso de dúvida, responda este e-mail.\nObrigado.`;
+`Prezados,
+${greeting}!
+
+Solicitamos, por gentileza, a emissão de Nota Fiscal referente ${aoAos(setoresArr.length)} Produção de ${setoresStr}${competenciaStr ? ` — ${competenciaStr}` : ""}:
+
+${opts.recipient_label} - ${setoresStr}
+Valor: ${summary.total_amount_formatted}
+Previsão de pagamento: 10 dias úteis após o envio da NF no link abaixo.
+
+Link único para upload da Nota Fiscal:
+${uploadUrl}
+
+Dados Cadastrais:
+${DADOS_CADASTRAIS}
+${prazoLine ? `\n${prazoLine}` : ""}`;
 
       await supabase.from("invoices").update({ request_message: requestMessage }).eq("id", invoice.id);
       summary["request_message"] = requestMessage;
