@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
+import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle } from "lucide-react";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
@@ -39,6 +40,7 @@ interface ParsedRow {
   procedure_amount: number | null;
   quantity: number | null;
   procedure_date: string | null;
+  patient_name: string | null;
   raw_data: Record<string, unknown>;
 }
 
@@ -151,6 +153,7 @@ const NewPayment = () => {
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
 
   useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
 
@@ -192,6 +195,7 @@ const NewPayment = () => {
         procedure_amount: procVal || null,
         quantity: toNumber(pick(row, ["qtd", "quantidade"])) || null,
         procedure_date: excelDateToISO(pick(row, ["data"])),
+        patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         raw_data: row,
       };
     }).filter((r) => r.doctor_name || r.gross_amount > 0 || r.procedure_code);
@@ -263,6 +267,7 @@ const NewPayment = () => {
         cost_center_code: costCenterCode,
         sectors: pSectors,
         specialties: pSpecialties,
+        analysis_mode: analysisMode,
       })
       .select()
       .single();
@@ -291,6 +296,7 @@ const NewPayment = () => {
       procedure_amount: r.procedure_amount,
       quantity: r.quantity,
       procedure_date: r.procedure_date,
+      patient_name: r.patient_name,
       raw_data: r.raw_data as never,
     }));
     const { error: itemsErr } = await supabase.from("payment_items").insert(items);
