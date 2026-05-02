@@ -138,11 +138,21 @@ export const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
   misto: "Misto (atual + pendência)",
 };
 
-const MONTH_FMT = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
-const MONTH_SHORT_FMT = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" });
+const MONTH_FMT = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+const MONTH_SHORT_FMT = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit", timeZone: "UTC" });
 
-const fmtSingle = (value: string) => MONTH_FMT.format(new Date(value));
-const fmtSingleShort = (value: string) => MONTH_SHORT_FMT.format(new Date(value)).replace(".", "");
+// Parse "YYYY-MM-DD" como data UTC para evitar shift de fuso horário
+// (new Date("2026-03-01") no Brasil viraria 28/02 21:00 e mostraria "fevereiro")
+const parseAsUTC = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
+  return new Date(value);
+};
+
+const fmtSingle = (value: string) => MONTH_FMT.format(parseAsUTC(value));
+const fmtSingleShort = (value: string) => MONTH_SHORT_FMT.format(parseAsUTC(value)).replace(".", "");
 
 export const formatCompetence = (
   value: string | string[] | null | undefined,
