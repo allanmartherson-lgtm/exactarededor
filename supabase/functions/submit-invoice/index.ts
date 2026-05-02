@@ -18,11 +18,15 @@ serve(async (req) => {
       if (!token) return new Response(JSON.stringify({ error: "token" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const { data: invoice } = await supabase
         .from("invoices")
-        .select("id, expected_amount, status, recipient_email, payment_id")
+        .select("id, expected_amount, status, recipient_email, payment_id, company_name, received_at")
         .eq("upload_token", token)
         .maybeSingle();
       if (!invoice) return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const { data: payment } = await supabase.from("payments").select("reference").eq("id", invoice.payment_id).single();
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("reference, description, sectors, specialties, competence_months, competence_month, payment_kind")
+        .eq("id", invoice.payment_id)
+        .single();
       // Inclui a thread de questionamentos pra renderizar no portal
       const { data: questions } = await supabase
         .from("invoice_questions")
@@ -81,10 +85,10 @@ serve(async (req) => {
     const form = await req.formData();
     const token = String(form.get("token") ?? "");
     const invoiceNumber = String(form.get("invoice_number") ?? "").trim();
-    const receivedAmount = Number(form.get("received_amount"));
+    const rawReceived = form.get("received_amount");
     const file = form.get("file") as File | null;
 
-    if (!token || !invoiceNumber || !file || isNaN(receivedAmount)) {
+    if (!token || !invoiceNumber || !file) {
       return new Response(JSON.stringify({ error: "Dados inválidos" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -97,14 +101,20 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Esta NF já foi enviada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Recebedor não digita mais o valor — assumimos o valor esperado para fins
+    // do registro. A conciliação real fica por conta da IA (valor extraído da NF).
+    const expected = Number(invoice.expected_amount);
+    const receivedAmount = rawReceived != null && String(rawReceived).trim() !== ""
+      ? Number(rawReceived)
+      : expected;
+
     const ext = file.name.split(".").pop() ?? "pdf";
     const path = `${invoice.payment_id}/${invoice.id}.${ext}`;
     const buf = new Uint8Array(await file.arrayBuffer());
     const { error: upErr } = await supabase.storage.from("invoices").upload(path, buf, { contentType: file.type, upsert: true });
     if (upErr) throw upErr;
 
-    // Conciliação pelo valor digitado pelo recebedor.
-    const expected = Number(invoice.expected_amount);
+    // Conciliação pelo valor (esperado/digitado) e pelo extraído pela IA.
     const tolerance = 0.01;
     const formDiff = Math.abs(expected - receivedAmount);
     const matchesByForm = formDiff <= tolerance;
