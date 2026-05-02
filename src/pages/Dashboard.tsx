@@ -861,35 +861,56 @@ const Dashboard = () => {
               />
             </div>
           </div>
-          <div
-            style={{
-              padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
-              display: "grid",
-              gridTemplateColumns: "repeat(9, minmax(0, 1fr))",
-              gap: 0,
-              minWidth: 0,
-            }}
-          >
-            {loading ? (
-              Array.from({ length: 9 }).map((_, i) => (
-                <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
-              ))
-            ) : (
-              [
-                { icon: FileText, color: "purple" as const, label: "Análise", value: pipeCounts.pipeAnaliseIA, to: `/pagamentos?status=em_analise_ia${pipelineQuery}` },
-                { icon: ListChecks, color: "yellow" as const, label: "Validação", value: pipeCounts.pipeValidacao, to: `/pagamentos?status=aguardando_validacao${pipelineQuery}` },
-                { icon: ShieldCheck, color: "blue" as const, label: "Aprovação", value: pipeCounts.pipeAprovacao, to: `/pagamentos?status=aguardando_aprovacao${pipelineQuery}` },
-                { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
-                { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
-                { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
-                { icon: AlertCircle, color: "red" as const, label: "Divergente", value: pipeCounts.pipeDivergente, to: `/pagamentos?status=nf_questionada${pipelineQuery}` },
-                { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
-                { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
-              ].map((item, index) => (
-                <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
-              ))
-            )}
-          </div>
+          {(() => {
+            const allCols = [
+              { icon: FileText, color: "purple" as const, label: "Análise", value: pipeCounts.pipeAnaliseIA, to: `/pagamentos?status=em_analise_ia${pipelineQuery}` },
+              { icon: ListChecks, color: "yellow" as const, label: "Validação", value: pipeCounts.pipeValidacao, to: `/pagamentos?status=aguardando_validacao${pipelineQuery}` },
+              { icon: ShieldCheck, color: "blue" as const, label: "Aprovação", value: pipeCounts.pipeAprovacao, to: `/pagamentos?status=aguardando_aprovacao${pipelineQuery}` },
+              { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
+              { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
+              { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
+              { icon: AlertCircle, color: "red" as const, label: "Divergente", value: pipeCounts.pipeDivergente, to: `/pagamentos?status=nf_questionada${pipelineQuery}` },
+              { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
+              { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
+            ];
+            const visibleCols =
+              pipelineMode === "queue" && pipelineOwner !== "all"
+                ? allCols.filter((c) => QUEUE_COLUMNS[pipelineOwner].has(c.label))
+                : allCols;
+            const colCount = Math.max(visibleCols.length, 1);
+            return (
+              <div
+                style={{
+                  padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+                  gap: 0,
+                  minWidth: 0,
+                }}
+              >
+                {loading ? (
+                  Array.from({ length: colCount }).map((_, i) => (
+                    <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
+                  ))
+                ) : visibleCols.length === 0 ? (
+                  <div
+                    style={{
+                      padding: "24px",
+                      textAlign: "center",
+                      color: "hsl(var(--muted-foreground))",
+                      fontSize: 13,
+                    }}
+                  >
+                    Nenhuma coluna nesta fila.
+                  </div>
+                ) : (
+                  visibleCols.map((item, index) => (
+                    <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
+                  ))
+                )}
+              </div>
+            );
+          })()}
         </SurfaceCard>
       </section>
 
