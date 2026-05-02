@@ -417,6 +417,18 @@ const NewPayment = () => {
                 <CostCenterCombobox value={costCenterCode} onChange={setCostCenterCode} placeholder="Buscar por código P12 ou nome…" />
                 <p className="text-xs text-muted-foreground">Pode ser sobrescrito por item depois. Itens sem centro herdam este.</p>
               </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Modo de análise</Label>
+                <Select value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
+                      <SelectItem key={k} value={k}>{PAYMENT_ANALYSIS_MODE_LABELS[k]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[analysisMode]}</p>
+              </div>
               <div className="space-y-2">
                 <Label>Setor(es) / Item Pagamento</Label>
                 <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
