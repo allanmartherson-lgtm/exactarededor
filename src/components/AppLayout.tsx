@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
@@ -20,6 +21,7 @@ import {
   PanelLeft,
   PanelTop,
   Network,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -34,18 +36,87 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const nav = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/pagamentos", label: "Pagamentos", icon: Wallet, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/kpis", label: "KPIs", icon: BarChart2, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/regras", label: "Regras", icon: ShieldCheck, roles: ["diretor", "admin"] as const },
-  { to: "/tabelas", label: "Tabelas de referência", icon: Table, roles: ["diretor", "admin"] as const },
-  { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] as const },
-  { to: "/centros-de-custo", label: "Centros de custo", icon: Network, roles: ["analista", "validador", "diretor", "admin"] as const },
-  { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"] as const },
-  { to: "/auditoria", label: "Auditoria", icon: History, roles: ["diretor", "admin"] as const },
+/* ============================================================
+ * Single source of truth for navigation. Both topbar and sidebar
+ * read from this. Items with `children` become dropdown groups
+ * in topbar mode and are flattened in sidebar mode.
+ * ============================================================ */
+type Role = "analista" | "validador" | "diretor" | "admin";
+type NavLeaf = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  roles: readonly Role[];
+};
+type NavGroup = {
+  label: string;
+  icon: typeof LayoutDashboard;
+  roles: readonly Role[];
+  children: NavLeaf[];
+};
+type NavItem = NavLeaf | NavGroup;
+
+const ALL_ROLES = ["analista", "validador", "diretor", "admin"] as const;
+
+const NAV_ITEMS: NavItem[] = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ALL_ROLES },
+  {
+    label: "Financeiro",
+    icon: Wallet,
+    roles: ALL_ROLES,
+    children: [
+      { to: "/pagamentos", label: "Pagamentos", icon: Wallet, roles: ALL_ROLES },
+      { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, roles: ALL_ROLES },
+      { to: "/kpis", label: "KPIs", icon: BarChart2, roles: ALL_ROLES },
+    ],
+  },
+  {
+    label: "Configurações",
+    icon: ScrollText,
+    roles: ["diretor", "admin"],
+    children: [
+      { to: "/regras", label: "Regras", icon: ShieldCheck, roles: ["diretor", "admin"] },
+      { to: "/tabelas", label: "Tabelas de referência", icon: Table, roles: ["diretor", "admin"] },
+      { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] },
+      { to: "/centros-de-custo", label: "Centros de custo", icon: Network, roles: ALL_ROLES },
+    ],
+  },
+  {
+    label: "Acesso",
+    icon: Users,
+    roles: ["diretor", "admin"],
+    children: [
+      { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"] },
+      { to: "/auditoria", label: "Auditoria", icon: History, roles: ["diretor", "admin"] },
+    ],
+  },
 ];
+
+const isGroup = (n: NavItem): n is NavGroup => "children" in n;
+
+/** Flatten groups into a single list for sidebar mode. */
+function flattenNav(items: NavItem[]): NavLeaf[] {
+  const out: NavLeaf[] = [];
+  for (const it of items) {
+    if (isGroup(it)) out.push(...it.children);
+    else out.push(it);
+  }
+  return out;
+}
+
+/** Filter visible items by user roles, recursively for groups. */
+function filterNav(items: NavItem[], roles: string[]): NavItem[] {
+  return items
+    .map((it) => {
+      if (isGroup(it)) {
+        const kids = it.children.filter((c) => c.roles.some((r) => roles.includes(r)));
+        if (kids.length === 0) return null;
+        return { ...it, children: kids };
+      }
+      return it.roles.some((r) => roles.includes(r)) ? it : null;
+    })
+    .filter(Boolean) as NavItem[];
+}
 
 function getInitials(email?: string | null) {
   if (!email) return "AA";
