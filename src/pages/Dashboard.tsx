@@ -776,9 +776,11 @@ const PIPELINE_STEP_DESCRIPTION: Record<number, { full: string; helper: string }
 };
 
 /**
- * PipelineStep — tile compacto do funil. Layout vertical (ícone+nº em cima,
- * label embaixo) para caber 7 colunas sem truncar. Usa Tooltip para revelar
- * o nome completo da etapa, descrição e contagem em prosa.
+ * PipelineStep — variante compacta do StatTile usada no funil do dashboard.
+ * Compartilha tipografia, espaçamento, foco e skeleton com o StatCard via
+ * `density="compact"`. Adiciona apenas:
+ *  - selo de etapa "1/7" no rodapé (badge)
+ *  - tooltip rico com descrição completa + contagem em prosa
  */
 const PipelineStep = ({
   step,
@@ -794,83 +796,53 @@ const PipelineStep = ({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;
-  tone: "info" | "warning" | "success";
+  tone: StatCardTone;
   to: string;
 }) => {
-  const toneBg: Record<string, string> = {
-    // Tons fortes (ratio AA+) usados nos ícones — funcionam em light e dark.
+  const toneBg: Record<StatCardTone, string> = {
     info: "bg-info-soft text-info",
     warning: "bg-warning-soft text-warning-foreground",
     success: "bg-success-soft text-success",
   };
   const itemCount = `${value} ${value === 1 ? "pagamento" : "pagamentos"}`;
   const desc = PIPELINE_STEP_DESCRIPTION[step] ?? { full: label, helper: "" };
+  const iconNode = (
+    <div className={cn("h-7 w-7 rounded-md flex items-center justify-center", toneBg[tone])}>
+      <Icon className="h-4 w-4" />
+    </div>
+  );
+  const stepBadge = (
+    <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border border-border px-2 py-0.5 leading-none text-muted-foreground tabular-nums">
+      Etapa {step}/{totalSteps}
+    </span>
+  );
+  const tooltipNode = (
+    <div className="space-y-1">
+      <p className="font-semibold">
+        <span className="text-muted-foreground tabular-nums">Etapa {step}/{totalSteps} · </span>
+        {desc.full}
+      </p>
+      <p className="tabular-nums">
+        <span className="font-semibold">{value}</span> {value === 1 ? "pagamento" : "pagamentos"} nesta etapa
+      </p>
+      {desc.helper && <p className="text-muted-foreground leading-snug">{desc.helper}</p>}
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
+        Clique para abrir a lista
+      </p>
+    </div>
+  );
   return (
     <div role="listitem" className="h-full">
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild>
-          <Link
-            to={to}
-            aria-label={`Etapa ${step} de ${totalSteps}: ${desc.full}. ${itemCount}. ${desc.helper} Abrir lista filtrada.`}
-            className={cn(
-              "group block h-full rounded-lg transition",
-              "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            )}
-          >
-            <div
-              className={cn(
-                "h-full rounded-lg border border-border bg-card shadow-soft p-3",
-                "flex flex-col items-center text-center gap-1.5",
-                "transition-colors transition-shadow",
-                "group-hover:shadow-card group-hover:border-foreground/20",
-                "group-focus-visible:shadow-card group-focus-visible:border-ring",
-              )}
-            >
-              <div className="flex items-center justify-between w-full">
-                <span
-                  aria-hidden="true"
-                  className="text-[11px] font-semibold text-foreground/70 tabular-nums"
-                >
-                  {step}
-                </span>
-                <div
-                  aria-hidden="true"
-                  className={`h-7 w-7 rounded-md flex items-center justify-center ${toneBg[tone]}`}
-                >
-                  <Icon className="h-4 w-4" />
-                </div>
-              </div>
-              <p
-                aria-hidden="true"
-                className="text-2xl font-semibold tabular-nums leading-none mt-1 text-foreground"
-              >
-                {value}
-              </p>
-              <p
-                aria-hidden="true"
-                className="text-xs font-medium text-foreground leading-tight line-clamp-2 mt-auto"
-              >
-                {label}
-              </p>
-            </div>
-          </Link>
-        </TooltipTrigger>
-        <TooltipContent side="top" align="center" className="max-w-xs text-xs">
-          <div className="space-y-1">
-            <p className="font-semibold">
-              <span className="text-muted-foreground tabular-nums">Etapa {step}/{totalSteps} · </span>
-              {desc.full}
-            </p>
-            <p className="tabular-nums">
-              <span className="font-semibold">{value}</span> {value === 1 ? "pagamento" : "pagamentos"} nesta etapa
-            </p>
-            {desc.helper && <p className="text-muted-foreground leading-snug">{desc.helper}</p>}
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
-              Clique para abrir a lista
-            </p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
+      <StatTile
+        label={label}
+        value={value}
+        icon={iconNode}
+        badge={stepBadge}
+        density="compact"
+        to={to}
+        tooltip={tooltipNode}
+        ariaLabel={`Etapa ${step} de ${totalSteps}: ${desc.full}. ${itemCount}. ${desc.helper} Abrir lista filtrada.`}
+      />
     </div>
   );
 };
