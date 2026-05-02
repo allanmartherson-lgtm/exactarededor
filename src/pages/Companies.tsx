@@ -79,19 +79,20 @@ const Companies = () => {
         return;
       }
     }
-    // Aproveita e-mail digitado mas não confirmado com Enter (evita perder o que o usuário "esqueceu" no input)
-    const finalEmails = [...(editing.invoice_emails ?? [])];
-    const pendingEmail = emailInput.trim().toLowerCase();
-    if (pendingEmail) {
-      if (!isValidEmail(pendingEmail)) {
+    // Aproveita e-mail digitado mas não confirmado (Enter/blur).
+    // tryAddEmail aplica trim+lowercase+dedup — mesmo helper usado no chip.
+    let finalEmails = dedupEmails(editing.invoice_emails ?? []);
+    if (emailInput.trim()) {
+      const result = tryAddEmail(finalEmails, emailInput);
+      if (!result.ok) {
         toast({
           title: "E-mail inválido no campo",
-          description: `"${pendingEmail}" não é um e-mail válido. Corrija ou apague antes de salvar.`,
+          description: `"${normalizeEmail(emailInput)}" não é um e-mail válido. Corrija ou apague antes de salvar.`,
           variant: "destructive",
         });
         return;
       }
-      if (!finalEmails.includes(pendingEmail)) finalEmails.push(pendingEmail);
+      finalEmails = result.emails;
     }
 
     const payload = {
@@ -100,9 +101,7 @@ const Companies = () => {
       document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
-      invoice_emails: finalEmails
-        .map((e) => e.trim().toLowerCase())
-        .filter((e) => isValidEmail(e)),
+      invoice_emails: finalEmails,
     };
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
