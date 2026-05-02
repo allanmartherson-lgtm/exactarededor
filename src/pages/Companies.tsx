@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
+import { dedupEmails, isValidEmail, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/email";
 
 interface Company {
   id: string;
@@ -25,8 +26,6 @@ interface Company {
 }
 
 const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "", invoice_emails: [] };
-
-const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
