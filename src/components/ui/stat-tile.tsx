@@ -155,8 +155,8 @@ export const StatTile = ({
         <p
           data-testid="stat-card-value"
           className={cn(
-            "font-semibold tabular-nums leading-none",
             isCompact ? "text-2xl" : "text-2xl sm:text-3xl",
+            "font-semibold tabular-nums leading-none",
           )}
         >
           {value}
