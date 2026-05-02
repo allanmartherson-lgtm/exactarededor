@@ -20,11 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
-import {
-  usePaymentDetailData,
-  type PaymentItemRow,
-  type AiFindings,
-} from "@/hooks/usePaymentDetailData";
+import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
 import {
   ANALYST_DONE_STATUSES,
