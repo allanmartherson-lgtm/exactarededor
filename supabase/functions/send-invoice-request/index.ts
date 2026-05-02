@@ -207,6 +207,8 @@ serve(async (req) => {
         payment_id,
         expected_amount: opts.total,
         recipient_email: opts.to[0],
+        recipient_cc: opts.cc,
+        items_count: opts.items.length,
         status: "aguardando",
         sent_at: new Date().toISOString(),
         company_id: opts.company_id,
@@ -257,6 +259,18 @@ serve(async (req) => {
         (s.document_raw ? ` · ${s.document_kind.toUpperCase()} ${s.document_formatted} ${s.document_valid ? "✓" : "⚠"}` : "")
       ).join("\n");
 
+      // Texto-padrão do pedido (será o corpo do e-mail e fica gravado no histórico)
+      const requestMessage =
+        `Olá ${opts.recipient_label},\n\n` +
+        `Solicitamos a emissão de Nota Fiscal referente ao pagamento ${payment.reference}.\n` +
+        `Valor total: ${summary.total_amount_formatted} (${summary.items_count} item${summary.items_count === 1 ? "" : "ns"}).\n\n` +
+        `Itens:\n${itemsList}\n\n` +
+        `Após emitir, faça o upload da nota neste link único e seguro:\n${uploadUrl}\n\n` +
+        `Em caso de dúvida, responda este e-mail.\nObrigado.`;
+
+      await supabase.from("invoices").update({ request_message: requestMessage }).eq("id", invoice.id);
+      summary["request_message"] = requestMessage;
+
       // SIMULAÇÃO: enquanto o provedor de e-mail (Resend/Lovable Emails) não está
       // conectado, registramos o conteúdo no log para inspeção.
       console.log("[send-invoice-request] PEDIDO DE NF (simulado)", {
@@ -282,6 +296,7 @@ serve(async (req) => {
               totalAmount: summary.total_amount_formatted,
               uploadUrl,
               itemsList,
+              requestMessage,
               summary,
             },
           },
