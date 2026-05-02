@@ -39,7 +39,7 @@ All colors MUST be HSL.
     --success-soft: 152 55% 94%;
 
     --warning: 35 92% 50%;
-    --warning-foreground: 30 50% 12%;
+    --warning-foreground: 30 60% 10%;
     --warning-soft: 40 95% 94%;
 
     --info: 215 80% 42%;
@@ -67,8 +67,6 @@ All colors MUST be HSL.
     --sidebar-background: 210 30% 98%;
     --sidebar-foreground: 215 25% 27%;
     --sidebar-muted-foreground: 215 18% 35%;
-    /* Warning dark — fg precisa ser claro sobre warning-soft escuro */
-    --warning-foreground: 35 90% 92%;
     --sidebar-primary: 195 80% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 210 30% 93%;
@@ -98,6 +96,7 @@ All colors MUST be HSL.
     --success: 152 55% 45%;
     --success-soft: 152 30% 16%;
     --warning: 35 90% 55%;
+    --warning-foreground: 35 90% 92%;
     --warning-soft: 35 30% 18%;
     --info: 215 80% 65%;
     --info-soft: 215 30% 18%;
