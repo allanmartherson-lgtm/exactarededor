@@ -1195,6 +1195,14 @@ const PaymentDetail = () => {
                       <div className="flex flex-wrap gap-2 justify-end">
                         {isGroupAnalista && (
                           <>
+                            <Button
+                              variant="outline"
+                              onClick={() => reanalyzeGroup(g)}
+                              disabled={busy || reanalyzingGroupId === g.id}
+                            >
+                              <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
+                              {reanalyzingGroupId === g.id ? "Reaplicando..." : "Reaplicar regras"}
+                            </Button>
                             {returnerForResend ? (
                               <Button onClick={() => resendGroup(g.id)} disabled={busy}>
                                 <Send className="h-4 w-4 mr-2" />
