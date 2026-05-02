@@ -236,8 +236,49 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_questions: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          author_type: string
+          created_at: string
+          id: string
+          invoice_id: string
+          message: string
+          payment_id: string
+          read_at: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          author_type: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          message: string
+          payment_id: string
+          read_at?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          author_type?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          message?: string
+          payment_id?: string
+          read_at?: string | null
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
+          ai_extracted_amount: number | null
+          ai_extracted_cnpj: string | null
+          ai_extracted_number: string | null
+          ai_validated_at: string | null
+          ai_validation: Json | null
           company_id: string | null
           company_name: string | null
           created_at: string
@@ -256,6 +297,11 @@ export type Database = {
           upload_token: string
         }
         Insert: {
+          ai_extracted_amount?: number | null
+          ai_extracted_cnpj?: string | null
+          ai_extracted_number?: string | null
+          ai_validated_at?: string | null
+          ai_validation?: Json | null
           company_id?: string | null
           company_name?: string | null
           created_at?: string
@@ -274,6 +320,11 @@ export type Database = {
           upload_token?: string
         }
         Update: {
+          ai_extracted_amount?: number | null
+          ai_extracted_cnpj?: string | null
+          ai_extracted_number?: string | null
+          ai_validated_at?: string | null
+          ai_validation?: Json | null
           company_id?: string | null
           company_name?: string | null
           created_at?: string
