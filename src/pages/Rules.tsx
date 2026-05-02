@@ -1097,10 +1097,32 @@ const Rules = () => {
                       </Select>
                     </div>
                     <div className="space-y-1"><Label className="text-xs">Nome do alvo</Label>
-                      <Input value={d.target_name ?? ""} onChange={(e) => updateDraft(i, { target_name: e.target.value })} />
+                      {d.target_type === "empresa" ? (
+                        <CompanyCombobox
+                          value={
+                            d.target_name || d.target_identifier
+                              ? { id: "", name: d.target_name ?? "", document: d.target_identifier ?? null }
+                              : null
+                          }
+                          onChange={(c) =>
+                            updateDraft(i, {
+                              target_name: c?.name ?? "",
+                              target_identifier: c?.document ? formatCNPJ(c.document) : "",
+                            })
+                          }
+                          placeholder="Buscar empresa cadastrada…"
+                          className="w-full"
+                        />
+                      ) : (
+                        <Input value={d.target_name ?? ""} onChange={(e) => updateDraft(i, { target_name: e.target.value })} />
+                      )}
                     </div>
                     <div className="space-y-1 col-span-3"><Label className="text-xs">CPF/CNPJ</Label>
-                      <Input value={d.target_identifier ?? ""} onChange={(e) => updateDraft(i, { target_identifier: e.target.value })} />
+                      <Input
+                        value={d.target_identifier ?? ""}
+                        onChange={(e) => updateDraft(i, { target_identifier: e.target.value })}
+                        placeholder={d.target_type === "empresa" ? "Preenchido ao selecionar a empresa" : ""}
+                      />
                     </div>
                   </>}
                 </div>
