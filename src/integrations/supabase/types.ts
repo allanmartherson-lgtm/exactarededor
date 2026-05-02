@@ -850,6 +850,7 @@ export type Database = {
           applies_payment_types:
             | Database["public"]["Enums"]["payment_type"][]
             | null
+          apply_access_route: boolean
           auxiliary_pct: number | null
           bonus_amount: number | null
           bonus_pct: number | null
@@ -872,6 +873,7 @@ export type Database = {
           payment_term: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes: string[] | null
           reference_table_id: string | null
+          repasse_pct: number | null
           rule_json: Json | null
           rule_text: string
           rule_type: Database["public"]["Enums"]["rule_type"]
@@ -898,6 +900,7 @@ export type Database = {
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
             | null
+          apply_access_route?: boolean
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
@@ -920,6 +923,7 @@ export type Database = {
           payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
+          repasse_pct?: number | null
           rule_json?: Json | null
           rule_text: string
           rule_type?: Database["public"]["Enums"]["rule_type"]
@@ -946,6 +950,7 @@ export type Database = {
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
             | null
+          apply_access_route?: boolean
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
@@ -968,6 +973,7 @@ export type Database = {
           payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
+          repasse_pct?: number | null
           rule_json?: Json | null
           rule_text?: string
           rule_type?: Database["public"]["Enums"]["rule_type"]
