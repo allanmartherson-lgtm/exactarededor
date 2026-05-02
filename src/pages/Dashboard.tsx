@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { forwardRef, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   usePipelinePreferences,
@@ -831,34 +831,30 @@ const Dashboard = () => {
           </div>
           <div
             style={{
-              padding: 22,
+              padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
               display: "grid",
               gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-              gap: 10,
+              gap: 0,
               minWidth: 0,
             }}
           >
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => <PipelineColSkeleton key={i} />)
+              Array.from({ length: 8 }).map((_, i) => (
+                <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
+              ))
             ) : (
-              <>
-                <PipelineCol icon={FileText} color="purple" label="Análise" value={pipeCounts.pipeAnaliseIA}
-                  to={`/pagamentos?status=em_analise_ia${pipelineQuery}`} />
-                <PipelineCol icon={ListChecks} color="yellow" label="Validação" value={pipeCounts.pipeValidacao}
-                  to={`/pagamentos?status=aguardando_validacao${pipelineQuery}`} />
-                <PipelineCol icon={ShieldCheck} color="blue" label="Aprovação" value={pipeCounts.pipeAprovacao}
-                  to={`/pagamentos?status=aguardando_aprovacao${pipelineQuery}`} />
-                <PipelineCol icon={Send} color="red" label="Aguardando" value={pipeCounts.pipeAguardandoEnvio}
-                  to={`/pagamentos?status=aprovado${pipelineQuery}`} />
-                <PipelineCol icon={FileText} color="purple" label="NF solicitada" value={pipeCounts.pipeNFSolicitada}
-                  to={`/pagamentos?status=pedido_nf_enviado${pipelineQuery}`} />
-                <PipelineCol icon={FileCheck} color="green" label="NF recebida" value={pipeCounts.pipeNFRecebida}
-                  to={`/pagamentos?status=nf_recebida${pipelineQuery}`} />
-                <PipelineCol icon={CheckCircle} color="green" label="Conciliada" value={pipeCounts.pipeNFConciliada}
-                  to={`/pagamentos?status=nf_conciliada${pipelineQuery}`} />
-                <PipelineCol icon={CreditCard} color="blue" label="Pago" value={pipeCounts.pipePago}
-                  to={`/pagamentos?status=pago${pipelineQuery}`} />
-              </>
+              [
+                { icon: FileText, color: "purple" as const, label: "Análise", value: pipeCounts.pipeAnaliseIA, to: `/pagamentos?status=em_analise_ia${pipelineQuery}` },
+                { icon: ListChecks, color: "yellow" as const, label: "Validação", value: pipeCounts.pipeValidacao, to: `/pagamentos?status=aguardando_validacao${pipelineQuery}` },
+                { icon: ShieldCheck, color: "blue" as const, label: "Aprovação", value: pipeCounts.pipeAprovacao, to: `/pagamentos?status=aguardando_aprovacao${pipelineQuery}` },
+                { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
+                { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
+                { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
+                { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
+                { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
+              ].map((item, index) => (
+                <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
+              ))
             )}
           </div>
         </SurfaceCard>
@@ -971,50 +967,59 @@ const TaskRow = ({
   );
 };
 
-const PipelineCol = ({
-  icon: Icon,
-  color,
-  label,
-  value,
-  to,
-}: {
+const PipelineCol = forwardRef<HTMLAnchorElement, {
   icon: LucideIcon;
   color: BubbleColor;
   label: string;
   value: number;
   to: string;
-}) => (
-  <Link
-    to={to}
-    className="pipeline-col"
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 10,
-      padding: "14px 8px",
-      borderRadius: 12,
-      textDecoration: "none",
-      color: "inherit",
-      transition: "background 0.15s ease",
-    }}
-  >
+  density: PipelineDensity;
+  separated: boolean;
+}>(({
+  icon: Icon,
+  color,
+  label,
+  value,
+  to,
+  density,
+  separated,
+}, ref) => {
+  const comfortable = density === "comfortable";
+  return (
+    <Link
+      ref={ref}
+      to={to}
+      className="pipeline-col"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: comfortable ? 12 : 8,
+        padding: comfortable ? "18px 10px" : "10px 6px",
+        borderRadius: 10,
+        textDecoration: "none",
+        color: "inherit",
+        transition: "background 0.15s ease",
+        boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
+        minWidth: 0,
+      }}
+    >
     <div
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: comfortable ? 40 : 32,
+        height: comfortable ? 40 : 32,
+        borderRadius: comfortable ? 10 : 9,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         ...bubbleStyle(color),
       }}
     >
-      <Icon size={18} />
+      <Icon size={comfortable ? 18 : 17} strokeWidth={2} />
     </div>
     <div
       style={{
-        fontSize: 28,
+        fontSize: comfortable ? 30 : 24,
         fontWeight: 300,
         letterSpacing: "-0.02em",
         lineHeight: 1,
@@ -1026,7 +1031,7 @@ const PipelineCol = ({
     </div>
     <div
       style={{
-        fontSize: 10,
+        fontSize: comfortable ? 10 : 9,
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.07em",
@@ -1037,16 +1042,29 @@ const PipelineCol = ({
     >
       {label}
     </div>
-  </Link>
-);
+    </Link>
+  );
+});
+PipelineCol.displayName = "PipelineCol";
 
-const PipelineColSkeleton = () => (
-  <div className="flex flex-col items-center gap-2.5 py-3">
-    <Skeleton className="h-9 w-9 rounded-lg" />
-    <Skeleton className="h-7 w-10" />
+const PipelineColSkeleton = forwardRef<HTMLDivElement, { density: PipelineDensity; separated: boolean }>(
+  ({ density, separated }, ref) => (
+  <div
+    ref={ref}
+    className="flex flex-col items-center"
+    style={{
+      gap: density === "comfortable" ? 12 : 8,
+      padding: density === "comfortable" ? "18px 10px" : "10px 6px",
+      boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
+    }}
+  >
+    <Skeleton className={cn(density === "comfortable" ? "h-10 w-10" : "h-8 w-8", "rounded-lg")} />
+    <Skeleton className={cn(density === "comfortable" ? "h-8 w-10" : "h-6 w-9")} />
     <Skeleton className="h-2.5 w-16" />
   </div>
+  ),
 );
+PipelineColSkeleton.displayName = "PipelineColSkeleton";
 
 const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
   <div aria-hidden>
