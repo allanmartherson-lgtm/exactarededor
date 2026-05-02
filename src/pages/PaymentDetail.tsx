@@ -5,6 +5,9 @@ import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowLeft, Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronUp, FileDown, Mail, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, CalendarDays, CheckCircle2, FileDown, GitCompare, History, Mail, MessageSquarePlus, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -63,17 +66,23 @@ const PaymentDetail = () => {
   const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [aiVersions, setAiVersions] = useState<any[]>([]);
+  const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
+  const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
+  const [compareItemId, setCompareItemId] = useState<string | null>(null);
+  const [compareA, setCompareA] = useState<number | null>(null);
+  const [compareB, setCompareB] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,full_name,email"),
+      supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
     ]);
-    setPayment(p); setItems(it ?? []); setObs(o ?? []);
+    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []);
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
@@ -221,6 +230,278 @@ const PaymentDetail = () => {
     .filter((it) => it.ai_findings?.alerts?.length)
     .slice(0, 6)
     .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
+
+  // ===== Histórico (timeline + comparador de versões da IA) =====
+  const itemLabel = (itemId: string | null | undefined) => {
+    if (!itemId) return null;
+    const it = items.find((x) => x.id === itemId);
+    if (!it) return "item";
+    return it.doctor_name + (it.attendance_number ? ` · atend. ${it.attendance_number}` : "");
+  };
+  const filteredObs = historyItemFilter === "all"
+    ? obs
+    : historyItemFilter === "payment"
+      ? obs.filter((o) => !o.item_id)
+      : obs.filter((o) => o.item_id === historyItemFilter);
+  const filteredVersions = historyItemFilter === "all" || historyItemFilter === "payment"
+    ? aiVersions
+    : aiVersions.filter((v) => v.item_id === historyItemFilter);
+  const versionsForCompare = compareItemId
+    ? aiVersions.filter((v) => v.item_id === compareItemId).sort((a, b) => b.version - a.version)
+    : [];
+  const verA = versionsForCompare.find((v) => v.version === compareA) ?? null;
+  const verB = versionsForCompare.find((v) => v.version === compareB) ?? null;
+
+  const canComment = isAnalista || isValidador || isDiretor;
+  const myAuthorType: "analista" | "validador" | "diretor" =
+    isDiretor ? "diretor" : isValidador ? "validador" : "analista";
+
+  const addItemComment = async (itemId: string) => {
+    const text = (itemCommentDraft[itemId] ?? "").trim();
+    if (!text) return;
+    setBusy(true);
+    const { error } = await supabase.from("payment_observations").insert({
+      payment_id: id, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
+    });
+    setBusy(false);
+    if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
+    setItemCommentDraft((m) => ({ ...m, [itemId]: "" }));
+    load();
+  };
+
+  const authorBadgeClass = (t: string) =>
+    t === "ia" ? TONE_CLASSES.info
+      : t === "validador" ? TONE_CLASSES.warning
+      : t === "diretor" ? TONE_CLASSES.success
+      : TONE_CLASSES.muted;
+
+  const VersionCell = ({ v }: { v: any }) => (
+    <div className="space-y-2 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-mono">v{v.version}</span>
+        <span className="text-muted-foreground">{formatDate(v.created_at)}</span>
+      </div>
+      <div><span className="text-muted-foreground">Status:</span> <span className="font-medium">{v.ai_status}</span></div>
+      <div><span className="text-muted-foreground">Esperado:</span> <span className="tabular-nums">{v.expected_amount != null ? formatCurrency(v.expected_amount) : "—"}</span></div>
+      <div><span className="text-muted-foreground">Bruto:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
+      {Array.isArray(v.matched_rules) && v.matched_rules.length > 0 && (
+        <div><span className="text-muted-foreground">Regras:</span> {(v.matched_rules as string[]).join(", ")}</div>
+      )}
+      {Array.isArray(v.alerts) && v.alerts.length > 0 && (
+        <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+          {(v.alerts as string[]).map((a, i) => <li key={i}>{a}</li>)}
+        </ul>
+      )}
+      {v.calculation_explanation && <p className="italic text-muted-foreground">{v.calculation_explanation}</p>}
+    </div>
+  );
+
+  const renderHistoryCard = () => (
+    <Card className="shadow-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">Histórico</CardTitle>
+            <span className="text-xs text-muted-foreground">{obs.length} obs · {aiVersions.length} análises da IA</span>
+          </div>
+          <Select value={historyItemFilter} onValueChange={setHistoryItemFilter}>
+            <SelectTrigger className="h-8 w-[280px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os registros</SelectItem>
+              <SelectItem value="payment">Apenas o pagamento (sem item)</SelectItem>
+              {items.map((it) => (
+                <SelectItem key={it.id} value={it.id}>
+                  {it.doctor_name}{it.attendance_number ? ` · ${it.attendance_number}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="timeline">
+          <TabsList>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="ai">Versões da IA</TabsTrigger>
+            {canComment && <TabsTrigger value="comment">Comentar item</TabsTrigger>}
+          </TabsList>
+
+          <TabsContent value="timeline" className="mt-3">
+            {filteredObs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Sem observações para o filtro selecionado.</p>
+            ) : (
+              <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
+                {filteredObs.map((o) => (
+                  <li key={o.id} className="ml-1">
+                    <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
+                    <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}>
+                        {o.author_type}
+                      </span>
+                      {o.author_id && <span className="text-muted-foreground">{profiles[o.author_id] ?? ""}</span>}
+                      {o.item_id && <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>}
+                      {(o.status_from || o.status_to) && (
+                        <span className="text-muted-foreground">· {o.status_from ?? "—"} → {o.status_to ?? "—"}</span>
+                      )}
+                      <span className="text-muted-foreground ml-auto">{formatDate(o.created_at)}</span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </TabsContent>
+
+          <TabsContent value="ai" className="mt-3">
+            {filteredVersions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma versão de análise da IA registrada{historyItemFilter !== "all" && historyItemFilter !== "payment" ? " para este item" : ""}.</p>
+            ) : (
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {filteredVersions.map((v) => (
+                  <div key={v.id} className="rounded-md border border-border p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-mono rounded bg-muted px-1.5 py-0.5">v{v.version}</span>
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 ${TONE_CLASSES[itemToneMap[v.ai_status as ItemAiStatus]] ?? TONE_CLASSES.muted}`}>
+                          {v.ai_status}
+                        </span>
+                        <span className="text-muted-foreground">{itemLabel(v.item_id)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">{formatDate(v.created_at)}</span>
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2"
+                          onClick={() => {
+                            setCompareItemId(v.item_id);
+                            const sameItem = aiVersions.filter((x) => x.item_id === v.item_id).sort((a, b) => b.version - a.version);
+                            setCompareA(sameItem[1]?.version ?? sameItem[0]?.version ?? null);
+                            setCompareB(v.version);
+                          }}
+                        >
+                          <GitCompare className="h-3.5 w-3.5 mr-1" /> Comparar
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                      <div><span className="text-muted-foreground">Esperado:</span> <span className="tabular-nums">{v.expected_amount != null ? formatCurrency(v.expected_amount) : "—"}</span></div>
+                      <div><span className="text-muted-foreground">Bruto na época:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
+                    </div>
+                    {Array.isArray(v.alerts) && v.alerts.length > 0 && (
+                      <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground space-y-0.5">
+                        {(v.alerts as string[]).slice(0, 4).map((a, i) => <li key={i}>{a}</li>)}
+                      </ul>
+                    )}
+                    {v.calculation_explanation && <p className="mt-1 text-xs italic text-muted-foreground">{v.calculation_explanation}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Dialog open={!!compareItemId} onOpenChange={(o) => { if (!o) setCompareItemId(null); }}>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Comparar versões — {itemLabel(compareItemId)}</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Versão A</label>
+                    <Select value={compareA?.toString() ?? ""} onValueChange={(v) => setCompareA(Number(v))}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        {versionsForCompare.map((v) => <SelectItem key={v.id} value={v.version.toString()}>v{v.version} · {formatDate(v.created_at)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-2 rounded-md border border-border p-3">
+                      {verA ? <VersionCell v={verA} /> : <p className="text-xs text-muted-foreground">Selecione</p>}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Versão B</label>
+                    <Select value={compareB?.toString() ?? ""} onValueChange={(v) => setCompareB(Number(v))}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        {versionsForCompare.map((v) => <SelectItem key={v.id} value={v.version.toString()}>v{v.version} · {formatDate(v.created_at)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-2 rounded-md border border-primary/40 p-3 bg-primary/5">
+                      {verB ? <VersionCell v={verB} /> : <p className="text-xs text-muted-foreground">Selecione</p>}
+                    </div>
+                  </div>
+                </div>
+                {verA && verB && (
+                  <div className="rounded-md border border-border p-3 text-xs space-y-1">
+                    <p className="font-semibold uppercase tracking-wide text-muted-foreground">Diferenças (A → B)</p>
+                    {verA.ai_status !== verB.ai_status && <p>• Status: {verA.ai_status} → <span className="font-medium">{verB.ai_status}</span></p>}
+                    {(verA.expected_amount ?? null) !== (verB.expected_amount ?? null) && (
+                      <p>• Valor esperado: {verA.expected_amount != null ? formatCurrency(verA.expected_amount) : "—"} → <span className="font-medium tabular-nums">{verB.expected_amount != null ? formatCurrency(verB.expected_amount) : "—"}</span></p>
+                    )}
+                    {(() => {
+                      const A = new Set<string>(verA.alerts ?? []); const B = new Set<string>(verB.alerts ?? []);
+                      const added = [...B].filter((x) => !A.has(x));
+                      const removed = [...A].filter((x) => !B.has(x));
+                      return (
+                        <>
+                          {added.length > 0 && <p>• + alertas: {added.join("; ")}</p>}
+                          {removed.length > 0 && <p>• − alertas resolvidos: {removed.join("; ")}</p>}
+                        </>
+                      );
+                    })()}
+                    {(() => {
+                      const A = new Set<string>(verA.matched_rules ?? []); const B = new Set<string>(verB.matched_rules ?? []);
+                      const added = [...B].filter((x) => !A.has(x));
+                      const removed = [...A].filter((x) => !B.has(x));
+                      return (
+                        <>
+                          {added.length > 0 && <p>• + regras: {added.join("; ")}</p>}
+                          {removed.length > 0 && <p>• − regras: {removed.join("; ")}</p>}
+                        </>
+                      );
+                    })()}
+                    {verA.ai_status === verB.ai_status &&
+                      (verA.expected_amount ?? null) === (verB.expected_amount ?? null) &&
+                      JSON.stringify(verA.alerts ?? []) === JSON.stringify(verB.alerts ?? []) &&
+                      JSON.stringify(verA.matched_rules ?? []) === JSON.stringify(verB.matched_rules ?? []) &&
+                      <p className="text-muted-foreground">Sem diferenças relevantes.</p>}
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          {canComment && (
+            <TabsContent value="comment" className="mt-3">
+              <p className="text-xs text-muted-foreground mb-3">Adicione uma observação ligada a um item específico. Ela aparecerá na timeline com seu nome e função.</p>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                {items.map((it) => (
+                  <div key={it.id} className="rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <div>
+                        <span className="font-medium">{it.doctor_name}</span>
+                        <span className="text-muted-foreground"> · {it.attendance_number ?? "—"} · {it.procedure_code ?? ""}</span>
+                      </div>
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span>
+                    </div>
+                    <Textarea
+                      rows={2}
+                      value={itemCommentDraft[it.id] ?? ""}
+                      onChange={(e) => setItemCommentDraft((m) => ({ ...m, [it.id]: e.target.value }))}
+                      placeholder="Sua observação sobre este item..."
+                    />
+                    <div className="flex justify-end mt-2">
+                      <Button size="sm" disabled={busy || !(itemCommentDraft[it.id] ?? "").trim()} onClick={() => addItemComment(it.id)}>
+                        <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Salvar observação
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <>
@@ -516,34 +797,7 @@ const PaymentDetail = () => {
             </Card>
           )}
 
-        <Card className="shadow-card">
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/40 transition"
-          >
-            <div>
-              <CardTitle className="text-base">Histórico de observações</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{obs.length} {obs.length === 1 ? "registro" : "registros"}</p>
-            </div>
-            {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-          {historyOpen && (
-            <div className="border-t border-border divide-y divide-border max-h-[600px] overflow-y-auto">
-              {obs.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground text-center">Sem observações</p>
-              ) : obs.map((o) => (
-                <div key={o.id} className="px-6 py-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span className="font-medium uppercase tracking-wide">{o.author_type}{o.author_id && ` · ${profiles[o.author_id] ?? ""}`}</span>
-                    <span>{formatDate(o.created_at)}</span>
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap">{o.message}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        {renderHistoryCard()}
       </div>
     </>
   );

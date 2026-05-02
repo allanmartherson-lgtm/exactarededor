@@ -333,21 +333,115 @@ Responda APENAS via tool call, sem texto adicional.`;
     if (!toolCall) throw new Error("No tool call in AI response");
     const result = JSON.parse(toolCall.function.arguments);
 
-    // Atualiza cada item
+    // Carrega versão anterior por item (para gerar diff)
+    const itemIds = (result.items as any[]).map((r) => r.id);
+    const { data: prevVersions } = await supabase
+      .from("ai_analysis_versions")
+      .select("item_id, version, ai_status, expected_amount, alerts, matched_rules")
+      .in("item_id", itemIds);
+    const prevByItem: Record<string, { version: number; ai_status: string; expected_amount: number | null; alerts: string[]; matched_rules: string[] }> = {};
+    for (const v of prevVersions ?? []) {
+      const cur = prevByItem[v.item_id];
+      if (!cur || (v.version as number) > cur.version) {
+        prevByItem[v.item_id] = {
+          version: v.version as number,
+          ai_status: v.ai_status as string,
+          expected_amount: (v.expected_amount as number | null) ?? null,
+          alerts: (v.alerts as string[]) ?? [],
+          matched_rules: (v.matched_rules as string[]) ?? [],
+        };
+      }
+    }
+
+    // Caller (para registrar quem disparou a análise)
+    let triggeredBy: string | null = null;
+    try {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const jwt = authHeader.replace("Bearer ", "");
+        const { data: u } = await supabase.auth.getUser(jwt);
+        triggeredBy = u?.user?.id ?? null;
+      }
+    } catch (_) { /* opcional */ }
+
+    const itemById: Record<string, ItemRow> = {};
+    for (const it of (items ?? []) as ItemRow[]) itemById[it.id] = it;
+
+    // Atualiza cada item, salva snapshot e gera observação por item com diff
     let alerts = 0, blocks = 0;
+    const itemDiffSummaries: { item_id: string; doctor: string; diff: string }[] = [];
     for (const r of result.items) {
+      const findings = {
+        alerts: r.alerts,
+        matched_rules: r.matched_rules,
+        matched_rule_ids: r.matched_rule_ids ?? [],
+        expected_amount: r.expected_amount ?? null,
+        calculation_explanation: r.calculation_explanation ?? null,
+      };
       await supabase.from("payment_items").update({
         ai_status: r.status,
-        ai_findings: {
-          alerts: r.alerts,
-          matched_rules: r.matched_rules,
-          matched_rule_ids: r.matched_rule_ids ?? [],
-          expected_amount: r.expected_amount ?? null,
-          calculation_explanation: r.calculation_explanation ?? null,
-        },
+        ai_findings: findings,
       }).eq("id", r.id);
       if (r.status === "alerta") alerts++;
       if (r.status === "reprovado") blocks++;
+
+      // Snapshot
+      const prev = prevByItem[r.id];
+      const nextVersion = (prev?.version ?? 0) + 1;
+      const itemRow = itemById[r.id];
+      await supabase.from("ai_analysis_versions").insert({
+        payment_id,
+        item_id: r.id,
+        version: nextVersion,
+        ai_status: r.status,
+        alerts: r.alerts ?? [],
+        matched_rules: r.matched_rules ?? [],
+        matched_rule_ids: r.matched_rule_ids ?? [],
+        expected_amount: r.expected_amount ?? null,
+        calculation_explanation: r.calculation_explanation ?? null,
+        gross_amount_at_time: itemRow ? Number(itemRow.gross_amount) : null,
+        model: "google/gemini-2.5-flash",
+        triggered_by: triggeredBy,
+      });
+
+      // Diff por item -> observação ligada ao item
+      if (prev) {
+        const diffParts: string[] = [];
+        if (prev.ai_status !== r.status) diffParts.push(`status: ${prev.ai_status} → ${r.status}`);
+        const prevExp = prev.expected_amount;
+        const newExp = r.expected_amount ?? null;
+        if ((prevExp ?? null) !== (newExp ?? null)) diffParts.push(`valor esperado: ${prevExp ?? "—"} → ${newExp ?? "—"}`);
+        const prevAlerts = new Set(prev.alerts ?? []);
+        const newAlerts = new Set<string>(r.alerts ?? []);
+        const added = [...newAlerts].filter((a) => !prevAlerts.has(a));
+        const removed = [...prevAlerts].filter((a) => !newAlerts.has(a));
+        if (added.length) diffParts.push(`+ ${added.length} alerta(s): ${added.slice(0, 2).join("; ")}${added.length > 2 ? "…" : ""}`);
+        if (removed.length) diffParts.push(`- ${removed.length} alerta(s) resolvido(s)`);
+        const prevRules = new Set(prev.matched_rules ?? []);
+        const newRules = new Set<string>(r.matched_rules ?? []);
+        const addedRules = [...newRules].filter((x) => !prevRules.has(x));
+        if (addedRules.length) diffParts.push(`novas regras: ${addedRules.slice(0, 2).join("; ")}`);
+        if (diffParts.length) {
+          itemDiffSummaries.push({ item_id: r.id, doctor: itemRow?.doctor_name ?? "item", diff: diffParts.join(" · ") });
+          await supabase.from("payment_observations").insert({
+            payment_id,
+            item_id: r.id,
+            author_type: "ia",
+            message: `Reanálise v${nextVersion}: ${diffParts.join(" · ")}`,
+          });
+        }
+      } else {
+        // Primeira análise: registra observação por item com o parecer inicial
+        const parts: string[] = [`Análise inicial v1 — ${r.status}`];
+        if (r.expected_amount != null) parts.push(`esperado ${r.expected_amount}`);
+        if (r.alerts?.length) parts.push(`${r.alerts.length} alerta(s)`);
+        await supabase.from("payment_observations").insert({
+          payment_id,
+          item_id: r.id,
+          author_type: "ia",
+          message: parts.join(" · ") + (r.calculation_explanation ? ` — ${r.calculation_explanation}` : ""),
+        });
+      }
     }
 
     await supabase.from("payments").update({
@@ -355,10 +449,16 @@ Responda APENAS via tool call, sem texto adicional.`;
       ai_summary: result.summary,
     }).eq("id", payment_id);
 
+    const consolidatedDiff = itemDiffSummaries.length
+      ? `\nMudanças nesta rodada (${itemDiffSummaries.length} item(ns)):\n` +
+        itemDiffSummaries.slice(0, 8).map((d) => `• ${d.doctor}: ${d.diff}`).join("\n") +
+        (itemDiffSummaries.length > 8 ? `\n…e mais ${itemDiffSummaries.length - 8} item(ns).` : "")
+      : "";
+
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "ia",
-      message: `${result.summary} (${alerts} alertas, ${blocks} reprovações sugeridas)`,
+      message: `${result.summary} (${alerts} alertas, ${blocks} reprovações sugeridas)${consolidatedDiff}`,
       status_from: "em_analise_ia",
       status_to: "aguardando_validacao",
     });
