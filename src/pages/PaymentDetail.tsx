@@ -869,6 +869,22 @@ const PaymentDetail = () => {
               const isGroupAiOpen = groupAiOpen.has(g.id);
               const returnerForResend =
                 gStatus === "devolvido_analista" ? resolveResendTarget(obs, g.company_name)?.role ?? null : null;
+              // Conferência bruto x NF (por empresa, tolerância zero):
+              // - Considera apenas notas RECEBIDAS (received_amount não nulo) deste grupo.
+              // - Não trava se ainda não há NF (decisão de produto).
+              const groupInvoices = invoices.filter((inv) => {
+                if (inv.received_amount == null) return false;
+                if (inv.company_id && g.company_id) return inv.company_id === g.company_id;
+                return (inv.company_name ?? "").trim().toLowerCase() === g.company_name.trim().toLowerCase();
+              });
+              const nfReceivedTotal = groupInvoices.reduce(
+                (acc, inv) => acc + Number(inv.received_amount ?? 0),
+                0,
+              );
+              const nfDiff = groupInvoices.length > 0
+                ? Number((nfReceivedTotal - Number(g.total_amount)).toFixed(2))
+                : 0;
+              const nfDivergent = groupInvoices.length > 0 && Math.abs(nfDiff) > 0;
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
                   <button
@@ -894,10 +910,46 @@ const PaymentDetail = () => {
                         {gCounts.aprovado > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>✓ {gCounts.aprovado}</span>}
                         {gCounts.alerta > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.warning}`}>⚠ {gCounts.alerta}</span>}
                         {gCounts.reprovado > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>✕ {gCounts.reprovado}</span>}
+                        {nfDivergent && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>
+                                <Receipt className="h-3 w-3" /> NF divergente
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">
+                                NF recebida: {formatCurrency(nfReceivedTotal)} ·
+                                Bruto do pedido: {formatCurrency(Number(g.total_amount))} ·
+                                Diferença: {formatCurrency(nfDiff)}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                     </div>
                     <StatusBadge status={gStatus} />
                   </button>
+                  {isGroupExpanded && nfDivergent && (
+                    <div className="border-t border-border/60 bg-destructive/5">
+                      <div className="flex items-start gap-2 px-4 py-3 text-xs">
+                        <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-destructive">
+                            Divergência entre o valor bruto do pedido e a nota fiscal recebida
+                          </p>
+                          <p className="text-muted-foreground mt-0.5">
+                            Bruto do pedido: <span className="text-foreground tabular-nums">{formatCurrency(Number(g.total_amount))}</span> ·
+                            NF recebida: <span className="text-foreground tabular-nums">{formatCurrency(nfReceivedTotal)}</span> ·
+                            Diferença: <span className="text-destructive tabular-nums font-medium">{formatCurrency(nfDiff)}</span>
+                          </p>
+                          <p className="text-muted-foreground mt-1">
+                            O analista precisa resolver com a empresa antes de reencaminhar — corrija o pedido ou solicite reemissão da nota.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {isGroupExpanded && groupAlerts.length > 0 && (
                     <div className="border-t border-border/60 bg-info-soft/30">
                       <button
