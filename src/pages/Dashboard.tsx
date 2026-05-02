@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
-import { ArrowRight, FileUp, ListChecks, Sparkles, ShieldCheck } from "lucide-react";
+import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
+import { ArrowRight, FileUp, ListChecks, Sparkles, ShieldCheck, Inbox, Users } from "lucide-react";
 
 interface PaymentRow {
   id: string;
@@ -18,43 +18,113 @@ interface PaymentRow {
   created_at: string;
   competence_month: string | null;
   competence_months: string[] | null;
+  created_by: string | null;
+  validated_by: string | null;
 }
+
+/** Papel responsável por agir no status atual. */
+type OwnerRole = "analista" | "validador" | "diretor" | "—";
+const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
+  switch (status) {
+    case "rascunho":
+    case "em_analise_ia":
+    case "devolvido_analista":
+      return "analista";
+    case "aguardando_validacao":
+    case "devolvido_validador":
+      return "validador";
+    case "aguardando_aprovacao":
+      return "diretor";
+    default:
+      return "—";
+  }
+};
+const ownerLabel: Record<OwnerRole, string> = {
+  analista: "Analista",
+  validador: "Validador",
+  diretor: "Diretor",
+  "—": "—",
+};
 
 const Dashboard = () => {
   const { roles, user } = useAuth();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
-  const [counts, setCounts] = useState({ analise: 0, validacao: 0, aprovacao: 0, aprovados: 0 });
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [counts, setCounts] = useState({
+    mineAnalista: 0, mineValidador: 0, mineDiretor: 0,
+    teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, aprovados: 0,
+  });
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
     const load = async () => {
-      const { data } = await supabase
+      const [{ data }, { data: pr }, { data: all }] = await Promise.all([
+        supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months")
+          .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by")
         .order("created_at", { ascending: false })
-        .limit(8);
+          .limit(20),
+        supabase.from("profiles").select("id,full_name,email"),
+        supabase.from("payments").select("status,created_by,validated_by"),
+      ]);
       setPayments((data ?? []) as PaymentRow[]);
+      const pmap: Record<string, string> = {};
+      (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
+      setProfiles(pmap);
 
-      const { data: all } = await supabase.from("payments").select("status");
-      const c = { analise: 0, validacao: 0, aprovacao: 0, aprovados: 0 };
-      (all ?? []).forEach((p: { status: PaymentStatus }) => {
-        if (p.status === "em_analise_ia") c.analise++;
-        else if (p.status === "aguardando_validacao" || p.status === "devolvido_validador") c.validacao++;
-        else if (p.status === "aguardando_aprovacao") c.aprovacao++;
-        else if (["aprovado", "pedido_nf_enviado", "nf_recebida", "nf_conciliada", "pago"].includes(p.status)) c.aprovados++;
+      const uid = user?.id;
+      const c = { mineAnalista: 0, mineValidador: 0, mineDiretor: 0, teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, aprovados: 0 };
+      (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
+        const owner = ownerRoleFor(p.status);
+        if (owner === "analista") {
+          c.teamAnalise++;
+          if (uid && p.created_by === uid) c.mineAnalista++;
+        } else if (owner === "validador") {
+          c.teamValidacao++;
+          // "minha tarefa de validador" = qualquer um aguardando validação (papel coletivo)
+          c.mineValidador++;
+        } else if (owner === "diretor") {
+          c.teamAprovacao++;
+          c.mineDiretor++;
+        } else if (["aprovado", "pedido_nf_enviado", "nf_recebida", "nf_conciliada", "pago"].includes(p.status)) {
+          c.aprovados++;
+        }
       });
       setCounts(c);
     };
     load();
-  }, []);
+  }, [user?.id]);
 
   const isAnalista = roles.includes("analista") || roles.includes("admin");
+  const isValidador = roles.includes("validador") || roles.includes("admin");
+  const isDiretor = roles.includes("diretor") || roles.includes("admin");
+
+  const isMine = (p: PaymentRow): boolean => {
+    const owner = ownerRoleFor(p.status);
+    if (owner === "analista") return !!user?.id && p.created_by === user.id && (isAnalista || roles.includes("admin"));
+    if (owner === "validador") return isValidador;
+    if (owner === "diretor") return isDiretor;
+    return false;
+  };
+
+  const myPayments = payments.filter(isMine).slice(0, 6);
+  const teamPayments = payments.filter((p) => !isMine(p)).slice(0, 8);
+
+  // Conta minhas tarefas pendentes total
+  const myPending =
+    (isAnalista ? counts.mineAnalista : 0) +
+    (isValidador ? counts.mineValidador : 0) +
+    (isDiretor ? counts.mineDiretor : 0);
 
   return (
     <>
       <PageHeader
         title={`Olá, ${user?.user_metadata?.full_name?.split(" ")[0] ?? "bem-vindo"}`}
-        description="Acompanhe o fluxo de aprovação de pagamentos médicos em tempo real."
+        description={
+          myPending > 0
+            ? `Você tem ${myPending} ${myPending === 1 ? "tarefa pendente" : "tarefas pendentes"} para agir.`
+            : "Nenhuma tarefa pendente para você. Acompanhe o fluxo da equipe abaixo."
+        }
         actions={
           isAnalista && (
             <Button asChild>
@@ -66,42 +136,87 @@ const Dashboard = () => {
 
       <div className="p-8 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Sparkles} label="Em análise por IA" value={counts.analise} tone="info" />
-          <StatCard icon={ListChecks} label="Aguardando validação" value={counts.validacao} tone="warning" />
-          <StatCard icon={ShieldCheck} label="Aguardando aprovação" value={counts.aprovacao} tone="warning" />
+          {isAnalista && (
+            <StatCard
+              icon={Sparkles}
+              label="Suas bases (analista)"
+              value={counts.mineAnalista}
+              tone="info"
+              hint={`${counts.teamAnalise} no time`}
+              mine={counts.mineAnalista > 0}
+              to="/pagamentos?owner=me&status=analista"
+            />
+          )}
+          <StatCard
+            icon={ListChecks}
+            label={isValidador ? "Para você validar" : "Aguardando validação"}
+            value={isValidador ? counts.mineValidador : counts.teamValidacao}
+            tone="warning"
+            hint={isValidador && counts.teamValidacao !== counts.mineValidador ? `${counts.teamValidacao} no time` : undefined}
+            mine={isValidador && counts.mineValidador > 0}
+            to="/pagamentos?status=aguardando_validacao"
+          />
+          <StatCard
+            icon={ShieldCheck}
+            label={isDiretor ? "Para você aprovar" : "Aguardando aprovação"}
+            value={isDiretor ? counts.mineDiretor : counts.teamAprovacao}
+            tone="warning"
+            hint={isDiretor && counts.teamAprovacao !== counts.mineDiretor ? `${counts.teamAprovacao} no time` : undefined}
+            mine={isDiretor && counts.mineDiretor > 0}
+            to="/pagamentos?status=aguardando_aprovacao"
+          />
           <StatCard icon={FileUp} label="Aprovados / em NF" value={counts.aprovados} tone="success" />
         </div>
 
-        <Card className="shadow-card">
+        {/* Suas tarefas */}
+        <Card className="shadow-card border-primary/30">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Pagamentos recentes</CardTitle>
+            <div className="flex items-center gap-2">
+              <Inbox className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base">Suas tarefas</CardTitle>
+              <span className="text-xs text-muted-foreground">{myPending} pendente{myPending === 1 ? "" : "s"}</span>
+            </div>
             <Button asChild variant="ghost" size="sm">
               <Link to="/pagamentos">Ver todos <ArrowRight className="h-4 w-4 ml-1" /></Link>
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            {payments.length === 0 ? (
+            {myPayments.length === 0 ? (
+              <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+                Nada esperando por você no momento. 🎉
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {myPayments.map((p) => (
+                  <PaymentRowItem key={p.id} p={p} mine profiles={profiles} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Acompanhamento da equipe */}
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Acompanhamento da equipe</CardTitle>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/pagamentos">Ver todos <ArrowRight className="h-4 w-4 ml-1" /></Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {teamPayments.length === 0 ? (
               <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                Nenhum pagamento ainda. {isAnalista && (
+                Sem pagamentos em outras etapas. {isAnalista && (
                   <Link to="/pagamentos/novo" className="text-primary font-medium hover:underline">Subir a primeira base →</Link>
                 )}
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {payments.map((p) => (
-                  <Link
-                    key={p.id}
-                    to={`/pagamentos/${p.id}`}
-                    className="flex items-center justify-between px-6 py-4 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{p.reference}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        <span className="capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span> · {p.items_count} itens · {formatCurrency(p.total_amount)} · {formatDate(p.created_at)}
-                      </p>
-                    </div>
-                    <StatusBadge status={p.status} />
-                  </Link>
+                {teamPayments.map((p) => (
+                  <PaymentRowItem key={p.id} p={p} mine={false} profiles={profiles} />
                 ))}
               </div>
             )}
@@ -109,6 +224,40 @@ const Dashboard = () => {
         </Card>
       </div>
     </>
+  );
+};
+
+const PaymentRowItem = ({ p, mine, profiles }: { p: PaymentRow; mine: boolean; profiles: Record<string, string> }) => {
+  const owner = ownerRoleFor(p.status);
+  const creator = p.created_by ? profiles[p.created_by] : null;
+  return (
+    <Link
+      to={`/pagamentos/${p.id}`}
+      className={`flex items-center justify-between px-6 py-4 hover:bg-muted/40 transition-colors ${mine ? "bg-primary/5" : ""}`}
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          {mine ? (
+            <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
+              Sua vez
+            </span>
+          ) : owner !== "—" ? (
+            <span className={`text-[10px] font-medium uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.muted}`}>
+              Com {ownerLabel[owner]}
+            </span>
+          ) : null}
+          <p className="font-medium text-sm truncate">{p.reference}</p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          <span className="capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
+          {" · "}{p.items_count} itens
+          {" · "}{formatCurrency(p.total_amount)}
+          {creator && <> · criado por <span className="text-foreground/80">{creator}</span></>}
+          {" · "}{formatDate(p.created_at)}
+        </p>
+      </div>
+      <StatusBadge status={p.status} />
+    </Link>
   );
 };
 
@@ -123,25 +272,40 @@ const StatCard = ({
   label,
   value,
   tone,
+  hint,
+  mine,
+  to,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;
   tone: "info" | "warning" | "success";
-}) => (
-  <Card className="shadow-soft">
-    <CardContent className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className="text-3xl font-semibold mt-2 tabular-nums">{value}</p>
+  hint?: string;
+  mine?: boolean;
+  to?: string;
+}) => {
+  const inner = (
+    <Card className={`shadow-soft transition ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+            <p className="text-3xl font-semibold mt-2 tabular-nums">{value}</p>
+            {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+            {mine && (
+              <span className={`mt-2 inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
+                Sua vez
+              </span>
+            )}
+          </div>
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${toneBg[tone]}`}>
+            <Icon className="h-5 w-5" />
+          </div>
         </div>
-        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${toneBg[tone]}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+  return to ? <Link to={to}>{inner}</Link> : inner;
+};
 
 export default Dashboard;
