@@ -140,7 +140,8 @@ interface DashboardCounts {
   pipeAnaliseIA: number;        // em_analise_ia + revisao_analista
   pipeValidacao: number;         // aguardando_validacao
   pipeAprovacao: number;         // aguardando_aprovacao
-  pipeNFSolicitada: number;      // aprovado + pedido_nf_enviado
+  pipeAguardandoEnvio: number;   // aprovado (pedido ainda não disparado)
+  pipeNFSolicitada: number;      // pedido_nf_enviado (e-mail enviado)
   pipeNFRecebida: number;        // nf_recebida
   pipeNFConciliada: number;      // nf_conciliada
   pipePago: number;              // pago
@@ -157,7 +158,7 @@ const initialCounts: DashboardCounts = {
   mineInvoicesDivergentes: 0, mineInvoicesQuestionadas: 0, mineRessalvas: 0,
   teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, teamInvoicesDivergentes: 0,
   pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
-  pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
+  pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
   attDevolvidoAnalista: 0, attRessalvas: 0, attNFQuestionada: 0,
   attNFDivergente: 0, attRejeitados: 0,
 };
