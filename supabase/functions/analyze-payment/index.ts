@@ -68,7 +68,9 @@ serve(async (req) => {
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
         target_type,target_identifier,target_name,target_company_id,
         procedure_codes,applies_payment_types,valid_from,valid_until,
-        calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes
+        calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
+        rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
+        apply_access_route,include_auxiliaries,auxiliary_pct
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];

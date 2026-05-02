@@ -24,7 +24,8 @@ export type CalculationType =
   | "pacote_com_extras"
   | "valor_fixo"
   | "exclusao"
-  | "informativo";
+  | "informativo"
+  | "tabela_referencia";
 
 export type ItemAiStatus = "pendente" | "aprovado" | "alerta" | "reprovado";
 
@@ -52,6 +53,15 @@ export interface RuleInput {
   fixed_amount: number | null;
   package_amount: number | null;
   extras_codes: string[] | null;
+  // Parâmetros de cálculo de tabela diferenciada (pertencem à regra)
+  rule_type?: string | null;
+  reference_table_id?: string | null;
+  multiplier?: number | null;
+  deflator_pct?: number | null;
+  repasse_pct?: number | null;
+  apply_access_route?: boolean | null;
+  include_auxiliaries?: boolean | null;
+  auxiliary_pct?: number | null;
 }
 
 export interface ItemInput {
@@ -292,6 +302,9 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
 }
 
 export function applyCalculation(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  if (rule.rule_type === "tabela_diferenciada" && rule.reference_table_id) {
+    return calcTabelaDiferenciada(rule, item);
+  }
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
@@ -300,7 +313,37 @@ export function applyCalculation(rule: RuleInput, item: ItemInput): ExpectedCalc
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao();
     case "informativo":               return calcInformativo();
+    case "tabela_referencia":         return calcTabelaDiferenciada(rule, item);
   }
+}
+
+/**
+ * Tabela diferenciada: usa procedure_amount como aproximação do valor base
+ * da tabela de referência (ex: CBHPM) e aplica os parâmetros da REGRA.
+ * Ordem: base × multiplicador × (1 - deflator%) × (repasse%) × via × (1 + aux)
+ */
+function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  const base = item.procedure_amount;
+  if (base == null) {
+    return { expected: null, explanation: "Tabela diferenciada — valor base ausente.", alerts: ["procedure_amount ausente."] };
+  }
+  const mult = rule.multiplier ?? 1;
+  const defl = rule.deflator_pct ?? 0;
+  const rep  = rule.repasse_pct ?? 100;
+  let value = base * mult * (1 - defl / 100) * (rep / 100);
+  const parts: string[] = [`base R$ ${base.toFixed(2)}`, `× ${mult}`, `× (1 − ${defl}%)`, `× ${rep}%`];
+  if (rule.apply_access_route) {
+    const f = accessRouteFactor(item.access_route);
+    value *= f;
+    parts.push(`× via(${f})`);
+  }
+  if (rule.include_auxiliaries) {
+    const auxPct = (rule.auxiliary_pct ?? 30) / 100;
+    value *= (1 + auxPct);
+    parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
+  }
+  const expected = Number(value.toFixed(2));
+  return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };
 }
 
 function classifyDiff(expected: number | null, gross: number): { status: ItemAiStatus; diff_pct: number | null } {
