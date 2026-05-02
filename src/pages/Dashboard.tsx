@@ -41,11 +41,11 @@ import {
 
 /** Modos de layout do pipeline (responsivos a telas estreitas). */
 const PIPELINE_GRID_CLASS: Record<PipelineLayout, string> = {
-  // Auto: comportamento original responsivo.
-  auto: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7",
-  // 2 linhas: 4 colunas → 4 + 3 itens.
+  // Auto: comportamento responsivo (8 etapas no total).
+  auto: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-8",
+  // 2 linhas: 4 colunas → 4 + 4 itens.
   rows2: "grid-cols-4",
-  // 3 linhas: 3 colunas → 3 + 3 + 1 itens.
+  // 3 linhas: 3 colunas → 3 + 3 + 2 itens.
   rows3: "grid-cols-3",
 };
 const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
