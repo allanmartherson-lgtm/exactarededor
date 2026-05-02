@@ -45,6 +45,7 @@ interface InvoiceRow {
   invoice_number: string | null;
   status: InvoiceStatus;
   sent_at: string | null;
+  send_error: string | null;
   reconciliation_notes: string | null;
   ai_validation: { divergences?: string[]; confidence?: string; notes?: string } | null;
   ai_extracted_amount: number | null;
