@@ -19,6 +19,10 @@ import {
   RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
+import {
+  RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
+  type RuleCalculationType,
+} from "@/lib/status";
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
@@ -63,6 +67,10 @@ type DraftRule = {
   severity: RuleSeverity; scope: RuleScope; sector: RuleSector;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
   rule_type: RuleType;
+  calculation_type: RuleCalculationType;
+  convenio_percentage: number | null;
+  fixed_amount: number | null;
+  extras_codes: string[];
   package_amount: number | null; bonus_amount: number | null; bonus_pct: number | null;
   target_amount: number | null; multiplier: number | null; deflator_pct: number | null;
   reference_table_id: string | null; procedure_codes: string[];
@@ -70,6 +78,20 @@ type DraftRule = {
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
   doctors: { name: string; crm?: string }[];
+};
+
+/**
+ * Mapeia rule_type legado → calculation_type (motor novo).
+ * Mesma lógica da migração SQL — usado quando a IA importa regras no formato antigo.
+ */
+const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
+  switch (ruleType) {
+    case "pacote":              return "pacote_fechado";
+    case "tabela_diferenciada": return "percentual_sobre_convenio";
+    case "bonus":
+    case "complemento":         return "valor_fixo";
+    case "informativo":         return "informativo";
+  }
 };
 
 const num = (v: any): number | null => {
