@@ -337,6 +337,17 @@ serve(async (req) => {
           ? payment.competence_months
           : payment.competence_month,
       );
+      // Assunto padronizado:
+      // "Solicitação de Nota Fiscal - DF Star - Produção - {Setores} - {Competência}"
+      const subjectParts = [
+        "Solicitação de Nota Fiscal",
+        "DF Star",
+        "Produção",
+        setoresStr,
+      ];
+      if (competenciaStr) subjectParts.push(competenciaStr);
+      const emailSubject = subjectParts.join(" - ");
+      summary["email_subject"] = emailSubject;
       // Prazo = data pgto - 10 dias úteis (se houver due_date)
       let prazoLine = "";
       if (payment.payment_due_date) {
@@ -395,6 +406,7 @@ ${ASSINATURA}`;
             recipientEmail: opts.to[0],
             cc: [...opts.to.slice(1), ...opts.cc],
             idempotencyKey: `inv-${invoice.id}`,
+            subject: emailSubject,
             templateData: {
               recipientLabel: opts.recipient_label,
               reference: payment.reference,
@@ -402,6 +414,7 @@ ${ASSINATURA}`;
               uploadUrl,
               itemsList,
               requestMessage,
+              subject: emailSubject,
               summary,
             },
           },
