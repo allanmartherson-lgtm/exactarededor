@@ -2,8 +2,9 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
-import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2, Network, History } from "lucide-react";
+import { LayoutDashboard, FileText, ScrollText, Users, LogOut, ShieldCheck, Receipt, Table2, Building2, Network, History, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["analista", "validador", "diretor", "admin"] as const },
@@ -20,6 +21,7 @@ const nav = [
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
 
   const handleSignOut = async () => {
@@ -54,8 +56,8 @@ export const AppLayout = () => {
                   cn(
                     "flex items-center gap-2.5 px-2.5 lg:px-3 py-2 rounded-md text-[13px] lg:text-sm leading-tight transition-colors",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                      : "text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground",
                   )
                 }
               >
@@ -66,17 +68,27 @@ export const AppLayout = () => {
         </nav>
 
         <div className="px-2 lg:px-3 py-3 border-t border-sidebar-border space-y-2">
-          <div className="px-2 py-2 rounded-md bg-sidebar-accent/40 min-w-0">
-            <p className="text-[12px] font-medium text-sidebar-accent-foreground truncate" title={user?.email ?? undefined}>{user?.email}</p>
-            <p className="text-[10px] text-sidebar-foreground/70 mt-0.5 truncate">
+          <div className="px-2 py-2 rounded-md bg-sidebar-hover min-w-0">
+            <p className="text-[12px] font-medium text-sidebar-foreground truncate" title={user?.email ?? undefined}>{user?.email}</p>
+            <p className="text-[10px] text-sidebar-muted-foreground mt-0.5 truncate">
               {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
             </p>
           </div>
           <Button
             variant="ghost"
             size="sm"
+            onClick={toggleTheme}
+            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground"
+            aria-label={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+            {theme === "dark" ? "Modo claro" : "Modo escuro"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleSignOut}
-            className="w-full justify-start text-[13px] text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            className="w-full justify-start text-[13px] text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground"
           >
             <LogOut className="h-4 w-4 mr-2" /> Sair
           </Button>
