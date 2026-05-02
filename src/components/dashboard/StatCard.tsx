@@ -22,10 +22,21 @@ export interface StatCardProps {
 }
 
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
+  const interactive = !!to;
+
+  // Rótulo único para tecnologias assistivas: une label + valor + status.
+  const ariaLabel = [
+    label,
+    `valor ${value}`,
+    mine ? "sua vez" : hint || undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   const inner = (
     <Card
       data-testid="stat-card"
-      className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}
+      className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${interactive ? "group-hover:shadow-card group-focus-visible:shadow-card" : ""}`}
     >
       <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
         <div className="flex items-start justify-between gap-2 sm:gap-3">
@@ -36,7 +47,10 @@ export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: Sta
           >
             {label}
           </p>
-          <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
+          <div
+            aria-hidden="true"
+            className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}
+          >
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
@@ -73,17 +87,33 @@ export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: Sta
       </CardContent>
     </Card>
   );
-  return to ? (
-    <Link to={to} className="block h-full">
+  if (interactive) {
+    return (
+      <Link
+        to={to!}
+        aria-label={ariaLabel}
+        className="group block h-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-shadow"
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <div role="group" aria-label={ariaLabel} className="h-full">
       {inner}
-    </Link>
-  ) : (
-    inner
+    </div>
   );
 };
 
 export const StatCardSkeleton = () => (
-  <Card data-testid="stat-card-skeleton" className="shadow-soft h-full" aria-hidden>
+  <Card
+    data-testid="stat-card-skeleton"
+    className="shadow-soft h-full"
+    role="status"
+    aria-label="Carregando indicador"
+    aria-busy="true"
+  >
     <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="flex flex-col gap-1.5 min-w-0 flex-1 min-h-[2lh] justify-start">
