@@ -86,9 +86,21 @@ const Companies = () => {
       document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
-      invoice_emails: (editing.invoice_emails ?? [])
-        .map((e) => e.trim().toLowerCase())
-        .filter((e) => isValidEmail(e)),
+      invoice_emails: (() => {
+        // Aproveita e-mail digitado mas ainda não confirmado com Enter
+        const list = [...(editing.invoice_emails ?? [])];
+        const pending = emailInput.trim().toLowerCase();
+        if (pending) {
+          if (!isValidEmail(pending)) {
+            // Sinaliza fora deste IIFE — armazenamos numa flag via throw controlado
+            throw new Error(`__EMAIL_INVALIDO__:${pending}`);
+          }
+          if (!list.includes(pending)) list.push(pending);
+        }
+        return list
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => isValidEmail(e));
+      })(),
     };
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
