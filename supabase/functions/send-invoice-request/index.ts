@@ -279,6 +279,20 @@ serve(async (req) => {
     const sendErrors: string[] = [];
     const summaries: any[] = [];
 
+    // Já existem invoices para este payment? No fluxo de "lote" (sem invoice_id),
+    // não criamos novas — apenas reenviamos cada uma individualmente, atualizando o
+    // registro existente. Isso evita duplicação ao reenviar em lote.
+    const { data: existingForPayment } = await supabase
+      .from("invoices")
+      .select("id, company_id, recipient_email")
+      .eq("payment_id", resolvedPaymentId);
+    const existingByCompany = new Map<string, any>();
+    const existingByEmail = new Map<string, any>();
+    (existingForPayment ?? []).forEach((inv: any) => {
+      if (inv.company_id) existingByCompany.set(inv.company_id, inv);
+      if (inv.recipient_email) existingByEmail.set(String(inv.recipient_email).toLowerCase(), inv);
+    });
+
     const processBucket = async (opts: {
       to: string[];
       cc: string[];
@@ -287,20 +301,42 @@ serve(async (req) => {
       company_id: string | null;
       company_name: string | null;
       recipient_label: string;
+      reuse_invoice?: any | null;
     }) => {
-      const { data: invoice } = await supabase.from("invoices").insert({
-        payment_id,
-        expected_amount: opts.total,
-        recipient_email: opts.to[0],
-        recipient_cc: opts.cc,
-        items_count: opts.items.length,
-        status: "aguardando",
-        // sent_at só é preenchido quando o provedor confirma o envio (logo abaixo)
-        company_id: opts.company_id,
-        company_name: opts.company_name,
-      }).select().single();
-      if (!invoice) return;
-      created.push(invoice.id);
+      // Reusa invoice existente se possível (evita duplicar no reenvio).
+      let invoice: any = opts.reuse_invoice ?? null;
+      if (!invoice && opts.company_id && existingByCompany.has(opts.company_id)) {
+        invoice = existingByCompany.get(opts.company_id);
+      }
+      if (!invoice && opts.to[0]) {
+        const k = opts.to[0].toLowerCase();
+        if (existingByEmail.has(k)) invoice = existingByEmail.get(k);
+      }
+      if (invoice) {
+        await supabase.from("invoices").update({
+          expected_amount: opts.total,
+          recipient_email: opts.to[0],
+          recipient_cc: opts.cc,
+          items_count: opts.items.length,
+          company_id: opts.company_id,
+          company_name: opts.company_name,
+          send_error: null,
+        }).eq("id", invoice.id);
+      } else {
+        const { data: inserted } = await supabase.from("invoices").insert({
+          payment_id: resolvedPaymentId,
+          expected_amount: opts.total,
+          recipient_email: opts.to[0],
+          recipient_cc: opts.cc,
+          items_count: opts.items.length,
+          status: "aguardando",
+          company_id: opts.company_id,
+          company_name: opts.company_name,
+        }).select().single();
+        invoice = inserted;
+        if (!invoice) return;
+        created.push(invoice.id);
+      }
 
       const uploadUrl = `${baseUrl}/portal/nota/${invoice.upload_token}`;
 
