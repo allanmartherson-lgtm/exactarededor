@@ -39,15 +39,20 @@ async function loadAxe(): Promise<any> {
   return (window as any).axe;
 }
 
+const STORAGE_KEY = "wcag-audit-results";
+
 export default function WcagAudit() {
   const { setTheme } = useTheme();
-  const [results, setResults] = useState<RouteResult[]>([]);
+  const [results, setResults] = useState<RouteResult[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+  });
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState("");
 
   const run = async () => {
     setRunning(true);
     setResults([]);
+    localStorage.removeItem(STORAGE_KEY);
     const axe = await loadAxe();
     const all: RouteResult[] = [];
 
@@ -70,12 +75,14 @@ export default function WcagAudit() {
           const contrast = res.violations.filter((v: any) =>
             v.id.includes("contrast") || v.id === "color-contrast"
           );
-          all.push({
+          const entry = {
             route,
             theme,
             contrastViolations: contrast,
             totalViolations: res.violations.length,
-          });
+          };
+          all.push(entry);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
         } catch (e) {
           console.error(`axe falhou em ${route}`, e);
         }
@@ -91,7 +98,7 @@ export default function WcagAudit() {
   };
 
   useEffect(() => {
-    void run();
+    if (results.length === 0) void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
