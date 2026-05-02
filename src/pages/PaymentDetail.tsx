@@ -1377,8 +1377,57 @@ const PaymentDetail = () => {
                               </tr>
                               {isExpanded && (
                                 <tr key={`${it.id}-x`} className="bg-muted/20">
-                                  <td colSpan={11} className="px-6 py-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <td colSpan={11} className="px-4 py-4 sm:px-6">
+                                    <div className="space-y-4">
+                                      <div className="rounded-md border border-border/70 bg-background/80 p-3">
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dados completos do item</p>
+                                        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                                          <div className="min-w-0">
+                                            <dt className="font-medium text-muted-foreground">Atendimento</dt>
+                                            <dd className="mt-0.5 break-words font-mono text-foreground">{it.attendance_number ?? "—"}</dd>
+                                          </div>
+                                          <div className="min-w-0">
+                                            <dt className="font-medium text-muted-foreground">Paciente</dt>
+                                            <dd className="mt-0.5 break-words text-foreground">{paciente}</dd>
+                                          </div>
+                                          <div className="min-w-0">
+                                            <dt className="font-medium text-muted-foreground">Convênio</dt>
+                                            <dd className="mt-0.5 break-words text-foreground">{convenio}</dd>
+                                          </div>
+                                          <div className="min-w-0">
+                                            <dt className="font-medium text-muted-foreground">TUSS</dt>
+                                            <dd className="mt-0.5 break-words font-mono text-foreground">{it.procedure_code ?? "—"}</dd>
+                                          </div>
+                                          <div className="min-w-0 sm:col-span-2">
+                                            <dt className="font-medium text-muted-foreground">Médico / Função</dt>
+                                            <dd className="mt-0.5 break-words text-foreground">
+                                              {it.doctor_name ?? "—"}
+                                              <span className="text-muted-foreground"> · {it.doctor_role ?? "—"}</span>
+                                            </dd>
+                                          </div>
+                                          <div className="min-w-0">
+                                            <dt className="font-medium text-muted-foreground">Quantidade</dt>
+                                            <dd className="mt-0.5 tabular-nums text-foreground">{it.quantity ?? "—"}</dd>
+                                          </div>
+                                          <div className="min-w-0">
+                                            <dt className="font-medium text-muted-foreground">Valor</dt>
+                                            <dd className="mt-0.5 tabular-nums font-medium text-foreground">{formatCurrency(it.gross_amount)}</dd>
+                                          </div>
+                                          <div className="min-w-0 sm:col-span-2 lg:col-span-4">
+                                            <dt className="font-medium text-muted-foreground">Descrição</dt>
+                                            <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">{it.description ?? "—"}</dd>
+                                          </div>
+                                          {firstRuleLabel && (
+                                            <div className="min-w-0 sm:col-span-2 lg:col-span-4">
+                                              <dt className="font-medium text-muted-foreground">Regra vinculada</dt>
+                                              <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">
+                                                {(matchedRuleObjs.length ? matchedRuleObjs.map((r) => r.name) : matchedNames).join(" · ")}
+                                              </dd>
+                                            </div>
+                                          )}
+                                        </dl>
+                                      </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       {(it.ai_findings?.alerts?.length > 0 || it.ai_findings?.calculation_explanation) && (
                                         <div className="md:col-span-2 space-y-1.5">
                                           {it.ai_findings?.alerts?.length > 0 && (
@@ -1426,6 +1475,7 @@ const PaymentDetail = () => {
                                           </div>
                                         </div>
                                       )}
+                                      </div>
                                     </div>
                                   </td>
                                 </tr>
