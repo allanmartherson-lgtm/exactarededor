@@ -256,6 +256,12 @@ const Rules = () => {
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
       rule_type: ruleType,
+      calculation_type: fCalculationType,
+      convenio_percentage: fCalculationType === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
+      fixed_amount: fCalculationType === "valor_fixo" ? num(fFixedAmount) : null,
+      extras_codes: fCalculationType === "pacote_com_extras"
+        ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
+        : null,
       package_amount: ruleType === "pacote" ? num(fPackageAmount) : null,
       bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
