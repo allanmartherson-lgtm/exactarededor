@@ -775,7 +775,8 @@ const PaymentDetail = () => {
                 { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
               );
               const isGroupAiOpen = groupAiOpen.has(g.id);
-              const returnerForResend = gStatus === "devolvido_analista" ? lastReturnerFor(g.id, g.company_name) : null;
+              const returnerForResend =
+                gStatus === "devolvido_analista" ? resolveResendTarget(obs, g.company_name)?.role ?? null : null;
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
                   <button
