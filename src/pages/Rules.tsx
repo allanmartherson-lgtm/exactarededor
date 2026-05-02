@@ -582,13 +582,13 @@ const Rules = () => {
 
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-6 p-4">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
                 {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
               </DialogHeader>
               <form onSubmit={submitRule} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Escopo</Label>
                     <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -615,7 +615,7 @@ const Rules = () => {
                   <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Vigência — início</Label>
                     <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
                   </div>
@@ -716,7 +716,7 @@ const Rules = () => {
                           />
                           <p className="text-xs text-muted-foreground">Puxa nome e CNPJ direto do cadastro de empresas.</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5"><Label>CNPJ</Label>
                             <Input
                               value={fTargetIdentifier}
@@ -739,7 +739,7 @@ const Rules = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5"><Label>CPF</Label>
                           <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
                         </div>
@@ -805,7 +805,7 @@ const Rules = () => {
                   <p className="text-xs text-muted-foreground">Vincular a uma tabela já cadastrada simplifica a regra — basta complementar com os pontos específicos.</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
                     <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -836,7 +836,7 @@ const Rules = () => {
                 {ruleType === "tabela_diferenciada" && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <p className="text-xs text-muted-foreground">A tabela vinculada acima será usada como base do cálculo.</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5"><Label>Multiplicador</Label>
                         <Input type="number" step="0.01" placeholder="Ex: 1.5" value={fMultiplier} onChange={(e) => setFMultiplier(e.target.value)} />
                       </div>
@@ -857,7 +857,7 @@ const Rules = () => {
                   </div>
                 )}
                 {ruleType === "bonus" && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5"><Label>Bônus fixo (R$)</Label>
                       <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
                     </div>
