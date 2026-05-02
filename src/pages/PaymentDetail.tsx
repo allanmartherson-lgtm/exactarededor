@@ -259,10 +259,10 @@ const PaymentDetail = () => {
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalista = hasRole("analista") || hasRole("admin");
-  const canValidate = isValidador && payment.status === "aguardando_validacao";
-  const canApprove = isDiretor && payment.status === "aguardando_aprovacao";
-  const canResend = isAnalista && (payment.status === "devolvido_analista");
   const canRequestNf = isDiretor && payment.status === "aprovado";
+  // Para o botão "Enviar para validação" do analista no header
+  const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
+  const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
