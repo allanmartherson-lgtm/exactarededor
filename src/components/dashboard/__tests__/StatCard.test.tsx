@@ -103,12 +103,40 @@ describe("StatCard (hierarquia visual)", () => {
     expect(label).toHaveClass("break-words");
   });
 
-  it("envolve com Link mantendo h-full quando 'to' é passado", () => {
-    renderWithRouter(<StatCard {...baseProps} to="/algum-lugar" />);
+  it("envolve com Link mantendo área clicável completa e foco visível", () => {
+    renderWithRouter(<StatCard {...baseProps} to="/algum-lugar" hint="2 no time" />);
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "/algum-lugar");
+    // Área clicável: o Link cobre o card inteiro.
     expect(link).toHaveClass("block");
     expect(link).toHaveClass("h-full");
+    // Foco visível consistente.
+    expect(link).toHaveClass("focus-visible:ring-2");
+    expect(link).toHaveClass("focus-visible:ring-ring");
+    expect(link).toHaveClass("focus-visible:ring-offset-2");
+    expect(link).toHaveClass("rounded-lg");
+    // Rótulo acessível agrega label + valor + hint.
+    expect(link).toHaveAccessibleName(/Suas bases.*valor 3.*2 no time/);
+  });
+
+  it("rotula corretamente quando o card é 'sua vez'", () => {
+    renderWithRouter(<StatCard {...baseProps} to="/x" mine />);
+    const link = screen.getByRole("link");
+    expect(link).toHaveAccessibleName(/Suas bases.*valor 3.*sua vez/);
+  });
+
+  it("usa role=group com aria-label quando não é navegável", () => {
+    renderWithRouter(<StatCard {...baseProps} hint="2 no time" />);
+    const group = screen.getByRole("group", { name: /Suas bases.*valor 3.*2 no time/ });
+    expect(group).toBeInTheDocument();
+    // Sem 'to', não deve haver link.
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("ícone decorativo é escondido de leitores de tela", () => {
+    const { container } = renderWithRouter(<StatCard {...baseProps} />);
+    const iconWrapper = container.querySelector('[aria-hidden="true"]');
+    expect(iconWrapper).not.toBeNull();
   });
 });
 
@@ -122,5 +150,11 @@ describe("StatCardSkeleton (mesma estrutura do StatCard)", () => {
     expect(content).toHaveClass("flex");
     expect(content).toHaveClass("flex-col");
     expect(content).toHaveClass("gap-3");
+  });
+
+  it("é anunciado como status carregando para leitores de tela", () => {
+    render(<StatCardSkeleton />);
+    const sk = screen.getByRole("status", { name: /carregando/i });
+    expect(sk).toHaveAttribute("aria-busy", "true");
   });
 });
