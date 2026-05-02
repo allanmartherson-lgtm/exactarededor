@@ -42,11 +42,24 @@ const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).
 // como jsonb; refinamos esses campos como `unknown` aqui e validamos no uso.
 type Tables = Database["public"]["Tables"];
 type PaymentRow = Tables["payments"]["Row"];
-type PaymentItemRow = Tables["payment_items"]["Row"] & {
-  ai_findings: { alerts?: string[]; matched_rules?: string[]; matched_rule_ids?: string[] } | null;
+// ai_findings é jsonb — refinamos as chaves usadas pela UI. Demais permanecem
+// permissivas para não bloquear leituras opcionais.
+type AiFindings = {
+  alerts?: string[];
+  matched_rules?: string[];
+  matched_rule_ids?: string[];
+  calculation_explanation?: string;
+  [k: string]: unknown;
+};
+type PaymentItemRow = Omit<Tables["payment_items"]["Row"], "ai_findings"> & {
+  ai_findings: AiFindings | null;
 };
 type ObservationRow = Tables["payment_observations"]["Row"];
-type AiVersionRow = Tables["ai_analysis_versions"]["Row"];
+type AiVersionRow = Omit<Tables["ai_analysis_versions"]["Row"], "alerts" | "matched_rules" | "matched_rule_ids"> & {
+  alerts: string[] | null;
+  matched_rules: string[] | null;
+  matched_rule_ids: string[] | null;
+};
 type GroupRow = Tables["payment_company_groups"]["Row"];
 type InvoiceRow = Tables["invoices"]["Row"];
 
