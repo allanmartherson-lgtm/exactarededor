@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TONE_CLASSES } from "@/lib/status";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTruncated } from "@/hooks/use-truncated";
 
 export type StatCardTone = "info" | "warning" | "success";
 
@@ -21,8 +23,56 @@ export interface StatCardProps {
   to?: string;
 }
 
+/**
+ * Texto que mostra um Tooltip apenas quando seu conteúdo está
+ * realmente truncado (line-clamp / overflow). Mantém a altura do
+ * card estável e expõe o texto completo para teclado e leitores
+ * de tela.
+ */
+const TruncatedText = ({
+  as: Tag = "p",
+  text,
+  truncation,
+  className,
+  ...rest
+}: {
+  as?: "p" | "span";
+  text: string;
+  truncation: ReturnType<typeof useTruncated<HTMLParagraphElement>>;
+  className?: string;
+} & React.HTMLAttributes<HTMLElement>) => {
+  if (!truncation.isTruncated) {
+    return (
+      <Tag ref={truncation.ref as never} className={className} {...rest}>
+        {text}
+      </Tag>
+    );
+  }
+
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <Tag
+          ref={truncation.ref as never}
+          tabIndex={0}
+          aria-label={text}
+          className={`${className ?? ""} cursor-help outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm`}
+          {...rest}
+        >
+          {text}
+        </Tag>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
   const interactive = !!to;
+  const labelTruncation = useTruncated<HTMLParagraphElement>();
+  const hintTruncation = useTruncated<HTMLParagraphElement>();
 
   // Rótulo único para tecnologias assistivas: une label + valor + status.
   const ariaLabel = [
@@ -40,13 +90,13 @@ export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: Sta
     >
       <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
         <div className="flex items-start justify-between gap-2 sm:gap-3">
-          <p
+          <TruncatedText
+            as="p"
+            text={label}
+            truncation={labelTruncation}
             data-testid="stat-card-label"
             className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-tight line-clamp-2 min-h-[2lh]"
-            title={label}
-          >
-            {label}
-          </p>
+          />
           <div
             aria-hidden="true"
             className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}
@@ -71,13 +121,13 @@ export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: Sta
               Sua vez
             </span>
           ) : hint ? (
-            <p
+            <TruncatedText
+              as="p"
+              text={hint}
+              truncation={hintTruncation}
               data-testid="stat-card-hint"
-              className="text-[11px] text-muted-foreground leading-tight line-clamp-1"
-              title={hint}
-            >
-              {hint}
-            </p>
+              className="text-[11px] text-muted-foreground leading-tight line-clamp-1 min-w-0"
+            />
           ) : (
             <span data-testid="stat-card-placeholder" className="text-[11px] text-transparent select-none" aria-hidden>
               &nbsp;
