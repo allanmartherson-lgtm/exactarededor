@@ -14,6 +14,11 @@ import {
   formatDate,
   TONE_CLASSES,
   type ItemAiStatus,
+  RULE_MATCH_PRIORITY_LABELS,
+  RULE_MATCH_PRIORITY_TONES,
+  RULE_CALCULATION_TYPE_LABELS,
+  type RuleMatchPriority,
+  type RuleCalculationType,
 } from "@/lib/status";
 import type {
   ObservationRow,
