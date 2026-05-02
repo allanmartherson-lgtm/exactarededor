@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/StatCard";
+import { StatCardsGrid } from "@/components/dashboard/StatCardsGrid";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -144,7 +145,7 @@ const Dashboard = () => {
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch auto-rows-fr">
+        <StatCardsGrid>
           {loading ? (
             Array.from({ length: isAnalista ? 4 : 3 }).map((_, i) => <StatCardSkeleton key={i} />)
           ) : (
@@ -181,7 +182,7 @@ const Dashboard = () => {
           <StatCard icon={FileUp} label="Aprovados / em NF" value={counts.aprovados} tone="success" />
             </>
           )}
-        </div>
+        </StatCardsGrid>
 
         {/* Suas tarefas */}
         <Card className="shadow-card border-primary/30">
