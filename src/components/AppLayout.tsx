@@ -31,7 +31,7 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="w-56 lg:w-64 xl:w-72 bg-sidebar text-sidebar-foreground flex-shrink-0 flex flex-col border-r border-sidebar-border shadow-[1px_0_3px_0_hsl(var(--foreground)/0.04),4px_0_12px_-6px_hsl(var(--foreground)/0.06)] dark:shadow-[1px_0_0_0_hsl(var(--sidebar-border))]">
+      <aside className="w-56 lg:w-64 xl:w-72 bg-sidebar text-sidebar-foreground flex-shrink-0 flex flex-col border-r border-sidebar-border shadow-[1px_0_3px_0_hsl(var(--foreground)/0.04),4px_0_12px_-6px_hsl(var(--foreground)/0.06)] dark:shadow-[1px_0_0_0_hsl(var(--sidebar-border))] sticky top-0 h-screen self-start">
         <div className="px-4 lg:px-5 py-5 border-b border-sidebar-border">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="h-9 w-9 rounded-lg bg-gradient-brand flex items-center justify-center flex-shrink-0">
@@ -107,7 +107,7 @@ export const AppLayout = () => {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 overflow-x-auto">
+      <main className="flex-1 min-w-0 overflow-x-auto min-h-screen">
         <Outlet />
       </main>
     </div>
