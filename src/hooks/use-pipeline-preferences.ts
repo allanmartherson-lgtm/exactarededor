@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Json } from "@/integrations/supabase/types";
 
 /**
  * Preferências do pipeline do dashboard, persistidas:
@@ -147,8 +148,8 @@ export function usePipelinePreferences() {
       data && typeof (data as { preferences: unknown }).preferences === "object"
         ? ((data as { preferences: Record<string, unknown> }).preferences ?? {})
         : {};
-    const merged: Record<string, unknown> = {
-      ...current,
+    const merged: { [k: string]: Json } = {
+      ...(current as { [k: string]: Json }),
       [REMOTE_KEYS.layout]: next.layout,
       [REMOTE_KEYS.owner]: next.owner,
       [REMOTE_KEYS.window]: next.window,
