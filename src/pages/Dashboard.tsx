@@ -414,7 +414,9 @@ const ChipGroup = <T extends string>({
           style={{
             padding: "5px 11px",
             fontSize: 12,
-            fontWeight: active ? 600 : 500,
+            // Mantém o mesmo peso ativo/inativo para evitar reflow
+            // (o chip selecionado mudava de largura e "empurrava" os vizinhos).
+            fontWeight: 600,
             borderRadius: 6,
             transition: "all 0.15s ease",
             background: active ? "hsl(var(--primary))" : "transparent",
@@ -809,9 +811,9 @@ const Dashboard = () => {
             style={{
               padding: 22,
               display: "grid",
-              gridTemplateColumns: "repeat(8, minmax(110px, 1fr))",
+              gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
               gap: 10,
-              overflowX: "auto",
+              minWidth: 0,
             }}
           >
             {loading ? (
