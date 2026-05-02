@@ -19,6 +19,10 @@ import {
   RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
+import {
+  RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
+  type RuleCalculationType,
+} from "@/lib/status";
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
@@ -63,6 +67,10 @@ type DraftRule = {
   severity: RuleSeverity; scope: RuleScope; sector: RuleSector;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
   rule_type: RuleType;
+  calculation_type: RuleCalculationType;
+  convenio_percentage: number | null;
+  fixed_amount: number | null;
+  extras_codes: string[];
   package_amount: number | null; bonus_amount: number | null; bonus_pct: number | null;
   target_amount: number | null; multiplier: number | null; deflator_pct: number | null;
   reference_table_id: string | null; procedure_codes: string[];
@@ -70,6 +78,20 @@ type DraftRule = {
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
   doctors: { name: string; crm?: string }[];
+};
+
+/**
+ * Mapeia rule_type legado → calculation_type (motor novo).
+ * Mesma lógica da migração SQL — usado quando a IA importa regras no formato antigo.
+ */
+const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
+  switch (ruleType) {
+    case "pacote":              return "pacote_fechado";
+    case "tabela_diferenciada": return "percentual_sobre_convenio";
+    case "bonus":
+    case "complemento":         return "valor_fixo";
+    case "informativo":         return "informativo";
+  }
 };
 
 const num = (v: any): number | null => {
@@ -114,6 +136,11 @@ const Rules = () => {
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
+  // === Novo motor (Fase 4) ===
+  const [fCalculationType, setFCalculationType] = useState<RuleCalculationType>("informativo");
+  const [fConvenioPct, setFConvenioPct] = useState<string>("");
+  const [fFixedAmount, setFFixedAmount] = useState<string>("");
+  const [fExtrasCodes, setFExtrasCodes] = useState<string>("");
   const [refTableId, setRefTableId] = useState<string>("");
   const [codesInput, setCodesInput] = useState<string>("");
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
@@ -173,6 +200,7 @@ const Rules = () => {
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
     setRuleType("informativo"); setRefTableId(""); setCodesInput("");
+    setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
@@ -188,6 +216,10 @@ const Rules = () => {
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setRuleType((r.rule_type as RuleType) ?? "informativo");
+    setFCalculationType((r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo"));
+    setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
+    setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
+    setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
     setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
@@ -224,6 +256,12 @@ const Rules = () => {
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
       rule_type: ruleType,
+      calculation_type: fCalculationType,
+      convenio_percentage: fCalculationType === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
+      fixed_amount: fCalculationType === "valor_fixo" ? num(fFixedAmount) : null,
+      extras_codes: fCalculationType === "pacote_com_extras"
+        ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
+        : null,
       package_amount: ruleType === "pacote" ? num(fPackageAmount) : null,
       bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
@@ -334,6 +372,10 @@ const Rules = () => {
         severity: r.severity ?? "aviso", scope: r.scope ?? "master", sector: r.sector ?? "outro",
         target_type: r.target_type ?? null, target_identifier: r.target_identifier ?? null, target_name: r.target_name ?? null,
         rule_type: r.rule_type ?? "informativo",
+        calculation_type: (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo"),
+        convenio_percentage: r.convenio_percentage ?? null,
+        fixed_amount: r.fixed_amount ?? r.bonus_amount ?? r.target_amount ?? null,
+        extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes : [],
         package_amount: r.package_amount ?? null, bonus_amount: r.bonus_amount ?? null, bonus_pct: r.bonus_pct ?? null,
         target_amount: r.target_amount ?? null, multiplier: r.multiplier ?? null, deflator_pct: r.deflator_pct ?? null,
         reference_table_id: null, procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
@@ -374,6 +416,10 @@ const Rules = () => {
         : null,
       target_name: d.scope === "especifica" ? d.target_name : null,
       rule_type: d.rule_type,
+      calculation_type: d.calculation_type,
+      convenio_percentage: d.calculation_type === "percentual_sobre_convenio" ? d.convenio_percentage : null,
+      fixed_amount: d.calculation_type === "valor_fixo" ? d.fixed_amount : null,
+      extras_codes: d.calculation_type === "pacote_com_extras" ? (d.extras_codes.length ? d.extras_codes : null) : null,
       package_amount: d.rule_type === "pacote" ? d.package_amount : null,
       bonus_amount: d.rule_type === "bonus" ? d.bonus_amount : null,
       bonus_pct: d.rule_type === "bonus" ? d.bonus_pct : null,
@@ -711,6 +757,40 @@ const Rules = () => {
                     <SelectContent>{Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">{RULE_TYPE_DESCRIPTIONS[ruleType]}</p>
+                </div>
+
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <Label>Tipo de cálculo (motor determinístico) *</Label>
+                  <Select value={fCalculationType} onValueChange={(v) => setFCalculationType(v as RuleCalculationType)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(RULE_CALCULATION_TYPE_LABELS) as RuleCalculationType[]).map((k) => (
+                        <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">{RULE_CALCULATION_TYPE_DESCRIPTIONS[fCalculationType]}</p>
+                  {fCalculationType === "percentual_sobre_convenio" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Percentual sobre o convênio (%)</Label>
+                      <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
+                        value={fConvenioPct} onChange={(e) => setFConvenioPct(e.target.value)} />
+                    </div>
+                  )}
+                  {fCalculationType === "valor_fixo" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Valor fixo (R$)</Label>
+                      <Input type="number" step="0.01" value={fFixedAmount} onChange={(e) => setFFixedAmount(e.target.value)} />
+                    </div>
+                  )}
+                  {fCalculationType === "pacote_com_extras" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Códigos pagos à parte (extras)</Label>
+                      <Input placeholder="Ex.: 31005497, 31005470"
+                        value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
+                      <p className="text-[11px] text-muted-foreground">Estes códigos serão pagos a 100% do convênio, fora do pacote.</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
@@ -1068,6 +1148,16 @@ const Rules = () => {
                       <SelectContent>{Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-1"><Label className="text-xs">Tipo de cálculo (motor)</Label>
+                    <Select value={d.calculation_type} onValueChange={(v) => updateDraft(i, { calculation_type: v as RuleCalculationType })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(RULE_CALCULATION_TYPE_LABELS) as RuleCalculationType[]).map((k) => (
+                          <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1"><Label className="text-xs">Severidade</Label>
                     <Select value={d.severity} onValueChange={(v) => updateDraft(i, { severity: v as RuleSeverity })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1185,6 +1275,25 @@ const Rules = () => {
                 {d.rule_type === "complemento" && (
                   <div className="space-y-1 mb-3"><Label className="text-xs">Valor alvo (R$)</Label>
                     <Input type="number" step="0.01" value={d.target_amount ?? ""} onChange={(e) => updateDraft(i, { target_amount: num(e.target.value) })} />
+                  </div>
+                )}
+                {d.calculation_type === "percentual_sobre_convenio" && (
+                  <div className="space-y-1 mb-3"><Label className="text-xs">% sobre convênio (motor)</Label>
+                    <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
+                      value={d.convenio_percentage ?? ""} onChange={(e) => updateDraft(i, { convenio_percentage: num(e.target.value) })} />
+                  </div>
+                )}
+                {d.calculation_type === "valor_fixo" && (
+                  <div className="space-y-1 mb-3"><Label className="text-xs">Valor fixo (R$) (motor)</Label>
+                    <Input type="number" step="0.01"
+                      value={d.fixed_amount ?? ""} onChange={(e) => updateDraft(i, { fixed_amount: num(e.target.value) })} />
+                  </div>
+                )}
+                {d.calculation_type === "pacote_com_extras" && (
+                  <div className="space-y-1 mb-3"><Label className="text-xs">Códigos extras (motor)</Label>
+                    <Input value={d.extras_codes.join(", ")}
+                      onChange={(e) => updateDraft(i, { extras_codes: e.target.value.split(/[,;\s]+/).filter(Boolean) })}
+                      placeholder="Códigos pagos à parte (100% do convênio)" />
                   </div>
                 )}
 
