@@ -840,27 +840,52 @@ const Rules = () => {
                     <Input type="number" step="0.01" required value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
                   </div>
                 )}
-                {ruleType === "tabela_diferenciada" && (
+                {ruleType === "tabela_diferenciada" && refTableId && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                    <p className="text-xs text-muted-foreground">A tabela vinculada acima será usada como base do cálculo.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[13.5px] font-semibold">Parâmetros de cálculo da tabela</h3>
+                      <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">obrigatório</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      A tabela vinculada acima fornece apenas a base de valores. Os parâmetros abaixo pertencem a esta regra e são aplicados pelo motor de cálculo.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="space-y-1.5"><Label>Multiplicador</Label>
                         <Input type="number" step="0.01" placeholder="Ex: 1.5" value={fMultiplier} onChange={(e) => setFMultiplier(e.target.value)} />
                       </div>
                       <div className="space-y-1.5"><Label>Deflator (%)</Label>
                         <Input type="number" step="0.01" placeholder="Ex: 5" value={fDeflatorPct} onChange={(e) => setFDeflatorPct(e.target.value)} />
                       </div>
+                      <div className="space-y-1.5"><Label>% de repasse</Label>
+                        <Input type="number" step="0.01" placeholder="Ex: 70" value={fRepassePct} onChange={(e) => setFRepassePct(e.target.value)} />
+                      </div>
                     </div>
                     <div className="flex items-start gap-2 pt-1">
+                      <Checkbox id="apply_access_route" checked={fApplyAccessRoute} onCheckedChange={(c) => setFApplyAccessRoute(!!c)} />
+                      <div className="flex-1">
+                        <Label htmlFor="apply_access_route" className="cursor-pointer">Aplicar regra de via de acesso</Label>
+                        <p className="text-xs text-muted-foreground">Aplica fator por via (única=1, mesma=0,5, diferente=0,7) sobre o valor base.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
                       <Checkbox id="include_aux" checked={fIncludeAux} onCheckedChange={(c) => setFIncludeAux(!!c)} />
                       <div className="flex-1">
-                        <Label htmlFor="include_aux" className="cursor-pointer">Incluir auxiliares no valor esperado</Label>
+                        <Label htmlFor="include_aux" className="cursor-pointer">Considerar auxiliares</Label>
                         <p className="text-xs text-muted-foreground">Soma <code>valor_base × nº_aux × %_aux</code> (CBHPM informa o nº de auxiliares por código).</p>
                       </div>
                     </div>
-                    <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label>
-                      <Input type="number" step="0.01" placeholder="30" value={fAuxPct} onChange={(e) => setFAuxPct(e.target.value)} />
-                    </div>
+                    {fIncludeAux && (
+                      <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label>
+                        <Input type="number" step="0.01" placeholder="30" value={fAuxPct} onChange={(e) => setFAuxPct(e.target.value)} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {ruleType === "tabela_diferenciada" && !refTableId && (
+                  <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Vincule uma <strong>Tabela de referência</strong> acima para definir os <strong>parâmetros de cálculo</strong> desta regra.
+                    </p>
                   </div>
                 )}
                 {ruleType === "bonus" && (
