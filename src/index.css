@@ -194,12 +194,12 @@ All colors MUST be HSL.
   }
 
   .side-nav-idle {
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--secondary-foreground));
     border-left: 3px solid transparent;
     padding-left: 9px !important;
   }
   .side-nav-idle:hover {
-    background: hsl(var(--hover-surface));
+    background: hsl(var(--muted));
     color: hsl(var(--foreground));
   }
   .side-nav-active {
