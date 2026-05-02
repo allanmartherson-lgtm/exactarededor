@@ -1157,7 +1157,7 @@ const PaymentDetail = () => {
                                     <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-2 py-2">
+                                <td className="px-2 py-2 hidden sm:table-cell print:table-cell">
                                   {(() => {
                                     const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
                                     // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
@@ -1180,7 +1180,7 @@ const PaymentDetail = () => {
                                     );
                                   })()}
                                 </td>
-                                <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-2 py-2 text-right print:hidden" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
                                     onClick={() => toggleItemExpanded(it.id)}
