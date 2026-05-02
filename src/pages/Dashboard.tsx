@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Header, HeaderName } from "@carbon/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
@@ -119,21 +119,24 @@ const Dashboard = () => {
 
   return (
     <>
-      <PageHeader
-        title={`Olá, ${user?.user_metadata?.full_name?.split(" ")[0] ?? "bem-vindo"}`}
-        description={
-          myPending > 0
+      <Header aria-label="MedPay Dashboard" className="!static">
+        <HeaderName prefix="MedPay">
+          {`Olá, ${user?.user_metadata?.full_name?.split(" ")[0] ?? "bem-vindo"}`}
+        </HeaderName>
+      </Header>
+
+      <div className="px-8 pt-6 flex items-start justify-between gap-4 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {myPending > 0
             ? `Você tem ${myPending} ${myPending === 1 ? "tarefa pendente" : "tarefas pendentes"} para agir.`
-            : "Nenhuma tarefa pendente para você. Acompanhe o fluxo da equipe abaixo."
-        }
-        actions={
-          isAnalista && (
-            <Button asChild>
-              <Link to="/pagamentos/novo"><FileUp className="h-4 w-4 mr-2" /> Nova base de pagamento</Link>
-            </Button>
-          )
-        }
-      />
+            : "Nenhuma tarefa pendente para você. Acompanhe o fluxo da equipe abaixo."}
+        </p>
+        {isAnalista && (
+          <Button asChild>
+            <Link to="/pagamentos/novo"><FileUp className="h-4 w-4 mr-2" /> Nova base de pagamento</Link>
+          </Button>
+        )}
+      </div>
 
       <div className="p-8 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
