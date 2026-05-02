@@ -123,12 +123,35 @@ export default function WcagAudit() {
       )}
 
       {!running && results.length > 0 && (
-        <button
-          onClick={() => void run()}
-          className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm"
-        >
-          Rodar novamente
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => void run()}
+            className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm"
+          >
+            Rodar novamente
+          </button>
+          <button
+            onClick={() => {
+              const summary = results.flatMap((r) =>
+                r.contrastViolations.flatMap((v) =>
+                  v.nodes.map((n) => ({
+                    theme: r.theme,
+                    route: r.route,
+                    rule: v.id,
+                    impact: v.impact,
+                    target: n.target.join(" "),
+                    summary: n.failureSummary,
+                  }))
+                )
+              );
+              console.log("WCAG_DUMP", JSON.stringify(summary, null, 2));
+              alert("Dump enviado ao console (procure por WCAG_DUMP)");
+            }}
+            className="rounded-md border border-border px-4 py-2 text-sm"
+          >
+            Dump JSON no console
+          </button>
+        </div>
       )}
 
       {(["light", "dark"] as const).map((theme) => (
