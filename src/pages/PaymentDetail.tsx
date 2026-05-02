@@ -1258,14 +1258,32 @@ const PaymentDetail = () => {
                               {reanalyzingGroupId === g.id ? "Reaplicando..." : "Reaplicar regras"}
                             </Button>
                             {returnerForResend ? (
-                              <Button onClick={() => resendGroup(g.id)} disabled={busy}>
-                                <Send className="h-4 w-4 mr-2" />
-                                Reencaminhar ao {returnerForResend}
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button onClick={() => resendGroup(g.id)} disabled={busy || nfDivergent}>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Reencaminhar ao {returnerForResend}
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {nfDivergent && (
+                                  <TooltipContent>NF divergente: ajuste o pedido ou peça reemissão antes de reencaminhar.</TooltipContent>
+                                )}
+                              </Tooltip>
                             ) : (
-                              <Button onClick={() => sendForValidation(g.id)} disabled={busy}>
-                                <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button onClick={() => sendForValidation(g.id)} disabled={busy || nfDivergent}>
+                                      <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                {nfDivergent && (
+                                  <TooltipContent>NF divergente: ajuste o pedido ou peça reemissão antes de enviar.</TooltipContent>
+                                )}
+                              </Tooltip>
                             )}
                           </>
                         )}
