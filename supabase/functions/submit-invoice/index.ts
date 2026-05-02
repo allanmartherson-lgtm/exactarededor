@@ -103,34 +103,78 @@ serve(async (req) => {
     const { error: upErr } = await supabase.storage.from("invoices").upload(path, buf, { contentType: file.type, upsert: true });
     if (upErr) throw upErr;
 
-    // Conciliação rápida pelo valor digitado pelo recebedor.
+    // Conciliação pelo valor digitado pelo recebedor.
     const expected = Number(invoice.expected_amount);
-    const diff = Math.abs(expected - receivedAmount);
     const tolerance = 0.01;
-    const matchesByForm = diff <= tolerance;
+    const formDiff = Math.abs(expected - receivedAmount);
+    const matchesByForm = formDiff <= tolerance;
 
+    // Persiste primeiro o arquivo + valor digitado, com status provisório.
     await supabase.from("invoices").update({
       invoice_number: invoiceNumber,
       received_amount: receivedAmount,
       file_path: path,
       received_at: new Date().toISOString(),
-      status: matchesByForm ? "conciliada" : "divergente",
-      reconciliation_notes: matchesByForm
-        ? "Valor confere com o pedido (validação rápida)."
-        : `Divergência: pedido R$ ${expected.toFixed(2)} vs nota R$ ${receivedAmount.toFixed(2)} (diferença R$ ${diff.toFixed(2)}).`,
+      status: "aguardando",
+      reconciliation_notes: "Validando documento...",
     }).eq("id", invoice.id);
 
-    // Dispara validação assíncrona por IA (lê o PDF e compara campos).
-    // Usa fetch direto pra não bloquear a resposta ao recebedor.
+    // Validação SÍNCRONA por IA: lê o PDF/XML, extrai valor e compara com o pedido.
+    // Bloqueia o fluxo até decidir; se a IA falhar, fica em divergência por precaução.
     const FN_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/validate-invoice-pdf`;
-    fetch(FN_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ invoice_id: invoice.id }),
-    }).catch((e) => console.error("validate-invoice-pdf trigger failed", e));
+    let aiAmount: number | null = null;
+    let aiDivergences: string[] = [];
+    let aiError: string | null = null;
+    try {
+      const aiResp = await fetch(FN_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ invoice_id: invoice.id }),
+      });
+      const aiJson = await aiResp.json().catch(() => ({}));
+      if (!aiResp.ok) {
+        aiError = aiJson?.error ?? `ai_status_${aiResp.status}`;
+      } else {
+        aiAmount = typeof aiJson.extracted_amount === "number" ? aiJson.extracted_amount : null;
+        aiDivergences = Array.isArray(aiJson.divergences) ? aiJson.divergences : [];
+      }
+    } catch (e) {
+      aiError = e instanceof Error ? e.message : "ai_unreachable";
+    }
+
+    // Comparação dos valores com a NF (digitado e extraído da NF pela IA).
+    const aiDiff = aiAmount != null ? Math.abs(expected - aiAmount) : null;
+    const matchesByAi = aiDiff != null ? aiDiff <= tolerance : null;
+
+    // Política: precisa bater nos dois (form + NF). Se IA falhou, marcamos como
+    // divergente pra forçar conferência humana — bloqueia o avanço do fluxo.
+    let finalMatches = false;
+    let notes = "";
+    if (!matchesByForm) {
+      notes = `Divergência (valor digitado): pedido ${expected.toFixed(2)} vs digitado ${receivedAmount.toFixed(2)} (Δ ${formDiff.toFixed(2)}).`;
+    }
+    if (matchesByAi === false) {
+      notes += (notes ? " " : "") +
+        `Divergência (valor na NF): pedido ${expected.toFixed(2)} vs NF ${aiAmount!.toFixed(2)} (Δ ${aiDiff!.toFixed(2)}).`;
+    }
+    if (aiDivergences.length > 0) {
+      notes += (notes ? " " : "") + `IA: ${aiDivergences.join("; ")}`;
+    }
+    if (aiError) {
+      notes += (notes ? " " : "") + `Falha na validação automática (${aiError}). Conferência manual obrigatória.`;
+    }
+    if (matchesByForm && matchesByAi === true) {
+      finalMatches = true;
+      notes = "Valor digitado e valor extraído da NF conferem com o pedido.";
+    }
+
+    await supabase.from("invoices").update({
+      status: finalMatches ? "conciliada" : "divergente",
+      reconciliation_notes: notes,
+    }).eq("id", invoice.id);
 
     // Verifica se todas as NF do pagamento foram recebidas
     const { data: allInv } = await supabase.from("invoices").select("status").eq("payment_id", invoice.payment_id);
