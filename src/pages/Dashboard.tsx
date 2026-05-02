@@ -572,6 +572,33 @@ const Dashboard = () => {
                   );
                 })}
               </div>
+              <div
+                role="radiogroup"
+                aria-label="Densidade dos cards do pipeline"
+                className="inline-flex rounded-md border border-border bg-card p-0.5"
+              >
+                {(["compact", "comfortable"] as PipelineDensity[]).map((opt) => {
+                  const active = pipelineDensity === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPipelineDensity(opt)}
+                      className={cn(
+                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
+                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                        active
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      {PIPELINE_DENSITY_LABEL[opt]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <div
@@ -585,23 +612,23 @@ const Dashboard = () => {
           >
             {loading ? (
               Array.from({ length: 7 }).map((_, i) => (
-                <StatTileSkeleton key={i} density="compact" />
+                <StatTileSkeleton key={i} density={pipelineDensity === "compact" ? "compact" : "default"} />
               ))
             ) : (
               <>
-                <PipelineStep step={1} totalSteps={7} icon={Bot} label="Análise" value={pipeCounts.pipeAnaliseIA} tone="info"
+                <PipelineStep density={pipelineDensity} step={1} totalSteps={7} icon={Bot} label="Análise" value={pipeCounts.pipeAnaliseIA} tone="info"
                   to={`/pagamentos?status=em_analise_ia${pipelineQuery}`} />
-                <PipelineStep step={2} totalSteps={7} icon={ListChecks} label="Validação" value={pipeCounts.pipeValidacao} tone="warning"
+                <PipelineStep density={pipelineDensity} step={2} totalSteps={7} icon={ListChecks} label="Validação" value={pipeCounts.pipeValidacao} tone="warning"
                   to={`/pagamentos?status=aguardando_validacao${pipelineQuery}`} />
-                <PipelineStep step={3} totalSteps={7} icon={ShieldCheck} label="Aprovação" value={pipeCounts.pipeAprovacao} tone="warning"
+                <PipelineStep density={pipelineDensity} step={3} totalSteps={7} icon={ShieldCheck} label="Aprovação" value={pipeCounts.pipeAprovacao} tone="warning"
                   to={`/pagamentos?status=aguardando_aprovacao${pipelineQuery}`} />
-                <PipelineStep step={4} totalSteps={7} icon={Send} label="NF solicitada" value={pipeCounts.pipeNFSolicitada} tone="info"
+                <PipelineStep density={pipelineDensity} step={4} totalSteps={7} icon={Send} label="NF solicitada" value={pipeCounts.pipeNFSolicitada} tone="info"
                   to={`/pagamentos?status=pedido_nf_enviado${pipelineQuery}`} />
-                <PipelineStep step={5} totalSteps={7} icon={Receipt} label="NF recebida" value={pipeCounts.pipeNFRecebida} tone="info"
+                <PipelineStep density={pipelineDensity} step={5} totalSteps={7} icon={Receipt} label="NF recebida" value={pipeCounts.pipeNFRecebida} tone="info"
                   to={`/pagamentos?status=nf_recebida${pipelineQuery}`} />
-                <PipelineStep step={6} totalSteps={7} icon={CheckCircle2} label="Conciliada" value={pipeCounts.pipeNFConciliada} tone="success"
+                <PipelineStep density={pipelineDensity} step={6} totalSteps={7} icon={CheckCircle2} label="Conciliada" value={pipeCounts.pipeNFConciliada} tone="success"
                   to={`/pagamentos?status=nf_conciliada${pipelineQuery}`} />
-                <PipelineStep step={7} totalSteps={7} icon={Wallet} label="Pago" value={pipeCounts.pipePago} tone="success"
+                <PipelineStep density={pipelineDensity} step={7} totalSteps={7} icon={Wallet} label="Pago" value={pipeCounts.pipePago} tone="success"
                   to={`/pagamentos?status=pago${pipelineQuery}`} />
               </>
             )}
