@@ -80,13 +80,28 @@ const Companies = () => {
         return;
       }
     }
+    // Aproveita e-mail digitado mas não confirmado com Enter (evita perder o que o usuário "esqueceu" no input)
+    const finalEmails = [...(editing.invoice_emails ?? [])];
+    const pendingEmail = emailInput.trim().toLowerCase();
+    if (pendingEmail) {
+      if (!isValidEmail(pendingEmail)) {
+        toast({
+          title: "E-mail inválido no campo",
+          description: `"${pendingEmail}" não é um e-mail válido. Corrija ou apague antes de salvar.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!finalEmails.includes(pendingEmail)) finalEmails.push(pendingEmail);
+    }
+
     const payload = {
       name: editing.name.trim(),
       // Persiste sempre normalizado com máscara (ou null se vazio)
       document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
-      invoice_emails: (editing.invoice_emails ?? [])
+      invoice_emails: finalEmails
         .map((e) => e.trim().toLowerCase())
         .filter((e) => isValidEmail(e)),
     };
@@ -333,6 +348,18 @@ const Companies = () => {
                     type="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
+                    onBlur={() => {
+                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado)
+                      const v = emailInput.trim().toLowerCase();
+                      if (!v) return;
+                      if (!isValidEmail(v)) return; // mantém no input para o usuário corrigir
+                      if ((editing.invoice_emails ?? []).includes(v)) {
+                        setEmailInput("");
+                        return;
+                      }
+                      setEditing({ ...editing, invoice_emails: [...(editing.invoice_emails ?? []), v] });
+                      setEmailInput("");
+                    }}
                     onKeyDown={(e) => {
                       if ((e.key === "Enter" || e.key === "," || e.key === ";") && emailInput.trim()) {
                         e.preventDefault();
@@ -350,7 +377,13 @@ const Companies = () => {
                       }
                     }}
                     placeholder="financeiro@empresa.com"
+                    className={emailInput.trim() ? "ring-2 ring-warning/40" : undefined}
                   />
+                  {emailInput.trim() && (
+                    <p className="text-xs text-warning">
+                      ⚠ Pressione <kbd className="px-1 rounded bg-muted">Enter</kbd> para adicionar este e-mail. (Ao salvar, será adicionado automaticamente.)
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
                     {(editing.invoice_emails ?? []).map((a, i) => (
                       <Badge key={i} variant="secondary" className="gap-1">
