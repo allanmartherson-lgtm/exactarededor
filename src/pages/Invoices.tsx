@@ -342,9 +342,14 @@ const Invoices = () => {
                       {/* Coluna 2 — Ações */}
                       <div className="list-row__actions">
                         {i.question_count > 0 && (
-                          <button type="button" className="list-row__btn" onClick={() => openThread(i)}>
+                          <button
+                            type="button"
+                            className="list-row__btn border-warning/60 bg-warning-soft text-warning-foreground hover:bg-warning-soft/80"
+                            onClick={() => openThread(i)}
+                            title="Abrir conversa sobre esta NF"
+                          >
                             <MessageCircle className="h-3.5 w-3.5" aria-hidden />
-                            {i.question_count} mensagem{i.question_count === 1 ? "" : "s"}
+                            Responder ({i.question_count})
                           </button>
                         )}
                         {canActOnNF && i.status === "aguardando" && (
