@@ -177,3 +177,19 @@ All colors MUST be HSL.
     font-family: "Inter", system-ui, sans-serif;
   }
 }
+
+@layer components {
+  .hover-card-lift {
+    transition: all 0.15s ease;
+  }
+  .hover-card-lift:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+  .task-row:hover {
+    background: hsl(var(--hover-surface));
+  }
+  .pipeline-col:hover {
+    background: hsl(var(--hover-surface));
+  }
+}
