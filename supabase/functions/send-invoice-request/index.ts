@@ -371,17 +371,14 @@ Solicitamos, por gentileza, a emissão de Nota Fiscal referente ${aoAos(setoresA
 
 ${opts.recipient_label} - ${setoresStr}
 Valor: ${summary.total_amount_formatted}
-Previsão de pagamento: 10 dias úteis após o envio da NF no link abaixo:
+Previsão de pagamento: 10 dias úteis após o envio da NF.
+Para envio da NF ou caso tenha dúvidas ou questionamentos, utilize o link abaixo:
 
 ${portalUrl}
 
 Dados Cadastrais do Hospital:
 ${DADOS_CADASTRAIS}
 ${prazoLine ? `\n${prazoLine}\n` : ""}
-Caso tenha alguma dúvida ou identifique alguma divergência, favor nos informar no link abaixo:
-
-${portalUrl}
-
 ${ASSINATURA}`;
 
       await supabase.from("invoices").update({ request_message: requestMessage }).eq("id", invoice.id);
