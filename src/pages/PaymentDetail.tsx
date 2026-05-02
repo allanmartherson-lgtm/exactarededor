@@ -17,6 +17,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
+import {
+  ANALYST_DONE_STATUSES,
+  canTransition,
+  effectiveItemAiStatus,
+  resolveResendTarget,
+  type ActorRole,
+} from "@/lib/paymentFlow";
 import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, RotateCcw, Send, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
@@ -24,20 +31,6 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 };
 
 const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
-
-// Status do grupo a partir do qual o analista já terminou a triagem.
-// A partir daqui, um "reprovado" da IA não deve mais alarmar o validador/diretor:
-// se o item seguiu adiante é porque o analista aceitou.
-const ANALYST_DONE_STATUSES = new Set<PaymentStatus>([
-  "aguardando_validacao",
-  "aguardando_aprovacao",
-  "aprovado",
-  "pedido_nf_enviado",
-  "nf_recebida",
-  "nf_conciliada",
-  "nf_divergente",
-  "pago",
-]);
 
 type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
 const RuleTooltipContent = ({
