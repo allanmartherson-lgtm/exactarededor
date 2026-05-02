@@ -87,18 +87,20 @@ const PaymentDetail = () => {
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,full_name,email"),
       supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
       supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
+      supabase.from("invoices").select("*").eq("payment_id", id),
     ]);
-    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []);
+    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []); setInvoices(inv ?? []);
     // Por padrão, todos os grupos começam expandidos para manter a UX atual
     setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
     const map: Record<string, string> = {};
