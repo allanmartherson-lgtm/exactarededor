@@ -759,6 +759,40 @@ const Rules = () => {
                   <p className="text-xs text-muted-foreground">{RULE_TYPE_DESCRIPTIONS[ruleType]}</p>
                 </div>
 
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <Label>Tipo de cálculo (motor determinístico) *</Label>
+                  <Select value={fCalculationType} onValueChange={(v) => setFCalculationType(v as RuleCalculationType)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(RULE_CALCULATION_TYPE_LABELS) as RuleCalculationType[]).map((k) => (
+                        <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">{RULE_CALCULATION_TYPE_DESCRIPTIONS[fCalculationType]}</p>
+                  {fCalculationType === "percentual_sobre_convenio" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Percentual sobre o convênio (%)</Label>
+                      <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
+                        value={fConvenioPct} onChange={(e) => setFConvenioPct(e.target.value)} />
+                    </div>
+                  )}
+                  {fCalculationType === "valor_fixo" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Valor fixo (R$)</Label>
+                      <Input type="number" step="0.01" value={fFixedAmount} onChange={(e) => setFFixedAmount(e.target.value)} />
+                    </div>
+                  )}
+                  {fCalculationType === "pacote_com_extras" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Códigos pagos à parte (extras)</Label>
+                      <Input placeholder="Ex.: 31005497, 31005470"
+                        value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
+                      <p className="text-[11px] text-muted-foreground">Estes códigos serão pagos a 100% do convênio, fora do pacote.</p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
                   <Label>Tabela de referência (opcional)</Label>
                   <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
