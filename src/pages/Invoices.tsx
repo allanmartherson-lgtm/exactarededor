@@ -4,9 +4,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/lib/status";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
-import { MessageCircleQuestion, Bot, AlertTriangle } from "lucide-react";
+import { MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet } from "lucide-react";
 
 const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
   aguardando: "warning", recebida: "info", conciliada: "success", divergente: "destructive",
@@ -27,38 +29,44 @@ interface InvoiceRow {
   reconciliation_notes: string | null;
   ai_validation: { divergences?: string[]; confidence?: string; notes?: string } | null;
   ai_extracted_amount: number | null;
-  payments: { reference: string } | null;
+  payments: { reference: string; status: string } | null;
   question_count: number;
 }
 
 const Invoices = () => {
+  const { user, hasRole } = useAuth();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
   const [openQuestions, setOpenQuestions] = useState<InvoiceQuestion[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const canActOnNF = hasRole("analista") || hasRole("admin") || hasRole("diretor");
+
+  const load = async () => {
+    const { data: invoices } = await supabase
+      .from("invoices")
+      .select("*, payments(reference,status)")
+      .order("created_at", { ascending: false });
+    const ids = (invoices ?? []).map((i: { id: string }) => i.id);
+    const countByInvoice = new Map<string, number>();
+    if (ids.length > 0) {
+      const { data: qs } = await supabase
+        .from("invoice_questions")
+        .select("invoice_id")
+        .in("invoice_id", ids);
+      (qs ?? []).forEach((q: { invoice_id: string }) => {
+        countByInvoice.set(q.invoice_id, (countByInvoice.get(q.invoice_id) ?? 0) + 1);
+      });
+    }
+    setRows(((invoices ?? []) as unknown as InvoiceRow[]).map((i) => ({
+      ...i,
+      question_count: countByInvoice.get(i.id) ?? 0,
+    })));
+  };
 
   useEffect(() => {
     document.title = "Notas Fiscais | MedPay";
-    (async () => {
-      const { data: invoices } = await supabase
-        .from("invoices")
-        .select("*, payments(reference)")
-        .order("created_at", { ascending: false });
-      const ids = (invoices ?? []).map((i: { id: string }) => i.id);
-      let countByInvoice = new Map<string, number>();
-      if (ids.length > 0) {
-        const { data: qs } = await supabase
-          .from("invoice_questions")
-          .select("invoice_id")
-          .in("invoice_id", ids);
-        (qs ?? []).forEach((q: { invoice_id: string }) => {
-          countByInvoice.set(q.invoice_id, (countByInvoice.get(q.invoice_id) ?? 0) + 1);
-        });
-      }
-      setRows(((invoices ?? []) as unknown as InvoiceRow[]).map((i) => ({
-        ...i,
-        question_count: countByInvoice.get(i.id) ?? 0,
-      })));
-    })();
+    void load();
   }, []);
 
   const openThread = async (inv: InvoiceRow) => {
@@ -69,6 +77,49 @@ const Invoices = () => {
       .eq("invoice_id", inv.id)
       .order("created_at", { ascending: true });
     setOpenQuestions((data ?? []) as InvoiceQuestion[]);
+  };
+
+  const markConciliada = async (inv: InvoiceRow) => {
+    if (!user) return;
+    setBusyId(inv.id);
+    const { error: e1 } = await supabase
+      .from("invoices")
+      .update({ status: "conciliada", reconciliation_notes: inv.reconciliation_notes ?? "Conciliada manualmente pelo analista." })
+      .eq("id", inv.id);
+    if (e1) {
+      toast({ title: "Falha ao conciliar", description: e1.message, variant: "destructive" });
+      setBusyId(null); return;
+    }
+    await supabase.from("payments").update({ status: "nf_conciliada", updated_at: new Date().toISOString() }).eq("id", inv.payment_id);
+    await supabase.from("payment_observations").insert({
+      payment_id: inv.payment_id, author_type: "analista", author_id: user.id,
+      message: `NF #${inv.invoice_number ?? "—"} conciliada manualmente.`,
+      status_to: "nf_conciliada",
+    });
+    setBusyId(null);
+    toast({ title: "NF conciliada" });
+    await load();
+  };
+
+  const markPaga = async (inv: InvoiceRow) => {
+    if (!user) return;
+    setBusyId(inv.id);
+    const { error } = await supabase
+      .from("payments")
+      .update({ status: "pago", updated_at: new Date().toISOString() })
+      .eq("id", inv.payment_id);
+    if (error) {
+      toast({ title: "Falha ao marcar como pago", description: error.message, variant: "destructive" });
+      setBusyId(null); return;
+    }
+    await supabase.from("payment_observations").insert({
+      payment_id: inv.payment_id, author_type: "analista", author_id: user.id,
+      message: `Pagamento liquidado no sistema financeiro (NF #${inv.invoice_number ?? "—"}).`,
+      status_to: "pago",
+    });
+    setBusyId(null);
+    toast({ title: "Pagamento marcado como pago" });
+    await load();
   };
 
   return (
@@ -112,6 +163,16 @@ const Invoices = () => {
                     <Button variant="outline" size="sm" onClick={() => openThread(i)}>
                       <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" />
                       {i.question_count} mensagem{i.question_count === 1 ? "" : "s"}
+                    </Button>
+                  )}
+                  {canActOnNF && i.status === "recebida" && (
+                    <Button size="sm" variant="outline" disabled={busyId === i.id} onClick={() => markConciliada(i)}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Conciliar
+                    </Button>
+                  )}
+                  {canActOnNF && i.status === "conciliada" && i.payments?.status !== "pago" && (
+                    <Button size="sm" disabled={busyId === i.id} onClick={() => markPaga(i)}>
+                      <Wallet className="h-3.5 w-3.5 mr-1.5" /> Marcar como pago
                     </Button>
                   )}
                   <span className={`text-xs rounded-full border px-2.5 py-0.5 ${TONE_CLASSES[tone[i.status as InvoiceStatus]]}`}>{labels[i.status as InvoiceStatus]}</span>
