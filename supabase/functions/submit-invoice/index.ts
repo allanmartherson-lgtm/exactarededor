@@ -88,7 +88,7 @@ serve(async (req) => {
         const { data: siblings } = await supabase.from("invoices").select("status").eq("payment_id", invoice.payment_id);
         const anyDone = siblings?.some((i) => i.status === "conciliada" || i.status === "divergente");
         if (!anyDone) {
-          await supabase.from("payments").update({ status: "aguardando_nf" }).eq("id", invoice.payment_id);
+          await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", invoice.payment_id);
         }
         await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
