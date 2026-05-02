@@ -45,6 +45,7 @@ interface ItemRow {
   gross_amount: number;
   raw_data: unknown;
   company_name?: string | null;
+  company_id?: string | null;
   attendance_number?: string | null;
   procedure_code?: string | null;
   procedure_name?: string | null;
@@ -143,7 +144,7 @@ serve(async (req) => {
     }
     const { data: items } = await supabase
       .from("payment_items")
-      .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
+      .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,company_id,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
       .eq("payment_id", payment_id);
     const { data: history } = await supabase
       .from("payment_observations")
@@ -445,7 +446,7 @@ Responda APENAS via tool call, sem texto adicional.`;
     }
 
     await supabase.from("payments").update({
-      status: "aguardando_validacao",
+      status: "revisao_analista",
       ai_summary: result.summary,
     }).eq("id", payment_id);
 
@@ -460,8 +461,45 @@ Responda APENAS via tool call, sem texto adicional.`;
       author_type: "ia",
       message: `${result.summary} (${alerts} alertas, ${blocks} reprovações sugeridas)${consolidatedDiff}`,
       status_from: "em_analise_ia",
-      status_to: "aguardando_validacao",
+      status_to: "revisao_analista",
     });
+
+    // Cria/atualiza grupos por empresa em revisao_analista
+    const groupsMap = new Map<string, { company_id: string | null; company_name: string; items: ItemRow[] }>();
+    for (const it of (items ?? []) as ItemRow[]) {
+      const name = (it.company_name ?? "Sem empresa").trim() || "Sem empresa";
+      const key = name.toLowerCase();
+      const cur = groupsMap.get(key);
+      if (cur) cur.items.push(it);
+      else groupsMap.set(key, { company_id: (it as any).company_id ?? null, company_name: name, items: [it] });
+    }
+    for (const g of groupsMap.values()) {
+      const total = g.items.reduce((s, x) => s + Number(x.gross_amount), 0);
+      // Tenta upsert pela unique (payment_id, lower(company_name))
+      const { data: existing } = await supabase
+        .from("payment_company_groups")
+        .select("id")
+        .eq("payment_id", payment_id)
+        .ilike("company_name", g.company_name)
+        .maybeSingle();
+      if (existing) {
+        await supabase.from("payment_company_groups").update({
+          status: "revisao_analista",
+          items_count: g.items.length,
+          total_amount: total,
+          company_id: g.company_id,
+        }).eq("id", existing.id);
+      } else {
+        await supabase.from("payment_company_groups").insert({
+          payment_id,
+          company_id: g.company_id,
+          company_name: g.company_name,
+          status: "revisao_analista",
+          items_count: g.items.length,
+          total_amount: total,
+        });
+      }
+    }
 
     return new Response(JSON.stringify({ ok: true, alerts, blocks }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {

@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.recompute_payment_status_from_groups(uuid) FROM anon, authenticated, public;
+REVOKE EXECUTE ON FUNCTION public.trg_recompute_payment_status() FROM anon, authenticated, public;

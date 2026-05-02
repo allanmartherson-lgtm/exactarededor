@@ -295,6 +295,63 @@ export type Database = {
           },
         ]
       }
+      payment_company_groups: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          company_id: string | null
+          company_name: string
+          created_at: string
+          id: string
+          items_count: number
+          payment_id: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+          total_amount: number
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string | null
+          company_name: string
+          created_at?: string
+          id?: string
+          items_count?: number
+          payment_id: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          total_amount?: number
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          company_id?: string | null
+          company_name?: string
+          created_at?: string
+          id?: string
+          items_count?: number
+          payment_id?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          total_amount?: number
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: []
+      }
       payment_items: {
         Row: {
           access_route: string | null
@@ -837,6 +894,10 @@ export type Database = {
         Returns: boolean
       }
       only_digits: { Args: { txt: string }; Returns: string }
+      recompute_payment_status_from_groups: {
+        Args: { _payment_id: string }
+        Returns: undefined
+      }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
     }
     Enums: {
@@ -865,6 +926,7 @@ export type Database = {
         | "pago"
         | "rejeitado"
         | "cancelado"
+        | "revisao_analista"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind: "simples" | "cbhpm"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
@@ -1032,6 +1094,7 @@ export const Constants = {
         "pago",
         "rejeitado",
         "cancelado",
+        "revisao_analista",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: ["simples", "cbhpm"],

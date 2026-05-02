@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
-import { ArrowLeft, Ban, CalendarDays, CheckCircle2, FileDown, GitCompare, History, Mail, MessageSquarePlus, RotateCcw, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, RotateCcw, Send, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -72,17 +72,21 @@ const PaymentDetail = () => {
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [groupComment, setGroupComment] = useState<Record<string, string>>({});
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,full_name,email"),
       supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
+      supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
     ]);
-    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []);
+    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []);
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
@@ -127,6 +131,78 @@ const PaymentDetail = () => {
   const requireComment = (cb: () => void) => {
     if (!comment.trim()) { toast({ title: "Adicione uma observação", variant: "destructive" }); return; }
     cb();
+  };
+
+  // ===== Ações por grupo (empresa) =====
+  const transitionGroup = async (
+    groupId: string,
+    newStatus: PaymentStatus,
+    authorType: "validador" | "diretor" | "analista",
+    messagePrefix: string,
+    requireMsg = true,
+  ) => {
+    if (!id) return;
+    const g = groups.find((x) => x.id === groupId);
+    if (!g) return;
+    const text = (groupComment[groupId] ?? "").trim();
+    if (requireMsg && !text) {
+      toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const updates: any = { status: newStatus };
+    if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
+      updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && newStatus === "aprovado") {
+      updates.approved_by = user!.id; updates.approved_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && newStatus === "rejeitado") {
+      updates.rejected_by = user!.id; updates.rejected_at = new Date().toISOString();
+      updates.rejection_reason = text || null;
+    }
+    const { error } = await supabase.from("payment_company_groups").update(updates).eq("id", groupId);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setBusy(false); return; }
+    await supabase.from("payment_observations").insert({
+      payment_id: id, author_type: authorType, author_id: user!.id,
+      message: `[${g.company_name}] ${messagePrefix}${text ? `: ${text}` : ""}`,
+      status_from: g.status, status_to: newStatus,
+    });
+    setGroupComment((m) => ({ ...m, [groupId]: "" }));
+    await load();
+    setBusy(false);
+    toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
+  };
+
+  // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
+  const sendForValidation = async (onlyGroupId?: string) => {
+    if (!id) return;
+    const targets = (onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups)
+      .filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
+    if (targets.length === 0) {
+      toast({ title: "Nada para enviar", description: "Nenhuma empresa pronta para validação." });
+      return;
+    }
+    setBusy(true);
+    for (const g of targets) {
+      await supabase.from("payment_company_groups").update({ status: "aguardando_validacao" }).eq("id", g.id);
+      await supabase.from("payment_observations").insert({
+        payment_id: id, author_type: "analista", author_id: user!.id,
+        message: `[${g.company_name}] Enviado para validação pelo analista.`,
+        status_from: g.status, status_to: "aguardando_validacao",
+      });
+    }
+    await load();
+    setBusy(false);
+    toast({ title: "Enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+  };
+
+  const toggleItemExpanded = (itemId: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
   };
 
   const generatePdf = async () => {
@@ -183,10 +259,10 @@ const PaymentDetail = () => {
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalista = hasRole("analista") || hasRole("admin");
-  const canValidate = isValidador && payment.status === "aguardando_validacao";
-  const canApprove = isDiretor && payment.status === "aguardando_aprovacao";
-  const canResend = isAnalista && (payment.status === "devolvido_analista");
   const canRequestNf = isDiretor && payment.status === "aprovado";
+  // Para o botão "Enviar para validação" do analista no header
+  const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
+  const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
@@ -600,192 +676,267 @@ const PaymentDetail = () => {
           </Card>
         )}
 
-          <Card className="shadow-card">
-            <CardHeader><CardTitle className="text-base">Itens ({items.length})</CardTitle></CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <TooltipProvider delayDuration={150}>
-              <table className="w-full text-sm">
-                <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2">Atend.</th>
-                    <th className="px-3 py-2">Paciente</th>
-                    <th className="px-3 py-2">Convênio</th>
-                    <th className="px-3 py-2">Médico / Função</th>
-                    <th className="px-3 py-2">TUSS</th>
-                    <th className="px-3 py-2">Descrição</th>
-                    <th className="px-3 py-2 text-right">Qtd</th>
-                    <th className="px-3 py-2 text-right">Valor</th>
-                    <th className="px-3 py-2">IA</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {items.map((it) => {
-                    const raw = (it.raw_data ?? {}) as Record<string, any>;
-                    const paciente = raw["Paciente"] ?? raw["paciente"] ?? "—";
-                    const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
-                    const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
-                    const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
-                    // Resolve regras por id (preferencial) e por nome (fallback) para manter o link sempre clicável
-                    const seen = new Set<string>();
-                    const matchedRuleObjs: RuleLite[] = [];
-                    matchedIds.forEach((rid) => {
-                      const r = rulesIndex[rid];
-                      if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
-                    });
-                    matchedNames.forEach((nm) => {
-                      const r = rulesByName[String(nm).trim().toLowerCase()];
-                      if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
-                    });
-                    const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
-                    const firstRule = matchedRuleObjs[0] ?? null;
-                    const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
-                    const tooltipNode = hasRule ? (
-                      <RuleTooltipContent rules={matchedRuleObjs} fallbackNames={matchedNames} />
-                    ) : null;
-                    return (
-                      <tr key={it.id} className="align-top">
-                        <td className="px-3 py-3 text-xs font-mono text-muted-foreground">{it.attendance_number ?? "—"}</td>
-                        <td className="px-3 py-3">{paciente}</td>
-                        <td className="px-3 py-3 text-muted-foreground">{convenio}</td>
-                        <td className="px-3 py-3">
-                          <div className="font-medium">{it.doctor_name}</div>
-                          <div className="text-xs text-muted-foreground">{it.doctor_role ?? "—"}</div>
-                        </td>
-                        <td className="px-3 py-3 font-mono text-xs">{it.procedure_code ?? "—"}</td>
-                        <td className="px-3 py-3 max-w-[260px]">
-                          <div>{it.description ?? "—"}</div>
-                          {it.ai_findings?.alerts?.length > 0 && (
-                            <ul className="mt-1 text-xs text-warning-foreground space-y-0.5">
-                              {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
-                            </ul>
-                          )}
-                          {it.ai_findings?.calculation_explanation && (
-                            <div className="mt-1 text-xs text-muted-foreground italic">{it.ai_findings.calculation_explanation}</div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
-                        <td className="px-3 py-3 text-right">
-                          {(() => {
-                            const totalRules = matchedRuleObjs.length || matchedNames.length;
-                            const extra = Math.max(0, totalRules - 1);
-                            const valueEl = firstRule?.id ? (
-                              <Link
-                                to={`/regras?rule=${firstRule.id}`}
-                                className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
-                              >
-                                {formatCurrency(it.gross_amount)}
-                              </Link>
-                            ) : (
-                              <span className={`tabular-nums font-medium ${tooltipNode ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help" : ""}`}>
-                                {formatCurrency(it.gross_amount)}
-                              </span>
-                            );
-                            return (
-                              <>
-                                <div className="flex items-center justify-end gap-1.5">
-                                  {tooltipNode ? (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>{valueEl}</TooltipTrigger>
-                                      <TooltipContent side="left" className="max-w-xs">{tooltipNode}</TooltipContent>
-                                    </Tooltip>
-                                  ) : valueEl}
-                                  {extra > 0 && (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <button
-                                          type="button"
-                                          className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition"
-                                          title={`${totalRules} regras aplicadas`}
-                                        >
-                                          +{extra}
-                                        </button>
-                                      </PopoverTrigger>
-                                      <PopoverContent side="left" align="end" className="w-80 p-0">
-                                        <div className="px-3 py-2 border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                          {totalRules} regras aplicadas
-                                        </div>
-                                        <ul className="max-h-72 overflow-y-auto divide-y divide-border/60">
-                                          {(matchedRuleObjs.length ? matchedRuleObjs : matchedNames.map((n) => ({ id: "", name: n, rule_text: "", description: null }))).map((r, i) => (
-                                            <li key={i} className="px-3 py-2 text-xs">
-                                              {r.id ? (
-                                                <Link to={`/regras?rule=${r.id}`} className="font-medium text-primary hover:underline">
-                                                  {truncate(r.name, 80)}
-                                                </Link>
-                                              ) : (
-                                                <span className="font-medium">{truncate(r.name, 80)}</span>
-                                              )}
-                                              {r.rule_text && (
-                                                <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground leading-snug">
-                                                  {truncate(r.rule_text.trim(), 180)}
-                                                </p>
-                                              )}
-                                              {r.description && (
-                                                <p className="mt-0.5 italic text-muted-foreground/80 leading-snug">
-                                                  {truncate(r.description.trim(), 120)}
-                                                </p>
-                                              )}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </PopoverContent>
-                                    </Popover>
-                                  )}
-                                </div>
-                                {firstRuleLabel && (
-                                  firstRule?.id ? (
-                                    <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto">
-                                      {firstRuleLabel}
-                                    </Link>
-                                  ) : (
-                                    <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto">
-                                      {firstRuleLabel}
-                                    </span>
-                                  )
-                                )}
-                              </>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              </TooltipProvider>
-            </CardContent>
-          </Card>
-
-          {(canValidate || canApprove || canResend) && (
-            <Card className="shadow-card border-primary/20">
-              <CardHeader><CardTitle className="text-base">Ação necessária</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Sua observação (obrigatória para devolver/aprovar)..." rows={3} />
-                <div className="flex flex-wrap gap-2">
-                  {canValidate && <>
-                    <Button onClick={() => requireComment(() => transition("aguardando_aprovacao", "validador", `Validado: ${comment}`))} disabled={busy}>
-                      <CheckCircle2 className="h-4 w-4 mr-2" /> Validar e enviar ao Diretor
-                    </Button>
-                    <Button variant="outline" onClick={() => requireComment(() => transition("devolvido_analista", "validador", `Devolvido ao analista: ${comment}`))} disabled={busy}>
-                      <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao analista
-                    </Button>
-                  </>}
-                  {canApprove && <>
-                    <Button onClick={() => requireComment(() => transition("aprovado", "diretor", `Aprovado: ${comment}`))} disabled={busy}>
-                      <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar
-                    </Button>
-                    <Button variant="outline" onClick={() => requireComment(() => transition("devolvido_validador", "diretor", `Devolvido ao validador: ${comment}`))} disabled={busy}>
-                      <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao validador
-                    </Button>
-                    <Button variant="destructive" onClick={() => requireComment(() => transition("rejeitado", "diretor", `Rejeitado: ${comment}`))} disabled={busy}>
-                      <XCircle className="h-4 w-4 mr-2" /> Rejeitar
-                    </Button>
-                  </>}
-                  {canResend && <Button onClick={() => requireComment(() => transition("aguardando_validacao", "analista", `Reenviado: ${comment}`))} disabled={busy}>Reenviar para validação</Button>}
+          {canSendForValidation && (
+            <Card className="shadow-card border-primary/40 bg-primary/5">
+              <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-sm">
+                  <p className="font-medium">Revisão concluída pelo analista?</p>
+                  <p className="text-xs text-muted-foreground">
+                    {groupsReadyToSend.length} empresa(s) prontas para enviar ao validador. Você também pode enviar uma a uma no card de cada empresa.
+                  </p>
                 </div>
+                <Button onClick={() => sendForValidation()} disabled={busy}>
+                  <Send className="h-4 w-4 mr-2" /> Enviar todas para validação
+                </Button>
               </CardContent>
             </Card>
           )}
+
+          <TooltipProvider delayDuration={150}>
+            {groups.map((g) => {
+              const groupItems = items.filter(
+                (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
+              );
+              const gStatus = g.status as PaymentStatus;
+              const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
+              const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
+              const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
+              return (
+                <Card key={g.id} className="shadow-card overflow-hidden">
+                  <CardHeader className="pb-3 bg-muted/30">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <CardTitle className="text-base truncate">{g.company_name}</CardTitle>
+                        <span className="text-xs text-muted-foreground">
+                          · {g.items_count} itens · {formatCurrency(g.total_amount)}
+                        </span>
+                      </div>
+                      <StatusBadge status={gStatus} />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 w-8"></th>
+                          <th className="px-3 py-2">Atend.</th>
+                          <th className="px-3 py-2">Paciente</th>
+                          <th className="px-3 py-2">Convênio</th>
+                          <th className="px-3 py-2">Médico / Função</th>
+                          <th className="px-3 py-2">TUSS</th>
+                          <th className="px-3 py-2">Descrição</th>
+                          <th className="px-3 py-2 text-right">Qtd</th>
+                          <th className="px-3 py-2 text-right">Valor</th>
+                          <th className="px-3 py-2">IA</th>
+                          <th className="px-3 py-2 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {groupItems.map((it) => {
+                          const raw = (it.raw_data ?? {}) as Record<string, any>;
+                          const paciente = raw["Paciente"] ?? raw["paciente"] ?? "—";
+                          const convenio = raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—";
+                          const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
+                          const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
+                          const seen = new Set<string>();
+                          const matchedRuleObjs: RuleLite[] = [];
+                          matchedIds.forEach((rid) => {
+                            const r = rulesIndex[rid];
+                            if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
+                          });
+                          matchedNames.forEach((nm) => {
+                            const r = rulesByName[String(nm).trim().toLowerCase()];
+                            if (r && !seen.has(r.id)) { seen.add(r.id); matchedRuleObjs.push(r); }
+                          });
+                          const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
+                          const firstRule = matchedRuleObjs[0] ?? null;
+                          const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
+                          const tooltipNode = hasRule ? (
+                            <RuleTooltipContent rules={matchedRuleObjs} fallbackNames={matchedNames} />
+                          ) : null;
+                          const itemObs = obs.filter((o) => o.item_id === it.id);
+                          const isExpanded = expandedItems.has(it.id);
+                          const totalRules = matchedRuleObjs.length || matchedNames.length;
+                          const extra = Math.max(0, totalRules - 1);
+                          const valueEl = firstRule?.id ? (
+                            <Link
+                              to={`/regras?rule=${firstRule.id}`}
+                              className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
+                            >
+                              {formatCurrency(it.gross_amount)}
+                            </Link>
+                          ) : (
+                            <span className={`tabular-nums font-medium ${tooltipNode ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help" : ""}`}>
+                              {formatCurrency(it.gross_amount)}
+                            </span>
+                          );
+                          return (
+                            <>
+                              <tr key={it.id} className="align-top hover:bg-muted/20 cursor-pointer" onClick={() => toggleItemExpanded(it.id)}>
+                                <td className="px-3 py-3 text-muted-foreground">
+                                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                </td>
+                                <td className="px-3 py-3 text-xs font-mono text-muted-foreground">{it.attendance_number ?? "—"}</td>
+                                <td className="px-3 py-3">{paciente}</td>
+                                <td className="px-3 py-3 text-muted-foreground">{convenio}</td>
+                                <td className="px-3 py-3">
+                                  <div className="font-medium">{it.doctor_name}</div>
+                                  <div className="text-xs text-muted-foreground">{it.doctor_role ?? "—"}</div>
+                                </td>
+                                <td className="px-3 py-3 font-mono text-xs">{it.procedure_code ?? "—"}</td>
+                                <td className="px-3 py-3 max-w-[260px]">
+                                  <div>{it.description ?? "—"}</div>
+                                  {it.ai_findings?.alerts?.length > 0 && (
+                                    <ul className="mt-1 text-xs text-warning-foreground space-y-0.5">
+                                      {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
+                                    </ul>
+                                  )}
+                                  {it.ai_findings?.calculation_explanation && (
+                                    <div className="mt-1 text-xs text-muted-foreground italic">{it.ai_findings.calculation_explanation}</div>
+                                  )}
+                                </td>
+                                <td className="px-3 py-3 text-right tabular-nums">{it.quantity ?? "—"}</td>
+                                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {tooltipNode ? (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>{valueEl}</TooltipTrigger>
+                                        <TooltipContent side="left" className="max-w-xs">{tooltipNode}</TooltipContent>
+                                      </Tooltip>
+                                    ) : valueEl}
+                                    {extra > 0 && (
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <button type="button" className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition">
+                                            +{extra}
+                                          </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent side="left" align="end" className="w-80 p-0">
+                                          <ul className="max-h-72 overflow-y-auto divide-y divide-border/60">
+                                            {(matchedRuleObjs.length ? matchedRuleObjs : matchedNames.map((n) => ({ id: "", name: n, rule_text: "", description: null }))).map((r, i) => (
+                                              <li key={i} className="px-3 py-2 text-xs">
+                                                {r.id ? <Link to={`/regras?rule=${r.id}`} className="font-medium text-primary hover:underline">{truncate(r.name, 80)}</Link> : <span className="font-medium">{truncate(r.name, 80)}</span>}
+                                                {r.rule_text && <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground leading-snug">{truncate(r.rule_text.trim(), 180)}</p>}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </PopoverContent>
+                                      </Popover>
+                                    )}
+                                  </div>
+                                  {firstRuleLabel && (
+                                    firstRule?.id ? (
+                                      <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto">{firstRuleLabel}</Link>
+                                    ) : <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto">{firstRuleLabel}</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
+                                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleItemExpanded(it.id)}
+                                    className="relative inline-flex items-center justify-center rounded-md p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground"
+                                    title={`${itemObs.length} comentário(s)`}
+                                  >
+                                    <MessageSquare className="h-4 w-4" />
+                                    {itemObs.length > 0 && (
+                                      <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] px-1">
+                                        {itemObs.length}
+                                      </span>
+                                    )}
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr key={`${it.id}-x`} className="bg-muted/20">
+                                  <td colSpan={11} className="px-6 py-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Histórico deste item</p>
+                                        {itemObs.length === 0 ? (
+                                          <p className="text-xs text-muted-foreground">Sem comentários ainda.</p>
+                                        ) : (
+                                          <ul className="space-y-2 max-h-48 overflow-y-auto">
+                                            {itemObs.map((o) => (
+                                              <li key={o.id} className="text-xs">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                  <span className={`inline-flex rounded-full border px-1.5 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}>{o.author_type}</span>
+                                                  {o.author_id && <span>{profiles[o.author_id] ?? ""}</span>}
+                                                  <span className="ml-auto">{formatDate(o.created_at)}</span>
+                                                </div>
+                                                <p className="mt-1 whitespace-pre-wrap">{o.message}</p>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                      {canComment && (
+                                        <div>
+                                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Adicionar comentário neste item</p>
+                                          <Textarea
+                                            rows={3}
+                                            value={itemCommentDraft[it.id] ?? ""}
+                                            onChange={(e) => setItemCommentDraft((m) => ({ ...m, [it.id]: e.target.value }))}
+                                            placeholder="Motivo de dúvida, reprovação, observação..."
+                                          />
+                                          <div className="flex justify-end mt-2">
+                                            <Button size="sm" disabled={busy || !(itemCommentDraft[it.id] ?? "").trim()} onClick={() => addItemComment(it.id)}>
+                                              <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Salvar
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                  {(isGroupAnalista || isGroupValidador || isGroupDiretor) && (
+                    <div className="border-t border-border bg-muted/20 p-4 space-y-2">
+                      <Textarea
+                        rows={2}
+                        value={groupComment[g.id] ?? ""}
+                        onChange={(e) => setGroupComment((m) => ({ ...m, [g.id]: e.target.value }))}
+                        placeholder="Observação para esta empresa (obrigatória para devolver/rejeitar)..."
+                      />
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        {isGroupAnalista && (
+                          <Button onClick={() => sendForValidation(g.id)} disabled={busy}>
+                            <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
+                          </Button>
+                        )}
+                        {isGroupValidador && <>
+                          <Button onClick={() => transitionGroup(g.id, "aguardando_aprovacao", "validador", "Validado", false)} disabled={busy}>
+                            <CheckCircle2 className="h-4 w-4 mr-2" /> Validar empresa
+                          </Button>
+                          <Button variant="outline" onClick={() => transitionGroup(g.id, "devolvido_analista", "validador", "Devolvido ao analista")} disabled={busy}>
+                            <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao analista
+                          </Button>
+                        </>}
+                        {isGroupDiretor && <>
+                          <Button onClick={() => transitionGroup(g.id, "aprovado", "diretor", "Aprovado", false)} disabled={busy}>
+                            <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar empresa
+                          </Button>
+                          <Button variant="outline" onClick={() => transitionGroup(g.id, "devolvido_validador", "diretor", "Devolvido ao validador")} disabled={busy}>
+                            <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao validador
+                          </Button>
+                          <Button variant="destructive" onClick={() => transitionGroup(g.id, "rejeitado", "diretor", "Rejeitado")} disabled={busy}>
+                            <XCircle className="h-4 w-4 mr-2" /> Rejeitar empresa
+                          </Button>
+                        </>}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </TooltipProvider>
 
           {payment.status === "aprovado" && isDiretor && (
             <Card className="shadow-card border-success/30">
