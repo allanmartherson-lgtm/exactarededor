@@ -289,11 +289,14 @@ export type Database = {
           file_path: string | null
           id: string
           invoice_number: string | null
+          items_count: number
           payment_id: string
           received_amount: number | null
           received_at: string | null
+          recipient_cc: string[]
           recipient_email: string
           reconciliation_notes: string | null
+          request_message: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["invoice_status"]
           updated_at: string
@@ -312,11 +315,14 @@ export type Database = {
           file_path?: string | null
           id?: string
           invoice_number?: string | null
+          items_count?: number
           payment_id: string
           received_amount?: number | null
           received_at?: string | null
+          recipient_cc?: string[]
           recipient_email: string
           reconciliation_notes?: string | null
+          request_message?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           updated_at?: string
@@ -335,11 +341,14 @@ export type Database = {
           file_path?: string | null
           id?: string
           invoice_number?: string | null
+          items_count?: number
           payment_id?: string
           received_amount?: number | null
           received_at?: string | null
+          recipient_cc?: string[]
           recipient_email?: string
           reconciliation_notes?: string | null
+          request_message?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
           updated_at?: string
