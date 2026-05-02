@@ -45,6 +45,59 @@ serve(async (req) => {
     if (contentType.includes("application/json")) {
       const body = await req.json();
       const token = String(body?.token ?? "");
+      const action = String(body?.action ?? "").trim();
+
+      // -------- modo: reset --------
+      // Recebedor identificou que enviou a NF errada / divergente e quer refazer.
+      // Política fiscal: nenhuma divergência é tolerada; permitimos reabrir o
+      // formulário enquanto o pagamento ainda não foi efetivado.
+      if (action === "reset") {
+        if (!token) {
+          return new Response(JSON.stringify({ error: "token obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const { data: invoice } = await supabase
+          .from("invoices")
+          .select("id, payment_id, status, file_path")
+          .eq("upload_token", token)
+          .maybeSingle();
+        if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // Só faz sentido refazer se a NF anterior está bloqueada por divergência
+        // (ou ainda aguardando, caso o recebedor tenha desistido do upload).
+        if (invoice.status !== "divergente" && invoice.status !== "aguardando") {
+          return new Response(JSON.stringify({ error: "Esta NF já foi conciliada — fale com o analista para refazer." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        // Apaga o arquivo anterior pra não acumular lixo no storage.
+        if (invoice.file_path) {
+          await supabase.storage.from("invoices").remove([invoice.file_path]).catch(() => null);
+        }
+        await supabase.from("invoices").update({
+          status: "aguardando",
+          invoice_number: null,
+          received_amount: null,
+          file_path: null,
+          received_at: null,
+          reconciliation_notes: null,
+          ai_validation: null,
+          ai_validated_at: null,
+          ai_extracted_amount: null,
+          ai_extracted_number: null,
+          ai_extracted_cnpj: null,
+        }).eq("id", invoice.id);
+        // Recoloca o pagamento como "aguardando NF" — o status real é
+        // recalculado a partir das demais NF se houver mais de uma.
+        const { data: siblings } = await supabase.from("invoices").select("status").eq("payment_id", invoice.payment_id);
+        const anyDone = siblings?.some((i) => i.status === "conciliada" || i.status === "divergente");
+        if (!anyDone) {
+          await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", invoice.payment_id);
+        }
+        await supabase.from("payment_observations").insert({
+          payment_id: invoice.payment_id,
+          author_type: "sistema",
+          message: "Recebedor reabriu o portal para reenviar a NF (envio anterior descartado).",
+        });
+        return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       const message = String(body?.message ?? "").trim();
       const authorName = String(body?.author_name ?? "").trim().slice(0, 120) || null;
       if (!token || !message) {
