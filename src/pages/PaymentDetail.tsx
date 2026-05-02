@@ -525,34 +525,7 @@ const PaymentDetail = () => {
             </Card>
           )}
 
-        <Card className="shadow-card">
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/40 transition"
-          >
-            <div>
-              <CardTitle className="text-base">Histórico de observações</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">{obs.length} {obs.length === 1 ? "registro" : "registros"}</p>
-            </div>
-            {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-          {historyOpen && (
-            <div className="border-t border-border divide-y divide-border max-h-[600px] overflow-y-auto">
-              {obs.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground text-center">Sem observações</p>
-              ) : obs.map((o) => (
-                <div key={o.id} className="px-6 py-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span className="font-medium uppercase tracking-wide">{o.author_type}{o.author_id && ` · ${profiles[o.author_id] ?? ""}`}</span>
-                    <span>{formatDate(o.created_at)}</span>
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap">{o.message}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        {renderHistoryCard()}
       </div>
     </>
   );
