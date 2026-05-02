@@ -158,9 +158,7 @@ const Companies = () => {
           ? aliasRaw.split(/[;|]/).map((s) => s.trim()).filter(Boolean)
           : [];
         const emailsRaw = toStr(pick(row, ["emails_nf", "emails nf", "email nf", "email", "emails", "e-mails"]));
-        const invoice_emails = emailsRaw
-          ? emailsRaw.split(/[;|,]/).map((s) => s.trim().toLowerCase()).filter((s) => s && isValidEmail(s))
-          : [];
+        const invoice_emails = parseEmailList(emailsRaw);
         const notes = toStr(pick(row, ["notas", "observacoes", "observações", "obs"])) || null;
         return { name, documentRaw, aliases, invoice_emails, notes };
       }).filter((r) => r.name);
