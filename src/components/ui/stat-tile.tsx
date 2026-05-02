@@ -146,8 +146,9 @@ export const StatTile = ({
             text={label}
             truncation={tooltip ? { ref: labelTruncation.ref, isTruncated: false } : labelTruncation}
             data-testid="stat-card-label"
+            lang="pt-BR"
             className={cn(
-              "font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-tight",
+              "flex-1 min-w-0 font-medium text-muted-foreground uppercase tracking-wider break-words hyphens-auto leading-tight",
               labelLines === 3 ? "line-clamp-3 min-h-[3lh]" : "line-clamp-2 min-h-[2lh]",
               isCompact ? "text-[10px]" : "text-[10px] sm:text-xs",
             )}
