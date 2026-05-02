@@ -54,15 +54,26 @@ export const AppLayout = () => {
                 end={item.to === "/"}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-2.5 px-2.5 lg:px-3 py-2 rounded-md text-[13px] lg:text-sm leading-tight transition-colors",
+                    "group relative flex items-center gap-2.5 pl-3 pr-2.5 lg:pr-3 py-2 rounded-md text-[13px] lg:text-sm leading-tight transition-all",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                      : "text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground",
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-sm before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-full before:bg-sidebar-primary"
+                      : "text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-sidebar-hover-foreground hover:translate-x-0.5",
                   )
                 }
               >
-                <item.icon className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4 flex-shrink-0 transition-colors",
+                        isActive
+                          ? "text-sidebar-primary"
+                          : "text-sidebar-foreground/60 group-hover:text-sidebar-hover-foreground",
+                      )}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
         </nav>
