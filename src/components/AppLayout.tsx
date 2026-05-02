@@ -39,7 +39,7 @@ export const AppLayout = () => {
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-sm leading-tight text-sidebar-foreground truncate">MedPay</p>
-              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/55 truncate">Approval Flow</p>
+              <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/75 truncate">Approval Flow</p>
             </div>
           </div>
         </div>
