@@ -68,6 +68,8 @@ export type RuleScope = Database["public"]["Enums"]["rule_scope"];
 export type RuleSector = Database["public"]["Enums"]["rule_sector"];
 export type RuleTargetType = Database["public"]["Enums"]["rule_target_type"];
 export type RuleType = Database["public"]["Enums"]["rule_type"];
+export type RuleCalculationType = Database["public"]["Enums"]["rule_calculation_type"];
+export type PaymentAnalysisMode = Database["public"]["Enums"]["payment_analysis_mode"];
 
 export const RULE_SCOPE_LABELS: Record<RuleScope, string> = {
   master: "Master (geral)",
@@ -103,6 +105,35 @@ export const RULE_TYPE_DESCRIPTIONS: Record<RuleType, string> = {
   tabela_diferenciada: "Referência (ex: CBHPM 2018) × multiplicador − deflator.",
   bonus: "Honorário do convênio + um valor ou % adicional.",
   complemento: "Completa o que faltou para chegar ao valor acordado.",
+};
+
+// === Novo motor determinístico (Fase 2/3) ===
+export const RULE_CALCULATION_TYPE_LABELS: Record<RuleCalculationType, string> = {
+  percentual_sobre_convenio: "Percentual sobre convênio",
+  regra_vias: "Regra de vias (acesso)",
+  pacote_fechado: "Pacote fechado",
+  pacote_com_extras: "Pacote com extras",
+  valor_fixo: "Valor fixo",
+  exclusao: "Exclusão (não pagar)",
+  informativo: "Informativo",
+};
+export const RULE_CALCULATION_TYPE_DESCRIPTIONS: Record<RuleCalculationType, string> = {
+  percentual_sobre_convenio: "Esperado = X% do valor pago pelo convênio (ex.: 100, 88, 70).",
+  regra_vias: "Aplica fator pela via de acesso: principal/única=100%, mesma via=50%, diferente=70%.",
+  pacote_fechado: "Valor único fixo para todo o pacote/procedimento.",
+  pacote_com_extras: "Valor de pacote + lista de códigos pagos à parte (100% do convênio).",
+  valor_fixo: "Esperado = valor cravado, independente do convênio.",
+  exclusao: "Item não deve ser pago — esperado = R$ 0 e gera alerta.",
+  informativo: "Não calcula esperado, só sinaliza/bloqueia o validador.",
+};
+
+export const PAYMENT_ANALYSIS_MODE_LABELS: Record<PaymentAnalysisMode, string> = {
+  padrao: "Padrão (com histórico)",
+  empresa_prioritaria: "Empresa prioritária (isolado)",
+};
+export const PAYMENT_ANALYSIS_MODE_DESCRIPTIONS: Record<PaymentAnalysisMode, string> = {
+  padrao: "Análise considera observações de outros pagamentos como contexto.",
+  empresa_prioritaria: "Cada arquivo é analisado isoladamente; só itens com erro aparecem no detalhe.",
 };
 
 export const formatCurrency = (value: number | string | null | undefined) => {
