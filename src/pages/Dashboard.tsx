@@ -139,7 +139,7 @@ const Dashboard = () => {
       </div>
 
       <div className="p-8 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
           {isAnalista && (
             <StatCard
               icon={Sparkles}
@@ -289,27 +289,28 @@ const StatCard = ({
   to?: string;
 }) => {
   const inner = (
-    <Card className={`shadow-soft transition ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-            <p className="text-3xl font-semibold mt-2 tabular-nums">{value}</p>
-            {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
-            {mine && (
-              <span className={`mt-2 inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
-                Sua vez
-              </span>
-            )}
-          </div>
-          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${toneBg[tone]}`}>
+    <Card className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}>
+      <CardContent className="p-5 h-full flex flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0">{label}</p>
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
             <Icon className="h-5 w-5" />
           </div>
+        </div>
+        <p className="text-3xl font-semibold mt-2 tabular-nums">{value}</p>
+        <div className="mt-auto pt-2 min-h-[22px]">
+          {mine ? (
+            <span className={`inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
+              Sua vez
+            </span>
+          ) : hint ? (
+            <p className="text-[11px] text-muted-foreground">{hint}</p>
+          ) : null}
         </div>
       </CardContent>
     </Card>
   );
-  return to ? <Link to={to}>{inner}</Link> : inner;
+  return to ? <Link to={to} className="block h-full">{inner}</Link> : inner;
 };
 
 export default Dashboard;
