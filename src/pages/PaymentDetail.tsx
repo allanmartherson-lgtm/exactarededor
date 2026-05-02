@@ -817,7 +817,7 @@ const PaymentDetail = () => {
                                           <ul className="max-h-72 overflow-y-auto divide-y divide-border/60">
                                             {(matchedRuleObjs.length ? matchedRuleObjs : matchedNames.map((n) => ({ id: "", name: n, rule_text: "", description: null }))).map((r, i) => (
                                               <li key={i} className="px-3 py-2 text-xs">
-                                                {r.id ? <Link to={`/regras?rule=${r.id}`} className="font-medium text-primary hover:underline">{truncate(r.name, 80)}</Link> : <span className="font-medium">{truncate(r.name, 80)}</span>}
+                                                <span className={`font-medium ${r.id ? "text-primary" : ""}`}>{truncate(r.name, 80)}</span>
                                                 {r.rule_text && <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground leading-snug">{truncate(r.rule_text.trim(), 180)}</p>}
                                               </li>
                                             ))}
