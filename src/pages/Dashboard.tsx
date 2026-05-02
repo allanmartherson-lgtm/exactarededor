@@ -973,44 +973,52 @@ const PipelineCol = ({
   label,
   value,
   to,
+  density,
+  separated,
 }: {
   icon: LucideIcon;
   color: BubbleColor;
   label: string;
   value: number;
   to: string;
-}) => (
-  <Link
-    to={to}
-    className="pipeline-col"
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 10,
-      padding: "14px 8px",
-      borderRadius: 12,
-      textDecoration: "none",
-      color: "inherit",
-      transition: "background 0.15s ease",
-    }}
-  >
+  density: PipelineDensity;
+  separated: boolean;
+}) => {
+  const comfortable = density === "comfortable";
+  return (
+    <Link
+      to={to}
+      className="pipeline-col"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: comfortable ? 12 : 8,
+        padding: comfortable ? "18px 10px" : "10px 6px",
+        borderRadius: 10,
+        textDecoration: "none",
+        color: "inherit",
+        transition: "background 0.15s ease",
+        boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
+        minWidth: 0,
+      }}
+    >
     <div
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: comfortable ? 40 : 32,
+        height: comfortable ? 40 : 32,
+        borderRadius: comfortable ? 10 : 9,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         ...bubbleStyle(color),
       }}
     >
-      <Icon size={18} />
+      <Icon size={comfortable ? 18 : 17} strokeWidth={2} />
     </div>
     <div
       style={{
-        fontSize: 28,
+        fontSize: comfortable ? 30 : 24,
         fontWeight: 300,
         letterSpacing: "-0.02em",
         lineHeight: 1,
@@ -1022,7 +1030,7 @@ const PipelineCol = ({
     </div>
     <div
       style={{
-        fontSize: 10,
+        fontSize: comfortable ? 10 : 9,
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.07em",
@@ -1033,13 +1041,21 @@ const PipelineCol = ({
     >
       {label}
     </div>
-  </Link>
-);
+    </Link>
+  );
+};
 
-const PipelineColSkeleton = () => (
-  <div className="flex flex-col items-center gap-2.5 py-3">
-    <Skeleton className="h-9 w-9 rounded-lg" />
-    <Skeleton className="h-7 w-10" />
+const PipelineColSkeleton = ({ density, separated }: { density: PipelineDensity; separated: boolean }) => (
+  <div
+    className="flex flex-col items-center"
+    style={{
+      gap: density === "comfortable" ? 12 : 8,
+      padding: density === "comfortable" ? "18px 10px" : "10px 6px",
+      boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
+    }}
+  >
+    <Skeleton className={cn(density === "comfortable" ? "h-10 w-10" : "h-8 w-8", "rounded-lg")} />
+    <Skeleton className={cn(density === "comfortable" ? "h-8 w-10" : "h-6 w-9")} />
     <Skeleton className="h-2.5 w-16" />
   </div>
 );
