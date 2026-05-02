@@ -257,6 +257,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { layout } = useNavLayout();
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
   const initials = getInitials(user?.email);
@@ -370,7 +371,36 @@ export const AppLayout = () => {
           className="flex-1 overflow-y-auto"
           style={{ padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}
         >
-          {visibleSideNav.map((item) => (
+          {visibleSideNav.map((item) => {
+            const isActive =
+              item.to === "/"
+                ? location.pathname === "/"
+                : location.pathname === item.to ||
+                  location.pathname.startsWith(item.to + "/");
+            const linkStyle: React.CSSProperties = {
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 11,
+              padding: "10px 12px",
+              paddingLeft: isActive ? 9 : 12,
+              borderRadius: 8,
+              fontSize: 13.5,
+              lineHeight: 1.2,
+              cursor: "pointer",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              transition: "all 0.12s ease",
+              borderLeft: isActive
+                ? "3px solid hsl(var(--primary))"
+                : "3px solid transparent",
+              background: isActive ? "hsl(var(--accent))" : "transparent",
+              color: isActive
+                ? "hsl(var(--accent-foreground))"
+                : "hsl(var(--secondary-foreground))",
+              fontWeight: isActive ? 500 : 400,
+            };
+            return (
             <Tooltip key={item.to}>
               <TooltipTrigger asChild>
                 <NavLink
@@ -378,29 +408,7 @@ export const AppLayout = () => {
                   end={item.to === "/"}
                   aria-label={item.label}
                   className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  style={({ isActive }) => ({
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 11,
-                    padding: "10px 12px",
-                    paddingLeft: isActive ? 9 : 12,
-                    borderRadius: 8,
-                    fontSize: 13.5,
-                    lineHeight: 1.2,
-                    cursor: "pointer",
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                    transition: "all 0.12s ease",
-                    borderLeft: isActive
-                      ? "3px solid hsl(var(--primary))"
-                      : "3px solid transparent",
-                    background: isActive ? "hsl(var(--accent))" : "transparent",
-                    color: isActive
-                      ? "hsl(var(--accent-foreground))"
-                      : "hsl(var(--secondary-foreground))",
-                    fontWeight: isActive ? 500 : 400,
-                  })}
+                  style={linkStyle}
                 >
                   <item.icon
                     size={18}
@@ -423,7 +431,8 @@ export const AppLayout = () => {
               </TooltipTrigger>
               <TooltipContent side="right">{item.label}</TooltipContent>
             </Tooltip>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Footer */}
