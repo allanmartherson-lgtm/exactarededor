@@ -66,17 +66,23 @@ const PaymentDetail = () => {
   const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [aiVersions, setAiVersions] = useState<any[]>([]);
+  const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
+  const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
+  const [compareItemId, setCompareItemId] = useState<string | null>(null);
+  const [compareA, setCompareA] = useState<number | null>(null);
+  const [compareB, setCompareB] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,full_name,email"),
+      supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
     ]);
-    setPayment(p); setItems(it ?? []); setObs(o ?? []);
+    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []);
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
