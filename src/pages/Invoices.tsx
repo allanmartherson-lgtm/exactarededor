@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/lib/status";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
-import { MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet } from "lucide-react";
+import {
+  MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet,
+  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp,
+} from "lucide-react";
 
 const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
   aguardando: "warning", recebida: "info", conciliada: "success", divergente: "destructive",
@@ -17,10 +22,24 @@ const labels: Record<InvoiceStatus, string> = {
   aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente",
 };
 
+type TabKey = "todas" | InvoiceStatus;
+
+const TAB_ORDER: { key: TabKey; label: string }[] = [
+  { key: "todas", label: "Todas" },
+  { key: "aguardando", label: "Aguardando NF" },
+  { key: "recebida", label: "Recebidas" },
+  { key: "conciliada", label: "Conciliadas" },
+  { key: "divergente", label: "Divergentes" },
+];
+
 interface InvoiceRow {
   id: string;
   payment_id: string;
   recipient_email: string;
+  recipient_cc: string[] | null;
+  request_message: string | null;
+  items_count: number | null;
+  upload_token: string;
   expected_amount: number;
   received_amount: number | null;
   invoice_number: string | null;
@@ -29,9 +48,23 @@ interface InvoiceRow {
   reconciliation_notes: string | null;
   ai_validation: { divergences?: string[]; confidence?: string; notes?: string } | null;
   ai_extracted_amount: number | null;
+  company_name: string | null;
   payments: { reference: string; status: string } | null;
   question_count: number;
 }
+
+const daysSince = (iso: string | null) => {
+  if (!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+};
+
+const ageTone = (days: number | null) => {
+  if (days == null) return "muted";
+  if (days < 3) return "success";
+  if (days <= 7) return "warning";
+  return "destructive";
+};
 
 const Invoices = () => {
   const { user, hasRole } = useAuth();
@@ -39,6 +72,8 @@ const Invoices = () => {
   const [openInvoice, setOpenInvoice] = useState<InvoiceRow | null>(null);
   const [openQuestions, setOpenQuestions] = useState<InvoiceQuestion[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("todas");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const canActOnNF = hasRole("analista") || hasRole("admin") || hasRole("diretor");
 
@@ -122,21 +157,85 @@ const Invoices = () => {
     await load();
   };
 
+  const counts = useMemo(() => {
+    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0 };
+    rows.forEach((r) => { c[r.status as InvoiceStatus] = (c[r.status as InvoiceStatus] ?? 0) + 1; });
+    return c;
+  }, [rows]);
+
+  const filtered = useMemo(
+    () => (tab === "todas" ? rows : rows.filter((r) => r.status === tab)),
+    [rows, tab],
+  );
+
+  const copyLink = async (inv: InvoiceRow) => {
+    const url = `${window.location.origin}/portal/nota/${inv.upload_token}`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Link copiado", description: url });
+  };
+
+  const resend = async (inv: InvoiceRow) => {
+    setBusyId(inv.id);
+    const { error } = await supabase.functions.invoke("send-invoice-request", {
+      body: { payment_id: inv.payment_id },
+    });
+    setBusyId(null);
+    if (error) {
+      toast({ title: "Falha ao reenviar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Pedido reenviado" });
+    await load();
+  };
+
   return (
     <>
       <PageHeader title="Notas Fiscais" description="Pedidos enviados e notas recebidas." />
       <div className="p-8">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
+          <TabsList>
+            {TAB_ORDER.map((t) => (
+              <TabsTrigger key={t.key} value={t.key} className="gap-2">
+                {t.label}
+                <Badge variant="secondary" className="rounded-full px-2 text-[11px]">{counts[t.key]}</Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         <Card className="shadow-card"><CardContent className="p-0">
-          {rows.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">Nenhum pedido enviado ainda.</p> :
-            <div className="divide-y divide-border">{rows.map((i) => (
-              <div key={i.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+          {filtered.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+            {rows.length === 0 ? "Nenhum pedido enviado ainda." : "Nenhum pedido neste status."}
+          </p> :
+            <div className="divide-y divide-border">{filtered.map((i) => {
+              const age = daysSince(i.sent_at);
+              const ccCount = (i.recipient_cc ?? []).length;
+              const expanded = expandedId === i.id;
+              return (
+              <div key={i.id} className="px-6 py-4">
+               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm">{i.payments?.reference} · {i.recipient_email}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="font-medium text-sm">
+                    {i.payments?.reference}
+                    {i.company_name && <> · <span className="text-muted-foreground">{i.company_name}</span></>}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <Mail className="h-3 w-3" /> <span className="truncate max-w-[260px]">{i.recipient_email}</span>
+                    {ccCount > 0 && (
+                      <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />+{ccCount} em cópia</span>
+                    )}
+                    {age != null && (
+                      <span className={`inline-flex items-center gap-1 ${TONE_CLASSES[ageTone(age) as keyof typeof TONE_CLASSES]?.split(" ")[1] ?? ""}`}>
+                        <Clock className="h-3 w-3" /> enviado há {age === 0 ? "hoje" : `${age}d`}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     Pedido: {formatCurrency(i.expected_amount)}
                     {i.received_amount != null && <> · Nota: {formatCurrency(i.received_amount)}</>}
                     {i.invoice_number && <> · NF #{i.invoice_number}</>}
-                    · Enviado {formatDate(i.sent_at)}
+                    {i.items_count ? <> · {i.items_count} item{i.items_count === 1 ? "" : "ns"}</> : null}
+                    {" "}· {formatDate(i.sent_at)}
                   </p>
                   {i.reconciliation_notes && <p className="text-xs mt-1">{i.reconciliation_notes}</p>}
                   {i.ai_validation && (
@@ -165,6 +264,16 @@ const Invoices = () => {
                       {i.question_count} mensagem{i.question_count === 1 ? "" : "s"}
                     </Button>
                   )}
+                  {canActOnNF && i.status === "aguardando" && (
+                    <>
+                      <Button size="sm" variant="ghost" onClick={() => copyLink(i)}>
+                        <Copy className="h-3.5 w-3.5 mr-1.5" /> Link
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={busyId === i.id} onClick={() => resend(i)}>
+                        <Send className="h-3.5 w-3.5 mr-1.5" /> Reenviar
+                      </Button>
+                    </>
+                  )}
                   {canActOnNF && i.status === "recebida" && (
                     <Button size="sm" variant="outline" disabled={busyId === i.id} onClick={() => markConciliada(i)}>
                       <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Conciliar
@@ -175,10 +284,47 @@ const Invoices = () => {
                       <Wallet className="h-3.5 w-3.5 mr-1.5" /> Marcar como pago
                     </Button>
                   )}
+                  <Button size="sm" variant="ghost" onClick={() => setExpandedId(expanded ? null : i.id)}>
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    Detalhes {expanded ? <ChevronUp className="h-3.5 w-3.5 ml-1" /> : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
+                  </Button>
                   <span className={`text-xs rounded-full border px-2.5 py-0.5 ${TONE_CLASSES[tone[i.status as InvoiceStatus]]}`}>{labels[i.status as InvoiceStatus]}</span>
                 </div>
+               </div>
+
+               {expanded && (
+                 <div className="mt-3 rounded-md border bg-muted/30 p-3 space-y-3 text-xs">
+                   <div>
+                     <p className="font-medium mb-1 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Destinatários</p>
+                     <p><span className="text-muted-foreground">Para:</span> {i.recipient_email}</p>
+                     {ccCount > 0 && (
+                       <p className="mt-0.5"><span className="text-muted-foreground">CC:</span> {(i.recipient_cc ?? []).join(", ")}</p>
+                     )}
+                   </div>
+                   <div>
+                     <p className="font-medium mb-1 flex items-center gap-1.5"><Copy className="h-3.5 w-3.5" /> Link único de upload</p>
+                     <div className="flex items-center gap-2">
+                       <code className="text-[11px] bg-background border rounded px-2 py-1 truncate max-w-full flex-1">
+                         {window.location.origin}/portal/nota/{i.upload_token}
+                       </code>
+                       <Button size="sm" variant="outline" onClick={() => copyLink(i)}>
+                         <Copy className="h-3 w-3" />
+                       </Button>
+                     </div>
+                   </div>
+                   {i.request_message && (
+                     <div>
+                       <p className="font-medium mb-1 flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Texto enviado</p>
+                       <pre className="whitespace-pre-wrap font-sans text-[11px] leading-relaxed bg-background border rounded p-2 max-h-64 overflow-auto">
+{i.request_message}
+                       </pre>
+                     </div>
+                   )}
+                 </div>
+               )}
               </div>
-            ))}</div>}
+              );
+            })}</div>}
         </CardContent></Card>
       </div>
 
