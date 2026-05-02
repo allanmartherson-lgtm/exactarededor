@@ -26,7 +26,14 @@ const InvoicePortal = () => {
   const [info, setInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<{ matches: boolean; diff: number } | null>(null);
+  const [done, setDone] = useState<{
+    matches: boolean;
+    form_diff?: number;
+    ai_amount?: number | null;
+    ai_diff?: number | null;
+    ai_error?: string | null;
+    notes?: string;
+  } | null>(null);
   const [questions, setQuestions] = useState<PortalQuestion[]>([]);
   const [questionDraft, setQuestionDraft] = useState("");
   const [questionAuthor, setQuestionAuthor] = useState("");
@@ -103,8 +110,16 @@ const InvoicePortal = () => {
               Valor a ser emitido: <strong>{formatCurrency(inv.expected_amount)}</strong>
             </p>
             {done ? (
-              <div className={`rounded-lg p-4 text-sm ${done.matches ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}>
-                {done.matches ? "✓ Nota recebida e conciliada com sucesso!" : `⚠ Nota recebida mas com divergência de ${formatCurrency(done.diff)}. Entraremos em contato.`}
+              <div className={`rounded-lg p-4 text-sm space-y-2 ${done.matches ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}>
+                {done.matches ? (
+                  <p>✓ Nota recebida e conciliada com sucesso! Valor confere com o pedido.</p>
+                ) : (
+                  <>
+                    <p className="font-medium">⚠ Divergência detectada — a nota não foi conciliada.</p>
+                    {done.notes && <p className="text-xs whitespace-pre-wrap">{done.notes}</p>}
+                    <p className="text-xs">Nossa equipe entrará em contato para regularizar antes do pagamento.</p>
+                  </>
+                )}
               </div>
             ) : expired ? (
               <p className="text-sm text-muted-foreground">Esta nota já foi enviada anteriormente.</p>
