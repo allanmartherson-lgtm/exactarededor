@@ -1038,15 +1038,15 @@ const PaymentDetail = () => {
                     <table className="w-full text-sm table-fixed">
                       <colgroup>
                         <col className="w-8" />
-                        <col className="w-20" />
-                        <col className="w-[14%]" />
-                        <col className="w-[10%]" />
-                        <col className="w-[16%]" />
-                        <col className="w-24" />
+                        <col className="w-[88px]" />
+                        <col className="w-[15%]" />
+                        <col className="w-[13%]" />
+                        <col className="w-[18%]" />
+                        <col className="w-[92px]" />
                         <col />
-                        <col className="w-12" />
-                        <col className="w-28" />
-                        <col className="w-24" />
+                        <col className="w-[48px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[96px]" />
                         <col className="w-10" />
                       </colgroup>
                       <thead className="bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -1110,14 +1110,14 @@ const PaymentDetail = () => {
                                 <td className="px-2 py-2 text-muted-foreground">
                                   {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                 </td>
-                                <td className="px-2 py-2 text-xs font-mono text-muted-foreground whitespace-nowrap">{it.attendance_number ?? "—"}</td>
-                                <td className="px-2 py-2 text-[13px] leading-snug">{paciente}</td>
-                                <td className="px-2 py-2 text-[13px] leading-snug text-muted-foreground">{convenio}</td>
+                                <td className="px-2 py-2 text-xs font-mono text-muted-foreground break-all">{it.attendance_number ?? "—"}</td>
+                                <td className="px-2 py-2 text-[13px] leading-snug break-words">{paciente}</td>
+                                <td className="px-2 py-2 text-[13px] leading-snug text-muted-foreground break-words">{convenio}</td>
                                 <td className="px-2 py-2 leading-snug">
-                                  <div className="font-medium text-[13px]">{it.doctor_name}</div>
-                                  <div className="text-[11px] text-muted-foreground">{it.doctor_role ?? "—"}</div>
+                                  <div className="font-medium text-[13px] break-words">{it.doctor_name}</div>
+                                  <div className="text-[11px] text-muted-foreground break-words">{it.doctor_role ?? "—"}</div>
                                 </td>
-                                <td className="px-2 py-2 font-mono text-xs whitespace-nowrap">{it.procedure_code ?? "—"}</td>
+                                <td className="px-2 py-2 font-mono text-xs break-all">{it.procedure_code ?? "—"}</td>
                                 <td className="px-2 py-2 leading-snug">
                                   <div className="text-[13px] line-clamp-2">{it.description ?? "—"}</div>
                                   {!isExpanded && it.ai_findings?.alerts?.length > 0 && (
