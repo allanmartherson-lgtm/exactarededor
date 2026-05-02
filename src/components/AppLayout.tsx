@@ -210,7 +210,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
   return (
     <nav
       ref={containerRef}
-      className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-none"
+      className="flex-1 min-w-0 flex items-center"
       style={{ gap: 1 }}
       aria-label="Navegação principal"
     >
