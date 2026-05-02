@@ -1,65 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatCard, StatCardSkeleton, type StatCardTone } from "@/components/dashboard/StatCard";
-import { StatTile, StatTileSkeleton } from "@/components/ui/stat-tile";
-import { StatCardsGrid } from "@/components/dashboard/StatCardsGrid";
 import {
   usePipelinePreferences,
-  type PipelineLayout,
   type PipelineOwnerFilter,
   type PipelineWindowFilter,
   type PipelineDensity,
 } from "@/hooks/use-pipeline-preferences";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Header, HeaderName } from "@carbon/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
+import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
-  ArrowRightCircle,
-  FileUp,
+  FileText,
+  FileCheck,
+  Landmark,
+  CreditCard,
+  AlertCircle,
+  CheckCircle,
   ListChecks,
-  Sparkles,
   ShieldCheck,
-  Inbox,
   Users,
-  Receipt,
-  Bot,
   Send,
-  MailPlus,
-  CheckCircle2,
-  Wallet,
-  AlertTriangle,
-  RotateCcw,
-  MessageCircleQuestion,
   FileWarning,
+  BarChart3,
+  Plus,
+  type LucideIcon,
 } from "lucide-react";
 
-/** Modos de layout do pipeline (responsivos a telas estreitas). */
-const PIPELINE_GRID_CLASS: Record<PipelineLayout, string> = {
-  // Auto: comportamento responsivo (8 etapas no total).
-  auto: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-8",
-  // 2 linhas: 4 colunas → 4 + 4 itens.
-  rows2: "grid-cols-4",
-  // 3 linhas: 3 colunas → 3 + 3 + 2 itens.
-  rows3: "grid-cols-3",
-};
-const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
-  auto: "Auto",
-  rows2: "2 linhas",
-  rows3: "3 linhas",
-};
-const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
-  compact: "Compacto",
-  comfortable: "Confortável",
-};
-
-/** Filtros rápidos do pipeline. */
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
   analista: "Analista",
@@ -67,9 +37,9 @@ const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   diretor: "Diretor",
 };
 const PIPELINE_WINDOW_LABEL: Record<PipelineWindowFilter, string> = {
-  "7": "7 dias",
-  "30": "30 dias",
-  "90": "90 dias",
+  "7": "7d",
+  "30": "30d",
+  "90": "90d",
   all: "Tudo",
 };
 const PIPELINE_WINDOW_DAYS: Record<PipelineWindowFilter, number | null> = {
@@ -78,7 +48,10 @@ const PIPELINE_WINDOW_DAYS: Record<PipelineWindowFilter, number | null> = {
   "90": 90,
   all: null,
 };
-/** Status que cada papel é responsável por agir. */
+const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
+  compact: "Compacto",
+  comfortable: "Confortável",
+};
 const STATUSES_BY_OWNER: Record<Exclude<PipelineOwnerFilter, "all">, PaymentStatus[]> = {
   analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
   validador: ["aguardando_validacao", "devolvido_validador"],
@@ -98,7 +71,6 @@ interface PaymentRow {
   validated_by: string | null;
 }
 
-/** Papel responsável por agir no status atual. */
 type OwnerRole = "analista" | "validador" | "diretor" | "—";
 const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
   switch (status) {
@@ -123,30 +95,25 @@ const ownerLabel: Record<OwnerRole, string> = {
   "—": "—",
 };
 
-/** Contagens agregadas usadas pelos cards do dashboard. */
 interface DashboardCounts {
-  // "Suas tarefas" — depende do papel logado
   mineAnalista: number;
   mineValidador: number;
   mineDiretor: number;
   mineInvoicesDivergentes: number;
   mineInvoicesQuestionadas: number;
   mineRessalvas: number;
-  // Time
   teamAnalise: number;
   teamValidacao: number;
   teamAprovacao: number;
   teamInvoicesDivergentes: number;
-  // Pipeline (visão de funil)
-  pipeAnaliseIA: number;        // em_analise_ia + revisao_analista
-  pipeValidacao: number;         // aguardando_validacao
-  pipeAprovacao: number;         // aguardando_aprovacao
-  pipeAguardandoEnvio: number;   // aprovado (pedido ainda não disparado)
-  pipeNFSolicitada: number;      // pedido_nf_enviado (e-mail enviado)
-  pipeNFRecebida: number;        // nf_recebida
-  pipeNFConciliada: number;      // nf_conciliada
-  pipePago: number;              // pago
-  // Atenção (exceções)
+  pipeAnaliseIA: number;
+  pipeValidacao: number;
+  pipeAprovacao: number;
+  pipeAguardandoEnvio: number;
+  pipeNFSolicitada: number;
+  pipeNFRecebida: number;
+  pipeNFConciliada: number;
+  pipePago: number;
   attDevolvidoAnalista: number;
   attRessalvas: number;
   attNFQuestionada: number;
@@ -164,23 +131,323 @@ const initialCounts: DashboardCounts = {
   attNFDivergente: 0, attRejeitados: 0,
 };
 
+/* ================================================================
+   PRESENTATION PRIMITIVES
+   ================================================================ */
+
+type BubbleColor = "purple" | "yellow" | "teal" | "red" | "blue" | "green";
+
+const bubbleStyle = (color: BubbleColor): CSSProperties => ({
+  background: `hsl(var(--bubble-${color}-bg))`,
+  color: `hsl(var(--bubble-${color}-fg))`,
+});
+
+/** Section label: 11px, 600, uppercase, muted, with a horizontal line. */
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-3 mb-3">
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.07em",
+        color: "hsl(var(--muted-foreground))",
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </span>
+    <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
+  </div>
+);
+
+/** "SUA VEZ" badge */
+const SuaVezBadge = () => (
+  <span
+    style={{
+      background: "hsl(var(--primary))",
+      color: "hsl(var(--primary-foreground))",
+      borderRadius: 20,
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: "0.05em",
+      padding: "3px 8px",
+      lineHeight: 1,
+      textTransform: "uppercase",
+    }}
+  >
+    Sua vez
+  </span>
+);
+
+/** Generic stat card per spec. */
+interface BigStatCardProps {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  color: BubbleColor;
+  hint?: string;
+  mine?: boolean;
+  to?: string;
+}
+const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to }: BigStatCardProps) => {
+  const cardStyle: CSSProperties = {
+    background: mine
+      ? `linear-gradient(135deg, hsl(var(--accent)), hsl(var(--card)))`
+      : "hsl(var(--card))",
+    border: `1px solid ${mine ? "hsl(var(--primary))" : "hsl(var(--border))"}`,
+    borderRadius: 12,
+    padding: 22,
+    transition: "all 0.15s ease",
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    height: "100%",
+    textDecoration: "none",
+    color: "inherit",
+  };
+  const inner = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.07em",
+            color: "hsl(var(--muted-foreground))",
+            textTransform: "uppercase",
+            lineHeight: 1.4,
+          }}
+        >
+          {label}
+        </span>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            ...bubbleStyle(color),
+          }}
+        >
+          <Icon size={18} strokeWidth={2} />
+        </div>
+      </div>
+      <div
+        style={{
+          fontSize: 36,
+          fontWeight: 300,
+          letterSpacing: "-0.03em",
+          lineHeight: 1,
+          color: "hsl(var(--foreground))",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </div>
+      <div className="mt-auto flex items-center min-h-[20px]">
+        {mine ? (
+          <SuaVezBadge />
+        ) : hint ? (
+          <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{hint}</span>
+        ) : (
+          <span style={{ fontSize: 12, color: "transparent" }}>&nbsp;</span>
+        )}
+      </div>
+    </>
+  );
+  if (to) {
+    return (
+      <Link
+        to={to}
+        style={cardStyle}
+        className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`${label}: ${value}${mine ? ", sua vez" : hint ? `, ${hint}` : ""}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div style={cardStyle}>{inner}</div>;
+};
+
+const BigStatSkeleton = () => (
+  <div
+    style={{
+      background: "hsl(var(--card))",
+      border: "1px solid hsl(var(--border))",
+      borderRadius: 12,
+      padding: 22,
+      display: "flex",
+      flexDirection: "column",
+      gap: 14,
+    }}
+  >
+    <div className="flex items-start justify-between">
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-9 w-9 rounded-lg" />
+    </div>
+    <Skeleton className="h-9 w-16" />
+    <Skeleton className="h-3 w-20" />
+  </div>
+);
+
+/** Surface card used for task list, pipeline, and bottom row. */
+const SurfaceCard = ({
+  children,
+  className,
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) => (
+  <div
+    className={className}
+    style={{
+      background: "hsl(var(--card))",
+      border: "1px solid hsl(var(--border))",
+      borderRadius: 12,
+      ...style,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const SurfaceCardHeader = ({
+  title,
+  icon: Icon,
+  iconColor = "teal",
+  countPill,
+  rightAction,
+}: {
+  title: string;
+  icon?: LucideIcon;
+  iconColor?: BubbleColor;
+  countPill?: number;
+  rightAction?: React.ReactNode;
+}) => (
+  <div
+    className="flex items-center justify-between gap-3"
+    style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))" }}
+  >
+    <div className="flex items-center gap-2.5 min-w-0">
+      {Icon && (
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ...bubbleStyle(iconColor),
+          }}
+        >
+          <Icon size={14} />
+        </div>
+      )}
+      <h3
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: "hsl(var(--foreground))",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {title}
+      </h3>
+      {countPill !== undefined && countPill > 0 && (
+        <span
+          style={{
+            background: "hsl(var(--destructive))",
+            color: "hsl(var(--destructive-foreground))",
+            borderRadius: 20,
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "2px 8px",
+            lineHeight: 1.4,
+          }}
+        >
+          {countPill}
+        </span>
+      )}
+    </div>
+    {rightAction}
+  </div>
+);
+
+/** Filter chip group */
+const ChipGroup = <T extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: { v: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  ariaLabel: string;
+}) => (
+  <div
+    role="radiogroup"
+    aria-label={ariaLabel}
+    className="inline-flex"
+    style={{
+      background: "hsl(var(--muted))",
+      borderRadius: 8,
+      padding: 3,
+      gap: 2,
+    }}
+  >
+    {options.map((opt) => {
+      const active = value === opt.v;
+      return (
+        <button
+          key={opt.v}
+          type="button"
+          role="radio"
+          aria-checked={active}
+          onClick={() => onChange(opt.v)}
+          style={{
+            padding: "5px 11px",
+            fontSize: 12,
+            fontWeight: active ? 600 : 500,
+            borderRadius: 6,
+            transition: "all 0.15s ease",
+            background: active ? "hsl(var(--primary))" : "transparent",
+            color: active ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          {opt.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+/* ================================================================
+   PAGE
+   ================================================================ */
+
 const Dashboard = () => {
   const { roles, user } = useAuth();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
-  /** Lista crua de pagamentos (com created_at) para recomputar o pipeline ao filtrar. */
   const [allPayments, setAllPayments] = useState<
     Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
   >([]);
   const [loading, setLoading] = useState(true);
-  // Preferências do pipeline persistidas no perfil + cache em localStorage.
   const {
-    layout: pipelineLayout,
     owner: pipelineOwner,
     window: pipelineWindow,
     density: pipelineDensity,
-    setLayout: setPipelineLayout,
     setOwner: setPipelineOwner,
     setWindow: setPipelineWindow,
     setDensity: setPipelineDensity,
@@ -192,9 +459,9 @@ const Dashboard = () => {
       setLoading(true);
       const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }] = await Promise.all([
         supabase
-        .from("payments")
+          .from("payments")
           .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by")
-        .order("created_at", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("profiles").select("id,full_name,email"),
         supabase.from("payments").select("status,created_by,validated_by,created_at"),
@@ -202,8 +469,6 @@ const Dashboard = () => {
           .from("invoices")
           .select("id, payment:payments!inner(created_by)")
           .eq("status", "divergente"),
-        // NFs questionadas: a definir tabela definitiva; por enquanto contamos
-        // pagamentos no novo status nf_questionada (vem do array `all`).
         Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
       ]);
       setPayments((data ?? []) as PaymentRow[]);
@@ -222,53 +487,39 @@ const Dashboard = () => {
       const uid = user?.id;
       const c: DashboardCounts = { ...initialCounts };
       (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
-        // — contadores "minhas tarefas" + "time"
         const owner = ownerRoleFor(p.status);
         if (owner === "analista") {
           c.teamAnalise++;
           if (uid && p.created_by === uid) c.mineAnalista++;
         } else if (owner === "validador") {
           c.teamValidacao++;
-          // "minha tarefa de validador" = qualquer um aguardando validação (papel coletivo)
           c.mineValidador++;
         } else if (owner === "diretor") {
           c.teamAprovacao++;
           c.mineDiretor++;
         }
 
-        // — contadores do pipeline (visão de funil)
         switch (p.status) {
           case "em_analise_ia":
           case "revisao_analista":
-            c.pipeAnaliseIA++;
-            break;
+            c.pipeAnaliseIA++; break;
           case "aguardando_validacao":
-            c.pipeValidacao++;
-            break;
+            c.pipeValidacao++; break;
           case "aguardando_aprovacao":
-            c.pipeAprovacao++;
-            break;
+            c.pipeAprovacao++; break;
           case "aprovado":
-            c.pipeAguardandoEnvio++;
-            break;
+            c.pipeAguardandoEnvio++; break;
           case "pedido_nf_enviado":
-            c.pipeNFSolicitada++;
-            break;
+            c.pipeNFSolicitada++; break;
           case "nf_recebida":
-            c.pipeNFRecebida++;
-            break;
+            c.pipeNFRecebida++; break;
           case "nf_conciliada":
-            c.pipeNFConciliada++;
-            break;
+            c.pipeNFConciliada++; break;
           case "pago":
-            c.pipePago++;
-            break;
+            c.pipePago++; break;
         }
 
-        // — exceções (linha "Atenção")
-        if (p.status === "devolvido_analista" || p.status === "devolvido_validador") {
-          c.attDevolvidoAnalista++;
-        }
+        if (p.status === "devolvido_analista" || p.status === "devolvido_validador") c.attDevolvidoAnalista++;
         if (p.status === "aprovado_com_ressalva") {
           c.attRessalvas++;
           if (uid && p.created_by === uid) c.mineRessalvas++;
@@ -277,18 +528,14 @@ const Dashboard = () => {
           c.attNFQuestionada++;
           if (uid && p.created_by === uid) c.mineInvoicesQuestionadas++;
         }
-        if (p.status === "rejeitado") {
-          c.attRejeitados++;
-        }
+        if (p.status === "rejeitado") c.attRejeitados++;
       });
 
-      // NFs divergentes (precisam de lançamento manual no financeiro)
       (invDiv ?? []).forEach((row: any) => {
         c.teamInvoicesDivergentes++;
         c.attNFDivergente++;
         if (uid && row.payment?.created_by === uid) c.mineInvoicesDivergentes++;
       });
-      // Reservado para futura tabela de questionamentos por invoice
       void invQuest;
 
       setCounts(c);
@@ -297,7 +544,6 @@ const Dashboard = () => {
     load();
   }, [user?.id]);
 
-  /** Contagens do pipeline filtradas por papel responsável + janela de datas. */
   const pipeCounts = useMemo(() => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
     const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
@@ -333,7 +579,6 @@ const Dashboard = () => {
     return c;
   }, [allPayments, pipelineOwner, pipelineWindow]);
 
-  /** Querystring extra a propagar nos links das etapas (forward-compatível). */
   const pipelineQuery = useMemo(() => {
     const parts: string[] = [];
     if (pipelineOwner !== "all") parts.push(`owner=${pipelineOwner}`);
@@ -354,562 +599,368 @@ const Dashboard = () => {
   };
 
   const myPayments = payments.filter(isMine).slice(0, 6);
-  const teamPayments = payments.filter((p) => !isMine(p)).slice(0, 8);
 
-  // Conta minhas tarefas pendentes total (inclui NFs/ressalvas que dependem de mim)
   const myPending =
     (isAnalista ? counts.mineAnalista + counts.mineInvoicesDivergentes + counts.mineInvoicesQuestionadas + counts.mineRessalvas : 0) +
     (isValidador ? counts.mineValidador : 0) +
     (isDiretor ? counts.mineDiretor : 0);
 
-  // Quantos cards aparecem na faixa "Suas tarefas" (para o skeleton casar)
-  const mineCardCount =
-    (isAnalista ? 1 : 0) +
-    (isValidador ? 1 : 0) +
-    (isDiretor ? 1 : 0) +
-    (isAnalista ? 2 : 0) + // NFs divergentes + NFs questionadas
-    (isAnalista ? 1 : 0);  // Ressalvas a aplicar
+  const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "bem-vindo";
 
   return (
-    <>
-      <Header aria-label="MedPay Dashboard" className="!static">
-        <HeaderName prefix="MedPay">
-          {`Olá, ${user?.user_metadata?.full_name?.split(" ")[0] ?? "bem-vindo"}`}
-        </HeaderName>
-      </Header>
-
-      <div className="px-8 pt-6 flex items-start justify-between gap-4 flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          {myPending > 0
-            ? `Você tem ${myPending} ${myPending === 1 ? "tarefa pendente" : "tarefas pendentes"} para agir.`
-            : "Nenhuma tarefa pendente para você. Acompanhe o fluxo da equipe abaixo."}
-        </p>
+    <div className="flex flex-col gap-8">
+      {/* PAGE HEADER */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1
+            style={{
+              fontSize: 24,
+              fontWeight: 300,
+              letterSpacing: "-0.02em",
+              color: "hsl(var(--foreground))",
+              lineHeight: 1.2,
+            }}
+          >
+            Olá, <span style={{ fontWeight: 700 }}>{firstName}</span>
+          </h1>
+          <p
+            style={{
+              fontSize: 14,
+              color: "hsl(var(--muted-foreground))",
+              marginTop: 4,
+            }}
+          >
+            {myPending > 0
+              ? `Você tem ${myPending} ${myPending === 1 ? "tarefa pendente" : "tarefas pendentes"} para agir.`
+              : "Nenhuma tarefa pendente para você. Acompanhe o fluxo da equipe abaixo."}
+          </p>
+        </div>
         {isAnalista && (
-          <Button asChild>
-            <Link to="/pagamentos/novo"><FileUp className="h-4 w-4 mr-2" /> Nova base de pagamento</Link>
-          </Button>
+          <Link
+            to="/pagamentos/novo"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "hsl(var(--primary))",
+              color: "hsl(var(--primary-foreground))",
+              fontSize: 13,
+              fontWeight: 500,
+              padding: "8px 14px",
+              borderRadius: 7,
+              textDecoration: "none",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Plus size={15} />
+            Nova base
+          </Link>
         )}
       </div>
 
-      <div className="p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* ============================== */}
-        {/* FAIXA 1 — Suas tarefas         */}
-        {/* ============================== */}
-        <section aria-labelledby="suas-tarefas-heading" className="space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h2 id="suas-tarefas-heading" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Suas tarefas
-            </h2>
-            {!loading && myPending === 0 && (
-              <span className="text-xs text-muted-foreground">Nada esperando por você 🎉</span>
+      {/* SUAS TAREFAS */}
+      <section aria-labelledby="suas-tarefas-heading">
+        <SectionLabel>Suas tarefas</SectionLabel>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 14 }}>
+            {Array.from({ length: 3 }).map((_, i) => <BigStatSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div className="flex flex-col" style={{ gap: 14 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 14 }}>
+              {isAnalista && (
+                <BigStatCard
+                  icon={Landmark}
+                  color="purple"
+                  label="Suas bases"
+                  value={counts.mineAnalista}
+                  hint={counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"}
+                  mine={counts.mineAnalista > 0}
+                  to="/pagamentos?owner=me&status=analista"
+                />
+              )}
+              {isValidador && (
+                <BigStatCard
+                  icon={ListChecks}
+                  color="yellow"
+                  label="Para validar"
+                  value={counts.mineValidador}
+                  mine={counts.mineValidador > 0}
+                  to="/pagamentos?status=aguardando_validacao"
+                />
+              )}
+              {isDiretor && (
+                <BigStatCard
+                  icon={ShieldCheck}
+                  color="teal"
+                  label="Para aprovar"
+                  value={counts.mineDiretor}
+                  mine={counts.mineDiretor > 0}
+                  to="/pagamentos?status=aguardando_aprovacao"
+                />
+              )}
+            </div>
+            {isAnalista && (counts.mineRessalvas + counts.mineInvoicesQuestionadas + counts.mineInvoicesDivergentes > 0 || true) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
+                <BigStatCard
+                  icon={AlertCircle}
+                  color="red"
+                  label="Ressalvas"
+                  value={counts.mineRessalvas}
+                  hint="aprovado com ressalva"
+                  mine={counts.mineRessalvas > 0}
+                  to="/pagamentos?status=aprovado_com_ressalva"
+                />
+                <BigStatCard
+                  icon={FileWarning}
+                  color="blue"
+                  label="NFs divergentes"
+                  value={counts.mineInvoicesDivergentes}
+                  hint={
+                    counts.teamInvoicesDivergentes !== counts.mineInvoicesDivergentes
+                      ? `${counts.teamInvoicesDivergentes} no time`
+                      : "lançar no financeiro"
+                  }
+                  mine={counts.mineInvoicesDivergentes > 0}
+                  to="/notas-fiscais"
+                />
+              </div>
             )}
           </div>
-          <StatCardsGrid>
-            {loading ? (
-              Array.from({ length: Math.max(mineCardCount, 3) }).map((_, i) => (
-                <StatCardSkeleton key={i} />
-              ))
-            ) : (
-              <>
-                {isAnalista && (
-                  <StatCard
-                    icon={Sparkles}
-                    label="Suas bases (analista)"
-                    value={counts.mineAnalista}
-                    tone="info"
-                    hint={counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : undefined}
-                    mine={counts.mineAnalista > 0}
-                    to="/pagamentos?owner=me&status=analista"
-                  />
-                )}
-                {isValidador && (
-                  <StatCard
-                    icon={ListChecks}
-                    label="Para você validar"
-                    value={counts.mineValidador}
-                    tone="warning"
-                    mine={counts.mineValidador > 0}
-                    to="/pagamentos?status=aguardando_validacao"
-                  />
-                )}
-                {isDiretor && (
-                  <StatCard
-                    icon={ShieldCheck}
-                    label="Para você aprovar"
-                    value={counts.mineDiretor}
-                    tone="warning"
-                    mine={counts.mineDiretor > 0}
-                    to="/pagamentos?status=aguardando_aprovacao"
-                  />
-                )}
-                {isAnalista && (
-                  <StatCard
-                    icon={RotateCcw}
-                    label="Ressalvas a aplicar"
-                    value={counts.mineRessalvas}
-                    tone="warning"
-                    hint="aprovado com ressalva"
-                    mine={counts.mineRessalvas > 0}
-                    to="/pagamentos?status=aprovado_com_ressalva"
-                  />
-                )}
-                {isAnalista && (
-                  <StatCard
-                    icon={MessageCircleQuestion}
-                    label="NFs questionadas"
-                    value={counts.mineInvoicesQuestionadas}
-                    tone="warning"
-                    hint="recebedor pediu retorno"
-                    mine={counts.mineInvoicesQuestionadas > 0}
-                    to="/pagamentos?status=nf_questionada"
-                  />
-                )}
-                {isAnalista && (
-                  <StatCard
-                    icon={Receipt}
-                    label="NFs divergentes (suas)"
-                    value={counts.mineInvoicesDivergentes}
-                    tone="warning"
-                    hint={
-                      counts.teamInvoicesDivergentes !== counts.mineInvoicesDivergentes
-                        ? `${counts.teamInvoicesDivergentes} no time · lançar no financeiro`
-                        : "lançar no financeiro"
-                    }
-                    mine={counts.mineInvoicesDivergentes > 0}
-                    to="/notas-fiscais"
-                  />
-                )}
-              </>
-            )}
-          </StatCardsGrid>
-        </section>
+        )}
+      </section>
 
-        {/* ============================== */}
-        {/* FAIXA 2 — Pipeline (funil)     */}
-        {/* ============================== */}
-        <section aria-labelledby="pipeline-heading" className="space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h2 id="pipeline-heading" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Pipeline da equipe
-            </h2>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                da análise ao pagamento
-              </span>
-              <div
-                role="radiogroup"
-                aria-label="Filtrar pipeline por papel"
-                className="inline-flex rounded-md border border-border bg-card p-0.5"
+      {/* TASK LIST */}
+      <section aria-labelledby="lista-tarefas-heading">
+        <SectionLabel>Tarefas em aberto</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Pagamentos esperando você"
+            icon={FileText}
+            iconColor="teal"
+            countPill={myPending}
+            rightAction={
+              <Link
+                to="/pagamentos"
+                style={{
+                  fontSize: 12,
+                  color: "hsl(var(--accent-foreground))",
+                  fontWeight: 500,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
               >
-                {(["all", "analista", "validador", "diretor"] as PipelineOwnerFilter[]).map((opt) => {
-                  const active = pipelineOwner === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setPipelineOwner(opt)}
-                      className={cn(
-                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-                      )}
-                    >
-                      {PIPELINE_OWNER_LABEL[opt]}
-                    </button>
-                  );
-                })}
-              </div>
-              <div
-                role="radiogroup"
-                aria-label="Janela de datas do pipeline"
-                className="inline-flex rounded-md border border-border bg-card p-0.5"
-              >
-                {(["7", "30", "90", "all"] as PipelineWindowFilter[]).map((opt) => {
-                  const active = pipelineWindow === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setPipelineWindow(opt)}
-                      className={cn(
-                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-                      )}
-                    >
-                      {PIPELINE_WINDOW_LABEL[opt]}
-                    </button>
-                  );
-                })}
-              </div>
-              <div
-                role="radiogroup"
-                aria-label="Layout do pipeline"
-                className="inline-flex rounded-md border border-border bg-card p-0.5"
-              >
-                {(["auto", "rows2", "rows3"] as PipelineLayout[]).map((opt) => {
-                  const active = pipelineLayout === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setPipelineLayout(opt)}
-                      className={cn(
-                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                        active
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-                      )}
-                    >
-                      {PIPELINE_LAYOUT_LABEL[opt]}
-                    </button>
-                  );
-                })}
-              </div>
-              <div
-                role="radiogroup"
-                aria-label="Densidade dos cards do pipeline"
-                className="inline-flex rounded-md border border-border bg-card p-0.5"
-              >
-                {(["compact", "comfortable"] as PipelineDensity[]).map((opt) => {
-                  const active = pipelineDensity === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setPipelineDensity(opt)}
-                      className={cn(
-                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                        active
-                          ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-                      )}
-                    >
-                      {PIPELINE_DENSITY_LABEL[opt]}
-                    </button>
-                  );
-                })}
-              </div>
+                Ver todos <ArrowRight size={13} />
+              </Link>
+            }
+          />
+          {loading ? (
+            <PaymentRowsSkeleton count={3} />
+          ) : myPayments.length === 0 ? (
+            <div
+              style={{
+                padding: "40px 22px",
+                textAlign: "center",
+                fontSize: 13,
+                color: "hsl(var(--muted-foreground))",
+              }}
+            >
+              Nada esperando por você no momento. 🎉
+            </div>
+          ) : (
+            <div>
+              {myPayments.map((p) => (
+                <TaskRow key={p.id} p={p} mine profiles={profiles} />
+              ))}
+            </div>
+          )}
+        </SurfaceCard>
+      </section>
+
+      {/* PIPELINE */}
+      <section aria-labelledby="pipeline-heading">
+        <SectionLabel>Pipeline da equipe</SectionLabel>
+        <SurfaceCard>
+          <div
+            className="flex items-center justify-between gap-3 flex-wrap"
+            style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))" }}
+          >
+            <h3
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "hsl(var(--foreground))",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Da análise ao pagamento
+            </h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ChipGroup
+                ariaLabel="Filtrar por papel"
+                value={pipelineOwner}
+                onChange={setPipelineOwner}
+                options={(["all", "analista", "validador", "diretor"] as PipelineOwnerFilter[]).map((v) => ({
+                  v,
+                  label: PIPELINE_OWNER_LABEL[v],
+                }))}
+              />
+              <ChipGroup
+                ariaLabel="Janela de datas"
+                value={pipelineWindow}
+                onChange={setPipelineWindow}
+                options={(["7", "30", "90"] as PipelineWindowFilter[]).map((v) => ({
+                  v,
+                  label: PIPELINE_WINDOW_LABEL[v],
+                }))}
+              />
+              <ChipGroup
+                ariaLabel="Densidade"
+                value={pipelineDensity}
+                onChange={setPipelineDensity}
+                options={(["compact", "comfortable"] as PipelineDensity[]).map((v) => ({
+                  v,
+                  label: PIPELINE_DENSITY_LABEL[v],
+                }))}
+              />
             </div>
           </div>
           <div
-            data-testid="pipeline-grid"
-            role="list"
-            aria-label="Etapas do pipeline de pagamento"
-            className={cn(
-              "grid gap-2 sm:gap-3 items-stretch auto-rows-fr",
-              PIPELINE_GRID_CLASS[pipelineLayout],
-            )}
+            style={{
+              padding: 22,
+              display: "grid",
+              gridTemplateColumns: "repeat(8, minmax(110px, 1fr))",
+              gap: 10,
+              overflowX: "auto",
+            }}
           >
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <StatTileSkeleton key={i} density={pipelineDensity === "compact" ? "compact" : "default"} />
-              ))
+              Array.from({ length: 8 }).map((_, i) => <PipelineColSkeleton key={i} />)
             ) : (
               <>
-                <PipelineStep density={pipelineDensity} step={1} totalSteps={8} icon={Bot} label="Análise" value={pipeCounts.pipeAnaliseIA} tone="info"
+                <PipelineCol icon={FileText} color="purple" label="Análise" value={pipeCounts.pipeAnaliseIA}
                   to={`/pagamentos?status=em_analise_ia${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={2} totalSteps={8} icon={ListChecks} label="Validação" value={pipeCounts.pipeValidacao} tone="warning"
+                <PipelineCol icon={ListChecks} color="yellow" label="Validação" value={pipeCounts.pipeValidacao}
                   to={`/pagamentos?status=aguardando_validacao${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={3} totalSteps={8} icon={ShieldCheck} label="Aprovação" value={pipeCounts.pipeAprovacao} tone="warning"
+                <PipelineCol icon={ShieldCheck} color="blue" label="Aprovação" value={pipeCounts.pipeAprovacao}
                   to={`/pagamentos?status=aguardando_aprovacao${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={4} totalSteps={8} icon={MailPlus} label="Aguardando envio" value={pipeCounts.pipeAguardandoEnvio} tone="warning"
+                <PipelineCol icon={Send} color="red" label="Aguardando" value={pipeCounts.pipeAguardandoEnvio}
                   to={`/pagamentos?status=aprovado${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={5} totalSteps={8} icon={Send} label="NF solicitada" value={pipeCounts.pipeNFSolicitada} tone="info"
+                <PipelineCol icon={FileText} color="purple" label="NF solicitada" value={pipeCounts.pipeNFSolicitada}
                   to={`/pagamentos?status=pedido_nf_enviado${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={6} totalSteps={8} icon={Receipt} label="NF recebida" value={pipeCounts.pipeNFRecebida} tone="info"
+                <PipelineCol icon={FileCheck} color="green" label="NF recebida" value={pipeCounts.pipeNFRecebida}
                   to={`/pagamentos?status=nf_recebida${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={7} totalSteps={8} icon={CheckCircle2} label="Conciliada" value={pipeCounts.pipeNFConciliada} tone="success"
+                <PipelineCol icon={CheckCircle} color="green" label="Conciliada" value={pipeCounts.pipeNFConciliada}
                   to={`/pagamentos?status=nf_conciliada${pipelineQuery}`} />
-                <PipelineStep density={pipelineDensity} step={8} totalSteps={8} icon={Wallet} label="Pago" value={pipeCounts.pipePago} tone="success"
+                <PipelineCol icon={CreditCard} color="blue" label="Pago" value={pipeCounts.pipePago}
                   to={`/pagamentos?status=pago${pipelineQuery}`} />
               </>
             )}
           </div>
-        </section>
+        </SurfaceCard>
+      </section>
 
-        {/* ============================== */}
-        {/* FAIXA 3 — Atenção (exceções)   */}
-        {/* ============================== */}
-        {!loading && (
-          counts.attDevolvidoAnalista + counts.attRessalvas + counts.attNFQuestionada +
-          counts.attNFDivergente + counts.attRejeitados > 0
-        ) && (
-          <section aria-labelledby="atencao-heading" className="space-y-3">
-            <h2 id="atencao-heading" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Atenção
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              <AttChip
-                icon={RotateCcw}
-                label="Devolvidos ao analista"
-                count={counts.attDevolvidoAnalista}
-                tone="destructive"
-                to="/pagamentos?status=devolvido_analista"
-              />
-              <AttChip
-                icon={AlertTriangle}
-                label="Ressalvas pendentes"
-                count={counts.attRessalvas}
-                tone="warning"
-                to="/pagamentos?status=aprovado_com_ressalva"
-              />
-              <AttChip
-                icon={MessageCircleQuestion}
-                label="NFs questionadas"
-                count={counts.attNFQuestionada}
-                tone="warning"
-                to="/pagamentos?status=nf_questionada"
-              />
-              <AttChip
-                icon={FileWarning}
-                label="NFs divergentes"
-                count={counts.attNFDivergente}
-                tone="destructive"
-                to="/notas-fiscais"
-              />
-              <AttChip
-                icon={AlertTriangle}
-                label="Rejeitados"
-                count={counts.attRejeitados}
-                tone="muted"
-                to="/pagamentos?status=rejeitado"
-              />
+      {/* BOTTOM ROW */}
+      <section>
+        <SectionLabel>Visão geral</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 14 }}>
+          <SurfaceCard>
+            <SurfaceCardHeader title="Acompanhamento da equipe" icon={Users} iconColor="teal" />
+            <div
+              style={{
+                padding: "48px 22px",
+                textAlign: "center",
+                fontSize: 13,
+                color: "hsl(var(--muted-foreground))",
+              }}
+            >
+              Em breve: linha do tempo de atividades da equipe.
             </div>
-          </section>
-        )}
-
-        {/* Suas tarefas */}
-        <Card className="shadow-card border-primary/30">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Inbox className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base">Suas tarefas — pagamentos recentes</CardTitle>
-              <span className="text-xs text-muted-foreground">{myPending} pendente{myPending === 1 ? "" : "s"}</span>
+          </SurfaceCard>
+          <SurfaceCard>
+            <SurfaceCardHeader title="KPIs do período" icon={BarChart3} iconColor="purple" />
+            <div
+              style={{
+                padding: "48px 22px",
+                textAlign: "center",
+                fontSize: 13,
+                color: "hsl(var(--muted-foreground))",
+              }}
+            >
+              Em breve: indicadores agregados de tempo médio e SLA.
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/pagamentos">Ver todos <ArrowRight className="h-4 w-4 ml-1" /></Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <PaymentRowsSkeleton count={3} />
-            ) : myPayments.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-muted-foreground">
-                Nada esperando por você no momento. 🎉
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {myPayments.map((p) => (
-                  <PaymentRowItem key={p.id} p={p} mine profiles={profiles} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Acompanhamento da equipe */}
-        <Card className="shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Acompanhamento da equipe</CardTitle>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/pagamentos">Ver todos <ArrowRight className="h-4 w-4 ml-1" /></Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <PaymentRowsSkeleton count={4} />
-            ) : teamPayments.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                Sem pagamentos em outras etapas. {isAnalista && (
-                  <Link to="/pagamentos/novo" className="text-primary font-medium hover:underline">Subir a primeira base →</Link>
-                )}
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {teamPayments.map((p) => (
-                  <PaymentRowItem key={p.id} p={p} mine={false} profiles={profiles} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </>
+          </SurfaceCard>
+        </div>
+      </section>
+    </div>
   );
 };
 
-/** Chip compacto usado na linha "Atenção". */
-const AttChip = ({
-  icon: Icon,
-  label,
-  count,
-  tone,
-  to,
+/* ================================================================
+   ROW / PIPELINE
+   ================================================================ */
+
+const TaskRow = ({
+  p,
+  mine,
+  profiles,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  count: number;
-  tone: "warning" | "destructive" | "muted";
-  to: string;
+  p: PaymentRow;
+  mine: boolean;
+  profiles: Record<string, string>;
 }) => {
-  if (count === 0) return null;
-  return (
-    <Link
-      to={to}
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${TONE_CLASSES[tone]}`}
-      aria-label={`${label}: ${count}`}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      <span>{label}</span>
-      <span className="rounded-full bg-background/60 px-1.5 py-0.5 tabular-nums">{count}</span>
-    </Link>
-  );
-};
-
-/** Descrição completa de cada etapa do pipeline (mostrada no tooltip). */
-const PIPELINE_STEP_DESCRIPTION: Record<number, { full: string; helper: string }> = {
-  1: { full: "Análise da IA", helper: "Bases enviadas que a IA está revisando ou que voltaram para o analista corrigir." },
-  2: { full: "Aguardando validação", helper: "Aprovado pelo analista; aguardando o validador conferir antes de seguir para o diretor." },
-  3: { full: "Aguardando aprovação", helper: "Validado; aguardando aprovação final do diretor." },
-  4: { full: "Pedido de NF enviado", helper: "Aprovado pelo diretor; pedido de nota fiscal enviado ao recebedor (clínica/médico)." },
-  5: { full: "Nota fiscal recebida", helper: "NF anexada pelo recebedor; aguardando IA conferir e analista validar." },
-  6: { full: "Nota fiscal conciliada", helper: "NF bate com o pedido; pronta para lançamento no sistema financeiro." },
-  7: { full: "Pago", helper: "Pagamento liquidado no sistema financeiro." },
-};
-
-/**
- * PipelineStep — variante compacta do StatTile usada no funil do dashboard.
- * Compartilha tipografia, espaçamento, foco e skeleton com o StatCard via
- * `density="compact"`. Adiciona apenas:
- *  - selo de etapa "1/7" no rodapé (badge)
- *  - tooltip rico com descrição completa + contagem em prosa
- */
-const PipelineStep = ({
-  step,
-  totalSteps,
-  icon: Icon,
-  label,
-  value,
-  tone,
-  to,
-  density = "compact",
-}: {
-  step: number;
-  totalSteps: number;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  tone: StatCardTone;
-  to: string;
-  /**
-   * Densidade do tile. `compact` mantém o tamanho atual; `comfortable`
-   * aumenta padding, ícone e permite 3 linhas de label sem truncar.
-   */
-  density?: PipelineDensity;
-}) => {
-  const isComfortable = density === "comfortable";
-  const toneBg: Record<StatCardTone, string> = {
-    info: "bg-info-soft text-info",
-    warning: "bg-warning-soft text-warning-foreground",
-    success: "bg-success-soft text-success",
-  };
-  const itemCount = `${value} ${value === 1 ? "pagamento" : "pagamentos"}`;
-  const desc = PIPELINE_STEP_DESCRIPTION[step] ?? { full: label, helper: "" };
-  const iconNode = (
-    <div
-      className={cn(
-        "rounded-md flex items-center justify-center transition-[width,height] duration-200 ease-out motion-reduce:transition-none",
-        isComfortable ? "h-9 w-9" : "h-7 w-7",
-        toneBg[tone],
-      )}
-    >
-      <Icon
-        className={cn(
-          "transition-[width,height] duration-200 ease-out motion-reduce:transition-none",
-          isComfortable ? "h-5 w-5" : "h-4 w-4",
-        )}
-      />
-    </div>
-  );
-  const tooltipNode = (
-    <div className="space-y-1">
-      <p className="font-semibold">
-        <span className="text-muted-foreground tabular-nums">Etapa {step}/{totalSteps} · </span>
-        {desc.full}
-      </p>
-      <p className="tabular-nums">
-        <span className="font-semibold">{value}</span> {value === 1 ? "pagamento" : "pagamentos"} nesta etapa
-      </p>
-      {desc.helper && <p className="text-muted-foreground leading-snug">{desc.helper}</p>}
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
-        Clique para abrir a lista
-      </p>
-    </div>
-  );
-  return (
-    <div role="listitem" className="h-full">
-      <StatTile
-        label={label}
-        value={value}
-        icon={iconNode}
-        density={isComfortable ? "default" : "compact"}
-        labelLines={isComfortable ? 3 : 2}
-        labelPosition="bottom"
-        to={to}
-        tooltip={tooltipNode}
-        ariaLabel={`Etapa ${step} de ${totalSteps}: ${desc.full}. ${itemCount}. ${desc.helper} Abrir lista filtrada.`}
-      />
-    </div>
-  );
-};
-
-// silencia import não usado
-void ArrowRightCircle;
-
-const PaymentRowItem = ({ p, mine, profiles }: { p: PaymentRow; mine: boolean; profiles: Record<string, string> }) => {
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
   return (
     <Link
       to={`/pagamentos/${p.id}`}
-      className={`flex items-center justify-between px-6 py-4 hover:bg-muted/40 transition-colors ${mine ? "bg-primary/5" : ""}`}
+      className="task-row"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "14px 22px",
+        borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
+        textDecoration: "none",
+        color: "inherit",
+        transition: "background 0.15s ease",
+      }}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           {mine ? (
-            <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
-              Sua vez
-            </span>
+            <SuaVezBadge />
           ) : owner !== "—" ? (
-            <span className={`text-[10px] font-medium uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.muted}`}>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                background: "hsl(var(--muted))",
+                color: "hsl(var(--muted-foreground))",
+                borderRadius: 20,
+                padding: "3px 8px",
+                lineHeight: 1,
+              }}
+            >
               Com {ownerLabel[owner]}
             </span>
           ) : null}
-          <p className="font-medium text-sm truncate">{p.reference}</p>
+          <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+            {p.reference}
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          <span className="capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
+        <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+          <span className="capitalize">
+            {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
+          </span>
           {" · "}{p.items_count} itens
           {" · "}{formatCurrency(p.total_amount)}
-          {creator && <> · criado por <span className="text-foreground/80">{creator}</span></>}
+          {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
           {" · "}{formatDate(p.created_at)}
         </p>
       </div>
@@ -918,10 +969,91 @@ const PaymentRowItem = ({ p, mine, profiles }: { p: PaymentRow; mine: boolean; p
   );
 };
 
+const PipelineCol = ({
+  icon: Icon,
+  color,
+  label,
+  value,
+  to,
+}: {
+  icon: LucideIcon;
+  color: BubbleColor;
+  label: string;
+  value: number;
+  to: string;
+}) => (
+  <Link
+    to={to}
+    className="pipeline-col"
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 10,
+      padding: "14px 8px",
+      borderRadius: 12,
+      textDecoration: "none",
+      color: "inherit",
+      transition: "background 0.15s ease",
+    }}
+  >
+    <div
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        ...bubbleStyle(color),
+      }}
+    >
+      <Icon size={18} />
+    </div>
+    <div
+      style={{
+        fontSize: 28,
+        fontWeight: 300,
+        letterSpacing: "-0.02em",
+        lineHeight: 1,
+        color: "hsl(var(--foreground))",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {value}
+    </div>
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.07em",
+        color: "hsl(var(--muted-foreground))",
+        textAlign: "center",
+        lineHeight: 1.3,
+      }}
+    >
+      {label}
+    </div>
+  </Link>
+);
+
+const PipelineColSkeleton = () => (
+  <div className="flex flex-col items-center gap-2.5 py-3">
+    <Skeleton className="h-9 w-9 rounded-lg" />
+    <Skeleton className="h-7 w-10" />
+    <Skeleton className="h-2.5 w-16" />
+  </div>
+);
+
 const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
-  <div className="divide-y divide-border" aria-hidden>
+  <div aria-hidden>
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="flex items-center justify-between px-6 py-4 gap-4">
+      <div
+        key={i}
+        className="flex items-center justify-between gap-4"
+        style={{ padding: "14px 22px", borderBottom: "1px solid hsl(var(--border))" }}
+      >
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2">
             <Skeleton className="h-4 w-16 rounded-full" />
@@ -934,5 +1066,8 @@ const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
     ))}
   </div>
 );
+
+// silence unused (some imports used conditionally)
+void cn;
 
 export default Dashboard;

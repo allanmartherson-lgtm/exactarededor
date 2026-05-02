@@ -63,6 +63,23 @@ All colors MUST be HSL.
     --shadow-card: 0 4px 12px -2px hsl(211 62% 13% / 0.06), 0 2px 4px -2px hsl(211 62% 13% / 0.04);
     --shadow-elevated: 0 12px 30px -8px hsl(173 83% 33% / 0.18);
 
+    /* Bubble token pairs (icon backgrounds) — used by dashboard */
+    --bubble-purple-bg: 250 90% 96%;
+    --bubble-purple-fg: 250 60% 50%;
+    --bubble-yellow-bg: 48 100% 92%;
+    --bubble-yellow-fg: 32 90% 42%;
+    --bubble-red-bg: 0 86% 95%;
+    --bubble-red-fg: 0 74% 50%;
+    --bubble-blue-bg: 213 100% 94%;
+    --bubble-blue-fg: 217 91% 50%;
+    --bubble-green-bg: 145 67% 92%;
+    --bubble-green-fg: 152 72% 32%;
+    --bubble-teal-bg: 171 50% 92%;
+    --bubble-teal-fg: 173 84% 26%;
+
+    --hover-surface: 204 24% 93%;
+    --shadow-hover: 0 4px 20px hsl(173 83% 33% / 0.08);
+
     /* Sidebar — light */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 213 25% 32%;
@@ -113,6 +130,22 @@ All colors MUST be HSL.
     --gradient-brand: linear-gradient(135deg, hsl(173 82% 39%), hsl(168 76% 64%));
     --gradient-soft: linear-gradient(135deg, hsl(172 56% 11%), hsl(215 28% 7%));
 
+    --bubble-purple-bg: 250 40% 18%;
+    --bubble-purple-fg: 250 90% 78%;
+    --bubble-yellow-bg: 41 100% 9%;
+    --bubble-yellow-fg: 43 96% 56%;
+    --bubble-red-bg: 0 36% 13%;
+    --bubble-red-fg: 0 91% 71%;
+    --bubble-blue-bg: 220 60% 15%;
+    --bubble-blue-fg: 213 94% 68%;
+    --bubble-green-bg: 142 51% 10%;
+    --bubble-green-fg: 142 71% 58%;
+    --bubble-teal-bg: 172 56% 14%;
+    --bubble-teal-fg: 168 76% 64%;
+
+    --hover-surface: 224 29% 18%;
+    --shadow-hover: 0 4px 20px hsl(173 82% 39% / 0.18);
+
     /* Sidebar — dark */
     --sidebar-background: 220 26% 12%;
     --sidebar-foreground: 213 9% 58%;
@@ -142,5 +175,21 @@ All colors MUST be HSL.
   h1, h2, h3, h4 {
     @apply tracking-tight text-foreground;
     font-family: "Inter", system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .hover-card-lift {
+    transition: all 0.15s ease;
+  }
+  .hover-card-lift:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+  .task-row:hover {
+    background: hsl(var(--hover-surface));
+  }
+  .pipeline-col:hover {
+    background: hsl(var(--hover-surface));
   }
 }
