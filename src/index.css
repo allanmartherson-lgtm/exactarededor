@@ -235,6 +235,16 @@ All colors MUST be HSL.
     vertical-align: middle;
     padding: 12px 16px;
     color: hsl(var(--foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 320px;
+  }
+  table tbody td.cell-wrap {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    max-width: none;
   }
 
   table tbody tr {
@@ -258,5 +268,36 @@ All colors MUST be HSL.
   table tbody td.cell-nowrap,
   table thead th.cell-nowrap {
     white-space: nowrap;
+  }
+
+  /* ============ Compact density mode ============
+   * Apply by adding `data-density="compact"` on the <table> or any ancestor.
+   * Guarantees rows never exceed 52px. */
+  [data-density="compact"] table tbody tr,
+  table[data-density="compact"] tbody tr {
+    max-height: 52px;
+  }
+  [data-density="compact"] table tbody td,
+  table[data-density="compact"] tbody td {
+    max-height: 52px;
+    padding: 8px 16px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  [data-density="compact"] table thead th,
+  table[data-density="compact"] thead th {
+    padding: 8px 16px;
+  }
+}
+
+/* Default density = compact across the app, so the 52px cap holds everywhere. */
+@layer components {
+  table tbody tr {
+    max-height: 52px;
+  }
+  table tbody td {
+    max-height: 52px;
   }
 }
