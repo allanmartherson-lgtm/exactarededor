@@ -216,10 +216,16 @@ All colors MUST be HSL.
     border-left: 3px solid transparent;
     /* compensate for left border so text aligns with the 12px spec */
     padding-left: 9px;
-    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.12s ease;
   }
   .side-nav-item > svg {
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
+    color: inherit;
   }
   .side-nav-item > span {
     white-space: nowrap;
@@ -243,9 +249,6 @@ All colors MUST be HSL.
     color: hsl(var(--accent-foreground));       /* accent-text */
     font-weight: 500;
     border-left-color: hsl(var(--primary));     /* accent */
-  }
-  .side-nav-active > svg {
-    color: hsl(var(--accent-foreground));
   }
 }
 
