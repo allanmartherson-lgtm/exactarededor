@@ -19,6 +19,7 @@ import Companies from "./pages/Companies.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
 import WcagAudit from "./pages/WcagAudit.tsx";
+import Kpis from "./pages/Kpis.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
               <Route path="/pagamentos/:id" element={<PaymentDetail />} />
               <Route path="/notas-fiscais" element={<Invoices />} />
+              <Route path="/kpis" element={<Kpis />} />
               <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
               <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
               <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
