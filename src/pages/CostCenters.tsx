@@ -366,23 +366,23 @@ const CostCenters = () => {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-muted-foreground">
                     <tr>
-                      <th className="text-left px-3 py-2 font-medium">P12</th>
+                      <th className="text-left px-3 py-2 font-medium cell-mono">P12</th>
                       <th className="text-left px-3 py-2 font-medium">Diretoria</th>
                       <th className="text-left px-3 py-2 font-medium">Gerência</th>
                       <th className="text-left px-3 py-2 font-medium">Setor</th>
                       <th className="text-left px-3 py-2 font-medium">Sub-área</th>
-                      <th className="text-left px-3 py-2 font-medium">Status</th>
+                      <th className="text-left px-3 py-2 font-medium cell-status">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((it) => (
                       <tr key={it.id} className="border-t border-border hover:bg-muted/30">
-                        <td className="px-3 py-2 font-mono text-xs">{it.code_p12}</td>
+                        <td className="px-3 py-2 font-mono text-xs cell-mono">{it.code_p12}</td>
                         <td className="px-3 py-2">{it.level2}</td>
                         <td className="px-3 py-2">{it.level3}</td>
                         <td className="px-3 py-2">{it.level4}</td>
                         <td className="px-3 py-2 font-medium">{it.level5}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 cell-status">
                           {it.active ? (
                             <Badge variant="outline" className="text-success border-success/30 bg-success-soft">Ativo</Badge>
                           ) : (
@@ -430,14 +430,14 @@ const CostCenters = () => {
                     <table className="w-full text-sm">
                       <thead className="bg-muted/40 text-muted-foreground">
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium">Quando</th>
+                          <th className="text-left px-3 py-2 font-medium cell-date">Quando</th>
                           <th className="text-left px-3 py-2 font-medium">Por</th>
                           <th className="text-left px-3 py-2 font-medium">Arquivo</th>
-                          <th className="text-right px-3 py-2 font-medium">Linhas</th>
-                          <th className="text-right px-3 py-2 font-medium">Criados</th>
-                          <th className="text-right px-3 py-2 font-medium">Atualizados</th>
-                          <th className="text-right px-3 py-2 font-medium">Desativados</th>
-                          <th className="text-left px-3 py-2 font-medium">Status</th>
+                          <th className="text-right px-3 py-2 font-medium cell-num">Linhas</th>
+                          <th className="text-right px-3 py-2 font-medium cell-num">Criados</th>
+                          <th className="text-right px-3 py-2 font-medium cell-num">Atualizados</th>
+                          <th className="text-right px-3 py-2 font-medium cell-num">Desativados</th>
+                          <th className="text-left px-3 py-2 font-medium cell-status">Status</th>
                           {canManage && <th className="text-right px-3 py-2 font-medium">Ações</th>}
                         </tr>
                       </thead>
@@ -447,14 +447,14 @@ const CostCenters = () => {
                           const isApplied = l.status === "aplicada";
                           return (
                             <tr key={l.id} className="border-t border-border hover:bg-muted/30">
-                              <td className="px-3 py-2 whitespace-nowrap">{formatDate(l.imported_at)}</td>
+                              <td className="px-3 py-2 cell-date">{formatDate(l.imported_at)}</td>
                               <td className="px-3 py-2">{l.importer?.full_name ?? l.importer?.email ?? "—"}</td>
                               <td className="px-3 py-2 truncate max-w-[200px]" title={l.file_name ?? ""}>{l.file_name ?? "—"}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{l.rows_in_file}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-success">{l.created_count}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{l.updated_count}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{l.deactivated_count}</td>
-                              <td className="px-3 py-2">
+                              <td className="px-3 py-2 text-right cell-num">{l.rows_in_file}</td>
+                              <td className="px-3 py-2 text-right cell-num text-success">{l.created_count}</td>
+                              <td className="px-3 py-2 text-right cell-num">{l.updated_count}</td>
+                              <td className="px-3 py-2 text-right cell-num text-muted-foreground">{l.deactivated_count}</td>
+                              <td className="px-3 py-2 cell-status">
                                 {isApplied ? (
                                   <Badge variant="outline" className="text-success border-success/30 bg-success-soft">Aplicada</Badge>
                                 ) : (
