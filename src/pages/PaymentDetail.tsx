@@ -583,6 +583,21 @@ const PaymentDetail = () => {
                   const isQuestion =
                     o.status_to === "nf_questionada" ||
                     (typeof o.message === "string" && o.message.startsWith("Recebedor da NF enviou um questionamento"));
+                  // Tenta resolver a invoice correspondente para permitir responder
+                  // direto da timeline. Estratégia:
+                  // 1) Se a observação tem item_id, casa pela company do item.
+                  // 2) Senão, se houver apenas uma invoice no payment, usa essa.
+                  let relatedInvoiceId: string | null = null;
+                  if (o.item_id) {
+                    const it = items.find((x) => x.id === o.item_id);
+                    if (it?.company_id) {
+                      const inv = invoices.find((iv) => iv.company_id === it.company_id);
+                      if (inv) relatedInvoiceId = inv.id;
+                    }
+                  }
+                  if (!relatedInvoiceId && isQuestion && invoices.length === 1) {
+                    relatedInvoiceId = invoices[0].id;
+                  }
                   return (
                   <li key={o.id} className={`ml-1 ${isQuestion ? "rounded-md border border-warning/40 bg-warning-soft/40 p-2 -ml-1" : ""}`}>
                     <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${isQuestion ? "bg-warning" : "bg-primary"}`} />
@@ -627,7 +642,22 @@ const PaymentDetail = () => {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                      <>
+                        <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                        {isQuestion && relatedInvoiceId && (
+                          <div className="mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-warning/60 bg-warning-soft text-warning-foreground hover:bg-warning-soft/80"
+                              onClick={() => setOpenQuestionInvoiceId(relatedInvoiceId)}
+                            >
+                              <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" />
+                              Responder na NF
+                            </Button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </li>
                   );
