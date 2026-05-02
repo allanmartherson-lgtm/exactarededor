@@ -23,10 +23,61 @@ serve(async (req) => {
         .maybeSingle();
       if (!invoice) return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const { data: payment } = await supabase.from("payments").select("reference").eq("id", invoice.payment_id).single();
-      return new Response(JSON.stringify({ invoice, payment }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // Inclui a thread de questionamentos pra renderizar no portal
+      const { data: questions } = await supabase
+        .from("invoice_questions")
+        .select("id, author_type, author_name, message, created_at")
+        .eq("invoice_id", invoice.id)
+        .order("created_at", { ascending: true });
+      return new Response(JSON.stringify({ invoice, payment, questions: questions ?? [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // POST: receber NF (multipart/form-data)
+    // POST: dois modos:
+    //   - 'invoice' (default, multipart/form-data) — recebedor envia a NF
+    //   - 'question' (application/json) — recebedor envia uma dúvida
+    const contentType = req.headers.get("content-type") ?? "";
+
+    // -------- modo: questionamento --------
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      const token = String(body?.token ?? "");
+      const message = String(body?.message ?? "").trim();
+      const authorName = String(body?.author_name ?? "").trim().slice(0, 120) || null;
+      if (!token || !message) {
+        return new Response(JSON.stringify({ error: "token e mensagem são obrigatórios" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (message.length > 2000) {
+        return new Response(JSON.stringify({ error: "Mensagem muito longa (máx. 2000 caracteres)" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: invoice } = await supabase.from("invoices").select("id, payment_id, status").eq("upload_token", token).maybeSingle();
+      if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (invoice.status !== "aguardando") {
+        return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const { error: insErr } = await supabase.from("invoice_questions").insert({
+        invoice_id: invoice.id,
+        payment_id: invoice.payment_id,
+        author_type: "recebedor",
+        author_name: authorName,
+        message,
+      });
+      if (insErr) throw insErr;
+
+      // Move o pagamento para `nf_questionada` para o analista ser notificado.
+      // Mantém histórico em payment_observations.
+      await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
+      await supabase.from("payment_observations").insert({
+        payment_id: invoice.payment_id,
+        author_type: "sistema",
+        message: `Recebedor da NF enviou um questionamento${authorName ? ` (${authorName})` : ""}: "${message.slice(0, 200)}${message.length > 200 ? "..." : ""}"`,
+        status_to: "nf_questionada",
+      });
+
+      return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // -------- modo: envio da NF (multipart) --------
     const form = await req.formData();
     const token = String(form.get("token") ?? "");
     const invoiceNumber = String(form.get("invoice_number") ?? "").trim();
@@ -52,22 +103,34 @@ serve(async (req) => {
     const { error: upErr } = await supabase.storage.from("invoices").upload(path, buf, { contentType: file.type, upsert: true });
     if (upErr) throw upErr;
 
-    // Conciliação automática
+    // Conciliação rápida pelo valor digitado pelo recebedor.
     const expected = Number(invoice.expected_amount);
     const diff = Math.abs(expected - receivedAmount);
     const tolerance = 0.01;
-    const matches = diff <= tolerance;
+    const matchesByForm = diff <= tolerance;
 
     await supabase.from("invoices").update({
       invoice_number: invoiceNumber,
       received_amount: receivedAmount,
       file_path: path,
       received_at: new Date().toISOString(),
-      status: matches ? "conciliada" : "divergente",
-      reconciliation_notes: matches
-        ? "Valor confere com o pedido."
+      status: matchesByForm ? "conciliada" : "divergente",
+      reconciliation_notes: matchesByForm
+        ? "Valor confere com o pedido (validação rápida)."
         : `Divergência: pedido R$ ${expected.toFixed(2)} vs nota R$ ${receivedAmount.toFixed(2)} (diferença R$ ${diff.toFixed(2)}).`,
     }).eq("id", invoice.id);
+
+    // Dispara validação assíncrona por IA (lê o PDF e compara campos).
+    // Usa fetch direto pra não bloquear a resposta ao recebedor.
+    const FN_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/validate-invoice-pdf`;
+    fetch(FN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ invoice_id: invoice.id }),
+    }).catch((e) => console.error("validate-invoice-pdf trigger failed", e));
 
     // Verifica se todas as NF do pagamento foram recebidas
     const { data: allInv } = await supabase.from("invoices").select("status").eq("payment_id", invoice.payment_id);
@@ -85,7 +148,7 @@ serve(async (req) => {
       await supabase.from("payments").update({ status: "nf_recebida" }).eq("id", invoice.payment_id);
     }
 
-    return new Response(JSON.stringify({ ok: true, matches, diff }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, matches: matchesByForm, diff }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     console.error(msg);
