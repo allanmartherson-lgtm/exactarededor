@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/StatCard";
@@ -47,6 +47,36 @@ const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
   auto: "Auto",
   rows2: "2 linhas",
   rows3: "3 linhas",
+};
+
+/** Filtros rápidos do pipeline. */
+type PipelineOwnerFilter = "all" | "analista" | "validador" | "diretor";
+type PipelineWindowFilter = "7" | "30" | "90" | "all";
+const PIPELINE_OWNER_KEY = "dashboard.pipelineOwner";
+const PIPELINE_WINDOW_KEY = "dashboard.pipelineWindow";
+const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
+  all: "Todos",
+  analista: "Analista",
+  validador: "Validador",
+  diretor: "Diretor",
+};
+const PIPELINE_WINDOW_LABEL: Record<PipelineWindowFilter, string> = {
+  "7": "7 dias",
+  "30": "30 dias",
+  "90": "90 dias",
+  all: "Tudo",
+};
+const PIPELINE_WINDOW_DAYS: Record<PipelineWindowFilter, number | null> = {
+  "7": 7,
+  "30": 30,
+  "90": 90,
+  all: null,
+};
+/** Status que cada papel é responsável por agir. */
+const STATUSES_BY_OWNER: Record<Exclude<PipelineOwnerFilter, "all">, PaymentStatus[]> = {
+  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
+  validador: ["aguardando_validacao", "devolvido_validador"],
+  diretor: ["aguardando_aprovacao"],
 };
 
 interface PaymentRow {
@@ -132,6 +162,10 @@ const Dashboard = () => {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
+  /** Lista crua de pagamentos (com created_at) para recomputar o pipeline ao filtrar. */
+  const [allPayments, setAllPayments] = useState<
+    Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [pipelineLayout, setPipelineLayout] = useState<PipelineLayout>(() => {
     if (typeof window === "undefined") return "auto";
@@ -143,6 +177,26 @@ const Dashboard = () => {
       window.localStorage.setItem(PIPELINE_LAYOUT_KEY, pipelineLayout);
     }
   }, [pipelineLayout]);
+  const [pipelineOwner, setPipelineOwner] = useState<PipelineOwnerFilter>(() => {
+    if (typeof window === "undefined") return "all";
+    const saved = window.localStorage.getItem(PIPELINE_OWNER_KEY);
+    return saved === "analista" || saved === "validador" || saved === "diretor" || saved === "all" ? saved : "all";
+  });
+  const [pipelineWindow, setPipelineWindow] = useState<PipelineWindowFilter>(() => {
+    if (typeof window === "undefined") return "all";
+    const saved = window.localStorage.getItem(PIPELINE_WINDOW_KEY);
+    return saved === "7" || saved === "30" || saved === "90" || saved === "all" ? saved : "all";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PIPELINE_OWNER_KEY, pipelineOwner);
+    }
+  }, [pipelineOwner]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PIPELINE_WINDOW_KEY, pipelineWindow);
+    }
+  }, [pipelineWindow]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
@@ -155,7 +209,7 @@ const Dashboard = () => {
         .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("profiles").select("id,full_name,email"),
-        supabase.from("payments").select("status,created_by,validated_by"),
+        supabase.from("payments").select("status,created_by,validated_by,created_at"),
         supabase
           .from("invoices")
           .select("id, payment:payments!inner(created_by)")
@@ -165,6 +219,14 @@ const Dashboard = () => {
         Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
       ]);
       setPayments((data ?? []) as PaymentRow[]);
+      setAllPayments(
+        (all ?? []) as Array<{
+          status: PaymentStatus;
+          created_by: string | null;
+          validated_by: string | null;
+          created_at: string;
+        }>,
+      );
       const pmap: Record<string, string> = {};
       (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
       setProfiles(pmap);
@@ -244,6 +306,49 @@ const Dashboard = () => {
     };
     load();
   }, [user?.id]);
+
+  /** Contagens do pipeline filtradas por papel responsável + janela de datas. */
+  const pipeCounts = useMemo(() => {
+    const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
+    const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
+    const allowedStatuses =
+      pipelineOwner === "all" ? null : new Set<PaymentStatus>(STATUSES_BY_OWNER[pipelineOwner]);
+    const c = {
+      pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
+      pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
+    };
+    for (const p of allPayments) {
+      if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
+      if (allowedStatuses && !allowedStatuses.has(p.status)) continue;
+      switch (p.status) {
+        case "em_analise_ia":
+        case "revisao_analista":
+          c.pipeAnaliseIA++; break;
+        case "aguardando_validacao":
+          c.pipeValidacao++; break;
+        case "aguardando_aprovacao":
+          c.pipeAprovacao++; break;
+        case "aprovado":
+        case "pedido_nf_enviado":
+          c.pipeNFSolicitada++; break;
+        case "nf_recebida":
+          c.pipeNFRecebida++; break;
+        case "nf_conciliada":
+          c.pipeNFConciliada++; break;
+        case "pago":
+          c.pipePago++; break;
+      }
+    }
+    return c;
+  }, [allPayments, pipelineOwner, pipelineWindow]);
+
+  /** Querystring extra a propagar nos links das etapas (forward-compatível). */
+  const pipelineQuery = useMemo(() => {
+    const parts: string[] = [];
+    if (pipelineOwner !== "all") parts.push(`owner=${pipelineOwner}`);
+    if (pipelineWindow !== "all") parts.push(`days=${pipelineWindow}`);
+    return parts.length ? `&${parts.join("&")}` : "";
+  }, [pipelineOwner, pipelineWindow]);
 
   const isAnalista = roles.includes("analista") || roles.includes("admin");
   const isValidador = roles.includes("validador") || roles.includes("admin");
@@ -402,6 +507,60 @@ const Dashboard = () => {
               </span>
               <div
                 role="radiogroup"
+                aria-label="Filtrar pipeline por papel"
+                className="inline-flex rounded-md border border-border bg-card p-0.5"
+              >
+                {(["all", "analista", "validador", "diretor"] as PipelineOwnerFilter[]).map((opt) => {
+                  const active = pipelineOwner === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPipelineOwner(opt)}
+                      className={cn(
+                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
+                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      {PIPELINE_OWNER_LABEL[opt]}
+                    </button>
+                  );
+                })}
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Janela de datas do pipeline"
+                className="inline-flex rounded-md border border-border bg-card p-0.5"
+              >
+                {(["7", "30", "90", "all"] as PipelineWindowFilter[]).map((opt) => {
+                  const active = pipelineWindow === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPipelineWindow(opt)}
+                      className={cn(
+                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
+                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      {PIPELINE_WINDOW_LABEL[opt]}
+                    </button>
+                  );
+                })}
+              </div>
+              <div
+                role="radiogroup"
                 aria-label="Layout do pipeline"
                 className="inline-flex rounded-md border border-border bg-card p-0.5"
               >
@@ -444,20 +603,20 @@ const Dashboard = () => {
               ))
             ) : (
               <>
-                <PipelineStep step={1} totalSteps={7} icon={Bot} label="Análise" value={counts.pipeAnaliseIA} tone="info"
-                  to="/pagamentos?status=em_analise_ia" />
-                <PipelineStep step={2} totalSteps={7} icon={ListChecks} label="Validação" value={counts.pipeValidacao} tone="warning"
-                  to="/pagamentos?status=aguardando_validacao" />
-                <PipelineStep step={3} totalSteps={7} icon={ShieldCheck} label="Aprovação" value={counts.pipeAprovacao} tone="warning"
-                  to="/pagamentos?status=aguardando_aprovacao" />
-                <PipelineStep step={4} totalSteps={7} icon={Send} label="NF solicitada" value={counts.pipeNFSolicitada} tone="info"
-                  to="/pagamentos?status=pedido_nf_enviado" />
-                <PipelineStep step={5} totalSteps={7} icon={Receipt} label="NF recebida" value={counts.pipeNFRecebida} tone="info"
-                  to="/pagamentos?status=nf_recebida" />
-                <PipelineStep step={6} totalSteps={7} icon={CheckCircle2} label="Conciliada" value={counts.pipeNFConciliada} tone="success"
-                  to="/pagamentos?status=nf_conciliada" />
-                <PipelineStep step={7} totalSteps={7} icon={Wallet} label="Pago" value={counts.pipePago} tone="success"
-                  to="/pagamentos?status=pago" />
+                <PipelineStep step={1} totalSteps={7} icon={Bot} label="Análise" value={pipeCounts.pipeAnaliseIA} tone="info"
+                  to={`/pagamentos?status=em_analise_ia${pipelineQuery}`} />
+                <PipelineStep step={2} totalSteps={7} icon={ListChecks} label="Validação" value={pipeCounts.pipeValidacao} tone="warning"
+                  to={`/pagamentos?status=aguardando_validacao${pipelineQuery}`} />
+                <PipelineStep step={3} totalSteps={7} icon={ShieldCheck} label="Aprovação" value={pipeCounts.pipeAprovacao} tone="warning"
+                  to={`/pagamentos?status=aguardando_aprovacao${pipelineQuery}`} />
+                <PipelineStep step={4} totalSteps={7} icon={Send} label="NF solicitada" value={pipeCounts.pipeNFSolicitada} tone="info"
+                  to={`/pagamentos?status=pedido_nf_enviado${pipelineQuery}`} />
+                <PipelineStep step={5} totalSteps={7} icon={Receipt} label="NF recebida" value={pipeCounts.pipeNFRecebida} tone="info"
+                  to={`/pagamentos?status=nf_recebida${pipelineQuery}`} />
+                <PipelineStep step={6} totalSteps={7} icon={CheckCircle2} label="Conciliada" value={pipeCounts.pipeNFConciliada} tone="success"
+                  to={`/pagamentos?status=nf_conciliada${pipelineQuery}`} />
+                <PipelineStep step={7} totalSteps={7} icon={Wallet} label="Pago" value={pipeCounts.pipePago} tone="success"
+                  to={`/pagamentos?status=pago${pipelineQuery}`} />
               </>
             )}
           </div>
