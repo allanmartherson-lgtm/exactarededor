@@ -572,13 +572,16 @@ const Dashboard = () => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
     const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
     /**
-     * Filtro por "fila de ação": apenas quando o modo é `queue` E um papel
-     * específico está selecionado, contamos só os status que aguardam ação
-     * desse papel. Caso contrário, contamos tudo (pipeline completo).
+     * Quando um papel é selecionado, contamos APENAS os status mapeados nas
+     * colunas visíveis daquele papel (ver `QUEUE_COLUMNS`). Isso garante
+     * que a soma dos números no pipeline = total de cards renderizados.
      */
     const ACTION_QUEUE: Record<Exclude<typeof pipelineOwner, "all">, Set<PaymentStatus>> = {
-      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada"]),
-      validador: new Set<PaymentStatus>(["aguardando_validacao", "devolvido_validador"]),
+      // "Análise" agrega em_analise_ia + revisao_analista; "Divergente" = nf_questionada
+      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "nf_questionada"]),
+      // "Validação" = aguardando_validacao
+      validador: new Set<PaymentStatus>(["aguardando_validacao"]),
+      // "Aprovação" = aguardando_aprovacao
       diretor: new Set<PaymentStatus>(["aguardando_aprovacao"]),
     };
     const matchesOwner = (p: { status: PaymentStatus }) =>
