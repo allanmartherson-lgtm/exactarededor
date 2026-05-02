@@ -579,3 +579,152 @@ All colors MUST be HSL.
     color: hsl(var(--accent-foreground));
   }
 }
+
+/* ============================================================
+ * GLOBAL TYPOGRAPHY SCALE (proporcional ao sidebar)
+ * Base 13px. Nada no corpo deve passar de 18px (exceto o
+ * stat number do dashboard, marcado com .stat-number).
+ * Não altera cores, layout, espaçamento ou componentes.
+ * ============================================================ */
+@layer base {
+  html {
+    font-size: 13px;
+  }
+  body {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Hierarquia de títulos */
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  h2 {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  h3 {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  h4, h5, h6 {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  /* Subtítulo de página (Radix CardDescription / .page-subtitle) */
+  .page-subtitle,
+  [data-slot="card-description"],
+  [data-radix-dialog-description],
+  [data-radix-alert-dialog-description] {
+    font-size: 12.5px !important;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Meta / timestamps */
+  small,
+  time,
+  .meta-text {
+    font-size: 11.5px;
+  }
+
+  /* Breadcrumbs */
+  nav[aria-label="breadcrumb"],
+  nav[aria-label="breadcrumb"] * {
+    font-size: 12px;
+  }
+
+  /* Botões — não mexer em ícones */
+  button:not(.side-nav-item):not(.stat-number) {
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  /* Inputs/textarea/select trigger */
+  input,
+  textarea,
+  select,
+  [role="combobox"] {
+    font-size: 13px;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 12.5px;
+  }
+
+  /* Tabs */
+  [role="tab"] {
+    font-size: 12.5px;
+  }
+
+  /* Menus / dropdowns / command items */
+  [role="menuitem"],
+  [role="option"],
+  [data-radix-collection-item] {
+    font-size: 12.5px;
+  }
+
+  /* Topbar nav (qualquer header > nav) */
+  header nav a,
+  header nav button {
+    font-size: 12.5px;
+  }
+
+  /* Badges / pills do shadcn (data-slot=badge) e badges genéricos */
+  [data-slot="badge"],
+  .badge,
+  .pill {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+  }
+
+  /* Filter chips (qualquer container marcado .filter-chips > *) */
+  .filter-chips > *,
+  .filter-chip {
+    font-size: 11.5px;
+  }
+
+  /* Labels uppercase de seção / card */
+  .section-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .card-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Stat number grande — única exceção autorizada acima de 18px */
+  .stat-number {
+    font-size: 30px;
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  /* Sidebar permanece em 13.5px definido em .side-nav-item */
+
+  /* ====== Override de utilitários Tailwind grandes no corpo ======
+   * Limita classes que normalmente ultrapassam 18px (exceto .stat-number). */
+  .text-2xl:not(.stat-number) { font-size: 16px !important; line-height: 1.3 !important; }
+  .text-3xl:not(.stat-number) { font-size: 18px !important; line-height: 1.3 !important; }
+  .text-4xl:not(.stat-number),
+  .text-5xl:not(.stat-number),
+  .text-6xl:not(.stat-number),
+  .text-7xl:not(.stat-number),
+  .text-8xl:not(.stat-number),
+  .text-9xl:not(.stat-number) {
+    font-size: 18px !important;
+    line-height: 1.3 !important;
+  }
+}
