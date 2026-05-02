@@ -12,7 +12,7 @@ import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import {
   MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet,
-  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning,
+  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning, RefreshCw,
 } from "lucide-react";
 
 const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
@@ -189,6 +189,59 @@ const Invoices = () => {
     await load();
   };
 
+  const [bulkBusy, setBulkBusy] = useState(false);
+  /**
+   * Reenvia em lote todos os pedidos com erro de envio.
+   * Agrupa por `payment_id` para chamar a edge function uma única vez por
+   * pagamento (a função recria os buckets de empresa/médico do payment),
+   * evitando múltiplas observações redundantes.
+   */
+  const failedInvoices = useMemo(
+    () => rows.filter((r) => !!r.send_error),
+    [rows],
+  );
+  const resendAllFailed = async () => {
+    if (failedInvoices.length === 0) return;
+    setBulkBusy(true);
+    const paymentIds = Array.from(new Set(failedInvoices.map((i) => i.payment_id)));
+    let ok = 0;
+    let fail = 0;
+    const errors: string[] = [];
+    for (const pid of paymentIds) {
+      const { data, error } = await supabase.functions.invoke("send-invoice-request", {
+        body: { payment_id: pid },
+      });
+      const payload = (data ?? {}) as { sent_ok?: number; sent_error?: number; error?: string; message?: string };
+      if (error || payload.error) {
+        fail++;
+        const msg = payload.message ?? error?.message ?? "erro desconhecido";
+        errors.push(`${pid.slice(0, 8)}…: ${msg}`);
+        continue;
+      }
+      ok += payload.sent_ok ?? 0;
+      fail += payload.sent_error ?? 0;
+    }
+    setBulkBusy(false);
+    if (ok === 0 && fail > 0) {
+      toast({
+        title: "Reenvio em lote falhou",
+        description: errors.slice(0, 3).join(" · ") || `${fail} envio(s) ainda com erro.`,
+        variant: "destructive",
+      });
+    } else if (fail > 0) {
+      toast({
+        title: `${ok} reenviado(s), ${fail} ainda com erro`,
+        description: "Verifique os pedidos que continuam falhando.",
+      });
+    } else {
+      toast({
+        title: "Reenvio em lote concluído",
+        description: `${ok} pedido(s) enviado(s) com sucesso.`,
+      });
+    }
+    await load();
+  };
+
   return (
     <>
       <PageHeader title="Notas Fiscais" description="Pedidos enviados e notas recebidas." />
@@ -203,6 +256,31 @@ const Invoices = () => {
             ))}
           </TabsList>
         </Tabs>
+
+        {canActOnNF && failedInvoices.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive-soft px-4 py-3">
+            <div className="flex items-start gap-2 text-sm">
+              <MailWarning className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+              <div>
+                <p className="font-medium text-destructive">
+                  {failedInvoices.length} pedido{failedInvoices.length === 1 ? "" : "s"} com erro de envio
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  O provedor de e-mail recusou o envio. Você pode reenviar todos de uma vez.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={bulkBusy}
+              onClick={resendAllFailed}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${bulkBusy ? "animate-spin" : ""}`} />
+              {bulkBusy ? "Reenviando…" : `Reenviar ${failedInvoices.length} com erro`}
+            </Button>
+          </div>
+        )}
 
         <Card className="shadow-card"><CardContent className="p-0">
           {filtered.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">
