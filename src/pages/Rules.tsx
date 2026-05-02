@@ -582,13 +582,13 @@ const Rules = () => {
 
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-6 p-4">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
                 {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
               </DialogHeader>
               <form onSubmit={submitRule} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Escopo</Label>
                     <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
