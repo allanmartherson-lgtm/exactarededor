@@ -492,6 +492,7 @@ export type Database = {
           doctor_role: string | null
           gross_amount: number
           id: string
+          patient_name: string | null
           payment_id: string
           procedure_amount: number | null
           procedure_code: string | null
@@ -517,6 +518,7 @@ export type Database = {
           doctor_role?: string | null
           gross_amount?: number
           id?: string
+          patient_name?: string | null
           payment_id: string
           procedure_amount?: number | null
           procedure_code?: string | null
@@ -542,6 +544,7 @@ export type Database = {
           doctor_role?: string | null
           gross_amount?: number
           id?: string
+          patient_name?: string | null
           payment_id?: string
           procedure_amount?: number | null
           procedure_code?: string | null
@@ -624,6 +627,7 @@ export type Database = {
       payments: {
         Row: {
           ai_summary: string | null
+          analysis_mode: Database["public"]["Enums"]["payment_analysis_mode"]
           approval_pdf_path: string | null
           approved_at: string | null
           approved_by: string | null
@@ -650,6 +654,7 @@ export type Database = {
         }
         Insert: {
           ai_summary?: string | null
+          analysis_mode?: Database["public"]["Enums"]["payment_analysis_mode"]
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -676,6 +681,7 @@ export type Database = {
         }
         Update: {
           ai_summary?: string | null
+          analysis_mode?: Database["public"]["Enums"]["payment_analysis_mode"]
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -847,12 +853,16 @@ export type Database = {
           auxiliary_pct: number | null
           bonus_amount: number | null
           bonus_pct: number | null
+          calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
+          convenio_percentage: number | null
           created_at: string
           created_by: string | null
           deflator_pct: number | null
           description: string | null
           doctors: Json
           elective_mode: string
+          extras_codes: string[] | null
+          fixed_amount: number | null
           id: string
           include_auxiliaries: boolean
           includes_holidays: boolean
@@ -891,12 +901,16 @@ export type Database = {
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
+          calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          convenio_percentage?: number | null
           created_at?: string
           created_by?: string | null
           deflator_pct?: number | null
           description?: string | null
           doctors?: Json
           elective_mode?: string
+          extras_codes?: string[] | null
+          fixed_amount?: number | null
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -935,12 +949,16 @@ export type Database = {
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
+          calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          convenio_percentage?: number | null
           created_at?: string
           created_by?: string | null
           deflator_pct?: number | null
           description?: string | null
           doctors?: Json
           elective_mode?: string
+          extras_codes?: string[] | null
+          fixed_amount?: number | null
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
@@ -1038,6 +1056,7 @@ export type Database = {
         | "validador"
         | "diretor"
         | "sistema"
+      payment_analysis_mode: "padrao" | "empresa_prioritaria"
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
@@ -1059,6 +1078,14 @@ export type Database = {
         | "nf_questionada"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind: "simples" | "cbhpm"
+      rule_calculation_type:
+        | "percentual_sobre_convenio"
+        | "regra_vias"
+        | "pacote_fechado"
+        | "pacote_com_extras"
+        | "valor_fixo"
+        | "exclusao"
+        | "informativo"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -1208,6 +1235,7 @@ export const Constants = {
       invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
       item_ai_status: ["pendente", "aprovado", "alerta", "reprovado"],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
+      payment_analysis_mode: ["padrao", "empresa_prioritaria"],
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
         "rascunho",
@@ -1230,6 +1258,15 @@ export const Constants = {
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: ["simples", "cbhpm"],
+      rule_calculation_type: [
+        "percentual_sobre_convenio",
+        "regra_vias",
+        "pacote_fechado",
+        "pacote_com_extras",
+        "valor_fixo",
+        "exclusao",
+        "informativo",
+      ],
       rule_payment_term: ["qualquer", "prioridade", "habitual"],
       rule_scope: ["master", "especifica"],
       rule_sector: [
