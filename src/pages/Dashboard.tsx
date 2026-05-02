@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatCard, StatCardSkeleton, type StatCardTone } from "@/components/dashboard/StatCard";
-import { StatTile, StatTileSkeleton } from "@/components/ui/stat-tile";
-import { StatCardsGrid } from "@/components/dashboard/StatCardsGrid";
+import type { StatCardTone } from "@/components/dashboard/StatCard";
 import {
   usePipelinePreferences,
   type PipelineLayout,
@@ -11,32 +8,25 @@ import {
   type PipelineWindowFilter,
   type PipelineDensity,
 } from "@/hooks/use-pipeline-preferences";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Header, HeaderName } from "@carbon/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
+import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
-  ArrowRightCircle,
-  FileUp,
+  FileText,
+  FileCheck,
+  Landmark,
+  CreditCard,
+  AlertCircle,
+  CheckCircle,
+  BarChart3,
   ListChecks,
-  Sparkles,
   ShieldCheck,
-  Inbox,
   Users,
-  Receipt,
-  Bot,
   Send,
-  MailPlus,
-  CheckCircle2,
-  Wallet,
-  AlertTriangle,
-  RotateCcw,
-  MessageCircleQuestion,
   FileWarning,
 } from "lucide-react";
 
