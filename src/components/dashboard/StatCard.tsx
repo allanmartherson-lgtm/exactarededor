@@ -23,6 +23,52 @@ export interface StatCardProps {
   to?: string;
 }
 
+/**
+ * Texto que mostra um Tooltip apenas quando seu conteúdo está
+ * realmente truncado (line-clamp / overflow). Mantém a altura do
+ * card estável e expõe o texto completo para teclado e leitores
+ * de tela.
+ */
+const TruncatedText = ({
+  as: Tag = "p",
+  text,
+  truncation,
+  className,
+  ...rest
+}: {
+  as?: "p" | "span";
+  text: string;
+  truncation: ReturnType<typeof useTruncated<HTMLParagraphElement>>;
+  className?: string;
+} & React.HTMLAttributes<HTMLElement>) => {
+  if (!truncation.isTruncated) {
+    return (
+      <Tag ref={truncation.ref as never} className={className} {...rest}>
+        {text}
+      </Tag>
+    );
+  }
+
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <Tag
+          ref={truncation.ref as never}
+          tabIndex={0}
+          aria-label={text}
+          className={`${className ?? ""} cursor-help outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm`}
+          {...rest}
+        >
+          {text}
+        </Tag>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
   const interactive = !!to;
   const labelTruncation = useTruncated<HTMLParagraphElement>();
