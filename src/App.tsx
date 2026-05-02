@@ -20,6 +20,7 @@ import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
 import WcagAudit from "./pages/WcagAudit.tsx";
 import Kpis from "./pages/Kpis.tsx";
+import SidebarDiagnostic from "./pages/SidebarDiagnostic.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
               <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
               <Route path="/wcag-audit" element={<WcagAudit />} />
+              <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
