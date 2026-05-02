@@ -16,8 +16,6 @@
     "prebuild": "bun run scripts/audit-nav.ts"
   },
   "dependencies": {
-    "@carbon/react": "^1.106.0",
-    "@carbon/styles": "^1.105.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
