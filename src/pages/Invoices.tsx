@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/lib/status";
+import { formatCurrency, formatDate, type InvoiceStatus } from "@/lib/status";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import {
-  MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet,
+  MessageCircle, Bot, AlertTriangle, CheckCircle2, Wallet,
   Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning, RefreshCw,
 } from "lucide-react";
 
-const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
-  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "destructive",
+const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
+  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger",
 };
 const labels: Record<InvoiceStatus, string> = {
   aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente",
@@ -60,11 +58,11 @@ const daysSince = (iso: string | null) => {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 };
 
-const ageTone = (days: number | null) => {
-  if (days == null) return "muted";
-  if (days < 3) return "success";
-  if (days <= 7) return "warning";
-  return "destructive";
+const ageColorClass = (days: number | null) => {
+  if (days == null) return "text-muted-foreground";
+  if (days < 3) return "text-success-foreground";
+  if (days <= 7) return "text-warning-foreground";
+  return "text-destructive";
 };
 
 const Invoices = () => {
