@@ -359,3 +359,190 @@ All colors MUST be HSL.
     max-height: 52px;
   }
 }
+
+/* ============================================================
+ * Reusable list-row pattern (non-table lists) — Invoices et al.
+ * Three columns: identification | actions | status pill.
+ * ============================================================ */
+@layer components {
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid hsl(var(--secondary)); /* border-light */
+    transition: background-color 0.1s ease;
+  }
+  .list-row:last-child {
+    border-bottom: 0;
+  }
+  .list-row:hover {
+    background: hsl(var(--muted)); /* bg-hover */
+  }
+
+  .list-row__main {
+    flex: 1 1 0%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .list-row__title {
+    font-weight: 500;
+    font-size: 13.5px;
+    color: hsl(var(--foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .list-row__sub {
+    font-size: 12px;
+    color: hsl(var(--muted-foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .list-row__meta {
+    font-size: 11.5px;
+    color: hsl(var(--muted-foreground));
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .list-row__meta > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-row__actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .list-row__status {
+    flex-shrink: 0;
+    width: 120px;
+    text-align: right;
+  }
+
+  /* Compact action button used in list rows. */
+  .list-row__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 6px 12px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    white-space: nowrap;
+    transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    outline: none;
+  }
+  .list-row__btn:hover:not(:disabled) {
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
+  }
+  .list-row__btn:focus-visible {
+    box-shadow: 0 0 0 2px hsl(var(--ring));
+  }
+  .list-row__btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Status pill used at end of list rows. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .pill--warning {
+    background: hsl(var(--warning-soft));
+    color: hsl(var(--warning-foreground));
+  }
+  .pill--success {
+    background: hsl(var(--success-soft));
+    color: hsl(var(--success-foreground));
+  }
+  .pill--info {
+    background: hsl(var(--info-soft));
+    color: hsl(var(--info-foreground));
+  }
+  .pill--danger {
+    background: hsl(var(--destructive-soft));
+    color: hsl(var(--destructive));
+  }
+  .pill--muted {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Underline-style filter tabs (text + count badge). */
+  .filter-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-bottom: 1px solid hsl(var(--border));
+    background: transparent;
+    padding: 0;
+    height: auto;
+  }
+  .filter-tabs [data-state] {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    box-shadow: none;
+    transition: color 0.12s ease, border-color 0.12s ease;
+    margin-bottom: -1px; /* overlap parent border */
+  }
+  .filter-tabs [data-state]:hover {
+    color: hsl(var(--foreground));
+  }
+  .filter-tabs [data-state="active"] {
+    color: hsl(var(--accent-foreground));
+    border-bottom-color: hsl(var(--primary));
+    background: transparent;
+  }
+  .filter-tabs__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .filter-tabs [data-state="active"] .filter-tabs__count {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+}
