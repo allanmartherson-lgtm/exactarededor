@@ -840,13 +840,13 @@ const Dashboard = () => {
             style={{
               padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
               display: "grid",
-              gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(9, minmax(0, 1fr))",
               gap: 0,
               minWidth: 0,
             }}
           >
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
+              Array.from({ length: 9 }).map((_, i) => (
                 <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
               ))
             ) : (
@@ -857,6 +857,7 @@ const Dashboard = () => {
                 { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
                 { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
                 { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
+                { icon: AlertCircle, color: "red" as const, label: "Divergente", value: pipeCounts.pipeDivergente, to: `/pagamentos?status=nf_questionada${pipelineQuery}` },
                 { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
                 { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
               ].map((item, index) => (
