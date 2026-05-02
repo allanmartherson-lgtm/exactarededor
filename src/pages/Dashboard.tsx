@@ -4,6 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, StatCardSkeleton, type StatCardTone } from "@/components/dashboard/StatCard";
 import { StatTile, StatTileSkeleton } from "@/components/ui/stat-tile";
 import { StatCardsGrid } from "@/components/dashboard/StatCardsGrid";
+import {
+  usePipelinePreferences,
+  type PipelineLayout,
+  type PipelineOwnerFilter,
+  type PipelineWindowFilter,
+} from "@/hooks/use-pipeline-preferences";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -33,8 +39,6 @@ import {
 } from "lucide-react";
 
 /** Modos de layout do pipeline (responsivos a telas estreitas). */
-type PipelineLayout = "auto" | "rows2" | "rows3";
-const PIPELINE_LAYOUT_KEY = "dashboard.pipelineLayout";
 const PIPELINE_GRID_CLASS: Record<PipelineLayout, string> = {
   // Auto: comportamento original responsivo.
   auto: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7",
@@ -50,10 +54,6 @@ const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
 };
 
 /** Filtros rápidos do pipeline. */
-type PipelineOwnerFilter = "all" | "analista" | "validador" | "diretor";
-type PipelineWindowFilter = "7" | "30" | "90" | "all";
-const PIPELINE_OWNER_KEY = "dashboard.pipelineOwner";
-const PIPELINE_WINDOW_KEY = "dashboard.pipelineWindow";
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
   analista: "Analista",
@@ -167,36 +167,15 @@ const Dashboard = () => {
     Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
   >([]);
   const [loading, setLoading] = useState(true);
-  const [pipelineLayout, setPipelineLayout] = useState<PipelineLayout>(() => {
-    if (typeof window === "undefined") return "auto";
-    const saved = window.localStorage.getItem(PIPELINE_LAYOUT_KEY);
-    return saved === "rows2" || saved === "rows3" || saved === "auto" ? saved : "auto";
-  });
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(PIPELINE_LAYOUT_KEY, pipelineLayout);
-    }
-  }, [pipelineLayout]);
-  const [pipelineOwner, setPipelineOwner] = useState<PipelineOwnerFilter>(() => {
-    if (typeof window === "undefined") return "all";
-    const saved = window.localStorage.getItem(PIPELINE_OWNER_KEY);
-    return saved === "analista" || saved === "validador" || saved === "diretor" || saved === "all" ? saved : "all";
-  });
-  const [pipelineWindow, setPipelineWindow] = useState<PipelineWindowFilter>(() => {
-    if (typeof window === "undefined") return "all";
-    const saved = window.localStorage.getItem(PIPELINE_WINDOW_KEY);
-    return saved === "7" || saved === "30" || saved === "90" || saved === "all" ? saved : "all";
-  });
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(PIPELINE_OWNER_KEY, pipelineOwner);
-    }
-  }, [pipelineOwner]);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(PIPELINE_WINDOW_KEY, pipelineWindow);
-    }
-  }, [pipelineWindow]);
+  // Preferências do pipeline persistidas no perfil + cache em localStorage.
+  const {
+    layout: pipelineLayout,
+    owner: pipelineOwner,
+    window: pipelineWindow,
+    setLayout: setPipelineLayout,
+    setOwner: setPipelineOwner,
+    setWindow: setPipelineWindow,
+  } = usePipelinePreferences();
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
