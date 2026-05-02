@@ -347,7 +347,11 @@ export const AppLayout = () => {
   const initials = getInitials(user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
   const visibleTopNav = filterNav(NAV_ITEMS, roles);
-  const visibleSideNav = flattenNav(visibleTopNav).filter((c) => c.roles.some((r) => roles.includes(r)));
+  // Sidebar: flat list of ALL leaves in fixed order, filtered only by leaf-level roles.
+  // Groups (Financeiro / Configurações / Acesso) are ignored here — sidebar never groups.
+  const visibleSideNav = flattenNav(NAV_ITEMS).filter((c) =>
+    c.roles.some((r) => roles.includes(r)),
+  );
 
   const handleSignOut = async () => {
     await signOut();
