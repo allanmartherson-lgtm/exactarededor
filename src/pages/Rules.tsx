@@ -1277,6 +1277,25 @@ const Rules = () => {
                     <Input type="number" step="0.01" value={d.target_amount ?? ""} onChange={(e) => updateDraft(i, { target_amount: num(e.target.value) })} />
                   </div>
                 )}
+                {d.calculation_type === "percentual_sobre_convenio" && (
+                  <div className="space-y-1 mb-3"><Label className="text-xs">% sobre convênio (motor)</Label>
+                    <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
+                      value={d.convenio_percentage ?? ""} onChange={(e) => updateDraft(i, { convenio_percentage: num(e.target.value) })} />
+                  </div>
+                )}
+                {d.calculation_type === "valor_fixo" && (
+                  <div className="space-y-1 mb-3"><Label className="text-xs">Valor fixo (R$) (motor)</Label>
+                    <Input type="number" step="0.01"
+                      value={d.fixed_amount ?? ""} onChange={(e) => updateDraft(i, { fixed_amount: num(e.target.value) })} />
+                  </div>
+                )}
+                {d.calculation_type === "pacote_com_extras" && (
+                  <div className="space-y-1 mb-3"><Label className="text-xs">Códigos extras (motor)</Label>
+                    <Input value={d.extras_codes.join(", ")}
+                      onChange={(e) => updateDraft(i, { extras_codes: e.target.value.split(/[,;\s]+/).filter(Boolean) })}
+                      placeholder="Códigos pagos à parte (100% do convênio)" />
+                  </div>
+                )}
 
                 <div className="space-y-1 mb-3"><Label className="text-xs">Códigos de procedimento</Label>
                   <Input value={d.procedure_codes.join(", ")} onChange={(e) => updateDraft(i, { procedure_codes: e.target.value.split(/[,;\s]+/).filter(Boolean) })} placeholder="Ex: 31005497, 31005470" />
