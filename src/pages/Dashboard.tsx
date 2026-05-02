@@ -831,34 +831,30 @@ const Dashboard = () => {
           </div>
           <div
             style={{
-              padding: 22,
+              padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
               display: "grid",
               gridTemplateColumns: "repeat(8, minmax(0, 1fr))",
-              gap: 10,
+              gap: 0,
               minWidth: 0,
             }}
           >
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => <PipelineColSkeleton key={i} />)
+              Array.from({ length: 8 }).map((_, i) => (
+                <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
+              ))
             ) : (
-              <>
-                <PipelineCol icon={FileText} color="purple" label="Análise" value={pipeCounts.pipeAnaliseIA}
-                  to={`/pagamentos?status=em_analise_ia${pipelineQuery}`} />
-                <PipelineCol icon={ListChecks} color="yellow" label="Validação" value={pipeCounts.pipeValidacao}
-                  to={`/pagamentos?status=aguardando_validacao${pipelineQuery}`} />
-                <PipelineCol icon={ShieldCheck} color="blue" label="Aprovação" value={pipeCounts.pipeAprovacao}
-                  to={`/pagamentos?status=aguardando_aprovacao${pipelineQuery}`} />
-                <PipelineCol icon={Send} color="red" label="Aguardando" value={pipeCounts.pipeAguardandoEnvio}
-                  to={`/pagamentos?status=aprovado${pipelineQuery}`} />
-                <PipelineCol icon={FileText} color="purple" label="NF solicitada" value={pipeCounts.pipeNFSolicitada}
-                  to={`/pagamentos?status=pedido_nf_enviado${pipelineQuery}`} />
-                <PipelineCol icon={FileCheck} color="green" label="NF recebida" value={pipeCounts.pipeNFRecebida}
-                  to={`/pagamentos?status=nf_recebida${pipelineQuery}`} />
-                <PipelineCol icon={CheckCircle} color="green" label="Conciliada" value={pipeCounts.pipeNFConciliada}
-                  to={`/pagamentos?status=nf_conciliada${pipelineQuery}`} />
-                <PipelineCol icon={CreditCard} color="blue" label="Pago" value={pipeCounts.pipePago}
-                  to={`/pagamentos?status=pago${pipelineQuery}`} />
-              </>
+              [
+                { icon: FileText, color: "purple" as const, label: "Análise", value: pipeCounts.pipeAnaliseIA, to: `/pagamentos?status=em_analise_ia${pipelineQuery}` },
+                { icon: ListChecks, color: "yellow" as const, label: "Validação", value: pipeCounts.pipeValidacao, to: `/pagamentos?status=aguardando_validacao${pipelineQuery}` },
+                { icon: ShieldCheck, color: "blue" as const, label: "Aprovação", value: pipeCounts.pipeAprovacao, to: `/pagamentos?status=aguardando_aprovacao${pipelineQuery}` },
+                { icon: Send, color: "red" as const, label: "Aguardando", value: pipeCounts.pipeAguardandoEnvio, to: `/pagamentos?status=aprovado${pipelineQuery}` },
+                { icon: FileText, color: "purple" as const, label: "NF solicitada", value: pipeCounts.pipeNFSolicitada, to: `/pagamentos?status=pedido_nf_enviado${pipelineQuery}` },
+                { icon: FileCheck, color: "green" as const, label: "NF recebida", value: pipeCounts.pipeNFRecebida, to: `/pagamentos?status=nf_recebida${pipelineQuery}` },
+                { icon: CheckCircle, color: "green" as const, label: "Conciliada", value: pipeCounts.pipeNFConciliada, to: `/pagamentos?status=nf_conciliada${pipelineQuery}` },
+                { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
+              ].map((item, index) => (
+                <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
+              ))
             )}
           </div>
         </SurfaceCard>
