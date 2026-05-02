@@ -10,13 +10,23 @@ import { PageHeader } from "@/components/PageHeader";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil, Upload, Download } from "lucide-react";
+import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 
-interface Company { id: string; name: string; document: string | null; aliases: string[]; notes: string | null }
+interface Company {
+  id: string;
+  name: string;
+  document: string | null;
+  aliases: string[];
+  notes: string | null;
+  /** E-mails de destino para pedidos de NF (TO). O e-mail do médico vai como CC. */
+  invoice_emails: string[];
+}
 
-const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "" };
+const empty: Company = { id: "", name: "", document: "", aliases: [], notes: "", invoice_emails: [] };
+
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
@@ -30,6 +40,7 @@ const Companies = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company>(empty);
   const [aliasInput, setAliasInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
 
@@ -75,6 +86,9 @@ const Companies = () => {
       document: docDigits ? formatCNPJ(docDigits) : null,
       aliases: editing.aliases,
       notes: editing.notes?.trim() || null,
+      invoice_emails: (editing.invoice_emails ?? [])
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => isValidEmail(e)),
     };
     const { error } = editing.id
       ? await supabase.from("companies").update(payload).eq("id", editing.id)
@@ -93,7 +107,7 @@ const Companies = () => {
       return;
     }
     toast({ title: editing.id ? "Empresa atualizada" : "Empresa criada" });
-    setOpen(false); setEditing(empty); setAliasInput(""); load();
+    setOpen(false); setEditing(empty); setAliasInput(""); setEmailInput(""); load();
   };
 
   const remove = async (id: string) => {
@@ -105,11 +119,11 @@ const Companies = () => {
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["nome", "cnpj", "apelidos", "notas"],
-      ["Clínica Cirúrgica de Taguatinga Ltda", "00.000.000/0001-00", "Cirurgica Taguatinga; Tag Cirurgica", "Centro cirúrgico DF Star"],
-      ["Hemodinâmica Brasília S/S", "11.111.111/0001-11", "Hemo Brasilia", ""],
+      ["nome", "cnpj", "apelidos", "emails_nf", "notas"],
+      ["Clínica Cirúrgica de Taguatinga Ltda", "00.000.000/0001-00", "Cirurgica Taguatinga; Tag Cirurgica", "financeiro@clinica.com; nf@clinica.com", "Centro cirúrgico DF Star"],
+      ["Hemodinâmica Brasília S/S", "11.111.111/0001-11", "Hemo Brasilia", "contato@hemobsb.com", ""],
     ]);
-    ws["!cols"] = [{ wch: 40 }, { wch: 22 }, { wch: 40 }, { wch: 30 }];
+    ws["!cols"] = [{ wch: 40 }, { wch: 22 }, { wch: 40 }, { wch: 40 }, { wch: 30 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Empresas");
     XLSX.writeFile(wb, "modelo-empresas.xlsx");
@@ -130,8 +144,12 @@ const Companies = () => {
         const aliases = aliasRaw
           ? aliasRaw.split(/[;|]/).map((s) => s.trim()).filter(Boolean)
           : [];
+        const emailsRaw = toStr(pick(row, ["emails_nf", "emails nf", "email nf", "email", "emails", "e-mails"]));
+        const invoice_emails = emailsRaw
+          ? emailsRaw.split(/[;|,]/).map((s) => s.trim().toLowerCase()).filter((s) => s && isValidEmail(s))
+          : [];
         const notes = toStr(pick(row, ["notas", "observacoes", "observações", "obs"])) || null;
-        return { name, documentRaw, aliases, notes };
+        return { name, documentRaw, aliases, invoice_emails, notes };
       }).filter((r) => r.name);
 
       if (!parsed.length) {
@@ -152,6 +170,7 @@ const Companies = () => {
         name: r.name,
         document: r.documentRaw ? (onlyDigits(r.documentRaw) ? formatCNPJ(onlyDigits(r.documentRaw)) : null) : null,
         aliases: r.aliases,
+        invoice_emails: r.invoice_emails,
         notes: r.notes,
       }));
 
