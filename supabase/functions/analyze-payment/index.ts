@@ -45,6 +45,7 @@ interface ItemRow {
   gross_amount: number;
   raw_data: unknown;
   company_name?: string | null;
+  company_id?: string | null;
   attendance_number?: string | null;
   procedure_code?: string | null;
   procedure_name?: string | null;
@@ -143,7 +144,7 @@ serve(async (req) => {
     }
     const { data: items } = await supabase
       .from("payment_items")
-      .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
+      .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,company_id,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
       .eq("payment_id", payment_id);
     const { data: history } = await supabase
       .from("payment_observations")
