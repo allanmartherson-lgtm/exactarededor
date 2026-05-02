@@ -75,8 +75,6 @@ const PaymentDetail = () => {
   const [groups, setGroups] = useState<any[]>([]);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [aiOpinionOpen, setAiOpinionOpen] = useState(false);
-  const [aiAlertExpanded, setAiAlertExpanded] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
 
