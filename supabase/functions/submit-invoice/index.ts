@@ -119,11 +119,14 @@ serve(async (req) => {
       }
     };
 
-    // -------- modo: questionamento via multipart (com anexos) --------
+    // O fluxo multipart cobre dois casos: action=question (com anexos) e o upload da NF.
+    // Lemos o body uma única vez aqui pra não consumir o stream duas vezes.
+    let multipartForm: FormData | null = null;
     if (contentType.includes("multipart/form-data")) {
-      const form = await req.formData();
-      const action = String(form.get("action") ?? "").trim();
+      multipartForm = await req.formData();
+      const action = String(multipartForm.get("action") ?? "").trim();
       if (action === "question") {
+        const form = multipartForm;
         const token = String(form.get("token") ?? "");
         const message = String(form.get("message") ?? "").trim();
         const authorName = String(form.get("author_name") ?? "").trim().slice(0, 120) || null;
@@ -312,7 +315,7 @@ serve(async (req) => {
     }
 
     // -------- modo: envio da NF (multipart) --------
-    const form = await req.formData();
+    const form = multipartForm ?? await req.formData();
     const token = String(form.get("token") ?? "");
     const invoiceNumber = String(form.get("invoice_number") ?? "").trim();
     const rawReceived = form.get("received_amount");
