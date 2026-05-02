@@ -984,15 +984,60 @@ const PaymentDetail = () => {
           })()}
 
           <TooltipProvider delayDuration={150}>
-            {groups.map((g) => {
-              const groupItems = items.filter(
+            {(() => {
+              const sq = itemSearch.trim().toLowerCase();
+              const itemMatches = (it: any) => {
+                if (!sq) return true;
+                const haystack = [
+                  it.company_name,
+                  it.doctor_name,
+                  it.doctor_role,
+                  it.attendance_number,
+                  it.cost_center_code,
+                  it.description,
+                  it.procedure_code,
+                  it.procedure_name,
+                  it.agreement_text,
+                  ...(Array.isArray(it.raw_data) ? [] : Object.values(it.raw_data ?? {}).map(String)),
+                ]
+                  .filter(Boolean)
+                  .join(" \u2022 ")
+                  .toLowerCase();
+                return haystack.includes(sq);
+              };
+              const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
+              const visibleGroups = groups.filter((g) => {
+                if (!sq) return true;
+                if (g.company_name?.toLowerCase().includes(sq)) return true;
+                if (paymentSpec.includes(sq)) return true;
+                return items.some(
+                  (it) =>
+                    (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase() &&
+                    itemMatches(it),
+                );
+              });
+              if (sq && visibleGroups.length === 0) {
+                return (
+                  <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
+                    Nenhum grupo ou item casa com "{itemSearch}".
+                  </CardContent></Card>
+                );
+              }
+              return visibleGroups.map((g) => {
+              const groupItemsAll = items.filter(
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
+              const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
+              const groupItems = sq && !groupNameMatches
+                ? groupItemsAll.filter(itemMatches)
+                : groupItemsAll;
               const gStatus = g.status as PaymentStatus;
               const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
               const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
               const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
-              const isGroupExpanded = expandedGroups.has(g.id);
+              // Quando há busca ativa, força a expansão dos grupos visíveis para
+              // não esconder os itens que casaram dentro do collapse.
+              const isGroupExpanded = sq ? true : expandedGroups.has(g.id);
               // Se o analista já concluiu a triagem desse grupo, o parecer da IA não é mais alerta ativo:
               // ele vira informativo e deixa de pintar o item como "reprovado".
               const analystDone = ANALYST_DONE_STATUSES.has(gStatus);
