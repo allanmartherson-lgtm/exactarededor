@@ -238,6 +238,8 @@ export type Database = {
       }
       invoices: {
         Row: {
+          company_id: string | null
+          company_name: string | null
           created_at: string
           expected_amount: number
           file_path: string | null
@@ -254,6 +256,8 @@ export type Database = {
           upload_token: string
         }
         Insert: {
+          company_id?: string | null
+          company_name?: string | null
           created_at?: string
           expected_amount: number
           file_path?: string | null
@@ -270,6 +274,8 @@ export type Database = {
           upload_token?: string
         }
         Update: {
+          company_id?: string | null
+          company_name?: string | null
           created_at?: string
           expected_amount?: number
           file_path?: string | null
