@@ -75,17 +75,26 @@ serve(async (req) => {
     const { data: items } = await supabase.from("payment_items").select("*").eq("payment_id", payment_id);
     if (!payment || !items) throw new Error("Pagamento não encontrado");
 
-    // ---- Pré-validação: bloquear se houver CNPJ inválido em qualquer item/empresa vinculada ----
+    // ---- Pré-validação: CNPJ + carrega lista de e-mails das empresas ----
+    type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
     const invalid: Array<{ item_id: string; doctor_name: string; document: string | null; company_name: string | null; reason: string }> = [];
     const companyIds = Array.from(new Set(items.map((i: any) => i.company_id).filter(Boolean)));
-    let companyMap = new Map<string, { name: string; document: string | null }>();
+    const companyMap = new Map<string, CompanyInfo>();
     if (companyIds.length) {
-      const { data: comps } = await supabase.from("companies").select("id,name,document").in("id", companyIds);
-      (comps ?? []).forEach((c: any) => companyMap.set(c.id, { name: c.name, document: c.document }));
+      const { data: comps } = await supabase
+        .from("companies")
+        .select("id,name,document,invoice_emails")
+        .in("id", companyIds);
+      (comps ?? []).forEach((c: any) =>
+        companyMap.set(c.id, {
+          name: c.name,
+          document: c.document,
+          invoice_emails: Array.isArray(c.invoice_emails) ? c.invoice_emails : [],
+        }),
+      );
     }
 
     for (const it of items as any[]) {
-      // Empresa vinculada precisa ter CNPJ válido (quando houver vínculo)
       if (it.company_id) {
         const c = companyMap.get(it.company_id);
         if (c?.document && !isValidCNPJ(c.document)) {
@@ -95,7 +104,6 @@ serve(async (req) => {
           });
         }
       }
-      // Documento avulso registrado no item (company_document como CNPJ)
       const itemCnpjDigits = onlyDigits(it.company_document ?? "");
       if (itemCnpjDigits.length === 14 && !isValidCNPJ(itemCnpjDigits)) {
         invalid.push({
@@ -113,20 +121,72 @@ serve(async (req) => {
       }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ---- Agrupa por destinatário (e-mail do médico) ----
-    type Bucket = { total: number; items: any[] };
-    const byEmail = new Map<string, Bucket>();
+    // ---- Agrupamento ----
+    // Por padrão agrupa por EMPRESA (TO = invoice_emails da empresa, CC = médicos).
+    // Se o item não tem company_id, faz fallback agrupando por médico.
+    type CompanyBucket = {
+      company_id: string;
+      company_name: string;
+      to: string[];
+      cc: Set<string>;
+      total: number;
+      items: any[];
+    };
+    type DoctorBucket = {
+      doctor_email: string;
+      total: number;
+      items: any[];
+    };
+
+    const byCompany = new Map<string, CompanyBucket>();
+    const byDoctorFallback = new Map<string, DoctorBucket>();
+    const missingCompanyEmails: Array<{ company_id: string; company_name: string }> = [];
+
     for (const it of items as any[]) {
-      const email = (it.doctor_email ?? "").trim().toLowerCase();
-      if (!email) continue;
-      const cur = byEmail.get(email) ?? { total: 0, items: [] };
-      cur.total += Number(it.gross_amount ?? 0);
-      cur.items.push(it);
-      byEmail.set(email, cur);
+      const docEmail = (it.doctor_email ?? "").trim().toLowerCase();
+      if (it.company_id && companyMap.has(it.company_id)) {
+        const c = companyMap.get(it.company_id)!;
+        if (!c.invoice_emails.length) {
+          if (!missingCompanyEmails.find((m) => m.company_id === it.company_id)) {
+            missingCompanyEmails.push({ company_id: it.company_id, company_name: c.name });
+          }
+          continue;
+        }
+        const cur = byCompany.get(it.company_id) ?? {
+          company_id: it.company_id,
+          company_name: c.name,
+          to: c.invoice_emails,
+          cc: new Set<string>(),
+          total: 0,
+          items: [],
+        };
+        cur.total += Number(it.gross_amount ?? 0);
+        cur.items.push(it);
+        if (docEmail) cur.cc.add(docEmail);
+        byCompany.set(it.company_id, cur);
+      } else {
+        if (!docEmail) continue;
+        const cur = byDoctorFallback.get(docEmail) ?? {
+          doctor_email: docEmail,
+          total: 0,
+          items: [],
+        };
+        cur.total += Number(it.gross_amount ?? 0);
+        cur.items.push(it);
+        byDoctorFallback.set(docEmail, cur);
+      }
     }
 
-    if (byEmail.size === 0) {
-      return new Response(JSON.stringify({ error: "Nenhum item com e-mail do médico." }),
+    if (missingCompanyEmails.length > 0) {
+      return new Response(JSON.stringify({
+        error: "empresa_sem_email",
+        message: `Envio bloqueado: ${missingCompanyEmails.length} empresa(s) sem e-mail de NF cadastrado. Cadastre em Empresas → editar → "E-mails para pedido de NF".`,
+        missing_company_emails: missingCompanyEmails,
+      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (byCompany.size === 0 && byDoctorFallback.size === 0) {
+      return new Response(JSON.stringify({ error: "Nenhum destinatário válido (sem empresa com e-mail e sem e-mail de médico)." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -134,33 +194,30 @@ serve(async (req) => {
     const created: string[] = [];
     const summaries: any[] = [];
 
-    for (const [email, info] of byEmail) {
-      // Se todos os itens deste destinatário pertencem à mesma empresa, vinculamos a NF a ela.
-      // Isso permite a conferência bruto x NF por empresa no fluxo do analista.
-      const companyIdsHere = Array.from(new Set(info.items.map((it: any) => it.company_id).filter(Boolean)));
-      const companyNamesHere = Array.from(new Set(info.items.map((it: any) => it.company_name).filter(Boolean)));
-      const linkedCompanyId = companyIdsHere.length === 1 ? companyIdsHere[0] : null;
-      const linkedCompanyName = companyNamesHere.length === 1
-        ? companyNamesHere[0]
-        : (linkedCompanyId ? (companyMap.get(linkedCompanyId)?.name ?? null) : null);
-
+    const processBucket = async (opts: {
+      to: string[];
+      cc: string[];
+      total: number;
+      items: any[];
+      company_id: string | null;
+      company_name: string | null;
+      recipient_label: string;
+    }) => {
       const { data: invoice } = await supabase.from("invoices").insert({
         payment_id,
-        expected_amount: info.total,
-        recipient_email: email,
+        expected_amount: opts.total,
+        recipient_email: opts.to[0],
         status: "aguardando",
         sent_at: new Date().toISOString(),
-        company_id: linkedCompanyId,
-        company_name: linkedCompanyName,
+        company_id: opts.company_id,
+        company_name: opts.company_name,
       }).select().single();
-      if (!invoice) continue;
+      if (!invoice) return;
       created.push(invoice.id);
 
       const uploadUrl = `${baseUrl}/portal/nota/${invoice.upload_token}`;
-      const docName = info.items[0].doctor_name;
 
-      // Resumo validado por destinatário
-      const itemSummaries = info.items.map((it: any) => {
+      const itemSummaries = opts.items.map((it: any) => {
         const company = it.company_id ? companyMap.get(it.company_id) : null;
         const cnpjRaw = company?.document ?? it.company_document ?? null;
         const v = validateDoc(cnpjRaw);
@@ -174,56 +231,96 @@ serve(async (req) => {
           document_kind: v.kind,
           document_valid: v.valid,
           procedure_date: it.procedure_date ?? null,
+          doctor_name: it.doctor_name,
         };
       });
 
       const summary = {
         invoice_id: invoice.id,
-        recipient_email: email,
-        doctor_name: docName,
+        recipient_to: opts.to,
+        recipient_cc: opts.cc,
+        recipient_label: opts.recipient_label,
         reference: payment.reference,
-        total_amount: info.total,
-        total_amount_formatted: fmtMoney(info.total),
-        items_count: info.items.length,
+        total_amount: opts.total,
+        total_amount_formatted: fmtMoney(opts.total),
+        items_count: opts.items.length,
         all_documents_valid: itemSummaries.every((s) => s.document_valid || s.document_kind === "indefinido"),
         items: itemSummaries,
         upload_url: uploadUrl,
       };
       summaries.push(summary);
 
-      // Render simples em texto + html (consumido pelo provedor de e-mail)
       const itemsList = itemSummaries.map((s) =>
         `- ${s.description} · ${s.gross_amount_formatted}` +
         (s.company_name ? ` · ${s.company_name}` : "") +
+        (s.doctor_name ? ` · Dr(a) ${s.doctor_name}` : "") +
         (s.document_raw ? ` · ${s.document_kind.toUpperCase()} ${s.document_formatted} ${s.document_valid ? "✓" : "⚠"}` : "")
       ).join("\n");
+
+      // SIMULAÇÃO: enquanto o provedor de e-mail (Resend/Lovable Emails) não está
+      // conectado, registramos o conteúdo no log para inspeção.
+      console.log("[send-invoice-request] PEDIDO DE NF (simulado)", {
+        invoice_id: invoice.id,
+        to: opts.to,
+        cc: opts.cc,
+        recipient_label: opts.recipient_label,
+        total: summary.total_amount_formatted,
+        upload_url: uploadUrl,
+        items_count: summary.items_count,
+      });
 
       try {
         await supabase.functions.invoke("send-transactional-email", {
           body: {
             templateName: "invoice-request",
-            recipientEmail: email,
+            recipientEmail: opts.to[0],
+            cc: [...opts.to.slice(1), ...opts.cc],
             idempotencyKey: `inv-${invoice.id}`,
             templateData: {
-              doctorName: docName,
+              recipientLabel: opts.recipient_label,
               reference: payment.reference,
               totalAmount: summary.total_amount_formatted,
               uploadUrl,
               itemsList,
-              summary, // resumo estruturado completo
+              summary,
             },
           },
         });
       } catch (e) {
         console.warn("[send-invoice-request] provedor de e-mail não configurado:", e);
       }
+    };
+
+    // 1) Buckets por empresa
+    for (const bucket of byCompany.values()) {
+      await processBucket({
+        to: bucket.to,
+        cc: Array.from(bucket.cc),
+        total: bucket.total,
+        items: bucket.items,
+        company_id: bucket.company_id,
+        company_name: bucket.company_name,
+        recipient_label: bucket.company_name,
+      });
+    }
+    // 2) Fallback por médico (itens sem empresa)
+    for (const bucket of byDoctorFallback.values()) {
+      await processBucket({
+        to: [bucket.doctor_email],
+        cc: [],
+        total: bucket.total,
+        items: bucket.items,
+        company_id: null,
+        company_name: null,
+        recipient_label: bucket.items[0]?.doctor_name ?? bucket.doctor_email,
+      });
     }
 
     await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", payment_id);
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "sistema",
-      message: `${created.length} pedido(s) de NF enviado(s). Todos os CNPJs validados.`,
+      message: `${created.length} pedido(s) de NF enviado(s). ${byCompany.size} para empresa(s) e ${byDoctorFallback.size} para médico(s) sem empresa vinculada.`,
       status_to: "pedido_nf_enviado",
     });
 
