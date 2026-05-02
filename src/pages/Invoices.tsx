@@ -12,7 +12,7 @@ import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import {
   MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet,
-  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp,
+  Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning,
 } from "lucide-react";
 
 const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
