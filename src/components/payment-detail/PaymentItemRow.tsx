@@ -152,6 +152,23 @@ export const PaymentItemRow = ({
   const totalRules = matchedRuleObjs.length || matchedNames.length;
   const extra = Math.max(0, totalRules - 1);
   const alerts = it.ai_findings?.alerts ?? [];
+  const engine = it.ai_findings?.engine ?? null;
+  const expectedAmount = (it.ai_findings?.expected_amount ?? null) as number | null;
+  const diffPct = (engine?.diff_pct ?? null) as number | null;
+  const priority = (engine?.matched_priority ?? null) as RuleMatchPriority | null;
+  const calcType = (engine?.calculation_type_used ?? null) as
+    | RuleCalculationType
+    | "default_geral"
+    | "default_hemodinamica"
+    | null;
+  const calcTypeLabel = calcType
+    ? (RULE_CALCULATION_TYPE_LABELS as Record<string, string>)[calcType] ??
+      (calcType === "default_geral"
+        ? "Padrão geral (100%)"
+        : calcType === "default_hemodinamica"
+        ? "Padrão hemodinâmica (88%)"
+        : calcType)
+    : null;
   const valueEl = (
     <span
       className={`tabular-nums font-medium ${
