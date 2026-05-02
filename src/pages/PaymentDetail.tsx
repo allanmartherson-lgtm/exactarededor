@@ -759,15 +759,16 @@ const PaymentDetail = () => {
                           const isExpanded = expandedItems.has(it.id);
                           const totalRules = matchedRuleObjs.length || matchedNames.length;
                           const extra = Math.max(0, totalRules - 1);
-                          const valueEl = firstRule?.id ? (
-                            <Link
-                              to={`/regras?rule=${firstRule.id}`}
-                              className="tabular-nums font-medium text-primary hover:underline underline decoration-dotted decoration-primary/50"
+                          const valueEl = (
+                            <span
+                              className={`tabular-nums font-medium ${
+                                firstRule?.id
+                                  ? "text-primary underline decoration-dotted decoration-primary/50 cursor-help"
+                                  : tooltipNode
+                                  ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help"
+                                  : ""
+                              }`}
                             >
-                              {formatCurrency(it.gross_amount)}
-                            </Link>
-                          ) : (
-                            <span className={`tabular-nums font-medium ${tooltipNode ? "underline decoration-dotted decoration-muted-foreground/50 cursor-help" : ""}`}>
                               {formatCurrency(it.gross_amount)}
                             </span>
                           );
@@ -826,9 +827,7 @@ const PaymentDetail = () => {
                                     )}
                                   </div>
                                   {firstRuleLabel && (
-                                    firstRule?.id ? (
-                                      <Link to={`/regras?rule=${firstRule.id}`} className="block text-[11px] text-primary hover:underline truncate max-w-[180px] ml-auto">{firstRuleLabel}</Link>
-                                    ) : <span className="block text-[11px] text-muted-foreground truncate max-w-[180px] ml-auto">{firstRuleLabel}</span>
+                                    <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
                                 <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
