@@ -600,7 +600,7 @@ const Dashboard = () => {
           >
             {loading ? (
               Array.from({ length: 7 }).map((_, i) => (
-                <Skeleton key={i} className="h-28 rounded-lg" />
+                <StatTileSkeleton key={i} density="compact" />
               ))
             ) : (
               <>
