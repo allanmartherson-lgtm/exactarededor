@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "audit:tables": "bun run scripts/audit-tables.ts"
+    "audit:tables": "bun run scripts/audit-tables.ts",
+    "audit:nav": "bun run scripts/audit-nav.ts",
+    "prebuild": "bun run scripts/audit-nav.ts"
   },
   "dependencies": {
     "@carbon/react": "^1.106.0",

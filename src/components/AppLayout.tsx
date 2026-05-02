@@ -5,22 +5,13 @@ import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
 import {
   LayoutDashboard,
-  Wallet,
-  Receipt,
-  BarChart2,
   ShieldCheck,
-  Table,
-  Building2,
-  Users,
-  History,
   Sun,
   Moon,
   Plus,
   LogOut,
-  ScrollText,
   PanelLeft,
   PanelTop,
-  Network,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,88 +26,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 
-/* ============================================================
- * Single source of truth for navigation. Both topbar and sidebar
- * read from this. Items with `children` become dropdown groups
- * in topbar mode and are flattened in sidebar mode.
- * ============================================================ */
-export type Role = "analista" | "validador" | "diretor" | "admin";
-export type NavLeaf = {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  roles: readonly Role[];
-};
-export type NavGroup = {
-  label: string;
-  icon: typeof LayoutDashboard;
-  roles: readonly Role[];
-  children: NavLeaf[];
-};
-export type NavItem = NavLeaf | NavGroup;
-
-export const ALL_ROLES = ["analista", "validador", "diretor", "admin"] as const;
-
-export const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ALL_ROLES },
-  {
-    label: "Financeiro",
-    icon: Wallet,
-    roles: ALL_ROLES,
-    children: [
-      { to: "/pagamentos", label: "Pagamentos", icon: Wallet, roles: ALL_ROLES },
-      { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, roles: ALL_ROLES },
-      { to: "/kpis", label: "KPIs", icon: BarChart2, roles: ALL_ROLES },
-    ],
-  },
-  {
-    label: "Configurações",
-    icon: ScrollText,
-    roles: ["diretor", "admin"],
-    children: [
-      { to: "/regras", label: "Regras", icon: ShieldCheck, roles: ["diretor", "admin"] },
-      { to: "/tabelas", label: "Tabelas de referência", icon: Table, roles: ["diretor", "admin"] },
-      { to: "/empresas", label: "Empresas", icon: Building2, roles: ["diretor", "admin"] },
-      { to: "/centros-de-custo", label: "Centros de custo", icon: Network, roles: ALL_ROLES },
-    ],
-  },
-  {
-    label: "Acesso",
-    icon: Users,
-    roles: ["diretor", "admin"],
-    children: [
-      { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"] },
-      { to: "/auditoria", label: "Auditoria", icon: History, roles: ["diretor", "admin"] },
-    ],
-  },
-];
-
-export const isGroup = (n: NavItem): n is NavGroup => "children" in n;
-
-/** Flatten groups into a single list for sidebar mode. */
-export function flattenNav(items: NavItem[]): NavLeaf[] {
-  const out: NavLeaf[] = [];
-  for (const it of items) {
-    if (isGroup(it)) out.push(...it.children);
-    else out.push(it);
-  }
-  return out;
-}
-
-/** Filter visible items by user roles, recursively for groups. */
-export function filterNav(items: NavItem[], roles: string[]): NavItem[] {
-  return items
-    .map((it) => {
-      if (isGroup(it)) {
-        const kids = it.children.filter((c) => c.roles.some((r) => roles.includes(r)));
-        if (kids.length === 0) return null;
-        return { ...it, children: kids };
-      }
-      return it.roles.some((r) => roles.includes(r)) ? it : null;
-    })
-    .filter(Boolean) as NavItem[];
-}
+// Re-export for backward compatibility with existing importers (tests, diagnostic page).
+export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
+export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
 function getInitials(email?: string | null) {
   if (!email) return "AA";
