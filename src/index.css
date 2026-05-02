@@ -34,7 +34,7 @@ All colors MUST be HSL.
     --accent-foreground: 0 0% 100%;
 
     /* Status semantics */
-    --success: 152 60% 36%;
+    --success: 152 60% 30%;
     --success-foreground: 0 0% 100%;
     --success-soft: 152 55% 94%;
 
@@ -42,7 +42,7 @@ All colors MUST be HSL.
     --warning-foreground: 30 50% 12%;
     --warning-soft: 40 95% 94%;
 
-    --info: 215 80% 50%;
+    --info: 215 80% 42%;
     --info-foreground: 0 0% 100%;
     --info-soft: 215 80% 95%;
 
@@ -97,9 +97,10 @@ All colors MUST be HSL.
     --success-soft: 152 30% 16%;
     --warning: 35 90% 55%;
     --warning-soft: 35 30% 18%;
-    --info: 215 80% 60%;
+    --info: 215 80% 65%;
     --info-soft: 215 30% 18%;
     --destructive: 0 70% 55%;
+  }
     --destructive-soft: 0 30% 18%;
     --border: 215 30% 20%;
     --input: 215 30% 20%;
