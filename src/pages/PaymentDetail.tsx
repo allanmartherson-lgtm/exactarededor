@@ -11,8 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -24,7 +27,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, Pencil, Receipt, RefreshCcw, RotateCcw, Save, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquare, MessageSquarePlus, Pencil, Receipt, RefreshCcw, RotateCcw, Save, Search, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -88,10 +91,15 @@ const PaymentDetail = () => {
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<InvoiceQuestion[] & { invoice_id: string }[]>([] as any);
+  const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
+  // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
+  // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
+  const [itemSearch, setItemSearch] = useState("");
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }, { data: qs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
@@ -99,8 +107,10 @@ const PaymentDetail = () => {
       supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
       supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
       supabase.from("invoices").select("*").eq("payment_id", id),
+      supabase.from("invoice_questions").select("id, invoice_id, author_type, author_name, message, created_at, read_at").eq("payment_id", id).order("created_at", { ascending: true }),
     ]);
     setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []); setInvoices(inv ?? []);
+    setQuestions((qs ?? []) as any);
     // Por padrão, todos os grupos começam expandidos para manter a UX atual
     setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
     const map: Record<string, string> = {};
@@ -569,10 +579,19 @@ const PaymentDetail = () => {
                 {filteredObs.map((o) => {
                   const canEdit = !!user && o.author_id === user.id;
                   const isEditing = editingObsId === o.id;
+                  // Destaca visualmente questionamentos do recebedor — são críticos.
+                  const isQuestion =
+                    o.status_to === "nf_questionada" ||
+                    (typeof o.message === "string" && o.message.startsWith("Recebedor da NF enviou um questionamento"));
                   return (
-                  <li key={o.id} className="ml-1">
-                    <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
+                  <li key={o.id} className={`ml-1 ${isQuestion ? "rounded-md border border-warning/40 bg-warning-soft/40 p-2 -ml-1" : ""}`}>
+                    <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${isQuestion ? "bg-warning" : "bg-primary"}`} />
                     <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
+                      {isQuestion && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-warning-foreground uppercase tracking-wide text-[10px] font-semibold">
+                          <MessageCircleQuestion className="h-3 w-3" /> Questionamento
+                        </span>
+                      )}
                       <span className={`inline-flex rounded-full border px-2 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}>
                         {o.author_type}
                       </span>
@@ -858,6 +877,85 @@ const PaymentDetail = () => {
           </Card>
         )}
 
+        {/* Banner de questionamento — destaque crítico no topo. Mostra a última
+            pergunta do recebedor que ainda não recebeu resposta do analista. */}
+        {(() => {
+          // Agrupa por invoice_id e pega o último de cada thread.
+          const byInvoice = new Map<string, InvoiceQuestion[]>();
+          (questions as any[]).forEach((q) => {
+            const list = byInvoice.get(q.invoice_id) ?? [];
+            list.push(q);
+            byInvoice.set(q.invoice_id, list);
+          });
+          const pending: { invoice_id: string; q: InvoiceQuestion }[] = [];
+          byInvoice.forEach((list, invoice_id) => {
+            const last = list[list.length - 1];
+            if (last && last.author_type === "recebedor") pending.push({ invoice_id, q: last });
+          });
+          if (pending.length === 0) return null;
+          return (
+            <Card className="shadow-card border-warning/60 bg-warning-soft/60">
+              <CardContent className="p-4 flex items-start gap-3">
+                <MessageCircleQuestion className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold text-warning-foreground">
+                      {pending.length === 1
+                        ? "Recebedor enviou um questionamento sobre a NF"
+                        : `${pending.length} questionamentos abertos sobre a NF`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Aguardando resposta do analista. Responda pelo botão abaixo — o recebedor é notificado por e-mail.
+                    </p>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {pending.slice(0, 3).map(({ invoice_id, q }) => {
+                      const inv = invoices.find((i) => i.id === invoice_id);
+                      return (
+                        <li key={q.id} className="rounded-md border border-warning/30 bg-background/60 p-2.5 text-xs">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                            {q.author_name ?? "Recebedor"}
+                            {inv?.company_name ? ` · ${inv.company_name}` : ""}
+                            {" · "}{formatDate(q.created_at)}
+                          </p>
+                          <p className="whitespace-pre-wrap break-words mb-2 line-clamp-3">{q.message}</p>
+                          <Button size="sm" variant="outline" onClick={() => setOpenQuestionInvoiceId(invoice_id)}>
+                            <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Responder
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
+            atendimento, centro de custos, especialidade ou descrição. */}
+        {groups.length > 1 || items.length > 8 ? (
+          <div className="relative max-w-md">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={itemSearch}
+              onChange={(e) => setItemSearch(e.target.value)}
+              placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
+              className="pl-9 pr-9"
+            />
+            {itemSearch && (
+              <button
+                type="button"
+                onClick={() => setItemSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ) : null}
+
           {canSendForValidation && (() => {
             // Calcula divergências NF para os grupos prontos para envio
             const divergentGroups = groupsReadyToSend.filter((g) => {
@@ -895,15 +993,60 @@ const PaymentDetail = () => {
           })()}
 
           <TooltipProvider delayDuration={150}>
-            {groups.map((g) => {
-              const groupItems = items.filter(
+            {(() => {
+              const sq = itemSearch.trim().toLowerCase();
+              const itemMatches = (it: any) => {
+                if (!sq) return true;
+                const haystack = [
+                  it.company_name,
+                  it.doctor_name,
+                  it.doctor_role,
+                  it.attendance_number,
+                  it.cost_center_code,
+                  it.description,
+                  it.procedure_code,
+                  it.procedure_name,
+                  it.agreement_text,
+                  ...(Array.isArray(it.raw_data) ? [] : Object.values(it.raw_data ?? {}).map(String)),
+                ]
+                  .filter(Boolean)
+                  .join(" \u2022 ")
+                  .toLowerCase();
+                return haystack.includes(sq);
+              };
+              const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
+              const visibleGroups = groups.filter((g) => {
+                if (!sq) return true;
+                if (g.company_name?.toLowerCase().includes(sq)) return true;
+                if (paymentSpec.includes(sq)) return true;
+                return items.some(
+                  (it) =>
+                    (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase() &&
+                    itemMatches(it),
+                );
+              });
+              if (sq && visibleGroups.length === 0) {
+                return (
+                  <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
+                    Nenhum grupo ou item casa com "{itemSearch}".
+                  </CardContent></Card>
+                );
+              }
+              return visibleGroups.map((g) => {
+              const groupItemsAll = items.filter(
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
+              const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
+              const groupItems = sq && !groupNameMatches
+                ? groupItemsAll.filter(itemMatches)
+                : groupItemsAll;
               const gStatus = g.status as PaymentStatus;
               const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
               const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
               const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
-              const isGroupExpanded = expandedGroups.has(g.id);
+              // Quando há busca ativa, força a expansão dos grupos visíveis para
+              // não esconder os itens que casaram dentro do collapse.
+              const isGroupExpanded = sq ? true : expandedGroups.has(g.id);
               // Se o analista já concluiu a triagem desse grupo, o parecer da IA não é mais alerta ativo:
               // ele vira informativo e deixa de pintar o item como "reprovado".
               const analystDone = ANALYST_DONE_STATUSES.has(gStatus);
@@ -1381,7 +1524,8 @@ const PaymentDetail = () => {
                   )}
                 </Card>
               );
-            })}
+              });
+            })()}
           </TooltipProvider>
 
           {payment.status === "aprovado" && (isDiretor || canRequestNf) && (
@@ -1396,6 +1540,34 @@ const PaymentDetail = () => {
 
         {renderHistoryCard()}
       </div>
+
+      {/* Sheet pra responder ao recebedor — alimentado pelo banner do topo. */}
+      <Sheet open={!!openQuestionInvoiceId} onOpenChange={(v) => !v && setOpenQuestionInvoiceId(null)}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Conversa sobre a NF</SheetTitle>
+          </SheetHeader>
+          {openQuestionInvoiceId && (() => {
+            const inv = invoices.find((i) => i.id === openQuestionInvoiceId);
+            const initial = (questions as any[]).filter((q) => q.invoice_id === openQuestionInvoiceId);
+            return (
+              <div className="mt-4">
+                {inv && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {inv.company_name ?? ""} · {inv.recipient_email}
+                  </p>
+                )}
+                <InvoiceQuestionsThread
+                  invoiceId={openQuestionInvoiceId}
+                  paymentId={id!}
+                  initial={initial}
+                  onSent={() => load()}
+                />
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </>
   );
 };
