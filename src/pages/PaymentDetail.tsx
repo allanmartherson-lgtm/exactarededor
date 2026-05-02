@@ -579,10 +579,19 @@ const PaymentDetail = () => {
                 {filteredObs.map((o) => {
                   const canEdit = !!user && o.author_id === user.id;
                   const isEditing = editingObsId === o.id;
+                  // Destaca visualmente questionamentos do recebedor — são críticos.
+                  const isQuestion =
+                    o.status_to === "nf_questionada" ||
+                    (typeof o.message === "string" && o.message.startsWith("Recebedor da NF enviou um questionamento"));
                   return (
-                  <li key={o.id} className="ml-1">
-                    <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
+                  <li key={o.id} className={`ml-1 ${isQuestion ? "rounded-md border border-warning/40 bg-warning-soft/40 p-2 -ml-1" : ""}`}>
+                    <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${isQuestion ? "bg-warning" : "bg-primary"}`} />
                     <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
+                      {isQuestion && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-warning-foreground uppercase tracking-wide text-[10px] font-semibold">
+                          <MessageCircleQuestion className="h-3 w-3" /> Questionamento
+                        </span>
+                      )}
                       <span className={`inline-flex rounded-full border px-2 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}>
                         {o.author_type}
                       </span>
