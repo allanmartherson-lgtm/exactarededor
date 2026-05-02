@@ -824,7 +824,20 @@ const PaymentDetail = () => {
           </Card>
         )}
 
-          {canSendForValidation && (
+          {canSendForValidation && (() => {
+            // Calcula divergências NF para os grupos prontos para envio
+            const divergentGroups = groupsReadyToSend.filter((g) => {
+              const inv = invoices.filter((i) =>
+                i.received_amount != null &&
+                ((i.company_id && g.company_id && i.company_id === g.company_id) ||
+                 (i.company_name ?? "").trim().toLowerCase() === g.company_name.trim().toLowerCase()),
+              );
+              if (inv.length === 0) return false;
+              const total = inv.reduce((a, x) => a + Number(x.received_amount ?? 0), 0);
+              return Math.abs(Number((total - Number(g.total_amount)).toFixed(2))) > 0;
+            });
+            const blocked = divergentGroups.length > 0;
+            return (
             <Card className="shadow-card border-primary/40 bg-primary/5">
               <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
                 <div className="text-sm">
@@ -832,13 +845,20 @@ const PaymentDetail = () => {
                   <p className="text-xs text-muted-foreground">
                     {groupsReadyToSend.length} empresa(s) prontas para enviar ao validador. Você também pode enviar uma a uma no card de cada empresa.
                   </p>
+                  {blocked && (
+                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {divergentGroups.length} empresa(s) com NF divergente — resolva antes de enviar.
+                    </p>
+                  )}
                 </div>
-                <Button onClick={() => sendForValidation()} disabled={busy}>
+                <Button onClick={() => sendForValidation()} disabled={busy || blocked}>
                   <Send className="h-4 w-4 mr-2" /> Enviar todas para validação
                 </Button>
               </CardContent>
             </Card>
-          )}
+            );
+          })()}
 
           <TooltipProvider delayDuration={150}>
             {groups.map((g) => {
