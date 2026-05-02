@@ -124,8 +124,9 @@ const InvoicePortal = () => {
     toast({ title: "Pronto", description: "Justificativa registrada — você já pode enviar a nota corrigida." });
   };
 
-  // UI do bloco de justificativa, reaproveitada na divergência fresca e no link reaberto.
-  const ResetForm = () => (
+  // Bloco de justificativa renderizado inline (não como componente — evita
+  // remontagem que tira o foco do textarea a cada keystroke).
+  const resetForm = (
     <div className="space-y-3 rounded-lg border bg-background/60 p-3">
       <div className="space-y-1.5">
         <Label htmlFor="reset-author">Seu nome (opcional)</Label>
@@ -243,9 +244,7 @@ const InvoicePortal = () => {
                       Por favor, cancele a nota junto à sua contabilidade, emita uma nova com os dados corretos
                       e reenvie pelo botão abaixo.
                     </p>
-                    {resetOpen ? (
-                      <ResetForm />
-                    ) : (
+                    {resetOpen ? resetForm : (
                       <Button
                         type="button"
                         variant="outline"
@@ -268,9 +267,7 @@ const InvoicePortal = () => {
                     ? "Esta nota já foi recebida e conciliada — nada mais a fazer por aqui."
                     : "Esta nota já foi enviada anteriormente."}
                 </p>
-                {inv.status === "divergente" && (resetOpen ? (
-                  <ResetForm />
-                ) : (
+                {inv.status === "divergente" && (resetOpen ? resetForm : (
                   <Button type="button" variant="outline" className="w-full" onClick={() => setResetOpen(true)}>
                     Corrigir e enviar novamente
                   </Button>
