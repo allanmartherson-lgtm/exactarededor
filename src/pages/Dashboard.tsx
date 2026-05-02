@@ -123,6 +123,7 @@ interface DashboardCounts {
   pipeNFRecebida: number;
   pipeNFConciliada: number;
   pipePago: number;
+  pipeDivergente: number;
   attDevolvidoAnalista: number;
   attRessalvas: number;
   attNFQuestionada: number;
@@ -136,6 +137,7 @@ const initialCounts: DashboardCounts = {
   teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, teamInvoicesDivergentes: 0,
   pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
   pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
+  pipeDivergente: 0,
   attDevolvidoAnalista: 0, attRessalvas: 0, attNFQuestionada: 0,
   attNFDivergente: 0, attRejeitados: 0,
 };
@@ -528,6 +530,8 @@ const Dashboard = () => {
             c.pipeNFConciliada++; break;
           case "pago":
             c.pipePago++; break;
+          case "nf_questionada":
+            c.pipeDivergente++; break;
         }
 
         if (p.status === "devolvido_analista" || p.status === "devolvido_validador") c.attDevolvidoAnalista++;
@@ -575,6 +579,7 @@ const Dashboard = () => {
     const c = {
       pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
       pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
+      pipeDivergente: 0,
     };
     for (const p of allPayments) {
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
@@ -597,6 +602,8 @@ const Dashboard = () => {
           c.pipeNFConciliada++; break;
         case "pago":
           c.pipePago++; break;
+        case "nf_questionada":
+          c.pipeDivergente++; break;
       }
     }
     return c;
