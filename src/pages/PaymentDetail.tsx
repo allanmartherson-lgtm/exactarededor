@@ -1212,33 +1212,33 @@ const PaymentDetail = () => {
                   )}
                   {isGroupExpanded && (
                   <CardContent className="p-0 overflow-x-auto print:overflow-visible">
-                    <table className="w-full min-w-[1000px] text-sm table-fixed print:min-w-0 print:text-[10px]">
+                    <table className="w-full min-w-[980px] text-[12px] table-fixed print:min-w-0 print:text-[10px]">
                       <colgroup>
-                        <col className="w-8" />
-                        <col className="w-[80px]" />
-                        <col className="w-[14%]" />
-                        <col className="w-[12%] hidden md:table-column print:table-column" />
-                        <col className="w-[16%]" />
-                        <col className="w-[80px] hidden lg:table-column print:table-column" />
+                        <col className="w-6" />
+                        <col className="w-[68px]" />
+                        <col className="w-[13%]" />
+                        <col className="w-[10%] hidden md:table-column print:table-column" />
+                        <col className="w-[15%]" />
+                        <col className="w-[68px] hidden lg:table-column print:table-column" />
                         <col />
-                        <col className="w-[44px]" />
-                        <col className="w-[110px]" />
-                        <col className="w-[88px] hidden sm:table-column print:table-column" />
-                        <col className="w-14 print:hidden" />
+                        <col className="w-[36px]" />
+                        <col className="w-[104px]" />
+                        <col className="w-[78px] hidden sm:table-column print:table-column" />
+                        <col className="w-10 print:hidden" />
                       </colgroup>
-                      <thead className="bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                      <thead className="bg-muted text-left text-[10px] uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-2 py-2 print:hidden"></th>
-                          <th className="px-2 py-2">Atend.</th>
-                          <th className="px-2 py-2">Paciente</th>
-                          <th className="px-2 py-2 hidden md:table-cell print:table-cell">Convênio</th>
-                          <th className="px-2 py-2">Médico / Função</th>
-                          <th className="px-2 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
-                          <th className="px-2 py-2">Descrição</th>
-                          <th className="px-2 py-2 text-right">Qtd</th>
-                          <th className="px-2 py-2 text-right">Valor</th>
-                          <th className="px-2 py-2 hidden sm:table-cell print:table-cell">IA</th>
-                          <th className="px-2 py-2 print:hidden"></th>
+                          <th className="px-1.5 py-2 print:hidden"></th>
+                          <th className="px-1.5 py-2">Atend.</th>
+                          <th className="px-1.5 py-2">Paciente</th>
+                          <th className="px-1.5 py-2 hidden md:table-cell print:table-cell">Convênio</th>
+                          <th className="px-1.5 py-2">Médico / Função</th>
+                          <th className="px-1.5 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
+                          <th className="px-1.5 py-2">Descrição</th>
+                          <th className="px-1.5 py-2 text-right">Qtd</th>
+                          <th className="px-1.5 py-2 text-right">Valor</th>
+                          <th className="px-1.5 py-2 hidden sm:table-cell print:table-cell">IA</th>
+                          <th className="px-1.5 py-2 print:hidden"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -1284,25 +1284,25 @@ const PaymentDetail = () => {
                           return (
                             <>
                               <tr key={it.id} className="align-top hover:bg-muted/20 cursor-pointer" onClick={() => toggleItemExpanded(it.id)}>
-                                <td className="px-2 py-2 text-muted-foreground print:hidden">
-                                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                <td className="px-1.5 py-1.5 text-muted-foreground print:hidden">
+                                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                 </td>
-                                <td className="px-2 py-2 text-xs font-mono text-muted-foreground break-all">{it.attendance_number ?? "—"}</td>
-                                <td className="px-2 py-2 text-[13px] leading-snug break-words">{paciente}</td>
-                                <td className="px-2 py-2 text-[13px] leading-snug text-muted-foreground break-words hidden md:table-cell print:table-cell">{convenio}</td>
-                                <td className="px-2 py-2 leading-snug">
-                                  <div className="font-medium text-[13px] break-words">{it.doctor_name}</div>
-                                  <div className="text-[11px] text-muted-foreground break-words">{it.doctor_role ?? "—"}</div>
+                                <td className="px-1.5 py-1.5 text-[11px] font-mono text-muted-foreground break-all">{it.attendance_number ?? "—"}</td>
+                                <td className="px-1.5 py-1.5 text-[12px] leading-snug break-words">{paciente}</td>
+                                <td className="px-1.5 py-1.5 text-[12px] leading-snug text-muted-foreground break-words hidden md:table-cell print:table-cell">{convenio}</td>
+                                <td className="px-1.5 py-1.5 leading-snug">
+                                  <div className="font-medium text-[12px] break-words">{it.doctor_name}</div>
+                                  <div className="text-[10px] text-muted-foreground break-words">{it.doctor_role ?? "—"}</div>
                                 </td>
-                                <td className="px-2 py-2 font-mono text-xs break-all hidden lg:table-cell print:table-cell">{it.procedure_code ?? "—"}</td>
-                                <td className="px-2 py-2 leading-snug">
-                                  <div className="text-[13px] line-clamp-2">{it.description ?? "—"}</div>
+                                <td className="px-1.5 py-1.5 font-mono text-[11px] break-all hidden lg:table-cell print:table-cell">{it.procedure_code ?? "—"}</td>
+                                <td className="px-1.5 py-1.5 leading-snug">
+                                  <div className="text-[12px] line-clamp-2">{it.description ?? "—"}</div>
                                   {!isExpanded && it.ai_findings?.alerts?.length > 0 && (
-                                    <div className="mt-0.5 text-[11px] text-warning-foreground line-clamp-1">⚠ {it.ai_findings.alerts[0]}{it.ai_findings.alerts.length > 1 && ` (+${it.ai_findings.alerts.length - 1})`}</div>
+                                    <div className="mt-0.5 text-[10px] text-warning-foreground line-clamp-1">⚠ {it.ai_findings.alerts[0]}{it.ai_findings.alerts.length > 1 && ` (+${it.ai_findings.alerts.length - 1})`}</div>
                                   )}
                                 </td>
-                                <td className="px-2 py-2 text-right tabular-nums text-[13px]">{it.quantity ?? "—"}</td>
-                                <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-1.5 py-1.5 text-right tabular-nums text-[12px]">{it.quantity ?? "—"}</td>
+                                <td className="px-1.5 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-end gap-1.5">
                                     {tooltipNode ? (
                                       <Tooltip>
@@ -1331,10 +1331,10 @@ const PaymentDetail = () => {
                                     )}
                                   </div>
                                   {firstRuleLabel && (
-                                    <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
+                                    <span className={`block text-[10px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-2 py-2 hidden sm:table-cell print:table-cell">
+                                <td className="px-1.5 py-1.5 hidden sm:table-cell print:table-cell">
                                   {(() => {
                                     const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
                                     // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
@@ -1342,7 +1342,7 @@ const PaymentDetail = () => {
                                       return (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
-                                            <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>
+                                            <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.success}`}>
                                               seguido
                                             </span>
                                           </TooltipTrigger>
@@ -1353,19 +1353,19 @@ const PaymentDetail = () => {
                                       );
                                     }
                                     return (
-                                      <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[raw]]}`}>{raw}</span>
+                                      <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES[itemToneMap[raw]]}`}>{raw}</span>
                                     );
                                   })()}
                                 </td>
-                                <td className="pl-2 pr-3 py-2 print:hidden" onClick={(e) => e.stopPropagation()}>
+                                <td className="pl-1 pr-2 py-1.5 print:hidden" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex justify-center">
                                   <button
                                     type="button"
                                     onClick={() => toggleItemExpanded(it.id)}
-                                    className="relative inline-flex items-center justify-center rounded-md p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground"
+                                    className="relative inline-flex items-center justify-center rounded-md p-1 hover:bg-muted text-muted-foreground hover:text-foreground"
                                     title={`${itemObs.length} comentário(s)`}
                                   >
-                                    <MessageSquare className="h-4 w-4" />
+                                    <MessageSquare className="h-3.5 w-3.5" />
                                     {itemObs.length > 0 && (
                                       <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] px-1">
                                         {itemObs.length}
