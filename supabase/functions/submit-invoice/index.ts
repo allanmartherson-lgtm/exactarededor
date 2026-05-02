@@ -192,7 +192,18 @@ serve(async (req) => {
       await supabase.from("payments").update({ status: "nf_recebida" }).eq("id", invoice.payment_id);
     }
 
-    return new Response(JSON.stringify({ ok: true, matches: matchesByForm, diff }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        matches: finalMatches,
+        form_diff: formDiff,
+        ai_amount: aiAmount,
+        ai_diff: aiDiff,
+        ai_error: aiError,
+        notes,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     console.error(msg);
