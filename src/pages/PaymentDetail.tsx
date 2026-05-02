@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -98,8 +98,14 @@ const PaymentDetail = () => {
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
 
+  // Token de "última carga válida". Garante que respostas de uma carga
+  // anterior (antes do usuário trocar de :id ou desmontar) não sobrescrevam
+  // o estado da carga atual — evita race condition entre pagamentos.
+  const loadTokenRef = useRef(0);
+
   const load = useCallback(async () => {
     if (!id) return;
+    const myToken = ++loadTokenRef.current;
     const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }, { data: qs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
@@ -110,6 +116,8 @@ const PaymentDetail = () => {
       supabase.from("invoices").select("*").eq("payment_id", id),
       supabase.from("invoice_questions").select("id, invoice_id, author_type, author_name, message, created_at, read_at").eq("payment_id", id).order("created_at", { ascending: true }),
     ]);
+    // Resposta antiga? descarta antes de tocar em qualquer estado.
+    if (myToken !== loadTokenRef.current) return;
     setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []); setInvoices(inv ?? []);
     setQuestions((qs ?? []) as any);
     // Por padrão, todos os grupos começam expandidos para manter a UX atual
@@ -124,6 +132,7 @@ const PaymentDetail = () => {
       ids.length ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids) : Promise.resolve({ data: [] as any[] }),
       names.length ? supabase.from("rules").select("id,name,rule_text,description").in("name", names) : Promise.resolve({ data: [] as any[] }),
     ]);
+    if (myToken !== loadTokenRef.current) return;
     const idx: Record<string, any> = {};
     (byIdRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
     (byNameRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
@@ -133,7 +142,13 @@ const PaymentDetail = () => {
     setRulesByName(nameIdx);
   }, [id]);
 
-  useEffect(() => { document.title = "Pagamento | MedPay"; load(); }, [load]);
+  useEffect(() => {
+    document.title = "Pagamento | MedPay";
+    load();
+    // Cleanup: invalida cargas em voo quando :id muda ou o componente
+    // desmonta. As respostas pendentes ainda chegam, mas serão descartadas.
+    return () => { loadTokenRef.current++; };
+  }, [load]);
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
