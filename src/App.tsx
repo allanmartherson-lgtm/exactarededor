@@ -22,6 +22,7 @@ import WcagAudit from "./pages/WcagAudit.tsx";
 import Kpis from "./pages/Kpis.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
+import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { AppLayout } from "./components/AppLayout.tsx";
 
@@ -30,6 +31,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
+      <NavLayoutProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -60,6 +62,7 @@ const App = () => (
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
+      </NavLayoutProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
