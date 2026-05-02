@@ -14,6 +14,7 @@ import { MonthMultiSelect } from "@/components/MonthMultiSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle } from "lucide-react";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
@@ -303,13 +304,16 @@ const NewPayment = () => {
       `${b.file.name} → ${b.matchedCompany ? `${b.matchedCompany.name} (match ${Math.round(b.matchScore * 100)}%)` : `empresa nova: ${b.rawCompanyName}`} · ${b.rows.length} itens`
     ).join(" | ");
 
-    await supabase.from("payment_observations").insert({
+    const obsRes = await recordObservation({
       payment_id: payment.id,
       author_type: "sistema",
       author_id: user!.id,
       message: `Lote criado com ${allRows.length} itens, total ${formatCurrency(total)}. Arquivos: ${fileSummary}`,
       status_to: "em_analise_ia",
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
 
     // Histórico de auditoria — registra a(s) empresa(s) vinculada(s) ao pagamento criado.
     try {

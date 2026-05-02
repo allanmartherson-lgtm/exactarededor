@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { recordObservation } from "@/lib/observations";
 import { formatCurrency, formatDate, type InvoiceStatus } from "@/lib/status";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import {
@@ -125,11 +126,14 @@ const Invoices = () => {
       setBusyId(null); return;
     }
     await supabase.from("payments").update({ status: "nf_conciliada", updated_at: new Date().toISOString() }).eq("id", inv.payment_id);
-    await supabase.from("payment_observations").insert({
+    const obsRes = await recordObservation({
       payment_id: inv.payment_id, author_type: "analista", author_id: user.id,
       message: `NF #${inv.invoice_number ?? "—"} conciliada manualmente.`,
       status_to: "nf_conciliada",
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setBusyId(null);
     toast({ title: "NF conciliada" });
     await load();
@@ -146,11 +150,14 @@ const Invoices = () => {
       toast({ title: "Falha ao marcar como pago", description: error.message, variant: "destructive" });
       setBusyId(null); return;
     }
-    await supabase.from("payment_observations").insert({
+    const obsRes2 = await recordObservation({
       payment_id: inv.payment_id, author_type: "analista", author_id: user.id,
       message: `Pagamento liquidado no sistema financeiro (NF #${inv.invoice_number ?? "—"}).`,
       status_to: "pago",
     });
+    if (!obsRes2.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes2.error, variant: "destructive" });
+    }
     setBusyId(null);
     toast({ title: "Pagamento marcado como pago" });
     await load();

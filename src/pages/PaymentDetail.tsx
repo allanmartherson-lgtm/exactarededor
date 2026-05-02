@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -17,8 +17,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { recordObservation } from "@/lib/observations";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
 import {
   ANALYST_DONE_STATUSES,
@@ -34,6 +36,32 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 };
 
 const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
+
+// ===== Tipos de domínio (derivados do schema gerado) =====
+// Importante: payment_items e ai_analysis_versions têm `ai_findings`/`alerts`
+// como jsonb; refinamos esses campos como `unknown` aqui e validamos no uso.
+type Tables = Database["public"]["Tables"];
+type PaymentRow = Tables["payments"]["Row"];
+// ai_findings é jsonb — refinamos as chaves usadas pela UI. Demais permanecem
+// permissivas para não bloquear leituras opcionais.
+type AiFindings = {
+  alerts?: string[];
+  matched_rules?: string[];
+  matched_rule_ids?: string[];
+  calculation_explanation?: string;
+  [k: string]: unknown;
+};
+type PaymentItemRow = Omit<Tables["payment_items"]["Row"], "ai_findings"> & {
+  ai_findings: AiFindings | null;
+};
+type ObservationRow = Tables["payment_observations"]["Row"];
+type AiVersionRow = Omit<Tables["ai_analysis_versions"]["Row"], "alerts" | "matched_rules" | "matched_rule_ids"> & {
+  alerts: string[] | null;
+  matched_rules: string[] | null;
+  matched_rule_ids: string[] | null;
+};
+type GroupRow = Tables["payment_company_groups"]["Row"];
+type InvoiceRow = Tables["invoices"]["Row"];
 
 type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
 const RuleTooltipContent = ({
@@ -68,21 +96,21 @@ const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  const [payment, setPayment] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [obs, setObs] = useState<any[]>([]);
+  const [payment, setPayment] = useState<PaymentRow | null>(null);
+  const [items, setItems] = useState<PaymentItemRow[]>([]);
+  const [obs, setObs] = useState<ObservationRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [rulesIndex, setRulesIndex] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
-  const [aiVersions, setAiVersions] = useState<any[]>([]);
+  const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
-  const [groups, setGroups] = useState<any[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -90,15 +118,21 @@ const PaymentDetail = () => {
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [questions, setQuestions] = useState<InvoiceQuestion[] & { invoice_id: string }[]>([] as any);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
 
+  // Token de "última carga válida". Garante que respostas de uma carga
+  // anterior (antes do usuário trocar de :id ou desmontar) não sobrescrevam
+  // o estado da carga atual — evita race condition entre pagamentos.
+  const loadTokenRef = useRef(0);
+
   const load = useCallback(async () => {
     if (!id) return;
+    const myToken = ++loadTokenRef.current;
     const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }, { data: qs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
@@ -109,7 +143,14 @@ const PaymentDetail = () => {
       supabase.from("invoices").select("*").eq("payment_id", id),
       supabase.from("invoice_questions").select("id, invoice_id, author_type, author_name, message, created_at, read_at").eq("payment_id", id).order("created_at", { ascending: true }),
     ]);
-    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []); setInvoices(inv ?? []);
+    // Resposta antiga? descarta antes de tocar em qualquer estado.
+    if (myToken !== loadTokenRef.current) return;
+    setPayment(p);
+    setItems((it ?? []) as unknown as PaymentItemRow[]);
+    setObs(o ?? []);
+    setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
+    setGroups(gs ?? []);
+    setInvoices(inv ?? []);
     setQuestions((qs ?? []) as any);
     // Por padrão, todos os grupos começam expandidos para manter a UX atual
     setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
@@ -123,6 +164,7 @@ const PaymentDetail = () => {
       ids.length ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids) : Promise.resolve({ data: [] as any[] }),
       names.length ? supabase.from("rules").select("id,name,rule_text,description").in("name", names) : Promise.resolve({ data: [] as any[] }),
     ]);
+    if (myToken !== loadTokenRef.current) return;
     const idx: Record<string, any> = {};
     (byIdRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
     (byNameRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
@@ -132,7 +174,13 @@ const PaymentDetail = () => {
     setRulesByName(nameIdx);
   }, [id]);
 
-  useEffect(() => { document.title = "Pagamento | MedPay"; load(); }, [load]);
+  useEffect(() => {
+    document.title = "Pagamento | MedPay";
+    load();
+    // Cleanup: invalida cargas em voo quando :id muda ou o componente
+    // desmonta. As respostas pendentes ainda chegam, mas serão descartadas.
+    return () => { loadTokenRef.current++; };
+  }, [load]);
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
@@ -145,13 +193,17 @@ const PaymentDetail = () => {
       updates.approved_by = user!.id; updates.approved_at = new Date().toISOString();
     }
     await supabase.from("payments").update(updates).eq("id", id);
-    await supabase.from("payment_observations").insert({
-      payment_id: id, author_type: authorType, author_id: user!.id, message, status_from: payment.status, status_to: newStatus,
+    const obsRes = await recordObservation({
+      payment_id: id, author_type: authorType, author_id: user!.id, message,
+      status_from: payment.status, status_to: newStatus,
     });
+    if (!obsRes.ok) {
+      toast({ title: "Status atualizado, mas falha no histórico", description: obsRes.error, variant: "destructive" });
+    }
     await load();
     setComment("");
     setBusy(false);
-    toast({ title: "Status atualizado", description: message });
+    if (obsRes.ok) toast({ title: "Status atualizado", description: message });
   };
 
   const requireComment = (cb: () => void) => {
@@ -198,11 +250,14 @@ const PaymentDetail = () => {
     }
     const { error } = await supabase.from("payment_company_groups").update(updates).eq("id", groupId);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setBusy(false); return; }
-    await supabase.from("payment_observations").insert({
+    const obsRes = await recordObservation({
       payment_id: id, author_type: authorType, author_id: user!.id,
       message: `[${g.company_name}] ${messagePrefix}${text ? `: ${text}` : ""}`,
       status_from: g.status, status_to: newStatus,
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
     setBusy(false);
@@ -225,8 +280,14 @@ const PaymentDetail = () => {
     }
     const text = (groupComment[groupId] ?? "").trim();
     setBusy(true);
-    await supabase.from("payment_company_groups").update({ status: target.nextStatus }).eq("id", groupId);
-    await supabase.from("payment_observations").insert({
+    const { error: upErr } = await supabase.from("payment_company_groups")
+      .update({ status: target.nextStatus }).eq("id", groupId);
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Falha ao reencaminhar", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    const obsRes = await recordObservation({
       payment_id: id,
       author_type: "analista",
       author_id: user!.id,
@@ -234,6 +295,9 @@ const PaymentDetail = () => {
       status_from: g.status,
       status_to: target.nextStatus,
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
     setBusy(false);
@@ -281,7 +345,7 @@ const PaymentDetail = () => {
         body: { payment_id: id, company_name: g.company_name },
       });
       if (error) throw error;
-      await supabase.from("payment_observations").insert({
+      const obsRes = await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user!.id,
@@ -289,6 +353,9 @@ const PaymentDetail = () => {
         status_from: g.status,
         status_to: g.status,
       });
+      if (!obsRes.ok) {
+        toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+      }
       await load();
       toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
     } catch (e: any) {
@@ -309,12 +376,20 @@ const PaymentDetail = () => {
     }
     setBusy(true);
     for (const g of targets) {
-      await supabase.from("payment_company_groups").update({ status: "aguardando_validacao" }).eq("id", g.id);
-      await supabase.from("payment_observations").insert({
+      const { error: upErr } = await supabase.from("payment_company_groups")
+        .update({ status: "aguardando_validacao" }).eq("id", g.id);
+      if (upErr) {
+        toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
+        continue;
+      }
+      const obsRes = await recordObservation({
         payment_id: id, author_type: "analista", author_id: user!.id,
         message: `[${g.company_name}] Enviado para validação pelo analista.`,
         status_from: g.status, status_to: "aguardando_validacao",
       });
+      if (!obsRes.ok) {
+        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
+      }
     }
     await load();
     setBusy(false);
@@ -429,11 +504,20 @@ const PaymentDetail = () => {
   const cancelPayment = async () => {
     if (!id) return;
     setBusy(true);
-    await supabase.from("payments").update({ status: "cancelado" }).eq("id", id);
-    await supabase.from("payment_observations").insert({
+    const { error: upErr } = await supabase.from("payments")
+      .update({ status: "cancelado" }).eq("id", id);
+    if (upErr) {
+      setBusy(false);
+      toast({ title: "Falha ao cancelar", description: upErr.message, variant: "destructive" });
+      return;
+    }
+    const obsRes = await recordObservation({
       payment_id: id, author_type: isOwner ? "analista" : "diretor", author_id: user!.id,
       message: "Lote cancelado pelo responsável.", status_from: payment.status, status_to: "cancelado",
     });
+    if (!obsRes.ok) {
+      toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
+    }
     setBusy(false);
     toast({ title: "Lote cancelado" });
     load();
@@ -504,11 +588,14 @@ const PaymentDetail = () => {
     const text = (itemCommentDraft[itemId] ?? "").trim();
     if (!text) return;
     setBusy(true);
-    const { error } = await supabase.from("payment_observations").insert({
-      payment_id: id, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
+    const obsRes = await recordObservation({
+      payment_id: id!, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
     });
     setBusy(false);
-    if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
+    if (!obsRes.ok) {
+      toast({ title: "Erro ao salvar", description: obsRes.error, variant: "destructive" });
+      return;
+    }
     setItemCommentDraft((m) => ({ ...m, [itemId]: "" }));
     load();
   };
