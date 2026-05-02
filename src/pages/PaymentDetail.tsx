@@ -358,16 +358,27 @@ const PaymentDetail = () => {
   };
 
   // Resumo objetivo a partir dos itens
+  // Mapa de status do grupo por empresa para mascarar alertas já tratados pelo analista
+  const groupStatusByCompany: Record<string, PaymentStatus> = {};
+  groups.forEach((g) => {
+    groupStatusByCompany[g.company_name.toLowerCase()] = g.status as PaymentStatus;
+  });
+  const itemAnalystDone = (it: any) => {
+    const gs = groupStatusByCompany[(it.company_name ?? "Sem empresa").trim().toLowerCase()];
+    return gs ? ANALYST_DONE_STATUSES.has(gs) : false;
+  };
   const counts = items.reduce(
     (acc, it) => {
-      const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+      const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
+      const s: ItemAiStatus =
+        itemAnalystDone(it) && (raw === "reprovado" || raw === "alerta") ? "aprovado" : raw;
       acc[s] = (acc[s] ?? 0) + 1;
       return acc;
     },
     { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
   );
   const topAlerts: { item: any; alerts: string[] }[] = items
-    .filter((it) => it.ai_findings?.alerts?.length)
+    .filter((it) => it.ai_findings?.alerts?.length && !itemAnalystDone(it))
     .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
 
   // ===== Histórico (timeline + comparador de versões da IA) =====
