@@ -11,8 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -24,7 +27,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, Pencil, Receipt, RefreshCcw, RotateCcw, Save, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquare, MessageSquarePlus, Pencil, Receipt, RefreshCcw, RotateCcw, Save, Search, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -88,10 +91,15 @@ const PaymentDetail = () => {
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<InvoiceQuestion[] & { invoice_id: string }[]>([] as any);
+  const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
+  // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
+  // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
+  const [itemSearch, setItemSearch] = useState("");
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }] = await Promise.all([
+    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }, { data: qs }] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
       supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
@@ -99,8 +107,10 @@ const PaymentDetail = () => {
       supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
       supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
       supabase.from("invoices").select("*").eq("payment_id", id),
+      supabase.from("invoice_questions").select("id, invoice_id, author_type, author_name, message, created_at, read_at").eq("payment_id", id).order("created_at", { ascending: true }),
     ]);
     setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []); setInvoices(inv ?? []);
+    setQuestions((qs ?? []) as any);
     // Por padrão, todos os grupos começam expandidos para manter a UX atual
     setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
     const map: Record<string, string> = {};
