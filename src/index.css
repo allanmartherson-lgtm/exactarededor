@@ -63,13 +63,16 @@ All colors MUST be HSL.
     --shadow-card: 0 4px 12px -2px hsl(215 30% 15% / 0.06), 0 2px 4px -2px hsl(215 30% 15% / 0.04);
     --shadow-elevated: 0 12px 30px -8px hsl(195 75% 24% / 0.18);
 
-    /* Sidebar */
-    --sidebar-background: 210 25% 97%;
+    /* Sidebar — light */
+    --sidebar-background: 210 30% 98%;
     --sidebar-foreground: 215 25% 27%;
+    --sidebar-muted-foreground: 215 15% 45%;
     --sidebar-primary: 188 70% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 188 55% 92%;
-    --sidebar-accent-foreground: 188 80% 22%;
+    --sidebar-hover: 210 30% 93%;
+    --sidebar-hover-foreground: 215 30% 18%;
+    --sidebar-accent: 188 60% 90%;
+    --sidebar-accent-foreground: 188 85% 20%;
     --sidebar-border: 215 20% 90%;
     --sidebar-ring: 188 70% 45%;
   }
@@ -101,14 +104,18 @@ All colors MUST be HSL.
     --border: 215 30% 20%;
     --input: 215 30% 20%;
     --ring: 188 70% 50%;
-    --sidebar-background: 215 45% 6%;
-    --sidebar-foreground: 210 30% 88%;
-    --sidebar-primary: 188 70% 50%;
-    --sidebar-primary-foreground: 215 40% 8%;
-    --sidebar-accent: 215 35% 12%;
-    --sidebar-accent-foreground: 0 0% 100%;
+    /* Sidebar — dark */
+    --sidebar-background: 215 42% 9%;
+    --sidebar-foreground: 210 25% 82%;
+    --sidebar-muted-foreground: 215 15% 60%;
+    --sidebar-primary: 188 70% 55%;
+    --sidebar-primary-foreground: 215 45% 8%;
+    --sidebar-hover: 215 35% 14%;
+    --sidebar-hover-foreground: 0 0% 100%;
+    --sidebar-accent: 188 55% 22%;
+    --sidebar-accent-foreground: 188 90% 88%;
     --sidebar-border: 215 30% 18%;
-    --sidebar-ring: 188 70% 50%;
+    --sidebar-ring: 188 70% 55%;
   }
 }
 
