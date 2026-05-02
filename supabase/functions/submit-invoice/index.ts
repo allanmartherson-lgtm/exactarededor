@@ -33,13 +33,141 @@ serve(async (req) => {
         .select("id, author_type, author_name, message, created_at")
         .eq("invoice_id", invoice.id)
         .order("created_at", { ascending: true });
-      return new Response(JSON.stringify({ invoice, payment, questions: questions ?? [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const questionIds = (questions ?? []).map((q: any) => q.id);
+      let attachments: any[] = [];
+      if (questionIds.length > 0) {
+        const { data: atts } = await supabase
+          .from("invoice_question_attachments")
+          .select("id, question_id, file_name, storage_path, mime_type, size_bytes")
+          .in("question_id", questionIds);
+        // Anexa URLs assinadas pra o recebedor conseguir baixar (bucket é privado).
+        attachments = await Promise.all(
+          (atts ?? []).map(async (a: any) => {
+            const { data: signed } = await supabase.storage
+              .from("invoice-question-attachments")
+              .createSignedUrl(a.storage_path, 60 * 60);
+            return { ...a, signed_url: signed?.signedUrl ?? null };
+          }),
+        );
+      }
+      return new Response(
+        JSON.stringify({ invoice, payment, questions: questions ?? [], attachments }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // POST: dois modos:
     //   - 'invoice' (default, multipart/form-data) — recebedor envia a NF
+    //   - 'question' multipart com action=question — dúvida + anexos opcionais
     //   - 'question' (application/json) — recebedor envia uma dúvida
     const contentType = req.headers.get("content-type") ?? "";
+
+    // Helpers de anexo (mantidos inline pra não precisar bundler na edge).
+    const ALLOWED_MIMES = new Set([
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
+      "application/csv",
+    ]);
+    const ALLOWED_EXT = new Set(["pdf","jpg","jpeg","png","gif","webp","xls","xlsx","csv"]);
+    const MAX_SIZE = 20 * 1024 * 1024;
+    const MAX_FILES = 5;
+    const validateAttachment = (f: File): string | null => {
+      if (!f.size) return `${f.name}: arquivo vazio`;
+      if (f.size > MAX_SIZE) return `${f.name}: maior que 20MB`;
+      const mime = (f.type || "").toLowerCase();
+      if (mime && ALLOWED_MIMES.has(mime)) return null;
+      const ext = f.name.toLowerCase().split(".").pop() ?? "";
+      if (ALLOWED_EXT.has(ext)) return null;
+      return `${f.name}: tipo de arquivo não permitido`;
+    };
+
+    const persistAttachments = async (
+      files: File[],
+      questionId: string,
+      invoiceId: string,
+      paymentId: string,
+      authorType: "recebedor" | "analista",
+      authorId: string | null,
+    ) => {
+      for (const f of files) {
+        const ext = f.name.split(".").pop() ?? "bin";
+        const safeName = f.name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
+        const path = `${invoiceId}/${questionId}/${crypto.randomUUID()}.${ext}`;
+        const buf = new Uint8Array(await f.arrayBuffer());
+        const { error: upErr } = await supabase.storage
+          .from("invoice-question-attachments")
+          .upload(path, buf, { contentType: f.type || "application/octet-stream", upsert: false });
+        if (upErr) throw upErr;
+        const { error: insErr } = await supabase.from("invoice_question_attachments").insert({
+          question_id: questionId,
+          invoice_id: invoiceId,
+          payment_id: paymentId,
+          author_type: authorType,
+          author_id: authorId,
+          file_name: safeName,
+          storage_path: path,
+          mime_type: f.type || "application/octet-stream",
+          size_bytes: f.size,
+        });
+        if (insErr) throw insErr;
+      }
+    };
+
+    // -------- modo: questionamento via multipart (com anexos) --------
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+      const action = String(form.get("action") ?? "").trim();
+      if (action === "question") {
+        const token = String(form.get("token") ?? "");
+        const message = String(form.get("message") ?? "").trim();
+        const authorName = String(form.get("author_name") ?? "").trim().slice(0, 120) || null;
+        if (!token || !message) {
+          return new Response(JSON.stringify({ error: "token e mensagem são obrigatórios" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (message.length > 2000) {
+          return new Response(JSON.stringify({ error: "Mensagem muito longa (máx. 2000 caracteres)" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const files = form.getAll("attachments").filter((v): v is File => v instanceof File && v.size > 0);
+        if (files.length > MAX_FILES) {
+          return new Response(JSON.stringify({ error: `Máximo de ${MAX_FILES} anexos por mensagem` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        for (const f of files) {
+          const err = validateAttachment(f);
+          if (err) return new Response(JSON.stringify({ error: err }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const { data: invoice } = await supabase.from("invoices").select("id, payment_id, status").eq("upload_token", token).maybeSingle();
+        if (!invoice) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (invoice.status !== "aguardando") {
+          return new Response(JSON.stringify({ error: "Esta NF já foi finalizada — não é possível enviar novas dúvidas." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const { data: q, error: insErr } = await supabase.from("invoice_questions").insert({
+          invoice_id: invoice.id,
+          payment_id: invoice.payment_id,
+          author_type: "recebedor",
+          author_name: authorName,
+          message,
+        }).select("id").single();
+        if (insErr) throw insErr;
+        if (files.length > 0) {
+          await persistAttachments(files, q.id, invoice.id, invoice.payment_id, "recebedor", null);
+        }
+        await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
+        await supabase.from("payment_observations").insert({
+          payment_id: invoice.payment_id,
+          author_type: "sistema",
+          message: `Recebedor da NF enviou um questionamento${authorName ? ` (${authorName})` : ""}${files.length ? ` com ${files.length} anexo(s)` : ""}: "${message.slice(0, 200)}${message.length > 200 ? "..." : ""}"`,
+          status_to: "nf_questionada",
+        });
+        return new Response(JSON.stringify({ ok: true, attachments: files.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // Se action != "question" cai para o fluxo de upload de NF abaixo (mantém compatibilidade).
+    }
 
     // -------- modo: questionamento --------
     if (contentType.includes("application/json")) {
