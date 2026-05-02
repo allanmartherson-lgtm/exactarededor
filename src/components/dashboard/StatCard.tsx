@@ -1,9 +1,5 @@
-import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile, StatTileSkeleton, type StatTileProps } from "@/components/ui/stat-tile";
 import { TONE_CLASSES } from "@/lib/status";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useTruncated } from "@/hooks/use-truncated";
 
 export type StatCardTone = "info" | "warning" | "success";
 
@@ -19,163 +15,46 @@ export interface StatCardProps {
   value: number;
   tone: StatCardTone;
   hint?: string;
+  /** Quando verdadeiro, mostra o selo "Sua vez" no rodapé. */
   mine?: boolean;
   to?: string;
 }
 
 /**
- * Texto que mostra um Tooltip apenas quando seu conteúdo está
- * realmente truncado (line-clamp / overflow). Mantém a altura do
- * card estável e expõe o texto completo para teclado e leitores
- * de tela.
+ * StatCard — variante de domínio do StatTile usada no Dashboard.
+ * Aplica o ícone com tom (info/warning/success) e converte `mine`
+ * no selo "Sua vez". Toda padronização de altura/tipografia/foco
+ * vem do StatTile, garantindo alinhamento idêntico em qualquer tela.
  */
-const TruncatedText = ({
-  as: Tag = "p",
-  text,
-  truncation,
-  className,
-  ...rest
-}: {
-  as?: "p" | "span";
-  text: string;
-  truncation: ReturnType<typeof useTruncated<HTMLParagraphElement>>;
-  className?: string;
-} & React.HTMLAttributes<HTMLElement>) => {
-  if (!truncation.isTruncated) {
-    return (
-      <Tag ref={truncation.ref as never} className={className} {...rest}>
-        {text}
-      </Tag>
-    );
-  }
-
-  return (
-    <Tooltip delayDuration={200}>
-      <TooltipTrigger asChild>
-        <Tag
-          ref={truncation.ref as never}
-          tabIndex={0}
-          aria-label={text}
-          className={`${className ?? ""} cursor-help outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm`}
-          {...rest}
-        >
-          {text}
-        </Tag>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs text-xs">
-        {text}
-      </TooltipContent>
-    </Tooltip>
-  );
-};
-
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
-  const interactive = !!to;
-  const labelTruncation = useTruncated<HTMLParagraphElement>();
-  const hintTruncation = useTruncated<HTMLParagraphElement>();
-
-  // Rótulo único para tecnologias assistivas: une label + valor + status.
-  const ariaLabel = [
-    label,
-    `valor ${value}`,
-    mine ? "sua vez" : hint || undefined,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const inner = (
-    <Card
-      data-testid="stat-card"
-      className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${interactive ? "group-hover:shadow-card group-focus-visible:shadow-card" : ""}`}
+  const iconNode = (
+    <div
+      className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center ${toneBg[tone]}`}
     >
-      <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-2 sm:gap-3">
-          <TruncatedText
-            as="p"
-            text={label}
-            truncation={labelTruncation}
-            data-testid="stat-card-label"
-            className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-tight line-clamp-2 min-h-[2lh]"
-          />
-          <div
-            aria-hidden="true"
-            className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}
-          >
-            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-        </div>
-
-        <p
-          data-testid="stat-card-value"
-          className="text-2xl sm:text-3xl font-semibold tabular-nums leading-none"
-        >
-          {value}
-        </p>
-
-        <div data-testid="stat-card-footer" className="mt-auto flex items-center min-h-[20px]">
-          {mine ? (
-            <span
-              data-testid="stat-card-badge"
-              className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 leading-none ${TONE_CLASSES.info}`}
-            >
-              Sua vez
-            </span>
-          ) : hint ? (
-            <TruncatedText
-              as="p"
-              text={hint}
-              truncation={hintTruncation}
-              data-testid="stat-card-hint"
-              className="text-[11px] text-muted-foreground leading-tight line-clamp-1 min-w-0"
-            />
-          ) : (
-            <span data-testid="stat-card-placeholder" className="text-[11px] text-transparent select-none" aria-hidden>
-              &nbsp;
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-  if (interactive) {
-    return (
-      <Link
-        to={to!}
-        aria-label={ariaLabel}
-        className="group block h-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-shadow"
-      >
-        {inner}
-      </Link>
-    );
-  }
-
-  return (
-    <div role="group" aria-label={ariaLabel} className="h-full">
-      {inner}
+      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
     </div>
   );
+
+  const badge: StatTileProps["badge"] = mine ? (
+    <span
+      className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 leading-none ${TONE_CLASSES.info}`}
+    >
+      Sua vez
+    </span>
+  ) : undefined;
+
+  return (
+    <StatTile
+      label={label}
+      value={value}
+      icon={iconNode}
+      hint={hint}
+      badge={badge}
+      highlighted={mine}
+      to={to}
+      ariaLabel={[label, `valor ${value}`, mine ? "sua vez" : hint].filter(Boolean).join(", ")}
+    />
+  );
 };
 
-export const StatCardSkeleton = () => (
-  <Card
-    data-testid="stat-card-skeleton"
-    className="shadow-soft h-full"
-    role="status"
-    aria-label="Carregando indicador"
-    aria-busy="true"
-  >
-    <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2 sm:gap-3">
-        <div className="flex flex-col gap-1.5 min-w-0 flex-1 min-h-[2lh] justify-start">
-          <Skeleton className="h-2.5 w-3/4" />
-          <Skeleton className="h-2.5 w-1/2" />
-        </div>
-        <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex-shrink-0" />
-      </div>
-      <Skeleton className="h-7 sm:h-8 w-12" />
-      <div className="mt-auto flex items-center min-h-[20px]">
-        <Skeleton className="h-3 w-20" />
-      </div>
-    </CardContent>
-  </Card>
-);
+export const StatCardSkeleton = StatTileSkeleton;
