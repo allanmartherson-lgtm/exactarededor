@@ -228,6 +228,64 @@ const PaymentDetail = () => {
     toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${target.role}.` });
   };
 
+  // Analista edita uma observação que ele mesmo escreveu (qualquer rodada).
+  const startEditObs = (o: any) => {
+    setEditingObsId(o.id);
+    setEditingObsDraft(o.message ?? "");
+  };
+  const cancelEditObs = () => {
+    setEditingObsId(null);
+    setEditingObsDraft("");
+  };
+  const saveEditObs = async () => {
+    if (!editingObsId) return;
+    const text = editingObsDraft.trim();
+    if (!text) {
+      toast({ title: "A observação não pode ficar vazia", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("payment_observations")
+      .update({ message: text, edited_at: new Date().toISOString() })
+      .eq("id", editingObsId);
+    setBusy(false);
+    if (error) {
+      toast({ title: "Falha ao salvar edição", description: error.message, variant: "destructive" });
+      return;
+    }
+    cancelEditObs();
+    await load();
+    toast({ title: "Observação atualizada" });
+  };
+
+  // Analista reaplica as regras (reanálise da IA) APENAS para os itens da empresa devolvida,
+  // antes de reencaminhar. Isso recalcula expected_amount, alerts e matched_rules.
+  const reanalyzeGroup = async (g: any) => {
+    if (!id) return;
+    setReanalyzingGroupId(g.id);
+    try {
+      const { error } = await supabase.functions.invoke("analyze-payment", {
+        body: { payment_id: id, company_name: g.company_name },
+      });
+      if (error) throw error;
+      await supabase.from("payment_observations").insert({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user!.id,
+        message: `[${g.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
+        status_from: g.status,
+        status_to: g.status,
+      });
+      await load();
+      toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
+    } catch (e: any) {
+      toast({ title: "Falha ao reaplicar regras", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReanalyzingGroupId(null);
+    }
+  };
+
   // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
   const sendForValidation = async (onlyGroupId?: string) => {
     if (!id) return;
