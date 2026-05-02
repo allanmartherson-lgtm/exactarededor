@@ -32,6 +32,23 @@ import {
   FileWarning,
 } from "lucide-react";
 
+/** Modos de layout do pipeline (responsivos a telas estreitas). */
+type PipelineLayout = "auto" | "rows2" | "rows3";
+const PIPELINE_LAYOUT_KEY = "dashboard.pipelineLayout";
+const PIPELINE_GRID_CLASS: Record<PipelineLayout, string> = {
+  // Auto: comportamento original responsivo.
+  auto: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7",
+  // 2 linhas: 4 colunas → 4 + 3 itens.
+  rows2: "grid-cols-4",
+  // 3 linhas: 3 colunas → 3 + 3 + 1 itens.
+  rows3: "grid-cols-3",
+};
+const PIPELINE_LAYOUT_LABEL: Record<PipelineLayout, string> = {
+  auto: "Auto",
+  rows2: "2 linhas",
+  rows3: "3 linhas",
+};
+
 interface PaymentRow {
   id: string;
   reference: string;
@@ -116,6 +133,16 @@ const Dashboard = () => {
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
   const [loading, setLoading] = useState(true);
+  const [pipelineLayout, setPipelineLayout] = useState<PipelineLayout>(() => {
+    if (typeof window === "undefined") return "auto";
+    const saved = window.localStorage.getItem(PIPELINE_LAYOUT_KEY);
+    return saved === "rows2" || saved === "rows3" || saved === "auto" ? saved : "auto";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PIPELINE_LAYOUT_KEY, pipelineLayout);
+    }
+  }, [pipelineLayout]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
@@ -369,15 +396,47 @@ const Dashboard = () => {
             <h2 id="pipeline-heading" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Pipeline da equipe
             </h2>
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              da análise ao pagamento
-            </span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                da análise ao pagamento
+              </span>
+              <div
+                role="radiogroup"
+                aria-label="Layout do pipeline"
+                className="inline-flex rounded-md border border-border bg-card p-0.5"
+              >
+                {(["auto", "rows2", "rows3"] as PipelineLayout[]).map((opt) => {
+                  const active = pipelineLayout === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPipelineLayout(opt)}
+                      className={cn(
+                        "px-2.5 py-1 text-[11px] font-medium rounded-[5px] transition-colors",
+                        "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                        active
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      {PIPELINE_LAYOUT_LABEL[opt]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <div
             data-testid="pipeline-grid"
             role="list"
             aria-label="Etapas do pipeline de pagamento"
-            className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 items-stretch auto-rows-fr"
+            className={cn(
+              "grid gap-2 sm:gap-3 items-stretch auto-rows-fr",
+              PIPELINE_GRID_CLASS[pipelineLayout],
+            )}
           >
             {loading ? (
               Array.from({ length: 7 }).map((_, i) => (
