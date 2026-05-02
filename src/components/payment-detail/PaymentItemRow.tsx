@@ -274,6 +274,21 @@ export const PaymentItemRow = ({
               {firstRuleLabel}
             </span>
           )}
+          {expectedAmount != null && (
+            <span
+              className={`block text-[10px] tabular-nums ml-auto ${
+                diffPct != null && Math.abs(diffPct) > 0.01
+                  ? "text-warning-foreground"
+                  : "text-muted-foreground"
+              }`}
+              title="Valor esperado pelo motor"
+            >
+              esp: {formatCurrency(expectedAmount)}
+              {diffPct != null && Math.abs(diffPct) > 0.001 && (
+                <> ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</>
+              )}
+            </span>
+          )}
         </td>
         <td className="px-1.5 py-1.5 hidden sm:table-cell print:table-cell">
           {(() => {
