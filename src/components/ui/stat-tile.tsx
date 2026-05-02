@@ -132,8 +132,16 @@ export const StatTile = ({
       .filter(Boolean)
       .join(", ");
 
+  const isBottomLabel = labelPosition === "bottom";
+
   const labelClassName = cn(
-    "flex-1 min-w-0 font-medium text-muted-foreground uppercase tracking-wider break-words hyphens-auto leading-tight",
+    "min-w-0 w-full font-medium text-muted-foreground uppercase tracking-wider break-words hyphens-auto leading-tight",
+    // Sem `flex-1` quando vai pro topo lado-a-lado do ícone; lá o flex
+    // ainda precisa esticar, então adicionamos abaixo de forma condicional.
+    !isBottomLabel && "flex-1",
+    // Centraliza o texto quando ele desce pro rodapé — fica visualmente
+    // alinhado com o número e harmoniza cards de 1 e 2 linhas de label.
+    isBottomLabel && "text-center",
     labelLines === 3 ? "line-clamp-3 min-h-[3lh]" : "line-clamp-2 min-h-[2lh]",
     isCompact ? "text-[10px]" : "text-[10px] sm:text-xs",
   );
@@ -148,8 +156,6 @@ export const StatTile = ({
       className={labelClassName}
     />
   );
-
-  const isBottomLabel = labelPosition === "bottom";
 
   const inner = (
     <Card
@@ -191,7 +197,18 @@ export const StatTile = ({
           {value}
         </p>
 
-        <div data-testid="stat-card-footer" className="mt-auto flex items-center min-h-[20px]">
+        <div
+          data-testid="stat-card-footer"
+          className={cn(
+            "mt-auto flex w-full",
+            // Quando o label vai pro rodapé, alinhamos pelo TOPO do slot
+            // (start) e damos largura total para que a quebra de linha
+            // aconteça sempre na mesma posição vertical em todos os cards.
+            isBottomLabel
+              ? "items-start justify-center"
+              : "items-center min-h-[20px]",
+          )}
+        >
           {isBottomLabel ? (
             labelNode
           ) : badge ? (
