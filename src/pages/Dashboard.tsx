@@ -28,6 +28,7 @@ const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
   switch (status) {
     case "rascunho":
     case "em_analise_ia":
+    case "revisao_analista":
     case "devolvido_analista":
       return "analista";
     case "aguardando_validacao":
