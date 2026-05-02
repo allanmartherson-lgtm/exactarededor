@@ -94,6 +94,24 @@ const InvoicePortal = () => {
     refresh();
   };
 
+  // Reabre o formulário após uma divergência: chama o backend pra apagar o
+  // arquivo anterior e voltar a NF para "aguardando", depois limpa o estado local.
+  const resetUpload = async () => {
+    if (!confirm("Tem certeza que quer descartar o envio anterior e enviar uma nova nota?")) return;
+    setSubmitting(true);
+    const r = await fetch(FN_URL, {
+      method: "POST",
+      headers: { Authorization: AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify({ token, action: "reset" }),
+    });
+    const data = await r.json();
+    setSubmitting(false);
+    if (!r.ok) return toast({ title: "Erro", description: data.error, variant: "destructive" });
+    setDone(null);
+    refresh();
+    toast({ title: "Pronto", description: "Você já pode enviar a nota corrigida." });
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Carregando...</div>;
   if (info?.error || !info?.invoice) return <div className="min-h-screen flex items-center justify-center"><Card className="max-w-md"><CardContent className="p-8 text-center"><p className="font-medium">Link inválido ou expirado.</p></CardContent></Card></div>;
 
@@ -174,14 +192,41 @@ const InvoicePortal = () => {
                   <p>✓ Nota recebida e conciliada com sucesso! Valor confere com o pedido.</p>
                 ) : (
                   <>
-                    <p className="font-medium">⚠ Divergência detectada — a nota não foi conciliada.</p>
+                    <p className="font-medium">⚠ Divergência detectada — a nota foi rejeitada.</p>
                     {done.notes && <p className="text-xs whitespace-pre-wrap">{done.notes}</p>}
-                    <p className="text-xs">Nossa equipe entrará em contato para regularizar antes do pagamento.</p>
+                    <p className="text-xs">
+                      Nosso time fiscal <strong>não aceita nenhuma diferença</strong> entre o pedido e a NF emitida.
+                      Por favor, cancele a nota junto à sua contabilidade, emita uma nova com os dados corretos
+                      e reenvie pelo botão abaixo.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={resetUpload}
+                      disabled={submitting}
+                    >
+                      {submitting ? "Aguarde..." : "Corrigir e enviar novamente"}
+                    </Button>
                   </>
                 )}
               </div>
             ) : expired ? (
-              <p className="text-sm text-muted-foreground">Esta nota já foi enviada anteriormente.</p>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {inv.status === "divergente"
+                    ? "Esta nota foi rejeitada por divergência com o pedido. Cancele a NF e emita uma nova com os dados corretos."
+                    : inv.status === "conciliada"
+                    ? "Esta nota já foi recebida e conciliada — nada mais a fazer por aqui."
+                    : "Esta nota já foi enviada anteriormente."}
+                </p>
+                {inv.status === "divergente" && (
+                  <Button type="button" variant="outline" className="w-full" onClick={resetUpload} disabled={submitting}>
+                    {submitting ? "Aguarde..." : "Corrigir e enviar novamente"}
+                  </Button>
+                )}
+              </div>
             ) : (
               <Tabs defaultValue="upload">
                 <TabsList className="w-full grid grid-cols-2">
