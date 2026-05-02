@@ -900,8 +900,8 @@ const PaymentDetail = () => {
                                     <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-3"><span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
-                                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-2 py-2"><span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
+                                <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
                                     onClick={() => toggleItemExpanded(it.id)}
@@ -921,6 +921,18 @@ const PaymentDetail = () => {
                                 <tr key={`${it.id}-x`} className="bg-muted/20">
                                   <td colSpan={11} className="px-6 py-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {(it.ai_findings?.alerts?.length > 0 || it.ai_findings?.calculation_explanation) && (
+                                        <div className="md:col-span-2 space-y-1.5">
+                                          {it.ai_findings?.alerts?.length > 0 && (
+                                            <ul className="text-xs text-warning-foreground space-y-0.5">
+                                              {it.ai_findings.alerts.map((a: string, i: number) => <li key={i}>⚠ {a}</li>)}
+                                            </ul>
+                                          )}
+                                          {it.ai_findings?.calculation_explanation && (
+                                            <div className="text-xs text-muted-foreground italic">{it.ai_findings.calculation_explanation}</div>
+                                          )}
+                                        </div>
+                                      )}
                                       <div>
                                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Histórico deste item</p>
                                         {itemObs.length === 0 ? (
