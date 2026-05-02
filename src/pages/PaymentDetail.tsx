@@ -91,6 +91,8 @@ const PaymentDetail = () => {
       supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
     ]);
     setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []);
+    // Por padrão, todos os grupos começam expandidos para manter a UX atual
+    setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
     setProfiles(map);
