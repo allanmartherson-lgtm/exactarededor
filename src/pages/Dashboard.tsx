@@ -475,9 +475,11 @@ const Dashboard = () => {
     owner: pipelineOwner,
     window: pipelineWindow,
     density: pipelineDensity,
+    mode: pipelineMode,
     setOwner: setPipelineOwner,
     setWindow: setPipelineWindow,
     setDensity: setPipelineDensity,
+    setMode: setPipelineMode,
   } = usePipelinePreferences();
 
   useEffect(() => {
