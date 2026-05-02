@@ -17,6 +17,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
+import {
+  ANALYST_DONE_STATUSES,
+  canTransition,
+  effectiveItemAiStatus,
+  resolveResendTarget,
+  type ActorRole,
+} from "@/lib/paymentFlow";
 import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, RotateCcw, Send, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
@@ -24,20 +31,6 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 };
 
 const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
-
-// Status do grupo a partir do qual o analista já terminou a triagem.
-// A partir daqui, um "reprovado" da IA não deve mais alarmar o validador/diretor:
-// se o item seguiu adiante é porque o analista aceitou.
-const ANALYST_DONE_STATUSES = new Set<PaymentStatus>([
-  "aguardando_validacao",
-  "aguardando_aprovacao",
-  "aprovado",
-  "pedido_nf_enviado",
-  "nf_recebida",
-  "nf_conciliada",
-  "nf_divergente",
-  "pago",
-]);
 
 type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
 const RuleTooltipContent = ({
@@ -155,13 +148,22 @@ const PaymentDetail = () => {
   const transitionGroup = async (
     groupId: string,
     newStatus: PaymentStatus,
-    authorType: "validador" | "diretor" | "analista",
+    authorType: ActorRole,
     messagePrefix: string,
     requireMsg = true,
   ) => {
     if (!id) return;
     const g = groups.find((x) => x.id === groupId);
     if (!g) return;
+    // Guarda autoritativa: bloqueia transições inválidas no cliente.
+    if (!canTransition(authorType, g.status as PaymentStatus, newStatus)) {
+      toast({
+        title: "Transição não permitida",
+        description: `${authorType} não pode mover ${g.status} → ${newStatus}.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const text = (groupComment[groupId] ?? "").trim();
     if (requireMsg && !text) {
       toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
@@ -192,50 +194,35 @@ const PaymentDetail = () => {
     toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
   };
 
-  // Quem foi o último a devolver este grupo ao analista? Usado para o reencaminhamento direto.
-  // Retorna "diretor" | "validador" | null.
-  const lastReturnerFor = (groupId: string, companyName: string): "diretor" | "validador" | null => {
-    // observações de devolução para este grupo (filtramos por company_name no message prefix)
-    const prefix = `[${companyName}]`;
-    const returns = obs
-      .filter(
-        (o) =>
-          o.status_to === "devolvido_analista" &&
-          typeof o.message === "string" &&
-          o.message.startsWith(prefix),
-      )
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    const last = returns[0];
-    if (!last) return null;
-    if (last.author_type === "diretor") return "diretor";
-    if (last.author_type === "validador") return "validador";
-    return null;
-  };
-
   // Reencaminhar grupo do analista direto para quem devolveu (diretor → aprovação; validador → validação).
   const resendGroup = async (groupId: string) => {
     if (!id) return;
     const g = groups.find((x) => x.id === groupId);
     if (!g) return;
-    const target = lastReturnerFor(groupId, g.company_name);
-    const newStatus: PaymentStatus =
-      target === "diretor" ? "aguardando_aprovacao" : "aguardando_validacao";
-    const label = target === "diretor" ? "diretor" : "validador";
+    const target = resolveResendTarget(obs, g.company_name);
+    if (!target) {
+      // sem histórico de devolução → fallback: enviar para validação
+      return sendForValidation(groupId);
+    }
+    if (!canTransition("analista", g.status as PaymentStatus, target.nextStatus)) {
+      toast({ title: "Transição não permitida", variant: "destructive" });
+      return;
+    }
     const text = (groupComment[groupId] ?? "").trim();
     setBusy(true);
-    await supabase.from("payment_company_groups").update({ status: newStatus }).eq("id", groupId);
+    await supabase.from("payment_company_groups").update({ status: target.nextStatus }).eq("id", groupId);
     await supabase.from("payment_observations").insert({
       payment_id: id,
       author_type: "analista",
       author_id: user!.id,
-      message: `[${g.company_name}] Reencaminhado ao ${label} pelo analista${text ? `: ${text}` : ""}.`,
+      message: `[${g.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`,
       status_from: g.status,
-      status_to: newStatus,
+      status_to: target.nextStatus,
     });
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
     setBusy(false);
-    toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${label}.` });
+    toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${target.role}.` });
   };
 
   // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
@@ -778,17 +765,17 @@ const PaymentDetail = () => {
                 .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
               const gCounts = groupItems.reduce(
                 (acc, it) => {
-                  // mascara reprovado/alerta da IA quando o analista já passou adiante
-                  const rawS = (it.ai_status as ItemAiStatus) ?? "pendente";
-                  const s: ItemAiStatus =
-                    analystDone && (rawS === "reprovado" || rawS === "alerta") ? "aprovado" : rawS;
-                  acc[s] = (acc[s] ?? 0) + 1;
+                  const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
+                  // "seguido" conta como aprovado para fins de resumo no header da empresa.
+                  const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : eff;
+                  acc[bucket] = (acc[bucket] ?? 0) + 1;
                   return acc;
                 },
                 { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
               );
               const isGroupAiOpen = groupAiOpen.has(g.id);
-              const returnerForResend = gStatus === "devolvido_analista" ? lastReturnerFor(g.id, g.company_name) : null;
+              const returnerForResend =
+                gStatus === "devolvido_analista" ? resolveResendTarget(obs, g.company_name)?.role ?? null : null;
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
                   <button
