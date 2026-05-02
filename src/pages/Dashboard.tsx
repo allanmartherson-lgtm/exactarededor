@@ -26,7 +26,6 @@ import {
   Send,
   FileWarning,
   BarChart3,
-  Plus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -635,27 +634,6 @@ const Dashboard = () => {
               : "Nenhuma tarefa pendente para você. Acompanhe o fluxo da equipe abaixo."}
           </p>
         </div>
-        {isAnalista && (
-          <Link
-            to="/pagamentos/novo"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: "hsl(var(--primary))",
-              color: "hsl(var(--primary-foreground))",
-              fontSize: 13,
-              fontWeight: 500,
-              padding: "8px 14px",
-              borderRadius: 7,
-              textDecoration: "none",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <Plus size={15} />
-            Nova base
-          </Link>
-        )}
       </div>
 
       {/* SUAS TAREFAS */}

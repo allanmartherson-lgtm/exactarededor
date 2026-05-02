@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { FileUp, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 
 interface Row {
@@ -128,13 +128,6 @@ const Payments = () => {
       <PageHeader
         title="Pagamentos"
         description="Todos os lotes de pagamento e seu status no fluxo."
-        actions={
-          isAnalista && (
-            <Button asChild>
-              <Link to="/pagamentos/novo"><FileUp className="h-4 w-4 mr-2" /> Nova base</Link>
-            </Button>
-          )
-        }
       />
       <div className="p-8 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
