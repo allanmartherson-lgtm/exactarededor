@@ -263,6 +263,12 @@ Se calculou um expected_amount, compare com valor_bruto:
 - diferença até 10% → 'alerta'
 - > 10% ou códigos não encontrados → 'reprovado'
 
+REGRAS DE OURO PARA ALERTS E REGRAS APLICADAS (MUITO IMPORTANTE):
+- NÃO mencione regras que NÃO se aplicam ao item. Se a regra de bônus/complemento/pacote não se qualificar (ex.: data não é feriado/fds, código não está em procedure_codes, médico/empresa não bate), simplesmente IGNORE — não gere alert dizendo "regra X não se aplica" e não inclua ela em matched_rules.
+- "alerts" deve conter APENAS problemas reais que exigem atenção do validador (divergência de valor, código não encontrado, função/atendimento inconsistente, dados faltando). NUNCA use alerts para narrar regras descartadas.
+- "matched_rules" e "matched_rule_ids" devem conter APENAS as regras efetivamente usadas no cálculo do expected_amount ou que o item violou. Se nenhuma regra específica se aplica e foi usada apenas a regra geral (master), liste somente ela.
+- "calculation_explanation" deve descrever o cálculo realizado, não justificar regras ignoradas.
+
 Para cada item, retorne:
 - status: "aprovado" | "alerta" | "reprovado"
 - alerts: array de strings (curtas, em português) descrevendo problemas encontrados; vazio se ok
