@@ -77,6 +77,8 @@ const PaymentDetail = () => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [aiOpinionOpen, setAiOpinionOpen] = useState(false);
   const [aiAlertExpanded, setAiAlertExpanded] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!id) return;
