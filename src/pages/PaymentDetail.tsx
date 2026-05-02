@@ -868,6 +868,85 @@ const PaymentDetail = () => {
           </Card>
         )}
 
+        {/* Banner de questionamento — destaque crítico no topo. Mostra a última
+            pergunta do recebedor que ainda não recebeu resposta do analista. */}
+        {(() => {
+          // Agrupa por invoice_id e pega o último de cada thread.
+          const byInvoice = new Map<string, InvoiceQuestion[]>();
+          (questions as any[]).forEach((q) => {
+            const list = byInvoice.get(q.invoice_id) ?? [];
+            list.push(q);
+            byInvoice.set(q.invoice_id, list);
+          });
+          const pending: { invoice_id: string; q: InvoiceQuestion }[] = [];
+          byInvoice.forEach((list, invoice_id) => {
+            const last = list[list.length - 1];
+            if (last && last.author_type === "recebedor") pending.push({ invoice_id, q: last });
+          });
+          if (pending.length === 0) return null;
+          return (
+            <Card className="shadow-card border-warning/60 bg-warning-soft/60">
+              <CardContent className="p-4 flex items-start gap-3">
+                <MessageCircleQuestion className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold text-warning-foreground">
+                      {pending.length === 1
+                        ? "Recebedor enviou um questionamento sobre a NF"
+                        : `${pending.length} questionamentos abertos sobre a NF`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Aguardando resposta do analista. Responda pelo botão abaixo — o recebedor é notificado por e-mail.
+                    </p>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {pending.slice(0, 3).map(({ invoice_id, q }) => {
+                      const inv = invoices.find((i) => i.id === invoice_id);
+                      return (
+                        <li key={q.id} className="rounded-md border border-warning/30 bg-background/60 p-2.5 text-xs">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                            {q.author_name ?? "Recebedor"}
+                            {inv?.company_name ? ` · ${inv.company_name}` : ""}
+                            {" · "}{formatDate(q.created_at)}
+                          </p>
+                          <p className="whitespace-pre-wrap break-words mb-2 line-clamp-3">{q.message}</p>
+                          <Button size="sm" variant="outline" onClick={() => setOpenQuestionInvoiceId(invoice_id)}>
+                            <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Responder
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
+            atendimento, centro de custos, especialidade ou descrição. */}
+        {groups.length > 1 || items.length > 8 ? (
+          <div className="relative max-w-md">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={itemSearch}
+              onChange={(e) => setItemSearch(e.target.value)}
+              placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
+              className="pl-9 pr-9"
+            />
+            {itemSearch && (
+              <button
+                type="button"
+                onClick={() => setItemSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ) : null}
+
           {canSendForValidation && (() => {
             // Calcula divergências NF para os grupos prontos para envio
             const divergentGroups = groupsReadyToSend.filter((g) => {
