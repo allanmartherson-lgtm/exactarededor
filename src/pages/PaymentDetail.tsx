@@ -552,98 +552,15 @@ const PaymentDetail = () => {
           </TabsList>
 
           <TabsContent value="timeline" className="mt-3">
-            {filteredObs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Sem observações para o filtro selecionado.</p>
-            ) : (
-              <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
-                {filteredObs.map((o) => {
-                  const canEdit = !!user && o.author_id === user.id;
-                  const isEditing = editingObsId === o.id;
-                  // Destaca visualmente questionamentos do recebedor — são críticos.
-                  const isQuestion =
-                    o.status_to === "nf_questionada" ||
-                    (typeof o.message === "string" && o.message.startsWith("Recebedor da NF enviou um questionamento"));
-                  // Tenta resolver a invoice correspondente para permitir responder
-                  // direto da timeline. Estratégia:
-                  // 1) Se a observação tem item_id, casa pela company do item.
-                  // 2) Senão, se houver apenas uma invoice no payment, usa essa.
-                  let relatedInvoiceId: string | null = null;
-                  if (o.item_id) {
-                    const it = items.find((x) => x.id === o.item_id);
-                    if (it?.company_id) {
-                      const inv = invoices.find((iv) => iv.company_id === it.company_id);
-                      if (inv) relatedInvoiceId = inv.id;
-                    }
-                  }
-                  if (!relatedInvoiceId && isQuestion && invoices.length === 1) {
-                    relatedInvoiceId = invoices[0].id;
-                  }
-                  return (
-                  <li key={o.id} className={`ml-1 ${isQuestion ? "rounded-md border border-warning/40 bg-warning-soft/40 p-2 -ml-1" : ""}`}>
-                    <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${isQuestion ? "bg-warning" : "bg-primary"}`} />
-                    <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
-                      {isQuestion && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-warning-foreground uppercase tracking-wide text-[10px] font-semibold">
-                          <MessageCircleQuestion className="h-3 w-3" /> Questionamento
-                        </span>
-                      )}
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}>
-                        {o.author_type}
-                      </span>
-                      {o.author_id && <span className="text-muted-foreground">{profiles[o.author_id] ?? ""}</span>}
-                      {o.item_id && <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>}
-                      {(o.status_from || o.status_to) && (
-                        <span className="text-muted-foreground">· {o.status_from ?? "—"} → {o.status_to ?? "—"}</span>
-                      )}
-                      <span className="text-muted-foreground ml-auto">{formatDate(o.created_at)}</span>
-                      {o.edited_at && (
-                        <span className="text-muted-foreground italic">· editado {formatDate(o.edited_at)}</span>
-                      )}
-                      {canEdit && !isEditing && (
-                        <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => startEditObs(o)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          rows={3}
-                          value={editingObsDraft}
-                          onChange={(e) => setEditingObsDraft(e.target.value)}
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <Button size="sm" variant="ghost" onClick={cancelEditObs} disabled={busy}>
-                            <X className="h-3.5 w-3.5 mr-1" /> Cancelar
-                          </Button>
-                          <Button size="sm" onClick={saveEditObs} disabled={busy}>
-                            <Save className="h-3.5 w-3.5 mr-1" /> Salvar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-sm whitespace-pre-wrap">{o.message}</p>
-                        {isQuestion && relatedInvoiceId && (
-                          <div className="mt-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-warning/60 bg-warning-soft text-warning-foreground hover:bg-warning-soft/80"
-                              onClick={() => setOpenQuestionInvoiceId(relatedInvoiceId)}
-                            >
-                              <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" />
-                              Responder na NF
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </li>
-                  );
-                })}
-              </ol>
-            )}
+            <PaymentTimeline
+              observations={filteredObs}
+              items={items}
+              invoices={invoices}
+              profiles={profiles}
+              itemLabel={itemLabel}
+              onOpenQuestionInvoice={setOpenQuestionInvoiceId}
+              onChanged={load}
+            />
           </TabsContent>
 
           <TabsContent value="ai" className="mt-3">
