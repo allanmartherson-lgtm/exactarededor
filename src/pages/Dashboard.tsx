@@ -51,11 +51,21 @@ const PIPELINE_DENSITY_LABEL: Record<PipelineDensity, string> = {
   compact: "Compacto",
   comfortable: "Confortável",
 };
-const STATUSES_BY_OWNER: Record<Exclude<PipelineOwnerFilter, "all">, PaymentStatus[]> = {
-  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
-  validador: ["aguardando_validacao", "devolvido_validador"],
-  diretor: ["aguardando_aprovacao"],
-};
+/**
+ * Status que indicam que o pagamento já chegou (ou passou) pela alçada do diretor.
+ * Usado para filtrar a visão "Diretor" do pipeline, pois não temos `approved_by`
+ * carregado no payload leve.
+ */
+const DIRETOR_REACHED_STATUSES: PaymentStatus[] = [
+  "aguardando_aprovacao",
+  "aprovado",
+  "aprovado_com_ressalva",
+  "pedido_nf_enviado",
+  "nf_recebida",
+  "nf_questionada",
+  "nf_conciliada",
+  "pago",
+];
 
 interface PaymentRow {
   id: string;
@@ -548,15 +558,27 @@ const Dashboard = () => {
   const pipeCounts = useMemo(() => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
     const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
-    const allowedStatuses =
-      pipelineOwner === "all" ? null : new Set<PaymentStatus>(STATUSES_BY_OWNER[pipelineOwner]);
+    const diretorReached = new Set<PaymentStatus>(DIRETOR_REACHED_STATUSES);
+    /**
+     * Filtro por papel envolvido no pagamento (não por status atual). Assim,
+     * trocar o filtro reflete em todas as colunas do pipeline em vez de zerar
+     * tudo que não pertence à etapa daquele papel.
+     */
+    const matchesOwner = (p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
+      switch (pipelineOwner) {
+        case "all": return true;
+        case "analista": return !!p.created_by;
+        case "validador": return !!p.validated_by;
+        case "diretor": return diretorReached.has(p.status);
+      }
+    };
     const c = {
       pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
       pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
     };
     for (const p of allPayments) {
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
-      if (allowedStatuses && !allowedStatuses.has(p.status)) continue;
+      if (!matchesOwner(p)) continue;
       switch (p.status) {
         case "em_analise_ia":
         case "revisao_analista":
