@@ -68,6 +68,32 @@ serve(async (req) => {
         if (invoice.status !== "divergente" && invoice.status !== "aguardando") {
           return new Response(JSON.stringify({ error: "Esta NF já foi conciliada — fale com o analista para refazer." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+        // Bloqueio fiscal: depois que o time fiscal já encaminhou o pagamento
+        // (conciliada, em aprovação interna, paga ou rejeitada) o recebedor
+        // não pode mais reabrir o envio — qualquer ajuste tem que passar pelo
+        // analista via thread/contato direto.
+        const { data: pay } = await supabase
+          .from("payments")
+          .select("status")
+          .eq("id", invoice.payment_id)
+          .maybeSingle();
+        const lockedStatuses = new Set([
+          "nf_conciliada",
+          "aguardando_aprovacao",
+          "aprovado",
+          "aprovado_com_ressalva",
+          "pago",
+          "rejeitado",
+          "cancelado",
+        ]);
+        if (pay && lockedStatuses.has(pay.status)) {
+          return new Response(
+            JSON.stringify({
+              error: "Este pagamento já está em aprovação ou foi efetivado pelo time fiscal. Para qualquer ajuste, fale com o analista pelo botão 'Tenho uma dúvida'.",
+            }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
         // Snapshot do envio anterior pra ficar registrado no histórico antes de descartar.
         const previousSnapshot = invoice.invoice_number || invoice.received_amount
           ? `NF anterior: ${invoice.invoice_number ?? "—"} / valor ${invoice.received_amount ?? "—"}.`
