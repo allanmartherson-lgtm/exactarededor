@@ -25,6 +25,20 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 
 const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
 
+// Status do grupo a partir do qual o analista já terminou a triagem.
+// A partir daqui, um "reprovado" da IA não deve mais alarmar o validador/diretor:
+// se o item seguiu adiante é porque o analista aceitou.
+const ANALYST_DONE_STATUSES = new Set<PaymentStatus>([
+  "aguardando_validacao",
+  "aguardando_aprovacao",
+  "aprovado",
+  "pedido_nf_enviado",
+  "nf_recebida",
+  "nf_conciliada",
+  "nf_divergente",
+  "pago",
+]);
+
 type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
 const RuleTooltipContent = ({
   rules,
@@ -178,6 +192,52 @@ const PaymentDetail = () => {
     toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
   };
 
+  // Quem foi o último a devolver este grupo ao analista? Usado para o reencaminhamento direto.
+  // Retorna "diretor" | "validador" | null.
+  const lastReturnerFor = (groupId: string, companyName: string): "diretor" | "validador" | null => {
+    // observações de devolução para este grupo (filtramos por company_name no message prefix)
+    const prefix = `[${companyName}]`;
+    const returns = obs
+      .filter(
+        (o) =>
+          o.status_to === "devolvido_analista" &&
+          typeof o.message === "string" &&
+          o.message.startsWith(prefix),
+      )
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const last = returns[0];
+    if (!last) return null;
+    if (last.author_type === "diretor") return "diretor";
+    if (last.author_type === "validador") return "validador";
+    return null;
+  };
+
+  // Reencaminhar grupo do analista direto para quem devolveu (diretor → aprovação; validador → validação).
+  const resendGroup = async (groupId: string) => {
+    if (!id) return;
+    const g = groups.find((x) => x.id === groupId);
+    if (!g) return;
+    const target = lastReturnerFor(groupId, g.company_name);
+    const newStatus: PaymentStatus =
+      target === "diretor" ? "aguardando_aprovacao" : "aguardando_validacao";
+    const label = target === "diretor" ? "diretor" : "validador";
+    const text = (groupComment[groupId] ?? "").trim();
+    setBusy(true);
+    await supabase.from("payment_company_groups").update({ status: newStatus }).eq("id", groupId);
+    await supabase.from("payment_observations").insert({
+      payment_id: id,
+      author_type: "analista",
+      author_id: user!.id,
+      message: `[${g.company_name}] Reencaminhado ao ${label} pelo analista${text ? `: ${text}` : ""}.`,
+      status_from: g.status,
+      status_to: newStatus,
+    });
+    setGroupComment((m) => ({ ...m, [groupId]: "" }));
+    await load();
+    setBusy(false);
+    toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${label}.` });
+  };
+
   // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
   const sendForValidation = async (onlyGroupId?: string) => {
     if (!id) return;
@@ -298,16 +358,27 @@ const PaymentDetail = () => {
   };
 
   // Resumo objetivo a partir dos itens
+  // Mapa de status do grupo por empresa para mascarar alertas já tratados pelo analista
+  const groupStatusByCompany: Record<string, PaymentStatus> = {};
+  groups.forEach((g) => {
+    groupStatusByCompany[g.company_name.toLowerCase()] = g.status as PaymentStatus;
+  });
+  const itemAnalystDone = (it: any) => {
+    const gs = groupStatusByCompany[(it.company_name ?? "Sem empresa").trim().toLowerCase()];
+    return gs ? ANALYST_DONE_STATUSES.has(gs) : false;
+  };
   const counts = items.reduce(
     (acc, it) => {
-      const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+      const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
+      const s: ItemAiStatus =
+        itemAnalystDone(it) && (raw === "reprovado" || raw === "alerta") ? "aprovado" : raw;
       acc[s] = (acc[s] ?? 0) + 1;
       return acc;
     },
     { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
   );
   const topAlerts: { item: any; alerts: string[] }[] = items
-    .filter((it) => it.ai_findings?.alerts?.length)
+    .filter((it) => it.ai_findings?.alerts?.length && !itemAnalystDone(it))
     .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
 
   // ===== Histórico (timeline + comparador de versões da IA) =====
@@ -699,18 +770,25 @@ const PaymentDetail = () => {
               const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
               const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
               const isGroupExpanded = expandedGroups.has(g.id);
+              // Se o analista já concluiu a triagem desse grupo, o parecer da IA não é mais alerta ativo:
+              // ele vira informativo e deixa de pintar o item como "reprovado".
+              const analystDone = ANALYST_DONE_STATUSES.has(gStatus);
               const groupAlerts = groupItems
                 .filter((it) => it.ai_findings?.alerts?.length)
                 .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
               const gCounts = groupItems.reduce(
                 (acc, it) => {
-                  const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+                  // mascara reprovado/alerta da IA quando o analista já passou adiante
+                  const rawS = (it.ai_status as ItemAiStatus) ?? "pendente";
+                  const s: ItemAiStatus =
+                    analystDone && (rawS === "reprovado" || rawS === "alerta") ? "aprovado" : rawS;
                   acc[s] = (acc[s] ?? 0) + 1;
                   return acc;
                 },
                 { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
               );
               const isGroupAiOpen = groupAiOpen.has(g.id);
+              const returnerForResend = gStatus === "devolvido_analista" ? lastReturnerFor(g.id, g.company_name) : null;
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
                   <button
@@ -757,13 +835,22 @@ const PaymentDetail = () => {
                         {isGroupAiOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                         <Sparkles className="h-3.5 w-3.5" />
                         <span className="font-semibold">Parecer da IA</span>
-                        <span className="text-muted-foreground">— {groupAlerts.length} item(ns) com observação</span>
+                        <span className="text-muted-foreground">
+                          — {groupAlerts.length} item(ns) com observação
+                          {analystDone && " · revisado pelo analista"}
+                        </span>
                       </button>
                       {isGroupAiOpen && (
                         <ul className="divide-y divide-border/40 border-t border-border/40 bg-background/60">
                           {groupAlerts.map(({ item, alerts }) => {
-                            const tone: keyof typeof TONE_CLASSES =
-                              item.ai_status === "reprovado" ? "destructive" : item.ai_status === "alerta" ? "warning" : "muted";
+                            // Quando o analista já concluiu, baixamos o tom do alerta: vira info, não destrutivo.
+                            const tone: keyof typeof TONE_CLASSES = analystDone
+                              ? "muted"
+                              : item.ai_status === "reprovado"
+                                ? "destructive"
+                                : item.ai_status === "alerta"
+                                  ? "warning"
+                                  : "muted";
                             const raw = (item.raw_data ?? {}) as Record<string, any>;
                             const paciente = raw["Paciente"] ?? raw["paciente"] ?? null;
                             return (
@@ -918,7 +1005,29 @@ const PaymentDetail = () => {
                                     <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-2 py-2"><span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
+                                <td className="px-2 py-2">
+                                  {(() => {
+                                    const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
+                                    // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
+                                    if (analystDone && (raw === "reprovado" || raw === "alerta")) {
+                                      return (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>
+                                              seguido
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="left" className="max-w-xs text-xs">
+                                            Análise inicial da IA: <strong>{raw}</strong>. O analista revisou e seguiu com este item.
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    }
+                                    return (
+                                      <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[raw]]}`}>{raw}</span>
+                                    );
+                                  })()}
+                                </td>
                                 <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
@@ -1007,9 +1116,18 @@ const PaymentDetail = () => {
                       />
                       <div className="flex flex-wrap gap-2 justify-end">
                         {isGroupAnalista && (
-                          <Button onClick={() => sendForValidation(g.id)} disabled={busy}>
-                            <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
-                          </Button>
+                          <>
+                            {returnerForResend ? (
+                              <Button onClick={() => resendGroup(g.id)} disabled={busy}>
+                                <Send className="h-4 w-4 mr-2" />
+                                Reencaminhar ao {returnerForResend}
+                              </Button>
+                            ) : (
+                              <Button onClick={() => sendForValidation(g.id)} disabled={busy}>
+                                <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
+                              </Button>
+                            )}
+                          </>
                         )}
                         {isGroupValidador && <>
                           <Button onClick={() => transitionGroup(g.id, "aguardando_aprovacao", "validador", "Validado", false)} disabled={busy}>
@@ -1023,8 +1141,8 @@ const PaymentDetail = () => {
                           <Button onClick={() => transitionGroup(g.id, "aprovado", "diretor", "Aprovado", false)} disabled={busy}>
                             <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar empresa
                           </Button>
-                          <Button variant="outline" onClick={() => transitionGroup(g.id, "devolvido_validador", "diretor", "Devolvido ao validador")} disabled={busy}>
-                            <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao validador
+                          <Button variant="outline" onClick={() => transitionGroup(g.id, "devolvido_analista", "diretor", "Devolvido ao analista")} disabled={busy}>
+                            <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao analista
                           </Button>
                           <Button variant="destructive" onClick={() => transitionGroup(g.id, "rejeitado", "diretor", "Rejeitado")} disabled={busy}>
                             <XCircle className="h-4 w-4 mr-2" /> Rejeitar empresa
