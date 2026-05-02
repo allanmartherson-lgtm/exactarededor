@@ -470,11 +470,9 @@ const Dashboard = () => {
     owner: pipelineOwner,
     window: pipelineWindow,
     density: pipelineDensity,
-    mode: pipelineMode,
     setOwner: setPipelineOwner,
     setWindow: setPipelineWindow,
     setDensity: setPipelineDensity,
-    setMode: setPipelineMode,
   } = usePipelinePreferences();
 
   useEffect(() => {
@@ -584,7 +582,7 @@ const Dashboard = () => {
       diretor: new Set<PaymentStatus>(["aguardando_aprovacao"]),
     };
     const matchesOwner = (p: { status: PaymentStatus }) =>
-      pipelineMode !== "queue" || pipelineOwner === "all"
+      pipelineOwner === "all"
         ? true
         : ACTION_QUEUE[pipelineOwner].has(p.status);
     const c = {
@@ -618,7 +616,7 @@ const Dashboard = () => {
       }
     }
     return c;
-  }, [allPayments, pipelineOwner, pipelineWindow, pipelineMode]);
+  }, [allPayments, pipelineOwner, pipelineWindow]);
 
   const pipelineQuery = useMemo(() => {
     const parts: string[] = [];
@@ -819,15 +817,6 @@ const Dashboard = () => {
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <ChipGroup
-                ariaLabel="Modo do pipeline"
-                value={pipelineMode}
-                onChange={setPipelineMode}
-                options={(["full", "queue"] as PipelineMode[]).map((v) => ({
-                  v,
-                  label: PIPELINE_MODE_LABEL[v],
-                }))}
-              />
-              <ChipGroup
                 ariaLabel="Filtrar por papel"
                 value={pipelineOwner}
                 onChange={setPipelineOwner}
@@ -869,7 +858,7 @@ const Dashboard = () => {
               { icon: CreditCard, color: "blue" as const, label: "Pago", value: pipeCounts.pipePago, to: `/pagamentos?status=pago${pipelineQuery}` },
             ];
             const visibleCols =
-              pipelineMode === "queue" && pipelineOwner !== "all"
+              pipelineOwner !== "all"
                 ? allCols.filter((c) => QUEUE_COLUMNS[pipelineOwner].has(c.label))
                 : allCols;
             const colCount = Math.max(visibleCols.length, 1);
