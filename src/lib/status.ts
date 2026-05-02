@@ -136,6 +136,40 @@ export const PAYMENT_ANALYSIS_MODE_DESCRIPTIONS: Record<PaymentAnalysisMode, str
   empresa_prioritaria: "Cada arquivo é analisado isoladamente; só itens com erro aparecem no detalhe.",
 };
 
+// Prioridade da regra escolhida pelo motor determinístico (Fase 2/3)
+export type RuleMatchPriority =
+  | "medico_codigo"
+  | "medico"
+  | "empresa_codigo"
+  | "empresa"
+  | "setor_codigo"
+  | "setor"
+  | "setor_outro"
+  | "default_setor";
+
+export const RULE_MATCH_PRIORITY_LABELS: Record<RuleMatchPriority, string> = {
+  medico_codigo: "Médico + código",
+  medico: "Médico",
+  empresa_codigo: "Empresa + código",
+  empresa: "Empresa",
+  setor_codigo: "Setor + código",
+  setor: "Setor (master)",
+  setor_outro: "Geral (master)",
+  default_setor: "Padrão do motor",
+};
+
+// Quanto mais específico, mais "alto" = primário; default = neutro
+export const RULE_MATCH_PRIORITY_TONES: Record<RuleMatchPriority, "primary" | "info" | "muted"> = {
+  medico_codigo: "primary",
+  medico: "primary",
+  empresa_codigo: "info",
+  empresa: "info",
+  setor_codigo: "info",
+  setor: "muted",
+  setor_outro: "muted",
+  default_setor: "muted",
+};
+
 export const formatCurrency = (value: number | string | null | undefined) => {
   const n = typeof value === "string" ? Number(value) : value ?? 0;
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);

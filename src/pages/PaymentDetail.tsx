@@ -851,6 +851,18 @@ const PaymentDetail = () => {
 
         {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
             atendimento, centro de custos, especialidade ou descrição. */}
+        {payment.analysis_mode === "empresa_prioritaria" && (
+          <Card className="shadow-card border-warning/30 bg-warning-soft/30">
+            <CardContent className="p-3 text-xs flex items-start gap-2">
+              <span className="font-semibold uppercase tracking-wide text-warning-foreground shrink-0">
+                Modo empresa prioritária
+              </span>
+              <span className="text-muted-foreground">
+                Mostrando apenas itens com alerta ou reprovação. Empresas e atendimentos sem divergência foram ocultados desta visão.
+              </span>
+            </CardContent>
+          </Card>
+        )}
         {groups.length > 1 || items.length > 8 ? (
           <div className="relative max-w-md">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -954,9 +966,19 @@ const PaymentDetail = () => {
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
               const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
-              const groupItems = sq && !groupNameMatches
+              const isErrorOnly = payment.analysis_mode === "empresa_prioritaria";
+              const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
+                const st = (it.ai_status as string) ?? "pendente";
+                return st === "alerta" || st === "reprovado" || (it.ai_findings?.alerts?.length ?? 0) > 0;
+              };
+              const baseGroupItems = sq && !groupNameMatches
                 ? groupItemsAll.filter(itemMatches)
                 : groupItemsAll;
+              const groupItems = isErrorOnly
+                ? baseGroupItems.filter(errorOnlyFilter)
+                : baseGroupItems;
+              // No modo empresa_prioritaria, oculta grupos sem nenhum erro.
+              if (isErrorOnly && groupItems.length === 0) return null;
               return (
                 <PaymentGroupCard
                   key={g.id}
