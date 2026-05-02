@@ -1384,11 +1384,11 @@ const PaymentDetail = () => {
             })}
           </TooltipProvider>
 
-          {payment.status === "aprovado" && isDiretor && (
+          {payment.status === "aprovado" && (isDiretor || canRequestNf) && (
             <Card className="shadow-card border-success/30">
               <CardHeader><CardTitle className="text-base">Pós-aprovação</CardTitle></CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={generatePdf}><FileDown className="h-4 w-4 mr-2" /> Gerar PDF</Button>
+                {isDiretor && <Button variant="outline" onClick={generatePdf}><FileDown className="h-4 w-4 mr-2" /> Gerar PDF</Button>}
                 {canRequestNf && <Button onClick={sendInvoiceRequest} disabled={busy}><Mail className="h-4 w-4 mr-2" /> Enviar pedido de NF</Button>}
               </CardContent>
             </Card>
