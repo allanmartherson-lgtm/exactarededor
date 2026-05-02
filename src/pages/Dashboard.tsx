@@ -10,6 +10,7 @@ import { Header, HeaderName } from "@carbon/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus, TONE_CLASSES } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import {
   ArrowRight,
   ArrowRightCircle,
