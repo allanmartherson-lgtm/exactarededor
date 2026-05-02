@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
+import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -95,8 +96,6 @@ const PaymentDetail = () => {
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
-  const [editingObsId, setEditingObsId] = useState<string | null>(null);
-  const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
@@ -227,37 +226,6 @@ const PaymentDetail = () => {
     await load();
     setBusy(false);
     toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${target.role}.` });
-  };
-
-  // Analista edita uma observação que ele mesmo escreveu (qualquer rodada).
-  const startEditObs = (o: any) => {
-    setEditingObsId(o.id);
-    setEditingObsDraft(o.message ?? "");
-  };
-  const cancelEditObs = () => {
-    setEditingObsId(null);
-    setEditingObsDraft("");
-  };
-  const saveEditObs = async () => {
-    if (!editingObsId) return;
-    const text = editingObsDraft.trim();
-    if (!text) {
-      toast({ title: "A observação não pode ficar vazia", variant: "destructive" });
-      return;
-    }
-    setBusy(true);
-    const { error } = await supabase
-      .from("payment_observations")
-      .update({ message: text, edited_at: new Date().toISOString() })
-      .eq("id", editingObsId);
-    setBusy(false);
-    if (error) {
-      toast({ title: "Falha ao salvar edição", description: error.message, variant: "destructive" });
-      return;
-    }
-    cancelEditObs();
-    await load();
-    toast({ title: "Observação atualizada" });
   };
 
   // Analista reaplica as regras (reanálise da IA) APENAS para os itens da empresa devolvida,
