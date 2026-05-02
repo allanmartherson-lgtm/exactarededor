@@ -1515,7 +1515,8 @@ const PaymentDetail = () => {
                   )}
                 </Card>
               );
-            })}
+              });
+            })()}
           </TooltipProvider>
 
           {payment.status === "aprovado" && (isDiretor || canRequestNf) && (
@@ -1530,6 +1531,34 @@ const PaymentDetail = () => {
 
         {renderHistoryCard()}
       </div>
+
+      {/* Sheet pra responder ao recebedor — alimentado pelo banner do topo. */}
+      <Sheet open={!!openQuestionInvoiceId} onOpenChange={(v) => !v && setOpenQuestionInvoiceId(null)}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Conversa sobre a NF</SheetTitle>
+          </SheetHeader>
+          {openQuestionInvoiceId && (() => {
+            const inv = invoices.find((i) => i.id === openQuestionInvoiceId);
+            const initial = (questions as any[]).filter((q) => q.invoice_id === openQuestionInvoiceId);
+            return (
+              <div className="mt-4">
+                {inv && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {inv.company_name ?? ""} · {inv.recipient_email}
+                  </p>
+                )}
+                <InvoiceQuestionsThread
+                  invoiceId={openQuestionInvoiceId}
+                  paymentId={id!}
+                  initial={initial}
+                  onSent={() => load()}
+                />
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </>
   );
 };
