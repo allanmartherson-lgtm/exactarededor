@@ -936,6 +936,8 @@ export type Database = {
         | "rejeitado"
         | "cancelado"
         | "revisao_analista"
+        | "aprovado_com_ressalva"
+        | "nf_questionada"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind: "simples" | "cbhpm"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
@@ -1104,6 +1106,8 @@ export const Constants = {
         "rejeitado",
         "cancelado",
         "revisao_analista",
+        "aprovado_com_ressalva",
+        "nf_questionada",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: ["simples", "cbhpm"],
