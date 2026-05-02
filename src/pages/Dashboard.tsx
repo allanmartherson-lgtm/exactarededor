@@ -837,11 +837,6 @@ const PipelineStep = ({
       <Icon className={cn(isComfortable ? "h-5 w-5" : "h-4 w-4")} />
     </div>
   );
-  const stepBadge = (
-    <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border border-border px-2 py-0.5 leading-none text-muted-foreground tabular-nums">
-      Etapa {step}/{totalSteps}
-    </span>
-  );
   const tooltipNode = (
     <div className="space-y-1">
       <p className="font-semibold">
@@ -863,9 +858,9 @@ const PipelineStep = ({
         label={label}
         value={value}
         icon={iconNode}
-        badge={stepBadge}
         density={isComfortable ? "default" : "compact"}
         labelLines={isComfortable ? 3 : 2}
+        labelPosition="bottom"
         to={to}
         tooltip={tooltipNode}
         ariaLabel={`Etapa ${step} de ${totalSteps}: ${desc.full}. ${itemCount}. ${desc.helper} Abrir lista filtrada.`}

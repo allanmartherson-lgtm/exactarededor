@@ -51,6 +51,13 @@ export interface StatTileProps {
    * Útil para densidades "confortáveis" que querem revelar mais texto.
    */
   labelLines?: 2 | 3;
+  /**
+   * Posição do label em relação ao valor. `top` (default) mantém o título
+   * acima do número; `bottom` move o label para o rodapé do card (e o ícone
+   * ocupa sozinho o topo). Útil para variantes onde o número é o destaque
+   * principal e o nome da etapa aparece embaixo.
+   */
+  labelPosition?: "top" | "bottom";
 }
 
 const TruncatedText = ({
@@ -108,6 +115,7 @@ export const StatTile = ({
   density = "default",
   tooltip,
   labelLines = 2,
+  labelPosition = "top",
 }: StatTileProps) => {
   const interactive = !!to;
   const labelTruncation = useTruncated<HTMLParagraphElement>();
@@ -123,6 +131,25 @@ export const StatTile = ({
     ]
       .filter(Boolean)
       .join(", ");
+
+  const labelClassName = cn(
+    "flex-1 min-w-0 font-medium text-muted-foreground uppercase tracking-wider break-words hyphens-auto leading-tight",
+    labelLines === 3 ? "line-clamp-3 min-h-[3lh]" : "line-clamp-2 min-h-[2lh]",
+    isCompact ? "text-[10px]" : "text-[10px] sm:text-xs",
+  );
+
+  const labelNode = (
+    <TruncatedText
+      as="p"
+      text={label}
+      truncation={tooltip ? { ref: labelTruncation.ref, isTruncated: false } : labelTruncation}
+      data-testid="stat-card-label"
+      lang="pt-BR"
+      className={labelClassName}
+    />
+  );
+
+  const isBottomLabel = labelPosition === "bottom";
 
   const inner = (
     <Card
@@ -141,18 +168,12 @@ export const StatTile = ({
         )}
       >
         <div className={cn("flex items-start justify-between", isCompact ? "gap-2" : "gap-2 sm:gap-3")}>
-          <TruncatedText
-            as="p"
-            text={label}
-            truncation={tooltip ? { ref: labelTruncation.ref, isTruncated: false } : labelTruncation}
-            data-testid="stat-card-label"
-            lang="pt-BR"
-            className={cn(
-              "flex-1 min-w-0 font-medium text-muted-foreground uppercase tracking-wider break-words hyphens-auto leading-tight",
-              labelLines === 3 ? "line-clamp-3 min-h-[3lh]" : "line-clamp-2 min-h-[2lh]",
-              isCompact ? "text-[10px]" : "text-[10px] sm:text-xs",
-            )}
-          />
+          {isBottomLabel ? (
+            // Apenas o ícone no topo; espaço do label vai para o rodapé.
+            <span aria-hidden className="flex-1 min-w-0" />
+          ) : (
+            labelNode
+          )}
           {icon && (
             <div aria-hidden="true" className="flex-shrink-0">
               {icon}
@@ -171,7 +192,9 @@ export const StatTile = ({
         </p>
 
         <div data-testid="stat-card-footer" className="mt-auto flex items-center min-h-[20px]">
-          {badge ? (
+          {isBottomLabel ? (
+            labelNode
+          ) : badge ? (
             <span data-testid="stat-card-badge">{badge}</span>
           ) : hint ? (
             <TruncatedText
