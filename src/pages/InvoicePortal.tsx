@@ -164,6 +164,19 @@ const InvoicePortal = () => {
   const pay = info.payment ?? {};
   const expired = inv.status !== "aguardando";
 
+  // Trava de UI: depois que o pagamento foi encaminhado pelo time fiscal,
+  // não dá mais pra reabrir o envio. Mantém em sincronia com o backend.
+  const lockedPaymentStatuses = new Set([
+    "nf_conciliada",
+    "aguardando_aprovacao",
+    "aprovado",
+    "aprovado_com_ressalva",
+    "pago",
+    "rejeitado",
+    "cancelado",
+  ]);
+  const reuploadLocked = lockedPaymentStatuses.has(pay.status);
+
   // Competência: prefere o array (suporta múltiplos meses), cai para o singular.
   const competenceList: string[] = Array.isArray(pay.competence_months) && pay.competence_months.length > 0
     ? pay.competence_months
@@ -245,6 +258,11 @@ const InvoicePortal = () => {
                       e reenvie pelo botão abaixo.
                     </p>
                     {resetOpen ? resetForm : (
+                      reuploadLocked ? (
+                        <p className="text-xs italic">
+                          Este pagamento já está em aprovação ou foi efetivado pelo time fiscal — não é mais possível reabrir o envio. Use a aba <strong>"Tenho uma dúvida"</strong> para falar com o analista.
+                        </p>
+                      ) : (
                       <Button
                         type="button"
                         variant="outline"
@@ -254,6 +272,7 @@ const InvoicePortal = () => {
                       >
                         Corrigir e enviar novamente
                       </Button>
+                      )
                     )}
                   </>
                 )}
@@ -267,11 +286,17 @@ const InvoicePortal = () => {
                     ? "Esta nota já foi recebida e conciliada — nada mais a fazer por aqui."
                     : "Esta nota já foi enviada anteriormente."}
                 </p>
-                {inv.status === "divergente" && (resetOpen ? resetForm : (
-                  <Button type="button" variant="outline" className="w-full" onClick={() => setResetOpen(true)}>
-                    Corrigir e enviar novamente
-                  </Button>
-                ))}
+                {inv.status === "divergente" && (
+                  resetOpen ? resetForm : reuploadLocked ? (
+                    <p className="text-xs text-muted-foreground italic">
+                      Pagamento já encaminhado pelo time fiscal — reenvio bloqueado. Fale com o analista.
+                    </p>
+                  ) : (
+                    <Button type="button" variant="outline" className="w-full" onClick={() => setResetOpen(true)}>
+                      Corrigir e enviar novamente
+                    </Button>
+                  )
+                )}
               </div>
             ) : (
               <Tabs defaultValue="upload">
