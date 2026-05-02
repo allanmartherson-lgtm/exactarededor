@@ -61,7 +61,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id } = await req.json();
+    const { payment_id, company_name } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -142,10 +142,15 @@ serve(async (req) => {
         if (t) t.portValues[String(pv.port)] = Number(pv.amount);
       }
     }
-    const { data: items } = await supabase
+    const itemsQuery = supabase
       .from("payment_items")
       .select("id,doctor_name,doctor_document,doctor_email,description,gross_amount,raw_data,company_name,company_id,attendance_number,procedure_code,procedure_name,access_route,doctor_role,agreement_text,procedure_amount,quantity,procedure_date")
       .eq("payment_id", payment_id);
+    // Reanálise focada por empresa: usado quando o analista reaplica regras só do grupo devolvido.
+    if (company_name && typeof company_name === "string") {
+      itemsQuery.eq("company_name", company_name);
+    }
+    const { data: items } = await itemsQuery;
     const { data: history } = await supabase
       .from("payment_observations")
       .select("author_type, message")
