@@ -579,8 +579,9 @@ const Dashboard = () => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
     const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
     /**
-     * Filtro por "fila de ação": cada papel só conta pagamentos cujo status
-     * atual aguarda ação dele. "Todos" mostra o pipeline inteiro.
+     * Filtro por "fila de ação": apenas quando o modo é `queue` E um papel
+     * específico está selecionado, contamos só os status que aguardam ação
+     * desse papel. Caso contrário, contamos tudo (pipeline completo).
      */
     const ACTION_QUEUE: Record<Exclude<typeof pipelineOwner, "all">, Set<PaymentStatus>> = {
       analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada"]),
@@ -588,7 +589,9 @@ const Dashboard = () => {
       diretor: new Set<PaymentStatus>(["aguardando_aprovacao"]),
     };
     const matchesOwner = (p: { status: PaymentStatus }) =>
-      pipelineOwner === "all" ? true : ACTION_QUEUE[pipelineOwner].has(p.status);
+      pipelineMode !== "queue" || pipelineOwner === "all"
+        ? true
+        : ACTION_QUEUE[pipelineOwner].has(p.status);
     const c = {
       pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
       pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
@@ -620,7 +623,7 @@ const Dashboard = () => {
       }
     }
     return c;
-  }, [allPayments, pipelineOwner, pipelineWindow]);
+  }, [allPayments, pipelineOwner, pipelineWindow, pipelineMode]);
 
   const pipelineQuery = useMemo(() => {
     const parts: string[] = [];
