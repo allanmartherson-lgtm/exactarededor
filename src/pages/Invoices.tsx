@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate, TONE_CLASSES, type InvoiceStatus } from "@/lib/status";
+import { formatCurrency, formatDate, type InvoiceStatus } from "@/lib/status";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import {
-  MessageCircleQuestion, Bot, AlertTriangle, CheckCircle2, Wallet,
+  MessageCircle, Bot, AlertTriangle, CheckCircle2, Wallet,
   Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning, RefreshCw,
 } from "lucide-react";
 
-const tone: Record<InvoiceStatus, keyof typeof TONE_CLASSES> = {
-  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "destructive",
+const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
+  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger",
 };
 const labels: Record<InvoiceStatus, string> = {
   aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente",
@@ -60,11 +58,11 @@ const daysSince = (iso: string | null) => {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 };
 
-const ageTone = (days: number | null) => {
-  if (days == null) return "muted";
-  if (days < 3) return "success";
-  if (days <= 7) return "warning";
-  return "destructive";
+const ageColorClass = (days: number | null) => {
+  if (days == null) return "text-muted-foreground";
+  if (days < 3) return "text-success-foreground";
+  if (days <= 7) return "text-warning-foreground";
+  return "text-destructive";
 };
 
 const Invoices = () => {
@@ -247,11 +245,11 @@ const Invoices = () => {
       <PageHeader title="Notas Fiscais" description="Pedidos enviados e notas recebidas." />
       <div className="p-8">
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
-          <TabsList>
+          <TabsList className="filter-tabs">
             {TAB_ORDER.map((t) => (
-              <TabsTrigger key={t.key} value={t.key} className="gap-2">
+              <TabsTrigger key={t.key} value={t.key}>
                 {t.label}
-                <Badge variant="secondary" className="rounded-full px-2 text-[11px]">{counts[t.key]}</Badge>
+                <span className="filter-tabs__count">{counts[t.key]}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -282,113 +280,175 @@ const Invoices = () => {
           </div>
         )}
 
-        <Card className="shadow-card"><CardContent className="p-0">
-          {filtered.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-            {rows.length === 0 ? "Nenhum pedido enviado ainda." : "Nenhum pedido neste status."}
-          </p> :
-            <div className="divide-y divide-border">{filtered.map((i) => {
-              const age = daysSince(i.sent_at);
-              const ccCount = (i.recipient_cc ?? []).length;
-              const expanded = expandedId === i.id;
-              return (
-              <div key={i.id} className="px-6 py-4">
-               <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm">
-                    {i.payments?.reference}
-                    {i.company_name && <> · <span className="text-muted-foreground">{i.company_name}</span></>}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                    <Mail className="h-3 w-3" /> <span className="truncate max-w-[260px]">{i.recipient_email}</span>
-                    {ccCount > 0 && (
-                      <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />+{ccCount} em cópia</span>
-                    )}
-                    {i.sent_at && age != null && (
-                      <span className={`inline-flex items-center gap-1 ${TONE_CLASSES[ageTone(age) as keyof typeof TONE_CLASSES]?.split(" ")[1] ?? ""}`}>
-                        <Clock className="h-3 w-3" /> enviado há {age === 0 ? "hoje" : `${age}d`}
-                      </span>
-                    )}
-                    {!i.sent_at && !i.send_error && (
-                      <span className="inline-flex items-center gap-1 text-warning-foreground">
-                        <Clock className="h-3 w-3" /> aguardando envio
-                      </span>
-                    )}
-                    {i.send_error && (
-                      <span className="inline-flex items-center gap-1 text-destructive">
-                        <MailWarning className="h-3 w-3" /> erro no envio
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Pedido: {formatCurrency(i.expected_amount)}
-                    {i.received_amount != null && <> · Nota: {formatCurrency(i.received_amount)}</>}
-                    {i.invoice_number && <> · NF #{i.invoice_number}</>}
-                    {i.items_count ? <> · {i.items_count} item{i.items_count === 1 ? "" : "ns"}</> : null}
-                    {" "}· {formatDate(i.sent_at)}
-                  </p>
-                  {i.reconciliation_notes && <p className="text-xs mt-1">{i.reconciliation_notes}</p>}
-                  {i.send_error && (
-                    <p className="text-xs mt-1 text-destructive flex items-start gap-1.5">
-                      <MailWarning className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      <span><strong>Falha do provedor de e-mail:</strong> {i.send_error}</span>
-                    </p>
-                  )}
-                  {i.ai_validation && (
-                    <div className="mt-1.5 flex items-start gap-1.5 text-xs">
-                      <Bot className="h-3.5 w-3.5 text-info shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <span className="font-medium">IA conferiu o PDF</span>
-                        {i.ai_extracted_amount != null && (
-                          <> · valor extraído {formatCurrency(i.ai_extracted_amount)}</>
+        <div
+          className="rounded-lg border border-border bg-card overflow-hidden"
+          style={{ boxShadow: "var(--shadow-card)" }}
+        >
+          {filtered.length === 0 ? (
+            <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+              {rows.length === 0 ? "Nenhum pedido enviado ainda." : "Nenhum pedido neste status."}
+            </p>
+          ) : (
+            <div>
+              {filtered.map((i) => {
+                const age = daysSince(i.sent_at);
+                const ccCount = (i.recipient_cc ?? []).length;
+                const expanded = expandedId === i.id;
+                return (
+                  <div key={i.id}>
+                    <div className="list-row">
+                      {/* Coluna 1 — Identificação */}
+                      <div className="list-row__main">
+                        <span className="list-row__title" title={i.payments?.reference ?? ""}>
+                          {i.payments?.reference}
+                        </span>
+                        {i.company_name && (
+                          <span className="list-row__sub" title={i.company_name}>
+                            {i.company_name}
+                          </span>
                         )}
-                        {(i.ai_validation.divergences?.length ?? 0) > 0 && (
-                          <ul className="mt-0.5 ml-1 text-destructive">
-                            {i.ai_validation.divergences!.map((d, idx) => (
-                              <li key={idx} className="flex gap-1.5"><AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />{d}</li>
-                            ))}
-                          </ul>
+                        <span className="list-row__meta">
+                          <Mail className="h-3 w-3 flex-shrink-0" aria-hidden />
+                          <span className="truncate">{i.recipient_email}</span>
+                          {ccCount > 0 && (
+                            <span className="inline-flex items-center gap-1 flex-shrink-0">
+                              <Users className="h-3 w-3" aria-hidden />+{ccCount} em cópia
+                            </span>
+                          )}
+                          {i.sent_at && age != null && (
+                            <span className={`inline-flex items-center gap-1 flex-shrink-0 ${ageColorClass(age)}`}>
+                              <Clock className="h-3 w-3" aria-hidden /> enviado há {age === 0 ? "hoje" : `${age}d`}
+                            </span>
+                          )}
+                          {!i.sent_at && !i.send_error && (
+                            <span className="inline-flex items-center gap-1 flex-shrink-0 text-warning-foreground">
+                              <Clock className="h-3 w-3" aria-hidden /> aguardando envio
+                            </span>
+                          )}
+                          {i.send_error && (
+                            <span className="inline-flex items-center gap-1 flex-shrink-0 text-destructive">
+                              <MailWarning className="h-3 w-3" aria-hidden /> erro no envio
+                            </span>
+                          )}
+                        </span>
+                        <span className="list-row__meta">
+                          Pedido: {formatCurrency(i.expected_amount)}
+                          {i.received_amount != null && <> · Nota: {formatCurrency(i.received_amount)}</>}
+                          {i.invoice_number && <> · NF #{i.invoice_number}</>}
+                          {i.items_count ? <> · {i.items_count} item{i.items_count === 1 ? "" : "ns"}</> : null}
+                          {" "}· {formatDate(i.sent_at)}
+                        </span>
+                      </div>
+
+                      {/* Coluna 2 — Ações */}
+                      <div className="list-row__actions">
+                        {i.question_count > 0 && (
+                          <button type="button" className="list-row__btn" onClick={() => openThread(i)}>
+                            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                            {i.question_count} mensagem{i.question_count === 1 ? "" : "s"}
+                          </button>
                         )}
+                        {canActOnNF && i.status === "aguardando" && (
+                          <>
+                            <button type="button" className="list-row__btn" onClick={() => copyLink(i)}>
+                              <Copy className="h-3.5 w-3.5" aria-hidden />
+                              Link
+                            </button>
+                            <button
+                              type="button"
+                              className="list-row__btn"
+                              disabled={busyId === i.id}
+                              onClick={() => resend(i)}
+                            >
+                              <Send className="h-3.5 w-3.5" aria-hidden />
+                              Reenviar
+                            </button>
+                          </>
+                        )}
+                        {canActOnNF && i.status === "recebida" && (
+                          <button
+                            type="button"
+                            className="list-row__btn"
+                            disabled={busyId === i.id}
+                            onClick={() => markConciliada(i)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                            Conciliar
+                          </button>
+                        )}
+                        {canActOnNF && i.status === "conciliada" && i.payments?.status !== "pago" && (
+                          <button
+                            type="button"
+                            className="list-row__btn"
+                            disabled={busyId === i.id}
+                            onClick={() => markPaga(i)}
+                          >
+                            <Wallet className="h-3.5 w-3.5" aria-hidden />
+                            Marcar como pago
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="list-row__btn"
+                          aria-expanded={expanded}
+                          onClick={() => setExpandedId(expanded ? null : i.id)}
+                        >
+                          <FileText className="h-3.5 w-3.5" aria-hidden />
+                          Detalhes
+                          {expanded ? (
+                            <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Coluna 3 — Status */}
+                      <div className="list-row__status">
+                        <span className={`pill pill--${pillVariant[i.status as InvoiceStatus]}`}>
+                          {labels[i.status as InvoiceStatus]}
+                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {i.question_count > 0 && (
-                    <Button variant="outline" size="sm" onClick={() => openThread(i)}>
-                      <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" />
-                      {i.question_count} mensagem{i.question_count === 1 ? "" : "s"}
-                    </Button>
-                  )}
-                  {canActOnNF && i.status === "aguardando" && (
-                    <>
-                      <Button size="sm" variant="ghost" onClick={() => copyLink(i)}>
-                        <Copy className="h-3.5 w-3.5 mr-1.5" /> Link
-                      </Button>
-                      <Button size="sm" variant="outline" disabled={busyId === i.id} onClick={() => resend(i)}>
-                        <Send className="h-3.5 w-3.5 mr-1.5" /> Reenviar
-                      </Button>
-                    </>
-                  )}
-                  {canActOnNF && i.status === "recebida" && (
-                    <Button size="sm" variant="outline" disabled={busyId === i.id} onClick={() => markConciliada(i)}>
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Conciliar
-                    </Button>
-                  )}
-                  {canActOnNF && i.status === "conciliada" && i.payments?.status !== "pago" && (
-                    <Button size="sm" disabled={busyId === i.id} onClick={() => markPaga(i)}>
-                      <Wallet className="h-3.5 w-3.5 mr-1.5" /> Marcar como pago
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setExpandedId(expanded ? null : i.id)}>
-                    <FileText className="h-3.5 w-3.5 mr-1.5" />
-                    Detalhes {expanded ? <ChevronUp className="h-3.5 w-3.5 ml-1" /> : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
-                  </Button>
-                  <span className={`text-xs rounded-full border px-2.5 py-0.5 ${TONE_CLASSES[tone[i.status as InvoiceStatus]]}`}>{labels[i.status as InvoiceStatus]}</span>
-                </div>
-               </div>
+
+                    {/* Linha extra ocupando largura inteira: notas/erros/IA */}
+                    {(i.reconciliation_notes || i.send_error || i.ai_validation) && (
+                      <div className="px-5 pb-3 -mt-2 space-y-1.5 text-[12px]">
+                        {i.reconciliation_notes && (
+                          <p className="text-muted-foreground">{i.reconciliation_notes}</p>
+                        )}
+                        {i.send_error && (
+                          <p className="text-destructive flex items-start gap-1.5">
+                            <MailWarning className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden />
+                            <span><strong>Falha do provedor de e-mail:</strong> {i.send_error}</span>
+                          </p>
+                        )}
+                        {i.ai_validation && (
+                          <div className="flex items-start gap-1.5">
+                            <Bot className="h-3.5 w-3.5 text-info shrink-0 mt-0.5" aria-hidden />
+                            <div className="min-w-0">
+                              <span className="font-medium">IA conferiu o PDF</span>
+                              {i.ai_extracted_amount != null && (
+                                <> · valor extraído {formatCurrency(i.ai_extracted_amount)}</>
+                              )}
+                              {(i.ai_validation.divergences?.length ?? 0) > 0 && (
+                                <ul className="mt-0.5 ml-1 text-destructive">
+                                  {i.ai_validation.divergences!.map((d, idx) => (
+                                    <li key={idx} className="flex gap-1.5">
+                                      <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
+                                      {d}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                {expanded && (
-                 <div className="mt-3 rounded-md border bg-muted/30 p-3 space-y-3 text-xs">
+                 <div className="mx-5 mb-4 rounded-md border border-border bg-muted/30 p-3 space-y-3 text-xs">
                    <div>
                      <p className="font-medium mb-1 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Destinatários</p>
                      <p><span className="text-muted-foreground">Para:</span> {i.recipient_email}</p>
@@ -417,10 +477,12 @@ const Invoices = () => {
                    )}
                  </div>
                )}
-              </div>
-              );
-            })}</div>}
-        </CardContent></Card>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <Sheet open={!!openInvoice} onOpenChange={(v) => !v && setOpenInvoice(null)}>
