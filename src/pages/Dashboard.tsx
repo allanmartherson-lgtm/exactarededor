@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Header, HeaderName } from "@carbon/react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,10 +56,12 @@ const Dashboard = () => {
     mineAnalista: 0, mineValidador: 0, mineDiretor: 0,
     teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, aprovados: 0,
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
     const load = async () => {
+      setLoading(true);
       const [{ data }, { data: pr }, { data: all }] = await Promise.all([
         supabase
         .from("payments")
@@ -92,6 +95,7 @@ const Dashboard = () => {
         }
       });
       setCounts(c);
+      setLoading(false);
     };
     load();
   }, [user?.id]);
@@ -140,6 +144,10 @@ const Dashboard = () => {
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch auto-rows-fr">
+          {loading ? (
+            Array.from({ length: isAnalista ? 4 : 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ) : (
+            <>
           {isAnalista && (
             <StatCard
               icon={Sparkles}
@@ -170,6 +178,8 @@ const Dashboard = () => {
             to="/pagamentos?status=aguardando_aprovacao"
           />
           <StatCard icon={FileUp} label="Aprovados / em NF" value={counts.aprovados} tone="success" />
+            </>
+          )}
         </div>
 
         {/* Suas tarefas */}
@@ -185,7 +195,9 @@ const Dashboard = () => {
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            {myPayments.length === 0 ? (
+            {loading ? (
+              <PaymentRowsSkeleton count={3} />
+            ) : myPayments.length === 0 ? (
               <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                 Nada esperando por você no momento. 🎉
               </div>
@@ -211,7 +223,9 @@ const Dashboard = () => {
             </Button>
           </CardHeader>
           <CardContent className="p-0">
-            {teamPayments.length === 0 ? (
+            {loading ? (
+              <PaymentRowsSkeleton count={4} />
+            ) : teamPayments.length === 0 ? (
               <div className="px-6 py-12 text-center text-sm text-muted-foreground">
                 Sem pagamentos em outras etapas. {isAnalista && (
                   <Link to="/pagamentos/novo" className="text-primary font-medium hover:underline">Subir a primeira base →</Link>
@@ -330,5 +344,40 @@ const StatCard = ({
   );
   return to ? <Link to={to} className="block h-full">{inner}</Link> : inner;
 };
+
+const StatCardSkeleton = () => (
+  <Card className="shadow-soft h-full" aria-hidden>
+    <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="flex flex-col gap-1.5 min-w-0 flex-1 min-h-[2lh] justify-start">
+          <Skeleton className="h-2.5 w-3/4" />
+          <Skeleton className="h-2.5 w-1/2" />
+        </div>
+        <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex-shrink-0" />
+      </div>
+      <Skeleton className="h-7 sm:h-8 w-12" />
+      <div className="mt-auto flex items-center min-h-[20px]">
+        <Skeleton className="h-3 w-20" />
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
+  <div className="divide-y divide-border" aria-hidden>
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="flex items-center justify-between px-6 py-4 gap-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-16 rounded-full" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <Skeleton className="h-5 w-24 rounded-full flex-shrink-0" />
+      </div>
+    ))}
+  </div>
+);
 
 export default Dashboard;
