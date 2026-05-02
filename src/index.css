@@ -28,7 +28,7 @@ All colors MUST be HSL.
     --secondary-foreground: 215 35% 20%;
 
     --muted: 210 30% 96%;
-    --muted-foreground: 215 15% 45%;
+    --muted-foreground: 215 18% 38%;
 
     --accent: 188 70% 42%;
     --accent-foreground: 0 0% 100%;
@@ -66,7 +66,9 @@ All colors MUST be HSL.
     /* Sidebar — light */
     --sidebar-background: 210 30% 98%;
     --sidebar-foreground: 215 25% 27%;
-    --sidebar-muted-foreground: 215 15% 45%;
+    --sidebar-muted-foreground: 215 18% 35%;
+    /* Warning dark — fg precisa ser claro sobre warning-soft escuro */
+    --warning-foreground: 35 90% 92%;
     --sidebar-primary: 195 80% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 210 30% 93%;
