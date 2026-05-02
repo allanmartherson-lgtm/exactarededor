@@ -803,6 +803,7 @@ const PipelineStep = ({
   value,
   tone,
   to,
+  density = "compact",
 }: {
   step: number;
   totalSteps: number;
@@ -811,7 +812,13 @@ const PipelineStep = ({
   value: number;
   tone: StatCardTone;
   to: string;
+  /**
+   * Densidade do tile. `compact` mantém o tamanho atual; `comfortable`
+   * aumenta padding, ícone e permite 3 linhas de label sem truncar.
+   */
+  density?: PipelineDensity;
 }) => {
+  const isComfortable = density === "comfortable";
   const toneBg: Record<StatCardTone, string> = {
     info: "bg-info-soft text-info",
     warning: "bg-warning-soft text-warning-foreground",
@@ -820,8 +827,14 @@ const PipelineStep = ({
   const itemCount = `${value} ${value === 1 ? "pagamento" : "pagamentos"}`;
   const desc = PIPELINE_STEP_DESCRIPTION[step] ?? { full: label, helper: "" };
   const iconNode = (
-    <div className={cn("h-7 w-7 rounded-md flex items-center justify-center", toneBg[tone])}>
-      <Icon className="h-4 w-4" />
+    <div
+      className={cn(
+        "rounded-md flex items-center justify-center",
+        isComfortable ? "h-9 w-9" : "h-7 w-7",
+        toneBg[tone],
+      )}
+    >
+      <Icon className={cn(isComfortable ? "h-5 w-5" : "h-4 w-4")} />
     </div>
   );
   const stepBadge = (
@@ -851,7 +864,8 @@ const PipelineStep = ({
         value={value}
         icon={iconNode}
         badge={stepBadge}
-        density="compact"
+        density={isComfortable ? "default" : "compact"}
+        labelLines={isComfortable ? 3 : 2}
         to={to}
         tooltip={tooltipNode}
         ariaLabel={`Etapa ${step} de ${totalSteps}: ${desc.full}. ${itemCount}. ${desc.helper} Abrir lista filtrada.`}
