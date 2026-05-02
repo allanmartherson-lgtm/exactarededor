@@ -487,6 +487,55 @@ ${ASSINATURA}`;
       }
     };
 
+    // ---- Modo reenvio individual: processa SOMENTE o bucket da invoice alvo ----
+    if (targetInvoice) {
+      let bucket: CompanyBucket | undefined;
+      if (targetInvoice.company_id) bucket = byCompany.get(targetInvoice.company_id);
+      let doctorBucket: DoctorBucket | undefined;
+      if (!bucket) {
+        const k = String(targetInvoice.recipient_email ?? "").toLowerCase();
+        doctorBucket = byDoctorFallback.get(k);
+      }
+      if (!bucket && !doctorBucket) {
+        return new Response(JSON.stringify({
+          error: "sem_itens",
+          message: "Não há itens elegíveis para reenviar esta NF (a empresa pode ter sido removida do pagamento).",
+        }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (bucket) {
+        await processBucket({
+          to: bucket.to,
+          cc: Array.from(bucket.cc),
+          total: bucket.total,
+          items: bucket.items,
+          company_id: bucket.company_id,
+          company_name: bucket.company_name,
+          recipient_label: bucket.company_name,
+          reuse_invoice: targetInvoice,
+        });
+      } else if (doctorBucket) {
+        await processBucket({
+          to: [doctorBucket.doctor_email],
+          cc: [],
+          total: doctorBucket.total,
+          items: doctorBucket.items,
+          company_id: null,
+          company_name: null,
+          recipient_label: doctorBucket.items[0]?.doctor_name ?? doctorBucket.doctor_email,
+          reuse_invoice: targetInvoice,
+        });
+      }
+
+      return new Response(JSON.stringify({
+        ok: true,
+        mode: "single",
+        invoice_id: targetInvoice.id,
+        sent_ok: sentOk,
+        sent_error: sentErr,
+        send_errors: sendErrors,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // 1) Buckets por empresa
     for (const bucket of byCompany.values()) {
       await processBucket({
@@ -516,9 +565,9 @@ ${ASSINATURA}`;
     // o pagamento permanece "aprovado" (= aguardando envio) e as invoices
     // ficam visíveis em /notas-fiscais com a mensagem de erro do provedor.
     if (sentOk > 0) {
-      await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", payment_id);
+      await supabase.from("payments").update({ status: "pedido_nf_enviado" }).eq("id", resolvedPaymentId);
       await supabase.from("payment_observations").insert({
-        payment_id,
+        payment_id: resolvedPaymentId,
         author_type: "sistema",
         message:
           `${sentOk} pedido(s) de NF enviado(s) com sucesso` +
@@ -528,7 +577,7 @@ ${ASSINATURA}`;
       });
     } else if (sentErr > 0) {
       await supabase.from("payment_observations").insert({
-        payment_id,
+        payment_id: resolvedPaymentId,
         author_type: "sistema",
         message: `Falha ao enviar ${sentErr} pedido(s) de NF: ${sendErrors.join("; ")}. Configure o provedor de e-mail e use "Reenviar" em /notas-fiscais.`,
         status_to: null,
