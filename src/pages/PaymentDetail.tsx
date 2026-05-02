@@ -145,7 +145,12 @@ const PaymentDetail = () => {
     ]);
     // Resposta antiga? descarta antes de tocar em qualquer estado.
     if (myToken !== loadTokenRef.current) return;
-    setPayment(p); setItems(it ?? []); setObs(o ?? []); setAiVersions(vs ?? []); setGroups(gs ?? []); setInvoices(inv ?? []);
+    setPayment(p);
+    setItems((it ?? []) as unknown as PaymentItemRow[]);
+    setObs(o ?? []);
+    setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
+    setGroups(gs ?? []);
+    setInvoices(inv ?? []);
     setQuestions((qs ?? []) as any);
     // Por padrão, todos os grupos começam expandidos para manter a UX atual
     setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
