@@ -138,8 +138,8 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div className="p-8 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch auto-rows-fr">
           {isAnalista && (
             <StatCard
               icon={Sparkles}
@@ -290,21 +290,23 @@ const StatCard = ({
 }) => {
   const inner = (
     <Card className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}>
-      <CardContent className="p-5 h-full flex flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0">{label}</p>
-          <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
-            <Icon className="h-5 w-5" />
+      <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col">
+        <div className="flex items-start justify-between gap-2 sm:gap-3">
+          <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-snug">
+            {label}
+          </p>
+          <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <p className="text-3xl font-semibold mt-2 tabular-nums">{value}</p>
+        <p className="text-2xl sm:text-3xl font-semibold mt-2 tabular-nums">{value}</p>
         <div className="mt-auto pt-2 min-h-[22px]">
           {mine ? (
             <span className={`inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
               Sua vez
             </span>
           ) : hint ? (
-            <p className="text-[11px] text-muted-foreground">{hint}</p>
+            <p className="text-[11px] text-muted-foreground break-words leading-snug line-clamp-2">{hint}</p>
           ) : null}
         </div>
       </CardContent>
