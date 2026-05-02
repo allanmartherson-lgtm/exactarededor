@@ -133,6 +133,78 @@ const PaymentDetail = () => {
     cb();
   };
 
+  // ===== Ações por grupo (empresa) =====
+  const transitionGroup = async (
+    groupId: string,
+    newStatus: PaymentStatus,
+    authorType: "validador" | "diretor" | "analista",
+    messagePrefix: string,
+    requireMsg = true,
+  ) => {
+    if (!id) return;
+    const g = groups.find((x) => x.id === groupId);
+    if (!g) return;
+    const text = (groupComment[groupId] ?? "").trim();
+    if (requireMsg && !text) {
+      toast({ title: "Adicione um motivo para esta empresa", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const updates: any = { status: newStatus };
+    if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
+      updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && newStatus === "aprovado") {
+      updates.approved_by = user!.id; updates.approved_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && newStatus === "rejeitado") {
+      updates.rejected_by = user!.id; updates.rejected_at = new Date().toISOString();
+      updates.rejection_reason = text || null;
+    }
+    const { error } = await supabase.from("payment_company_groups").update(updates).eq("id", groupId);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); setBusy(false); return; }
+    await supabase.from("payment_observations").insert({
+      payment_id: id, author_type: authorType, author_id: user!.id,
+      message: `[${g.company_name}] ${messagePrefix}${text ? `: ${text}` : ""}`,
+      status_from: g.status, status_to: newStatus,
+    });
+    setGroupComment((m) => ({ ...m, [groupId]: "" }));
+    await load();
+    setBusy(false);
+    toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
+  };
+
+  // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
+  const sendForValidation = async (onlyGroupId?: string) => {
+    if (!id) return;
+    const targets = (onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups)
+      .filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
+    if (targets.length === 0) {
+      toast({ title: "Nada para enviar", description: "Nenhuma empresa pronta para validação." });
+      return;
+    }
+    setBusy(true);
+    for (const g of targets) {
+      await supabase.from("payment_company_groups").update({ status: "aguardando_validacao" }).eq("id", g.id);
+      await supabase.from("payment_observations").insert({
+        payment_id: id, author_type: "analista", author_id: user!.id,
+        message: `[${g.company_name}] Enviado para validação pelo analista.`,
+        status_from: g.status, status_to: "aguardando_validacao",
+      });
+    }
+    await load();
+    setBusy(false);
+    toast({ title: "Enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+  };
+
+  const toggleItemExpanded = (itemId: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+      return next;
+    });
+  };
+
   const generatePdf = async () => {
     if (!payment) return;
     const doc = new jsPDF();
