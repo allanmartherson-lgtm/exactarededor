@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
@@ -35,6 +36,19 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 };
 
 const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
+
+// ===== Tipos de domínio (derivados do schema gerado) =====
+// Importante: payment_items e ai_analysis_versions têm `ai_findings`/`alerts`
+// como jsonb; refinamos esses campos como `unknown` aqui e validamos no uso.
+type Tables = Database["public"]["Tables"];
+type PaymentRow = Tables["payments"]["Row"];
+type PaymentItemRow = Tables["payment_items"]["Row"] & {
+  ai_findings: { alerts?: string[]; matched_rules?: string[]; matched_rule_ids?: string[] } | null;
+};
+type ObservationRow = Tables["payment_observations"]["Row"];
+type AiVersionRow = Tables["ai_analysis_versions"]["Row"];
+type GroupRow = Tables["payment_company_groups"]["Row"];
+type InvoiceRow = Tables["invoices"]["Row"];
 
 type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
 const RuleTooltipContent = ({
