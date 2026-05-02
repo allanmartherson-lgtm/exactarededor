@@ -994,7 +994,29 @@ const PaymentDetail = () => {
                                     <span className={`block text-[11px] truncate max-w-[180px] ml-auto ${firstRule?.id ? "text-primary" : "text-muted-foreground"}`}>{firstRuleLabel}</span>
                                   )}
                                 </td>
-                                <td className="px-2 py-2"><span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span></td>
+                                <td className="px-2 py-2">
+                                  {(() => {
+                                    const raw = (it.ai_status as ItemAiStatus) ?? "pendente";
+                                    // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
+                                    if (analystDone && (raw === "reprovado" || raw === "alerta")) {
+                                      return (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>
+                                              seguido
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="left" className="max-w-xs text-xs">
+                                            Análise inicial da IA: <strong>{raw}</strong>. O analista revisou e seguiu com este item.
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    }
+                                    return (
+                                      <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[itemToneMap[raw]]}`}>{raw}</span>
+                                    );
+                                  })()}
+                                </td>
                                 <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     type="button"
