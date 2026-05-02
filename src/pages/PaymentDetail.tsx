@@ -1308,6 +1308,14 @@ const PaymentDetail = () => {
                           </>
                         )}
                         {isGroupValidador && <>
+                          <Button
+                            variant="outline"
+                            onClick={() => reanalyzeGroup(g)}
+                            disabled={busy || reanalyzingGroupId === g.id}
+                          >
+                            <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
+                            {reanalyzingGroupId === g.id ? "Reanalisando..." : "Reanalisar com IA"}
+                          </Button>
                           <Button onClick={() => transitionGroup(g.id, "aguardando_aprovacao", "validador", "Validado", false)} disabled={busy}>
                             <CheckCircle2 className="h-4 w-4 mr-2" /> Validar empresa
                           </Button>
@@ -1316,6 +1324,14 @@ const PaymentDetail = () => {
                           </Button>
                         </>}
                         {isGroupDiretor && <>
+                          <Button
+                            variant="outline"
+                            onClick={() => reanalyzeGroup(g)}
+                            disabled={busy || reanalyzingGroupId === g.id}
+                          >
+                            <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
+                            {reanalyzingGroupId === g.id ? "Reanalisando..." : "Reanalisar com IA"}
+                          </Button>
                           <Button onClick={() => transitionGroup(g.id, "aprovado", "diretor", "Aprovado", false)} disabled={busy}>
                             <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar empresa
                           </Button>
