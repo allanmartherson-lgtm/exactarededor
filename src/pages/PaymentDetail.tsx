@@ -530,7 +530,10 @@ const PaymentDetail = () => {
               <p className="text-sm text-muted-foreground text-center py-6">Sem observações para o filtro selecionado.</p>
             ) : (
               <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
-                {filteredObs.map((o) => (
+                {filteredObs.map((o) => {
+                  const canEdit = !!user && o.author_id === user.id;
+                  const isEditing = editingObsId === o.id;
+                  return (
                   <li key={o.id} className="ml-1">
                     <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
                     <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
@@ -543,10 +546,37 @@ const PaymentDetail = () => {
                         <span className="text-muted-foreground">· {o.status_from ?? "—"} → {o.status_to ?? "—"}</span>
                       )}
                       <span className="text-muted-foreground ml-auto">{formatDate(o.created_at)}</span>
+                      {o.edited_at && (
+                        <span className="text-muted-foreground italic">· editado {formatDate(o.edited_at)}</span>
+                      )}
+                      {canEdit && !isEditing && (
+                        <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => startEditObs(o)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          rows={3}
+                          value={editingObsDraft}
+                          onChange={(e) => setEditingObsDraft(e.target.value)}
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={cancelEditObs} disabled={busy}>
+                            <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                          </Button>
+                          <Button size="sm" onClick={saveEditObs} disabled={busy}>
+                            <Save className="h-3.5 w-3.5 mr-1" /> Salvar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                    )}
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             )}
           </TabsContent>
