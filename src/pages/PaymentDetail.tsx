@@ -759,18 +759,25 @@ const PaymentDetail = () => {
               const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
               const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
               const isGroupExpanded = expandedGroups.has(g.id);
+              // Se o analista já concluiu a triagem desse grupo, o parecer da IA não é mais alerta ativo:
+              // ele vira informativo e deixa de pintar o item como "reprovado".
+              const analystDone = ANALYST_DONE_STATUSES.has(gStatus);
               const groupAlerts = groupItems
                 .filter((it) => it.ai_findings?.alerts?.length)
                 .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
               const gCounts = groupItems.reduce(
                 (acc, it) => {
-                  const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+                  // mascara reprovado/alerta da IA quando o analista já passou adiante
+                  const rawS = (it.ai_status as ItemAiStatus) ?? "pendente";
+                  const s: ItemAiStatus =
+                    analystDone && (rawS === "reprovado" || rawS === "alerta") ? "aprovado" : rawS;
                   acc[s] = (acc[s] ?? 0) + 1;
                   return acc;
                 },
                 { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
               );
               const isGroupAiOpen = groupAiOpen.has(g.id);
+              const returnerForResend = gStatus === "devolvido_analista" ? lastReturnerFor(g.id, g.company_name) : null;
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
                   <button
