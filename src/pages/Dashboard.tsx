@@ -562,20 +562,17 @@ const Dashboard = () => {
   const pipeCounts = useMemo(() => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];
     const cutoff = days != null ? Date.now() - days * 24 * 60 * 60 * 1000 : null;
-    const diretorReached = new Set<PaymentStatus>(DIRETOR_REACHED_STATUSES);
     /**
-     * Filtro por papel envolvido no pagamento (não por status atual). Assim,
-     * trocar o filtro reflete em todas as colunas do pipeline em vez de zerar
-     * tudo que não pertence à etapa daquele papel.
+     * Filtro por "fila de ação": cada papel só conta pagamentos cujo status
+     * atual aguarda ação dele. "Todos" mostra o pipeline inteiro.
      */
-    const matchesOwner = (p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
-      switch (pipelineOwner) {
-        case "all": return true;
-        case "analista": return !!p.created_by;
-        case "validador": return !!p.validated_by;
-        case "diretor": return diretorReached.has(p.status);
-      }
+    const ACTION_QUEUE: Record<Exclude<typeof pipelineOwner, "all">, Set<PaymentStatus>> = {
+      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada"]),
+      validador: new Set<PaymentStatus>(["aguardando_validacao", "devolvido_validador"]),
+      diretor: new Set<PaymentStatus>(["aguardando_aprovacao"]),
     };
+    const matchesOwner = (p: { status: PaymentStatus }) =>
+      pipelineOwner === "all" ? true : ACTION_QUEUE[pipelineOwner].has(p.status);
     const c = {
       pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
       pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
