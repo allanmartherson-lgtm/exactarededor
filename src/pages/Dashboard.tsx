@@ -290,24 +290,40 @@ const StatCard = ({
 }) => {
   const inner = (
     <Card className={`shadow-soft transition h-full ${mine ? "ring-1 ring-primary/40" : ""} ${to ? "hover:shadow-card cursor-pointer" : ""}`}>
-      <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col">
+      <CardContent className="p-3 sm:p-4 lg:p-5 h-full flex flex-col gap-3">
+        {/* Cabeçalho: label + ícone, altura reservada para 2 linhas */}
         <div className="flex items-start justify-between gap-2 sm:gap-3">
-          <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-snug">
+          <p
+            className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 break-words leading-tight line-clamp-2 min-h-[2lh]"
+            title={label}
+          >
             {label}
           </p>
           <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
-        <p className="text-2xl sm:text-3xl font-semibold mt-2 tabular-nums">{value}</p>
-        <div className="mt-auto pt-2 min-h-[22px]">
+
+        {/* Valor: tipografia consistente em todos os cards */}
+        <p className="text-2xl sm:text-3xl font-semibold tabular-nums leading-none">
+          {value}
+        </p>
+
+        {/* Footer: badge OU hint OU placeholder — sempre mesma altura */}
+        <div className="mt-auto flex items-center min-h-[20px]">
           {mine ? (
-            <span className={`inline-flex text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 ${TONE_CLASSES.info}`}>
+            <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 leading-none ${TONE_CLASSES.info}`}>
               Sua vez
             </span>
           ) : hint ? (
-            <p className="text-[11px] text-muted-foreground break-words leading-snug line-clamp-2">{hint}</p>
-          ) : null}
+            <p className="text-[11px] text-muted-foreground leading-tight line-clamp-1" title={hint}>
+              {hint}
+            </p>
+          ) : (
+            <span className="text-[11px] text-transparent select-none" aria-hidden>
+              &nbsp;
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>
