@@ -7,8 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, MessageCircleQuestion, Clock } from "lucide-react";
+import { ShieldCheck, MessageCircleQuestion, Clock, Paperclip, X, Download } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/status";
+import {
+  ALLOWED_ATTACHMENT_EXTENSIONS,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  formatBytes,
+  validateAttachment,
+} from "@/lib/questionAttachments";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-invoice`;
 const AUTH = `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`;
@@ -19,6 +26,15 @@ interface PortalQuestion {
   author_name: string | null;
   message: string;
   created_at: string;
+}
+
+interface PortalAttachment {
+  id: string;
+  question_id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  signed_url: string | null;
 }
 
 const InvoicePortal = () => {
@@ -36,8 +52,10 @@ const InvoicePortal = () => {
     notes?: string;
   } | null>(null);
   const [questions, setQuestions] = useState<PortalQuestion[]>([]);
+  const [questionAttachments, setQuestionAttachments] = useState<PortalAttachment[]>([]);
   const [questionDraft, setQuestionDraft] = useState("");
   const [questionAuthor, setQuestionAuthor] = useState("");
+  const [questionFiles, setQuestionFiles] = useState<File[]>([]);
   const [sendingQuestion, setSendingQuestion] = useState(false);
   // Estado do fluxo de "corrigir e enviar novamente": mostra textarea pra
   // justificar a divergência antes de descartar a NF anterior.
@@ -51,6 +69,7 @@ const InvoicePortal = () => {
       .then((d) => {
         setInfo(d);
         setQuestions((d.questions ?? []) as PortalQuestion[]);
+        setQuestionAttachments((d.attachments ?? []) as PortalAttachment[]);
         setLoading(false);
       });
   };
@@ -79,6 +98,32 @@ const InvoicePortal = () => {
     setDone(data);
   };
 
+  const onPickQuestionFiles = (files: FileList | null) => {
+    if (!files) return;
+    const merged = [...questionFiles];
+    for (const f of Array.from(files)) {
+      if (merged.length >= MAX_ATTACHMENTS_PER_MESSAGE) {
+        toast({ title: "Limite de anexos", description: `Máximo ${MAX_ATTACHMENTS_PER_MESSAGE} arquivos por mensagem.`, variant: "destructive" });
+        break;
+      }
+      const err = validateAttachment(f);
+      if (err) {
+        toast({
+          title: "Anexo recusado",
+          description: err.reason === "size"
+            ? `${f.name}: maior que ${formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.`
+            : err.reason === "empty"
+            ? `${f.name}: arquivo vazio.`
+            : `${f.name}: tipo não permitido. Use PDF, imagem, planilha ou CSV.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+      merged.push(f);
+    }
+    setQuestionFiles(merged);
+  };
+
   const sendQuestion = async () => {
     const message = questionDraft.trim();
     if (message.length < 5) {
@@ -86,15 +131,28 @@ const InvoicePortal = () => {
       return;
     }
     setSendingQuestion(true);
-    const r = await fetch(FN_URL, {
-      method: "POST",
-      headers: { Authorization: AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify({ token, message, author_name: questionAuthor.trim() || null }),
-    });
+    let r: Response;
+    if (questionFiles.length > 0) {
+      // Multipart pra suportar anexos do recebedor.
+      const fd = new FormData();
+      fd.append("token", token!);
+      fd.append("action", "question");
+      fd.append("message", message);
+      if (questionAuthor.trim()) fd.append("author_name", questionAuthor.trim());
+      for (const f of questionFiles) fd.append("attachments", f, f.name);
+      r = await fetch(FN_URL, { method: "POST", body: fd, headers: { Authorization: AUTH } });
+    } else {
+      r = await fetch(FN_URL, {
+        method: "POST",
+        headers: { Authorization: AUTH, "Content-Type": "application/json" },
+        body: JSON.stringify({ token, message, author_name: questionAuthor.trim() || null }),
+      });
+    }
     const data = await r.json();
     setSendingQuestion(false);
     if (!r.ok) return toast({ title: "Erro", description: data.error, variant: "destructive" });
     setQuestionDraft("");
+    setQuestionFiles([]);
     toast({ title: "Mensagem enviada", description: "O analista vai retornar em breve." });
     refresh();
   };
@@ -333,7 +391,9 @@ const InvoicePortal = () => {
                   </p>
                   {questions.length > 0 && (
                     <ul className="space-y-2 max-h-60 overflow-auto pr-1">
-                      {questions.map((q) => (
+                      {questions.map((q) => {
+                        const atts = questionAttachments.filter((a) => a.question_id === q.id);
+                        return (
                         <li
                           key={q.id}
                           className={`rounded-lg border p-2.5 text-xs ${
@@ -345,8 +405,27 @@ const InvoicePortal = () => {
                             {q.author_name ? ` · ${q.author_name}` : ""} · {formatDate(q.created_at)}
                           </p>
                           <p className="whitespace-pre-wrap break-words">{q.message}</p>
+                          {atts.length > 0 && (
+                            <ul className="mt-2 flex flex-wrap gap-1.5">
+                              {atts.map((a) => (
+                                <li key={a.id}>
+                                  <a
+                                    href={a.signed_url ?? "#"}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-[11px] hover:bg-muted"
+                                  >
+                                    <Paperclip className="h-3 w-3" />
+                                    <span className="truncate max-w-[160px]">{a.file_name}</span>
+                                    <span className="text-muted-foreground">({formatBytes(Number(a.size_bytes))})</span>
+                                    <Download className="h-3 w-3" />
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </li>
-                      ))}
+                      );})}
                     </ul>
                   )}
                   <div className="space-y-1.5">
@@ -356,6 +435,41 @@ const InvoicePortal = () => {
                   <div className="space-y-1.5">
                     <Label htmlFor="q-msg">Sua dúvida</Label>
                     <Textarea id="q-msg" value={questionDraft} onChange={(e) => setQuestionDraft(e.target.value)} rows={4} maxLength={2000} />
+                  </div>
+                  {questionFiles.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {questionFiles.map((f, idx) => (
+                        <li key={`${f.name}-${idx}`} className="inline-flex items-center gap-1 rounded border bg-muted/40 px-2 py-0.5 text-[11px]">
+                          <Paperclip className="h-3 w-3" />
+                          <span className="truncate max-w-[140px]">{f.name}</span>
+                          <span className="text-muted-foreground">({formatBytes(f.size)})</span>
+                          <button
+                            type="button"
+                            onClick={() => setQuestionFiles((prev) => prev.filter((_, i) => i !== idx))}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Remover anexo"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+                      <Paperclip className="h-3.5 w-3.5" />
+                      Anexar arquivo (opcional)
+                      <input
+                        type="file"
+                        multiple
+                        accept={ALLOWED_ATTACHMENT_EXTENSIONS}
+                        className="hidden"
+                        onChange={(e) => { onPickQuestionFiles(e.target.files); e.currentTarget.value = ""; }}
+                      />
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      PDF, imagem, xlsx ou csv · máx {MAX_ATTACHMENTS_PER_MESSAGE} · {formatBytes(MAX_ATTACHMENT_SIZE_BYTES)} cada
+                    </span>
                   </div>
                   <Button onClick={sendQuestion} disabled={sendingQuestion || questionDraft.trim().length < 5} className="w-full">
                     {sendingQuestion ? "Enviando..." : "Enviar dúvida"}

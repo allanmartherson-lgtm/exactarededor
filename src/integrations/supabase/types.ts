@@ -239,6 +239,56 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_question_attachments: {
+        Row: {
+          author_id: string | null
+          author_type: string
+          created_at: string
+          file_name: string
+          id: string
+          invoice_id: string
+          mime_type: string
+          payment_id: string
+          question_id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_type: string
+          created_at?: string
+          file_name: string
+          id?: string
+          invoice_id: string
+          mime_type: string
+          payment_id: string
+          question_id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Update: {
+          author_id?: string | null
+          author_type?: string
+          created_at?: string
+          file_name?: string
+          id?: string
+          invoice_id?: string
+          mime_type?: string
+          payment_id?: string
+          question_id?: string
+          size_bytes?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_question_attachments_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_questions: {
         Row: {
           author_id: string | null
