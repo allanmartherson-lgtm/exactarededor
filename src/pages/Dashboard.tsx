@@ -163,7 +163,9 @@ const Dashboard = () => {
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         <StatCardsGrid>
           {loading ? (
-            Array.from({ length: isAnalista ? 4 : 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+            Array.from({ length: (isAnalista ? 4 : 3) + (isAnalista || isDiretor ? 1 : 0) }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))
           ) : (
             <>
           {isAnalista && (
@@ -196,6 +198,23 @@ const Dashboard = () => {
             to="/pagamentos?status=aguardando_aprovacao"
           />
           <StatCard icon={FileUp} label="Aprovados / em NF" value={counts.aprovados} tone="success" />
+          {(isAnalista || isDiretor) && (
+            <StatCard
+              icon={Receipt}
+              label={isAnalista ? "NFs divergentes (suas)" : "NFs divergentes"}
+              value={isAnalista ? counts.mineInvoicesDivergentes : counts.teamInvoicesDivergentes}
+              tone="warning"
+              hint={
+                isAnalista
+                  ? counts.teamInvoicesDivergentes !== counts.mineInvoicesDivergentes
+                    ? `${counts.teamInvoicesDivergentes} no time · lançar no financeiro`
+                    : "lançar no financeiro"
+                  : "acompanhamento"
+              }
+              mine={isAnalista && counts.mineInvoicesDivergentes > 0}
+              to="/notas-fiscais"
+            />
+          )}
             </>
           )}
         </StatCardsGrid>
