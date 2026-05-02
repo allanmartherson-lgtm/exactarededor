@@ -183,6 +183,162 @@ const ThemeToggle = () => {
   );
 };
 
+/* ============================================================
+ * Topbar nav (with dropdown groups). Only one dropdown open at
+ * a time. Closes on outside click and on route change.
+ * ============================================================ */
+const TopbarNav = ({ items }: { items: NavItem[] }) => {
+  const location = useLocation();
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (openKey === null) return;
+    const onDown = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpenKey(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [openKey]);
+
+  // Close on route change
+  useEffect(() => {
+    setOpenKey(null);
+  }, [location.pathname]);
+
+  return (
+    <nav
+      ref={containerRef}
+      className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-none"
+      style={{ gap: 1 }}
+      aria-label="Navegação principal"
+    >
+      {items.map((item) => {
+        if (!isGroup(item)) {
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                cn(
+                  "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isActive
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )
+              }
+              style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
+            >
+              <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
+              <span>{item.label}</span>
+            </NavLink>
+          );
+        }
+
+        const groupActive = item.children.some((c) =>
+          c.to === "/" ? location.pathname === "/" : location.pathname.startsWith(c.to),
+        );
+        const isOpen = openKey === item.label;
+
+        return (
+          <div key={item.label} className="relative">
+            <button
+              type="button"
+              onClick={() => setOpenKey(isOpen ? null : item.label)}
+              aria-haspopup="menu"
+              aria-expanded={isOpen}
+              className={cn(
+                "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                groupActive
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
+            >
+              <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
+              <span>{item.label}</span>
+              <ChevronDown
+                size={13}
+                strokeWidth={1.75}
+                className={cn(
+                  "flex-shrink-0 transition-transform duration-150",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </button>
+
+            {isOpen && (
+              <div
+                role="menu"
+                className="absolute left-0 top-full mt-1 animate-fade-in"
+                style={{
+                  minWidth: 200,
+                  zIndex: 200,
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: 10,
+                  boxShadow: "0 8px 24px hsl(var(--foreground) / 0.08)",
+                  padding: 6,
+                }}
+              >
+                {item.children.map((c) => {
+                  const childActive =
+                    c.to === "/"
+                      ? location.pathname === "/"
+                      : location.pathname.startsWith(c.to);
+                  return (
+                    <NavLink
+                      key={c.to}
+                      to={c.to}
+                      role="menuitem"
+                      onClick={() => setOpenKey(null)}
+                      className={cn(
+                        "flex items-center gap-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring relative",
+                        childActive
+                          ? "font-medium"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                      style={{
+                        padding: "8px 12px",
+                        paddingLeft: childActive ? 18 : 12,
+                        borderRadius: 7,
+                        fontSize: 13,
+                        background: childActive ? "hsl(var(--accent))" : undefined,
+                        color: childActive ? "hsl(var(--accent-foreground))" : undefined,
+                      }}
+                    >
+                      {childActive && (
+                        <span
+                          aria-hidden
+                          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full"
+                          style={{
+                            width: 5,
+                            height: 5,
+                            background: "hsl(var(--primary))",
+                          }}
+                        />
+                      )}
+                      <c.icon
+                        size={16}
+                        strokeWidth={1.75}
+                        className="flex-shrink-0"
+                        style={{ color: childActive ? "hsl(var(--accent-foreground))" : "hsl(var(--muted-foreground))" }}
+                      />
+                      <span className="truncate">{c.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </nav>
+  );
+};
+
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
@@ -190,7 +346,8 @@ export const AppLayout = () => {
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
   const initials = getInitials(user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
-  const visibleNav = nav.filter((item) => item.roles.some((r) => roles.includes(r)));
+  const visibleTopNav = filterNav(NAV_ITEMS, roles);
+  const visibleSideNav = flattenNav(visibleTopNav).filter((c) => c.roles.some((r) => roles.includes(r)));
 
   const handleSignOut = async () => {
     await signOut();
@@ -207,31 +364,7 @@ export const AppLayout = () => {
         >
           <div className="h-full max-w-[1400px] mx-auto px-5 flex items-center gap-5">
             <Logo />
-            <nav
-              className="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-none"
-              style={{ gap: 1 }}
-              aria-label="Navegação principal"
-            >
-              {visibleNav.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) =>
-                    cn(
-                      "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      isActive
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )
-                  }
-                  style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
-                >
-                  <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
-            </nav>
+            <TopbarNav items={visibleTopNav} />
 
             <div className="flex items-center gap-2 flex-shrink-0">
               {canCreate && (
@@ -317,7 +450,7 @@ export const AppLayout = () => {
           className="flex-1 overflow-y-auto"
           style={{ padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}
         >
-          {visibleNav.map((item) => (
+          {visibleSideNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
