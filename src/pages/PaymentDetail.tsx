@@ -700,20 +700,103 @@ const PaymentDetail = () => {
               const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
               const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
               const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
+              const isGroupExpanded = expandedGroups.has(g.id);
+              const groupAlerts = groupItems
+                .filter((it) => it.ai_findings?.alerts?.length)
+                .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
+              const gCounts = groupItems.reduce(
+                (acc, it) => {
+                  const s = (it.ai_status as ItemAiStatus) ?? "pendente";
+                  acc[s] = (acc[s] ?? 0) + 1;
+                  return acc;
+                },
+                { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
+              );
+              const isGroupAiOpen = groupAiOpen.has(g.id);
               return (
                 <Card key={g.id} className="shadow-card overflow-hidden">
-                  <CardHeader className="pb-3 bg-muted/30">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <CardTitle className="text-base truncate">{g.company_name}</CardTitle>
-                        <span className="text-xs text-muted-foreground">
-                          · {g.items_count} itens · {formatCurrency(g.total_amount)}
-                        </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedGroups((prev) => {
+                        const n = new Set(prev);
+                        n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                        return n;
+                      })
+                    }
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                    aria-expanded={isGroupExpanded}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isGroupExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-base font-semibold truncate">{g.company_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        · {g.items_count} itens · {formatCurrency(g.total_amount)}
+                      </span>
+                      <div className="hidden md:flex items-center gap-1 ml-2">
+                        {gCounts.aprovado > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>✓ {gCounts.aprovado}</span>}
+                        {gCounts.alerta > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.warning}`}>⚠ {gCounts.alerta}</span>}
+                        {gCounts.reprovado > 0 && <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>✕ {gCounts.reprovado}</span>}
                       </div>
-                      <StatusBadge status={gStatus} />
                     </div>
-                  </CardHeader>
+                    <StatusBadge status={gStatus} />
+                  </button>
+                  {isGroupExpanded && groupAlerts.length > 0 && (
+                    <div className="border-t border-border/60 bg-info-soft/30">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGroupAiOpen((prev) => {
+                            const n = new Set(prev);
+                            n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                            return n;
+                          })
+                        }
+                        className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-info-soft/50 transition-colors text-xs"
+                        aria-expanded={isGroupAiOpen}
+                      >
+                        {isGroupAiOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span className="font-semibold">Parecer da IA</span>
+                        <span className="text-muted-foreground">— {groupAlerts.length} item(ns) com observação</span>
+                      </button>
+                      {isGroupAiOpen && (
+                        <ul className="divide-y divide-border/40 border-t border-border/40 bg-background/60">
+                          {groupAlerts.map(({ item, alerts }) => {
+                            const tone: keyof typeof TONE_CLASSES =
+                              item.ai_status === "reprovado" ? "destructive" : item.ai_status === "alerta" ? "warning" : "muted";
+                            const raw = (item.raw_data ?? {}) as Record<string, any>;
+                            const paciente = raw["Paciente"] ?? raw["paciente"] ?? null;
+                            return (
+                              <li key={item.id} className="px-4 py-2 text-xs">
+                                <div className="flex items-start gap-2">
+                                  <span className={`inline-block h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${tone === "destructive" ? "bg-destructive" : tone === "warning" ? "bg-warning" : "bg-muted-foreground"}`} />
+                                  <div className="min-w-0 flex-1 space-y-1">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                                      {item.attendance_number && <span className="font-mono">Atend. #{item.attendance_number}</span>}
+                                      {paciente && <span>· Paciente: <span className="text-foreground">{paciente}</span></span>}
+                                      <span>· Médico: <span className="text-foreground">{item.doctor_name}</span></span>
+                                      {item.procedure_code && <span>· Procedimento: <span className="font-mono text-foreground">{item.procedure_code}</span></span>}
+                                    </div>
+                                    <ul className="space-y-0.5">
+                                      {alerts.map((a, i) => (
+                                        <li key={i} className="flex gap-1.5">
+                                          <span className="text-muted-foreground">•</span>
+                                          <span className="whitespace-pre-wrap">{a}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                  {isGroupExpanded && (
                   <CardContent className="p-0 overflow-x-auto">
                     <table className="w-full text-sm table-fixed">
                       <colgroup>
@@ -915,7 +998,8 @@ const PaymentDetail = () => {
                       </tbody>
                     </table>
                   </CardContent>
-                  {(isGroupAnalista || isGroupValidador || isGroupDiretor) && (
+                  )}
+                  {isGroupExpanded && (isGroupAnalista || isGroupValidador || isGroupDiretor) && (
                     <div className="border-t border-border bg-muted/20 p-4 space-y-2">
                       <Textarea
                         rows={2}
