@@ -304,7 +304,6 @@ const PaymentDetail = () => {
   );
   const topAlerts: { item: any; alerts: string[] }[] = items
     .filter((it) => it.ai_findings?.alerts?.length)
-    .slice(0, 6)
     .map((it) => ({ item: it, alerts: it.ai_findings.alerts as string[] }));
 
   // ===== Histórico (timeline + comparador de versões da IA) =====
