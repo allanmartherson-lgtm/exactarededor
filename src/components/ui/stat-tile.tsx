@@ -198,6 +198,7 @@ export const StatTile = ({
         <p
           data-testid="stat-card-value"
           className={cn(
+            "stat-number",
             isCompact ? "text-2xl" : "text-2xl sm:text-3xl",
             "font-semibold tabular-nums leading-none transition-[font-size] duration-200 ease-out motion-reduce:transition-none",
           )}
