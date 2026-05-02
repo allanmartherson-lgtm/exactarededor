@@ -450,6 +450,7 @@ export type Database = {
           author_id: string | null
           author_type: Database["public"]["Enums"]["observation_author"]
           created_at: string
+          edited_at: string | null
           id: string
           item_id: string | null
           message: string
@@ -461,6 +462,7 @@ export type Database = {
           author_id?: string | null
           author_type: Database["public"]["Enums"]["observation_author"]
           created_at?: string
+          edited_at?: string | null
           id?: string
           item_id?: string | null
           message: string
@@ -472,6 +474,7 @@ export type Database = {
           author_id?: string | null
           author_type?: Database["public"]["Enums"]["observation_author"]
           created_at?: string
+          edited_at?: string | null
           id?: string
           item_id?: string | null
           message?: string

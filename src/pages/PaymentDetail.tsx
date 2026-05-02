@@ -24,7 +24,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, RotateCcw, Send, ShieldCheck, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageSquare, MessageSquarePlus, Pencil, RefreshCcw, RotateCcw, Save, Send, ShieldCheck, Sparkles, Trash2, X, XCircle } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -84,6 +84,9 @@ const PaymentDetail = () => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
+  const [editingObsId, setEditingObsId] = useState<string | null>(null);
+  const [editingObsDraft, setEditingObsDraft] = useState<string>("");
+  const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -223,6 +226,64 @@ const PaymentDetail = () => {
     await load();
     setBusy(false);
     toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${target.role}.` });
+  };
+
+  // Analista edita uma observação que ele mesmo escreveu (qualquer rodada).
+  const startEditObs = (o: any) => {
+    setEditingObsId(o.id);
+    setEditingObsDraft(o.message ?? "");
+  };
+  const cancelEditObs = () => {
+    setEditingObsId(null);
+    setEditingObsDraft("");
+  };
+  const saveEditObs = async () => {
+    if (!editingObsId) return;
+    const text = editingObsDraft.trim();
+    if (!text) {
+      toast({ title: "A observação não pode ficar vazia", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("payment_observations")
+      .update({ message: text, edited_at: new Date().toISOString() })
+      .eq("id", editingObsId);
+    setBusy(false);
+    if (error) {
+      toast({ title: "Falha ao salvar edição", description: error.message, variant: "destructive" });
+      return;
+    }
+    cancelEditObs();
+    await load();
+    toast({ title: "Observação atualizada" });
+  };
+
+  // Analista reaplica as regras (reanálise da IA) APENAS para os itens da empresa devolvida,
+  // antes de reencaminhar. Isso recalcula expected_amount, alerts e matched_rules.
+  const reanalyzeGroup = async (g: any) => {
+    if (!id) return;
+    setReanalyzingGroupId(g.id);
+    try {
+      const { error } = await supabase.functions.invoke("analyze-payment", {
+        body: { payment_id: id, company_name: g.company_name },
+      });
+      if (error) throw error;
+      await supabase.from("payment_observations").insert({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user!.id,
+        message: `[${g.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
+        status_from: g.status,
+        status_to: g.status,
+      });
+      await load();
+      toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
+    } catch (e: any) {
+      toast({ title: "Falha ao reaplicar regras", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setReanalyzingGroupId(null);
+    }
   };
 
   // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
@@ -469,7 +530,10 @@ const PaymentDetail = () => {
               <p className="text-sm text-muted-foreground text-center py-6">Sem observações para o filtro selecionado.</p>
             ) : (
               <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
-                {filteredObs.map((o) => (
+                {filteredObs.map((o) => {
+                  const canEdit = !!user && o.author_id === user.id;
+                  const isEditing = editingObsId === o.id;
+                  return (
                   <li key={o.id} className="ml-1">
                     <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
                     <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
@@ -482,10 +546,37 @@ const PaymentDetail = () => {
                         <span className="text-muted-foreground">· {o.status_from ?? "—"} → {o.status_to ?? "—"}</span>
                       )}
                       <span className="text-muted-foreground ml-auto">{formatDate(o.created_at)}</span>
+                      {o.edited_at && (
+                        <span className="text-muted-foreground italic">· editado {formatDate(o.edited_at)}</span>
+                      )}
+                      {canEdit && !isEditing && (
+                        <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => startEditObs(o)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          rows={3}
+                          value={editingObsDraft}
+                          onChange={(e) => setEditingObsDraft(e.target.value)}
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={cancelEditObs} disabled={busy}>
+                            <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                          </Button>
+                          <Button size="sm" onClick={saveEditObs} disabled={busy}>
+                            <Save className="h-3.5 w-3.5 mr-1" /> Salvar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{o.message}</p>
+                    )}
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             )}
           </TabsContent>
@@ -1104,6 +1195,14 @@ const PaymentDetail = () => {
                       <div className="flex flex-wrap gap-2 justify-end">
                         {isGroupAnalista && (
                           <>
+                            <Button
+                              variant="outline"
+                              onClick={() => reanalyzeGroup(g)}
+                              disabled={busy || reanalyzingGroupId === g.id}
+                            >
+                              <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
+                              {reanalyzingGroupId === g.id ? "Reaplicando..." : "Reaplicar regras"}
+                            </Button>
                             {returnerForResend ? (
                               <Button onClick={() => resendGroup(g.id)} disabled={busy}>
                                 <Send className="h-4 w-4 mr-2" />
