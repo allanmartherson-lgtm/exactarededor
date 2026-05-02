@@ -1105,9 +1105,18 @@ const PaymentDetail = () => {
                       />
                       <div className="flex flex-wrap gap-2 justify-end">
                         {isGroupAnalista && (
-                          <Button onClick={() => sendForValidation(g.id)} disabled={busy}>
-                            <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
-                          </Button>
+                          <>
+                            {returnerForResend ? (
+                              <Button onClick={() => resendGroup(g.id)} disabled={busy}>
+                                <Send className="h-4 w-4 mr-2" />
+                                Reencaminhar ao {returnerForResend}
+                              </Button>
+                            ) : (
+                              <Button onClick={() => sendForValidation(g.id)} disabled={busy}>
+                                <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
+                              </Button>
+                            )}
+                          </>
                         )}
                         {isGroupValidador && <>
                           <Button onClick={() => transitionGroup(g.id, "aguardando_aprovacao", "validador", "Validado", false)} disabled={busy}>
@@ -1121,8 +1130,8 @@ const PaymentDetail = () => {
                           <Button onClick={() => transitionGroup(g.id, "aprovado", "diretor", "Aprovado", false)} disabled={busy}>
                             <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar empresa
                           </Button>
-                          <Button variant="outline" onClick={() => transitionGroup(g.id, "devolvido_validador", "diretor", "Devolvido ao validador")} disabled={busy}>
-                            <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao validador
+                          <Button variant="outline" onClick={() => transitionGroup(g.id, "devolvido_analista", "diretor", "Devolvido ao analista")} disabled={busy}>
+                            <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao analista
                           </Button>
                           <Button variant="destructive" onClick={() => transitionGroup(g.id, "rejeitado", "diretor", "Rejeitado")} disabled={busy}>
                             <XCircle className="h-4 w-4 mr-2" /> Rejeitar empresa
