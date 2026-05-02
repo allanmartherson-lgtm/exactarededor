@@ -135,12 +135,23 @@ serve(async (req) => {
     const summaries: any[] = [];
 
     for (const [email, info] of byEmail) {
+      // Se todos os itens deste destinatário pertencem à mesma empresa, vinculamos a NF a ela.
+      // Isso permite a conferência bruto x NF por empresa no fluxo do analista.
+      const companyIdsHere = Array.from(new Set(info.items.map((it: any) => it.company_id).filter(Boolean)));
+      const companyNamesHere = Array.from(new Set(info.items.map((it: any) => it.company_name).filter(Boolean)));
+      const linkedCompanyId = companyIdsHere.length === 1 ? companyIdsHere[0] : null;
+      const linkedCompanyName = companyNamesHere.length === 1
+        ? companyNamesHere[0]
+        : (linkedCompanyId ? (companyMap.get(linkedCompanyId)?.name ?? null) : null);
+
       const { data: invoice } = await supabase.from("invoices").insert({
         payment_id,
         expected_amount: info.total,
         recipient_email: email,
         status: "aguardando",
         sent_at: new Date().toISOString(),
+        company_id: linkedCompanyId,
+        company_name: linkedCompanyName,
       }).select().single();
       if (!invoice) continue;
       created.push(invoice.id);
