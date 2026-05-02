@@ -257,6 +257,31 @@ const Invoices = () => {
           </TabsList>
         </Tabs>
 
+        {canActOnNF && failedInvoices.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive-soft px-4 py-3">
+            <div className="flex items-start gap-2 text-sm">
+              <MailWarning className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+              <div>
+                <p className="font-medium text-destructive">
+                  {failedInvoices.length} pedido{failedInvoices.length === 1 ? "" : "s"} com erro de envio
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  O provedor de e-mail recusou o envio. Você pode reenviar todos de uma vez.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={bulkBusy}
+              onClick={resendAllFailed}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${bulkBusy ? "animate-spin" : ""}`} />
+              {bulkBusy ? "Reenviando…" : `Reenviar ${failedInvoices.length} com erro`}
+            </Button>
+          </div>
+        )}
+
         <Card className="shadow-card"><CardContent className="p-0">
           {filtered.length === 0 ? <p className="px-6 py-12 text-center text-sm text-muted-foreground">
             {rows.length === 0 ? "Nenhum pedido enviado ainda." : "Nenhum pedido neste status."}
