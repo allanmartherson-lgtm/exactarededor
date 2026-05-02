@@ -1212,7 +1212,7 @@ const PaymentDetail = () => {
                   )}
                   {isGroupExpanded && (
                   <CardContent className="p-0 overflow-x-auto print:overflow-visible">
-                    <table className="w-full min-w-[960px] text-sm table-fixed print:min-w-0 print:text-[10px]">
+                    <table className="w-full min-w-[1000px] text-sm table-fixed print:min-w-0 print:text-[10px]">
                       <colgroup>
                         <col className="w-8" />
                         <col className="w-[80px]" />
@@ -1224,7 +1224,7 @@ const PaymentDetail = () => {
                         <col className="w-[44px]" />
                         <col className="w-[110px]" />
                         <col className="w-[88px] hidden sm:table-column print:table-column" />
-                        <col className="w-10 print:hidden" />
+                        <col className="w-14 print:hidden" />
                       </colgroup>
                       <thead className="bg-muted text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                         <tr>
@@ -1357,7 +1357,8 @@ const PaymentDetail = () => {
                                     );
                                   })()}
                                 </td>
-                                <td className="px-2 py-2 text-right print:hidden" onClick={(e) => e.stopPropagation()}>
+                                <td className="pl-2 pr-3 py-2 print:hidden" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex justify-center">
                                   <button
                                     type="button"
                                     onClick={() => toggleItemExpanded(it.id)}
@@ -1371,6 +1372,7 @@ const PaymentDetail = () => {
                                       </span>
                                     )}
                                   </button>
+                                  </div>
                                 </td>
                               </tr>
                               {isExpanded && (
