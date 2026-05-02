@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -17,10 +17,14 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
+import {
+  usePaymentDetailData,
+  type PaymentItemRow,
+  type AiFindings,
+} from "@/hooks/usePaymentDetailData";
 import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type ItemAiStatus, TONE_CLASSES } from "@/lib/status";
 import {
   ANALYST_DONE_STATUSES,
@@ -36,32 +40,6 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 };
 
 const truncate = (s: string, max = 220) => (s.length > max ? `${s.slice(0, max).trimEnd()}…` : s);
-
-// ===== Tipos de domínio (derivados do schema gerado) =====
-// Importante: payment_items e ai_analysis_versions têm `ai_findings`/`alerts`
-// como jsonb; refinamos esses campos como `unknown` aqui e validamos no uso.
-type Tables = Database["public"]["Tables"];
-type PaymentRow = Tables["payments"]["Row"];
-// ai_findings é jsonb — refinamos as chaves usadas pela UI. Demais permanecem
-// permissivas para não bloquear leituras opcionais.
-type AiFindings = {
-  alerts?: string[];
-  matched_rules?: string[];
-  matched_rule_ids?: string[];
-  calculation_explanation?: string;
-  [k: string]: unknown;
-};
-type PaymentItemRow = Omit<Tables["payment_items"]["Row"], "ai_findings"> & {
-  ai_findings: AiFindings | null;
-};
-type ObservationRow = Tables["payment_observations"]["Row"];
-type AiVersionRow = Omit<Tables["ai_analysis_versions"]["Row"], "alerts" | "matched_rules" | "matched_rule_ids"> & {
-  alerts: string[] | null;
-  matched_rules: string[] | null;
-  matched_rule_ids: string[] | null;
-};
-type GroupRow = Tables["payment_company_groups"]["Row"];
-type InvoiceRow = Tables["invoices"]["Row"];
 
 type RuleLite = { id: string; name: string; rule_text: string; description: string | null };
 const RuleTooltipContent = ({
@@ -96,91 +74,42 @@ const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
-  const [payment, setPayment] = useState<PaymentRow | null>(null);
-  const [items, setItems] = useState<PaymentItemRow[]>([]);
-  const [obs, setObs] = useState<ObservationRow[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, string>>({});
-  const [rulesIndex, setRulesIndex] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
-  const [rulesByName, setRulesByName] = useState<Record<string, { id: string; name: string; rule_text: string; description: string | null }>>({});
+  const {
+    payment,
+    items,
+    obs,
+    profiles,
+    aiVersions,
+    groups,
+    invoices,
+    questions,
+    rulesIndex,
+    rulesByName,
+    expandedGroups,
+    setExpandedGroups,
+    load,
+  } = usePaymentDetailData(id);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
-  const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
-  const [groups, setGroups] = useState<GroupRow[]>([]);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
-  const [questions, setQuestions] = useState<InvoiceQuestion[] & { invoice_id: string }[]>([] as any);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
 
-  // Token de "última carga válida". Garante que respostas de uma carga
-  // anterior (antes do usuário trocar de :id ou desmontar) não sobrescrevam
-  // o estado da carga atual — evita race condition entre pagamentos.
-  const loadTokenRef = useRef(0);
-
-  const load = useCallback(async () => {
-    if (!id) return;
-    const myToken = ++loadTokenRef.current;
-    const [{ data: p }, { data: it }, { data: o }, { data: pr }, { data: vs }, { data: gs }, { data: inv }, { data: qs }] = await Promise.all([
-      supabase.from("payments").select("*").eq("id", id).single(),
-      supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at"),
-      supabase.from("payment_observations").select("*").eq("payment_id", id).order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id,full_name,email"),
-      supabase.from("ai_analysis_versions").select("*").eq("payment_id", id).order("version", { ascending: false }),
-      supabase.from("payment_company_groups").select("*").eq("payment_id", id).order("company_name"),
-      supabase.from("invoices").select("*").eq("payment_id", id),
-      supabase.from("invoice_questions").select("id, invoice_id, author_type, author_name, message, created_at, read_at").eq("payment_id", id).order("created_at", { ascending: true }),
-    ]);
-    // Resposta antiga? descarta antes de tocar em qualquer estado.
-    if (myToken !== loadTokenRef.current) return;
-    setPayment(p);
-    setItems((it ?? []) as unknown as PaymentItemRow[]);
-    setObs(o ?? []);
-    setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
-    setGroups(gs ?? []);
-    setInvoices(inv ?? []);
-    setQuestions((qs ?? []) as any);
-    // Por padrão, todos os grupos começam expandidos para manter a UX atual
-    setExpandedGroups(new Set((gs ?? []).map((g: any) => g.id)));
-    const map: Record<string, string> = {};
-    (pr ?? []).forEach((x: any) => { map[x.id] = x.full_name || x.email; });
-    setProfiles(map);
-    // Carrega regras citadas pela IA (por id e por nome) para mostrar resumo + link
-    const ids = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
-    const names = Array.from(new Set((it ?? []).flatMap((x: any) => x.ai_findings?.matched_rules ?? []))).filter(Boolean) as string[];
-    const [byIdRes, byNameRes] = await Promise.all([
-      ids.length ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids) : Promise.resolve({ data: [] as any[] }),
-      names.length ? supabase.from("rules").select("id,name,rule_text,description").in("name", names) : Promise.resolve({ data: [] as any[] }),
-    ]);
-    if (myToken !== loadTokenRef.current) return;
-    const idx: Record<string, any> = {};
-    (byIdRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
-    (byNameRes.data ?? []).forEach((r: any) => { idx[r.id] = r; });
-    const nameIdx: Record<string, any> = {};
-    Object.values(idx).forEach((r: any) => { nameIdx[String(r.name).trim().toLowerCase()] = r; });
-    setRulesIndex(idx);
-    setRulesByName(nameIdx);
-  }, [id]);
-
   useEffect(() => {
     document.title = "Pagamento | MedPay";
-    load();
-    // Cleanup: invalida cargas em voo quando :id muda ou o componente
-    // desmonta. As respostas pendentes ainda chegam, mas serão descartadas.
-    return () => { loadTokenRef.current++; };
-  }, [load]);
+  }, []);
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
