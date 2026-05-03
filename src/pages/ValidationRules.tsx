@@ -1,15 +1,537 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Pencil, Trash2, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType } from "@/lib/status";
+import type { Database } from "@/integrations/supabase/types";
+
+type ValidationRule = Database["public"]["Tables"]["validation_rules"]["Row"];
+type AssistanceGroup = Database["public"]["Tables"]["assistance_groups"]["Row"];
+type Kind = Database["public"]["Enums"]["validation_kind"];
+type Severity = Database["public"]["Enums"]["validation_severity"];
+type Action = Database["public"]["Enums"]["validation_action"];
+
+const KIND_LABELS: Record<Kind, string> = {
+  duplicidade_exata: "Duplicidade exata",
+  duplicidade_atendimento: "Duplicidade por atendimento/procedimento",
+  sobreposicao_assistencial: "Sobreposição assistencial",
+  codigo_sem_dobra: "Código sem dobra/acordo",
+  codigo_nao_remuneravel: "Código não remunerável",
+  item_em_pacote: "Item já incluído em pacote",
+  particular_sem_excecao: "Particular sem exceção autorizada",
+};
+
+const SEVERITY_LABELS: Record<Severity, string> = {
+  informativo: "Informativo",
+  alerta: "Alerta",
+  alerta_forte: "Alerta forte",
+  bloquear: "Bloquear / sugerir retirada",
+};
+
+const ACTION_LABELS: Record<Action, string> = {
+  informar: "Apenas informar",
+  alerta: "Gerar alerta",
+  alerta_forte: "Alerta forte (sugerir retirada)",
+  bloquear: "Bloquear automaticamente",
+};
+
+const SEVERITY_VARIANT: Record<Severity, string> = {
+  informativo: "bg-muted text-foreground",
+  alerta: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
+  alerta_forte: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
+  bloquear: "bg-destructive/15 text-destructive",
+};
+
+const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
+
+type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean };
+type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
+type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "" };
+
+const defaultParamsFor = (k: Kind): Record<string, unknown> => {
+  switch (k) {
+    case "duplicidade_exata":
+      return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, compare_doctor: true };
+    case "duplicidade_atendimento":
+      return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
+    case "sobreposicao_assistencial":
+      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "" };
+    default:
+      return {};
+  }
+};
+
+interface FormState {
+  id?: string;
+  name: string;
+  description: string;
+  active: boolean;
+  severity: Severity;
+  kind: Kind;
+  action: Action;
+  scope_global: boolean;
+  sectors: RuleSector[];
+  payment_types: PaymentType[];
+  company_ids: string[];
+  doctors: { name: string; document?: string }[];
+  params: Record<string, unknown>;
+  require_justification: boolean;
+  allows_authorized_exception: boolean;
+  assistance_group_id: string | null;
+}
+
+const emptyForm = (): FormState => ({
+  name: "",
+  description: "",
+  active: true,
+  severity: "alerta",
+  kind: "duplicidade_exata",
+  action: "alerta",
+  scope_global: true,
+  sectors: [],
+  payment_types: [],
+  company_ids: [],
+  doctors: [],
+  params: defaultParamsFor("duplicidade_exata"),
+  require_justification: false,
+  allows_authorized_exception: false,
+  assistance_group_id: null,
+});
 
 export default function ValidationRules() {
+  const [rules, setRules] = useState<ValidationRule[]>([]);
+  const [groups, setGroups] = useState<AssistanceGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const [companies, setCompanies] = useState<Record<string, CompanyOption>>({});
+  const [companyPicker, setCompanyPicker] = useState<CompanyOption | null>(null);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
+
+  const load = async () => {
+    setLoading(true);
+    const [{ data: vr }, { data: ag }] = await Promise.all([
+      supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
+      supabase.from("assistance_groups").select("*").order("name"),
+    ]);
+    setRules(vr ?? []);
+    setGroups(ag ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const openNew = () => { setForm(emptyForm()); setCompanyPicker(null); setOpen(true); };
+  const openEdit = (r: ValidationRule) => {
+    setForm({
+      id: r.id,
+      name: r.name,
+      description: r.description ?? "",
+      active: r.active,
+      severity: r.severity,
+      kind: r.kind,
+      action: r.action,
+      scope_global: r.scope_global,
+      sectors: (r.sectors ?? []) as RuleSector[],
+      payment_types: (r.payment_types ?? []) as PaymentType[],
+      company_ids: (r.company_ids ?? []) as string[],
+      doctors: Array.isArray(r.doctors) ? (r.doctors as any[]) : [],
+      params: (r.params as Record<string, unknown>) ?? defaultParamsFor(r.kind),
+      require_justification: r.require_justification,
+      allows_authorized_exception: r.allows_authorized_exception,
+      assistance_group_id: r.assistance_group_id,
+    });
+    setOpen(true);
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) { toast.error("Informe o nome da validação"); return; }
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      active: form.active,
+      severity: form.severity,
+      kind: form.kind,
+      action: form.action,
+      scope_global: form.scope_global,
+      sectors: form.scope_global ? [] : form.sectors,
+      payment_types: form.scope_global ? [] : form.payment_types,
+      company_ids: form.scope_global ? [] : form.company_ids,
+      doctors: form.scope_global ? [] : form.doctors,
+      params: form.params,
+      require_justification: form.require_justification,
+      allows_authorized_exception: form.allows_authorized_exception,
+      assistance_group_id: form.kind === "sobreposicao_assistencial" ? form.assistance_group_id : null,
+    };
+    const res = form.id
+      ? await supabase.from("validation_rules").update(payload).eq("id", form.id)
+      : await supabase.from("validation_rules").insert(payload);
+    if (res.error) { toast.error(res.error.message); return; }
+    toast.success(form.id ? "Validação atualizada" : "Validação criada");
+    setOpen(false);
+    load();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Excluir esta validação?")) return;
+    const { error } = await supabase.from("validation_rules").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Validação removida");
+    load();
+  };
+
+  const saveGroup = async () => {
+    if (!groupForm.name.trim()) { toast.error("Informe o nome do grupo"); return; }
+    const payload = { name: groupForm.name.trim(), description: groupForm.description.trim() || null, specialties: groupForm.specialties, active: groupForm.active };
+    const res = groupForm.id
+      ? await supabase.from("assistance_groups").update(payload).eq("id", groupForm.id)
+      : await supabase.from("assistance_groups").insert(payload);
+    if (res.error) { toast.error(res.error.message); return; }
+    toast.success("Grupo salvo");
+    setGroupOpen(false);
+    setGroupForm({ name: "", description: "", specialties: [], active: true });
+    load();
+  };
+
+  const showParams = useMemo(() => {
+    const k = form.kind;
+    if (k === "duplicidade_exata") {
+      const p = form.params as DupExataParams;
+      const set = (patch: Partial<DupExataParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      const opts: Array<[keyof DupExataParams, string]> = [
+        ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"], ["compare_date", "Data"],
+        ["compare_code", "Código / procedimento"], ["compare_doctor", "Médico"],
+      ];
+      return (
+        <div className="grid grid-cols-2 gap-2">
+          {opts.map(([k2, label]) => (
+            <label key={k2} className="flex items-center gap-2 text-sm">
+              <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupExataParams>)} />
+              {label}
+            </label>
+          ))}
+        </div>
+      );
+    }
+    if (k === "duplicidade_atendimento") {
+      const p = form.params as DupAtendParams;
+      const set = (patch: Partial<DupAtendParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      const opts: Array<[keyof DupAtendParams, string]> = [
+        ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"],
+        ["compare_date", "Data"], ["compare_code", "Código / procedimento"],
+      ];
+      return (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {opts.map(([k2, label]) => (
+              <label key={k2} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupAtendParams>)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={!!p.allow_different_doctors} onCheckedChange={(v) => set({ allow_different_doctors: !!v })} />
+            Permitir médicos diferentes
+          </label>
+        </div>
+      );
+    }
+    if (k === "sobreposicao_assistencial") {
+      const p = form.params as SobreposParams;
+      const set = (patch: Partial<SobreposParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      return (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {(["compare_attendance", "compare_patient", "compare_date"] as const).map((k2) => (
+              <label key={k2} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<SobreposParams>)} />
+                {k2 === "compare_attendance" ? "Atendimento" : k2 === "compare_patient" ? "Paciente" : "Data"}
+              </label>
+            ))}
+          </div>
+          <div>
+            <Label className="text-xs">Tipo de lançamento</Label>
+            <Select value={p.entry_type || ""} onValueChange={(v) => set({ entry_type: v as SobreposParams["entry_type"] })}>
+              <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="visita">Visita</SelectItem>
+                <SelectItem value="parecer">Parecer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Grupo assistencial correlato</Label>
+            <Select value={form.assistance_group_id ?? ""} onValueChange={(v) => setForm({ ...form, assistance_group_id: v || null })}>
+              <SelectTrigger><SelectValue placeholder="Selecionar grupo…" /></SelectTrigger>
+              <SelectContent>
+                {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      );
+    }
+    return <p className="text-xs text-muted-foreground">Sem parâmetros adicionais para este tipo.</p>;
+  }, [form, groups]);
+
   return (
     <div>
       <PageHeader
         title="Regras de Validação"
-        description="Estrutura inicial — em breve."
+        description="Validações 100% determinísticas. Não interferem no cálculo do valor esperado."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => { setGroupForm({ name: "", description: "", specialties: [], active: true }); setGroupOpen(true); }}>
+              Novo grupo assistencial
+            </Button>
+            <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Nova validação</Button>
+          </div>
+        }
       />
-      <div className="mt-6 rounded-lg border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
-        Nenhuma regra de validação configurada ainda.
+
+      <div className="mt-6 space-y-2">
+        {loading ? (
+          <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : rules.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+            Nenhuma validação cadastrada. Comece criando duplicidade exata e por atendimento.
+          </div>
+        ) : (
+          rules.map((r) => (
+            <div key={r.id} className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
+              <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm">{r.name}</span>
+                  <Badge variant="outline" className={SEVERITY_VARIANT[r.severity]}>{SEVERITY_LABELS[r.severity]}</Badge>
+                  <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
+                  {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
+                  {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
+                </div>
+                {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ação: {ACTION_LABELS[r.action]}
+                  {r.require_justification && " · Justificativa obrigatória"}
+                  {r.allows_authorized_exception && " · Permite exceção autorizada"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
+
+      {groups.length > 0 && (
+        <div className="mt-10">
+          <h3 className="text-sm font-medium mb-2">Grupos assistenciais</h3>
+          <div className="grid gap-2 md:grid-cols-2">
+            {groups.map((g) => (
+              <div key={g.id} className="rounded-md border border-border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{g.name}</span>
+                  <Button variant="ghost" size="sm" onClick={() => { setGroupForm({ id: g.id, name: g.name, description: g.description ?? "", specialties: g.specialties ?? [], active: g.active }); setGroupOpen(true); }}>Editar</Button>
+                </div>
+                {g.description && <p className="text-xs text-muted-foreground">{g.description}</p>}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(g.specialties ?? []).map((s) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{form.id ? "Editar validação" : "Nova validação"}</DialogTitle></DialogHeader>
+          <div className="space-y-5">
+            <section className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Dados básicos</h4>
+              <div>
+                <Label>Nome da validação</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>Descrição (opcional)</Label>
+                <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between rounded-md border border-border p-2">
+                  <Label className="text-sm">Ativa</Label>
+                  <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+                </div>
+                <div>
+                  <Label>Severidade</Label>
+                  <Select value={form.severity} onValueChange={(v) => setForm({ ...form, severity: v as Severity })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(SEVERITY_LABELS) as Severity[]).map((k) => <SelectItem key={k} value={k}>{SEVERITY_LABELS[k]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Tipo de validação</h4>
+              <Select value={form.kind} onValueChange={(v) => { const k = v as Kind; setForm({ ...form, kind: k, params: defaultParamsFor(k) }); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(KIND_LABELS) as Kind[]).map((k) => <SelectItem key={k} value={k}>{KIND_LABELS[k]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </section>
+
+            <section className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Parâmetros</h4>
+              {showParams}
+            </section>
+
+            <section className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Escopo de aplicação</h4>
+              <div className="flex items-center justify-between rounded-md border border-border p-2">
+                <Label className="text-sm">Global (aplica a todos)</Label>
+                <Switch checked={form.scope_global} onCheckedChange={(v) => setForm({ ...form, scope_global: v })} />
+              </div>
+              {!form.scope_global && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Setores</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
+                        const checked = form.sectors.includes(k);
+                        return (
+                          <button key={k} type="button" onClick={() => setForm({ ...form, sectors: checked ? form.sectors.filter((x) => x !== k) : [...form.sectors, k] })}
+                            className={`text-xs px-2 py-1 rounded-md border ${checked ? "bg-primary text-primary-foreground border-primary" : "border-border bg-card"}`}>
+                            {RULE_SECTOR_LABELS[k]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tipos de pagamento</Label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {PAYMENT_TYPE_KEYS.map((k) => {
+                        const checked = form.payment_types.includes(k);
+                        return (
+                          <button key={k} type="button" onClick={() => setForm({ ...form, payment_types: checked ? form.payment_types.filter((x) => x !== k) : [...form.payment_types, k] })}
+                            className={`text-xs px-2 py-1 rounded-md border ${checked ? "bg-primary text-primary-foreground border-primary" : "border-border bg-card"}`}>
+                            {PAYMENT_TYPE_LABELS[k]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Empresas</Label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {form.company_ids.map((id) => (
+                        <Badge key={id} variant="outline" className="gap-1">
+                          {companies[id]?.name ?? id.slice(0, 8)}
+                          <button onClick={() => setForm({ ...form, company_ids: form.company_ids.filter((x) => x !== id) })} className="ml-1">×</button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="mt-2">
+                      <CompanyCombobox value={companyPicker} onChange={(c) => {
+                        if (!c) return;
+                        if (!form.company_ids.includes(c.id)) {
+                          setCompanies({ ...companies, [c.id]: c });
+                          setForm({ ...form, company_ids: [...form.company_ids, c.id] });
+                        }
+                        setCompanyPicker(null);
+                      }} placeholder="Adicionar empresa…" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Médicos (nomes)</Label>
+                    <MultiSelectChips
+                      values={form.doctors.map((d) => d.name)}
+                      onChange={(names) => setForm({ ...form, doctors: names.map((n) => ({ name: n })) })}
+                      options={[]}
+                      placeholder="Adicionar médico…"
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Ação</h4>
+              <Select value={form.action} onValueChange={(v) => setForm({ ...form, action: v as Action })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ACTION_LABELS) as Action[]).map((k) => <SelectItem key={k} value={k}>{ACTION_LABELS[k]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </section>
+
+            <section className="space-y-2">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Comportamento adicional</h4>
+              <div className="flex items-center justify-between rounded-md border border-border p-2">
+                <Label className="text-sm">Exigir justificativa do analista</Label>
+                <Switch checked={form.require_justification} onCheckedChange={(v) => setForm({ ...form, require_justification: v })} />
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-border p-2">
+                <Label className="text-sm">Permitir exceção autorizada</Label>
+                <Switch checked={form.allows_authorized_exception} onCheckedChange={(v) => setForm({ ...form, allows_authorized_exception: v })} />
+              </div>
+              {form.allows_authorized_exception && (
+                <p className="text-xs text-muted-foreground">A exceção exigirá justificativa e autorizador no momento do uso.</p>
+              )}
+            </section>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button onClick={save}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{groupForm.id ? "Editar grupo assistencial" : "Novo grupo assistencial"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nome</Label>
+              <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="Ex: Cuidado clínico" />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea rows={2} value={groupForm.description} onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })} />
+            </div>
+            <div>
+              <Label>Especialidades correlatas</Label>
+              <MultiSelectChips values={groupForm.specialties} onChange={(v) => setGroupForm({ ...groupForm, specialties: v })} options={[]} placeholder="Adicionar especialidade…" />
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border p-2">
+              <Label className="text-sm">Ativo</Label>
+              <Switch checked={groupForm.active} onCheckedChange={(v) => setGroupForm({ ...groupForm, active: v })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupOpen(false)}>Cancelar</Button>
+            <Button onClick={saveGroup}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
