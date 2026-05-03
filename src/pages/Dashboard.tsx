@@ -470,6 +470,14 @@ const Dashboard = () => {
   const [allPayments, setAllPayments] = useState<
     Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
   >([]);
+  // Mapas para cálculo de SLA
+  const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
+  const [allStatusEnteredAt, setAllStatusEnteredAt] = useState<Record<string, { status: PaymentStatus; changed_at: string }>>({});
+  const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
+  const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
+  // Tempo médio agregado por status (gargalos)
+  const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
   const {
     owner: pipelineOwner,
