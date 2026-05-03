@@ -1098,7 +1098,23 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   visibleCols.map((item, index) => (
-                    <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
+                    <PipelineCol
+                      key={item.label}
+                      {...item}
+                      delayed={
+                        // mapeia label de coluna -> status equivalente p/ contar atrasados
+                        item.label === "Análise" ? (slaTotals.perStatusVencido["em_analise_ia"] ?? 0) + (slaTotals.perStatusVencido["revisao_analista"] ?? 0)
+                        : item.label === "Validação" ? (slaTotals.perStatusVencido["aguardando_validacao"] ?? 0)
+                        : item.label === "Aprovação" ? (slaTotals.perStatusVencido["aguardando_aprovacao"] ?? 0)
+                        : item.label === "Aguardando" ? (slaTotals.perStatusVencido["aprovado"] ?? 0)
+                        : item.label === "NF solicitada" ? (slaTotals.perStatusVencido["pedido_nf_enviado"] ?? 0)
+                        : item.label === "NF recebida" ? (slaTotals.perStatusVencido["nf_recebida"] ?? 0)
+                        : item.label === "Divergente" ? (slaTotals.perStatusVencido["nf_questionada"] ?? 0)
+                        : 0
+                      }
+                      density={pipelineDensity}
+                      separated={index > 0}
+                    />
                   ))
                 )}
               </div>
