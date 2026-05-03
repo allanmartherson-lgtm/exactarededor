@@ -96,6 +96,7 @@ export interface ItemInput {
   attendance_number: string | null;
   patient_name: string | null;
   procedure_date: string | null;
+  quantity?: number | null;
 }
 
 export interface PaymentContext {
