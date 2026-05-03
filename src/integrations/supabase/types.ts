@@ -65,6 +65,39 @@ export type Database = {
         }
         Relationships: []
       }
+      assistance_groups: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          specialties: string[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          specialties?: string[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          specialties?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -1078,6 +1111,80 @@ export type Database = {
         }
         Relationships: []
       }
+      validation_rules: {
+        Row: {
+          action: Database["public"]["Enums"]["validation_action"]
+          active: boolean
+          allows_authorized_exception: boolean
+          assistance_group_id: string | null
+          company_ids: string[]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          doctors: Json
+          id: string
+          kind: Database["public"]["Enums"]["validation_kind"]
+          name: string
+          params: Json
+          payment_types: string[]
+          require_justification: boolean
+          scope_global: boolean
+          sectors: string[]
+          severity: Database["public"]["Enums"]["validation_severity"]
+          updated_at: string
+        }
+        Insert: {
+          action?: Database["public"]["Enums"]["validation_action"]
+          active?: boolean
+          allows_authorized_exception?: boolean
+          assistance_group_id?: string | null
+          company_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          doctors?: Json
+          id?: string
+          kind: Database["public"]["Enums"]["validation_kind"]
+          name: string
+          params?: Json
+          payment_types?: string[]
+          require_justification?: boolean
+          scope_global?: boolean
+          sectors?: string[]
+          severity?: Database["public"]["Enums"]["validation_severity"]
+          updated_at?: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["validation_action"]
+          active?: boolean
+          allows_authorized_exception?: boolean
+          assistance_group_id?: string | null
+          company_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          doctors?: Json
+          id?: string
+          kind?: Database["public"]["Enums"]["validation_kind"]
+          name?: string
+          params?: Json
+          payment_types?: string[]
+          require_justification?: boolean
+          scope_global?: boolean
+          sectors?: string[]
+          severity?: Database["public"]["Enums"]["validation_severity"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_rules_assistance_group_id_fkey"
+            columns: ["assistance_group_id"]
+            isOneToOne: false
+            referencedRelation: "assistance_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1160,6 +1267,20 @@ export type Database = {
         | "tabela_diferenciada"
         | "bonus"
         | "complemento"
+      validation_action: "informar" | "alerta" | "alerta_forte" | "bloquear"
+      validation_kind:
+        | "duplicidade_exata"
+        | "duplicidade_atendimento"
+        | "sobreposicao_assistencial"
+        | "codigo_sem_dobra"
+        | "codigo_nao_remuneravel"
+        | "item_em_pacote"
+        | "particular_sem_excecao"
+      validation_severity:
+        | "informativo"
+        | "alerta"
+        | "alerta_forte"
+        | "bloquear"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1347,6 +1468,22 @@ export const Constants = {
         "tabela_diferenciada",
         "bonus",
         "complemento",
+      ],
+      validation_action: ["informar", "alerta", "alerta_forte", "bloquear"],
+      validation_kind: [
+        "duplicidade_exata",
+        "duplicidade_atendimento",
+        "sobreposicao_assistencial",
+        "codigo_sem_dobra",
+        "codigo_nao_remuneravel",
+        "item_em_pacote",
+        "particular_sem_excecao",
+      ],
+      validation_severity: [
+        "informativo",
+        "alerta",
+        "alerta_forte",
+        "bloquear",
       ],
     },
   },
