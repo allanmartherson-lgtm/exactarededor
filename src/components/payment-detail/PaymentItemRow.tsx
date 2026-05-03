@@ -470,6 +470,37 @@ export const PaymentItemRow = ({
                     )}
                   </div>
                 )}
+                {showExceptionAction && (
+                  <div className="md:col-span-2 rounded-md border border-border/70 bg-background/80 p-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Exceção autorizada
+                        </p>
+                        {exceptionMarked ? (
+                          <p className="text-xs text-foreground">
+                            Marcada — motivo: <strong>{itemAny.exception_reason ?? "—"}</strong>
+                            {" · "}autorizador: <strong>{itemAny.exception_authorizer ?? "—"}</strong>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Esta regra de exclusão admite exceção. Marque para reprocessar com a próxima regra calculável.
+                          </p>
+                        )}
+                        {exceptionMarked && itemAny.exception_note && (
+                          <p className="text-[11px] whitespace-pre-wrap text-muted-foreground">
+                            “{itemAny.exception_note}”
+                          </p>
+                        )}
+                      </div>
+                      {canComment && (
+                        <Button size="sm" variant={exceptionMarked ? "outline" : "default"} onClick={() => setExcOpen(true)}>
+                          {exceptionMarked ? "Editar exceção" : "Marcar exceção"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                     Histórico deste item
