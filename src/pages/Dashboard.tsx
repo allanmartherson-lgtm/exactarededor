@@ -495,11 +495,11 @@ const Dashboard = () => {
       const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }] = await Promise.all([
         supabase
           .from("payments")
-          .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by")
+          .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
           .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("profiles").select("id,full_name,email"),
-        supabase.from("payments").select("status,created_by,validated_by,created_at"),
+        supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at"),
         supabase
           .from("invoices")
           .select("id, payment:payments!inner(created_by)")
@@ -518,6 +518,66 @@ const Dashboard = () => {
       const pmap: Record<string, string> = {};
       (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
       setProfiles(pmap);
+
+      // Carrega histórico de status, SLA settings, empresas e overrides — em paralelo
+      const allIds = ((all ?? []) as Array<{ id: string }>).map((p) => p.id).filter(Boolean);
+      const [{ data: hist }, { data: slas }, { data: groups }] = await Promise.all([
+        allIds.length
+          ? supabase
+              .from("payment_status_history")
+              .select("payment_id,status_to,changed_at")
+              .in("payment_id", allIds)
+              .order("changed_at", { ascending: false })
+          : Promise.resolve({ data: [] as any[] } as any),
+        supabase.from("sla_settings").select("*").eq("active", true),
+        allIds.length
+          ? supabase.from("payment_company_groups").select("payment_id,company_id").in("payment_id", allIds)
+          : Promise.resolve({ data: [] as any[] } as any),
+      ]);
+      const seen: Record<string, string> = {};
+      const seenWithStatus: Record<string, { status: PaymentStatus; changed_at: string }> = {};
+      // Tempos médios entre transições por status (gargalos)
+      const byPayment: Record<string, Array<{ status_to: PaymentStatus; changed_at: string }>> = {};
+      (hist ?? []).forEach((h: any) => {
+        if (!seen[h.payment_id]) {
+          seen[h.payment_id] = h.changed_at;
+          seenWithStatus[h.payment_id] = { status: h.status_to as PaymentStatus, changed_at: h.changed_at };
+        }
+        (byPayment[h.payment_id] = byPayment[h.payment_id] ?? []).push({ status_to: h.status_to, changed_at: h.changed_at });
+      });
+      setStatusEnteredAt(seen);
+      setAllStatusEnteredAt(seenWithStatus);
+      const sMap: Record<string, SlaSetting> = {};
+      (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
+      setSlaSettings(sMap);
+      const cByP: Record<string, string | null> = {};
+      (groups ?? []).forEach((g: any) => { if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id; });
+      setCompanyByPayment(cByP);
+      const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
+      if (compIds.length) {
+        const { data: ovs } = await supabase.from("company_sla_overrides").select("*").in("company_id", compIds);
+        const oMap: Record<string, CompanySlaOverride> = {};
+        (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
+        setCompanyOverrides(oMap);
+      }
+      // Tempo médio em cada status (concluído → próximo) — usa intervalos do histórico
+      const accum: Record<string, { sum: number; count: number }> = {};
+      Object.values(byPayment).forEach((entries) => {
+        // entries vêm desc; reordena asc
+        const asc = [...entries].sort((a, b) => +new Date(a.changed_at) - +new Date(b.changed_at));
+        for (let i = 0; i < asc.length - 1; i++) {
+          const s = asc[i].status_to;
+          const dt = +new Date(asc[i + 1].changed_at) - +new Date(asc[i].changed_at);
+          if (dt > 0 && s) {
+            accum[s] = accum[s] ?? { sum: 0, count: 0 };
+            accum[s].sum += dt;
+            accum[s].count += 1;
+          }
+        }
+      });
+      const avg: Record<string, { avgMs: number; count: number }> = {};
+      Object.entries(accum).forEach(([s, v]) => { avg[s] = { avgMs: v.sum / v.count, count: v.count }; });
+      setAvgTimeByStatus(avg);
 
       const uid = user?.id;
       const c: DashboardCounts = { ...initialCounts };
