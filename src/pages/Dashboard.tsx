@@ -988,9 +988,19 @@ const Dashboard = () => {
             </div>
           ) : (
             <div>
-              {myPayments.map((p) => (
-                <TaskRow key={p.id} p={p} mine profiles={profiles} />
-              ))}
+              {myPaymentsRanked.map((p) => {
+                const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+                return (
+                  <TaskRow
+                    key={p.id}
+                    p={p}
+                    mine
+                    profiles={profiles}
+                    timeMs={sla?.ms}
+                    slaLevel={sla?.level}
+                  />
+                );
+              })}
             </div>
           )}
         </SurfaceCard>
