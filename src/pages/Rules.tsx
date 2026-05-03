@@ -155,6 +155,12 @@ const Rules = () => {
   const [fAuxPct, setFAuxPct] = useState<string>("");
   const [fRepassePct, setFRepassePct] = useState<string>("");
   const [fApplyAccessRoute, setFApplyAccessRoute] = useState(false);
+  // === Configuração de pacote (subtipos) ===
+  const [fPackageMainCode, setFPackageMainCode] = useState<string>("");
+  const [fPackageIncludedCodes, setFPackageIncludedCodes] = useState<string>("");
+  const [fPackageVisitsCount, setFPackageVisitsCount] = useState(false);
+  const [fPackageOpinionsCount, setFPackageOpinionsCount] = useState(false);
+  const [fPackageAuxIncluded, setFPackageAuxIncluded] = useState(true);
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
@@ -207,6 +213,8 @@ const Rules = () => {
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
     setFRepassePct(""); setFApplyAccessRoute(false);
+    setFPackageMainCode(""); setFPackageIncludedCodes("");
+    setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -237,6 +245,11 @@ const Rules = () => {
     setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
     setFRepassePct(r.repasse_pct != null ? String(r.repasse_pct) : "");
     setFApplyAccessRoute(!!r.apply_access_route);
+    setFPackageMainCode(r.package_main_code ?? "");
+    setFPackageIncludedCodes(Array.isArray(r.package_included_codes) ? r.package_included_codes.join(", ") : "");
+    setFPackageVisitsCount(!!r.package_visits_count);
+    setFPackageOpinionsCount(!!r.package_opinions_count);
+    setFPackageAuxIncluded(r.package_auxiliaries_included !== false);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
