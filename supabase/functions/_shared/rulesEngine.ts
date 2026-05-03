@@ -134,7 +134,22 @@ export interface AnalysisResult {
     candidate_rule_ids: string[];
     reason: string;
   };
+  /** Chave do grupo de atendimento (atendimento|paciente|data|empresa|médico). */
+  attendance_group_key?: string;
+  /** Se este item foi escolhido como procedimento principal do grupo. */
+  is_main_procedure?: boolean;
+  /** Motivo determinístico da escolha do principal. */
+  main_reason?: MainReason | null;
+  /** Se o grupo teve empate na escolha do principal (alerta). */
+  main_ambiguous?: boolean;
 }
+
+export type MainReason =
+  | "codigo_principal_pacote"
+  | "maior_valor_tabela"
+  | "via_principal_unica"
+  | "maior_quantidade_ou_bruto"
+  | "ambiguo";
 
 // ---------- helpers ----------
 const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
