@@ -84,7 +84,8 @@ serve(async (req) => {
         id,doctor_name,doctor_document,company_name,company_id,
         procedure_code,procedure_name,description,access_route,doctor_role,
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
-        authorized_exception,exception_reason,exception_authorizer,exception_note
+        authorized_exception,exception_reason,exception_authorizer,exception_note,
+        tipo_linha,complement_reason
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -159,6 +160,8 @@ serve(async (req) => {
       classification_sector: cls?.sector ?? null,
       classification_source: cls?.source ?? null,
       classification_confidence: cls?.confidence ?? null,
+      tipo_linha: it.tipo_linha ?? null,
+      complement_reason: it.complement_reason ?? null,
     });
     });
 
