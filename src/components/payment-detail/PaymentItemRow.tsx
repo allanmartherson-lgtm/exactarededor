@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   MessageSquare,
   MessageSquarePlus,
+  ShieldCheck,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -25,6 +26,7 @@ import type {
   PaymentItemRow as PaymentItemRowData,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
+import { AuthorizedExceptionDialog } from "./AuthorizedExceptionDialog";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted",
@@ -97,6 +99,10 @@ export type PaymentItemRowProps = {
   onCommentDraftChange: (value: string) => void;
   onAddComment: () => void;
   busy: boolean;
+  /** ID do payment — necessário para marcar exceção autorizada. */
+  paymentId: string;
+  /** Recarrega os dados após marcar/remover exceção. */
+  onExceptionChanged?: () => void;
 };
 
 /**
@@ -120,7 +126,10 @@ export const PaymentItemRow = ({
   onCommentDraftChange,
   onAddComment,
   busy,
+  paymentId,
+  onExceptionChanged,
 }: PaymentItemRowProps) => {
+  const [excOpen, setExcOpen] = useState(false);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
   const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
@@ -144,6 +153,19 @@ export const PaymentItemRow = ({
   });
   const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
   const firstRule = matchedRuleObjs[0] ?? null;
+  // Suporte à "Exclusão / não pagar" com exceção autorizada:
+  // mostra a ação somente quando a regra vencedora é de exclusão e admite exceção.
+  const isExclusionRule = firstRule?.calculation_type === "exclusao";
+  const allowsException = !!firstRule?.allows_authorized_exception;
+  const itemAny = it as unknown as {
+    authorized_exception?: boolean | null;
+    exception_reason?: string | null;
+    exception_authorizer?: string | null;
+    exception_note?: string | null;
+    exception_attachment_path?: string | null;
+  };
+  const exceptionMarked = !!itemAny.authorized_exception;
+  const showExceptionAction = isExclusionRule && (allowsException || exceptionMarked);
   const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
   const tooltipNode = hasRule ? (
     <RuleTooltipBlock rules={matchedRuleObjs} fallbackNames={matchedNames} />
