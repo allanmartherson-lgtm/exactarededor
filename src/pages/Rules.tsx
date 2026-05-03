@@ -257,7 +257,9 @@ const Rules = () => {
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setRuleType((r.rule_type as RuleType) ?? "informativo");
-    setFCalculationType((r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo"));
+    const calc = (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo");
+    setFCalculationType(calc);
+    setFNature(calc === "informativo" ? "informativo" : "calculavel");
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
     setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
