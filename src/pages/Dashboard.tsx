@@ -468,7 +468,7 @@ const Dashboard = () => {
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
   const [allPayments, setAllPayments] = useState<
-    Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
+    Array<{ id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string; updated_at?: string | null }>
   >([]);
   // Mapas para cálculo de SLA
   const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
@@ -509,10 +509,12 @@ const Dashboard = () => {
       setPayments((data ?? []) as PaymentRow[]);
       setAllPayments(
         (all ?? []) as Array<{
+          id: string;
           status: PaymentStatus;
           created_by: string | null;
           validated_by: string | null;
           created_at: string;
+          updated_at?: string | null;
         }>,
       );
       const pmap: Record<string, string> = {};
