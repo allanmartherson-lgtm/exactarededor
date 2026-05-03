@@ -20,6 +20,7 @@
 export type CalculationType =
   | "percentual_sobre_convenio"
   | "regra_vias"
+  | "pacote"
   | "pacote_fechado"
   | "pacote_com_extras"
   | "pacote_por_atendimento"
@@ -63,6 +64,7 @@ export interface RuleInput {
   package_visits_count?: boolean | null;
   package_opinions_count?: boolean | null;
   package_auxiliaries_included?: boolean | null;
+  package_subtype?: string | null;
   // Parâmetros de cálculo de tabela diferenciada (pertencem à regra)
   rule_type?: string | null;
   reference_table_id?: string | null;
