@@ -400,15 +400,25 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
-export function applyCalculation(rule: RuleInput, item: ItemInput): ExpectedCalc {
+export function applyCalculation(
+  rule: RuleInput,
+  item: ItemInput,
+  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+): ExpectedCalc {
   if (rule.rule_type === "tabela_diferenciada" && rule.reference_table_id) {
     return calcTabelaDiferenciada(rule, item);
   }
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
-    case "pacote_fechado":            return calcPacote(rule);
+    case "pacote_fechado":            return calcPacoteFechado(rule, item);
     case "pacote_com_extras":         return calcPacoteExtras(rule, item);
+    case "pacote_por_atendimento": {
+      const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
+      let set = map.get(rule.id);
+      if (!set) { set = new Set<string>(); map.set(rule.id, set); }
+      return calcPacotePorAtendimento(rule, item, set);
+    }
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao();
     case "informativo":               return calcInformativo();
@@ -454,7 +464,11 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   return { status: "reprovado", diff_pct: diff };
 }
 
-export function analyzeItem(item: ItemInput, preFilteredRules: RuleInput[]): AnalysisResult {
+export function analyzeItem(
+  item: ItemInput,
+  preFilteredRules: RuleInput[],
+  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+): AnalysisResult {
   const winner = selectWinningRule(item, preFilteredRules);
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
@@ -463,7 +477,7 @@ export function analyzeItem(item: ItemInput, preFilteredRules: RuleInput[]): Ana
   let matched_rule_name: string | null = null;
 
   if (winner) {
-    calc = applyCalculation(winner.rule, item);
+    calc = applyCalculation(winner.rule, item, ctx);
     priority = winner.priority;
     calculation_type_used = winner.rule.calculation_type;
     matched_rule_id = winner.rule.id;
@@ -500,5 +514,20 @@ export function analyzeItem(item: ItemInput, preFilteredRules: RuleInput[]): Ana
 
 export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx: PaymentContext): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
-  return items.map((it) => analyzeItem(it, filtered));
+  // Para "pacote_por_atendimento", precisamos de ordem determinística:
+  // 1) por atendimento, 2) item com código principal primeiro,
+  // 3) demais por código. Assim o pacote é aplicado no item certo.
+  const ordered = [...items].sort((a, b) => {
+    const aa = (a.attendance_number ?? "").localeCompare(b.attendance_number ?? "");
+    if (aa !== 0) return aa;
+    const aMain = filtered.some((r) => r.calculation_type === "pacote_por_atendimento" && r.package_main_code && a.procedure_code === r.package_main_code) ? -1 : 0;
+    const bMain = filtered.some((r) => r.calculation_type === "pacote_por_atendimento" && r.package_main_code && b.procedure_code === r.package_main_code) ? -1 : 0;
+    if (aMain !== bMain) return aMain - bMain;
+    return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
+  });
+  const state = { appliedAttendancesByRule: new Map<string, Set<string>>() };
+  const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
+  // Reordenar resultados para a ordem original de `items`
+  const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
+  return items.map((it) => byId.get(it.id)!);
 }
