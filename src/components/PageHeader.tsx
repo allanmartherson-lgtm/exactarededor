@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
+  /** Ícone exibido à esquerda do título, para reforçar a identidade visual da seção. */
+  icon?: LucideIcon;
   /** Mostra o botão "Voltar" à esquerda do título. Default: true. */
   showBack?: boolean;
   /** Rota de fallback caso não haja histórico (ex: usuário entrou direto via URL). */
@@ -21,6 +23,7 @@ export const PageHeader = ({
   title,
   description,
   actions,
+  icon: Icon,
   showBack = true,
   backFallback = "/",
   sticky = false,
@@ -59,6 +62,14 @@ export const PageHeader = ({
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
+          )}
+          {Icon && (
+            <span
+              aria-hidden
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground shrink-0 mt-0.5"
+            >
+              <Icon className="h-4 w-4" />
+            </span>
           )}
           <div>
             <h1 className={sticky ? "text-xl font-semibold tracking-tight" : "text-2xl font-semibold tracking-tight"}>{title}</h1>

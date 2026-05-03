@@ -23,7 +23,7 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign } from "lucide-react";
 import * as XLSX from "xlsx";
 import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
@@ -636,7 +636,7 @@ const Rules = () => {
 
   return (
     <>
-      <PageHeader title="Regras de validação" description="A IA usa essas regras para analisar cada pagamento."
+      <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
         actions={<>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>

@@ -392,6 +392,7 @@ export default function ValidationRules() {
     <div>
       <PageHeader
         title="Regras de Validação"
+        icon={ShieldCheck}
         description="Validações 100% determinísticas. Não interferem no cálculo do valor esperado."
         actions={
           <div className="flex items-center gap-2">
