@@ -142,6 +142,7 @@ export const PaymentItemRow = ({
   onExceptionChanged,
 }: PaymentItemRowProps) => {
   const [excOpen, setExcOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
   const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
