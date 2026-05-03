@@ -340,6 +340,14 @@ export const PaymentItemRow = ({
               </span>
             );
           })()}
+          {exceptionMarked && (
+            <span
+              className={`mt-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.info}`}
+              title={`Exceção autorizada — ${itemAny.exception_authorizer ?? "—"}`}
+            >
+              <ShieldCheck className="h-2.5 w-2.5" /> exceção
+            </span>
+          )}
         </td>
         <td className="pl-1 pr-2 py-1.5 print:hidden" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
