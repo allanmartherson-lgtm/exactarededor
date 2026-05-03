@@ -502,6 +502,15 @@ export const PaymentItemRow = ({
                         {engine?.ai_note && (
                           <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
                         )}
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setLogOpen(true); }}
+                            className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 inline-flex items-center gap-1"
+                          >
+                            <FileText className="h-3 w-3" /> Ver detalhes do cálculo
+                          </button>
+                        </div>
                       </div>
                     )}
                     {alerts.length > 0 && (
