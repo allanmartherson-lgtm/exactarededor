@@ -11,6 +11,13 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { AlertBanner } from "./AlertBanner";
+import {
   ChevronDown,
   ChevronRight,
   MessageSquare,
@@ -465,71 +472,100 @@ export const PaymentItemRow = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(alerts.length > 0 || it.ai_findings?.calculation_explanation || engine || expectedAmount != null) && (
                   <div className="md:col-span-2 space-y-2">
-                    {(engine || expectedAmount != null) && (
-                      <div className="rounded-md border border-border/70 bg-background/80 p-2.5 text-xs space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-semibold uppercase tracking-wide text-[10px] text-muted-foreground">
-                            Motor
-                          </span>
-                          {priority && (
-                            <span
-                              className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]]}`}
-                              title="Nível de precedência da regra escolhida"
-                            >
-                              {RULE_MATCH_PRIORITY_LABELS[priority]}
-                            </span>
-                          )}
-                          {calcTypeLabel && (
-                            <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.muted}`}>
-                              {calcTypeLabel}
-                            </span>
-                          )}
-                          {expectedAmount != null && (
-                            <span className="ml-auto tabular-nums text-foreground">
-                              esperado: <strong>{formatCurrency(expectedAmount)}</strong>
-                              {diffPct != null && (
-                                <span
-                                  className={`ml-1 ${
-                                    Math.abs(diffPct) > 0.01 ? "text-warning-foreground" : "text-muted-foreground"
-                                  }`}
-                                >
-                                  ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                        {engine?.ai_note && (
-                          <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
+                    {/* CRÍTICO — status reprovado tem prioridade visual máxima */}
+                    {it.ai_status === "reprovado" && !analystDone && (
+                      <AlertBanner
+                        severity="critico"
+                        title="Item reprovado pela análise"
+                      >
+                        {alerts.length > 0 ? (
+                          <ul className="space-y-0.5">
+                            {alerts.map((a, i) => (
+                              <li key={i}>{a}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p>Revisar antes de seguir.</p>
                         )}
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setLogOpen(true); }}
-                            className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 inline-flex items-center gap-1"
-                          >
-                            <FileText className="h-3 w-3" /> Ver detalhes do cálculo
-                          </button>
-                        </div>
-                      </div>
+                      </AlertBanner>
                     )}
-                    {alerts.length > 0 && (
-                      <ul className="text-xs text-warning-foreground space-y-0.5">
-                        {alerts.map((a, i) => (
-                          <li key={i}>⚠ {a}</li>
-                        ))}
-                      </ul>
+
+                    {/* ALERTA — destaque moderado */}
+                    {it.ai_status !== "reprovado" && alerts.length > 0 && (
+                      <AlertBanner severity="alerta" title={alerts.length === 1 ? "Alerta" : `${alerts.length} alertas`}>
+                        <ul className="space-y-0.5">
+                          {alerts.map((a, i) => (
+                            <li key={i}>{a}</li>
+                          ))}
+                        </ul>
+                      </AlertBanner>
                     )}
-                    {it.ai_findings?.calculation_explanation && (
-                      <div className="text-xs text-muted-foreground italic">
-                        {it.ai_findings.calculation_explanation}
-                      </div>
-                    )}
-                    {(alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
-                      <div className="rounded-md border border-dashed border-border/70 bg-muted/30 p-2.5 text-xs space-y-2">
+
+                    {/* INFORMATIVO — motor / cálculo / IA recolhidos por padrão */}
+                    {(engine || expectedAmount != null || it.ai_findings?.calculation_explanation || alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
+                      <Accordion type="single" collapsible className="border border-border/60 rounded-md bg-muted/20">
+                        {(engine || expectedAmount != null || it.ai_findings?.calculation_explanation) && (
+                          <AccordionItem value="motor" className="border-b-0">
+                            <AccordionTrigger className="px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:no-underline">
+                              <span className="flex items-center gap-1.5">
+                                <FileText className="h-3 w-3" /> Detalhes do cálculo
+                                {expectedAmount != null && (
+                                  <span className="ml-1 normal-case tracking-normal text-foreground tabular-nums">
+                                    · esperado {formatCurrency(expectedAmount)}
+                                    {diffPct != null && Math.abs(diffPct) > 0.001 && (
+                                      <span className={`ml-1 ${Math.abs(diffPct) > 0.01 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+                                        ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-3 pb-3 text-xs space-y-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {priority && (
+                                  <span
+                                    className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]]}`}
+                                    title="Nível de precedência da regra escolhida"
+                                  >
+                                    {RULE_MATCH_PRIORITY_LABELS[priority]}
+                                  </span>
+                                )}
+                                {calcTypeLabel && (
+                                  <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.muted}`}>
+                                    {calcTypeLabel}
+                                  </span>
+                                )}
+                              </div>
+                              {it.ai_findings?.calculation_explanation && (
+                                <p className="text-muted-foreground italic">
+                                  {it.ai_findings.calculation_explanation}
+                                </p>
+                              )}
+                              {engine?.ai_note && (
+                                <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setLogOpen(true); }}
+                                className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 inline-flex items-center gap-1"
+                              >
+                                <FileText className="h-3 w-3" /> Ver log completo
+                              </button>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )}
+                        {(alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
+                          <AccordionItem value="ia" className="border-b-0">
+                            <AccordionTrigger className="px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:no-underline">
+                              <span className="flex items-center gap-1.5">
+                                <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                              </span>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-3 pb-3 text-xs space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold uppercase tracking-wide text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                          <span className="text-[10px] text-muted-foreground">
+                            Apenas interpreta. Não altera valor, status ou regra.
                           </span>
                           {!aiExplain && (
                             <Button
@@ -564,16 +600,16 @@ export const PaymentItemRow = ({
                                 {aiExplain.what_to_check}
                               </p>
                             )}
-                            <p className="text-[10px] text-muted-foreground italic">
-                              IA apenas interpreta. Não altera valor, status ou regra.
-                            </p>
                           </div>
                         ) : (
                           <p className="text-[11px] text-muted-foreground">
                             Gere uma interpretação contextual deste alerta (histórico, auxiliares, múltiplos procedimentos, pacote/tabela diferenciada).
                           </p>
                         )}
-                      </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )}
+                      </Accordion>
                     )}
                   </div>
                 )}
