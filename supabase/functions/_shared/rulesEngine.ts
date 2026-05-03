@@ -545,19 +545,32 @@ export function analyzeItem(
   preFilteredRules: RuleInput[],
   ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
 ): AnalysisResult {
-  const winner = selectWinningRule(item, preFilteredRules);
+  const outcome = selectWinningRule(item, preFilteredRules);
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
   let calculation_type_used: AnalysisResult["calculation_type_used"];
   let matched_rule_id: string | null = null;
   let matched_rule_name: string | null = null;
+  let conflict: AnalysisResult["conflict"] | undefined;
 
-  if (winner) {
-    calc = applyCalculation(winner.rule, item, ctx);
-    priority = winner.priority;
-    calculation_type_used = winner.rule.calculation_type;
-    matched_rule_id = winner.rule.id;
-    matched_rule_name = winner.rule.name;
+  if (outcome && outcome.priority === "conflito") {
+    priority = "conflito";
+    calculation_type_used = "informativo";
+    calc = {
+      expected: null,
+      explanation: outcome.conflict?.reason ?? "Conflito de regras — análise bloqueada.",
+      alerts: [
+        "Conflito de regra: múltiplas regras aplicáveis no mesmo nível de prioridade.",
+        ...(outcome.conflict ? [`Regras candidatas: ${outcome.conflict.candidate_rule_ids.join(", ")}`] : []),
+      ],
+    };
+    conflict = outcome.conflict;
+  } else if (outcome && outcome.rule) {
+    calc = applyCalculation(outcome.rule, item, ctx);
+    priority = outcome.priority;
+    calculation_type_used = outcome.rule.calculation_type;
+    matched_rule_id = outcome.rule.id;
+    matched_rule_name = outcome.rule.name;
   } else {
     const def = calcDefault(item);
     calc = def;
@@ -565,7 +578,8 @@ export function analyzeItem(
     calculation_type_used = def.calculation_type_used;
   }
 
-  const { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
+  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
+  if (priority === "conflito") status = "alerta";
   const alerts = [...calc.alerts];
   if (calc.expected != null && status === "reprovado") {
     alerts.push(`Divergência de ${(diff_pct! * 100).toFixed(1)}% entre esperado (R$ ${calc.expected.toFixed(2)}) e pago (R$ ${item.gross_amount.toFixed(2)}).`);
@@ -585,6 +599,7 @@ export function analyzeItem(
     calculation_explanation: calc.explanation,
     alerts,
     needs_ai_review: status !== "aprovado",
+    ...(conflict ? { conflict } : {}),
   };
 }
 
