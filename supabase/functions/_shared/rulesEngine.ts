@@ -105,7 +105,10 @@ export type RuleMatchPriority =
   | "setor_codigo"
   | "setor"
   | "setor_outro"
-  | "default_setor";
+  | "setor_hemodinamica_master"
+  | "setor_master_geral"
+  | "default_setor"
+  | "conflito";
 
 export interface AnalysisResult {
   item_id: string;
@@ -119,6 +122,10 @@ export interface AnalysisResult {
   calculation_explanation: string;
   alerts: string[];
   needs_ai_review: boolean;
+  conflict?: {
+    candidate_rule_ids: string[];
+    reason: string;
+  };
 }
 
 // ---------- helpers ----------
