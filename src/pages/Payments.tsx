@@ -13,6 +13,7 @@ import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobo
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface Row {
   id: string;
@@ -69,6 +70,8 @@ const Payments = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [competenceFilter, setCompetenceFilter] = useState<string>("all");
   const [delayedOnly, setDelayedOnly] = useState(false);
+  const [view, setView] = useState<"lista" | "kanban">("lista");
+  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
@@ -223,6 +226,109 @@ const Payments = () => {
     return ids.map((id) => ({ id, name: analysts[id] ?? "—" })).sort((a, b) => a.name.localeCompare(b.name));
   }, [rows, analysts]);
 
+  const elapsedFor = (p: Row) => now - new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at).getTime();
+
+  const sortedList = useMemo(() => {
+    const arr = [...filtered];
+    if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
+    else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status));
+    else arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return arr;
+  }, [filtered, sortBy, statusEnteredAt, now]);
+
+  // Ordem das colunas do kanban (segue fluxo lógico)
+  const KANBAN_ORDER: PaymentStatus[] = [
+    "rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao",
+    "devolvido_analista", "aguardando_aprovacao", "devolvido_validador",
+    "aprovado", "aprovado_com_ressalva", "pedido_nf_enviado", "nf_questionada",
+    "nf_recebida", "nf_conciliada", "nf_divergente", "pago", "rejeitado", "cancelado",
+  ];
+
+  const kanbanGroups = useMemo(() => {
+    const groups: Record<string, Row[]> = {};
+    for (const p of filtered) {
+      (groups[p.status] = groups[p.status] ?? []).push(p);
+    }
+    Object.values(groups).forEach((g) => g.sort((a, b) => elapsedFor(b) - elapsedFor(a)));
+    return KANBAN_ORDER.filter((s) => groups[s]?.length).map((s) => ({ status: s, items: groups[s] }));
+  }, [filtered, statusEnteredAt, now]);
+
+  const renderCard = (p: Row, compact = false) => {
+    const elapsedMs = elapsedFor(p);
+    const lvl = delayLevel(p.status, elapsedMs);
+    const companies = companiesPerPayment[p.id] ?? 0;
+    const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
+    if (compact) {
+      return (
+        <Link
+          key={p.id}
+          to={`/pagamentos/${p.id}`}
+          className={cn(
+            "block rounded-md border bg-card px-3 py-2 hover:bg-muted/40 transition-colors space-y-1.5",
+            lvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
+          )}
+        >
+          <p className="font-medium text-xs truncate">{p.reference}</p>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="truncate">{analystName}</span>
+            <span className="tabular-nums">{formatCurrency(p.total_amount)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-muted-foreground">{p.items_count} itens · {companies || "—"} PJ</span>
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
+              lvl === "critico" && "bg-destructive-soft text-destructive",
+              lvl === "leve" && "bg-warning-soft text-warning-foreground",
+              lvl === "none" && "text-muted-foreground",
+            )}>
+              <Clock className="h-2.5 w-2.5" /> {formatDuration(elapsedMs)}
+            </span>
+          </div>
+        </Link>
+      );
+    }
+    return (
+      <Link key={p.id} to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="font-medium text-sm truncate">{p.reference}</p>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+              <User className="h-3 w-3" /> {analystName}
+            </Badge>
+            {p.payment_type && (
+              <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                <Tag className="h-3 w-3" /> {PAYMENT_TYPE_LABELS[p.payment_type]}
+              </Badge>
+            )}
+            {companies > 0 && (
+              <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
+              </Badge>
+            )}
+            <Badge
+              variant="outline"
+              className={cn(
+                "gap-1 font-normal",
+                lvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
+                lvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
+                lvl === "none" && "text-muted-foreground",
+              )}
+            >
+              <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
+            {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
+            {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
+            {" · criado em "}{formatDate(p.created_at)}
+          </p>
+        </div>
+        <StatusBadge status={p.status} className={cn(lvl === "critico" && "ring-2 ring-destructive/40")} />
+      </Link>
+    );
+  };
+
   return (
     <>
       <PageHeader
@@ -294,64 +400,52 @@ const Payments = () => {
               <X className="h-4 w-4 mr-1" /> Limpar
             </Button>
           )}
-        </div>
-        <Card className="shadow-card">
-          <CardContent className="p-0">
-            {filtered.length === 0 ? (
-              <div className="px-6 py-16 text-center text-sm text-muted-foreground">Nenhum pagamento encontrado.</div>
-            ) : (
-              <div className="divide-y divide-border">
-                {filtered.map((p) => {
-                  const since = statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at;
-                  const elapsedMs = now - new Date(since).getTime();
-                  const lvl = delayLevel(p.status, elapsedMs);
-                  const companies = companiesPerPayment[p.id] ?? 0;
-                  const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
-                  return (
-                    <Link key={p.id} to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <p className="font-medium text-sm truncate">{p.reference}</p>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                          <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                            <User className="h-3 w-3" /> {analystName}
-                          </Badge>
-                          {p.payment_type && (
-                            <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                              <Tag className="h-3 w-3" /> {PAYMENT_TYPE_LABELS[p.payment_type]}
-                            </Badge>
-                          )}
-                          {companies > 0 && (
-                            <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                              <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
-                            </Badge>
-                          )}
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "gap-1 font-normal",
-                              lvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
-                              lvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
-                              lvl === "none" && "text-muted-foreground",
-                            )}
-                          >
-                            <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
-                          {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
-                          {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
-                          {" · criado em "}{formatDate(p.created_at)}
-                        </p>
-                      </div>
-                      <StatusBadge status={p.status} className={cn(lvl === "critico" && "ring-2 ring-destructive/40")} />
-                    </Link>
-                  );
-                })}
-              </div>
+          <div className="ml-auto flex items-center gap-2">
+            {view === "lista" && (
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created">Mais recentes</SelectItem>
+                  <SelectItem value="elapsed">Tempo parado</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
             )}
-          </CardContent>
-        </Card>
+            <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "lista" | "kanban")} variant="outline" size="sm">
+              <ToggleGroupItem value="lista">Lista</ToggleGroupItem>
+              <ToggleGroupItem value="kanban">Kanban</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </div>
+        {filtered.length === 0 ? (
+          <Card className="shadow-card">
+            <CardContent className="p-0">
+              <div className="px-6 py-16 text-center text-sm text-muted-foreground">Nenhum pagamento encontrado.</div>
+            </CardContent>
+          </Card>
+        ) : view === "lista" ? (
+          <Card className="shadow-card">
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {sortedList.map((p) => renderCard(p))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+            {kanbanGroups.map((g) => (
+              <div key={g.status} className="rounded-lg border bg-muted/20 flex flex-col min-h-[120px]">
+                <div className="flex items-center justify-between px-3 py-2 border-b bg-background/40 rounded-t-lg">
+                  <StatusBadge status={g.status} />
+                  <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{g.items.length}</span>
+                </div>
+                <div className="p-2 space-y-2 max-h-[70vh] overflow-y-auto">
+                  {g.items.map((p) => renderCard(p, true))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
