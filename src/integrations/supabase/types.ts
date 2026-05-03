@@ -1214,7 +1214,7 @@ export type Database = {
         | "validador"
         | "diretor"
         | "sistema"
-      payment_analysis_mode: "padrao" | "empresa_prioritaria"
+      payment_analysis_mode: "padrao" | "empresa_prioritaria" | "isolado"
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
         | "rascunho"
@@ -1412,7 +1412,7 @@ export const Constants = {
       invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
       item_ai_status: ["pendente", "aprovado", "alerta", "reprovado"],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
-      payment_analysis_mode: ["padrao", "empresa_prioritaria"],
+      payment_analysis_mode: ["padrao", "empresa_prioritaria", "isolado"],
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [
         "rascunho",

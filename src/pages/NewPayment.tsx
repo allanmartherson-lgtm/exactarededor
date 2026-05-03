@@ -21,6 +21,10 @@ import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2,
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { AlertTriangle } from "lucide-react";
 
 interface ParsedRow {
   doctor_name: string;
@@ -154,6 +158,9 @@ const NewPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
+  const [autoPaymentType, setAutoPaymentType] = useState(true);
+  const [autoSectors, setAutoSectors] = useState(true);
+  const [autoSpecialties, setAutoSpecialties] = useState(true);
 
   useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
 
@@ -223,6 +230,40 @@ const NewPayment = () => {
   const allRows = useMemo(() => buckets.flatMap((b) => b.rows), [buckets]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
+  // === Detecção heurística do conteúdo da planilha ===
+  const detected = useMemo(() => {
+    const text = (s: string | null | undefined) => (s ?? "").toLowerCase();
+    const sectorHits: Record<string, number> = {};
+    for (const r of allRows) {
+      const blob = `${text(r.procedure_name)} ${text(r.description)} ${text(r.doctor_role)}`;
+      if (/visita/.test(blob)) sectorHits.visita = (sectorHits.visita ?? 0) + 1;
+      if (/parecer/.test(blob)) sectorHits.parecer = (sectorHits.parecer ?? 0) + 1;
+      if (/cirurgia|cirurg/.test(blob)) sectorHits.cirurgia = (sectorHits.cirurgia ?? 0) + 1;
+      if (/hemodin/.test(blob)) sectorHits.hemodinamica = (sectorHits.hemodinamica ?? 0) + 1;
+      if (/consulta/.test(blob)) sectorHits.consulta = (sectorHits.consulta ?? 0) + 1;
+      if (/procedimento/.test(blob) && !/cirurg/.test(blob)) sectorHits.procedimento = (sectorHits.procedimento ?? 0) + 1;
+    }
+    const detectedSectors = Object.keys(sectorHits).filter((k) => sectorHits[k] >= Math.max(1, allRows.length * 0.05));
+    return { sectorHits, detectedSectors };
+  }, [allRows]);
+
+  // Alerta de conflito: usuário marcou setor que não aparece na base, ou não marcou setor presente
+  const sectorConflicts = useMemo(() => {
+    if (autoSectors || allRows.length === 0 || pSectors.length === 0) return [] as string[];
+    const issues: string[] = [];
+    for (const s of pSectors) {
+      if (!detected.detectedSectors.includes(s)) {
+        issues.push(`Você marcou "${RULE_SECTOR_LABELS[s as RuleSector] ?? s}" mas a base não contém itens compatíveis.`);
+      }
+    }
+    for (const s of detected.detectedSectors) {
+      if (!pSectors.includes(s) && (RULE_SECTOR_LABELS as any)[s]) {
+        issues.push(`A base contém "${RULE_SECTOR_LABELS[s as RuleSector]}" mas você não marcou esse setor.`);
+      }
+    }
+    return issues;
+  }, [autoSectors, pSectors, detected, allRows.length]);
+
   const submit = async () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
@@ -230,14 +271,18 @@ const NewPayment = () => {
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
-    if (!paymentType) {
-      toast({ title: "Selecione o tipo de pagamento", variant: "destructive" }); return;
-    }
     if (!paymentKind) {
       toast({ title: "Selecione a categoria do pagamento", variant: "destructive" }); return;
     }
+    if (!autoPaymentType && !paymentType) {
+      toast({ title: "Selecione o tipo de pagamento ou marque a detecção automática", variant: "destructive" }); return;
+    }
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
+    }
+    if (sectorConflicts.length > 0) {
+      const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
+      if (!ok) return;
     }
     setSubmitting(true);
 
@@ -262,11 +307,11 @@ const NewPayment = () => {
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
-        payment_type: paymentType as PaymentType,
+        payment_type: autoPaymentType ? null : (paymentType as PaymentType),
         payment_kind: paymentKind as PaymentKind,
         cost_center_code: costCenterCode,
-        sectors: pSectors,
-        specialties: pSpecialties,
+        sectors: autoSectors ? [] : pSectors,
+        specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
       })
       .select()
@@ -392,14 +437,22 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2">
                 <Label>Tipo de pagamento *</Label>
-                <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-pt" checked={autoPaymentType} onCheckedChange={setAutoPaymentType} />
+                  <Label htmlFor="auto-pt" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                </div>
+                {!autoPaymentType && (
+                  <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione manualmente" /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((k) => (
+                        <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Categoria *</Label>
@@ -419,34 +472,67 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Modo de análise</Label>
-                <Select value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PAYMENT_ANALYSIS_MODE_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">{PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[analysisMode]}</p>
+                <RadioGroup value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)} className="grid gap-2">
+                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
+                    <label key={k} htmlFor={`am-${k}`} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${analysisMode === k ? "border-primary bg-primary-soft/30" : "border-border hover:bg-muted/40"}`}>
+                      <RadioGroupItem id={`am-${k}`} value={k} className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <div className="text-sm font-medium">{PAYMENT_ANALYSIS_MODE_LABELS[k]}</div>
+                        <div className="text-xs text-muted-foreground">{PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[k]}</div>
+                      </div>
+                    </label>
+                  ))}
+                </RadioGroup>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Setor(es) / Item Pagamento</Label>
-                <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                  {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
-                    const checked = pSectors.includes(k);
-                    return (
-                      <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                        onClick={() => setPSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
-                        {RULE_SECTOR_LABELS[k]}
-                      </Button>
-                    );
-                  })}
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-sec" checked={autoSectors} onCheckedChange={setAutoSectors} />
+                  <Label htmlFor="auto-sec" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                  {autoSectors && detected.detectedSectors.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      · detectado: {detected.detectedSectors.map((s) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(", ")}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">Vazio = todos. Ajuda a IA a filtrar regras aplicáveis.</p>
+                {!autoSectors && (
+                  <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                    {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
+                      const checked = pSectors.includes(k);
+                      return (
+                        <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                          onClick={() => setPSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
+                          {RULE_SECTOR_LABELS[k]}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+                {sectorConflicts.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Conflito com a base</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 space-y-0.5 text-xs">
+                        {sectorConflicts.map((c, i) => <li key={i}>{c}</li>)}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Especialidade(s)</Label>
-                <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-sp" checked={autoSpecialties} onCheckedChange={setAutoSpecialties} />
+                  <Label htmlFor="auto-sp" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                </div>
+                {!autoSpecialties && (
+                  <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+                )}
               </div>
             </div>
             <div className="space-y-2">

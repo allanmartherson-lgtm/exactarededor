@@ -139,10 +139,12 @@ export const RULE_CALCULATION_TYPE_DESCRIPTIONS: Record<RuleCalculationType, str
 
 export const PAYMENT_ANALYSIS_MODE_LABELS: Record<PaymentAnalysisMode, string> = {
   padrao: "Padrão (com histórico)",
+  isolado: "Isolado (sem histórico)",
   empresa_prioritaria: "Empresa prioritária (isolado)",
 };
 export const PAYMENT_ANALYSIS_MODE_DESCRIPTIONS: Record<PaymentAnalysisMode, string> = {
   padrao: "Análise considera observações de outros pagamentos como contexto.",
+  isolado: "Cada pagamento é analisado por si só, sem buscar contexto histórico de outros lotes.",
   empresa_prioritaria: "Cada arquivo é analisado isoladamente; só itens com erro aparecem no detalhe.",
 };
 
