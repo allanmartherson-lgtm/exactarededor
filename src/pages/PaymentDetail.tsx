@@ -18,6 +18,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
+import { scoreAttendance } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
