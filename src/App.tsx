@@ -12,6 +12,7 @@ import PaymentDetail from "./pages/PaymentDetail.tsx";
 import Rules from "./pages/Rules.tsx";
 import ValidationRules from "./pages/ValidationRules.tsx";
 import ReferenceTables from "./pages/ReferenceTables.tsx";
+import ProcedureClassifications from "./pages/ProcedureClassifications.tsx";
 import Users from "./pages/Users.tsx";
 import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
               <Route path="/regras/validacao" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidationRules /></ProtectedRoute>} />
               <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
+              <Route path="/classificacao-procedimentos" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcedureClassifications /></ProtectedRoute>} />
               <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
               <Route path="/centros-de-custo" element={<CostCenters />} />
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />

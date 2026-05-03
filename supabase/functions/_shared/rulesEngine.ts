@@ -105,6 +105,10 @@ export interface ItemInput {
   exception_reason?: string | null;
   exception_authorizer?: string | null;
   exception_note?: string | null;
+  /** Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica). */
+  classification_sector?: string | null;
+  classification_source?: string | null;
+  classification_confidence?: string | null;
 }
 
 export interface PaymentContext {
@@ -166,6 +170,7 @@ const normName = (s: string | null | undefined): string =>
   (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 export function inferItemSector(item: ItemInput): string {
+  if (item.classification_sector) return item.classification_sector;
   const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
   if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
   if (/(cirurg|operac|herni|colecist|laparo|artrosc)/.test(txt)) return "cirurgia";
