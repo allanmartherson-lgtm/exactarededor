@@ -4,6 +4,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
   ChevronDown,
   ChevronRight,
   MessageSquare,
@@ -11,6 +18,7 @@ import {
   ShieldCheck,
   Sparkles,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -134,6 +142,7 @@ export const PaymentItemRow = ({
   onExceptionChanged,
 }: PaymentItemRowProps) => {
   const [excOpen, setExcOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
   const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
@@ -493,6 +502,15 @@ export const PaymentItemRow = ({
                         {engine?.ai_note && (
                           <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
                         )}
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setLogOpen(true); }}
+                            className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 inline-flex items-center gap-1"
+                          >
+                            <FileText className="h-3 w-3" /> Ver detalhes do cálculo
+                          </button>
+                        </div>
                       </div>
                     )}
                     {alerts.length > 0 && (
@@ -654,6 +672,77 @@ export const PaymentItemRow = ({
           onSaved={() => onExceptionChanged?.()}
         />
       )}
+      <Sheet open={logOpen} onOpenChange={setLogOpen}>
+        <SheetContent side="right" className="w-[420px] sm:max-w-[460px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Log de decisão do motor
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              Registro auditável do raciocínio determinístico. A IA pode resumir, mas não altera o resultado.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-3 text-xs">
+            {(() => {
+              const tl = (it as any).tipo_linha as string | null;
+              const sector = (it as any).classification_sector ?? null;
+              const groupKey = (it as any).attendance_group_key as string | null;
+              const exceptionMarkedLocal = !!itemAny.authorized_exception;
+              const findings = it.ai_findings ?? null;
+              const updated = (it as any).updated_at ?? (it as any).created_at ?? null;
+              const Row = ({ label, value }: { label: string; value: unknown }) => (
+                <div className="grid grid-cols-[140px_1fr] gap-2 border-b border-border/40 pb-1.5">
+                  <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+                  <dd className="text-foreground break-words">{(value as any) ?? "—"}</dd>
+                </div>
+              );
+              return (
+                <dl className="space-y-1.5">
+                  <Row label="Tipo de linha" value={tl ?? "—"} />
+                  <Row label="Tipo / Setor" value={sector ?? "—"} />
+                  <Row label="Grupo atendimento" value={groupKey ? <span className="font-mono text-[10px]">{groupKey}</span> : "—"} />
+                  <Row label="Regra aplicada" value={firstRuleLabel ?? "—"} />
+                  <Row label="Tipo de cálculo" value={calcTypeLabel ?? "—"} />
+                  <Row label="Precedência" value={priority ? RULE_MATCH_PRIORITY_LABELS[priority] : "—"} />
+                  <Row label="Valor esperado" value={expectedAmount != null ? formatCurrency(expectedAmount) : "—"} />
+                  <Row label="Valor informado" value={formatCurrency(it.gross_amount)} />
+                  <Row label="Diferença" value={diffPct != null ? `${(diffPct * 100).toFixed(1)}%` : "—"} />
+                  <Row label="Status final" value={<span className="uppercase">{it.ai_status}</span>} />
+                  <Row
+                    label="Exceção autorizada"
+                    value={exceptionMarkedLocal
+                      ? `Sim — ${itemAny.exception_reason ?? "—"} (${itemAny.exception_authorizer ?? "—"})`
+                      : "Não"}
+                  />
+                  <Row label="Processado em" value={updated ? formatDate(updated) : "—"} />
+                  <div className="pt-1">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Cálculo / motivo</p>
+                    <p className="whitespace-pre-wrap text-foreground bg-muted/40 rounded p-2 leading-snug">
+                      {findings?.calculation_explanation ?? "—"}
+                    </p>
+                  </div>
+                  {alerts.length > 0 && (
+                    <div className="pt-1">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Alertas / regras de validação acionadas</p>
+                      <ul className="space-y-0.5">
+                        {alerts.map((a, i) => (
+                          <li key={i} className="text-warning-foreground">⚠ {a}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {engine?.ai_note && (
+                    <div className="pt-1">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Resumo IA (apenas interpretação)</p>
+                      <p className="italic text-muted-foreground">{engine.ai_note}</p>
+                    </div>
+                  )}
+                </dl>
+              );
+            })()}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Fragment>
   );
 };
