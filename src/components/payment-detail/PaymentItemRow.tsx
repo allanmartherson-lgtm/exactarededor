@@ -9,7 +9,11 @@ import {
   MessageSquare,
   MessageSquarePlus,
   ShieldCheck,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import {
   formatCurrency,
   formatDate,
@@ -176,6 +180,33 @@ export const PaymentItemRow = ({
   const alerts = it.ai_findings?.alerts ?? [];
   const engine = it.ai_findings?.engine ?? null;
   const expectedAmount = (it.ai_findings?.expected_amount ?? null) as number | null;
+
+  // Explicação IA sob demanda (não persistida — apenas auxilia interpretação)
+  const [aiExplain, setAiExplain] = useState<{
+    explanation: string;
+    possible_causes: string[];
+    what_to_check: string;
+  } | null>(null);
+  const [aiExplainLoading, setAiExplainLoading] = useState(false);
+  const requestAiExplain = async () => {
+    setAiExplainLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("explain-alert", {
+        body: { item_id: it.id },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setAiExplain((data as any).ai);
+    } catch (e: any) {
+      toast({
+        title: "Não foi possível gerar a explicação",
+        description: e?.message ?? "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setAiExplainLoading(false);
+    }
+  };
   const diffPct = (engine?.diff_pct ?? null) as number | null;
   const priority = (engine?.matched_priority ?? null) as RuleMatchPriority | null;
   const calcType = (engine?.calculation_type_used ?? null) as
