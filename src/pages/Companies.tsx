@@ -395,6 +395,10 @@ const Companies = () => {
                   <Label>Notas</Label>
                   <Textarea rows={2} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
                 </div>
+                <div className="space-y-1.5">
+                  <Label>Prazos específicos</Label>
+                  <CompanySlaSection companyId={editing.id} />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
