@@ -21,6 +21,10 @@ import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2,
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Sparkles as SparklesIcon, Wand2, AlertTriangle } from "lucide-react";
 
 interface ParsedRow {
   doctor_name: string;
@@ -154,6 +158,9 @@ const NewPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
+  const [autoPaymentType, setAutoPaymentType] = useState(true);
+  const [autoSectors, setAutoSectors] = useState(true);
+  const [autoSpecialties, setAutoSpecialties] = useState(true);
 
   useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
 
@@ -223,6 +230,40 @@ const NewPayment = () => {
   const allRows = useMemo(() => buckets.flatMap((b) => b.rows), [buckets]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
+  // === Detecção heurística do conteúdo da planilha ===
+  const detected = useMemo(() => {
+    const text = (s: string | null | undefined) => (s ?? "").toLowerCase();
+    const sectorHits: Record<string, number> = {};
+    for (const r of allRows) {
+      const blob = `${text(r.procedure_name)} ${text(r.description)} ${text(r.doctor_role)}`;
+      if (/visita/.test(blob)) sectorHits.visita = (sectorHits.visita ?? 0) + 1;
+      if (/parecer/.test(blob)) sectorHits.parecer = (sectorHits.parecer ?? 0) + 1;
+      if (/cirurgia|cirurg/.test(blob)) sectorHits.cirurgia = (sectorHits.cirurgia ?? 0) + 1;
+      if (/hemodin/.test(blob)) sectorHits.hemodinamica = (sectorHits.hemodinamica ?? 0) + 1;
+      if (/consulta/.test(blob)) sectorHits.consulta = (sectorHits.consulta ?? 0) + 1;
+      if (/procedimento/.test(blob) && !/cirurg/.test(blob)) sectorHits.procedimento = (sectorHits.procedimento ?? 0) + 1;
+    }
+    const detectedSectors = Object.keys(sectorHits).filter((k) => sectorHits[k] >= Math.max(1, allRows.length * 0.05));
+    return { sectorHits, detectedSectors };
+  }, [allRows]);
+
+  // Alerta de conflito: usuário marcou setor que não aparece na base, ou não marcou setor presente
+  const sectorConflicts = useMemo(() => {
+    if (autoSectors || allRows.length === 0 || pSectors.length === 0) return [] as string[];
+    const issues: string[] = [];
+    for (const s of pSectors) {
+      if (!detected.detectedSectors.includes(s)) {
+        issues.push(`Você marcou "${RULE_SECTOR_LABELS[s as RuleSector] ?? s}" mas a base não contém itens compatíveis.`);
+      }
+    }
+    for (const s of detected.detectedSectors) {
+      if (!pSectors.includes(s) && (RULE_SECTOR_LABELS as any)[s]) {
+        issues.push(`A base contém "${RULE_SECTOR_LABELS[s as RuleSector]}" mas você não marcou esse setor.`);
+      }
+    }
+    return issues;
+  }, [autoSectors, pSectors, detected, allRows.length]);
+
   const submit = async () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
@@ -236,8 +277,15 @@ const NewPayment = () => {
     if (!paymentKind) {
       toast({ title: "Selecione a categoria do pagamento", variant: "destructive" }); return;
     }
+    if (!autoPaymentType && !paymentType) {
+      toast({ title: "Selecione o tipo de pagamento ou marque a detecção automática", variant: "destructive" }); return;
+    }
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
+    }
+    if (sectorConflicts.length > 0) {
+      const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
+      if (!ok) return;
     }
     setSubmitting(true);
 
@@ -262,11 +310,11 @@ const NewPayment = () => {
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
-        payment_type: paymentType as PaymentType,
+        payment_type: autoPaymentType ? null : (paymentType as PaymentType),
         payment_kind: paymentKind as PaymentKind,
         cost_center_code: costCenterCode,
-        sectors: pSectors,
-        specialties: pSpecialties,
+        sectors: autoSectors ? [] : pSectors,
+        specialties: autoSpecialties ? [] : pSpecialties,
         analysis_mode: analysisMode,
       })
       .select()
