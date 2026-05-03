@@ -999,6 +999,50 @@ const Rules = () => {
                       </p>
                     </div>
                   )}
+                  {fCalculationType === "exclusao" && (
+                    <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
+                        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          {fAllowsAuthorizedException ? "admite exceção" : "bloqueio rígido"}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Motivo da exclusão *</Label>
+                        <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="convenio_particular">Convênio particular</SelectItem>
+                            <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
+                            <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
+                            <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
+                            <SelectItem value="duplicidade">Duplicidade</SelectItem>
+                            <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={fAllowsAuthorizedException}
+                          onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
+                        />
+                        <span className="text-xs">
+                          Permite exceção autorizada
+                          <span className="block text-[11px] text-muted-foreground">
+                            Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
+                            Nesses casos o motor busca uma regra calculável específica; se não houver, marca como alerta para validação manual.
+                          </span>
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Padrão: valor esperado = R$ 0 e item bloqueado.
+                        {fAllowsAuthorizedException
+                          ? " Exceções autorizadas ficam registradas em auditoria."
+                          : " Sem exceção possível — qualquer valor pago é divergência."}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 )}
 
