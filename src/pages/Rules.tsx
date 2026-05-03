@@ -163,6 +163,8 @@ const Rules = () => {
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
+  // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
+  const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
   // === Novo motor (Fase 4) ===
   const [fCalculationType, setFCalculationType] = useState<RuleCalculationType>("informativo");
   const [fConvenioPct, setFConvenioPct] = useState<string>("");
