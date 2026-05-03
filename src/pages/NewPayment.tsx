@@ -46,7 +46,116 @@ interface ParsedRow {
   procedure_date: string | null;
   patient_name: string | null;
   raw_data: Record<string, unknown>;
+  tipo_linha: LineType;
+  line_issues: LineIssue[];
 }
+
+// === Classificação de tipo_linha (pré-validação) ===
+export type LineType =
+  | "procedimento"
+  | "visita"
+  | "parecer"
+  | "pacote"
+  | "complemento_bonus"
+  | "glosa_desconto"
+  | "reprocessamento"
+  | "outro";
+
+export interface LineIssue {
+  severity: "critico" | "alerta";
+  field: string;
+  message: string;
+}
+
+const LINE_TYPE_LABELS: Record<LineType, string> = {
+  procedimento: "Procedimento",
+  visita: "Visita",
+  parecer: "Parecer",
+  pacote: "Pacote",
+  complemento_bonus: "Complemento/Bônus",
+  glosa_desconto: "Glosa/Desconto",
+  reprocessamento: "Reprocessamento/Pendência",
+  outro: "Outro / Não identificado",
+};
+
+const COMPLEMENTO_TERMS = [
+  "bonus", "bônus", "complemento", "adicional", "diferenca", "diferença",
+  "ajuste de valor", "complemento pacote", "complemento cirurg",
+  "produtividade", "incentivo", "valor complementar",
+];
+const GLOSA_TERMS = ["glosa", "desconto", "abatimento", "devolução", "devolucao", "estorno", "ajuste negativo"];
+const REPROC_TERMS = ["retroativo", "pendência", "pendencia", "competência anterior", "competencia anterior", "ajuste mês anterior", "ajuste mes anterior"];
+const PACOTE_TERMS = ["pacote"];
+const VISITA_TERMS = ["visita"];
+const PARECER_TERMS = ["parecer"];
+const CIRURGIA_TERMS = ["cirurgia", "cirurg", "procedimento"];
+
+const containsAny = (txt: string, terms: string[]) => {
+  const t = txt.toLowerCase();
+  return terms.some((w) => t.includes(w.toLowerCase()));
+};
+
+const classifyLine = (
+  r: Omit<ParsedRow, "tipo_linha" | "line_issues">,
+  paymentKind?: string | null,
+): LineType => {
+  const blob = `${r.description ?? ""} ${r.procedure_name ?? ""} ${r.doctor_role ?? ""}`;
+  if (containsAny(blob, GLOSA_TERMS) || (r.gross_amount ?? 0) < 0) return "glosa_desconto";
+  if (containsAny(blob, COMPLEMENTO_TERMS)) return "complemento_bonus";
+  if (paymentKind === "pendencia" || containsAny(blob, REPROC_TERMS)) return "reprocessamento";
+  if (containsAny(blob, PACOTE_TERMS)) return "pacote";
+  if (containsAny(blob, VISITA_TERMS)) return "visita";
+  if (containsAny(blob, PARECER_TERMS)) return "parecer";
+  if (r.procedure_code || containsAny(blob, CIRURGIA_TERMS)) return "procedimento";
+  return "outro";
+};
+
+const validateLine = (
+  r: Omit<ParsedRow, "line_issues">,
+): LineIssue[] => {
+  const issues: LineIssue[] = [];
+  const hasDoctor = !!r.doctor_name?.trim();
+  const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
+  const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
+  const hasCode = !!r.procedure_code?.trim();
+  const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
+
+  switch (r.tipo_linha) {
+    case "procedimento":
+      if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasCode && !hasDesc) issues.push({ severity: "critico", field: "procedure_code", message: "Código TUSS ou descrição obrigatório" });
+      if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento/paciente recomendado" });
+      break;
+    case "visita":
+    case "parecer":
+      if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      break;
+    case "pacote":
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor total obrigatório" });
+      if (!hasAtt) issues.push({ severity: "critico", field: "attendance_number", message: "Atendimento/paciente obrigatório no pacote" });
+      if (!hasCode) issues.push({ severity: "alerta", field: "procedure_code", message: "Código principal recomendado" });
+      break;
+    case "complemento_bonus":
+      if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento ausente — recomendado" });
+      break;
+    case "glosa_desconto":
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasDesc) issues.push({ severity: "critico", field: "description", message: "Motivo/descrição obrigatório" });
+      break;
+    case "reprocessamento":
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasDoctor) issues.push({ severity: "alerta", field: "doctor_name", message: "Médico recomendado" });
+      break;
+    case "outro":
+      issues.push({ severity: "alerta", field: "tipo_linha", message: "Tipo de lançamento não identificado — classificar manualmente" });
+      break;
+  }
+  return issues;
+};
 
 interface FileBucket {
   file: File;
@@ -185,7 +294,7 @@ const NewPayment = () => {
       const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce"]));
       const grossFromAny = repasse || toNumber(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"])) || procVal;
 
-      return {
+      const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
         doctor_document: toStr(pick(row, ["cpf", "cnpj", "documento", "doc"])) ?? "",
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
@@ -205,7 +314,11 @@ const NewPayment = () => {
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         raw_data: row,
       };
-    }).filter((r) => r.doctor_name || r.gross_amount > 0 || r.procedure_code);
+      const tipo_linha = classifyLine(base, paymentKind || null);
+      const withType = { ...base, tipo_linha };
+      const line_issues = validateLine(withType);
+      return { ...withType, line_issues } as ParsedRow;
+    }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 
     return { file: f, rows, rawCompanyName, matchedCompany: company ? { id: company.id, name: company.name } : null, matchScore: score };
   };
@@ -227,8 +340,29 @@ const NewPayment = () => {
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
 
-  const allRows = useMemo(() => buckets.flatMap((b) => b.rows), [buckets]);
+  const allRows = useMemo(() => {
+    return buckets.flatMap((b) => b.rows).map((r) => {
+      const tipo_linha = classifyLine(r, paymentKind || null);
+      const withType = { ...r, tipo_linha };
+      return { ...withType, line_issues: validateLine(withType) };
+    });
+  }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
+
+  // Resumo da pré-validação
+  const preValidation = useMemo(() => {
+    const byType: Record<string, number> = {};
+    let critical = 0;
+    let warnings = 0;
+    for (const r of allRows) {
+      byType[r.tipo_linha] = (byType[r.tipo_linha] ?? 0) + 1;
+      for (const i of r.line_issues) {
+        if (i.severity === "critico") critical++;
+        else warnings++;
+      }
+    }
+    return { byType, critical, warnings };
+  }, [allRows]);
 
   // === Detecção heurística do conteúdo da planilha ===
   const detected = useMemo(() => {
@@ -279,6 +413,18 @@ const NewPayment = () => {
     }
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
+    }
+    if (preValidation.critical > 0) {
+      toast({
+        title: `Pré-validação: ${preValidation.critical} erro(s) crítico(s)`,
+        description: "Corrija a planilha antes de enviar (campos obrigatórios ausentes por tipo de linha).",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (preValidation.warnings > 0) {
+      const ok = confirm(`A base contém ${preValidation.warnings} alerta(s) leve(s) (ex.: complemento sem atendimento, tipo não identificado). Deseja prosseguir?`);
+      if (!ok) return;
     }
     if (sectorConflicts.length > 0) {
       const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
@@ -597,6 +743,31 @@ const NewPayment = () => {
                 <p className="text-xs text-muted-foreground">
                   Total: {allRows.length} itens · {formatCurrency(total)}
                 </p>
+                <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Pré-validação por tipo de linha
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(preValidation.byType).map(([k, n]) => (
+                      <Badge key={k} variant="outline" className="text-xs">
+                        {LINE_TYPE_LABELS[k as LineType] ?? k}: {n}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 text-xs">
+                    {preValidation.critical > 0 ? (
+                      <span className="text-destructive font-medium">
+                        {preValidation.critical} erro(s) crítico(s) — bloqueia envio
+                      </span>
+                    ) : (
+                      <span className="text-success">Nenhum erro crítico</span>
+                    )}
+                    {preValidation.warnings > 0 && (
+                      <span className="text-warning">{preValidation.warnings} alerta(s) leve(s)</span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
