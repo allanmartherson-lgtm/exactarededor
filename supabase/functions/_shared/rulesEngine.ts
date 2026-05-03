@@ -204,35 +204,104 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
 }
 
 // ---------- seleção ----------
-export function selectWinningRule(
-  item: ItemInput,
-  rules: RuleInput[],
-): { rule: RuleInput; priority: RuleMatchPriority } | null {
+const SEVERITY_RANK: Record<string, number> = { bloqueio: 3, aviso: 2, info: 1 };
+
+function severityRank(r: RuleInput): number {
+  return SEVERITY_RANK[String(r.severity ?? "").toLowerCase()] ?? 0;
+}
+
+/**
+ * Desempate dentro de um mesmo nível de prioridade:
+ *   1) regra com código de procedimento específico (já filtrada antes,
+ *      mas mantida aqui para o caso de buckets mistos)
+ *   2) maior severidade (bloqueio > aviso > info)
+ *   3) vigência mais recente (maior valid_from)
+ *   4) se ainda houver empate => conflito
+ */
+function breakTie(candidates: RuleInput[]): { winner: RuleInput | null; tied: RuleInput[] } {
+  if (candidates.length === 0) return { winner: null, tied: [] };
+  if (candidates.length === 1) return { winner: candidates[0], tied: [] };
+
+  // 1) código específico
+  const withCode = candidates.filter(hasCodeRestriction);
+  let pool = withCode.length > 0 && withCode.length < candidates.length ? withCode : candidates;
+  if (pool.length === 1) return { winner: pool[0], tied: [] };
+
+  // 2) severidade
+  const maxSev = Math.max(...pool.map(severityRank));
+  pool = pool.filter((r) => severityRank(r) === maxSev);
+  if (pool.length === 1) return { winner: pool[0], tied: [] };
+
+  // 3) vigência mais recente
+  const validFromTs = (r: RuleInput) => (r.valid_from ? Date.parse(r.valid_from) : 0);
+  const maxFrom = Math.max(...pool.map(validFromTs));
+  pool = pool.filter((r) => validFromTs(r) === maxFrom);
+  if (pool.length === 1) return { winner: pool[0], tied: [] };
+
+  // 4) empate persistente => conflito
+  return { winner: null, tied: pool };
+}
+
+export interface SelectionOutcome {
+  rule: RuleInput | null;
+  priority: RuleMatchPriority;
+  conflict?: { candidate_rule_ids: string[]; reason: string };
+}
+
+export function selectWinningRule(item: ItemInput, rules: RuleInput[]): SelectionOutcome | null {
   const itemSector = inferItemSector(item);
+  const isHemo = itemSector === "hemodinamica";
+
   const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
   const companyRules = rules.filter((r) => targetsCompany(r, item));
-  const sectorRules  = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector));
-  const outroRules   = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("outro"));
+  const sectorRules  = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector) && itemSector !== "outro");
+  const hemoMaster   = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica"));
+  const generalMaster = rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0));
 
-  const tryBucket = (
-    bucket: RuleInput[],
-    withCodePriority: RuleMatchPriority,
-    withoutCodePriority: RuleMatchPriority,
-  ): { rule: RuleInput; priority: RuleMatchPriority } | null => {
-    const withCode = bucket.filter((r) => hasCodeRestriction(r) && matchesProcedureCode(r, item));
-    if (withCode.length > 0) return { rule: withCode[0], priority: withCodePriority };
-    const withoutCode = bucket.filter((r) => !hasCodeRestriction(r));
-    if (withoutCode.length > 0) return { rule: withoutCode[0], priority: withoutCodePriority };
-    return null;
-  };
+  // Cada nível: primeiro tenta "com código", depois "sem código".
+  const levels: Array<{
+    bucket: RuleInput[];
+    withCodePriority: RuleMatchPriority;
+    withoutCodePriority: RuleMatchPriority;
+    enabled?: boolean;
+  }> = [
+    { bucket: doctorRules,    withCodePriority: "medico_codigo",  withoutCodePriority: "medico" },
+    { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
+    { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
+    { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
+    { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
+  ];
 
-  return (
-    tryBucket(doctorRules,  "medico_codigo",  "medico") ??
-    tryBucket(companyRules, "empresa_codigo", "empresa") ??
-    tryBucket(sectorRules,  "setor_codigo",   "setor") ??
-    tryBucket(outroRules,   "setor_codigo",   "setor_outro") ??
-    null
-  );
+  for (const lvl of levels) {
+    if (lvl.enabled === false) continue;
+    const withCode = lvl.bucket.filter((r) => hasCodeRestriction(r) && matchesProcedureCode(r, item));
+    if (withCode.length > 0) {
+      const { winner, tied } = breakTie(withCode);
+      if (winner) return { rule: winner, priority: lvl.withCodePriority };
+      return {
+        rule: null,
+        priority: "conflito",
+        conflict: {
+          candidate_rule_ids: tied.map((r) => r.id),
+          reason: `Conflito de regras no nível ${lvl.withCodePriority}: ${tied.length} regras empatadas após desempate por severidade e vigência.`,
+        },
+      };
+    }
+    const withoutCode = lvl.bucket.filter((r) => !hasCodeRestriction(r));
+    if (withoutCode.length > 0) {
+      const { winner, tied } = breakTie(withoutCode);
+      if (winner) return { rule: winner, priority: lvl.withoutCodePriority };
+      return {
+        rule: null,
+        priority: "conflito",
+        conflict: {
+          candidate_rule_ids: tied.map((r) => r.id),
+          reason: `Conflito de regras no nível ${lvl.withoutCodePriority}: ${tied.length} regras empatadas após desempate por severidade e vigência.`,
+        },
+      };
+    }
+  }
+  return null;
 }
 
 // ---------- via de acesso (em código) ----------
