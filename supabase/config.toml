@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.validate-invoice-pdf]
 verify_jwt = false
+
+[functions.explain-alert]
+verify_jwt = false
