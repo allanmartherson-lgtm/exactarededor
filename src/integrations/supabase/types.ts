@@ -870,6 +870,11 @@ export type Database = {
           multiplier: number | null
           name: string
           package_amount: number | null
+          package_auxiliaries_included: boolean
+          package_included_codes: string[] | null
+          package_main_code: string | null
+          package_opinions_count: boolean
+          package_visits_count: boolean
           payment_term: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes: string[] | null
           reference_table_id: string | null
@@ -920,6 +925,11 @@ export type Database = {
           multiplier?: number | null
           name: string
           package_amount?: number | null
+          package_auxiliaries_included?: boolean
+          package_included_codes?: string[] | null
+          package_main_code?: string | null
+          package_opinions_count?: boolean
+          package_visits_count?: boolean
           payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
@@ -970,6 +980,11 @@ export type Database = {
           multiplier?: number | null
           name?: string
           package_amount?: number | null
+          package_auxiliaries_included?: boolean
+          package_included_codes?: string[] | null
+          package_main_code?: string | null
+          package_opinions_count?: boolean
+          package_visits_count?: boolean
           payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
@@ -1092,6 +1107,7 @@ export type Database = {
         | "valor_fixo"
         | "exclusao"
         | "informativo"
+        | "pacote_por_atendimento"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -1272,6 +1288,7 @@ export const Constants = {
         "valor_fixo",
         "exclusao",
         "informativo",
+        "pacote_por_atendimento",
       ],
       rule_payment_term: ["qualquer", "prioridade", "habitual"],
       rule_scope: ["master", "especifica"],

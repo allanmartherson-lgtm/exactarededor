@@ -22,6 +22,7 @@ export type CalculationType =
   | "regra_vias"
   | "pacote_fechado"
   | "pacote_com_extras"
+  | "pacote_por_atendimento"
   | "valor_fixo"
   | "exclusao"
   | "informativo"
@@ -53,6 +54,12 @@ export interface RuleInput {
   fixed_amount: number | null;
   package_amount: number | null;
   extras_codes: string[] | null;
+  // Configuração de pacote
+  package_main_code?: string | null;
+  package_included_codes?: string[] | null;
+  package_visits_count?: boolean | null;
+  package_opinions_count?: boolean | null;
+  package_auxiliaries_included?: boolean | null;
   // Parâmetros de cálculo de tabela diferenciada (pertencem à regra)
   rule_type?: string | null;
   reference_table_id?: string | null;
@@ -259,9 +266,42 @@ function calcRegraVias(_rule: RuleInput, item: ItemInput): ExpectedCalc {
   return { expected, explanation: `Via "${item.access_route ?? "—"}" → fator ${factor} × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [] };
 }
 
-function calcPacote(rule: RuleInput): ExpectedCalc {
-  if (rule.package_amount == null) return { expected: null, explanation: "pacote_fechado sem package_amount.", alerts: ["Pacote sem valor."] };
-  return { expected: Number(rule.package_amount), explanation: `Pacote fechado: R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
+const isVisita  = (it: ItemInput) => /visita/.test(normName(`${it.procedure_name ?? ""} ${it.description ?? ""}`));
+const isParecer = (it: ItemInput) => /parecer/.test(normName(`${it.procedure_name ?? ""} ${it.description ?? ""}`));
+const isAuxiliar = (it: ItemInput) => /auxili|instrumentador/.test(normName(it.doctor_role ?? ""));
+
+function isMainPackageCode(rule: RuleInput, item: ItemInput): boolean {
+  if (!item.procedure_code) return false;
+  if (rule.package_main_code && item.procedure_code === rule.package_main_code) return true;
+  // fallback: se não houver main_code definido, qualquer item é considerado principal
+  return !rule.package_main_code;
+}
+
+function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
+  const inc = rule.package_included_codes ?? [];
+  if (item.procedure_code && inc.includes(item.procedure_code)) return true;
+  if (rule.package_visits_count && isVisita(item)) return true;
+  if (rule.package_opinions_count && isParecer(item)) return true;
+  if (rule.package_auxiliaries_included && isAuxiliar(item)) return true;
+  return false;
+}
+
+function calcPacoteFechado(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  if (rule.package_amount == null) {
+    return { expected: null, explanation: "pacote_fechado sem package_amount.", alerts: ["Pacote sem valor."] };
+  }
+  if (isMainPackageCode(rule, item)) {
+    return { expected: Number(rule.package_amount), explanation: `Pacote fechado (principal ${item.procedure_code ?? "—"}): R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
+  }
+  if (isIncludedInPackage(rule, item)) {
+    return { expected: 0, explanation: `Item embutido no pacote fechado — esperado R$ 0.`, alerts: [] };
+  }
+  // Não é principal nem incluído → fora do pacote
+  return {
+    expected: 0,
+    explanation: `Item fora do pacote fechado (código ${item.procedure_code ?? "—"}) — não previsto.`,
+    alerts: [`Item fora do pacote fechado (código ${item.procedure_code ?? "—"}).`],
+  };
 }
 
 function calcPacoteExtras(rule: RuleInput, item: ItemInput): ExpectedCalc {
@@ -271,9 +311,68 @@ function calcPacoteExtras(rule: RuleInput, item: ItemInput): ExpectedCalc {
   if (isExtra) {
     const base = item.procedure_amount;
     if (base == null) return { expected: null, explanation: "Extra do pacote sem valor base.", alerts: ["Extra sem procedure_amount."] };
-    return { expected: Number(base.toFixed(2)), explanation: `Extra do pacote (código ${item.procedure_code}) — 100% do convênio: R$ ${base.toFixed(2)}`, alerts: [] };
+    return { expected: Number(base.toFixed(2)), explanation: `Extra permitido (código ${item.procedure_code}) — 100% do convênio: R$ ${base.toFixed(2)}`, alerts: [] };
   }
-  return { expected: Number(pkg.toFixed(2)), explanation: `Pacote com extras — dentro do pacote: R$ ${pkg.toFixed(2)}`, alerts: [] };
+  if (isMainPackageCode(rule, item)) {
+    return { expected: Number(pkg.toFixed(2)), explanation: `Pacote com extras — principal: R$ ${pkg.toFixed(2)}`, alerts: [] };
+  }
+  if (isIncludedInPackage(rule, item)) {
+    return { expected: 0, explanation: `Item embutido no pacote — esperado R$ 0.`, alerts: [] };
+  }
+  return {
+    expected: 0,
+    explanation: `Item fora do pacote e não está na lista de extras permitidos.`,
+    alerts: [`Item fora do pacote e não está nos extras permitidos (código ${item.procedure_code ?? "—"}).`],
+  };
+}
+
+/**
+ * Pacote por atendimento: o motor agrupa os itens pelo mesmo atendimento e
+ * aplica o valor do pacote UMA ÚNICA VEZ (no item principal). Os demais itens
+ * do mesmo atendimento ficam com esperado = 0 (embutidos), salvo se forem
+ * extras permitidos. A flag `__appliedAttendances` é usada apenas para
+ * decidir, em runtime, qual item leva o valor do pacote.
+ */
+function calcPacotePorAtendimento(
+  rule: RuleInput,
+  item: ItemInput,
+  applied: Set<string>,
+): ExpectedCalc {
+  if (rule.package_amount == null) {
+    return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
+  }
+  const att = (item.attendance_number ?? "").trim();
+  if (!att) {
+    return {
+      expected: null,
+      explanation: "Pacote por atendimento exige número de atendimento no item.",
+      alerts: ["Item sem número de atendimento — pacote não pôde ser agrupado."],
+    };
+  }
+  const extras = rule.extras_codes ?? [];
+  if (item.procedure_code && extras.includes(item.procedure_code)) {
+    const base = item.procedure_amount ?? 0;
+    return { expected: Number(base.toFixed(2)), explanation: `Extra permitido no atendimento ${att}: R$ ${base.toFixed(2)}`, alerts: [] };
+  }
+  // Decide qual item leva o pacote: o "principal" se houver, senão o primeiro processado
+  const isMain = isMainPackageCode(rule, item);
+  if (!applied.has(att) && isMain) {
+    applied.add(att);
+    return { expected: Number(rule.package_amount), explanation: `Pacote por atendimento ${att} aplicado em ${item.procedure_code ?? "principal"}: R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
+  }
+  if (!applied.has(att) && !rule.package_main_code) {
+    // sem código principal definido — primeiro item recebe
+    applied.add(att);
+    return { expected: Number(rule.package_amount), explanation: `Pacote por atendimento ${att} aplicado: R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
+  }
+  if (isIncludedInPackage(rule, item) || isMain || applied.has(att)) {
+    return { expected: 0, explanation: `Item embutido no pacote do atendimento ${att} — esperado R$ 0.`, alerts: [] };
+  }
+  return {
+    expected: 0,
+    explanation: `Item fora do pacote do atendimento ${att}.`,
+    alerts: [`Item fora do pacote por atendimento (código ${item.procedure_code ?? "—"}).`],
+  };
 }
 
 function calcValorFixo(rule: RuleInput): ExpectedCalc {
@@ -301,15 +400,25 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
-export function applyCalculation(rule: RuleInput, item: ItemInput): ExpectedCalc {
+export function applyCalculation(
+  rule: RuleInput,
+  item: ItemInput,
+  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+): ExpectedCalc {
   if (rule.rule_type === "tabela_diferenciada" && rule.reference_table_id) {
     return calcTabelaDiferenciada(rule, item);
   }
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
-    case "pacote_fechado":            return calcPacote(rule);
+    case "pacote_fechado":            return calcPacoteFechado(rule, item);
     case "pacote_com_extras":         return calcPacoteExtras(rule, item);
+    case "pacote_por_atendimento": {
+      const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
+      let set = map.get(rule.id);
+      if (!set) { set = new Set<string>(); map.set(rule.id, set); }
+      return calcPacotePorAtendimento(rule, item, set);
+    }
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao();
     case "informativo":               return calcInformativo();
@@ -355,7 +464,11 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   return { status: "reprovado", diff_pct: diff };
 }
 
-export function analyzeItem(item: ItemInput, preFilteredRules: RuleInput[]): AnalysisResult {
+export function analyzeItem(
+  item: ItemInput,
+  preFilteredRules: RuleInput[],
+  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+): AnalysisResult {
   const winner = selectWinningRule(item, preFilteredRules);
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
@@ -364,7 +477,7 @@ export function analyzeItem(item: ItemInput, preFilteredRules: RuleInput[]): Ana
   let matched_rule_name: string | null = null;
 
   if (winner) {
-    calc = applyCalculation(winner.rule, item);
+    calc = applyCalculation(winner.rule, item, ctx);
     priority = winner.priority;
     calculation_type_used = winner.rule.calculation_type;
     matched_rule_id = winner.rule.id;
@@ -401,5 +514,20 @@ export function analyzeItem(item: ItemInput, preFilteredRules: RuleInput[]): Ana
 
 export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx: PaymentContext): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
-  return items.map((it) => analyzeItem(it, filtered));
+  // Para "pacote_por_atendimento", precisamos de ordem determinística:
+  // 1) por atendimento, 2) item com código principal primeiro,
+  // 3) demais por código. Assim o pacote é aplicado no item certo.
+  const ordered = [...items].sort((a, b) => {
+    const aa = (a.attendance_number ?? "").localeCompare(b.attendance_number ?? "");
+    if (aa !== 0) return aa;
+    const aMain = filtered.some((r) => r.calculation_type === "pacote_por_atendimento" && r.package_main_code && a.procedure_code === r.package_main_code) ? -1 : 0;
+    const bMain = filtered.some((r) => r.calculation_type === "pacote_por_atendimento" && r.package_main_code && b.procedure_code === r.package_main_code) ? -1 : 0;
+    if (aMain !== bMain) return aMain - bMain;
+    return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
+  });
+  const state = { appliedAttendancesByRule: new Map<string, Set<string>>() };
+  const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
+  // Reordenar resultados para a ordem original de `items`
+  const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
+  return items.map((it) => byId.get(it.id)!);
 }

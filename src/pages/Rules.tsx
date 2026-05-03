@@ -155,6 +155,12 @@ const Rules = () => {
   const [fAuxPct, setFAuxPct] = useState<string>("");
   const [fRepassePct, setFRepassePct] = useState<string>("");
   const [fApplyAccessRoute, setFApplyAccessRoute] = useState(false);
+  // === Configuração de pacote (subtipos) ===
+  const [fPackageMainCode, setFPackageMainCode] = useState<string>("");
+  const [fPackageIncludedCodes, setFPackageIncludedCodes] = useState<string>("");
+  const [fPackageVisitsCount, setFPackageVisitsCount] = useState(false);
+  const [fPackageOpinionsCount, setFPackageOpinionsCount] = useState(false);
+  const [fPackageAuxIncluded, setFPackageAuxIncluded] = useState(true);
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
@@ -207,6 +213,8 @@ const Rules = () => {
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
     setFRepassePct(""); setFApplyAccessRoute(false);
+    setFPackageMainCode(""); setFPackageIncludedCodes("");
+    setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -237,6 +245,11 @@ const Rules = () => {
     setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
     setFRepassePct(r.repasse_pct != null ? String(r.repasse_pct) : "");
     setFApplyAccessRoute(!!r.apply_access_route);
+    setFPackageMainCode(r.package_main_code ?? "");
+    setFPackageIncludedCodes(Array.isArray(r.package_included_codes) ? r.package_included_codes.join(", ") : "");
+    setFPackageVisitsCount(!!r.package_visits_count);
+    setFPackageOpinionsCount(!!r.package_opinions_count);
+    setFPackageAuxIncluded(r.package_auxiliaries_included !== false);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
@@ -267,7 +280,25 @@ const Rules = () => {
       extras_codes: fCalculationType === "pacote_com_extras"
         ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
-      package_amount: ruleType === "pacote" ? num(fPackageAmount) : null,
+      package_amount: (
+        ruleType === "pacote" ||
+        fCalculationType === "pacote_fechado" ||
+        fCalculationType === "pacote_com_extras" ||
+        fCalculationType === "pacote_por_atendimento"
+      ) ? num(fPackageAmount) : null,
+      package_main_code: (
+        fCalculationType === "pacote_fechado" ||
+        fCalculationType === "pacote_com_extras" ||
+        fCalculationType === "pacote_por_atendimento"
+      ) ? (fPackageMainCode.trim() || null) : null,
+      package_included_codes: (
+        fCalculationType === "pacote_fechado" ||
+        fCalculationType === "pacote_com_extras" ||
+        fCalculationType === "pacote_por_atendimento"
+      ) ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null) : null,
+      package_visits_count: fPackageVisitsCount,
+      package_opinions_count: fPackageOpinionsCount,
+      package_auxiliaries_included: fPackageAuxIncluded,
       bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
       target_amount: ruleType === "complemento" ? num(fTargetAmount) : null,
@@ -790,12 +821,63 @@ const Rules = () => {
                       <Input type="number" step="0.01" value={fFixedAmount} onChange={(e) => setFFixedAmount(e.target.value)} />
                     </div>
                   )}
-                  {fCalculationType === "pacote_com_extras" && (
-                    <div className="space-y-1 mt-2">
-                      <Label className="text-xs">Códigos pagos à parte (extras)</Label>
-                      <Input placeholder="Ex.: 31005497, 31005470"
-                        value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
-                      <p className="text-[11px] text-muted-foreground">Estes códigos serão pagos a 100% do convênio, fora do pacote.</p>
+                  {(fCalculationType === "pacote_fechado" ||
+                    fCalculationType === "pacote_com_extras" ||
+                    fCalculationType === "pacote_por_atendimento") && (
+                    <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[13.5px] font-semibold">Configuração do pacote</h3>
+                        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          {fCalculationType === "pacote_fechado" && "fechado"}
+                          {fCalculationType === "pacote_com_extras" && "com extras"}
+                          {fCalculationType === "pacote_por_atendimento" && "por atendimento"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Valor do pacote (R$) *</Label>
+                          <Input type="number" step="0.01" value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Código principal do pacote</Label>
+                          <Input placeholder="Ex.: 31005497" value={fPackageMainCode} onChange={(e) => setFPackageMainCode(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Códigos incluídos no pacote (embutidos, esperado R$ 0)</Label>
+                        <Input placeholder="Ex.: 31002, 31003, 31004"
+                          value={fPackageIncludedCodes} onChange={(e) => setFPackageIncludedCodes(e.target.value)} />
+                      </div>
+                      {(fCalculationType === "pacote_com_extras" || fCalculationType === "pacote_por_atendimento") && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Códigos extras permitidos (pagos à parte, 100% do convênio)</Label>
+                          <Input placeholder="Ex.: 31005470" value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <Checkbox checked={fPackageVisitsCount} onCheckedChange={(c) => setFPackageVisitsCount(!!c)} />
+                          <span className="text-xs">Visitas somam ao pacote</span>
+                        </label>
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <Checkbox checked={fPackageOpinionsCount} onCheckedChange={(c) => setFPackageOpinionsCount(!!c)} />
+                          <span className="text-xs">Pareceres somam ao pacote</span>
+                        </label>
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <Checkbox checked={fPackageAuxIncluded} onCheckedChange={(c) => setFPackageAuxIncluded(!!c)} />
+                          <span className="text-xs">Auxiliares incluídos no pacote</span>
+                        </label>
+                      </div>
+                      {fCalculationType === "pacote_por_atendimento" && (
+                        <p className="text-[11px] text-muted-foreground">
+                          O motor agrupa os itens pelo mesmo número de atendimento e aplica o pacote uma única vez (no item com o código principal).
+                        </p>
+                      )}
+                      {fCalculationType === "pacote_fechado" && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -835,7 +917,10 @@ const Rules = () => {
                   </div>
                 </div>
 
-                {ruleType === "pacote" && (
+                {ruleType === "pacote" &&
+                  fCalculationType !== "pacote_fechado" &&
+                  fCalculationType !== "pacote_com_extras" &&
+                  fCalculationType !== "pacote_por_atendimento" && (
                   <div className="space-y-1.5"><Label>Valor do pacote (R$)</Label>
                     <Input type="number" step="0.01" required value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
                   </div>

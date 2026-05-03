@@ -69,6 +69,7 @@ serve(async (req) => {
         target_type,target_identifier,target_name,target_company_id,
         procedure_codes,applies_payment_types,valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
+        package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct
       `)
