@@ -173,6 +173,45 @@ export type Database = {
         }
         Relationships: []
       }
+      company_sla_overrides: {
+        Row: {
+          company_id: string
+          created_at: string
+          due_day: number | null
+          due_offset_days: number | null
+          due_rule: string
+          id: string
+          inherit_default: boolean
+          notes: string | null
+          priority: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          due_day?: number | null
+          due_offset_days?: number | null
+          due_rule?: string
+          id?: string
+          inherit_default?: boolean
+          notes?: string | null
+          priority?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          due_day?: number | null
+          due_offset_days?: number | null
+          due_rule?: string
+          id?: string
+          inherit_default?: boolean
+          notes?: string | null
+          priority?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cost_center_imports: {
         Row: {
           created_count: number
@@ -1164,6 +1203,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sla_settings: {
+        Row: {
+          active: boolean
+          business_days: number
+          created_at: string
+          id: string
+          severity: string
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          warning_pct: number
+        }
+        Insert: {
+          active?: boolean
+          business_days?: number
+          created_at?: string
+          id?: string
+          severity?: string
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          warning_pct?: number
+        }
+        Update: {
+          active?: boolean
+          business_days?: number
+          created_at?: string
+          id?: string
+          severity?: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          warning_pct?: number
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
