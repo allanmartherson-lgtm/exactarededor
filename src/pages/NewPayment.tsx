@@ -640,15 +640,51 @@ const NewPayment = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Categoria *</Label>
-                <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
-                  <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto" /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Categoria{autoPaymentKind ? "" : " *"}</Label>
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-pk" checked={autoPaymentKind} onCheckedChange={setAutoPaymentKind} />
+                  <Label htmlFor="auto-pk" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                </div>
+                {autoPaymentKind ? (
+                  <>
+                    {detectedKind.kind ? (
+                      <p className="text-xs text-muted-foreground">
+                        Detectado: <span className="font-medium text-foreground">{PAYMENT_KIND_LABELS[detectedKind.kind]}</span>
+                        {detectedKind.dated > 0 && (
+                          <> · {detectedKind.current} no período / {detectedKind.past} anteriores</>
+                        )}
+                      </p>
+                    ) : (
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Categoria não identificada automaticamente. Você pode selecionar manualmente abaixo (opcional).
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {!detectedKind.kind && (
+                      <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
+                        <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto (opcional)" /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
+                            <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </>
+                ) : (
+                  <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
+                    <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto" /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
+                        <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Centro de custos (padrão do lote)</Label>
