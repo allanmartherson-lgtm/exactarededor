@@ -77,6 +77,9 @@ export interface RuleInput {
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
+  // Exclusão / não pagar
+  exclusion_reason?: string | null;
+  allows_authorized_exception?: boolean | null;
 }
 
 export interface ItemInput {
@@ -97,6 +100,11 @@ export interface ItemInput {
   patient_name: string | null;
   procedure_date: string | null;
   quantity?: number | null;
+  // Exceção autorizada (marcada pelo analista)
+  authorized_exception?: boolean | null;
+  exception_reason?: string | null;
+  exception_authorizer?: string | null;
+  exception_note?: string | null;
 }
 
 export interface PaymentContext {
