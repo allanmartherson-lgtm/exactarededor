@@ -71,7 +71,8 @@ serve(async (req) => {
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
-        apply_access_route,include_auxiliaries,auxiliary_pct
+        apply_access_route,include_auxiliaries,auxiliary_pct,
+        exclusion_reason,allows_authorized_exception
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
@@ -82,7 +83,8 @@ serve(async (req) => {
       .select(`
         id,doctor_name,doctor_document,company_name,company_id,
         procedure_code,procedure_name,description,access_route,doctor_role,
-        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity
+        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
+        authorized_exception,exception_reason,exception_authorizer,exception_note
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -121,6 +123,10 @@ serve(async (req) => {
       patient_name: it.patient_name,
       procedure_date: it.procedure_date,
       quantity: it.quantity != null ? Number(it.quantity) : null,
+      authorized_exception: it.authorized_exception ?? false,
+      exception_reason: it.exception_reason ?? null,
+      exception_authorizer: it.exception_authorizer ?? null,
+      exception_note: it.exception_note ?? null,
     }));
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------

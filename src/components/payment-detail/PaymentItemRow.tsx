@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   MessageSquare,
   MessageSquarePlus,
+  ShieldCheck,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -25,6 +26,7 @@ import type {
   PaymentItemRow as PaymentItemRowData,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
+import { AuthorizedExceptionDialog } from "./AuthorizedExceptionDialog";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted",
@@ -97,6 +99,10 @@ export type PaymentItemRowProps = {
   onCommentDraftChange: (value: string) => void;
   onAddComment: () => void;
   busy: boolean;
+  /** ID do payment — necessário para marcar exceção autorizada. */
+  paymentId: string;
+  /** Recarrega os dados após marcar/remover exceção. */
+  onExceptionChanged?: () => void;
 };
 
 /**
@@ -120,7 +126,10 @@ export const PaymentItemRow = ({
   onCommentDraftChange,
   onAddComment,
   busy,
+  paymentId,
+  onExceptionChanged,
 }: PaymentItemRowProps) => {
+  const [excOpen, setExcOpen] = useState(false);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
   const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
@@ -144,6 +153,19 @@ export const PaymentItemRow = ({
   });
   const hasRule = matchedRuleObjs.length > 0 || matchedNames.length > 0;
   const firstRule = matchedRuleObjs[0] ?? null;
+  // Suporte à "Exclusão / não pagar" com exceção autorizada:
+  // mostra a ação somente quando a regra vencedora é de exclusão e admite exceção.
+  const isExclusionRule = firstRule?.calculation_type === "exclusao";
+  const allowsException = !!firstRule?.allows_authorized_exception;
+  const itemAny = it as unknown as {
+    authorized_exception?: boolean | null;
+    exception_reason?: string | null;
+    exception_authorizer?: string | null;
+    exception_note?: string | null;
+    exception_attachment_path?: string | null;
+  };
+  const exceptionMarked = !!itemAny.authorized_exception;
+  const showExceptionAction = isExclusionRule && (allowsException || exceptionMarked);
   const firstRuleLabel = firstRule?.name ?? matchedNames[0] ?? null;
   const tooltipNode = hasRule ? (
     <RuleTooltipBlock rules={matchedRuleObjs} fallbackNames={matchedNames} />
@@ -318,6 +340,14 @@ export const PaymentItemRow = ({
               </span>
             );
           })()}
+          {exceptionMarked && (
+            <span
+              className={`mt-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.info}`}
+              title={`Exceção autorizada — ${itemAny.exception_authorizer ?? "—"}`}
+            >
+              <ShieldCheck className="h-2.5 w-2.5" /> exceção
+            </span>
+          )}
         </td>
         <td className="pl-1 pr-2 py-1.5 print:hidden" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
@@ -448,6 +478,37 @@ export const PaymentItemRow = ({
                     )}
                   </div>
                 )}
+                {showExceptionAction && (
+                  <div className="md:col-span-2 rounded-md border border-border/70 bg-background/80 p-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Exceção autorizada
+                        </p>
+                        {exceptionMarked ? (
+                          <p className="text-xs text-foreground">
+                            Marcada — motivo: <strong>{itemAny.exception_reason ?? "—"}</strong>
+                            {" · "}autorizador: <strong>{itemAny.exception_authorizer ?? "—"}</strong>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Esta regra de exclusão admite exceção. Marque para reprocessar com a próxima regra calculável.
+                          </p>
+                        )}
+                        {exceptionMarked && itemAny.exception_note && (
+                          <p className="text-[11px] whitespace-pre-wrap text-muted-foreground">
+                            “{itemAny.exception_note}”
+                          </p>
+                        )}
+                      </div>
+                      {canComment && (
+                        <Button size="sm" variant={exceptionMarked ? "outline" : "default"} onClick={() => setExcOpen(true)}>
+                          {exceptionMarked ? "Editar exceção" : "Marcar exceção"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                     Histórico deste item
@@ -495,6 +556,22 @@ export const PaymentItemRow = ({
             </div>
           </td>
         </tr>
+      )}
+      {showExceptionAction && (
+        <AuthorizedExceptionDialog
+          open={excOpen}
+          onOpenChange={setExcOpen}
+          itemId={it.id}
+          paymentId={paymentId}
+          current={{
+            authorized_exception: itemAny.authorized_exception ?? false,
+            exception_reason: itemAny.exception_reason ?? null,
+            exception_authorizer: itemAny.exception_authorizer ?? null,
+            exception_note: itemAny.exception_note ?? null,
+            exception_attachment_path: itemAny.exception_attachment_path ?? null,
+          }}
+          onSaved={() => onExceptionChanged?.()}
+        />
       )}
     </Fragment>
   );

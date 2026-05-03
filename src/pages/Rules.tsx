@@ -190,6 +190,9 @@ const Rules = () => {
   const [fPackageOpinionsCount, setFPackageOpinionsCount] = useState(false);
   const [fPackageAuxIncluded, setFPackageAuxIncluded] = useState(true);
   const [fPackageSubtype, setFPackageSubtype] = useState<"fechado" | "com_extras">("fechado");
+  // === Configuração de exclusão / não pagar ===
+  const [fExclusionReason, setFExclusionReason] = useState<string>("");
+  const [fAllowsAuthorizedException, setFAllowsAuthorizedException] = useState(false);
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
@@ -246,6 +249,8 @@ const Rules = () => {
     setFPackageMainCode(""); setFPackageIncludedCodes("");
     setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
     setFPackageSubtype("fechado");
+    setFExclusionReason("");
+    setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -289,6 +294,8 @@ const Rules = () => {
       : r.package_subtype === "fechado" ? "fechado"
       : (r.calculation_type === "pacote_com_extras" ? "com_extras" : "fechado");
     setFPackageSubtype(legacySubtype);
+    setFExclusionReason(r.exclusion_reason ?? "");
+    setFAllowsAuthorizedException(!!r.allows_authorized_exception);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
@@ -339,6 +346,8 @@ const Rules = () => {
       package_opinions_count: isPacoteComExtras ? fPackageOpinionsCount : false,
       package_auxiliaries_included: isPacoteComExtras ? fPackageAuxIncluded : false,
       package_subtype: isPacote ? fPackageSubtype : null,
+      exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
+      allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
       target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
@@ -987,6 +996,50 @@ const Rules = () => {
                         {fPackageSubtype === "fechado"
                           ? " Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação."
                           : " Visitas, pareceres e auxiliares são contabilizados conforme as flags acima; códigos extras permitidos são reprocessados pela regra aplicável a cada um."}
+                      </p>
+                    </div>
+                  )}
+                  {fCalculationType === "exclusao" && (
+                    <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
+                        <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          {fAllowsAuthorizedException ? "admite exceção" : "bloqueio rígido"}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Motivo da exclusão *</Label>
+                        <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="convenio_particular">Convênio particular</SelectItem>
+                            <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
+                            <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
+                            <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
+                            <SelectItem value="duplicidade">Duplicidade</SelectItem>
+                            <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={fAllowsAuthorizedException}
+                          onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
+                        />
+                        <span className="text-xs">
+                          Permite exceção autorizada
+                          <span className="block text-[11px] text-muted-foreground">
+                            Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
+                            Nesses casos o motor busca uma regra calculável específica; se não houver, marca como alerta para validação manual.
+                          </span>
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Padrão: valor esperado = R$ 0 e item bloqueado.
+                        {fAllowsAuthorizedException
+                          ? " Exceções autorizadas ficam registradas em auditoria."
+                          : " Sem exceção possível — qualquer valor pago é divergência."}
                       </p>
                     </div>
                   )}

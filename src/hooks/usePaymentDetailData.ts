@@ -47,6 +47,9 @@ export type RuleLite = {
   name: string;
   rule_text: string;
   description: string | null;
+  calculation_type?: string | null;
+  exclusion_reason?: string | null;
+  allows_authorized_exception?: boolean | null;
 };
 
 /**
@@ -152,10 +155,10 @@ export function usePaymentDetailData(id: string | undefined) {
     ).filter(Boolean) as string[];
     const [byIdRes, byNameRes] = await Promise.all([
       ids.length
-        ? supabase.from("rules").select("id,name,rule_text,description").in("id", ids).abortSignal(ac.signal)
+        ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("id", ids).abortSignal(ac.signal)
         : Promise.resolve({ data: [] as RuleLite[] }),
       names.length
-        ? supabase.from("rules").select("id,name,rule_text,description").in("name", names).abortSignal(ac.signal)
+        ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("name", names).abortSignal(ac.signal)
         : Promise.resolve({ data: [] as RuleLite[] }),
     ]);
     if (myToken !== loadTokenRef.current || ac.signal.aborted) return;

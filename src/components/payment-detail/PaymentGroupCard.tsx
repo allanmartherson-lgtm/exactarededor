@@ -83,6 +83,8 @@ export type PaymentGroupCardProps = {
     label: string,
     requireComment?: boolean,
   ) => void;
+  /** Recarregar dados após marcar/remover exceção autorizada em um item. */
+  onExceptionChanged?: () => void;
 };
 
 /**
@@ -125,6 +127,7 @@ export const PaymentGroupCard = ({
   onResend,
   onSendForValidation,
   onTransition,
+  onExceptionChanged,
 }: PaymentGroupCardProps) => {
   const gStatus = g.status as PaymentStatus;
   const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
@@ -354,6 +357,7 @@ export const PaymentGroupCard = ({
                 <PaymentItemRow
                   key={it.id}
                   it={it}
+                  paymentId={g.payment_id}
                   obs={obs}
                   profiles={profiles}
                   rulesIndex={rulesIndex}
@@ -366,6 +370,7 @@ export const PaymentGroupCard = ({
                   onCommentDraftChange={(v) => onItemCommentDraftChange(it.id, v)}
                   onAddComment={() => onAddItemComment(it.id)}
                   busy={busy}
+                  onExceptionChanged={onExceptionChanged}
                 />
               ))}
             </tbody>

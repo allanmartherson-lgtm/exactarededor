@@ -77,6 +77,9 @@ export interface RuleInput {
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
+  // Exclusão / não pagar
+  exclusion_reason?: string | null;
+  allows_authorized_exception?: boolean | null;
 }
 
 export interface ItemInput {
@@ -97,6 +100,11 @@ export interface ItemInput {
   patient_name: string | null;
   procedure_date: string | null;
   quantity?: number | null;
+  // Exceção autorizada (marcada pelo analista)
+  authorized_exception?: boolean | null;
+  exception_reason?: string | null;
+  exception_authorizer?: string | null;
+  exception_note?: string | null;
 }
 
 export interface PaymentContext {
@@ -480,8 +488,16 @@ function calcValorFixo(rule: RuleInput): ExpectedCalc {
   return { expected: Number(rule.fixed_amount), explanation: `Valor fixo: R$ ${rule.fixed_amount.toFixed(2)}`, alerts: [] };
 }
 
-function calcExclusao(): ExpectedCalc {
-  return { expected: 0, explanation: "Exclusão: este item não deve ser pago.", alerts: ["Item excluído por regra."] };
+function calcExclusao(rule: RuleInput): ExpectedCalc {
+  const motivo = rule.exclusion_reason ? ` (motivo: ${rule.exclusion_reason})` : "";
+  const exc = rule.allows_authorized_exception
+    ? " — admite exceção autorizada pelo analista."
+    : "";
+  return {
+    expected: 0,
+    explanation: `Exclusão${motivo}: este item não deve ser pago${exc}`,
+    alerts: [`Item excluído por regra${motivo}.`],
+  };
 }
 
 function calcInformativo(): ExpectedCalc {
@@ -528,7 +544,7 @@ export function applyCalculation(
       return calcPacotePorAtendimento(rule, item, set);
     }
     case "valor_fixo":                return calcValorFixo(rule);
-    case "exclusao":                  return calcExclusao();
+    case "exclusao":                  return calcExclusao(rule);
     case "informativo":               return calcInformativo();
     case "tabela_referencia":         return calcTabelaDiferenciada(rule, item);
     case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item);
@@ -591,6 +607,27 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   return { status: "reprovado", diff_pct: diff };
 }
 
+/**
+ * Quando há exceção autorizada à exclusão, procura a próxima regra aplicável
+ * que seja calculável (não "exclusao" e não "informativo"), respeitando a
+ * mesma hierarquia de precedência. Retorna null se não houver.
+ */
+function findNextCalculableRule(
+  item: ItemInput,
+  rules: RuleInput[],
+  excludeId: string,
+): { rule: RuleInput; priority: RuleMatchPriority } | null {
+  const remaining = rules.filter(
+    (r) =>
+      r.id !== excludeId &&
+      r.calculation_type !== "exclusao" &&
+      r.calculation_type !== "informativo",
+  );
+  const out = selectWinningRule(item, remaining);
+  if (out && out.rule) return { rule: out.rule, priority: out.priority };
+  return null;
+}
+
 export function analyzeItem(
   item: ItemInput,
   preFilteredRules: RuleInput[],
@@ -617,11 +654,60 @@ export function analyzeItem(
     };
     conflict = outcome.conflict;
   } else if (outcome && outcome.rule) {
-    calc = applyCalculation(outcome.rule, item, ctx);
-    priority = outcome.priority;
-    calculation_type_used = outcome.rule.calculation_type;
-    matched_rule_id = outcome.rule.id;
-    matched_rule_name = outcome.rule.name;
+    let winner = outcome.rule;
+    let winnerPriority = outcome.priority;
+
+    // === Tratamento de "Exclusão / não pagar" como bloqueio com exceção autorizada ===
+    // Se a regra vencedora é uma exclusão e o analista marcou o item como
+    // "exceção autorizada", e a regra permite essa exceção, o motor NÃO aplica
+    // a exclusão automática: tenta encontrar a próxima regra calculável
+    // específica entre as candidatas (excluindo as exclusões). Se não houver,
+    // mantém como alerta para validação manual.
+    if (
+      winner.calculation_type === "exclusao" &&
+      item.authorized_exception === true &&
+      winner.allows_authorized_exception === true
+    ) {
+      const fallback = findNextCalculableRule(item, preFilteredRules, winner.id);
+      if (fallback) {
+        winner = fallback.rule;
+        winnerPriority = fallback.priority;
+        calc = applyCalculation(winner, item, ctx);
+        calc.explanation = `Exceção autorizada — exclusão substituída por regra calculável "${winner.name}". ${calc.explanation}`;
+        calc.alerts = [
+          `Exceção autorizada (${item.exception_reason ?? "—"}) por ${item.exception_authorizer ?? "—"}.`,
+          ...calc.alerts,
+        ];
+      } else {
+        calc = {
+          expected: null,
+          explanation:
+            "Exceção autorizada à exclusão — não há regra calculável específica. Encaminhar para validação manual.",
+          alerts: [
+            `Exceção autorizada (${item.exception_reason ?? "—"}) por ${item.exception_authorizer ?? "—"} — sem regra calculável; revisão manual necessária.`,
+          ],
+        };
+      }
+    } else {
+      calc = applyCalculation(winner, item, ctx);
+    }
+    priority = winnerPriority;
+    calculation_type_used = winner.calculation_type;
+    matched_rule_id = winner.id;
+    matched_rule_name = winner.name;
+
+    // Se o item foi marcado como exceção autorizada mas a regra NÃO permite,
+    // gera alerta explícito (analista marcou em regra que não admite exceção).
+    if (
+      item.authorized_exception === true &&
+      outcome.rule.calculation_type === "exclusao" &&
+      outcome.rule.allows_authorized_exception !== true
+    ) {
+      calc.alerts = [
+        ...calc.alerts,
+        "Tentativa de exceção autorizada em regra de exclusão que NÃO admite exceção — ignorada.",
+      ];
+    }
   } else {
     const def = calcDefault(item);
     calc = def;
@@ -631,6 +717,14 @@ export function analyzeItem(
 
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
   if (priority === "conflito") status = "alerta";
+  // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.
+  if (
+    item.authorized_exception === true &&
+    calc.expected == null &&
+    matched_rule_id != null
+  ) {
+    status = "alerta";
+  }
   const alerts = [...calc.alerts];
   if (calc.expected != null && status === "reprovado") {
     alerts.push(`Divergência de ${(diff_pct! * 100).toFixed(1)}% entre esperado (R$ ${calc.expected.toFixed(2)}) e pago (R$ ${item.gross_amount.toFixed(2)}).`);

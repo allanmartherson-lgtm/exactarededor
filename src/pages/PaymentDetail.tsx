@@ -1027,6 +1027,7 @@ const PaymentDetail = () => {
                   onResend={resendGroup}
                   onSendForValidation={(id) => sendForValidation(id)}
                   onTransition={transitionGroup}
+                  onExceptionChanged={load}
                 />
               );
               });
