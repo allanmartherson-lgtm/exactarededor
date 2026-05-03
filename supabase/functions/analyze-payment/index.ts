@@ -347,6 +347,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       await supabase.from("payment_items").update({
         ai_status: r.status,
         ai_findings: findings,
+        attendance_group_key: r.attendance_group_key ?? null,
       }).eq("id", r.item_id);
 
       if (r.status === "alerta") alerts++;
