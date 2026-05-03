@@ -18,6 +18,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
+import { scoreAttendance } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -961,7 +962,34 @@ const PaymentDetail = () => {
                   </CardContent></Card>
                 );
               }
-              return visibleGroups.map((g) => {
+              // Priorização por risco: ordena empresas pelo maior score de atendimento
+              // (apenas reordena visualmente; não altera dados nem decisão).
+              const groupItemsCache = new Map<string, typeof items>();
+              const groupMaxScore = (g: typeof visibleGroups[number]) => {
+                const cached = groupItemsCache.get(g.id);
+                const all = cached ?? items.filter(
+                  (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
+                );
+                if (!cached) groupItemsCache.set(g.id, all);
+                const byAtt = new Map<string, typeof all>();
+                for (const it of all) {
+                  const att = (it.attendance_number ?? "").trim();
+                  if (!att) continue;
+                  const a = byAtt.get(att) ?? [];
+                  a.push(it);
+                  byAtt.set(att, a);
+                }
+                let max = 0;
+                for (const arr of byAtt.values()) {
+                  const s = scoreAttendance(arr).score;
+                  if (s > max) max = s;
+                }
+                return max;
+              };
+              const sortedGroups = [...visibleGroups].sort(
+                (a, b) => groupMaxScore(b) - groupMaxScore(a),
+              );
+              return sortedGroups.map((g) => {
               const groupItemsAll = items.filter(
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
