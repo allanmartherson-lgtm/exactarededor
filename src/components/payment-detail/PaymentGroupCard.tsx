@@ -36,6 +36,8 @@ import type {
   PaymentItemRow as PaymentItemRowData,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
+import { scoreAttendance, classifyRisk, RISK_LABELS } from "@/lib/riskScore";
+import { RiskBadge } from "./RiskBadge";
 
 export type PaymentGroupCardProps = {
   g: GroupRow;
@@ -172,6 +174,38 @@ export const PaymentGroupCard = ({
   // Quando há busca ativa, força a expansão para não esconder os itens que casaram.
   const groupExpandedEffective = searchActive ? true : isExpanded;
 
+  // === Priorização por risco ===
+  // Agrupa itens por atendimento, calcula score e ordena (desc).
+  // Itens sem nº de atendimento ficam no fim, mantendo ordem original.
+  const attendanceMap = new Map<string, PaymentItemRowData[]>();
+  const noAttendance: PaymentItemRowData[] = [];
+  for (const it of groupItems) {
+    const att = (it.attendance_number ?? "").trim();
+    if (!att) noAttendance.push(it);
+    else {
+      const arr = attendanceMap.get(att) ?? [];
+      arr.push(it);
+      attendanceMap.set(att, arr);
+    }
+  }
+  const attendanceScores = new Map<string, ReturnType<typeof scoreAttendance>>();
+  for (const [att, arr] of attendanceMap) {
+    attendanceScores.set(att, scoreAttendance(arr));
+  }
+  const sortedAttendances = Array.from(attendanceMap.entries()).sort(
+    (a, b) => (attendanceScores.get(b[0])!.score) - (attendanceScores.get(a[0])!.score),
+  );
+  const orderedItems: PaymentItemRowData[] = [
+    ...sortedAttendances.flatMap(([, arr]) => arr),
+    ...noAttendance,
+  ];
+  const groupMaxScore = Math.max(
+    0,
+    ...Array.from(attendanceScores.values()).map((s) => s.score),
+  );
+  const groupRisk = classifyRisk(groupMaxScore);
+  const itemRiskByAtt = new Map<string, ReturnType<typeof scoreAttendance>>(attendanceScores);
+
   return (
     <Card className="shadow-card overflow-hidden">
       <button
@@ -223,7 +257,12 @@ export const PaymentGroupCard = ({
             )}
           </div>
         </div>
-        <StatusBadge status={gStatus} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {groupMaxScore > 0 && (
+            <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
+          )}
+          <StatusBadge status={gStatus} />
+        </div>
       </button>
 
       {groupExpandedEffective && nfDivergent && (
@@ -391,7 +430,7 @@ export const PaymentGroupCard = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {groupItems.map((it) => (
+              {orderedItems.map((it) => (
                 <PaymentItemRow
                   key={it.id}
                   it={it}
