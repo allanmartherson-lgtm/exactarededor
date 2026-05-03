@@ -1,0 +1,1 @@
+ALTER TYPE public.validation_kind ADD VALUE IF NOT EXISTS 'outlier_valor';
