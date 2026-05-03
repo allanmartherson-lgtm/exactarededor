@@ -916,10 +916,32 @@ const Rules = () => {
                       <div className="flex items-center justify-between">
                         <h3 className="text-[13.5px] font-semibold">Configuração do pacote</h3>
                         <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
-                          {fCalculationType === "pacote_fechado" && "fechado"}
-                          {fCalculationType === "pacote_com_extras" && "com extras"}
-                          {fCalculationType === "pacote_por_atendimento" && "por atendimento"}
+                          {fPackageSubtype === "fechado" ? "fechado" : "com extras"}
                         </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Tipo de pacote *</Label>
+                        <Select
+                          value={fPackageSubtype}
+                          onValueChange={(v) => {
+                            const sub = v as "fechado" | "com_extras";
+                            setFPackageSubtype(sub);
+                            if (sub === "fechado") {
+                              setFPackageVisitsCount(false);
+                              setFPackageOpinionsCount(false);
+                              setFPackageAuxIncluded(false);
+                              setFExtrasCodes("");
+                            } else {
+                              setFPackageAuxIncluded(true);
+                            }
+                          }}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fechado">Fechado</SelectItem>
+                            <SelectItem value="com_extras">Com extras</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -936,36 +958,35 @@ const Rules = () => {
                         <Input placeholder="Ex.: 31002, 31003, 31004"
                           value={fPackageIncludedCodes} onChange={(e) => setFPackageIncludedCodes(e.target.value)} />
                       </div>
-                      {(fCalculationType === "pacote_com_extras" || fCalculationType === "pacote_por_atendimento") && (
+                      {fPackageSubtype === "com_extras" && (
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Códigos extras permitidos (pagos à parte, 100% do convênio)</Label>
+                          <Label className="text-xs">Códigos extras permitidos (pagos à parte conforme regra definida)</Label>
                           <Input placeholder="Ex.: 31005470" value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                        <label className="flex items-start gap-2 cursor-pointer">
-                          <Checkbox checked={fPackageVisitsCount} onCheckedChange={(c) => setFPackageVisitsCount(!!c)} />
+                        <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+                          <Checkbox checked={fPackageVisitsCount} disabled={fPackageSubtype === "fechado"}
+                            onCheckedChange={(c) => setFPackageVisitsCount(!!c)} />
                           <span className="text-xs">Visitas somam ao pacote</span>
                         </label>
-                        <label className="flex items-start gap-2 cursor-pointer">
-                          <Checkbox checked={fPackageOpinionsCount} onCheckedChange={(c) => setFPackageOpinionsCount(!!c)} />
+                        <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+                          <Checkbox checked={fPackageOpinionsCount} disabled={fPackageSubtype === "fechado"}
+                            onCheckedChange={(c) => setFPackageOpinionsCount(!!c)} />
                           <span className="text-xs">Pareceres somam ao pacote</span>
                         </label>
-                        <label className="flex items-start gap-2 cursor-pointer">
-                          <Checkbox checked={fPackageAuxIncluded} onCheckedChange={(c) => setFPackageAuxIncluded(!!c)} />
+                        <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+                          <Checkbox checked={fPackageAuxIncluded} disabled={fPackageSubtype === "fechado"}
+                            onCheckedChange={(c) => setFPackageAuxIncluded(!!c)} />
                           <span className="text-xs">Auxiliares incluídos no pacote</span>
                         </label>
                       </div>
-                      {fCalculationType === "pacote_por_atendimento" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          O motor agrupa os itens pelo mesmo número de atendimento e aplica o pacote uma única vez (no item com o código principal).
-                        </p>
-                      )}
-                      {fCalculationType === "pacote_fechado" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação.
-                        </p>
-                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        O motor agrupa os itens pelo mesmo número de atendimento e aplica o pacote uma única vez (no item principal).
+                        {fPackageSubtype === "fechado"
+                          ? " Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação."
+                          : " Visitas, pareceres e auxiliares são contabilizados conforme as flags acima; códigos extras permitidos são reprocessados pela regra aplicável a cada um."}
+                      </p>
                     </div>
                   )}
                 </div>
