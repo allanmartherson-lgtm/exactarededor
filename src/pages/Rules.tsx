@@ -299,48 +299,51 @@ const Rules = () => {
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isEspecifica = scope === "especifica";
+    // Quando Natureza = informativa/bloqueio, força calculation_type = informativo
+    // e zera todos os parâmetros financeiros.
+    const effectiveCalc: RuleCalculationType = fNature === "informativo" ? "informativo" : fCalculationType;
+    const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
     const payload: any = {
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope, sector: fSector,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
-      rule_type: ruleType,
-      calculation_type: fCalculationType,
-      convenio_percentage: fCalculationType === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
-      fixed_amount: fCalculationType === "valor_fixo" ? num(fFixedAmount) : null,
-      extras_codes: fCalculationType === "pacote_com_extras"
+      rule_type: effectiveRuleType,
+      calculation_type: effectiveCalc,
+      convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
+      fixed_amount: effectiveCalc === "valor_fixo" ? num(fFixedAmount) : null,
+      extras_codes: effectiveCalc === "pacote_com_extras"
         ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
       package_amount: (
-        ruleType === "pacote" ||
-        fCalculationType === "pacote_fechado" ||
-        fCalculationType === "pacote_com_extras" ||
-        fCalculationType === "pacote_por_atendimento"
+        effectiveCalc === "pacote_fechado" ||
+        effectiveCalc === "pacote_com_extras" ||
+        effectiveCalc === "pacote_por_atendimento"
       ) ? num(fPackageAmount) : null,
       package_main_code: (
-        fCalculationType === "pacote_fechado" ||
-        fCalculationType === "pacote_com_extras" ||
-        fCalculationType === "pacote_por_atendimento"
+        effectiveCalc === "pacote_fechado" ||
+        effectiveCalc === "pacote_com_extras" ||
+        effectiveCalc === "pacote_por_atendimento"
       ) ? (fPackageMainCode.trim() || null) : null,
       package_included_codes: (
-        fCalculationType === "pacote_fechado" ||
-        fCalculationType === "pacote_com_extras" ||
-        fCalculationType === "pacote_por_atendimento"
+        effectiveCalc === "pacote_fechado" ||
+        effectiveCalc === "pacote_com_extras" ||
+        effectiveCalc === "pacote_por_atendimento"
       ) ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null) : null,
       package_visits_count: fPackageVisitsCount,
       package_opinions_count: fPackageOpinionsCount,
       package_auxiliaries_included: fPackageAuxIncluded,
-      bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
-      bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
-      target_amount: ruleType === "complemento" ? num(fTargetAmount) : null,
-      multiplier: ruleType === "tabela_diferenciada" ? num(fMultiplier) : null,
-      deflator_pct: ruleType === "tabela_diferenciada" ? num(fDeflatorPct) : null,
-      reference_table_id: refTableId || null,
-      include_auxiliaries: ruleType === "tabela_diferenciada" ? fIncludeAux : false,
-      auxiliary_pct: ruleType === "tabela_diferenciada" ? num(fAuxPct) : null,
-      repasse_pct: ruleType === "tabela_diferenciada" ? num(fRepassePct) : null,
-      apply_access_route: ruleType === "tabela_diferenciada" ? fApplyAccessRoute : false,
+      bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
+      bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
+      target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
+      multiplier: effectiveCalc === "tabela_diferenciada" ? num(fMultiplier) : null,
+      deflator_pct: effectiveCalc === "tabela_diferenciada" ? num(fDeflatorPct) : null,
+      reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
+      include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
+      auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
+      repasse_pct: effectiveCalc === "tabela_diferenciada" ? num(fRepassePct) : null,
+      apply_access_route: effectiveCalc === "tabela_diferenciada" ? fApplyAccessRoute : false,
       procedure_codes: parsedCodes.length ? parsedCodes : null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
