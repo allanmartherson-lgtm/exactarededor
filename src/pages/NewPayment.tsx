@@ -414,6 +414,18 @@ const NewPayment = () => {
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
+    if (preValidation.critical > 0) {
+      toast({
+        title: `Pré-validação: ${preValidation.critical} erro(s) crítico(s)`,
+        description: "Corrija a planilha antes de enviar (campos obrigatórios ausentes por tipo de linha).",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (preValidation.warnings > 0) {
+      const ok = confirm(`A base contém ${preValidation.warnings} alerta(s) leve(s) (ex.: complemento sem atendimento, tipo não identificado). Deseja prosseguir?`);
+      if (!ok) return;
+    }
     if (sectorConflicts.length > 0) {
       const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
       if (!ok) return;
