@@ -503,6 +503,14 @@ export function applyCalculation(
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
       return calcPacotePorAtendimento(rule, item, set);
     }
+    case "pacote": {
+      // Método unificado: sempre opera no nível do atendimento.
+      // O subtipo controla o comportamento dos extras/flags.
+      const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
+      let set = map.get(rule.id);
+      if (!set) { set = new Set<string>(); map.set(rule.id, set); }
+      return calcPacotePorAtendimento(rule, item, set);
+    }
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao();
     case "informativo":               return calcInformativo();
