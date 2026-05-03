@@ -190,6 +190,9 @@ const Rules = () => {
   const [fPackageOpinionsCount, setFPackageOpinionsCount] = useState(false);
   const [fPackageAuxIncluded, setFPackageAuxIncluded] = useState(true);
   const [fPackageSubtype, setFPackageSubtype] = useState<"fechado" | "com_extras">("fechado");
+  // === Configuração de exclusão / não pagar ===
+  const [fExclusionReason, setFExclusionReason] = useState<string>("");
+  const [fAllowsAuthorizedException, setFAllowsAuthorizedException] = useState(false);
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
@@ -246,6 +249,8 @@ const Rules = () => {
     setFPackageMainCode(""); setFPackageIncludedCodes("");
     setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
     setFPackageSubtype("fechado");
+    setFExclusionReason("");
+    setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -289,6 +294,8 @@ const Rules = () => {
       : r.package_subtype === "fechado" ? "fechado"
       : (r.calculation_type === "pacote_com_extras" ? "com_extras" : "fechado");
     setFPackageSubtype(legacySubtype);
+    setFExclusionReason(r.exclusion_reason ?? "");
+    setFAllowsAuthorizedException(!!r.allows_authorized_exception);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
