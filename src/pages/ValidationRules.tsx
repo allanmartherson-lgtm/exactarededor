@@ -31,6 +31,7 @@ const KIND_LABELS: Record<Kind, string> = {
   codigo_nao_remuneravel: "Código não remunerável",
   item_em_pacote: "Item já incluído em pacote",
   particular_sem_excecao: "Particular sem exceção autorizada",
+  outlier_valor: "Valores fora da curva (outlier)",
 };
 
 const SEVERITY_LABELS: Record<Severity, string> = {
@@ -60,6 +61,20 @@ type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; c
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
 type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "" };
 
+type OutlierLevel = "atendimento" | "procedimento" | "medico" | "tipo_atendimento";
+type OutlierCriterion = "media_pct" | "percentil" | "multiplo_media";
+type OutlierParams = {
+  level: OutlierLevel;
+  criterion: OutlierCriterion;
+  pct_above_mean: number;
+  percentile: number;
+  mean_multiplier: number;
+  min_history: number;
+  same_company: boolean;
+  same_attendance_type: boolean;
+  same_procedure: boolean;
+};
+
 const defaultParamsFor = (k: Kind): Record<string, unknown> => {
   switch (k) {
     case "duplicidade_exata":
@@ -68,6 +83,18 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
       return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "" };
+    case "outlier_valor":
+      return {
+        level: "procedimento",
+        criterion: "percentil",
+        pct_above_mean: 50,
+        percentile: 95,
+        mean_multiplier: 2,
+        min_history: 10,
+        same_company: true,
+        same_attendance_type: true,
+        same_procedure: true,
+      } satisfies OutlierParams;
     default:
       return {};
   }
