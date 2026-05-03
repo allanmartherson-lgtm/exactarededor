@@ -830,6 +830,51 @@ export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx:
       r.needs_ai_review = true;
     }
   }
+
+  // === Complemento/bônus: vincular ao atendimento e alertar se elevado ===
+  // Soma valor base (procedimentos) e complementos por grupo de atendimento.
+  const baseByGroup = new Map<string, number>();
+  const complByGroup = new Map<string, number>();
+  for (const it of items) {
+    const sel = mainSelections.byItemId.get(it.id);
+    if (!sel) continue;
+    const gk = sel.groupKey;
+    const tl = (it.tipo_linha ?? "").toLowerCase();
+    if (tl === "complemento_bonus") {
+      complByGroup.set(gk, (complByGroup.get(gk) ?? 0) + Number(it.gross_amount || 0));
+    } else if (tl !== "glosa_desconto" && tl !== "reprocessamento") {
+      baseByGroup.set(gk, (baseByGroup.get(gk) ?? 0) + Number(it.gross_amount || 0));
+    }
+  }
+  const COMPLEMENT_THRESHOLD_PCT = 30; // alerta se complemento > 30% do valor base
+  for (const it of items) {
+    const tl = (it.tipo_linha ?? "").toLowerCase();
+    if (tl !== "complemento_bonus") continue;
+    const r = byId.get(it.id);
+    const sel = mainSelections.byItemId.get(it.id);
+    if (!r || !sel) continue;
+    const base = baseByGroup.get(sel.groupKey) ?? 0;
+    const compl = complByGroup.get(sel.groupKey) ?? 0;
+    if (base > 0) {
+      const pct = (compl / base) * 100;
+      if (pct > COMPLEMENT_THRESHOLD_PCT) {
+        r.alerts = [
+          ...r.alerts,
+          `Complemento elevado em relação ao valor base (${pct.toFixed(0)}% — complementos R$ ${compl.toFixed(2)} vs base R$ ${base.toFixed(2)}).`,
+        ];
+        if (r.status === "aprovado") r.status = "alerta";
+        r.needs_ai_review = true;
+      }
+    } else if (compl > 0) {
+      r.alerts = [
+        ...r.alerts,
+        "Complemento sem valor base no mesmo atendimento — verificar vinculação.",
+      ];
+      if (r.status === "aprovado") r.status = "alerta";
+      r.needs_ai_review = true;
+    }
+  }
+
   return out;
 }
 
