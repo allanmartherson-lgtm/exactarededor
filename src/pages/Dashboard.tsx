@@ -850,6 +850,31 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* ATENÇÃO IMEDIATA */}
+      {!loading && (slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (
+        <section aria-labelledby="atencao-imediata-heading">
+          <SectionLabel>Atenção imediata</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
+            <AttentionTile
+              tone="critical"
+              icon={Flame}
+              label="Itens fora do SLA"
+              value={slaTotals.vencido}
+              hint="vencidos — agir agora"
+              to="/pagamentos?delayed=1"
+            />
+            <AttentionTile
+              tone="warning"
+              icon={Timer}
+              label="Próximos do SLA"
+              value={slaTotals.preventivo}
+              hint="dentro do prazo, mas perto do limite"
+              to="/pagamentos?delayed=1"
+            />
+          </div>
+        </section>
+      )}
+
       {/* SUAS TAREFAS */}
       <section aria-labelledby="suas-tarefas-heading">
         <SectionLabel>Suas tarefas</SectionLabel>
