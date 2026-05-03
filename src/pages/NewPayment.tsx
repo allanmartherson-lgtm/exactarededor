@@ -24,7 +24,7 @@ import { COMMON_SPECIALTIES } from "@/lib/specialties";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Sparkles as SparklesIcon, Wand2, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 interface ParsedRow {
   doctor_name: string;
