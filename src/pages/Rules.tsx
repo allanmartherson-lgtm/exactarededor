@@ -245,6 +245,7 @@ const Rules = () => {
     setFRepassePct(""); setFApplyAccessRoute(false);
     setFPackageMainCode(""); setFPackageIncludedCodes("");
     setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
+    setFPackageSubtype("fechado");
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
