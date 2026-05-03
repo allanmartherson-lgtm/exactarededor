@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
 import {
   ArrowRight,
   FileText,
@@ -26,6 +27,9 @@ import {
   Send,
   FileWarning,
   BarChart3,
+  Flame,
+  Timer,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 
