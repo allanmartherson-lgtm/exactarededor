@@ -294,7 +294,7 @@ const NewPayment = () => {
       const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce"]));
       const grossFromAny = repasse || toNumber(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"])) || procVal;
 
-      return {
+      const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
         doctor_document: toStr(pick(row, ["cpf", "cnpj", "documento", "doc"])) ?? "",
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
@@ -314,7 +314,11 @@ const NewPayment = () => {
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         raw_data: row,
       };
-    }).filter((r) => r.doctor_name || r.gross_amount > 0 || r.procedure_code);
+      const tipo_linha = classifyLine(base, paymentKind || null);
+      const withType = { ...base, tipo_linha };
+      const line_issues = validateLine(withType);
+      return { ...withType, line_issues } as ParsedRow;
+    }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 
     return { file: f, rows, rawCompanyName, matchedCompany: company ? { id: company.id, name: company.name } : null, matchScore: score };
   };
