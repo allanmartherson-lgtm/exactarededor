@@ -270,6 +270,7 @@ const NewPayment = () => {
   const [autoPaymentType, setAutoPaymentType] = useState(true);
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
+  const [autoPaymentKind, setAutoPaymentKind] = useState(true);
 
   useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
 
@@ -398,6 +399,43 @@ const NewPayment = () => {
     return issues;
   }, [autoSectors, pSectors, detected, allRows.length]);
 
+  // === Detecção automática da Categoria (atual / pendência / misto) ===
+  // Compara as datas de procedimento da base com os meses de competência selecionados.
+  const detectedKind = useMemo(() => {
+    if (allRows.length === 0 || competenceMonths.length === 0) {
+      return { kind: null as PaymentKind | null, current: 0, past: 0, dated: 0 };
+    }
+    const months = new Set(competenceMonths); // "YYYY-MM"
+    const minMonth = [...competenceMonths].sort()[0];
+    let current = 0;
+    let past = 0;
+    let dated = 0;
+    for (const r of allRows) {
+      if (!r.procedure_date) continue;
+      const ym = r.procedure_date.slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(ym)) continue;
+      dated++;
+      if (months.has(ym)) current++;
+      else if (ym < minMonth) past++;
+    }
+    if (dated === 0) return { kind: null, current, past, dated };
+    const ratioCurrent = current / dated;
+    const ratioPast = past / dated;
+    let kind: PaymentKind | null = null;
+    if (ratioCurrent >= 0.95) kind = "atual";
+    else if (ratioPast >= 0.95) kind = "pendencia";
+    else if (current > 0 && past > 0) kind = "misto";
+    return { kind, current, past, dated };
+  }, [allRows, competenceMonths]);
+
+  // Aplica a categoria detectada quando o modo automático está ativo.
+  useEffect(() => {
+    if (!autoPaymentKind) return;
+    if (detectedKind.kind && detectedKind.kind !== paymentKind) {
+      setPaymentKind(detectedKind.kind);
+    }
+  }, [autoPaymentKind, detectedKind.kind, paymentKind]);
+
   const submit = async () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
@@ -405,7 +443,7 @@ const NewPayment = () => {
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
-    if (!paymentKind) {
+    if (!autoPaymentKind && !paymentKind) {
       toast({ title: "Selecione a categoria do pagamento", variant: "destructive" }); return;
     }
     if (!autoPaymentType && !paymentType) {
@@ -454,7 +492,7 @@ const NewPayment = () => {
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
         payment_type: autoPaymentType ? null : (paymentType as PaymentType),
-        payment_kind: paymentKind as PaymentKind,
+        payment_kind: (paymentKind || null) as PaymentKind | null,
         cost_center_code: costCenterCode,
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
@@ -602,15 +640,51 @@ const NewPayment = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Categoria *</Label>
-                <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
-                  <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto" /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Categoria{autoPaymentKind ? "" : " *"}</Label>
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-pk" checked={autoPaymentKind} onCheckedChange={setAutoPaymentKind} />
+                  <Label htmlFor="auto-pk" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                </div>
+                {autoPaymentKind ? (
+                  <>
+                    {detectedKind.kind ? (
+                      <p className="text-xs text-muted-foreground">
+                        Detectado: <span className="font-medium text-foreground">{PAYMENT_KIND_LABELS[detectedKind.kind]}</span>
+                        {detectedKind.dated > 0 && (
+                          <> · {detectedKind.current} no período / {detectedKind.past} anteriores</>
+                        )}
+                      </p>
+                    ) : (
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Categoria não identificada automaticamente. Você pode selecionar manualmente abaixo (opcional).
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {!detectedKind.kind && (
+                      <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
+                        <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto (opcional)" /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
+                            <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </>
+                ) : (
+                  <Select value={paymentKind} onValueChange={(v) => setPaymentKind(v as PaymentKind)}>
+                    <SelectTrigger><SelectValue placeholder="Atual / Pendência / Misto" /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PAYMENT_KIND_LABELS) as PaymentKind[]).map((k) => (
+                        <SelectItem key={k} value={k}>{PAYMENT_KIND_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Centro de custos (padrão do lote)</Label>
