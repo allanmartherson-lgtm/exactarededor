@@ -238,6 +238,7 @@ const Rules = () => {
     setFTargetIdentifier(""); setFTargetName("");
     setRuleType("informativo"); setRefTableId(""); setCodesInput("");
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
+    setFNature("informativo");
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
