@@ -26,7 +26,6 @@ import {
   Users,
   Send,
   FileWarning,
-  BarChart3,
   Flame,
   Timer,
   AlertTriangle,
