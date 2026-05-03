@@ -891,7 +891,13 @@ const Dashboard = () => {
                   color="purple"
                   label="Suas bases"
                   value={counts.mineAnalista}
-                  hint={counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"}
+                  hint={
+                    slaTotals.vencido > 0
+                      ? `${slaTotals.vencido} fora do SLA`
+                      : slaTotals.preventivo > 0
+                      ? `${slaTotals.preventivo} perto do SLA`
+                      : counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"
+                  }
                   mine={counts.mineAnalista > 0}
                   to="/pagamentos?owner=me&status=analista"
                 />
