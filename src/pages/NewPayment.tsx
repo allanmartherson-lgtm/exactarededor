@@ -492,7 +492,7 @@ const NewPayment = () => {
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
         payment_type: autoPaymentType ? null : (paymentType as PaymentType),
-        payment_kind: paymentKind as PaymentKind,
+        payment_kind: (paymentKind || null) as PaymentKind | null,
         cost_center_code: costCenterCode,
         sectors: autoSectors ? [] : pSectors,
         specialties: autoSpecialties ? [] : pSpecialties,
