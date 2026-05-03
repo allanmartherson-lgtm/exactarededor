@@ -109,6 +109,10 @@ export interface ItemInput {
   classification_sector?: string | null;
   classification_source?: string | null;
   classification_confidence?: string | null;
+  /** Classificação do tipo de linha (pré-validação). */
+  tipo_linha?: string | null;
+  /** Motivo/justificativa quando tipo_linha = complemento_bonus. */
+  complement_reason?: string | null;
 }
 
 export interface PaymentContext {
