@@ -86,7 +86,7 @@ type DraftRule = {
  */
 const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
   switch (ruleType) {
-    case "pacote":              return "pacote_fechado";
+    case "pacote":              return "pacote";
     case "tabela_diferenciada": return "tabela_diferenciada";
     case "bonus":               return "bonus";
     case "complemento":         return "complemento";
@@ -97,6 +97,7 @@ const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
 /** Deriva o `rule_type` (legado) a partir do `calculation_type` (novo motor). */
 const deriveRuleType = (calc: RuleCalculationType): RuleType => {
   switch (calc) {
+    case "pacote":
     case "pacote_fechado":
     case "pacote_com_extras":
     case "pacote_por_atendimento": return "pacote";
@@ -111,9 +112,7 @@ const deriveRuleType = (calc: RuleCalculationType): RuleType => {
 const CALCULABLE_METHODS: RuleCalculationType[] = [
   "percentual_sobre_convenio",
   "regra_vias",
-  "pacote_fechado",
-  "pacote_com_extras",
-  "pacote_por_atendimento",
+  "pacote",
   "valor_fixo",
   "tabela_diferenciada",
   "bonus",
