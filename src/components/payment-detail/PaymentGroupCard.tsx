@@ -41,6 +41,26 @@ import type {
 import { scoreAttendance, classifyRisk, RISK_LABELS } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
 
+function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          to={`/pagamentos/${id}/empresa/${groupId}`}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="Abrir análise dedicada da empresa"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent>Abrir análise dedicada</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export type PaymentGroupCardProps = {
   g: GroupRow;
   /** Itens já filtrados pela busca quando aplicável (groupItems). */
