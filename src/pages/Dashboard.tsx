@@ -729,6 +729,65 @@ const Dashboard = () => {
 
   const myPayments = payments.filter(isMine).slice(0, 6);
 
+  // ============================================================
+  // CÁLCULO DE SLA + URGÊNCIA
+  // ============================================================
+  const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+    "aprovado", "pago", "rejeitado", "cancelado", "nf_conciliada",
+  ]);
+
+  const slaForPayment = (p: { id: string; status: PaymentStatus; created_at: string }): { level: SlaLevel; ms: number } | null => {
+    if (TERMINAL_STATUSES.has(p.status)) return null;
+    const enteredAt = new Date(statusEnteredAt[p.id] ?? p.created_at);
+    const setting = slaSettings[p.status] ?? null;
+    const compId = companyByPayment[p.id] ?? null;
+    const ov = compId ? companyOverrides[compId] ?? null : null;
+    const ev = evaluateSla({ status: p.status, enteredAt, defaultSettings: setting, override: ov });
+    const ms = Date.now() - enteredAt.getTime();
+    if (!ev) return null;
+    return { level: ev.level, ms };
+  };
+
+  // Atenção imediata: contagem global por nível de SLA
+  const slaTotals = useMemo(() => {
+    let vencido = 0;
+    let preventivo = 0;
+    const perStatusVencido: Record<string, number> = {};
+    for (const p of allPayments) {
+      const r = slaForPayment(p);
+      if (!r) continue;
+      if (r.level === "vencido") {
+        vencido++;
+        perStatusVencido[p.status] = (perStatusVencido[p.status] ?? 0) + 1;
+      } else if (r.level === "preventivo") preventivo++;
+    }
+    return { vencido, preventivo, perStatusVencido };
+  }, [allPayments, statusEnteredAt, slaSettings, companyByPayment, companyOverrides]);
+
+  // Ordena "Pagamentos esperando você" por urgência: vencidos > preventivos > tempo
+  const myPaymentsRanked = useMemo(() => {
+    const score = (p: PaymentRow) => {
+      const r = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+      if (!r) return { lvl: 0, ms: 0 };
+      const lvl = r.level === "vencido" ? 2 : r.level === "preventivo" ? 1 : 0;
+      return { lvl, ms: r.ms };
+    };
+    return [...myPayments].sort((a, b) => {
+      const sa = score(a); const sb = score(b);
+      if (sa.lvl !== sb.lvl) return sb.lvl - sa.lvl;
+      return sb.ms - sa.ms;
+    });
+  }, [myPayments, statusEnteredAt, slaSettings, companyByPayment, companyOverrides]);
+
+  // Gargalos: status com maior tempo médio
+  const bottlenecks = useMemo(() => {
+    return Object.entries(avgTimeByStatus)
+      .filter(([s]) => !TERMINAL_STATUSES.has(s as PaymentStatus))
+      .map(([s, v]) => ({ status: s as PaymentStatus, avgMs: v.avgMs, count: v.count }))
+      .sort((a, b) => b.avgMs - a.avgMs)
+      .slice(0, 5);
+  }, [avgTimeByStatus]);
+
   const myPending =
     (isAnalista ? counts.mineAnalista + counts.mineInvoicesDivergentes + counts.mineInvoicesQuestionadas + counts.mineRessalvas : 0) +
     (isValidador ? counts.mineValidador : 0) +
