@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
+import { CompanySlaSection } from "@/components/CompanySlaSection";
 import { dedupEmails, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/email";
 
 interface Company {
