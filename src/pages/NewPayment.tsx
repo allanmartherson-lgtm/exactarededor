@@ -271,9 +271,6 @@ const NewPayment = () => {
     if (competenceMonths.length === 0) {
       toast({ title: "Selecione ao menos um mês de competência", variant: "destructive" }); return;
     }
-    if (!paymentType) {
-      toast({ title: "Selecione o tipo de pagamento", variant: "destructive" }); return;
-    }
     if (!paymentKind) {
       toast({ title: "Selecione a categoria do pagamento", variant: "destructive" }); return;
     }
