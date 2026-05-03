@@ -311,6 +311,80 @@ export default function ValidationRules() {
         </div>
       );
     }
+    if (k === "outlier_valor") {
+      const p = form.params as OutlierParams;
+      const set = (patch: Partial<OutlierParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      return (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Nível de análise</Label>
+              <Select value={p.level} onValueChange={(v) => set({ level: v as OutlierLevel })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="atendimento">Por atendimento</SelectItem>
+                  <SelectItem value="procedimento">Por procedimento</SelectItem>
+                  <SelectItem value="medico">Por médico</SelectItem>
+                  <SelectItem value="tipo_atendimento">Por tipo de atendimento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Critério</Label>
+              <Select value={p.criterion} onValueChange={(v) => set({ criterion: v as OutlierCriterion })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="media_pct">Acima da média + X%</SelectItem>
+                  <SelectItem value="percentil">Acima do percentil (P90/P95…)</SelectItem>
+                  <SelectItem value="multiplo_media">Múltiplo da média (2x, 3x…)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {p.criterion === "media_pct" && (
+              <div>
+                <Label className="text-xs">% acima da média</Label>
+                <Input type="number" min={0} value={p.pct_above_mean} onChange={(e) => set({ pct_above_mean: Number(e.target.value) || 0 })} />
+              </div>
+            )}
+            {p.criterion === "percentil" && (
+              <div>
+                <Label className="text-xs">Percentil</Label>
+                <Input type="number" min={50} max={99} value={p.percentile} onChange={(e) => set({ percentile: Number(e.target.value) || 0 })} />
+              </div>
+            )}
+            {p.criterion === "multiplo_media" && (
+              <div>
+                <Label className="text-xs">Múltiplo da média</Label>
+                <Input type="number" min={1} step={0.1} value={p.mean_multiplier} onChange={(e) => set({ mean_multiplier: Number(e.target.value) || 0 })} />
+              </div>
+            )}
+            <div>
+              <Label className="text-xs">Histórico mínimo (itens)</Label>
+              <Input type="number" min={1} value={p.min_history} onChange={(e) => set({ min_history: Number(e.target.value) || 1 })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={p.same_company} onCheckedChange={(v) => set({ same_company: !!v })} />
+              Mesma empresa
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={p.same_attendance_type} onCheckedChange={(v) => set({ same_attendance_type: !!v })} />
+              Mesmo tipo de atendimento
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={p.same_procedure} onCheckedChange={(v) => set({ same_procedure: !!v })} />
+              Mesmo procedimento
+            </label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Não bloqueia automaticamente. Apenas gera alerta com valor atual, média histórica e diferença (%) para investigação.
+          </p>
+        </div>
+      );
+    }
     return <p className="text-xs text-muted-foreground">Sem parâmetros adicionais para este tipo.</p>;
   }, [form, groups]);
 
