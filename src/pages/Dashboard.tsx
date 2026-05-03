@@ -1324,6 +1324,148 @@ const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
   </div>
 );
 
+/* ================================================================
+   ATENÇÃO IMEDIATA + GARGALOS
+   ================================================================ */
+
+const AttentionTile = ({
+  tone,
+  icon: Icon,
+  label,
+  value,
+  hint,
+  to,
+}: {
+  tone: "critical" | "warning";
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  hint?: string;
+  to: string;
+}) => {
+  const tokens =
+    tone === "critical"
+      ? {
+          border: "hsl(var(--destructive) / 0.45)",
+          bg: "hsl(var(--destructive) / 0.08)",
+          icon: "hsl(var(--destructive))",
+          value: "hsl(var(--destructive))",
+        }
+      : {
+          border: "hsl(var(--warning, 38 92% 50%) / 0.45)",
+          bg: "hsl(var(--warning, 38 92% 50%) / 0.08)",
+          icon: "hsl(var(--warning, 38 92% 50%))",
+          value: "hsl(var(--foreground))",
+        };
+  return (
+    <Link
+      to={to}
+      className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      style={{
+        background: tokens.bg,
+        border: `1px solid ${tokens.border}`,
+        borderRadius: 12,
+        padding: 18,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        textDecoration: "none",
+        color: "inherit",
+      }}
+      aria-label={`${label}: ${value}${hint ? `, ${hint}` : ""}`}
+    >
+      <div
+        style={{
+          width: 40, height: 40, borderRadius: 10,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: tokens.bg, color: tokens.icon, flexShrink: 0,
+          border: `1px solid ${tokens.border}`,
+        }}
+      >
+        <Icon size={20} strokeWidth={2} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "hsl(var(--muted-foreground))" }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.1, color: tokens.value, fontVariantNumeric: "tabular-nums" }}>
+          {value}
+        </div>
+        {hint && <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{hint}</div>}
+      </div>
+      <ArrowRight size={16} style={{ color: "hsl(var(--muted-foreground))", flexShrink: 0 }} aria-hidden />
+    </Link>
+  );
+};
+
+const BottlenecksList = ({
+  rows,
+}: {
+  rows: Array<{ status: PaymentStatus; avgMs: number; count: number }>;
+}) => {
+  if (!rows.length) {
+    return (
+      <div style={{ padding: "28px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+        Sem dados suficientes para identificar gargalos.
+      </div>
+    );
+  }
+  const max = rows[0]?.avgMs ?? 1;
+  return (
+    <div>
+      {rows.map((r, i) => {
+        const pct = Math.max(8, Math.round((r.avgMs / max) * 100));
+        return (
+          <div
+            key={r.status}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "20px 1fr auto",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 22px",
+              borderTop: i === 0 ? undefined : "1px solid hsl(var(--border))",
+            }}
+          >
+            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontVariantNumeric: "tabular-nums" }}>
+              {i + 1}
+            </span>
+            <div className="min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+                {PAYMENT_STATUS_SHORT[r.status] ?? r.status}
+              </div>
+              <div
+                aria-hidden
+                style={{
+                  marginTop: 6,
+                  height: 4,
+                  borderRadius: 4,
+                  background: "hsl(var(--muted))",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: `${pct}%`,
+                    background: i === 0 ? "hsl(var(--destructive))" : "hsl(var(--primary))",
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+            </div>
+            <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "hsl(var(--foreground))", fontWeight: 600 }}>
+              {formatShortDuration(r.avgMs)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // silence unused (some imports used conditionally)
 void cn;
 
