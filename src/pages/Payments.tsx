@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "criti
 
 const Payments = () => {
   const { roles } = useAuth();
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
@@ -70,7 +71,16 @@ const Payments = () => {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [competenceFilter, setCompetenceFilter] = useState<string>("all");
-  const [delayedOnly, setDelayedOnly] = useState(false);
+  const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
+
+  // Sincroniza filtros simples vindos de outras telas (ex: Dashboard)
+  useEffect(() => {
+    const d = searchParams.get("delayed") === "1";
+    setDelayedOnly(d);
+    const st = searchParams.get("status");
+    if (st) setStatusFilter(st);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
   const [view, setView] = useState<"lista" | "kanban">("lista");
   const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
