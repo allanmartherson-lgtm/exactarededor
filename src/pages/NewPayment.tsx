@@ -340,8 +340,29 @@ const NewPayment = () => {
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
 
-  const allRows = useMemo(() => buckets.flatMap((b) => b.rows), [buckets]);
+  const allRows = useMemo(() => {
+    return buckets.flatMap((b) => b.rows).map((r) => {
+      const tipo_linha = classifyLine(r, paymentKind || null);
+      const withType = { ...r, tipo_linha };
+      return { ...withType, line_issues: validateLine(withType) };
+    });
+  }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
+
+  // Resumo da pré-validação
+  const preValidation = useMemo(() => {
+    const byType: Record<string, number> = {};
+    let critical = 0;
+    let warnings = 0;
+    for (const r of allRows) {
+      byType[r.tipo_linha] = (byType[r.tipo_linha] ?? 0) + 1;
+      for (const i of r.line_issues) {
+        if (i.severity === "critico") critical++;
+        else warnings++;
+      }
+    }
+    return { byType, critical, warnings };
+  }, [allRows]);
 
   // === Detecção heurística do conteúdo da planilha ===
   const detected = useMemo(() => {
