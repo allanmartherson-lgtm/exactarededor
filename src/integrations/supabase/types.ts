@@ -1315,6 +1315,7 @@ export type Database = {
         | "codigo_nao_remuneravel"
         | "item_em_pacote"
         | "particular_sem_excecao"
+        | "outlier_valor"
       validation_severity:
         | "informativo"
         | "alerta"
@@ -1517,6 +1518,7 @@ export const Constants = {
         "codigo_nao_remuneravel",
         "item_em_pacote",
         "particular_sem_excecao",
+        "outlier_valor",
       ],
       validation_severity: [
         "informativo",
