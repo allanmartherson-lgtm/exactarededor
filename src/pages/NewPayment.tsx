@@ -270,6 +270,7 @@ const NewPayment = () => {
   const [autoPaymentType, setAutoPaymentType] = useState(true);
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
+  const [autoPaymentKind, setAutoPaymentKind] = useState(true);
 
   useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
 
