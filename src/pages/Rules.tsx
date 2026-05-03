@@ -310,6 +310,12 @@ const Rules = () => {
     // e zera todos os parâmetros financeiros.
     const effectiveCalc: RuleCalculationType = fNature === "informativo" ? "informativo" : fCalculationType;
     const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
+    const isPacote =
+      effectiveCalc === "pacote" ||
+      effectiveCalc === "pacote_fechado" ||
+      effectiveCalc === "pacote_com_extras" ||
+      effectiveCalc === "pacote_por_atendimento";
+    const isPacoteComExtras = isPacote && fPackageSubtype === "com_extras";
     const payload: any = {
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope, sector: fSector,
@@ -320,27 +326,19 @@ const Rules = () => {
       calculation_type: effectiveCalc,
       convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
       fixed_amount: effectiveCalc === "valor_fixo" ? num(fFixedAmount) : null,
-      extras_codes: effectiveCalc === "pacote_com_extras"
+      extras_codes: isPacoteComExtras
         ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
-      package_amount: (
-        effectiveCalc === "pacote_fechado" ||
-        effectiveCalc === "pacote_com_extras" ||
-        effectiveCalc === "pacote_por_atendimento"
-      ) ? num(fPackageAmount) : null,
-      package_main_code: (
-        effectiveCalc === "pacote_fechado" ||
-        effectiveCalc === "pacote_com_extras" ||
-        effectiveCalc === "pacote_por_atendimento"
-      ) ? (fPackageMainCode.trim() || null) : null,
-      package_included_codes: (
-        effectiveCalc === "pacote_fechado" ||
-        effectiveCalc === "pacote_com_extras" ||
-        effectiveCalc === "pacote_por_atendimento"
-      ) ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null) : null,
-      package_visits_count: fPackageVisitsCount,
-      package_opinions_count: fPackageOpinionsCount,
-      package_auxiliaries_included: fPackageAuxIncluded,
+      package_amount: isPacote ? num(fPackageAmount) : null,
+      package_main_code: isPacote ? (fPackageMainCode.trim() || null) : null,
+      package_included_codes: isPacote
+        ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null)
+        : null,
+      // Em pacote fechado, as flags ficam desabilitadas (false).
+      package_visits_count: isPacoteComExtras ? fPackageVisitsCount : false,
+      package_opinions_count: isPacoteComExtras ? fPackageOpinionsCount : false,
+      package_auxiliaries_included: isPacoteComExtras ? fPackageAuxIncluded : false,
+      package_subtype: isPacote ? fPackageSubtype : null,
       bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
       target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
