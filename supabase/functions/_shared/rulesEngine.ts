@@ -642,6 +642,42 @@ export function analyzeItem(
   preFilteredRules: RuleInput[],
   ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
 ): AnalysisResult {
+  // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
+  // Estes lançamentos NÃO são itens independentes para o motor de regras:
+  // não exigem código TUSS, tabela ou regra de procedimento. A vinculação
+  // ao atendimento é feita em `analyzePaymentItems` (attendance_group_key).
+  const tl = (item.tipo_linha ?? "").toLowerCase();
+  if (tl === "complemento_bonus" || tl === "glosa_desconto" || tl === "reprocessamento") {
+    const alerts: string[] = [];
+    if (tl === "complemento_bonus" && !item.complement_reason && !item.description) {
+      alerts.push("Complemento sem motivo/descrição — exigida rastreabilidade.");
+    }
+    if (tl === "complemento_bonus" && !item.attendance_number && !item.patient_name) {
+      alerts.push("Complemento sem atendimento/paciente — vinculação ao atendimento incerta.");
+    }
+    if (tl === "glosa_desconto" && !item.description) {
+      alerts.push("Glosa/desconto sem motivo informado.");
+    }
+    return {
+      item_id: item.id,
+      status: alerts.length ? "alerta" : "aprovado",
+      expected_amount: item.gross_amount,
+      diff_pct: 0,
+      matched_rule_id: null,
+      matched_rule_name: null,
+      matched_priority: "default_setor",
+      calculation_type_used: "informativo",
+      calculation_explanation:
+        tl === "complemento_bonus"
+          ? "Complemento/bônus vinculado ao atendimento — não calculado por regra de procedimento."
+          : tl === "glosa_desconto"
+            ? "Glosa/desconto — lançamento financeiro, não calculado por regra de procedimento."
+            : "Reprocessamento/pendência — lançamento financeiro, sem regra de procedimento aplicada.",
+      alerts,
+      needs_ai_review: alerts.length > 0,
+    };
+  }
+
   const outcome = selectWinningRule(item, preFilteredRules);
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
