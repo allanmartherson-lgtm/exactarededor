@@ -91,6 +91,7 @@ interface PaymentRow {
   competence_months: string[] | null;
   created_by: string | null;
   validated_by: string | null;
+  payment_type?: string | null;
 }
 
 type OwnerRole = "analista" | "validador" | "diretor" | "—";
