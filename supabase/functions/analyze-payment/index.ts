@@ -82,7 +82,7 @@ serve(async (req) => {
       .select(`
         id,doctor_name,doctor_document,company_name,company_id,
         procedure_code,procedure_name,description,access_route,doctor_role,
-        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date
+        procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -120,6 +120,7 @@ serve(async (req) => {
       attendance_number: it.attendance_number,
       patient_name: it.patient_name,
       procedure_date: it.procedure_date,
+      quantity: it.quantity != null ? Number(it.quantity) : null,
     }));
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
@@ -156,6 +157,10 @@ serve(async (req) => {
             prioridade: r.matched_priority,
             explicacao: r.calculation_explanation,
             alertas_motor: r.alerts,
+            grupo_atendimento: r.attendance_group_key,
+            procedimento_principal: r.is_main_procedure,
+            motivo_principal: r.main_reason,
+            principal_ambiguo: r.main_ambiguous,
           },
         };
       });

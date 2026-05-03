@@ -96,6 +96,7 @@ export interface ItemInput {
   attendance_number: string | null;
   patient_name: string | null;
   procedure_date: string | null;
+  quantity?: number | null;
 }
 
 export interface PaymentContext {
@@ -134,7 +135,22 @@ export interface AnalysisResult {
     candidate_rule_ids: string[];
     reason: string;
   };
+  /** Chave do grupo de atendimento (atendimento|paciente|data|empresa|médico). */
+  attendance_group_key?: string;
+  /** Se este item foi escolhido como procedimento principal do grupo. */
+  is_main_procedure?: boolean;
+  /** Motivo determinístico da escolha do principal. */
+  main_reason?: MainReason | null;
+  /** Se o grupo teve empate na escolha do principal (alerta). */
+  main_ambiguous?: boolean;
 }
+
+export type MainReason =
+  | "codigo_principal_pacote"
+  | "maior_valor_tabela"
+  | "via_principal_unica"
+  | "maior_quantidade_ou_bruto"
+  | "ambiguo";
 
 // ---------- helpers ----------
 const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
@@ -657,5 +673,156 @@ export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx:
   const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
   // Reordenar resultados para a ordem original de `items`
   const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
-  return items.map((it) => byId.get(it.id)!);
+  const out = items.map((it) => byId.get(it.id)!);
+
+  // === Identificação determinística do procedimento principal ===
+  // Agrupa por: atendimento | paciente | data | empresa | médico.
+  const mainSelections = selectMainProcedures(items, filtered);
+  for (const r of out) {
+    const sel = mainSelections.byItemId.get(r.item_id);
+    if (!sel) continue;
+    r.attendance_group_key = sel.groupKey;
+    r.is_main_procedure = sel.isMain;
+    r.main_reason = sel.reason;
+    r.main_ambiguous = sel.ambiguous;
+    if (sel.ambiguous && sel.isMain) {
+      r.alerts = [...r.alerts, "Procedimento principal ambíguo: o motor não conseguiu desempatar de forma determinística."];
+      if (r.status === "aprovado") r.status = "alerta";
+      r.needs_ai_review = true;
+    }
+  }
+  return out;
+}
+
+// ---------- Procedimento principal do atendimento ----------
+
+export interface MainSelection {
+  groupKey: string;
+  isMain: boolean;
+  reason: MainReason | null;
+  ambiguous: boolean;
+}
+
+/** Constrói a chave de agrupamento atendimento|paciente|data|empresa|médico. */
+function attendanceGroupKey(item: ItemInput): string {
+  const att = (item.attendance_number ?? "").trim().toLowerCase();
+  const pat = normName(item.patient_name);
+  const date = (item.procedure_date ?? "").slice(0, 10);
+  const comp = item.company_id ?? onlyDigits(item.company_document) ?? normName(item.company_name);
+  const doc = onlyDigits(item.doctor_document) || normName(item.doctor_name);
+  return [att, pat, date, comp, doc].join("|");
+}
+
+/**
+ * Seleciona o procedimento principal de cada grupo, na ordem:
+ *   1. código marcado como "código principal do pacote" (se houver regra de pacote no grupo)
+ *   2. maior valor de tabela/convênio (procedure_amount)
+ *   3. via de acesso = principal/única
+ *   4. maior quantidade ou maior valor bruto
+ *   5. empate restante => ambíguo (alerta)
+ */
+export function selectMainProcedures(
+  items: ItemInput[],
+  rules: RuleInput[],
+): { byItemId: Map<string, MainSelection> } {
+  const byItemId = new Map<string, MainSelection>();
+  const groups = new Map<string, ItemInput[]>();
+  for (const it of items) {
+    const k = attendanceGroupKey(it);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(it);
+  }
+
+  // Conjunto de códigos principais de pacote vindos das regras.
+  const packageMainCodes = new Set(
+    rules
+      .filter((r) => {
+        const ct = r.calculation_type;
+        return (ct === "pacote" || ct === "pacote_fechado" || ct === "pacote_com_extras" || ct === "pacote_por_atendimento") && !!r.package_main_code;
+      })
+      .map((r) => r.package_main_code as string),
+  );
+
+  for (const [groupKey, members] of groups) {
+    if (members.length === 0) continue;
+
+    // Critério 1: código principal de pacote.
+    let pool = members.filter((it) => it.procedure_code && packageMainCodes.has(it.procedure_code));
+    let reason: MainReason | null = pool.length > 0 ? "codigo_principal_pacote" : null;
+
+    // Critério 2: maior valor de tabela/convênio.
+    if (pool.length === 0 || pool.length > 1) {
+      const base = pool.length > 0 ? pool : members;
+      const vals = base.map((it) => Number(it.procedure_amount ?? 0));
+      const maxVal = Math.max(...vals);
+      if (maxVal > 0) {
+        const next = base.filter((it) => Number(it.procedure_amount ?? 0) === maxVal);
+        if (next.length > 0 && next.length < base.length) {
+          pool = next;
+          reason = reason ?? "maior_valor_tabela";
+        } else if (pool.length === 0) {
+          pool = next;
+          reason = "maior_valor_tabela";
+        }
+      }
+    }
+
+    // Critério 3: via de acesso principal/única.
+    if (pool.length === 0 || pool.length > 1) {
+      const base = pool.length > 0 ? pool : members;
+      const isPrincipal = (it: ItemInput) => {
+        const t = normName(it.access_route);
+        return /(unica|única|principal)/.test(t);
+      };
+      const next = base.filter(isPrincipal);
+      if (next.length > 0 && next.length < base.length) {
+        pool = next;
+        reason = reason ?? "via_principal_unica";
+      } else if (pool.length === 0 && next.length > 0) {
+        pool = next;
+        reason = "via_principal_unica";
+      }
+    }
+
+    // Critério 4: maior quantidade ou maior valor bruto.
+    if (pool.length === 0 || pool.length > 1) {
+      const base = pool.length > 0 ? pool : members;
+      const qtys = base.map((it) => Number(it.quantity ?? 0));
+      const maxQty = Math.max(...qtys);
+      let next = base;
+      if (maxQty > 0) {
+        const byQty = base.filter((it) => Number(it.quantity ?? 0) === maxQty);
+        if (byQty.length > 0 && byQty.length < base.length) next = byQty;
+      }
+      if (next.length > 1) {
+        const grosses = next.map((it) => Number(it.gross_amount ?? 0));
+        const maxGross = Math.max(...grosses);
+        const byGross = next.filter((it) => Number(it.gross_amount ?? 0) === maxGross);
+        if (byGross.length > 0) next = byGross;
+      }
+      if (next.length > 0 && (pool.length === 0 || next.length < pool.length)) {
+        pool = next;
+        reason = reason ?? "maior_quantidade_ou_bruto";
+      }
+    }
+
+    // Fallback: se ainda vazio, usa todos os membros.
+    if (pool.length === 0) pool = members;
+
+    const ambiguous = pool.length > 1;
+    if (ambiguous) reason = "ambiguo";
+
+    // Marca o(s) item(ns) escolhido(s) e os demais.
+    const winnerIds = new Set(pool.map((it) => it.id));
+    for (const it of members) {
+      byItemId.set(it.id, {
+        groupKey,
+        isMain: winnerIds.has(it.id),
+        reason: winnerIds.has(it.id) ? reason : null,
+        ambiguous: ambiguous && winnerIds.has(it.id),
+      });
+    }
+  }
+
+  return { byItemId };
 }
