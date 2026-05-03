@@ -440,14 +440,22 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2">
                 <Label>Tipo de pagamento *</Label>
-                <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-pt" checked={autoPaymentType} onCheckedChange={setAutoPaymentType} />
+                  <Label htmlFor="auto-pt" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                </div>
+                {!autoPaymentType && (
+                  <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione manualmente" /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((k) => (
+                        <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Categoria *</Label>
@@ -467,34 +475,67 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Modo de análise</Label>
-                <Select value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
-                      <SelectItem key={k} value={k}>{PAYMENT_ANALYSIS_MODE_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">{PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[analysisMode]}</p>
+                <RadioGroup value={analysisMode} onValueChange={(v) => setAnalysisMode(v as PaymentAnalysisMode)} className="grid gap-2">
+                  {(Object.keys(PAYMENT_ANALYSIS_MODE_LABELS) as PaymentAnalysisMode[]).map((k) => (
+                    <label key={k} htmlFor={`am-${k}`} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors ${analysisMode === k ? "border-primary bg-primary-soft/30" : "border-border hover:bg-muted/40"}`}>
+                      <RadioGroupItem id={`am-${k}`} value={k} className="mt-0.5" />
+                      <div className="space-y-0.5">
+                        <div className="text-sm font-medium">{PAYMENT_ANALYSIS_MODE_LABELS[k]}</div>
+                        <div className="text-xs text-muted-foreground">{PAYMENT_ANALYSIS_MODE_DESCRIPTIONS[k]}</div>
+                      </div>
+                    </label>
+                  ))}
+                </RadioGroup>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Setor(es) / Item Pagamento</Label>
-                <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                  {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
-                    const checked = pSectors.includes(k);
-                    return (
-                      <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                        onClick={() => setPSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
-                        {RULE_SECTOR_LABELS[k]}
-                      </Button>
-                    );
-                  })}
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-sec" checked={autoSectors} onCheckedChange={setAutoSectors} />
+                  <Label htmlFor="auto-sec" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                  {autoSectors && detected.detectedSectors.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      · detectado: {detected.detectedSectors.map((s) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(", ")}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">Vazio = todos. Ajuda a IA a filtrar regras aplicáveis.</p>
+                {!autoSectors && (
+                  <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                    {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
+                      const checked = pSectors.includes(k);
+                      return (
+                        <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                          onClick={() => setPSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
+                          {RULE_SECTOR_LABELS[k]}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                )}
+                {sectorConflicts.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Conflito com a base</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 space-y-0.5 text-xs">
+                        {sectorConflicts.map((c, i) => <li key={i}>{c}</li>)}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label>Especialidade(s)</Label>
-                <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+                <div className="flex items-center gap-2">
+                  <Switch id="auto-sp" checked={autoSpecialties} onCheckedChange={setAutoSpecialties} />
+                  <Label htmlFor="auto-sp" className="text-xs font-normal text-muted-foreground cursor-pointer">
+                    Detectar automaticamente pela base (recomendado)
+                  </Label>
+                </div>
+                {!autoSpecialties && (
+                  <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+                )}
               </div>
             </div>
             <div className="space-y-2">
