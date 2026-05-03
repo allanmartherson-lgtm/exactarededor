@@ -874,6 +874,7 @@ export type Database = {
           package_included_codes: string[] | null
           package_main_code: string | null
           package_opinions_count: boolean
+          package_subtype: string | null
           package_visits_count: boolean
           payment_term: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes: string[] | null
@@ -929,6 +930,7 @@ export type Database = {
           package_included_codes?: string[] | null
           package_main_code?: string | null
           package_opinions_count?: boolean
+          package_subtype?: string | null
           package_visits_count?: boolean
           payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
@@ -984,6 +986,7 @@ export type Database = {
           package_included_codes?: string[] | null
           package_main_code?: string | null
           package_opinions_count?: boolean
+          package_subtype?: string | null
           package_visits_count?: boolean
           payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
@@ -1111,6 +1114,7 @@ export type Database = {
         | "tabela_diferenciada"
         | "bonus"
         | "complemento"
+        | "pacote"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -1295,6 +1299,7 @@ export const Constants = {
         "tabela_diferenciada",
         "bonus",
         "complemento",
+        "pacote",
       ],
       rule_payment_term: ["qualquer", "prioridade", "habitual"],
       rule_scope: ["master", "especifica"],

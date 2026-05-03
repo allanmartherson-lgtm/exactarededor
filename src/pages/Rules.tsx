@@ -86,7 +86,7 @@ type DraftRule = {
  */
 const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
   switch (ruleType) {
-    case "pacote":              return "pacote_fechado";
+    case "pacote":              return "pacote";
     case "tabela_diferenciada": return "tabela_diferenciada";
     case "bonus":               return "bonus";
     case "complemento":         return "complemento";
@@ -97,6 +97,7 @@ const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
 /** Deriva o `rule_type` (legado) a partir do `calculation_type` (novo motor). */
 const deriveRuleType = (calc: RuleCalculationType): RuleType => {
   switch (calc) {
+    case "pacote":
     case "pacote_fechado":
     case "pacote_com_extras":
     case "pacote_por_atendimento": return "pacote";
@@ -111,9 +112,7 @@ const deriveRuleType = (calc: RuleCalculationType): RuleType => {
 const CALCULABLE_METHODS: RuleCalculationType[] = [
   "percentual_sobre_convenio",
   "regra_vias",
-  "pacote_fechado",
-  "pacote_com_extras",
-  "pacote_por_atendimento",
+  "pacote",
   "valor_fixo",
   "tabela_diferenciada",
   "bonus",
@@ -190,6 +189,7 @@ const Rules = () => {
   const [fPackageVisitsCount, setFPackageVisitsCount] = useState(false);
   const [fPackageOpinionsCount, setFPackageOpinionsCount] = useState(false);
   const [fPackageAuxIncluded, setFPackageAuxIncluded] = useState(true);
+  const [fPackageSubtype, setFPackageSubtype] = useState<"fechado" | "com_extras">("fechado");
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
@@ -245,6 +245,7 @@ const Rules = () => {
     setFRepassePct(""); setFApplyAccessRoute(false);
     setFPackageMainCode(""); setFPackageIncludedCodes("");
     setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
+    setFPackageSubtype("fechado");
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -282,6 +283,12 @@ const Rules = () => {
     setFPackageVisitsCount(!!r.package_visits_count);
     setFPackageOpinionsCount(!!r.package_opinions_count);
     setFPackageAuxIncluded(r.package_auxiliaries_included !== false);
+    // Subtipo do pacote: usa coluna dedicada e cai para mapeamento legado.
+    const legacySubtype: "fechado" | "com_extras" =
+      r.package_subtype === "com_extras" ? "com_extras"
+      : r.package_subtype === "fechado" ? "fechado"
+      : (r.calculation_type === "pacote_com_extras" ? "com_extras" : "fechado");
+    setFPackageSubtype(legacySubtype);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
@@ -303,6 +310,12 @@ const Rules = () => {
     // e zera todos os parâmetros financeiros.
     const effectiveCalc: RuleCalculationType = fNature === "informativo" ? "informativo" : fCalculationType;
     const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
+    const isPacote =
+      effectiveCalc === "pacote" ||
+      effectiveCalc === "pacote_fechado" ||
+      effectiveCalc === "pacote_com_extras" ||
+      effectiveCalc === "pacote_por_atendimento";
+    const isPacoteComExtras = isPacote && fPackageSubtype === "com_extras";
     const payload: any = {
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope, sector: fSector,
@@ -313,27 +326,19 @@ const Rules = () => {
       calculation_type: effectiveCalc,
       convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
       fixed_amount: effectiveCalc === "valor_fixo" ? num(fFixedAmount) : null,
-      extras_codes: effectiveCalc === "pacote_com_extras"
+      extras_codes: isPacoteComExtras
         ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
-      package_amount: (
-        effectiveCalc === "pacote_fechado" ||
-        effectiveCalc === "pacote_com_extras" ||
-        effectiveCalc === "pacote_por_atendimento"
-      ) ? num(fPackageAmount) : null,
-      package_main_code: (
-        effectiveCalc === "pacote_fechado" ||
-        effectiveCalc === "pacote_com_extras" ||
-        effectiveCalc === "pacote_por_atendimento"
-      ) ? (fPackageMainCode.trim() || null) : null,
-      package_included_codes: (
-        effectiveCalc === "pacote_fechado" ||
-        effectiveCalc === "pacote_com_extras" ||
-        effectiveCalc === "pacote_por_atendimento"
-      ) ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null) : null,
-      package_visits_count: fPackageVisitsCount,
-      package_opinions_count: fPackageOpinionsCount,
-      package_auxiliaries_included: fPackageAuxIncluded,
+      package_amount: isPacote ? num(fPackageAmount) : null,
+      package_main_code: isPacote ? (fPackageMainCode.trim() || null) : null,
+      package_included_codes: isPacote
+        ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null)
+        : null,
+      // Em pacote fechado, as flags ficam desabilitadas (false).
+      package_visits_count: isPacoteComExtras ? fPackageVisitsCount : false,
+      package_opinions_count: isPacoteComExtras ? fPackageOpinionsCount : false,
+      package_auxiliaries_included: isPacoteComExtras ? fPackageAuxIncluded : false,
+      package_subtype: isPacote ? fPackageSubtype : null,
       bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
       target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
@@ -904,17 +909,40 @@ const Rules = () => {
                       <Input type="number" step="0.01" value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
                     </div>
                   )}
-                  {(fCalculationType === "pacote_fechado" ||
+                  {(fCalculationType === "pacote" ||
+                    fCalculationType === "pacote_fechado" ||
                     fCalculationType === "pacote_com_extras" ||
                     fCalculationType === "pacote_por_atendimento") && (
                     <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-[13.5px] font-semibold">Configuração do pacote</h3>
                         <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
-                          {fCalculationType === "pacote_fechado" && "fechado"}
-                          {fCalculationType === "pacote_com_extras" && "com extras"}
-                          {fCalculationType === "pacote_por_atendimento" && "por atendimento"}
+                          {fPackageSubtype === "fechado" ? "fechado" : "com extras"}
                         </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Tipo de pacote *</Label>
+                        <Select
+                          value={fPackageSubtype}
+                          onValueChange={(v) => {
+                            const sub = v as "fechado" | "com_extras";
+                            setFPackageSubtype(sub);
+                            if (sub === "fechado") {
+                              setFPackageVisitsCount(false);
+                              setFPackageOpinionsCount(false);
+                              setFPackageAuxIncluded(false);
+                              setFExtrasCodes("");
+                            } else {
+                              setFPackageAuxIncluded(true);
+                            }
+                          }}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="fechado">Fechado</SelectItem>
+                            <SelectItem value="com_extras">Com extras</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -931,36 +959,35 @@ const Rules = () => {
                         <Input placeholder="Ex.: 31002, 31003, 31004"
                           value={fPackageIncludedCodes} onChange={(e) => setFPackageIncludedCodes(e.target.value)} />
                       </div>
-                      {(fCalculationType === "pacote_com_extras" || fCalculationType === "pacote_por_atendimento") && (
+                      {fPackageSubtype === "com_extras" && (
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Códigos extras permitidos (pagos à parte, 100% do convênio)</Label>
+                          <Label className="text-xs">Códigos extras permitidos (pagos à parte conforme regra definida)</Label>
                           <Input placeholder="Ex.: 31005470" value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                        <label className="flex items-start gap-2 cursor-pointer">
-                          <Checkbox checked={fPackageVisitsCount} onCheckedChange={(c) => setFPackageVisitsCount(!!c)} />
+                        <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+                          <Checkbox checked={fPackageVisitsCount} disabled={fPackageSubtype === "fechado"}
+                            onCheckedChange={(c) => setFPackageVisitsCount(!!c)} />
                           <span className="text-xs">Visitas somam ao pacote</span>
                         </label>
-                        <label className="flex items-start gap-2 cursor-pointer">
-                          <Checkbox checked={fPackageOpinionsCount} onCheckedChange={(c) => setFPackageOpinionsCount(!!c)} />
+                        <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+                          <Checkbox checked={fPackageOpinionsCount} disabled={fPackageSubtype === "fechado"}
+                            onCheckedChange={(c) => setFPackageOpinionsCount(!!c)} />
                           <span className="text-xs">Pareceres somam ao pacote</span>
                         </label>
-                        <label className="flex items-start gap-2 cursor-pointer">
-                          <Checkbox checked={fPackageAuxIncluded} onCheckedChange={(c) => setFPackageAuxIncluded(!!c)} />
+                        <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+                          <Checkbox checked={fPackageAuxIncluded} disabled={fPackageSubtype === "fechado"}
+                            onCheckedChange={(c) => setFPackageAuxIncluded(!!c)} />
                           <span className="text-xs">Auxiliares incluídos no pacote</span>
                         </label>
                       </div>
-                      {fCalculationType === "pacote_por_atendimento" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          O motor agrupa os itens pelo mesmo número de atendimento e aplica o pacote uma única vez (no item com o código principal).
-                        </p>
-                      )}
-                      {fCalculationType === "pacote_fechado" && (
-                        <p className="text-[11px] text-muted-foreground">
-                          Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação.
-                        </p>
-                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        O motor agrupa os itens pelo mesmo número de atendimento e aplica o pacote uma única vez (no item principal).
+                        {fPackageSubtype === "fechado"
+                          ? " Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação."
+                          : " Visitas, pareceres e auxiliares são contabilizados conforme as flags acima; códigos extras permitidos são reprocessados pela regra aplicável a cada um."}
+                      </p>
                     </div>
                   )}
                 </div>

@@ -20,6 +20,7 @@
 export type CalculationType =
   | "percentual_sobre_convenio"
   | "regra_vias"
+  | "pacote"
   | "pacote_fechado"
   | "pacote_com_extras"
   | "pacote_por_atendimento"
@@ -63,6 +64,7 @@ export interface RuleInput {
   package_visits_count?: boolean | null;
   package_opinions_count?: boolean | null;
   package_auxiliaries_included?: boolean | null;
+  package_subtype?: string | null;
   // Parâmetros de cálculo de tabela diferenciada (pertencem à regra)
   rule_type?: string | null;
   reference_table_id?: string | null;
@@ -501,6 +503,14 @@ export function applyCalculation(
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
       return calcPacotePorAtendimento(rule, item, set);
     }
+    case "pacote": {
+      // Método unificado: sempre opera no nível do atendimento.
+      // O subtipo controla o comportamento dos extras/flags.
+      const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
+      let set = map.get(rule.id);
+      if (!set) { set = new Set<string>(); map.set(rule.id, set); }
+      return calcPacotePorAtendimento(rule, item, set);
+    }
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao();
     case "informativo":               return calcInformativo();
@@ -636,8 +646,10 @@ export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx:
   const ordered = [...items].sort((a, b) => {
     const aa = (a.attendance_number ?? "").localeCompare(b.attendance_number ?? "");
     if (aa !== 0) return aa;
-    const aMain = filtered.some((r) => r.calculation_type === "pacote_por_atendimento" && r.package_main_code && a.procedure_code === r.package_main_code) ? -1 : 0;
-    const bMain = filtered.some((r) => r.calculation_type === "pacote_por_atendimento" && r.package_main_code && b.procedure_code === r.package_main_code) ? -1 : 0;
+    const isPkgAtt = (r: RuleInput) =>
+      r.calculation_type === "pacote_por_atendimento" || r.calculation_type === "pacote";
+    const aMain = filtered.some((r) => isPkgAtt(r) && r.package_main_code && a.procedure_code === r.package_main_code) ? -1 : 0;
+    const bMain = filtered.some((r) => isPkgAtt(r) && r.package_main_code && b.procedure_code === r.package_main_code) ? -1 : 0;
     if (aMain !== bMain) return aMain - bMain;
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
