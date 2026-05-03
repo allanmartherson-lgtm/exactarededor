@@ -115,6 +115,9 @@ export const RULE_CALCULATION_TYPE_LABELS: Record<RuleCalculationType, string> =
   pacote_com_extras: "Pacote com extras",
   pacote_por_atendimento: "Pacote por atendimento",
   valor_fixo: "Valor fixo",
+  tabela_diferenciada: "Tabela diferenciada",
+  bonus: "Bônus",
+  complemento: "Complemento",
   exclusao: "Exclusão (não pagar)",
   informativo: "Informativo",
 };
@@ -125,6 +128,9 @@ export const RULE_CALCULATION_TYPE_DESCRIPTIONS: Record<RuleCalculationType, str
   pacote_com_extras: "Valor de pacote + lista de códigos pagos à parte (100% do convênio).",
   pacote_por_atendimento: "Aplica o pacote uma única vez por atendimento; demais itens do mesmo atendimento ficam embutidos no pacote.",
   valor_fixo: "Esperado = valor cravado, independente do convênio.",
+  tabela_diferenciada: "Usa uma tabela de referência (ex.: CBHPM) com multiplicador, deflator e % de repasse.",
+  bonus: "Honorário do convênio + valor ou % adicional.",
+  complemento: "Completa o que faltou para chegar ao valor acordado.",
   exclusao: "Item não deve ser pago — esperado = R$ 0 e gera alerta.",
   informativo: "Não calcula esperado, só sinaliza/bloqueia o validador.",
 };

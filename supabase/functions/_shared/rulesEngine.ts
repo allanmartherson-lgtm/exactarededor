@@ -26,7 +26,10 @@ export type CalculationType =
   | "valor_fixo"
   | "exclusao"
   | "informativo"
-  | "tabela_referencia";
+  | "tabela_referencia"
+  | "tabela_diferenciada"
+  | "bonus"
+  | "complemento";
 
 export type ItemAiStatus = "pendente" | "aprovado" | "alerta" | "reprovado";
 
@@ -69,6 +72,9 @@ export interface RuleInput {
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
+  bonus_amount?: number | null;
+  bonus_pct?: number | null;
+  target_amount?: number | null;
 }
 
 export interface ItemInput {
@@ -499,7 +505,26 @@ export function applyCalculation(
     case "exclusao":                  return calcExclusao();
     case "informativo":               return calcInformativo();
     case "tabela_referencia":         return calcTabelaDiferenciada(rule, item);
+    case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item);
+    case "bonus":                     return calcBonus(rule, item);
+    case "complemento":               return calcComplemento(rule, item);
   }
+}
+
+function calcBonus(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  const base = item.procedure_amount;
+  if (base == null) return { expected: null, explanation: "Bônus — valor base ausente.", alerts: ["procedure_amount ausente."] };
+  const fixed = rule.bonus_amount ?? 0;
+  const pct = rule.bonus_pct ?? 0;
+  const value = base + fixed + base * (pct / 100);
+  const expected = Number(value.toFixed(2));
+  return { expected, explanation: `R$ ${base.toFixed(2)} + R$ ${fixed.toFixed(2)} + ${pct}% = R$ ${expected.toFixed(2)}`, alerts: [] };
+}
+
+function calcComplemento(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  if (rule.target_amount == null) return { expected: null, explanation: "Complemento sem valor alvo.", alerts: ["target_amount não configurado."] };
+  const expected = Number(rule.target_amount.toFixed(2));
+  return { expected, explanation: `Complemento até R$ ${expected.toFixed(2)} (valor alvo).`, alerts: [] };
 }
 
 /**

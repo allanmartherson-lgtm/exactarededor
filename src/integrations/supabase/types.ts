@@ -1108,6 +1108,9 @@ export type Database = {
         | "exclusao"
         | "informativo"
         | "pacote_por_atendimento"
+        | "tabela_diferenciada"
+        | "bonus"
+        | "complemento"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
       rule_scope: "master" | "especifica"
       rule_sector:
@@ -1289,6 +1292,9 @@ export const Constants = {
         "exclusao",
         "informativo",
         "pacote_por_atendimento",
+        "tabela_diferenciada",
+        "bonus",
+        "complemento",
       ],
       rule_payment_term: ["qualquer", "prioridade", "habitual"],
       rule_scope: ["master", "especifica"],

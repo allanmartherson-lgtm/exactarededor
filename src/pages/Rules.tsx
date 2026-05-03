@@ -16,7 +16,7 @@ import {
   TONE_CLASSES,
   type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType, type RuleType,
   RULE_SCOPE_LABELS, RULE_SECTOR_LABELS, RULE_TARGET_TYPE_LABELS,
-  RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS,
+  RULE_TYPE_LABELS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
 import {
@@ -87,12 +87,39 @@ type DraftRule = {
 const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
   switch (ruleType) {
     case "pacote":              return "pacote_fechado";
-    case "tabela_diferenciada": return "percentual_sobre_convenio";
-    case "bonus":
-    case "complemento":         return "valor_fixo";
+    case "tabela_diferenciada": return "tabela_diferenciada";
+    case "bonus":               return "bonus";
+    case "complemento":         return "complemento";
     case "informativo":         return "informativo";
   }
 };
+
+/** Deriva o `rule_type` (legado) a partir do `calculation_type` (novo motor). */
+const deriveRuleType = (calc: RuleCalculationType): RuleType => {
+  switch (calc) {
+    case "pacote_fechado":
+    case "pacote_com_extras":
+    case "pacote_por_atendimento": return "pacote";
+    case "tabela_diferenciada":    return "tabela_diferenciada";
+    case "bonus":                  return "bonus";
+    case "complemento":            return "complemento";
+    default:                       return "informativo";
+  }
+};
+
+/** Métodos exibidos quando a Natureza = Calculável. */
+const CALCULABLE_METHODS: RuleCalculationType[] = [
+  "percentual_sobre_convenio",
+  "regra_vias",
+  "pacote_fechado",
+  "pacote_com_extras",
+  "pacote_por_atendimento",
+  "valor_fixo",
+  "tabela_diferenciada",
+  "bonus",
+  "complemento",
+  "exclusao",
+];
 
 const num = (v: any): number | null => {
   if (v === "" || v == null) return null;
@@ -136,6 +163,8 @@ const Rules = () => {
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
   const [ruleType, setRuleType] = useState<RuleType>("informativo");
+  // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
+  const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
   // === Novo motor (Fase 4) ===
   const [fCalculationType, setFCalculationType] = useState<RuleCalculationType>("informativo");
   const [fConvenioPct, setFConvenioPct] = useState<string>("");
@@ -209,6 +238,7 @@ const Rules = () => {
     setFTargetIdentifier(""); setFTargetName("");
     setRuleType("informativo"); setRefTableId(""); setCodesInput("");
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
+    setFNature("informativo");
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
@@ -227,7 +257,9 @@ const Rules = () => {
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     setRuleType((r.rule_type as RuleType) ?? "informativo");
-    setFCalculationType((r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo"));
+    const calc = (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo");
+    setFCalculationType(calc);
+    setFNature(calc === "informativo" ? "informativo" : "calculavel");
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
     setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
@@ -267,48 +299,51 @@ const Rules = () => {
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const isEspecifica = scope === "especifica";
+    // Quando Natureza = informativa/bloqueio, força calculation_type = informativo
+    // e zera todos os parâmetros financeiros.
+    const effectiveCalc: RuleCalculationType = fNature === "informativo" ? "informativo" : fCalculationType;
+    const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
     const payload: any = {
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope, sector: fSector,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
-      rule_type: ruleType,
-      calculation_type: fCalculationType,
-      convenio_percentage: fCalculationType === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
-      fixed_amount: fCalculationType === "valor_fixo" ? num(fFixedAmount) : null,
-      extras_codes: fCalculationType === "pacote_com_extras"
+      rule_type: effectiveRuleType,
+      calculation_type: effectiveCalc,
+      convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
+      fixed_amount: effectiveCalc === "valor_fixo" ? num(fFixedAmount) : null,
+      extras_codes: effectiveCalc === "pacote_com_extras"
         ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
       package_amount: (
-        ruleType === "pacote" ||
-        fCalculationType === "pacote_fechado" ||
-        fCalculationType === "pacote_com_extras" ||
-        fCalculationType === "pacote_por_atendimento"
+        effectiveCalc === "pacote_fechado" ||
+        effectiveCalc === "pacote_com_extras" ||
+        effectiveCalc === "pacote_por_atendimento"
       ) ? num(fPackageAmount) : null,
       package_main_code: (
-        fCalculationType === "pacote_fechado" ||
-        fCalculationType === "pacote_com_extras" ||
-        fCalculationType === "pacote_por_atendimento"
+        effectiveCalc === "pacote_fechado" ||
+        effectiveCalc === "pacote_com_extras" ||
+        effectiveCalc === "pacote_por_atendimento"
       ) ? (fPackageMainCode.trim() || null) : null,
       package_included_codes: (
-        fCalculationType === "pacote_fechado" ||
-        fCalculationType === "pacote_com_extras" ||
-        fCalculationType === "pacote_por_atendimento"
+        effectiveCalc === "pacote_fechado" ||
+        effectiveCalc === "pacote_com_extras" ||
+        effectiveCalc === "pacote_por_atendimento"
       ) ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null) : null,
       package_visits_count: fPackageVisitsCount,
       package_opinions_count: fPackageOpinionsCount,
       package_auxiliaries_included: fPackageAuxIncluded,
-      bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
-      bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
-      target_amount: ruleType === "complemento" ? num(fTargetAmount) : null,
-      multiplier: ruleType === "tabela_diferenciada" ? num(fMultiplier) : null,
-      deflator_pct: ruleType === "tabela_diferenciada" ? num(fDeflatorPct) : null,
-      reference_table_id: refTableId || null,
-      include_auxiliaries: ruleType === "tabela_diferenciada" ? fIncludeAux : false,
-      auxiliary_pct: ruleType === "tabela_diferenciada" ? num(fAuxPct) : null,
-      repasse_pct: ruleType === "tabela_diferenciada" ? num(fRepassePct) : null,
-      apply_access_route: ruleType === "tabela_diferenciada" ? fApplyAccessRoute : false,
+      bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
+      bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
+      target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
+      multiplier: effectiveCalc === "tabela_diferenciada" ? num(fMultiplier) : null,
+      deflator_pct: effectiveCalc === "tabela_diferenciada" ? num(fDeflatorPct) : null,
+      reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
+      include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
+      auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
+      repasse_pct: effectiveCalc === "tabela_diferenciada" ? num(fRepassePct) : null,
+      apply_access_route: effectiveCalc === "tabela_diferenciada" ? fApplyAccessRoute : false,
       procedure_codes: parsedCodes.length ? parsedCodes : null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
@@ -789,20 +824,52 @@ const Rules = () => {
                   </div>
                 )}
 
-                <div className="space-y-1.5"><Label>Tipo de regra</Label>
-                  <Select value={ruleType} onValueChange={(v) => setRuleType(v as RuleType)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">{RULE_TYPE_DESCRIPTIONS[ruleType]}</p>
-                </div>
-
-                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
-                  <Label>Tipo de cálculo (motor determinístico) *</Label>
-                  <Select value={fCalculationType} onValueChange={(v) => setFCalculationType(v as RuleCalculationType)}>
+                <div className="space-y-1.5">
+                  <Label>Natureza da regra *</Label>
+                  <Select
+                    value={fNature}
+                    onValueChange={(v) => {
+                      const nat = v as "calculavel" | "informativo";
+                      setFNature(nat);
+                      if (nat === "informativo") {
+                        setFCalculationType("informativo");
+                        setRuleType("informativo");
+                        setRefTableId("");
+                      } else if (fCalculationType === "informativo") {
+                        // ao virar calculável, escolhe um default neutro
+                        setFCalculationType("percentual_sobre_convenio");
+                        setRuleType(deriveRuleType("percentual_sobre_convenio"));
+                      }
+                    }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(RULE_CALCULATION_TYPE_LABELS) as RuleCalculationType[]).map((k) => (
+                      <SelectItem value="calculavel">Calculável</SelectItem>
+                      <SelectItem value="informativo">Informativa / bloqueio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {fNature === "informativo"
+                      ? "Regra apenas alerta/bloqueia o validador — não calcula valor esperado."
+                      : "Regra calcula um valor esperado pelo motor determinístico."}
+                  </p>
+                </div>
+
+                {fNature === "calculavel" && (
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <Label>Método de cálculo *</Label>
+                  <Select
+                    value={fCalculationType}
+                    onValueChange={(v) => {
+                      const c = v as RuleCalculationType;
+                      setFCalculationType(c);
+                      setRuleType(deriveRuleType(c));
+                      if (c !== "tabela_diferenciada") setRefTableId("");
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CALCULABLE_METHODS.map((k) => (
                         <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
                       ))}
                     </SelectContent>
@@ -819,6 +886,22 @@ const Rules = () => {
                     <div className="space-y-1 mt-2">
                       <Label className="text-xs">Valor fixo (R$)</Label>
                       <Input type="number" step="0.01" value={fFixedAmount} onChange={(e) => setFFixedAmount(e.target.value)} />
+                    </div>
+                  )}
+                  {fCalculationType === "bonus" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                      <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
+                        <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
+                      </div>
+                      <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
+                        <Input type="number" step="0.01" value={fBonusPct} onChange={(e) => setFBonusPct(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                  {fCalculationType === "complemento" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Valor alvo (R$) *</Label>
+                      <Input type="number" step="0.01" value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
                     </div>
                   )}
                   {(fCalculationType === "pacote_fechado" ||
@@ -881,18 +964,21 @@ const Rules = () => {
                     </div>
                   )}
                 </div>
+                )}
 
-                <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
-                  <Label>Tabela de referência (opcional)</Label>
-                  <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder={refTables.length ? "Sem vínculo" : "Cadastre uma tabela"} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">Sem vínculo</SelectItem>
-                      {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Vincular a uma tabela já cadastrada simplifica a regra — basta complementar com os pontos específicos.</p>
-                </div>
+                {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && (
+                  <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                    <Label>Tabela de referência *</Label>
+                    <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecionar tabela" : "Cadastre uma tabela"} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Sem vínculo</SelectItem>
+                        {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">A tabela fornece apenas a base de valores; os parâmetros financeiros pertencem à regra.</p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
@@ -917,15 +1003,7 @@ const Rules = () => {
                   </div>
                 </div>
 
-                {ruleType === "pacote" &&
-                  fCalculationType !== "pacote_fechado" &&
-                  fCalculationType !== "pacote_com_extras" &&
-                  fCalculationType !== "pacote_por_atendimento" && (
-                  <div className="space-y-1.5"><Label>Valor do pacote (R$)</Label>
-                    <Input type="number" step="0.01" required value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
-                  </div>
-                )}
-                {ruleType === "tabela_diferenciada" && refTableId && (
+                {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && refTableId && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[13.5px] font-semibold">Parâmetros de cálculo da tabela</h3>
@@ -966,26 +1044,11 @@ const Rules = () => {
                     )}
                   </div>
                 )}
-                {ruleType === "tabela_diferenciada" && !refTableId && (
+                {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && !refTableId && (
                   <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
                     <p className="text-xs text-muted-foreground">
                       Vincule uma <strong>Tabela de referência</strong> acima para definir os <strong>parâmetros de cálculo</strong> desta regra.
                     </p>
-                  </div>
-                )}
-                {ruleType === "bonus" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5"><Label>Bônus fixo (R$)</Label>
-                      <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
-                    </div>
-                    <div className="space-y-1.5"><Label>Bônus (%)</Label>
-                      <Input type="number" step="0.01" value={fBonusPct} onChange={(e) => setFBonusPct(e.target.value)} />
-                    </div>
-                  </div>
-                )}
-                {ruleType === "complemento" && (
-                  <div className="space-y-1.5"><Label>Valor alvo (R$)</Label>
-                    <Input type="number" step="0.01" required value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
                   </div>
                 )}
 
