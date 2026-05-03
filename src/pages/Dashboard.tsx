@@ -1271,6 +1271,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
   to: string;
   density: PipelineDensity;
   separated: boolean;
+  delayed?: number;
 }>(({
   icon: Icon,
   color,
@@ -1279,6 +1280,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
   to,
   density,
   separated,
+  delayed = 0,
 }, ref) => {
   const comfortable = density === "comfortable";
   return (
@@ -1298,8 +1300,24 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         transition: "background 0.15s ease",
         boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
         minWidth: 0,
+        position: "relative",
       }}
     >
+    {delayed > 0 && (
+      <span
+        title={`${delayed} fora do SLA`}
+        style={{
+          position: "absolute", top: 6, right: 6,
+          background: "hsl(var(--destructive))",
+          color: "hsl(var(--destructive-foreground))",
+          fontSize: 10, fontWeight: 700, lineHeight: 1,
+          padding: "3px 6px", borderRadius: 999,
+          display: "inline-flex", alignItems: "center", gap: 3,
+        }}
+      >
+        <AlertTriangle size={9} aria-hidden /> {delayed}
+      </span>
+    )}
     <div
       style={{
         width: comfortable ? 40 : 32,
