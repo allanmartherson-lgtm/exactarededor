@@ -12,6 +12,7 @@ import {
   ScrollText,
   Tags,
   Timer,
+  BadgeDollarSign,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -63,7 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
     iconName: "ScrollText",
     roles: ["diretor", "admin"],
     children: [
-      { to: "/regras/pagamento", label: "Regras de Pagamento", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["diretor", "admin"] },
+      { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["diretor", "admin"] },
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["diretor", "admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["diretor", "admin"] },
       { to: "/classificacao-procedimentos", label: "Classificação de procedimentos", icon: Tags, iconName: "Tags", roles: ["diretor", "admin"] },
@@ -93,7 +94,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Pagamentos", iconName: "Wallet" },
   { label: "Notas Fiscais", iconName: "Receipt" },
   { label: "KPIs", iconName: "BarChart2" },
-  { label: "Regras de Pagamento", iconName: "ShieldCheck" },
+  { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Classificação de procedimentos", iconName: "Tags" },
