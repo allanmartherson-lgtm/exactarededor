@@ -687,6 +687,33 @@ export type Database = {
           },
         ]
       }
+      payment_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          payment_id: string
+          status_from: Database["public"]["Enums"]["payment_status"] | null
+          status_to: Database["public"]["Enums"]["payment_status"]
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          payment_id: string
+          status_from?: Database["public"]["Enums"]["payment_status"] | null
+          status_to: Database["public"]["Enums"]["payment_status"]
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          payment_id?: string
+          status_from?: Database["public"]["Enums"]["payment_status"] | null
+          status_to?: Database["public"]["Enums"]["payment_status"]
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           ai_summary: string | null

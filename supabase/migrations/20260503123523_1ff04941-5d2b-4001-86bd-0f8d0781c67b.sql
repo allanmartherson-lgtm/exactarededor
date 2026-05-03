@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.trg_log_payment_status_change() FROM PUBLIC, anon, authenticated;

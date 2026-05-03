@@ -7,9 +7,12 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, formatCompetence, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X } from "lucide-react";
+import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface Row {
   id: string;
@@ -18,12 +21,35 @@ interface Row {
   total_amount: number | string;
   items_count: number;
   created_at: string;
+  updated_at: string;
+  created_by: string | null;
   competence_month: string | null;
   competence_months: string[] | null;
   payment_due_date: string | null;
   payment_type: PaymentType | null;
   payment_kind: PaymentKind | null;
 }
+
+interface StatusEntry { status: PaymentStatus; changed_at: string }
+
+const TERMINAL_STATUSES: PaymentStatus[] = ["aprovado", "pago", "rejeitado", "cancelado", "nf_conciliada"];
+
+const formatDuration = (ms: number) => {
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+};
+
+const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "critico" => {
+  if (TERMINAL_STATUSES.includes(status)) return "none";
+  const days = ms / 86400000;
+  if (days >= 7) return "critico";
+  if (days >= 3) return "leve";
+  return "none";
+};
 
 const Payments = () => {
   const { roles } = useAuth();
@@ -35,14 +61,61 @@ const Payments = () => {
   // procedimento, CC). Acionada com 3+ chars e debounced.
   const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
   const [searching, setSearching] = useState(false);
+  const [analysts, setAnalysts] = useState<Record<string, string>>({});
+  const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
+  const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
+  const [analystFilter, setAnalystFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [competenceFilter, setCompetenceFilter] = useState<string>("all");
+  const [delayedOnly, setDelayedOnly] = useState(false);
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
     supabase
       .from("payments")
-      .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,payment_due_date,payment_type,payment_kind")
+      .select("id,reference,status,total_amount,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind")
       .order("created_at", { ascending: false })
-      .then(({ data }) => setRows((data ?? []) as Row[]));
+      .then(async ({ data }) => {
+        const list = (data ?? []) as Row[];
+        setRows(list);
+        const ids = list.map((r) => r.id);
+        const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
+        // Profiles dos analistas
+        if (userIds.length) {
+          const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", userIds);
+          const map: Record<string, string> = {};
+          (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name || p.email || "—"; });
+          setAnalysts(map);
+        }
+        if (ids.length) {
+          // Empresas distintas por lote
+          const { data: groups } = await supabase
+            .from("payment_company_groups")
+            .select("payment_id,company_name")
+            .in("payment_id", ids);
+          const cmap: Record<string, Set<string>> = {};
+          (groups ?? []).forEach((g: any) => {
+            cmap[g.payment_id] = cmap[g.payment_id] ?? new Set();
+            cmap[g.payment_id].add(g.company_name || "");
+          });
+          const counts: Record<string, number> = {};
+          Object.entries(cmap).forEach(([k, v]) => { counts[k] = v.size; });
+          setCompaniesPerPayment(counts);
+
+          // Histórico: pega entrada mais recente por pagamento
+          const { data: hist } = await supabase
+            .from("payment_status_history")
+            .select("payment_id,status_to,changed_at")
+            .in("payment_id", ids)
+            .order("changed_at", { ascending: false });
+          const seen: Record<string, string> = {};
+          (hist ?? []).forEach((h: any) => {
+            if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at;
+          });
+          setStatusEnteredAt(seen);
+        }
+      });
   }, []);
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
@@ -102,6 +175,16 @@ const Payments = () => {
     return () => { cancelled = true; clearTimeout(handle); };
   }, [q]);
 
+  const competenceOptions = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      (r.competence_months?.length ? r.competence_months : [r.competence_month]).forEach((c) => c && set.add(c.slice(0, 7)));
+    });
+    return Array.from(set).sort().reverse();
+  }, [rows]);
+
+  const now = Date.now();
+
   const filtered = useMemo(() => rows.filter((r) => {
     const term = q.trim().toLowerCase();
     if (term) {
@@ -119,9 +202,26 @@ const Payments = () => {
       if (!paymentIdsForCompany) return false;
       if (!paymentIdsForCompany.has(r.id)) return false;
     }
+    if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
+    if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
+    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (competenceFilter !== "all") {
+      const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
+      if (!months.some((m) => m.startsWith(competenceFilter))) return false;
+    }
+    if (delayedOnly) {
+      const since = statusEnteredAt[r.id] ?? r.updated_at ?? r.created_at;
+      const lvl = delayLevel(r.status, now - new Date(since).getTime());
+      if (lvl === "none") return false;
+    }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, competenceFilter, delayedOnly, statusEnteredAt, now]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
+
+  const analystOptions = useMemo(() => {
+    const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
+    return ids.map((id) => ({ id, name: analysts[id] ?? "—" })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows, analysts]);
 
   return (
     <>
@@ -130,7 +230,7 @@ const Payments = () => {
         description="Todos os lotes de pagamento e seu status no fluxo."
       />
       <div className="p-8 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative max-w-sm flex-1 min-w-[220px]">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -151,8 +251,46 @@ const Payments = () => {
             placeholder="Filtrar por empresa (CNPJ)…"
             className="min-w-[260px]"
           />
-          {companyFilter && (
-            <Button variant="ghost" size="sm" onClick={() => setCompanyFilter(null)}>
+          <Select value={analystFilter} onValueChange={setAnalystFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Analista" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos analistas</SelectItem>
+              {analystOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos tipos</SelectItem>
+              {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Competência" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas competências</SelectItem>
+              {competenceOptions.map((c) => <SelectItem key={c} value={c}>{formatCompetence(`${c}-01`)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button
+            variant={delayedOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setDelayedOnly((v) => !v)}
+          >
+            <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
+          </Button>
+          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly) && (
+            <Button variant="ghost" size="sm" onClick={() => {
+              setCompanyFilter(null);
+              setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+            }}>
               <X className="h-4 w-4 mr-1" /> Limpar
             </Button>
           )}
@@ -163,21 +301,53 @@ const Payments = () => {
               <div className="px-6 py-16 text-center text-sm text-muted-foreground">Nenhum pagamento encontrado.</div>
             ) : (
               <div className="divide-y divide-border">
-                {filtered.map((p) => (
-                  <Link key={p.id} to={`/pagamentos/${p.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-muted/40 transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{p.reference}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
-                        {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
-                        {p.payment_type && ` · ${PAYMENT_TYPE_LABELS[p.payment_type]}`}
-                        {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
-                        {" · criado em "}{formatDate(p.created_at)}
-                      </p>
-                    </div>
-                    <StatusBadge status={p.status} />
-                  </Link>
-                ))}
+                {filtered.map((p) => {
+                  const since = statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at;
+                  const elapsedMs = now - new Date(since).getTime();
+                  const lvl = delayLevel(p.status, elapsedMs);
+                  const companies = companiesPerPayment[p.id] ?? 0;
+                  const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
+                  return (
+                    <Link key={p.id} to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <p className="font-medium text-sm truncate">{p.reference}</p>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                          <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                            <User className="h-3 w-3" /> {analystName}
+                          </Badge>
+                          {p.payment_type && (
+                            <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                              <Tag className="h-3 w-3" /> {PAYMENT_TYPE_LABELS[p.payment_type]}
+                            </Badge>
+                          )}
+                          {companies > 0 && (
+                            <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                              <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "gap-1 font-normal",
+                              lvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
+                              lvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
+                              lvl === "none" && "text-muted-foreground",
+                            )}
+                          >
+                            <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
+                          {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
+                          {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
+                          {" · criado em "}{formatDate(p.created_at)}
+                        </p>
+                      </div>
+                      <StatusBadge status={p.status} className={cn(lvl === "critico" && "ring-2 ring-destructive/40")} />
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
