@@ -690,10 +690,10 @@ export const PaymentItemRow = ({
               const exceptionMarkedLocal = !!itemAny.authorized_exception;
               const findings = it.ai_findings ?? null;
               const updated = (it as any).updated_at ?? (it as any).created_at ?? null;
-              const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+              const Row = ({ label, value }: { label: string; value: unknown }) => (
                 <div className="grid grid-cols-[140px_1fr] gap-2 border-b border-border/40 pb-1.5">
                   <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-                  <dd className="text-foreground break-words">{value ?? "—"}</dd>
+                  <dd className="text-foreground break-words">{(value as any) ?? "—"}</dd>
                 </div>
               );
               return (
