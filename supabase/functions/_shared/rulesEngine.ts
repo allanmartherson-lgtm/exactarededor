@@ -22,6 +22,7 @@ export type CalculationType =
   | "regra_vias"
   | "pacote_fechado"
   | "pacote_com_extras"
+  | "pacote_por_atendimento"
   | "valor_fixo"
   | "exclusao"
   | "informativo"
@@ -53,6 +54,12 @@ export interface RuleInput {
   fixed_amount: number | null;
   package_amount: number | null;
   extras_codes: string[] | null;
+  // Configuração de pacote
+  package_main_code?: string | null;
+  package_included_codes?: string[] | null;
+  package_visits_count?: boolean | null;
+  package_opinions_count?: boolean | null;
+  package_auxiliaries_included?: boolean | null;
   // Parâmetros de cálculo de tabela diferenciada (pertencem à regra)
   rule_type?: string | null;
   reference_table_id?: string | null;
