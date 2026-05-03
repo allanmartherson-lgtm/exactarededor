@@ -1151,13 +1151,23 @@ const TaskRow = ({
   p,
   mine,
   profiles,
+  timeMs,
+  slaLevel,
 }: {
   p: PaymentRow;
   mine: boolean;
   profiles: Record<string, string>;
+  timeMs?: number;
+  slaLevel?: SlaLevel;
 }) => {
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
+  const slaTone =
+    slaLevel === "vencido"
+      ? { bg: "hsl(var(--destructive) / 0.12)", fg: "hsl(var(--destructive))", label: "Vencido" }
+      : slaLevel === "preventivo"
+      ? { bg: "hsl(var(--warning, 38 92% 50%) / 0.15)", fg: "hsl(var(--warning, 38 92% 50%))", label: "Perto do SLA" }
+      : null;
   return (
     <Link
       to={`/pagamentos/${p.id}`}
@@ -1172,6 +1182,7 @@ const TaskRow = ({
         textDecoration: "none",
         color: "inherit",
         transition: "background 0.15s ease",
+        background: slaLevel === "vencido" ? "hsl(var(--destructive) / 0.04)" : undefined,
       }}
     >
       <div className="min-w-0 flex-1">
@@ -1198,6 +1209,27 @@ const TaskRow = ({
           <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
             {p.reference}
           </p>
+          {slaTone && (
+            <span
+              style={{
+                fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
+                background: slaTone.bg, color: slaTone.fg, borderRadius: 20, padding: "3px 8px", lineHeight: 1,
+              }}
+            >
+              {slaTone.label}
+            </span>
+          )}
+          {timeMs != null && (
+            <span
+              style={{
+                fontSize: 11, color: "hsl(var(--muted-foreground))",
+                display: "inline-flex", alignItems: "center", gap: 3,
+              }}
+              title="Tempo no status atual"
+            >
+              <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
+            </span>
+          )}
         </div>
         <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
           <span className="capitalize">
@@ -1206,6 +1238,7 @@ const TaskRow = ({
           {" · "}{p.items_count} itens
           {" · "}{formatCurrency(p.total_amount)}
           {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
+          {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
           {" · "}{formatDate(p.created_at)}
         </p>
       </div>
