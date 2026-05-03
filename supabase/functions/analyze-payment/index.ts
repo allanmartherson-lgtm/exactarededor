@@ -157,6 +157,10 @@ serve(async (req) => {
             prioridade: r.matched_priority,
             explicacao: r.calculation_explanation,
             alertas_motor: r.alerts,
+            grupo_atendimento: r.attendance_group_key,
+            procedimento_principal: r.is_main_procedure,
+            motivo_principal: r.main_reason,
+            principal_ambiguo: r.main_ambiguous,
           },
         };
       });
