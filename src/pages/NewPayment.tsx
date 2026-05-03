@@ -399,6 +399,43 @@ const NewPayment = () => {
     return issues;
   }, [autoSectors, pSectors, detected, allRows.length]);
 
+  // === Detecção automática da Categoria (atual / pendência / misto) ===
+  // Compara as datas de procedimento da base com os meses de competência selecionados.
+  const detectedKind = useMemo(() => {
+    if (allRows.length === 0 || competenceMonths.length === 0) {
+      return { kind: null as PaymentKind | null, current: 0, past: 0, dated: 0 };
+    }
+    const months = new Set(competenceMonths); // "YYYY-MM"
+    const minMonth = [...competenceMonths].sort()[0];
+    let current = 0;
+    let past = 0;
+    let dated = 0;
+    for (const r of allRows) {
+      if (!r.procedure_date) continue;
+      const ym = r.procedure_date.slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(ym)) continue;
+      dated++;
+      if (months.has(ym)) current++;
+      else if (ym < minMonth) past++;
+    }
+    if (dated === 0) return { kind: null, current, past, dated };
+    const ratioCurrent = current / dated;
+    const ratioPast = past / dated;
+    let kind: PaymentKind | null = null;
+    if (ratioCurrent >= 0.95) kind = "atual";
+    else if (ratioPast >= 0.95) kind = "pendencia";
+    else if (current > 0 && past > 0) kind = "misto";
+    return { kind, current, past, dated };
+  }, [allRows, competenceMonths]);
+
+  // Aplica a categoria detectada quando o modo automático está ativo.
+  useEffect(() => {
+    if (!autoPaymentKind) return;
+    if (detectedKind.kind && detectedKind.kind !== paymentKind) {
+      setPaymentKind(detectedKind.kind);
+    }
+  }, [autoPaymentKind, detectedKind.kind, paymentKind]);
+
   const submit = async () => {
     if (!reference.trim()) {
       toast({ title: "Informe a referência do lote", variant: "destructive" }); return;
