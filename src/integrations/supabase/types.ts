@@ -481,6 +481,7 @@ export type Database = {
           ai_findings: Json | null
           ai_status: Database["public"]["Enums"]["item_ai_status"]
           attendance_number: string | null
+          authorized_exception: boolean
           company_id: string | null
           company_name: string | null
           cost_center_code: string | null
@@ -490,6 +491,12 @@ export type Database = {
           doctor_email: string | null
           doctor_name: string
           doctor_role: string | null
+          exception_attachment_path: string | null
+          exception_authorizer: string | null
+          exception_marked_at: string | null
+          exception_marked_by: string | null
+          exception_note: string | null
+          exception_reason: string | null
           gross_amount: number
           id: string
           patient_name: string | null
@@ -507,6 +514,7 @@ export type Database = {
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
           attendance_number?: string | null
+          authorized_exception?: boolean
           company_id?: string | null
           company_name?: string | null
           cost_center_code?: string | null
@@ -516,6 +524,12 @@ export type Database = {
           doctor_email?: string | null
           doctor_name: string
           doctor_role?: string | null
+          exception_attachment_path?: string | null
+          exception_authorizer?: string | null
+          exception_marked_at?: string | null
+          exception_marked_by?: string | null
+          exception_note?: string | null
+          exception_reason?: string | null
           gross_amount?: number
           id?: string
           patient_name?: string | null
@@ -533,6 +547,7 @@ export type Database = {
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
           attendance_number?: string | null
+          authorized_exception?: boolean
           company_id?: string | null
           company_name?: string | null
           cost_center_code?: string | null
@@ -542,6 +557,12 @@ export type Database = {
           doctor_email?: string | null
           doctor_name?: string
           doctor_role?: string | null
+          exception_attachment_path?: string | null
+          exception_authorizer?: string | null
+          exception_marked_at?: string | null
+          exception_marked_by?: string | null
+          exception_note?: string | null
+          exception_reason?: string | null
           gross_amount?: number
           id?: string
           patient_name?: string | null
@@ -847,6 +868,7 @@ export type Database = {
       rules: {
         Row: {
           active: boolean
+          allows_authorized_exception: boolean
           applies_payment_types:
             | Database["public"]["Enums"]["payment_type"][]
             | null
@@ -862,6 +884,7 @@ export type Database = {
           description: string | null
           doctors: Json
           elective_mode: string
+          exclusion_reason: string | null
           extras_codes: string[] | null
           fixed_amount: number | null
           id: string
@@ -903,6 +926,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          allows_authorized_exception?: boolean
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
             | null
@@ -918,6 +942,7 @@ export type Database = {
           description?: string | null
           doctors?: Json
           elective_mode?: string
+          exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
           id?: string
@@ -959,6 +984,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          allows_authorized_exception?: boolean
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
             | null
@@ -974,6 +1000,7 @@ export type Database = {
           description?: string | null
           doctors?: Json
           elective_mode?: string
+          exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
           id?: string
