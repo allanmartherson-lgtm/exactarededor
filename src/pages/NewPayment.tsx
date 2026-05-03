@@ -489,6 +489,7 @@ const NewPayment = () => {
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
       raw_data: r.raw_data as never,
+      tipo_linha: r.tipo_linha,
     }));
     const { error: itemsErr } = await supabase.from("payment_items").insert(items);
     if (itemsErr) {

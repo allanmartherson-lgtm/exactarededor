@@ -513,10 +513,12 @@ export type Database = {
           agreement_text: string | null
           ai_findings: Json | null
           ai_status: Database["public"]["Enums"]["item_ai_status"]
+          attendance_group_key: string | null
           attendance_number: string | null
           authorized_exception: boolean
           company_id: string | null
           company_name: string | null
+          complement_reason: string | null
           cost_center_code: string | null
           created_at: string
           description: string | null
@@ -540,16 +542,19 @@ export type Database = {
           procedure_name: string | null
           quantity: number | null
           raw_data: Json | null
+          tipo_linha: string | null
         }
         Insert: {
           access_route?: string | null
           agreement_text?: string | null
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
           company_id?: string | null
           company_name?: string | null
+          complement_reason?: string | null
           cost_center_code?: string | null
           created_at?: string
           description?: string | null
@@ -573,16 +578,19 @@ export type Database = {
           procedure_name?: string | null
           quantity?: number | null
           raw_data?: Json | null
+          tipo_linha?: string | null
         }
         Update: {
           access_route?: string | null
           agreement_text?: string | null
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
           company_id?: string | null
           company_name?: string | null
+          complement_reason?: string | null
           cost_center_code?: string | null
           created_at?: string
           description?: string | null
@@ -606,6 +614,7 @@ export type Database = {
           procedure_name?: string | null
           quantity?: number | null
           raw_data?: Json | null
+          tipo_linha?: string | null
         }
         Relationships: [
           {

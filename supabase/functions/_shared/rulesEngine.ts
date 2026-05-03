@@ -109,6 +109,10 @@ export interface ItemInput {
   classification_sector?: string | null;
   classification_source?: string | null;
   classification_confidence?: string | null;
+  /** Classificação do tipo de linha (pré-validação). */
+  tipo_linha?: string | null;
+  /** Motivo/justificativa quando tipo_linha = complemento_bonus. */
+  complement_reason?: string | null;
 }
 
 export interface PaymentContext {
@@ -638,6 +642,42 @@ export function analyzeItem(
   preFilteredRules: RuleInput[],
   ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
 ): AnalysisResult {
+  // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
+  // Estes lançamentos NÃO são itens independentes para o motor de regras:
+  // não exigem código TUSS, tabela ou regra de procedimento. A vinculação
+  // ao atendimento é feita em `analyzePaymentItems` (attendance_group_key).
+  const tl = (item.tipo_linha ?? "").toLowerCase();
+  if (tl === "complemento_bonus" || tl === "glosa_desconto" || tl === "reprocessamento") {
+    const alerts: string[] = [];
+    if (tl === "complemento_bonus" && !item.complement_reason && !item.description) {
+      alerts.push("Complemento sem motivo/descrição — exigida rastreabilidade.");
+    }
+    if (tl === "complemento_bonus" && !item.attendance_number && !item.patient_name) {
+      alerts.push("Complemento sem atendimento/paciente — vinculação ao atendimento incerta.");
+    }
+    if (tl === "glosa_desconto" && !item.description) {
+      alerts.push("Glosa/desconto sem motivo informado.");
+    }
+    return {
+      item_id: item.id,
+      status: alerts.length ? "alerta" : "aprovado",
+      expected_amount: item.gross_amount,
+      diff_pct: 0,
+      matched_rule_id: null,
+      matched_rule_name: null,
+      matched_priority: "default_setor",
+      calculation_type_used: "informativo",
+      calculation_explanation:
+        tl === "complemento_bonus"
+          ? "Complemento/bônus vinculado ao atendimento — não calculado por regra de procedimento."
+          : tl === "glosa_desconto"
+            ? "Glosa/desconto — lançamento financeiro, não calculado por regra de procedimento."
+            : "Reprocessamento/pendência — lançamento financeiro, sem regra de procedimento aplicada.",
+      alerts,
+      needs_ai_review: alerts.length > 0,
+    };
+  }
+
   const outcome = selectWinningRule(item, preFilteredRules);
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
@@ -790,6 +830,51 @@ export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx:
       r.needs_ai_review = true;
     }
   }
+
+  // === Complemento/bônus: vincular ao atendimento e alertar se elevado ===
+  // Soma valor base (procedimentos) e complementos por grupo de atendimento.
+  const baseByGroup = new Map<string, number>();
+  const complByGroup = new Map<string, number>();
+  for (const it of items) {
+    const sel = mainSelections.byItemId.get(it.id);
+    if (!sel) continue;
+    const gk = sel.groupKey;
+    const tl = (it.tipo_linha ?? "").toLowerCase();
+    if (tl === "complemento_bonus") {
+      complByGroup.set(gk, (complByGroup.get(gk) ?? 0) + Number(it.gross_amount || 0));
+    } else if (tl !== "glosa_desconto" && tl !== "reprocessamento") {
+      baseByGroup.set(gk, (baseByGroup.get(gk) ?? 0) + Number(it.gross_amount || 0));
+    }
+  }
+  const COMPLEMENT_THRESHOLD_PCT = 30; // alerta se complemento > 30% do valor base
+  for (const it of items) {
+    const tl = (it.tipo_linha ?? "").toLowerCase();
+    if (tl !== "complemento_bonus") continue;
+    const r = byId.get(it.id);
+    const sel = mainSelections.byItemId.get(it.id);
+    if (!r || !sel) continue;
+    const base = baseByGroup.get(sel.groupKey) ?? 0;
+    const compl = complByGroup.get(sel.groupKey) ?? 0;
+    if (base > 0) {
+      const pct = (compl / base) * 100;
+      if (pct > COMPLEMENT_THRESHOLD_PCT) {
+        r.alerts = [
+          ...r.alerts,
+          `Complemento elevado em relação ao valor base (${pct.toFixed(0)}% — complementos R$ ${compl.toFixed(2)} vs base R$ ${base.toFixed(2)}).`,
+        ];
+        if (r.status === "aprovado") r.status = "alerta";
+        r.needs_ai_review = true;
+      }
+    } else if (compl > 0) {
+      r.alerts = [
+        ...r.alerts,
+        "Complemento sem valor base no mesmo atendimento — verificar vinculação.",
+      ];
+      if (r.status === "aprovado") r.status = "alerta";
+      r.needs_ai_review = true;
+    }
+  }
+
   return out;
 }
 
