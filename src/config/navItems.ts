@@ -11,6 +11,7 @@ import {
   History,
   ScrollText,
   Tags,
+  Timer,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -68,6 +69,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/classificacao-procedimentos", label: "Classificação de procedimentos", icon: Tags, iconName: "Tags", roles: ["diretor", "admin"] },
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["diretor", "admin"] },
       { to: "/centros-de-custo", label: "Centros de custo", icon: Network, iconName: "Network", roles: ALL_ROLES },
+      { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["diretor", "admin"] },
     ],
   },
   {
@@ -97,6 +99,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Classificação de procedimentos", iconName: "Tags" },
   { label: "Empresas", iconName: "Building2" },
   { label: "Centros de custo", iconName: "Network" },
+  { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
   { label: "Auditoria", iconName: "History" },
 ];

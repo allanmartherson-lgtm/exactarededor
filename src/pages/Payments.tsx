@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
 
 interface Row {
   id: string;
@@ -72,6 +73,9 @@ const Payments = () => {
   const [delayedOnly, setDelayedOnly] = useState(false);
   const [view, setView] = useState<"lista" | "kanban">("lista");
   const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
+  const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
+  const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
+  const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
@@ -117,6 +121,31 @@ const Payments = () => {
             if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at;
           });
           setStatusEnteredAt(seen);
+
+          // Empresa principal por pagamento (1ª se múltiplas)
+          const cByP: Record<string, string | null> = {};
+          (groups ?? []).forEach((g: any) => { if (!cByP[g.payment_id]) cByP[g.payment_id] = null; });
+          const { data: groupsWithIds } = await supabase
+            .from("payment_company_groups").select("payment_id,company_id").in("payment_id", ids);
+          (groupsWithIds ?? []).forEach((g: any) => {
+            if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
+          });
+          setCompanyByPayment(cByP);
+
+          // Carrega SLAs e overrides relevantes em paralelo
+          const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
+          const [{ data: slas }, { data: ovs }] = await Promise.all([
+            supabase.from("sla_settings").select("*").eq("active", true),
+            compIds.length
+              ? supabase.from("company_sla_overrides").select("*").in("company_id", compIds)
+              : Promise.resolve({ data: [] as any[] } as any),
+          ]);
+          const sMap: Record<string, SlaSetting> = {};
+          (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
+          setSlaSettings(sMap);
+          const oMap: Record<string, CompanySlaOverride> = {};
+          (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
+          setCompanyOverrides(oMap);
         }
       });
   }, []);
@@ -228,6 +257,21 @@ const Payments = () => {
 
   const elapsedFor = (p: Row) => now - new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at).getTime();
 
+  const slaFor = (p: Row) => {
+    const enteredAt = new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at);
+    const compId = companyByPayment[p.id] ?? null;
+    const ov = compId ? companyOverrides[compId] ?? null : null;
+    const setting = slaSettings[p.status] ?? null;
+    return evaluateSla({
+      status: p.status,
+      enteredAt,
+      override: ov,
+      defaultSettings: setting,
+      competenceMonth: p.competence_month ?? p.competence_months?.[0] ?? null,
+      now: new Date(now),
+    });
+  };
+
   const sortedList = useMemo(() => {
     const arr = [...filtered];
     if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
@@ -256,6 +300,11 @@ const Payments = () => {
   const renderCard = (p: Row, compact = false) => {
     const elapsedMs = elapsedFor(p);
     const lvl = delayLevel(p.status, elapsedMs);
+    const sla = slaFor(p);
+    const slaLvl = sla?.level ?? "ok";
+    // Combina: vencido > critico > preventivo > leve
+    const finalLvl: "none" | "leve" | "critico" =
+      slaLvl === "vencido" ? "critico" : slaLvl === "preventivo" ? "leve" : lvl;
     const companies = companiesPerPayment[p.id] ?? 0;
     const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
     if (compact) {
@@ -265,7 +314,7 @@ const Payments = () => {
           to={`/pagamentos/${p.id}`}
           className={cn(
             "block rounded-md border bg-card px-3 py-2 hover:bg-muted/40 transition-colors space-y-1.5",
-            lvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
+            finalLvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
           )}
         >
           <p className="font-medium text-xs truncate">{p.reference}</p>
@@ -277,11 +326,12 @@ const Payments = () => {
             <span className="text-muted-foreground">{p.items_count} itens · {companies || "—"} PJ</span>
             <span className={cn(
               "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
-              lvl === "critico" && "bg-destructive-soft text-destructive",
-              lvl === "leve" && "bg-warning-soft text-warning-foreground",
-              lvl === "none" && "text-muted-foreground",
+              finalLvl === "critico" && "bg-destructive-soft text-destructive",
+              finalLvl === "leve" && "bg-warning-soft text-warning-foreground",
+              finalLvl === "none" && "text-muted-foreground",
             )}>
-              <Clock className="h-2.5 w-2.5" /> {formatDuration(elapsedMs)}
+              <Clock className="h-2.5 w-2.5" />{" "}
+              {sla?.level === "vencido" ? "vencido" : sla?.level === "preventivo" ? "perto do prazo" : formatDuration(elapsedMs)}
             </span>
           </div>
         </Link>
@@ -309,13 +359,27 @@ const Payments = () => {
               variant="outline"
               className={cn(
                 "gap-1 font-normal",
-                lvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
-                lvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
-                lvl === "none" && "text-muted-foreground",
+                finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
+                finalLvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
+                finalLvl === "none" && "text-muted-foreground",
               )}
             >
               <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
             </Badge>
+            {sla && (
+              <Badge
+                variant="outline"
+                title={`${sla.reason} · vence ${sla.dueAt.toLocaleDateString("pt-BR")} · ${sla.source === "empresa" ? "regra da empresa" : "SLA padrão"}`}
+                className={cn(
+                  "gap-1 font-normal",
+                  sla.level === "vencido" && "bg-destructive-soft text-destructive border-destructive/30",
+                  sla.level === "preventivo" && "bg-warning-soft text-warning-foreground border-warning/30",
+                  sla.level === "ok" && "text-muted-foreground",
+                )}
+              >
+                {sla.level === "vencido" ? "Vencido" : sla.level === "preventivo" ? "Perto do prazo" : `Vence ${sla.dueAt.toLocaleDateString("pt-BR")}`}
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
             Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
@@ -324,7 +388,7 @@ const Payments = () => {
             {" · criado em "}{formatDate(p.created_at)}
           </p>
         </div>
-        <StatusBadge status={p.status} className={cn(lvl === "critico" && "ring-2 ring-destructive/40")} />
+        <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
       </Link>
     );
   };

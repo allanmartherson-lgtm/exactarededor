@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
+import { CompanySlaSection } from "@/components/CompanySlaSection";
 import { dedupEmails, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/email";
 
 interface Company {
@@ -394,6 +395,10 @@ const Companies = () => {
                 <div className="space-y-1.5">
                   <Label>Notas</Label>
                   <Textarea rows={2} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Prazos específicos</Label>
+                  <CompanySlaSection companyId={editing.id} />
                 </div>
               </div>
               <DialogFooter>
