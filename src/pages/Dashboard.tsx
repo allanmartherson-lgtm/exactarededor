@@ -1147,17 +1147,16 @@ const Dashboard = () => {
             </div>
           </SurfaceCard>
           <SurfaceCard>
-            <SurfaceCardHeader title="KPIs do período" icon={BarChart3} iconColor="purple" />
-            <div
-              style={{
-                padding: "48px 22px",
-                textAlign: "center",
-                fontSize: 13,
-                color: "hsl(var(--muted-foreground))",
-              }}
-            >
-              Em breve: indicadores agregados de tempo médio e SLA.
-            </div>
+            <SurfaceCardHeader title="Gargalos do processo" icon={Flame} iconColor="red" />
+            {loading ? (
+              <div style={{ padding: 22 }}>
+                <Skeleton className="h-4 w-1/2 mb-3" />
+                <Skeleton className="h-4 w-2/3 mb-3" />
+                <Skeleton className="h-4 w-1/3" />
+              </div>
+            ) : (
+              <BottlenecksList rows={bottlenecks} />
+            )}
           </SurfaceCard>
         </div>
       </section>
