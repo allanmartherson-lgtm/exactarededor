@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Payments from "./pages/Payments.tsx";
 import NewPayment from "./pages/NewPayment.tsx";
 import PaymentDetail from "./pages/PaymentDetail.tsx";
+import CompanyAnalysis from "./pages/CompanyAnalysis.tsx";
 import Rules from "./pages/Rules.tsx";
 import ValidationRules from "./pages/ValidationRules.tsx";
 import ReferenceTables from "./pages/ReferenceTables.tsx";
