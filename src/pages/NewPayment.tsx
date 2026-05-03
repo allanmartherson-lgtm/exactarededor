@@ -743,6 +743,31 @@ const NewPayment = () => {
                 <p className="text-xs text-muted-foreground">
                   Total: {allRows.length} itens · {formatCurrency(total)}
                 </p>
+                <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Pré-validação por tipo de linha
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(preValidation.byType).map(([k, n]) => (
+                      <Badge key={k} variant="outline" className="text-xs">
+                        {LINE_TYPE_LABELS[k as LineType] ?? k}: {n}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 text-xs">
+                    {preValidation.critical > 0 ? (
+                      <span className="text-destructive font-medium">
+                        {preValidation.critical} erro(s) crítico(s) — bloqueia envio
+                      </span>
+                    ) : (
+                      <span className="text-success">Nenhum erro crítico</span>
+                    )}
+                    {preValidation.warnings > 0 && (
+                      <span className="text-warning">{preValidation.warnings} alerta(s) leve(s)</span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
