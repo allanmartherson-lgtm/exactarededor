@@ -549,6 +549,22 @@ export const PaymentItemRow = ({
           </td>
         </tr>
       )}
+      {showExceptionAction && (
+        <AuthorizedExceptionDialog
+          open={excOpen}
+          onOpenChange={setExcOpen}
+          itemId={it.id}
+          paymentId={paymentId}
+          current={{
+            authorized_exception: itemAny.authorized_exception ?? false,
+            exception_reason: itemAny.exception_reason ?? null,
+            exception_authorizer: itemAny.exception_authorizer ?? null,
+            exception_note: itemAny.exception_note ?? null,
+            exception_attachment_path: itemAny.exception_attachment_path ?? null,
+          }}
+          onSaved={() => onExceptionChanged?.()}
+        />
+      )}
     </Fragment>
   );
 };
