@@ -189,6 +189,7 @@ const Rules = () => {
   const [fPackageVisitsCount, setFPackageVisitsCount] = useState(false);
   const [fPackageOpinionsCount, setFPackageOpinionsCount] = useState(false);
   const [fPackageAuxIncluded, setFPackageAuxIncluded] = useState(true);
+  const [fPackageSubtype, setFPackageSubtype] = useState<"fechado" | "com_extras">("fechado");
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
