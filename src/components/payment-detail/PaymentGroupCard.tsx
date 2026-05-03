@@ -323,6 +323,44 @@ export const PaymentGroupCard = ({
 
       {groupExpandedEffective && (
         <CardContent className="p-0 print:overflow-visible">
+          {(() => {
+            // Resumo por atendimento: base, complemento, total
+            const byAtt = new Map<string, { att: string; base: number; compl: number; glosa: number }>();
+            for (const it of groupItems) {
+              const att = (it.attendance_number ?? "").trim();
+              if (!att) continue;
+              const key = att;
+              const cur = byAtt.get(key) ?? { att, base: 0, compl: 0, glosa: 0 };
+              const tl = (it as any).tipo_linha as string | null;
+              const v = Number(it.gross_amount ?? 0);
+              if (tl === "complemento_bonus") cur.compl += v;
+              else if (tl === "glosa_desconto") cur.glosa += v;
+              else cur.base += v;
+              byAtt.set(key, cur);
+            }
+            const withCompl = Array.from(byAtt.values()).filter((g) => g.compl !== 0 || g.glosa !== 0);
+            if (withCompl.length === 0) return null;
+            return (
+              <div className="border-b border-border/60 bg-muted/30 px-4 py-2 text-[11px]">
+                <div className="font-semibold mb-1 text-muted-foreground uppercase tracking-wider text-[10px]">
+                  Atendimentos com complemento/glosa
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
+                  {withCompl.map((g) => {
+                    const total = g.base + g.compl + g.glosa;
+                    return (
+                      <li key={g.att} className="font-mono">
+                        Atend. #{g.att}: base {formatCurrency(g.base)}
+                        {g.compl !== 0 && <> · compl {formatCurrency(g.compl)}</>}
+                        {g.glosa !== 0 && <> · glosa {formatCurrency(g.glosa)}</>}
+                        {" "}= <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })()}
           <table className="w-full text-[12px] table-fixed print:text-[10px]">
             <colgroup>
               <col className="w-6" />
