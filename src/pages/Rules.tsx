@@ -283,6 +283,12 @@ const Rules = () => {
     setFPackageVisitsCount(!!r.package_visits_count);
     setFPackageOpinionsCount(!!r.package_opinions_count);
     setFPackageAuxIncluded(r.package_auxiliaries_included !== false);
+    // Subtipo do pacote: usa coluna dedicada e cai para mapeamento legado.
+    const legacySubtype: "fechado" | "com_extras" =
+      r.package_subtype === "com_extras" ? "com_extras"
+      : r.package_subtype === "fechado" ? "fechado"
+      : (r.calculation_type === "pacote_com_extras" ? "com_extras" : "fechado");
+    setFPackageSubtype(legacySubtype);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
     setFValidFrom(r.valid_from ?? "");
