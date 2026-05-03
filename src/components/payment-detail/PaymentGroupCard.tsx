@@ -376,7 +376,9 @@ export const PaymentGroupCard = ({
               else cur.base += v;
               byAtt.set(key, cur);
             }
-            const withCompl = Array.from(byAtt.values()).filter((g) => g.compl !== 0 || g.glosa !== 0);
+            const withCompl = Array.from(byAtt.values())
+              .filter((g) => g.compl !== 0 || g.glosa !== 0)
+              .sort((a, b) => (attendanceScores.get(b.att)?.score ?? 0) - (attendanceScores.get(a.att)?.score ?? 0));
             if (withCompl.length === 0) return null;
             return (
               <div className="border-b border-border/60 bg-muted/30 px-4 py-2 text-[11px]">
@@ -386,12 +388,18 @@ export const PaymentGroupCard = ({
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
                   {withCompl.map((g) => {
                     const total = g.base + g.compl + g.glosa;
+                    const sc = attendanceScores.get(g.att);
                     return (
-                      <li key={g.att} className="font-mono">
-                        Atend. #{g.att}: base {formatCurrency(g.base)}
-                        {g.compl !== 0 && <> · compl {formatCurrency(g.compl)}</>}
-                        {g.glosa !== 0 && <> · glosa {formatCurrency(g.glosa)}</>}
-                        {" "}= <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                      <li key={g.att} className="font-mono flex items-center gap-1.5 flex-wrap">
+                        {sc && sc.score > 0 && (
+                          <RiskBadge level={sc.level} score={sc.score} showLabel={false} />
+                        )}
+                        <span>
+                          Atend. #{g.att}: base {formatCurrency(g.base)}
+                          {g.compl !== 0 && <> · compl {formatCurrency(g.compl)}</>}
+                          {g.glosa !== 0 && <> · glosa {formatCurrency(g.glosa)}</>}
+                          {" "}= <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                        </span>
                       </li>
                     );
                   })}
