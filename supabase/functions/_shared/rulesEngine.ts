@@ -488,8 +488,16 @@ function calcValorFixo(rule: RuleInput): ExpectedCalc {
   return { expected: Number(rule.fixed_amount), explanation: `Valor fixo: R$ ${rule.fixed_amount.toFixed(2)}`, alerts: [] };
 }
 
-function calcExclusao(): ExpectedCalc {
-  return { expected: 0, explanation: "Exclusão: este item não deve ser pago.", alerts: ["Item excluído por regra."] };
+function calcExclusao(rule: RuleInput): ExpectedCalc {
+  const motivo = rule.exclusion_reason ? ` (motivo: ${rule.exclusion_reason})` : "";
+  const exc = rule.allows_authorized_exception
+    ? " — admite exceção autorizada pelo analista."
+    : "";
+  return {
+    expected: 0,
+    explanation: `Exclusão${motivo}: este item não deve ser pago${exc}`,
+    alerts: [`Item excluído por regra${motivo}.`],
+  };
 }
 
 function calcInformativo(): ExpectedCalc {
@@ -536,7 +544,7 @@ export function applyCalculation(
       return calcPacotePorAtendimento(rule, item, set);
     }
     case "valor_fixo":                return calcValorFixo(rule);
-    case "exclusao":                  return calcExclusao();
+    case "exclusao":                  return calcExclusao(rule);
     case "informativo":               return calcInformativo();
     case "tabela_referencia":         return calcTabelaDiferenciada(rule, item);
     case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item);
