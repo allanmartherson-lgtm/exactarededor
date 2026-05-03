@@ -909,7 +909,8 @@ const Rules = () => {
                       <Input type="number" step="0.01" value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
                     </div>
                   )}
-                  {(fCalculationType === "pacote_fechado" ||
+                  {(fCalculationType === "pacote" ||
+                    fCalculationType === "pacote_fechado" ||
                     fCalculationType === "pacote_com_extras" ||
                     fCalculationType === "pacote_por_atendimento") && (
                     <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
