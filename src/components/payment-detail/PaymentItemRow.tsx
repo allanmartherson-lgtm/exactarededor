@@ -507,6 +507,56 @@ export const PaymentItemRow = ({
                         {it.ai_findings.calculation_explanation}
                       </div>
                     )}
+                    {(alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
+                      <div className="rounded-md border border-dashed border-border/70 bg-muted/30 p-2.5 text-xs space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold uppercase tracking-wide text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                          </span>
+                          {!aiExplain && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={aiExplainLoading}
+                              onClick={requestAiExplain}
+                            >
+                              {aiExplainLoading ? (
+                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Gerando…</>
+                              ) : (
+                                <><Sparkles className="h-3 w-3 mr-1" /> Explicar com IA</>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                        {aiExplain ? (
+                          <div className="space-y-1.5">
+                            <p className="text-foreground">{aiExplain.explanation}</p>
+                            {aiExplain.possible_causes?.length > 0 && (
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Possíveis causas</p>
+                                <ul className="list-disc pl-4 text-muted-foreground">
+                                  {aiExplain.possible_causes.map((c, i) => <li key={i}>{c}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {aiExplain.what_to_check && (
+                              <p className="text-muted-foreground">
+                                <span className="font-semibold text-foreground">O que conferir: </span>
+                                {aiExplain.what_to_check}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-muted-foreground italic">
+                              IA apenas interpreta. Não altera valor, status ou regra.
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground">
+                            Gere uma interpretação contextual deste alerta (histórico, auxiliares, múltiplos procedimentos, pacote/tabela diferenciada).
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 {showExceptionAction && (
