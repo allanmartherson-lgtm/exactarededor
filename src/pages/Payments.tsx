@@ -287,8 +287,11 @@ const Payments = () => {
             <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
           </Button>
           {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly) && (
-            <Button variant="ghost" size="sm" onClick={() => setCompanyFilter(null)}>
-              <X className="h-4 w-4 mr-1" onClick={() => { setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false); }} /> Limpar
+            <Button variant="ghost" size="sm" onClick={() => {
+              setCompanyFilter(null);
+              setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+            }}>
+              <X className="h-4 w-4 mr-1" /> Limpar
             </Button>
           )}
         </div>
