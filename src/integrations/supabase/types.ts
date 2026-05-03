@@ -762,6 +762,45 @@ export type Database = {
         }
         Relationships: []
       }
+      procedure_classifications: {
+        Row: {
+          active: boolean
+          code_tuss: string
+          confidence: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          observation: string | null
+          sector_classified: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code_tuss: string
+          confidence?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          observation?: string | null
+          sector_classified?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code_tuss?: string
+          confidence?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          observation?: string | null
+          sector_classified?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
