@@ -346,6 +346,8 @@ const Rules = () => {
       package_opinions_count: isPacoteComExtras ? fPackageOpinionsCount : false,
       package_auxiliaries_included: isPacoteComExtras ? fPackageAuxIncluded : false,
       package_subtype: isPacote ? fPackageSubtype : null,
+      exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
+      allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
       target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
