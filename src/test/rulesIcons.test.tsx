@@ -3,6 +3,8 @@ import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { NAV_ITEMS, isGroup, type NavLeaf } from "@/config/navItems";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { PageHeader } from "@/components/PageHeader";
+import { BadgeDollarSign, ShieldCheck } from "lucide-react";
 
 function findLeaf(label: string): NavLeaf {
   for (const item of NAV_ITEMS) {
@@ -63,5 +65,22 @@ describe("Ícones de Regras de Pagamento vs Validação", () => {
       </MemoryRouter>
     );
     expect(getByText(VAL)).toBeInTheDocument();
+  });
+
+  it("PageHeader aceita ícone e renderiza svg distinto para cada seção", () => {
+    const { container: cPag } = render(
+      <MemoryRouter>
+        <PageHeader title={PAG} icon={BadgeDollarSign} showBack={false} />
+      </MemoryRouter>
+    );
+    const { container: cVal } = render(
+      <MemoryRouter>
+        <PageHeader title={VAL} icon={ShieldCheck} showBack={false} />
+      </MemoryRouter>
+    );
+    expect(cPag.querySelector(".lucide-badge-dollar-sign")).toBeInTheDocument();
+    expect(cVal.querySelector(".lucide-shield-check")).toBeInTheDocument();
+    expect(cPag.querySelector(".lucide-shield-check")).toBeNull();
+    expect(cVal.querySelector(".lucide-badge-dollar-sign")).toBeNull();
   });
 });
