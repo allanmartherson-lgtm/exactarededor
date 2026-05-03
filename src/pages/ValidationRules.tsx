@@ -170,7 +170,7 @@ export default function ValidationRules() {
       payment_types: form.scope_global ? [] : form.payment_types,
       company_ids: form.scope_global ? [] : form.company_ids,
       doctors: form.scope_global ? [] : form.doctors,
-      params: form.params,
+      params: form.params as never,
       require_justification: form.require_justification,
       allows_authorized_exception: form.allows_authorized_exception,
       assistance_group_id: form.kind === "sobreposicao_assistencial" ? form.assistance_group_id : null,
