@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
 import {
   ArrowRight,
   FileText,
@@ -25,7 +26,9 @@ import {
   Users,
   Send,
   FileWarning,
-  BarChart3,
+  Flame,
+  Timer,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -87,6 +90,7 @@ interface PaymentRow {
   competence_months: string[] | null;
   created_by: string | null;
   validated_by: string | null;
+  payment_type?: string | null;
 }
 
 type OwnerRole = "analista" | "validador" | "diretor" | "—";
@@ -149,6 +153,31 @@ const initialCounts: DashboardCounts = {
   pipeDivergente: 0,
   attDevolvidoAnalista: 0, attRessalvas: 0, attNFQuestionada: 0,
   attNFDivergente: 0, attRejeitados: 0,
+};
+
+// ===== util: formato compacto de duração =====
+const formatShortDuration = (ms: number) => {
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+};
+
+const PAYMENT_STATUS_SHORT: Partial<Record<PaymentStatus, string>> = {
+  em_analise_ia: "Análise IA",
+  revisao_analista: "Revisão analista",
+  aguardando_validacao: "Validação",
+  devolvido_validador: "Devolvido p/ validador",
+  devolvido_analista: "Devolvido p/ analista",
+  aguardando_aprovacao: "Aprovação diretoria",
+  aprovado: "Aprovado",
+  pedido_nf_enviado: "NF solicitada",
+  nf_recebida: "NF recebida",
+  nf_questionada: "NF questionada",
+  nf_conciliada: "NF conciliada",
+  pago: "Pago",
 };
 
 /* ================================================================
@@ -463,8 +492,16 @@ const Dashboard = () => {
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
   const [allPayments, setAllPayments] = useState<
-    Array<{ status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string }>
+    Array<{ id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string; updated_at?: string | null }>
   >([]);
+  // Mapas para cálculo de SLA
+  const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
+  const [allStatusEnteredAt, setAllStatusEnteredAt] = useState<Record<string, { status: PaymentStatus; changed_at: string }>>({});
+  const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
+  const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
+  // Tempo médio agregado por status (gargalos)
+  const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
   const {
     owner: pipelineOwner,
@@ -482,11 +519,11 @@ const Dashboard = () => {
       const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }] = await Promise.all([
         supabase
           .from("payments")
-          .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by")
+          .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
           .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("profiles").select("id,full_name,email"),
-        supabase.from("payments").select("status,created_by,validated_by,created_at"),
+        supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at"),
         supabase
           .from("invoices")
           .select("id, payment:payments!inner(created_by)")
@@ -496,15 +533,77 @@ const Dashboard = () => {
       setPayments((data ?? []) as PaymentRow[]);
       setAllPayments(
         (all ?? []) as Array<{
+          id: string;
           status: PaymentStatus;
           created_by: string | null;
           validated_by: string | null;
           created_at: string;
+          updated_at?: string | null;
         }>,
       );
       const pmap: Record<string, string> = {};
       (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
       setProfiles(pmap);
+
+      // Carrega histórico de status, SLA settings, empresas e overrides — em paralelo
+      const allIds = ((all ?? []) as Array<{ id: string }>).map((p) => p.id).filter(Boolean);
+      const [{ data: hist }, { data: slas }, { data: groups }] = await Promise.all([
+        allIds.length
+          ? supabase
+              .from("payment_status_history")
+              .select("payment_id,status_to,changed_at")
+              .in("payment_id", allIds)
+              .order("changed_at", { ascending: false })
+          : Promise.resolve({ data: [] as any[] } as any),
+        supabase.from("sla_settings").select("*").eq("active", true),
+        allIds.length
+          ? supabase.from("payment_company_groups").select("payment_id,company_id").in("payment_id", allIds)
+          : Promise.resolve({ data: [] as any[] } as any),
+      ]);
+      const seen: Record<string, string> = {};
+      const seenWithStatus: Record<string, { status: PaymentStatus; changed_at: string }> = {};
+      // Tempos médios entre transições por status (gargalos)
+      const byPayment: Record<string, Array<{ status_to: PaymentStatus; changed_at: string }>> = {};
+      (hist ?? []).forEach((h: any) => {
+        if (!seen[h.payment_id]) {
+          seen[h.payment_id] = h.changed_at;
+          seenWithStatus[h.payment_id] = { status: h.status_to as PaymentStatus, changed_at: h.changed_at };
+        }
+        (byPayment[h.payment_id] = byPayment[h.payment_id] ?? []).push({ status_to: h.status_to, changed_at: h.changed_at });
+      });
+      setStatusEnteredAt(seen);
+      setAllStatusEnteredAt(seenWithStatus);
+      const sMap: Record<string, SlaSetting> = {};
+      (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
+      setSlaSettings(sMap);
+      const cByP: Record<string, string | null> = {};
+      (groups ?? []).forEach((g: any) => { if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id; });
+      setCompanyByPayment(cByP);
+      const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
+      if (compIds.length) {
+        const { data: ovs } = await supabase.from("company_sla_overrides").select("*").in("company_id", compIds);
+        const oMap: Record<string, CompanySlaOverride> = {};
+        (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
+        setCompanyOverrides(oMap);
+      }
+      // Tempo médio em cada status (concluído → próximo) — usa intervalos do histórico
+      const accum: Record<string, { sum: number; count: number }> = {};
+      Object.values(byPayment).forEach((entries) => {
+        // entries vêm desc; reordena asc
+        const asc = [...entries].sort((a, b) => +new Date(a.changed_at) - +new Date(b.changed_at));
+        for (let i = 0; i < asc.length - 1; i++) {
+          const s = asc[i].status_to;
+          const dt = +new Date(asc[i + 1].changed_at) - +new Date(asc[i].changed_at);
+          if (dt > 0 && s) {
+            accum[s] = accum[s] ?? { sum: 0, count: 0 };
+            accum[s].sum += dt;
+            accum[s].count += 1;
+          }
+        }
+      });
+      const avg: Record<string, { avgMs: number; count: number }> = {};
+      Object.entries(accum).forEach(([s, v]) => { avg[s] = { avgMs: v.sum / v.count, count: v.count }; });
+      setAvgTimeByStatus(avg);
 
       const uid = user?.id;
       const c: DashboardCounts = { ...initialCounts };
@@ -654,6 +753,65 @@ const Dashboard = () => {
 
   const myPayments = payments.filter(isMine).slice(0, 6);
 
+  // ============================================================
+  // CÁLCULO DE SLA + URGÊNCIA
+  // ============================================================
+  const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+    "aprovado", "pago", "rejeitado", "cancelado", "nf_conciliada",
+  ]);
+
+  const slaForPayment = (p: { id: string; status: PaymentStatus; created_at: string }): { level: SlaLevel; ms: number } | null => {
+    if (TERMINAL_STATUSES.has(p.status)) return null;
+    const enteredAt = new Date(statusEnteredAt[p.id] ?? p.created_at);
+    const setting = slaSettings[p.status] ?? null;
+    const compId = companyByPayment[p.id] ?? null;
+    const ov = compId ? companyOverrides[compId] ?? null : null;
+    const ev = evaluateSla({ status: p.status, enteredAt, defaultSettings: setting, override: ov });
+    const ms = Date.now() - enteredAt.getTime();
+    if (!ev) return null;
+    return { level: ev.level, ms };
+  };
+
+  // Atenção imediata: contagem global por nível de SLA
+  const slaTotals = useMemo(() => {
+    let vencido = 0;
+    let preventivo = 0;
+    const perStatusVencido: Record<string, number> = {};
+    for (const p of allPayments) {
+      const r = slaForPayment(p);
+      if (!r) continue;
+      if (r.level === "vencido") {
+        vencido++;
+        perStatusVencido[p.status] = (perStatusVencido[p.status] ?? 0) + 1;
+      } else if (r.level === "preventivo") preventivo++;
+    }
+    return { vencido, preventivo, perStatusVencido };
+  }, [allPayments, statusEnteredAt, slaSettings, companyByPayment, companyOverrides]);
+
+  // Ordena "Pagamentos esperando você" por urgência: vencidos > preventivos > tempo
+  const myPaymentsRanked = useMemo(() => {
+    const score = (p: PaymentRow) => {
+      const r = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+      if (!r) return { lvl: 0, ms: 0 };
+      const lvl = r.level === "vencido" ? 2 : r.level === "preventivo" ? 1 : 0;
+      return { lvl, ms: r.ms };
+    };
+    return [...myPayments].sort((a, b) => {
+      const sa = score(a); const sb = score(b);
+      if (sa.lvl !== sb.lvl) return sb.lvl - sa.lvl;
+      return sb.ms - sa.ms;
+    });
+  }, [myPayments, statusEnteredAt, slaSettings, companyByPayment, companyOverrides]);
+
+  // Gargalos: status com maior tempo médio
+  const bottlenecks = useMemo(() => {
+    return Object.entries(avgTimeByStatus)
+      .filter(([s]) => !TERMINAL_STATUSES.has(s as PaymentStatus))
+      .map(([s, v]) => ({ status: s as PaymentStatus, avgMs: v.avgMs, count: v.count }))
+      .sort((a, b) => b.avgMs - a.avgMs)
+      .slice(0, 5);
+  }, [avgTimeByStatus]);
+
   const myPending =
     (isAnalista ? counts.mineAnalista + counts.mineInvoicesDivergentes + counts.mineInvoicesQuestionadas + counts.mineRessalvas : 0) +
     (isValidador ? counts.mineValidador : 0) +
@@ -691,6 +849,31 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* ATENÇÃO IMEDIATA */}
+      {!loading && (slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (
+        <section aria-labelledby="atencao-imediata-heading">
+          <SectionLabel>Atenção imediata</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
+            <AttentionTile
+              tone="critical"
+              icon={Flame}
+              label="Itens fora do SLA"
+              value={slaTotals.vencido}
+              hint="vencidos — agir agora"
+              to="/pagamentos?delayed=1"
+            />
+            <AttentionTile
+              tone="warning"
+              icon={Timer}
+              label="Próximos do SLA"
+              value={slaTotals.preventivo}
+              hint="dentro do prazo, mas perto do limite"
+              to="/pagamentos?delayed=1"
+            />
+          </div>
+        </section>
+      )}
+
       {/* SUAS TAREFAS */}
       <section aria-labelledby="suas-tarefas-heading">
         <SectionLabel>Suas tarefas</SectionLabel>
@@ -707,7 +890,13 @@ const Dashboard = () => {
                   color="purple"
                   label="Suas bases"
                   value={counts.mineAnalista}
-                  hint={counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"}
+                  hint={
+                    slaTotals.vencido > 0
+                      ? `${slaTotals.vencido} fora do SLA`
+                      : slaTotals.preventivo > 0
+                      ? `${slaTotals.preventivo} perto do SLA`
+                      : counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"
+                  }
                   mine={counts.mineAnalista > 0}
                   to="/pagamentos?owner=me&status=analista"
                 />
@@ -804,9 +993,19 @@ const Dashboard = () => {
             </div>
           ) : (
             <div>
-              {myPayments.map((p) => (
-                <TaskRow key={p.id} p={p} mine profiles={profiles} />
-              ))}
+              {myPaymentsRanked.map((p) => {
+                const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+                return (
+                  <TaskRow
+                    key={p.id}
+                    p={p}
+                    mine
+                    profiles={profiles}
+                    timeMs={sla?.ms}
+                    slaLevel={sla?.level}
+                  />
+                );
+              })}
             </div>
           )}
         </SurfaceCard>
@@ -904,7 +1103,23 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   visibleCols.map((item, index) => (
-                    <PipelineCol key={item.label} {...item} density={pipelineDensity} separated={index > 0} />
+                    <PipelineCol
+                      key={item.label}
+                      {...item}
+                      delayed={
+                        // mapeia label de coluna -> status equivalente p/ contar atrasados
+                        item.label === "Análise" ? (slaTotals.perStatusVencido["em_analise_ia"] ?? 0) + (slaTotals.perStatusVencido["revisao_analista"] ?? 0)
+                        : item.label === "Validação" ? (slaTotals.perStatusVencido["aguardando_validacao"] ?? 0)
+                        : item.label === "Aprovação" ? (slaTotals.perStatusVencido["aguardando_aprovacao"] ?? 0)
+                        : item.label === "Aguardando" ? (slaTotals.perStatusVencido["aprovado"] ?? 0)
+                        : item.label === "NF solicitada" ? (slaTotals.perStatusVencido["pedido_nf_enviado"] ?? 0)
+                        : item.label === "NF recebida" ? (slaTotals.perStatusVencido["nf_recebida"] ?? 0)
+                        : item.label === "Divergente" ? (slaTotals.perStatusVencido["nf_questionada"] ?? 0)
+                        : 0
+                      }
+                      density={pipelineDensity}
+                      separated={index > 0}
+                    />
                   ))
                 )}
               </div>
@@ -931,17 +1146,16 @@ const Dashboard = () => {
             </div>
           </SurfaceCard>
           <SurfaceCard>
-            <SurfaceCardHeader title="KPIs do período" icon={BarChart3} iconColor="purple" />
-            <div
-              style={{
-                padding: "48px 22px",
-                textAlign: "center",
-                fontSize: 13,
-                color: "hsl(var(--muted-foreground))",
-              }}
-            >
-              Em breve: indicadores agregados de tempo médio e SLA.
-            </div>
+            <SurfaceCardHeader title="Gargalos do processo" icon={Flame} iconColor="red" />
+            {loading ? (
+              <div style={{ padding: 22 }}>
+                <Skeleton className="h-4 w-1/2 mb-3" />
+                <Skeleton className="h-4 w-2/3 mb-3" />
+                <Skeleton className="h-4 w-1/3" />
+              </div>
+            ) : (
+              <BottlenecksList rows={bottlenecks} />
+            )}
           </SurfaceCard>
         </div>
       </section>
@@ -957,13 +1171,23 @@ const TaskRow = ({
   p,
   mine,
   profiles,
+  timeMs,
+  slaLevel,
 }: {
   p: PaymentRow;
   mine: boolean;
   profiles: Record<string, string>;
+  timeMs?: number;
+  slaLevel?: SlaLevel;
 }) => {
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
+  const slaTone =
+    slaLevel === "vencido"
+      ? { bg: "hsl(var(--destructive) / 0.12)", fg: "hsl(var(--destructive))", label: "Vencido" }
+      : slaLevel === "preventivo"
+      ? { bg: "hsl(var(--warning, 38 92% 50%) / 0.15)", fg: "hsl(var(--warning, 38 92% 50%))", label: "Perto do SLA" }
+      : null;
   return (
     <Link
       to={`/pagamentos/${p.id}`}
@@ -978,6 +1202,7 @@ const TaskRow = ({
         textDecoration: "none",
         color: "inherit",
         transition: "background 0.15s ease",
+        background: slaLevel === "vencido" ? "hsl(var(--destructive) / 0.04)" : undefined,
       }}
     >
       <div className="min-w-0 flex-1">
@@ -1004,6 +1229,27 @@ const TaskRow = ({
           <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
             {p.reference}
           </p>
+          {slaTone && (
+            <span
+              style={{
+                fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
+                background: slaTone.bg, color: slaTone.fg, borderRadius: 20, padding: "3px 8px", lineHeight: 1,
+              }}
+            >
+              {slaTone.label}
+            </span>
+          )}
+          {timeMs != null && (
+            <span
+              style={{
+                fontSize: 11, color: "hsl(var(--muted-foreground))",
+                display: "inline-flex", alignItems: "center", gap: 3,
+              }}
+              title="Tempo no status atual"
+            >
+              <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
+            </span>
+          )}
         </div>
         <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
           <span className="capitalize">
@@ -1012,6 +1258,7 @@ const TaskRow = ({
           {" · "}{p.items_count} itens
           {" · "}{formatCurrency(p.total_amount)}
           {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
+          {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
           {" · "}{formatDate(p.created_at)}
         </p>
       </div>
@@ -1028,6 +1275,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
   to: string;
   density: PipelineDensity;
   separated: boolean;
+  delayed?: number;
 }>(({
   icon: Icon,
   color,
@@ -1036,6 +1284,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
   to,
   density,
   separated,
+  delayed = 0,
 }, ref) => {
   const comfortable = density === "comfortable";
   return (
@@ -1055,8 +1304,24 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         transition: "background 0.15s ease",
         boxShadow: separated ? "inset 1px 0 0 hsl(var(--border) / 0.8)" : undefined,
         minWidth: 0,
+        position: "relative",
       }}
     >
+    {delayed > 0 && (
+      <span
+        title={`${delayed} fora do SLA`}
+        style={{
+          position: "absolute", top: 6, right: 6,
+          background: "hsl(var(--destructive))",
+          color: "hsl(var(--destructive-foreground))",
+          fontSize: 10, fontWeight: 700, lineHeight: 1,
+          padding: "3px 6px", borderRadius: 999,
+          display: "inline-flex", alignItems: "center", gap: 3,
+        }}
+      >
+        <AlertTriangle size={9} aria-hidden /> {delayed}
+      </span>
+    )}
     <div
       style={{
         width: comfortable ? 40 : 32,
@@ -1139,6 +1404,148 @@ const PaymentRowsSkeleton = ({ count = 3 }: { count?: number }) => (
     ))}
   </div>
 );
+
+/* ================================================================
+   ATENÇÃO IMEDIATA + GARGALOS
+   ================================================================ */
+
+const AttentionTile = ({
+  tone,
+  icon: Icon,
+  label,
+  value,
+  hint,
+  to,
+}: {
+  tone: "critical" | "warning";
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  hint?: string;
+  to: string;
+}) => {
+  const tokens =
+    tone === "critical"
+      ? {
+          border: "hsl(var(--destructive) / 0.45)",
+          bg: "hsl(var(--destructive) / 0.08)",
+          icon: "hsl(var(--destructive))",
+          value: "hsl(var(--destructive))",
+        }
+      : {
+          border: "hsl(var(--warning, 38 92% 50%) / 0.45)",
+          bg: "hsl(var(--warning, 38 92% 50%) / 0.08)",
+          icon: "hsl(var(--warning, 38 92% 50%))",
+          value: "hsl(var(--foreground))",
+        };
+  return (
+    <Link
+      to={to}
+      className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      style={{
+        background: tokens.bg,
+        border: `1px solid ${tokens.border}`,
+        borderRadius: 12,
+        padding: 18,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        textDecoration: "none",
+        color: "inherit",
+      }}
+      aria-label={`${label}: ${value}${hint ? `, ${hint}` : ""}`}
+    >
+      <div
+        style={{
+          width: 40, height: 40, borderRadius: 10,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: tokens.bg, color: tokens.icon, flexShrink: 0,
+          border: `1px solid ${tokens.border}`,
+        }}
+      >
+        <Icon size={20} strokeWidth={2} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "hsl(var(--muted-foreground))" }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.1, color: tokens.value, fontVariantNumeric: "tabular-nums" }}>
+          {value}
+        </div>
+        {hint && <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>{hint}</div>}
+      </div>
+      <ArrowRight size={16} style={{ color: "hsl(var(--muted-foreground))", flexShrink: 0 }} aria-hidden />
+    </Link>
+  );
+};
+
+const BottlenecksList = ({
+  rows,
+}: {
+  rows: Array<{ status: PaymentStatus; avgMs: number; count: number }>;
+}) => {
+  if (!rows.length) {
+    return (
+      <div style={{ padding: "28px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+        Sem dados suficientes para identificar gargalos.
+      </div>
+    );
+  }
+  const max = rows[0]?.avgMs ?? 1;
+  return (
+    <div>
+      {rows.map((r, i) => {
+        const pct = Math.max(8, Math.round((r.avgMs / max) * 100));
+        return (
+          <div
+            key={r.status}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "20px 1fr auto",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 22px",
+              borderTop: i === 0 ? undefined : "1px solid hsl(var(--border))",
+            }}
+          >
+            <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", fontVariantNumeric: "tabular-nums" }}>
+              {i + 1}
+            </span>
+            <div className="min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+                {PAYMENT_STATUS_SHORT[r.status] ?? r.status}
+              </div>
+              <div
+                aria-hidden
+                style={{
+                  marginTop: 6,
+                  height: 4,
+                  borderRadius: 4,
+                  background: "hsl(var(--muted))",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: `${pct}%`,
+                    background: i === 0 ? "hsl(var(--destructive))" : "hsl(var(--primary))",
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+            </div>
+            <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "hsl(var(--foreground))", fontWeight: 600 }}>
+              {formatShortDuration(r.avgMs)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 // silence unused (some imports used conditionally)
 void cn;
