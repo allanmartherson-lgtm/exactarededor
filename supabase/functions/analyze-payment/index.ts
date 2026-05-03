@@ -92,6 +92,32 @@ serve(async (req) => {
     }
     const { data: itemsRaw } = await itemsQuery;
 
+    // ---------- 3.1 Classificação determinística por código TUSS ----------
+    // Roda ANTES da seleção de regras de pagamento.
+    const codes = Array.from(new Set(
+      (itemsRaw ?? []).map((it: any) => (it.procedure_code ?? "").toString().trim()).filter(Boolean),
+    ));
+    const classificationByCode: Record<string, { sector: string; source: string; confidence: string }> = {};
+    if (codes.length > 0) {
+      const { data: classRows } = await supabase
+        .from("procedure_classifications")
+        .select("code_tuss,sector_classified,confidence,active")
+        .in("code_tuss", codes)
+        .eq("active", true);
+      for (const c of (classRows ?? []) as any[]) {
+        // primeira classificação ativa por código vence (índice único garante 1 por setor)
+        if (!classificationByCode[c.code_tuss]) {
+          classificationByCode[c.code_tuss] = {
+            sector: c.sector_classified,
+            source: c.sector_classified === "hemodinamica"
+              ? "tabela_procedimentos_hemodinamica"
+              : `tabela_procedimentos_${c.sector_classified}`,
+            confidence: c.confidence ?? "alta",
+          };
+        }
+      }
+    }
+
     // Carrega CNPJ das empresas referenciadas (para casamento de regras por empresa)
     const companyIds = Array.from(new Set(
       (itemsRaw ?? []).map((it: any) => it.company_id).filter(Boolean),
@@ -105,7 +131,10 @@ serve(async (req) => {
       for (const c of cs ?? []) companyDocs[c.id as string] = (c.document as string | null) ?? null;
     }
 
-    const items: ItemInput[] = (itemsRaw ?? []).map((it: any) => ({
+    const items: ItemInput[] = (itemsRaw ?? []).map((it: any) => {
+      const code = (it.procedure_code ?? "").toString().trim();
+      const cls = code ? classificationByCode[code] : undefined;
+      return ({
       id: it.id,
       doctor_name: it.doctor_name,
       doctor_document: it.doctor_document,
@@ -127,7 +156,11 @@ serve(async (req) => {
       exception_reason: it.exception_reason ?? null,
       exception_authorizer: it.exception_authorizer ?? null,
       exception_note: it.exception_note ?? null,
-    }));
+      classification_sector: cls?.sector ?? null,
+      classification_source: cls?.source ?? null,
+      classification_confidence: cls?.confidence ?? null,
+    });
+    });
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
     const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx);
