@@ -824,20 +824,52 @@ const Rules = () => {
                   </div>
                 )}
 
-                <div className="space-y-1.5"><Label>Tipo de regra</Label>
-                  <Select value={ruleType} onValueChange={(v) => setRuleType(v as RuleType)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">{RULE_TYPE_DESCRIPTIONS[ruleType]}</p>
-                </div>
-
-                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
-                  <Label>Tipo de cálculo (motor determinístico) *</Label>
-                  <Select value={fCalculationType} onValueChange={(v) => setFCalculationType(v as RuleCalculationType)}>
+                <div className="space-y-1.5">
+                  <Label>Natureza da regra *</Label>
+                  <Select
+                    value={fNature}
+                    onValueChange={(v) => {
+                      const nat = v as "calculavel" | "informativo";
+                      setFNature(nat);
+                      if (nat === "informativo") {
+                        setFCalculationType("informativo");
+                        setRuleType("informativo");
+                        setRefTableId("");
+                      } else if (fCalculationType === "informativo") {
+                        // ao virar calculável, escolhe um default neutro
+                        setFCalculationType("percentual_sobre_convenio");
+                        setRuleType(deriveRuleType("percentual_sobre_convenio"));
+                      }
+                    }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {(Object.keys(RULE_CALCULATION_TYPE_LABELS) as RuleCalculationType[]).map((k) => (
+                      <SelectItem value="calculavel">Calculável</SelectItem>
+                      <SelectItem value="informativo">Informativa / bloqueio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {fNature === "informativo"
+                      ? "Regra apenas alerta/bloqueia o validador — não calcula valor esperado."
+                      : "Regra calcula um valor esperado pelo motor determinístico."}
+                  </p>
+                </div>
+
+                {fNature === "calculavel" && (
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <Label>Método de cálculo *</Label>
+                  <Select
+                    value={fCalculationType}
+                    onValueChange={(v) => {
+                      const c = v as RuleCalculationType;
+                      setFCalculationType(c);
+                      setRuleType(deriveRuleType(c));
+                      if (c !== "tabela_diferenciada") setRefTableId("");
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CALCULABLE_METHODS.map((k) => (
                         <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
                       ))}
                     </SelectContent>
@@ -854,6 +886,22 @@ const Rules = () => {
                     <div className="space-y-1 mt-2">
                       <Label className="text-xs">Valor fixo (R$)</Label>
                       <Input type="number" step="0.01" value={fFixedAmount} onChange={(e) => setFFixedAmount(e.target.value)} />
+                    </div>
+                  )}
+                  {fCalculationType === "bonus" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                      <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
+                        <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
+                      </div>
+                      <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
+                        <Input type="number" step="0.01" value={fBonusPct} onChange={(e) => setFBonusPct(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                  {fCalculationType === "complemento" && (
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-xs">Valor alvo (R$) *</Label>
+                      <Input type="number" step="0.01" value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
                     </div>
                   )}
                   {(fCalculationType === "pacote_fechado" ||
@@ -916,18 +964,21 @@ const Rules = () => {
                     </div>
                   )}
                 </div>
+                )}
 
-                <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
-                  <Label>Tabela de referência (opcional)</Label>
-                  <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder={refTables.length ? "Sem vínculo" : "Cadastre uma tabela"} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">Sem vínculo</SelectItem>
-                      {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Vincular a uma tabela já cadastrada simplifica a regra — basta complementar com os pontos específicos.</p>
-                </div>
+                {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && (
+                  <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                    <Label>Tabela de referência *</Label>
+                    <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecionar tabela" : "Cadastre uma tabela"} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Sem vínculo</SelectItem>
+                        {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">A tabela fornece apenas a base de valores; os parâmetros financeiros pertencem à regra.</p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
@@ -952,15 +1003,7 @@ const Rules = () => {
                   </div>
                 </div>
 
-                {ruleType === "pacote" &&
-                  fCalculationType !== "pacote_fechado" &&
-                  fCalculationType !== "pacote_com_extras" &&
-                  fCalculationType !== "pacote_por_atendimento" && (
-                  <div className="space-y-1.5"><Label>Valor do pacote (R$)</Label>
-                    <Input type="number" step="0.01" required value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
-                  </div>
-                )}
-                {ruleType === "tabela_diferenciada" && refTableId && (
+                {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && refTableId && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[13.5px] font-semibold">Parâmetros de cálculo da tabela</h3>
@@ -1001,26 +1044,11 @@ const Rules = () => {
                     )}
                   </div>
                 )}
-                {ruleType === "tabela_diferenciada" && !refTableId && (
+                {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && !refTableId && (
                   <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
                     <p className="text-xs text-muted-foreground">
                       Vincule uma <strong>Tabela de referência</strong> acima para definir os <strong>parâmetros de cálculo</strong> desta regra.
                     </p>
-                  </div>
-                )}
-                {ruleType === "bonus" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5"><Label>Bônus fixo (R$)</Label>
-                      <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
-                    </div>
-                    <div className="space-y-1.5"><Label>Bônus (%)</Label>
-                      <Input type="number" step="0.01" value={fBonusPct} onChange={(e) => setFBonusPct(e.target.value)} />
-                    </div>
-                  </div>
-                )}
-                {ruleType === "complemento" && (
-                  <div className="space-y-1.5"><Label>Valor alvo (R$)</Label>
-                    <Input type="number" step="0.01" required value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
                   </div>
                 )}
 
