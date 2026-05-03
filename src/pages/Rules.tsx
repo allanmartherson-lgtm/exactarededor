@@ -280,7 +280,25 @@ const Rules = () => {
       extras_codes: fCalculationType === "pacote_com_extras"
         ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
-      package_amount: ruleType === "pacote" ? num(fPackageAmount) : null,
+      package_amount: (
+        ruleType === "pacote" ||
+        fCalculationType === "pacote_fechado" ||
+        fCalculationType === "pacote_com_extras" ||
+        fCalculationType === "pacote_por_atendimento"
+      ) ? num(fPackageAmount) : null,
+      package_main_code: (
+        fCalculationType === "pacote_fechado" ||
+        fCalculationType === "pacote_com_extras" ||
+        fCalculationType === "pacote_por_atendimento"
+      ) ? (fPackageMainCode.trim() || null) : null,
+      package_included_codes: (
+        fCalculationType === "pacote_fechado" ||
+        fCalculationType === "pacote_com_extras" ||
+        fCalculationType === "pacote_por_atendimento"
+      ) ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null) : null,
+      package_visits_count: fPackageVisitsCount,
+      package_opinions_count: fPackageOpinionsCount,
+      package_auxiliaries_included: fPackageAuxIncluded,
       bonus_amount: ruleType === "bonus" ? num(fBonusAmount) : null,
       bonus_pct: ruleType === "bonus" ? num(fBonusPct) : null,
       target_amount: ruleType === "complemento" ? num(fTargetAmount) : null,
