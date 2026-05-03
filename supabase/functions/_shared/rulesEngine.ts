@@ -607,6 +607,27 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   return { status: "reprovado", diff_pct: diff };
 }
 
+/**
+ * Quando há exceção autorizada à exclusão, procura a próxima regra aplicável
+ * que seja calculável (não "exclusao" e não "informativo"), respeitando a
+ * mesma hierarquia de precedência. Retorna null se não houver.
+ */
+function findNextCalculableRule(
+  item: ItemInput,
+  rules: RuleInput[],
+  excludeId: string,
+): { rule: RuleInput; priority: RuleMatchPriority } | null {
+  const remaining = rules.filter(
+    (r) =>
+      r.id !== excludeId &&
+      r.calculation_type !== "exclusao" &&
+      r.calculation_type !== "informativo",
+  );
+  const out = selectWinningRule(item, remaining);
+  if (out && out.rule) return { rule: out.rule, priority: out.priority };
+  return null;
+}
+
 export function analyzeItem(
   item: ItemInput,
   preFilteredRules: RuleInput[],
