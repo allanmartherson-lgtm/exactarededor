@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Payments from "./pages/Payments.tsx";
 import NewPayment from "./pages/NewPayment.tsx";
 import PaymentDetail from "./pages/PaymentDetail.tsx";
+import CompanyAnalysis from "./pages/CompanyAnalysis.tsx";
 import Rules from "./pages/Rules.tsx";
 import ValidationRules from "./pages/ValidationRules.tsx";
 import ReferenceTables from "./pages/ReferenceTables.tsx";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/pagamentos" element={<Payments />} />
               <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
               <Route path="/pagamentos/:id" element={<PaymentDetail />} />
+              <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
               <Route path="/notas-fiscais" element={<Invoices />} />
               <Route path="/kpis" element={<Kpis />} />
               <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />

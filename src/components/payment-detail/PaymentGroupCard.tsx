@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
 import {
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   Receipt,
   RefreshCcw,
   RotateCcw,
@@ -38,6 +40,26 @@ import type {
 } from "@/hooks/usePaymentDetailData";
 import { scoreAttendance, classifyRisk, RISK_LABELS } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
+
+function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          to={`/pagamentos/${id}/empresa/${groupId}`}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="Abrir análise dedicada da empresa"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent>Abrir análise dedicada</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export type PaymentGroupCardProps = {
   g: GroupRow;
@@ -261,6 +283,7 @@ export const PaymentGroupCard = ({
             <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
           )}
           <StatusBadge status={gStatus} />
+          <DedicatedAnalysisLink groupId={g.id} />
         </div>
       </button>
 
