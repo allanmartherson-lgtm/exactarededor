@@ -156,6 +156,31 @@ const initialCounts: DashboardCounts = {
   attNFDivergente: 0, attRejeitados: 0,
 };
 
+// ===== util: formato compacto de duração =====
+const formatShortDuration = (ms: number) => {
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+};
+
+const PAYMENT_STATUS_SHORT: Partial<Record<PaymentStatus, string>> = {
+  em_analise_ia: "Análise IA",
+  revisao_analista: "Revisão analista",
+  aguardando_validacao: "Validação",
+  devolvido_validador: "Devolvido p/ validador",
+  devolvido_analista: "Devolvido p/ analista",
+  aguardando_aprovacao: "Aprovação diretoria",
+  aprovado: "Aprovado",
+  pedido_nf_enviado: "NF solicitada",
+  nf_recebida: "NF recebida",
+  nf_questionada: "NF questionada",
+  nf_conciliada: "NF conciliada",
+  pago: "Pago",
+};
+
 /* ================================================================
    PRESENTATION PRIMITIVES
    ================================================================ */
