@@ -46,7 +46,116 @@ interface ParsedRow {
   procedure_date: string | null;
   patient_name: string | null;
   raw_data: Record<string, unknown>;
+  tipo_linha: LineType;
+  line_issues: LineIssue[];
 }
+
+// === Classificação de tipo_linha (pré-validação) ===
+export type LineType =
+  | "procedimento"
+  | "visita"
+  | "parecer"
+  | "pacote"
+  | "complemento_bonus"
+  | "glosa_desconto"
+  | "reprocessamento"
+  | "outro";
+
+export interface LineIssue {
+  severity: "critico" | "alerta";
+  field: string;
+  message: string;
+}
+
+const LINE_TYPE_LABELS: Record<LineType, string> = {
+  procedimento: "Procedimento",
+  visita: "Visita",
+  parecer: "Parecer",
+  pacote: "Pacote",
+  complemento_bonus: "Complemento/Bônus",
+  glosa_desconto: "Glosa/Desconto",
+  reprocessamento: "Reprocessamento/Pendência",
+  outro: "Outro / Não identificado",
+};
+
+const COMPLEMENTO_TERMS = [
+  "bonus", "bônus", "complemento", "adicional", "diferenca", "diferença",
+  "ajuste de valor", "complemento pacote", "complemento cirurg",
+  "produtividade", "incentivo", "valor complementar",
+];
+const GLOSA_TERMS = ["glosa", "desconto", "abatimento", "devolução", "devolucao", "estorno", "ajuste negativo"];
+const REPROC_TERMS = ["retroativo", "pendência", "pendencia", "competência anterior", "competencia anterior", "ajuste mês anterior", "ajuste mes anterior"];
+const PACOTE_TERMS = ["pacote"];
+const VISITA_TERMS = ["visita"];
+const PARECER_TERMS = ["parecer"];
+const CIRURGIA_TERMS = ["cirurgia", "cirurg", "procedimento"];
+
+const containsAny = (txt: string, terms: string[]) => {
+  const t = txt.toLowerCase();
+  return terms.some((w) => t.includes(w.toLowerCase()));
+};
+
+const classifyLine = (
+  r: Omit<ParsedRow, "tipo_linha" | "line_issues">,
+  paymentKind?: string | null,
+): LineType => {
+  const blob = `${r.description ?? ""} ${r.procedure_name ?? ""} ${r.doctor_role ?? ""}`;
+  if (containsAny(blob, GLOSA_TERMS) || (r.gross_amount ?? 0) < 0) return "glosa_desconto";
+  if (containsAny(blob, COMPLEMENTO_TERMS)) return "complemento_bonus";
+  if (paymentKind === "pendencia" || containsAny(blob, REPROC_TERMS)) return "reprocessamento";
+  if (containsAny(blob, PACOTE_TERMS)) return "pacote";
+  if (containsAny(blob, VISITA_TERMS)) return "visita";
+  if (containsAny(blob, PARECER_TERMS)) return "parecer";
+  if (r.procedure_code || containsAny(blob, CIRURGIA_TERMS)) return "procedimento";
+  return "outro";
+};
+
+const validateLine = (
+  r: Omit<ParsedRow, "line_issues">,
+): LineIssue[] => {
+  const issues: LineIssue[] = [];
+  const hasDoctor = !!r.doctor_name?.trim();
+  const hasValue = Math.abs(r.gross_amount ?? 0) > 0;
+  const hasAtt = !!r.attendance_number?.trim() || !!r.patient_name?.trim();
+  const hasCode = !!r.procedure_code?.trim();
+  const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
+
+  switch (r.tipo_linha) {
+    case "procedimento":
+      if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasCode && !hasDesc) issues.push({ severity: "critico", field: "procedure_code", message: "Código TUSS ou descrição obrigatório" });
+      if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento/paciente recomendado" });
+      break;
+    case "visita":
+    case "parecer":
+      if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      break;
+    case "pacote":
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor total obrigatório" });
+      if (!hasAtt) issues.push({ severity: "critico", field: "attendance_number", message: "Atendimento/paciente obrigatório no pacote" });
+      if (!hasCode) issues.push({ severity: "alerta", field: "procedure_code", message: "Código principal recomendado" });
+      break;
+    case "complemento_bonus":
+      if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasAtt) issues.push({ severity: "alerta", field: "attendance_number", message: "Atendimento ausente — recomendado" });
+      break;
+    case "glosa_desconto":
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasDesc) issues.push({ severity: "critico", field: "description", message: "Motivo/descrição obrigatório" });
+      break;
+    case "reprocessamento":
+      if (!hasValue) issues.push({ severity: "critico", field: "gross_amount", message: "Valor obrigatório" });
+      if (!hasDoctor) issues.push({ severity: "alerta", field: "doctor_name", message: "Médico recomendado" });
+      break;
+    case "outro":
+      issues.push({ severity: "alerta", field: "tipo_linha", message: "Tipo de lançamento não identificado — classificar manualmente" });
+      break;
+  }
+  return issues;
+};
 
 interface FileBucket {
   file: File;
