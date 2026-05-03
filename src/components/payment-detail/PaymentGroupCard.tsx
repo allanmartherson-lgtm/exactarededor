@@ -204,7 +204,6 @@ export const PaymentGroupCard = ({
     ...Array.from(attendanceScores.values()).map((s) => s.score),
   );
   const groupRisk = classifyRisk(groupMaxScore);
-  const itemRiskByAtt = new Map<string, ReturnType<typeof scoreAttendance>>(attendanceScores);
 
   return (
     <Card className="shadow-card overflow-hidden">
