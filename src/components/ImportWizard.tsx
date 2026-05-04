@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -59,8 +60,8 @@ interface Props {
 export function ImportWizard({ open, onOpenChange, title, profile, onComplete }: Props) {
   const [step, setStep] = useState<Step>("upload");
   const [busy, setBusy] = useState(false);
-  const [storagePath, setStoragePath] = useState<string>("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
+  const [rowsBySheet, setRowsBySheet] = useState<Record<string, any[]>>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
   const [mapping, setMapping] = useState<Record<string, string | null>>({});
   const [validation, setValidation] = useState<{
@@ -79,8 +80,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   useEffect(() => {
     if (!open) {
       setStep("upload");
-      setStoragePath("");
       setSheets([]);
+      setRowsBySheet({});
       setActiveSheet("");
       setMapping({});
       setValidation(null);
@@ -102,14 +103,9 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const handleFile = async (file: File) => {
     setBusy(true);
     try {
-      const path = `${Date.now()}-${crypto.randomUUID()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-      const { error: upErr } = await supabase.storage
-        .from("import-uploads")
-        .upload(path, file, { upsert: false });
-      if (upErr) throw upErr;
-      setStoragePath(path);
-      const data = await callFn({ mode: "parse", storagePath: path });
-      setSheets(data.sheets ?? []);
+      const data = await readWorkbookSheets(file);
+      setRowsBySheet(data.rowsBySheet);
+      setSheets(data.sheets);
       const first = data.sheets?.[0];
       if (first) {
         setActiveSheet(first.name);
@@ -127,14 +123,13 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const runValidation = async () => {
     setBusy(true);
     try {
-      const data = await callFn({
-        mode: "preview",
-        storagePath,
-        sheetName: activeSheet,
-        mapping,
-        profile,
+      const { allRows, records, errors, dups } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
+      setValidation({
+        summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
+        errors: errors.slice(0, 50),
+        duplicates: dups.slice(0, 50),
+        sample: records.slice(0, 10),
       });
-      setValidation(data);
       setStep("validate");
     } catch (e: any) {
       toast({ title: "Erro na validação", description: e?.message, variant: "destructive" });
@@ -167,13 +162,25 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
     setBusy(true);
     try {
-      const data = await callFn({
-        mode: "commit",
-        storagePath,
-        sheetName: activeSheet,
-        mapping,
-        profile: { ...profile, importMode },
-      });
+      const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
+      const totals: CommitResult = { total: allRows.length, inserted: 0, updated: 0, created: 0, removed_before_replace: 0, skipped: 0, validation_errors: validation?.summary.errors ?? 0, duplicates: validation?.summary.duplicates ?? 0, insert_errors: [] };
+      const CHUNK = 250;
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const data = await callFn({
+          mode: "commit",
+          records: records.slice(i, i + CHUNK),
+          totalRows: records.slice(i, i + CHUNK).length,
+          replaceBefore: i === 0,
+          profile: { ...profile, importMode },
+        });
+        totals.inserted += data.inserted ?? 0;
+        totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
+        totals.created = (totals.created ?? 0) + (data.created ?? 0);
+        totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
+        totals.insert_errors.push(...(data.insert_errors ?? []));
+      }
+      totals.skipped = totals.validation_errors + totals.duplicates + Math.max(0, records.length - totals.inserted);
+      const data = totals;
       const res: CommitResult = {
         total: data.total ?? 0,
         inserted: data.inserted ?? 0,
@@ -505,6 +512,44 @@ function stepLabel(s: Step) {
   return { upload: "1. Upload", preview: "2. Mapeamento", validate: "3. Validação", done: "4. Concluído" }[s];
 }
 
+async function readWorkbookSheets(file: File): Promise<{ sheets: Sheet[]; rowsBySheet: Record<string, any[]> }> {
+  const isCsv = /\.csv$/i.test(file.name);
+  const wb = isCsv
+    ? XLSX.read(await file.text(), { type: "string", raw: false })
+    : XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false, cellNF: false, cellText: false, cellFormula: false, cellHTML: false });
+  const rowsBySheet: Record<string, any[]> = {};
+  const sheets = (wb.SheetNames ?? []).map((name) => {
+    const ws = wb.Sheets[name];
+    const rows = ws ? XLSX.utils.sheet_to_json<any>(ws, { defval: "", raw: false }) : [];
+    rowsBySheet[name] = rows;
+    const headers = rows.length ? Object.keys(rows[0]) : [];
+    return { name, headers, total: rows.length, preview: rows.slice(0, 20) };
+  });
+  return { sheets, rowsBySheet };
+}
+
+function buildImportPayload(
+  rows: any[],
+  mapping: Record<string, string | null>,
+  fields: ImportFieldDef[],
+  fixedContext: Record<string, any> | undefined,
+  entity: ImportProfile["entity"],
+) {
+  const mapped = applyMapping(rows, mapping, fields);
+  const { valid, errors, dups } = validateRows(mapped, fields);
+  const fixed = fixedContext ?? {};
+  const records = valid.map((r) => {
+    const rec: Record<string, any> = { ...r, ...fixed };
+    if (entity === "reference_table_items" && (rec.code == null || rec.code === "") && rec.package_id) rec.code = String(rec.package_id);
+    if (entity === "doctors") {
+      if (typeof rec.crm === "string") rec.crm = rec.crm.replace(/\D/g, "");
+      if (typeof rec.crm_uf === "string") rec.crm_uf = rec.crm_uf.toUpperCase().trim();
+    }
+    return rec;
+  });
+  return { allRows: rows, records, errors, dups };
+}
+
 const norm = (s: any) =>
   String(s ?? "")
     .toLowerCase()
@@ -530,4 +575,59 @@ function suggestMapping(headers: string[], fields: ImportFieldDef[]) {
     if (best) used.add(best);
   }
   return out;
+}
+
+const parseNumber = (v: any): number | null => {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  let s = String(v).trim().replace(/[R$\s]/g, "");
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (s.includes(",")) s = s.replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[]) {
+  return rows.map((row) => {
+    const out: Record<string, any> = {};
+    for (const f of fields) {
+      const src = mapping[f.key];
+      const raw = src ? row[src] : undefined;
+      if (f.type === "number") out[f.key] = parseNumber(raw);
+      else if (f.type === "boolean") {
+        const s = String(raw ?? "").toLowerCase().trim();
+        out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
+      } else if (f.type === "array") {
+        const s = String(raw ?? "").trim();
+        out[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
+      } else out[f.key] = raw == null ? null : String(raw).trim();
+    }
+    return out;
+  });
+}
+
+function validateRows(mapped: any[], fields: ImportFieldDef[]) {
+  const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
+  const uniqueKeys = fields.filter((f) => f.uniqueKey).map((f) => f.key);
+  const seen = new Set<string>();
+  const errors: { row: number; reason: string }[] = [];
+  const dups: { row: number; key: string }[] = [];
+  const valid: any[] = [];
+  mapped.forEach((r, i) => {
+    const missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" || (Array.isArray(r[k]) && r[k].length === 0));
+    if (missing.length) {
+      errors.push({ row: i + 2, reason: `Campos obrigatórios ausentes: ${missing.join(", ")}` });
+      return;
+    }
+    if (uniqueKeys.length) {
+      const k = uniqueKeys.map((u) => String(r[u]).toLowerCase()).join("||");
+      if (seen.has(k)) {
+        dups.push({ row: i + 2, key: k });
+        return;
+      }
+      seen.add(k);
+    }
+    valid.push(r);
+  });
+  return { valid, errors, dups };
 }

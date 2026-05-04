@@ -1,14 +1,11 @@
 // Edge function genérica para o fluxo de importação Excel/CSV.
-// Modos:
-//  - "parse"   : baixa o arquivo do storage, devolve abas, headers e 20 linhas de prévia
-//  - "preview" : aplica mapping numa aba e devolve resumo de validação (não grava)
-//  - "commit"  : aplica mapping, valida e insere no banco (dedup por chaves naturais)
+// Modo:
+//  - "commit"  : recebe linhas já mapeadas/validadas no navegador e grava no banco
 //
-// O cliente envia: { mode, storagePath, sheetName?, mapping?, profile? }
+// O cliente envia: { mode, records, totalRows?, replaceBefore?, profile }
 // profile descreve a entidade-alvo, campos obrigatórios e contexto fixo.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,102 +56,8 @@ const ENTITY_KEYS: Partial<Record<Profile["entity"], string[]>> = {
   cost_centers: ["code_p12"],
 };
 
-const norm = (s: any) =>
-  String(s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
-
-const parseNumber = (v: any): number | null => {
-  if (v == null || v === "") return null;
-  if (typeof v === "number") return isFinite(v) ? v : null;
-  let s = String(v).trim().replace(/[R$\s]/g, "");
-  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
-  else if (s.includes(",")) s = s.replace(",", ".");
-  const n = Number(s);
-  return isFinite(n) ? n : null;
-};
-
-function suggestMapping(headers: string[], fields: FieldDef[]) {
-  const out: Record<string, string | null> = {};
-  const used = new Set<string>();
-  for (const f of fields) {
-    const candidates = [f.key, f.label, ...(f.aliases ?? [])].map(norm);
-    let best: string | null = null;
-    for (const h of headers) {
-      if (used.has(h)) continue;
-      const nh = norm(h);
-      if (candidates.includes(nh) || candidates.some((c) => c && nh.includes(c))) {
-        best = h;
-        break;
-      }
-    }
-    out[f.key] = best;
-    if (best) used.add(best);
-  }
-  return out;
-}
-
-// Lê apenas metadados (nome, headers, total, 20 linhas de prévia) com UMA única
-// passada de parsing e sheetRows limitado — evita estouro de CPU/memória.
-function readSheetsMeta(buf: ArrayBuffer) {
-  const wb = XLSX.read(buf, {
-    type: "array",
-    cellDates: false,
-    cellNF: false,
-    cellText: false,
-    cellFormula: false,
-    cellHTML: false,
-    sheetRows: 21,
-  });
-  const sheets: { name: string; headers: string[]; total: number; preview: any[] }[] = [];
-  for (const name of wb.SheetNames ?? []) {
-    const ws = wb.Sheets[name];
-    if (!ws || !ws["!ref"]) {
-      sheets.push({ name, headers: [], total: 0, preview: [] });
-      continue;
-    }
-    const range = XLSX.utils.decode_range(ws["!ref"]);
-    const preview = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-    const headers = preview.length ? Object.keys(preview[0]) : [];
-    const total = Math.max(0, range.e.r - range.s.r);
-    sheets.push({ name, headers, total, preview });
-  }
-  return { sheets };
-}
-
-// Lê apenas uma aba inteira (usado em preview/commit)
-function readSheetRows(buf: ArrayBuffer, sheetName?: string): { rows: any[]; headers: string[]; name: string } {
-  const wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: false, cellText: false, sheets: sheetName ? [sheetName] : undefined });
-  const name = sheetName ?? wb.SheetNames[0];
-  const ws = wb.Sheets[name];
-  if (!ws) throw new Error("Aba não encontrada");
-  const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-  const headers = rows.length ? Object.keys(rows[0]) : [];
-  return { rows, headers, name };
-}
-
-function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: FieldDef[]) {
-  return rows.map((row) => {
-    const out: Record<string, any> = {};
-    for (const f of fields) {
-      const src = mapping[f.key];
-      const raw = src ? row[src] : undefined;
-      if (f.type === "number") out[f.key] = parseNumber(raw);
-      else if (f.type === "boolean") {
-        const s = String(raw ?? "").toLowerCase().trim();
-        out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
-      } else if (f.type === "array") {
-        const s = String(raw ?? "").trim();
-        out[f.key] = s
-          ? s.split(/[,;|\/\s]+/).map((x) => x.trim()).filter(Boolean)
-          : [];
-      } else out[f.key] = raw == null ? null : String(raw).trim();
-    }
-    return out;
-  });
-}
+// O parsing de Excel/CSV roda no navegador. A função recebe somente linhas já mapeadas,
+// reduzindo CPU no runtime serverless e evitando WORKER_RESOURCE_LIMIT.
 
 function validate(mapped: any[], fields: FieldDef[]) {
   const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
@@ -219,31 +122,17 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { mode, storagePath, sheetName, mapping, profile } = body as {
+    const { mode, records: incomingRecords, totalRows, replaceBefore, profile } = body as {
       mode: "parse" | "preview" | "commit";
-      storagePath: string;
-      sheetName?: string;
-      mapping?: Record<string, string | null>;
+      records?: Record<string, any>[];
+      totalRows?: number;
+      replaceBefore?: boolean;
       profile?: Profile;
     };
 
-    if (!storagePath || typeof storagePath !== "string") {
-      return new Response(JSON.stringify({ error: "storagePath obrigatório" }), {
+    if (mode !== "commit") {
+      return new Response(JSON.stringify({ error: "Parsing e validação agora são executados no navegador" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Baixa arquivo do storage
-    const { data: file, error: dlErr } = await admin.storage
-      .from("import-uploads")
-      .download(storagePath);
-    if (dlErr || !file) throw new Error(`Falha ao baixar arquivo: ${dlErr?.message}`);
-    const buf = await file.arrayBuffer();
-
-    if (mode === "parse") {
-      const { sheets } = readSheetsMeta(buf);
-      return new Response(JSON.stringify({ sheets }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -255,12 +144,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Lê apenas a aba alvo (não todas) para economizar CPU/memória
-    const { rows: allRows, headers: sheetHeaders } = readSheetRows(buf, sheetName);
-    const effectiveMapping = mapping ?? suggestMapping(sheetHeaders, profile.fields);
-    const mapped = applyMapping(allRows, effectiveMapping, profile.fields);
-    const { valid, errors, dups } = validate(mapped, profile.fields);
+    if (!Array.isArray(incomingRecords)) {
+      return new Response(JSON.stringify({ error: "records obrigatório" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
+    const { valid, errors, dups } = validate(incomingRecords, profile.fields);
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
@@ -276,24 +167,6 @@ Deno.serve(async (req) => {
       }
       return rec;
     });
-
-    if (mode === "preview") {
-      return new Response(
-        JSON.stringify({
-          summary: {
-            total: allRows.length,
-            valid: valid.length,
-            errors: errors.length,
-            duplicates: dups.length,
-          },
-          errors: errors.slice(0, 50),
-          duplicates: dups.slice(0, 50),
-          mapping: effectiveMapping,
-          sample: records.slice(0, 10),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     // commit
     const importMode = profile.importMode ?? "append";
@@ -320,7 +193,7 @@ Deno.serve(async (req) => {
       }
 
       // Modo replace: apaga antes
-      if (importMode === "replace") {
+      if (importMode === "replace" && replaceBefore !== false) {
         let q = admin.from(profile.entity).delete({ count: "exact" } as any);
         const scope = profile.replaceScope ?? {};
         for (const [k, v] of Object.entries(scope)) q = q.eq(k, v);
@@ -394,13 +267,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Apaga arquivo após commit (sucesso parcial também)
-    await admin.storage.from("import-uploads").remove([storagePath]);
-
     const totalAffected = inserted + updated;
     return new Response(
       JSON.stringify({
-        total: allRows.length,
+        total: typeof totalRows === "number" ? totalRows : incomingRecords.length,
         inserted: totalAffected,
         updated,
         created: inserted,
