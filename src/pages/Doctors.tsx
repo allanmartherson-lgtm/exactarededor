@@ -468,6 +468,7 @@ export default function Doctors() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
