@@ -207,7 +207,10 @@ const Rules = () => {
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
-  const [fGroupMode, setFGroupMode] = useState<"todos" | "empresas" | "medicos" | "ambos">("todos");
+  const [fGroupMode, setFGroupMode] = useState<"empresa" | "medico">("empresa");
+  // Sugestões de médicos para o modo "empresa": carregadas dinamicamente das empresas selecionadas.
+  const [companyDoctors, setCompanyDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  const [loadingCompanyDoctors, setLoadingCompanyDoctors] = useState(false);
   // janela temporal
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
