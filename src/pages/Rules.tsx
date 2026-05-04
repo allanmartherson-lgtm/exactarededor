@@ -864,39 +864,60 @@ const Rules = () => {
                 {scope === "grupo" && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <div>
-                      <Label className="text-sm font-semibold">Grupo de médicos/empresas</Label>
-                      <p className="text-xs text-muted-foreground">A regra será aplicada quando o item pertencer a qualquer empresa OU médico selecionado. Se nenhum for selecionado, aplica-se a todos.</p>
+                      <Label className="text-sm font-semibold">Aplicação da regra</Label>
+                      <p className="text-xs text-muted-foreground">Quando "Empresas OU médicos selecionados", basta o item casar com qualquer empresa OU médico da lista (lógica OR, não AND).</p>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>Empresas vinculadas</Label>
-                      <CompanyCombobox
-                        value={null}
-                        onChange={(c) => {
-                          if (!c) return;
-                          setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
-                        }}
-                        placeholder="Adicionar empresa ao grupo…"
-                        className="w-full"
-                      />
-                      {fGroupCompanyIds.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {fGroupCompanyIds.map((id) => {
-                            const c = companies.find((x) => x.id === id);
-                            return (
-                              <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
-                                {c?.name ?? id.slice(0, 8)}
-                                <button type="button" className="text-muted-foreground hover:text-foreground"
-                                  onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Médicos vinculados</Label>
-                      <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
-                    </div>
+                    <RadioGroup
+                      value={fGroupMode}
+                      onValueChange={(v) => setFGroupMode(v as typeof fGroupMode)}
+                      className="grid gap-1.5"
+                    >
+                      {[
+                        { v: "todos", l: "Todos os itens" },
+                        { v: "empresas", l: "Apenas empresas selecionadas" },
+                        { v: "medicos", l: "Apenas médicos selecionados" },
+                        { v: "ambos", l: "Empresas OU médicos selecionados" },
+                      ].map((o) => (
+                        <label key={o.v} htmlFor={`gmode-${o.v}`} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <RadioGroupItem id={`gmode-${o.v}`} value={o.v} />
+                          {o.l}
+                        </label>
+                      ))}
+                    </RadioGroup>
+                    {(fGroupMode === "empresas" || fGroupMode === "ambos") && (
+                      <div className="space-y-1.5">
+                        <Label>Empresas vinculadas</Label>
+                        <CompanyCombobox
+                          value={null}
+                          onChange={(c) => {
+                            if (!c) return;
+                            setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
+                          }}
+                          placeholder="Adicionar empresa…"
+                          className="w-full"
+                        />
+                        {fGroupCompanyIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {fGroupCompanyIds.map((id) => {
+                              const c = companies.find((x) => x.id === id);
+                              return (
+                                <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+                                  {c?.name ?? id.slice(0, 8)}
+                                  <button type="button" className="text-muted-foreground hover:text-foreground"
+                                    onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {(fGroupMode === "medicos" || fGroupMode === "ambos") && (
+                      <div className="space-y-1.5">
+                        <Label>Médicos vinculados</Label>
+                        <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                      </div>
+                    )}
                   </div>
                 )}
 
