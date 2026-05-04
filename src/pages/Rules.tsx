@@ -314,8 +314,11 @@ const Rules = () => {
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
-    setFGroupCompanyIds(Array.isArray(r.group_company_ids) ? r.group_company_ids : []);
-    setFGroupDoctors(Array.isArray(r.group_doctors) ? r.group_doctors : []);
+    const gci = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
+    const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+    setFGroupCompanyIds(gci);
+    setFGroupDoctors(gdo);
+    setFGroupMode(gci.length && gdo.length ? "ambos" : gci.length ? "empresas" : gdo.length ? "medicos" : "todos");
     setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
     setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
     setFIncludesHolidays(!!r.includes_holidays);
