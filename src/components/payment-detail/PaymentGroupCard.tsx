@@ -54,12 +54,12 @@ function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
           to={`/pagamentos/${id}/empresa/${groupId}`}
           onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Abrir análise dedicada da empresa"
+          aria-label="Abrir análise em página dedicada"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </Link>
       </TooltipTrigger>
-      <TooltipContent>Abrir análise dedicada</TooltipContent>
+      <TooltipContent>Abrir página dedicada</TooltipContent>
     </Tooltip>
   );
 }
