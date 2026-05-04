@@ -930,11 +930,13 @@ export function analyzeItem(
   };
 }
 
-export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx: PaymentContext): AnalysisResult[] {
+export function analyzePaymentItems(
+  items: ItemInput[],
+  rules: RuleInput[],
+  ctx: PaymentContext,
+  options?: { referenceLookup?: ReferenceTableLookup },
+): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
-  // Para "pacote_por_atendimento", precisamos de ordem determinística:
-  // 1) por atendimento, 2) item com código principal primeiro,
-  // 3) demais por código. Assim o pacote é aplicado no item certo.
   const ordered = [...items].sort((a, b) => {
     const aa = (a.attendance_number ?? "").localeCompare(b.attendance_number ?? "");
     if (aa !== 0) return aa;
@@ -945,7 +947,10 @@ export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx:
     if (aMain !== bMain) return aMain - bMain;
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
-  const state = { appliedAttendancesByRule: new Map<string, Set<string>>() };
+  const state: EngineCtx = {
+    appliedAttendancesByRule: new Map<string, Set<string>>(),
+    referenceLookup: options?.referenceLookup,
+  };
   const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
   // Reordenar resultados para a ordem original de `items`
   const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
