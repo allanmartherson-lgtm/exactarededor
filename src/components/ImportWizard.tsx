@@ -59,7 +59,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     duplicates: { row: number; key: string }[];
     sample: any[];
   } | null>(null);
-  const [result, setResult] = useState<{ inserted: number } | null>(null);
+  const [result, setResult] = useState<CommitResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
