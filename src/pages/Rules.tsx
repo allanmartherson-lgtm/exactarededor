@@ -992,131 +992,155 @@ const Rules = () => {
 
                       {scope === "grupo" && (() => {
                         const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                        const allowedSet = new Set(companyDoctors.map((d) => norm(d.name)));
-                        const invalidDoctors = fGroupMode === "empresa" && fGroupCompanyIds.length > 0 && companyDoctors.length > 0
-                          ? fGroupDoctors.filter((d) => !allowedSet.has(norm(d.name)))
-                          : [];
-                        const isAllCompany = fGroupMode === "empresa" && fGroupCompanyIds.length > 0 && fGroupDoctors.length === 0;
-                        const isSpecificDoctors = (fGroupMode === "empresa" && fGroupDoctors.length > 0) || fGroupMode === "medico";
+                        const usedIds = new Set(fGroupLinks.map((l) => l.company_id).filter(Boolean));
+                        const dupIds = new Set<string>();
+                        const seen = new Set<string>();
+                        for (const l of fGroupLinks) {
+                          if (!l.company_id) continue;
+                          if (seen.has(l.company_id)) dupIds.add(l.company_id);
+                          seen.add(l.company_id);
+                        }
                         return (
-                          <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3 animate-fade-in">
-                            <div>
-                              <Label className="text-sm font-semibold">Aplicação por empresa ou médico</Label>
-                              <p className="text-xs text-muted-foreground">
-                                Selecione uma empresa para aplicar a todos os médicos ou refine escolhendo médicos específicos. Também é possível criar regra diretamente por médico.
-                              </p>
-                            </div>
-                            <RadioGroup
-                              value={fGroupMode}
-                              onValueChange={(v) => {
-                                const next = v as "empresa" | "medico";
-                                setFGroupMode(next);
-                                if (next === "medico") {
-                                  // Médico-only: zera empresas e sugestões
-                                  setFGroupCompanyIds([]);
-                                  setCompanyDoctors([]);
-                                }
-                              }}
-                              className="grid gap-1.5"
-                            >
-                              {[
-                                { v: "empresa", l: "Por empresa (opcionalmente refinar por médico)" },
-                                { v: "medico", l: "Por médico (sem vincular empresa)" },
-                              ].map((o) => (
-                                <label key={o.v} htmlFor={`gmode-${o.v}`} className="flex items-center gap-2 text-sm cursor-pointer">
-                                  <RadioGroupItem id={`gmode-${o.v}`} value={o.v} />
-                                  {o.l}
-                                </label>
-                              ))}
-                            </RadioGroup>
-
-                            {fGroupMode === "empresa" && (
-                              <div className="space-y-3 animate-fade-in">
-                                <div className="space-y-1.5">
-                                  <Label>Empresas vinculadas *</Label>
-                                  <CompanyCombobox
-                                    value={null}
-                                    onChange={(c) => {
-                                      if (!c) return;
-                                      setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
-                                    }}
-                                    placeholder="Adicionar empresa…"
-                                    className="w-full"
-                                  />
-                                  {fGroupCompanyIds.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 pt-1">
-                                      {fGroupCompanyIds.map((id) => {
-                                        const c = companies.find((x) => x.id === id);
-                                        return (
-                                          <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
-                                            {c?.name ?? id.slice(0, 8)}
-                                            <button type="button" className="text-muted-foreground hover:text-foreground"
-                                              onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
+                          <div className="space-y-4 animate-fade-in">
+                            {/* Tabela de vínculos por empresa */}
+                            <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label className="text-sm font-semibold">Vínculos por empresa</Label>
+                                  <p className="text-xs text-muted-foreground">Cada linha = uma empresa. Sem médicos selecionados → aplica a todos da empresa.</p>
                                 </div>
+                                <Button
+                                  type="button" size="sm" variant="outline"
+                                  onClick={() => setFGroupLinks((prev) => [...prev, { company_id: "", doctors: [] }])}
+                                >
+                                  <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
+                                </Button>
+                              </div>
 
-                                {fGroupCompanyIds.length > 0 && (
-                                  <div className="space-y-1.5 animate-fade-in">
-                                    <Label>Médicos da(s) empresa(s) — opcional</Label>
-                                    <p className="text-xs text-muted-foreground">
-                                      {loadingCompanyDoctors
-                                        ? "Carregando médicos…"
-                                        : companyDoctors.length === 0
-                                          ? "Nenhum médico encontrado nos atendimentos da(s) empresa(s). Deixe em branco para aplicar a todos."
-                                          : "Selecione um ou mais médicos para refinar. Deixe em branco para aplicar a toda a empresa."}
-                                    </p>
-                                    {companyDoctors.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 pt-1">
-                                        {companyDoctors.map((d, i) => {
-                                          const checked = fGroupDoctors.some((x) => norm(x.name) === norm(d.name));
-                                          return (
-                                            <Button key={`${d.name}-${i}`} type="button" size="sm"
-                                              variant={checked ? "default" : "outline"}
-                                              onClick={() => {
-                                                setFGroupDoctors((prev) => checked
-                                                  ? prev.filter((x) => norm(x.name) !== norm(d.name))
-                                                  : [...prev, d]);
-                                              }}>
-                                              {d.name}{d.crm ? ` · ${d.crm}` : ""}
-                                            </Button>
-                                          );
-                                        })}
+                              {fGroupLinks.length === 0 && (
+                                <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em “Adicionar empresa” ou use médicos avulsos abaixo.</p>
+                              )}
+
+                              <div className="space-y-2">
+                                {fGroupLinks.map((link, idx) => {
+                                  const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
+                                  const isDup = link.company_id && dupIds.has(link.company_id);
+                                  const noCompany = !link.company_id;
+                                  const allowedDocs = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
+                                  const loadingDocs = link.company_id ? loadingCompanyDoctorsIds.has(link.company_id) : false;
+                                  const allowedSet = new Set(allowedDocs.map((d) => norm(d.name)));
+                                  const invalidPicked = link.doctors.filter((d) => allowedDocs.length > 0 && !allowedSet.has(norm(d.name)));
+                                  const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+                                  return (
+                                    <div key={idx} className={cn(
+                                      "rounded-md border bg-card p-3 space-y-2 animate-fade-in",
+                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "border-border"
+                                    )}>
+                                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start">
+                                        <div className="space-y-1">
+                                          <Label className="text-xs">Empresa/PJ</Label>
+                                          <CompanyCombobox
+                                            value={co ? { id: co.id, name: co.name, document: co.document ?? null } : null}
+                                            onChange={(c) => {
+                                              if (!c) return;
+                                              if (usedIds.has(c.id) && c.id !== link.company_id) {
+                                                toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
+                                                return;
+                                              }
+                                              updateLink({ company_id: c.id, doctors: [] });
+                                            }}
+                                            placeholder="Selecionar empresa…"
+                                            className="w-full"
+                                          />
+                                          {isDup && <p className="text-xs text-destructive">Empresa repetida em outra linha.</p>}
+                                          {noCompany && <p className="text-xs text-destructive">Selecione uma empresa.</p>}
+                                        </div>
+                                        <div className="flex sm:flex-col gap-1 sm:items-end">
+                                          <Button
+                                            type="button" size="sm" variant="ghost"
+                                            onClick={() => setFGroupLinks((prev) => prev.filter((_, i) => i !== idx))}
+                                            aria-label="Remover linha"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
                                       </div>
-                                    )}
-                                    {fGroupDoctors.length > 0 && (
-                                      <div className="flex items-center justify-between pt-1">
-                                        <span className="text-xs text-muted-foreground">{fGroupDoctors.length} médico(s) selecionado(s).</span>
-                                        <Button type="button" size="sm" variant="ghost" onClick={() => setFGroupDoctors([])}>Limpar seleção</Button>
+
+                                      {link.company_id && (
+                                        <div className="space-y-1.5 animate-fade-in">
+                                          <div className="flex items-center justify-between">
+                                            <Label className="text-xs">Médicos desta empresa — opcional</Label>
+                                            <div className="flex gap-1">
+                                              <Button
+                                                type="button" size="sm" variant={link.doctors.length === 0 ? "default" : "outline"}
+                                                onClick={() => updateLink({ doctors: [] })}
+                                              >
+                                                Todos os médicos
+                                              </Button>
+                                            </div>
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">
+                                            {loadingDocs
+                                              ? "Carregando médicos…"
+                                              : allowedDocs.length === 0
+                                                ? "Nenhum médico encontrado nos atendimentos. Vazio = todos."
+                                                : "Clique para refinar. Vazio = aplica a todos da empresa."}
+                                          </p>
+                                          {allowedDocs.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {allowedDocs.map((d, di) => {
+                                                const checked = link.doctors.some((x) => norm(x.name) === norm(d.name));
+                                                return (
+                                                  <Button
+                                                    key={`${d.name}-${di}`} type="button" size="sm"
+                                                    variant={checked ? "default" : "outline"}
+                                                    onClick={() => updateLink({
+                                                      doctors: checked
+                                                        ? link.doctors.filter((x) => norm(x.name) !== norm(d.name))
+                                                        : [...link.doctors, d],
+                                                    })}
+                                                  >
+                                                    {d.name}{d.crm ? ` · ${d.crm}` : ""}
+                                                  </Button>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                          {link.doctors.length > 0 && (
+                                            <div className="text-xs text-muted-foreground">
+                                              {link.doctors.length} médico(s) específico(s) selecionado(s).
+                                            </div>
+                                          )}
+                                          {invalidPicked.length > 0 && (
+                                            <div className="text-xs text-destructive">
+                                              {invalidPicked.length} médico(s) não pertence(m) a esta empresa.
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {/* Resumo da linha */}
+                                      <div className="text-xs text-muted-foreground border-t border-border pt-1.5">
+                                        <span className="font-medium">{co?.name ?? "—"}</span>
+                                        {" | "}
+                                        {link.doctors.length === 0
+                                          ? "Todos os médicos"
+                                          : link.doctors.map((d) => d.name).join(", ")}
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            )}
+                            </div>
 
-                            {fGroupMode === "medico" && (
-                              <div className="space-y-1.5 animate-fade-in">
-                                <Label>Médicos vinculados *</Label>
-                                <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                            {/* Médicos avulsos (sem PJ) */}
+                            <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                              <div>
+                                <Label className="text-sm font-semibold">Médicos avulsos (sem empresa)</Label>
+                                <p className="text-xs text-muted-foreground">Use apenas quando a regra não depende de PJ. Não mistura com as linhas por empresa acima.</p>
                               </div>
-                            )}
-
-                            {(isAllCompany || isSpecificDoctors) && (
-                              <div className={cn(
-                                "rounded-md border px-2.5 py-1.5 text-xs animate-fade-in",
-                                isAllCompany
-                                  ? "border-info/40 bg-info-soft text-info-foreground"
-                                  : "border-primary/40 bg-primary/5"
-                              )}>
-                                {isAllCompany
-                                  ? "Aplicando para toda(s) a(s) empresa(s) selecionada(s) — todos os médicos."
-                                  : "Aplicando para médicos específicos."}
-                              </div>
-                            )}
+                              <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                            </div>
                           </div>
                         );
                       })()}
