@@ -461,6 +461,37 @@ const ReferenceTables = () => {
                   <Input name="year" type="number" min={1900} max={2100} />
                 </div>
                 <div className="space-y-1.5">
+                  <Label>Finalidade</Label>
+                  <select
+                    name="purpose"
+                    defaultValue="calculo"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    onChange={(e) => {
+                      const sev = document.getElementById("rt-sev-wrap");
+                      if (sev) sev.style.display = e.target.value === "exclusao" ? "" : "none";
+                    }}
+                  >
+                    <option value="calculo">Cálculo (calcula valor esperado)</option>
+                    <option value="classificacao">Classificação (categoriza códigos)</option>
+                    <option value="exclusao">Exclusão / expurgo (não pagar)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Não misture códigos pagáveis e não pagáveis na mesma finalidade.
+                  </p>
+                </div>
+                <div id="rt-sev-wrap" className="space-y-1.5" style={{ display: "none" }}>
+                  <Label>Severidade da exclusão</Label>
+                  <select
+                    name="exclusion_severity"
+                    defaultValue="bloqueio"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="bloqueio">Bloqueio (reprovado, R$ 0)</option>
+                    <option value="aviso">Aviso (alerta, R$ 0)</option>
+                    <option value="info">Informativo (apenas registra)</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
                   <Label>Tipo</Label>
                   <select
                     name="kind"
