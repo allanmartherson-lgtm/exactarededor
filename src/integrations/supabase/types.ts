@@ -981,32 +981,41 @@ export type Database = {
       }
       reference_tables: {
         Row: {
+          active: boolean
           created_at: string
           created_by: string | null
           description: string | null
+          exclusion_severity: string
           id: string
           kind: Database["public"]["Enums"]["reference_table_kind"]
           name: string
+          purpose: string
           updated_at: string
           year: number | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           created_by?: string | null
           description?: string | null
+          exclusion_severity?: string
           id?: string
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name: string
+          purpose?: string
           updated_at?: string
           year?: number | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           created_by?: string | null
           description?: string | null
+          exclusion_severity?: string
           id?: string
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name?: string
+          purpose?: string
           updated_at?: string
           year?: number | null
         }

@@ -13,7 +13,14 @@ import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles } from "lucide-
 import * as XLSX from "xlsx";
 
 type RefKind = "simples" | "cbhpm";
-type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; created_at: string };
+type RefPurpose = "calculo" | "classificacao" | "exclusao";
+type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; purpose: RefPurpose; exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean; created_at: string };
+
+const PURPOSE_LABEL: Record<RefPurpose, string> = {
+  calculo: "Cálculo",
+  classificacao: "Classificação",
+  exclusao: "Exclusão / expurgo",
+};
 type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
 type PortValue = { id: string; port: string; amount: number };
 
@@ -61,13 +68,17 @@ const ReferenceTables = () => {
   const createTable = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const purpose = String(f.get("purpose") || "calculo") as RefPurpose;
     const { error } = await supabase.from("reference_tables").insert({
       name: String(f.get("name")),
       description: String(f.get("description")) || null,
       year: f.get("year") ? Number(f.get("year")) : null,
       kind: String(f.get("kind") || "simples") as RefKind,
+      purpose,
+      exclusion_severity: purpose === "exclusao" ? String(f.get("exclusion_severity") || "bloqueio") : "bloqueio",
+      active: true,
       created_by: user!.id,
-    });
+    } as any);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
     setOpen(false); loadTables(); toast({ title: "Tabela criada" });
   };
@@ -450,6 +461,37 @@ const ReferenceTables = () => {
                   <Input name="year" type="number" min={1900} max={2100} />
                 </div>
                 <div className="space-y-1.5">
+                  <Label>Finalidade</Label>
+                  <select
+                    name="purpose"
+                    defaultValue="calculo"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    onChange={(e) => {
+                      const sev = document.getElementById("rt-sev-wrap");
+                      if (sev) sev.style.display = e.target.value === "exclusao" ? "" : "none";
+                    }}
+                  >
+                    <option value="calculo">Cálculo (calcula valor esperado)</option>
+                    <option value="classificacao">Classificação (categoriza códigos)</option>
+                    <option value="exclusao">Exclusão / expurgo (não pagar)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Não misture códigos pagáveis e não pagáveis na mesma finalidade.
+                  </p>
+                </div>
+                <div id="rt-sev-wrap" className="space-y-1.5" style={{ display: "none" }}>
+                  <Label>Severidade da exclusão</Label>
+                  <select
+                    name="exclusion_severity"
+                    defaultValue="bloqueio"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="bloqueio">Bloqueio (reprovado, R$ 0)</option>
+                    <option value="aviso">Aviso (alerta, R$ 0)</option>
+                    <option value="info">Informativo (apenas registra)</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
                   <Label>Tipo</Label>
                   <select
                     name="kind"
@@ -491,12 +533,29 @@ const ReferenceTables = () => {
                         <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 uppercase tracking-wide">
                           {t.kind}
                         </span>
+                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : "bg-success/10 text-success border border-success/30"}`}>
+                          {PURPOSE_LABEL[t.purpose ?? "calculo"]}
+                        </span>
+                        {t.active === false && (
+                          <span className="ml-2 text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">inativa</span>
+                        )}
                       </p>
                       {t.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await supabase.from("reference_tables").update({ active: !t.active } as any).eq("id", t.id);
+                          loadTables();
+                        }}
+                      >
+                        {t.active === false ? "Ativar" : "Desativar"}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
