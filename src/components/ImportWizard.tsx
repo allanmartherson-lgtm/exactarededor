@@ -339,9 +339,28 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               <CheckCircle2 className="h-6 w-6" />
               <div>
                 <div className="font-medium">Importação concluída</div>
-                <div className="text-sm">{result.inserted} linha(s) inserida(s).</div>
+                <div className="text-sm">
+                  {result.inserted} de {result.total} linha(s) inserida(s).
+                </div>
               </div>
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Stat label="Total no arquivo" value={result.total} />
+              <Stat label="Importadas" value={result.inserted} tone="success" />
+              <Stat label="Ignoradas" value={result.skipped} tone="warn" />
+              <Stat label="Erros de validação" value={result.validation_errors} tone="warn" />
+            </div>
+            {result.insert_errors.length > 0 && (
+              <Section icon={<AlertTriangle className="h-4 w-4 text-destructive" />} title={`Erros ao inserir no banco (${result.insert_errors.length} lote(s))`}>
+                <ul className="text-xs space-y-1 max-h-40 overflow-auto">
+                  {result.insert_errors.map((e, i) => (
+                    <li key={i}>
+                      <span className="font-mono text-muted-foreground">Lote {e.chunk}</span> — {e.reason}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
             <DialogFooter>
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </DialogFooter>
