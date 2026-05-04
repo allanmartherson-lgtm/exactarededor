@@ -58,6 +58,42 @@ type Props = {
  * - Linha expansível mostra: alerta, regra, explicação IA, valor esperado
  * - Sem navegação para outra rota; mantém contexto do lote
  */
+
+// Colunas opcionais com toggle de visibilidade. Obrigatórias (Paciente, Médico,
+// TUSS, Valor, Esperado, Status) ficam sempre visíveis.
+type OptionalColKey =
+  | "atendimento"
+  | "convenio"
+  | "via"
+  | "funcao"
+  | "procedimento"
+  | "regra"
+  | "diferenca"
+  | "observacao";
+
+const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
+  { key: "atendimento", label: "Atendimento" },
+  { key: "convenio", label: "Convênio" },
+  { key: "via", label: "Via de acesso" },
+  { key: "funcao", label: "Função" },
+  { key: "procedimento", label: "Procedimento" },
+  { key: "regra", label: "Regra aplicada" },
+  { key: "diferenca", label: "Diferença" },
+  { key: "observacao", label: "Observação" },
+];
+
+const COLUMN_PREFS_KEY = "companyAnalysis.columnVisibility.v1";
+const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
+  atendimento: true,
+  convenio: true,
+  via: false,
+  funcao: false,
+  procedimento: true,
+  regra: false,
+  diferenca: false,
+  observacao: false,
+};
+
 export function CompanyAnalysisDialog({
   open,
   onOpenChange,
