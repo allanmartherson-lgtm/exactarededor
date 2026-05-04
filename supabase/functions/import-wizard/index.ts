@@ -263,11 +263,15 @@ Deno.serve(async (req) => {
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
+    // Para doctors, separamos a coluna 'companies_raw' (não é coluna real)
     const records = valid.map((r) => {
       const rec: Record<string, any> = { ...r, ...fixed };
-      // Para reference_table_items: 'code' é NOT NULL. Em pacotes usamos o package_id como code.
       if (profile.entity === "reference_table_items" && (rec.code == null || rec.code === "")) {
         if (rec.package_id) rec.code = String(rec.package_id);
+      }
+      if (profile.entity === "doctors") {
+        if (typeof rec.crm === "string") rec.crm = rec.crm.replace(/\D/g, "");
+        if (typeof rec.crm_uf === "string") rec.crm_uf = rec.crm_uf.toUpperCase().trim();
       }
       return rec;
     });
@@ -291,18 +295,100 @@ Deno.serve(async (req) => {
     }
 
     // commit
+    const importMode = profile.importMode ?? "append";
+    const naturalKey = ENTITY_KEYS[profile.entity];
     let inserted = 0;
+    let updated = 0;
+    let removedBeforeReplace = 0;
     const insertErrors: { chunk: number; reason: string }[] = [];
-    if (records.length > 0) {
+
+    // Tratamento especial: doctors guarda 'companies_raw' como coluna virtual para vincular depois
+    const stripVirtual = (rec: Record<string, any>) => {
+      const { companies_raw, ...rest } = rec;
+      return rest;
+    };
+
+    if (mode === "commit" && records.length > 0) {
+      // Pré-carrega mapa de empresas por nome se for doctors
+      let companyByName = new Map<string, string>();
+      if (profile.entity === "doctors") {
+        const { data: comps } = await admin.from("companies").select("id,name");
+        for (const c of (comps ?? []) as any[]) {
+          companyByName.set(String(c.name).toLowerCase().trim(), c.id);
+        }
+      }
+
+      // Modo replace: apaga antes
+      if (importMode === "replace") {
+        let q = admin.from(profile.entity).delete({ count: "exact" } as any);
+        const scope = profile.replaceScope ?? {};
+        for (const [k, v] of Object.entries(scope)) q = q.eq(k, v);
+        // se não houver scope, exige naturalKey para evitar wipe acidental
+        if (Object.keys(scope).length === 0) {
+          // limita pelas chaves naturais que vão entrar
+          if (!naturalKey) {
+            return new Response(JSON.stringify({ error: "Replace sem escopo não permitido para esta entidade" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          // wipe completo da tabela
+          q = admin.from(profile.entity).delete({ count: "exact" } as any).not("id", "is", null);
+        }
+        const { count, error: delErr } = await q;
+        if (delErr) {
+          return new Response(JSON.stringify({ error: `Falha no replace: ${delErr.message}` }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        removedBeforeReplace = count ?? 0;
+      }
+
       const CHUNK = 500;
       for (let i = 0; i < records.length; i += CHUNK) {
-        const slice = records.slice(i, i + CHUNK);
-        const { error } = await admin.from(profile.entity).insert(slice);
-        if (error) {
-          insertErrors.push({ chunk: i / CHUNK + 1, reason: error.message });
-          // continua tentando os próximos chunks
+        const slice = records.slice(i, i + CHUNK).map(stripVirtual);
+        let resErr: any = null;
+        let affected = slice.length;
+
+        if (importMode === "update" && naturalKey) {
+          const { error } = await admin
+            .from(profile.entity)
+            .upsert(slice, { onConflict: naturalKey.join(",") } as any);
+          resErr = error;
+          // não distinguimos created vs updated aqui
+          if (!error) updated += affected;
         } else {
-          inserted += slice.length;
+          const { error } = await admin.from(profile.entity).insert(slice);
+          resErr = error;
+          if (!error) inserted += affected;
+        }
+
+        if (resErr) {
+          insertErrors.push({ chunk: Math.floor(i / CHUNK) + 1, reason: resErr.message });
+        }
+      }
+
+      // Pós-processo: vínculos doctor -> companies por nome
+      if (profile.entity === "doctors") {
+        for (const rec of records) {
+          const names: string[] = Array.isArray(rec.companies_raw) ? rec.companies_raw : [];
+          if (!names.length) continue;
+          const { data: doc } = await admin
+            .from("doctors")
+            .select("id")
+            .eq("crm", rec.crm)
+            .eq("crm_uf", rec.crm_uf)
+            .maybeSingle();
+          if (!doc?.id) continue;
+          const cids = names
+            .map((n) => companyByName.get(String(n).toLowerCase().trim()))
+            .filter(Boolean) as string[];
+          if (!cids.length) continue;
+          await admin.from("doctor_companies").delete().eq("doctor_id", doc.id);
+          await admin.from("doctor_companies").insert(
+            cids.map((cid) => ({ doctor_id: doc.id, company_id: cid })),
+          );
         }
       }
     }
@@ -310,11 +396,15 @@ Deno.serve(async (req) => {
     // Apaga arquivo após commit (sucesso parcial também)
     await admin.storage.from("import-uploads").remove([storagePath]);
 
+    const totalAffected = inserted + updated;
     return new Response(
       JSON.stringify({
         total: allRows.length,
-        inserted,
-        skipped: errors.length + dups.length + (records.length - inserted),
+        inserted: totalAffected,
+        updated,
+        created: inserted,
+        removed_before_replace: removedBeforeReplace,
+        skipped: errors.length + dups.length + Math.max(0, records.length - totalAffected),
         validation_errors: errors.length,
         duplicates: dups.length,
         insert_errors: insertErrors,
