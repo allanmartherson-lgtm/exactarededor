@@ -267,20 +267,16 @@ export default function Doctors() {
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" /> Modelo
             </Button>
-            <label>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                disabled={importing}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) { importFile(f); e.target.value = ""; } }}
-              />
-              <Button variant="outline" size="sm" disabled={importing} asChild>
-                <span className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar"}
-                </span>
-              </Button>
-            </label>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Importar
+            </Button>
+            <ImportWizard
+              open={importOpen}
+              onOpenChange={setImportOpen}
+              title="Importar médicos"
+              profile={DOCTORS_IMPORT_PROFILE}
+              onComplete={() => load()}
+            />
             <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setEditingCompanyIds([]); } }}>
               <DialogTrigger asChild>
                 <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo médico</Button>
