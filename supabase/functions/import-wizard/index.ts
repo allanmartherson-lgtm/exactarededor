@@ -210,6 +210,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { valid, errors, dups } = validate(incomingRecords, profile.fields);
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
@@ -225,24 +226,6 @@ Deno.serve(async (req) => {
       }
       return rec;
     });
-
-    if (mode === "preview") {
-      return new Response(
-        JSON.stringify({
-          summary: {
-            total: allRows.length,
-            valid: valid.length,
-            errors: errors.length,
-            duplicates: dups.length,
-          },
-          errors: errors.slice(0, 50),
-          duplicates: dups.slice(0, 50),
-          mapping: effectiveMapping,
-          sample: records.slice(0, 10),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     // commit
     const importMode = profile.importMode ?? "append";
@@ -343,13 +326,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Apaga arquivo após commit (sucesso parcial também)
-    await admin.storage.from("import-uploads").remove([storagePath]);
-
     const totalAffected = inserted + updated;
     return new Response(
       JSON.stringify({
-        total: allRows.length,
+        total: typeof totalRows === "number" ? totalRows : incomingRecords.length,
         inserted: totalAffected,
         updated,
         created: inserted,
