@@ -41,7 +41,7 @@ export interface RuleInput {
   description: string | null;
   active: boolean;
   severity: string;
-  scope: "master" | "especifica";
+  scope: "master" | "especifica" | "grupo";
   sector: string;
   sectors: string[] | null;
   specialties: string[] | null;
@@ -74,6 +74,11 @@ export interface RuleInput {
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
+  aux_first_pct?: number | null;
+  aux_second_pct?: number | null;
+  instrumentador_pct?: number | null;
+  group_company_ids?: string[] | null;
+  group_doctors?: { name?: string; crm?: string }[] | null;
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
@@ -127,6 +132,8 @@ export type RuleMatchPriority =
   | "medico"
   | "empresa_codigo"
   | "empresa"
+  | "grupo_codigo"
+  | "grupo"
   | "setor_codigo"
   | "setor"
   | "setor_outro"
@@ -232,6 +239,36 @@ function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   return false;
 }
 
+type DoctorRole = "cirurgiao" | "primeiro_aux" | "demais_aux" | "instrumentador" | "outro";
+function classifyDoctorRole(role: string | null | undefined): DoctorRole {
+  const s = (role ?? "").toLowerCase().trim();
+  if (!s) return "outro";
+  if (s.includes("instrument")) return "instrumentador";
+  if (s.includes("cirurgi")) return "cirurgiao";
+  // 1º / primeiro / 1
+  if (/(^|\b)(1º|1o|1\b|primeir)/.test(s) && s.includes("aux")) return "primeiro_aux";
+  // 2º / 3º / segundo / terceiro / etc + aux
+  if (/(2º|2o|3º|3o|4º|4o|segund|terceir|quart|quint)/.test(s) && s.includes("aux")) return "demais_aux";
+  if (s.includes("aux")) return "primeiro_aux"; // sem ordinal explícito → trata como 1º
+  return "outro";
+}
+
+function targetsGroup(r: RuleInput, item: ItemInput): boolean {
+  if (r.scope !== "grupo") return false;
+  const cids = r.group_company_ids ?? [];
+  if (item.company_id && cids.includes(item.company_id)) return true;
+  const docs = r.group_doctors ?? [];
+  if (docs.length > 0 && item.doctor_name) {
+    const itemNm = normName(item.doctor_name);
+    const itemCrm = onlyDigits(item.doctor_document);
+    for (const d of docs) {
+      if (d?.name && normName(d.name) === itemNm) return true;
+      if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
+    }
+  }
+  return false;
+}
+
 // ---------- pré-filtro ----------
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
   return rules.filter((r) => {
@@ -295,6 +332,7 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
 
   const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
   const companyRules = rules.filter((r) => targetsCompany(r, item));
+  const groupRules   = rules.filter((r) => targetsGroup(r, item));
   const sectorRules  = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector) && itemSector !== "outro");
   const hemoMaster   = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica"));
   const generalMaster = rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0));
@@ -308,6 +346,7 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
   }> = [
     { bucket: doctorRules,    withCodePriority: "medico_codigo",  withoutCodePriority: "medico" },
     { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
+    { bucket: groupRules,     withCodePriority: "grupo_codigo",   withoutCodePriority: "grupo" },
     { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
     { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
     { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
@@ -599,9 +638,25 @@ function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc 
     parts.push(`× via(${f})`);
   }
   if (rule.include_auxiliaries) {
-    const auxPct = (rule.auxiliary_pct ?? 30) / 100;
-    value *= (1 + auxPct);
-    parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
+    const role = classifyDoctorRole(item.doctor_role);
+    if (role === "instrumentador") {
+      const pct = (rule.instrumentador_pct ?? 10) / 100;
+      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
+    } else if (role === "primeiro_aux") {
+      const pct = (rule.aux_first_pct ?? 30) / 100;
+      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
+    } else if (role === "demais_aux") {
+      const pct = (rule.aux_second_pct ?? 20) / 100;
+      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
+    } else {
+      // sem função identificada → comportamento legado: soma composta com % por auxiliar (fallback auxiliary_pct)
+      const auxPct = (rule.auxiliary_pct ?? rule.aux_first_pct ?? 30) / 100;
+      value *= (1 + auxPct);
+      parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
+    }
   }
   const expected = Number(value.toFixed(2));
   return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };

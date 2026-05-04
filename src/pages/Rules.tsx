@@ -181,6 +181,9 @@ const Rules = () => {
   const [fDeflatorPct, setFDeflatorPct] = useState<string>("");
   const [fIncludeAux, setFIncludeAux] = useState(false);
   const [fAuxPct, setFAuxPct] = useState<string>("");
+  const [fAuxFirstPct, setFAuxFirstPct] = useState<string>("30");
+  const [fAuxSecondPct, setFAuxSecondPct] = useState<string>("20");
+  const [fInstrumentadorPct, setFInstrumentadorPct] = useState<string>("10");
   const [fRepassePct, setFRepassePct] = useState<string>("");
   const [fApplyAccessRoute, setFApplyAccessRoute] = useState(false);
   // === Configuração de pacote (subtipos) ===
@@ -199,6 +202,9 @@ const Rules = () => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  // Escopo "grupo" (inline na regra)
+  const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
+  const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
   // janela temporal
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
@@ -245,6 +251,7 @@ const Rules = () => {
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
+    setFAuxFirstPct("30"); setFAuxSecondPct("20"); setFInstrumentadorPct("10");
     setFRepassePct(""); setFApplyAccessRoute(false);
     setFPackageMainCode(""); setFPackageIncludedCodes("");
     setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
@@ -252,6 +259,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
+    setFGroupCompanyIds([]); setFGroupDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
@@ -281,6 +289,9 @@ const Rules = () => {
     setFDeflatorPct(r.deflator_pct != null ? String(r.deflator_pct) : "");
     setFIncludeAux(!!r.include_auxiliaries);
     setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
+    setFAuxFirstPct(r.aux_first_pct != null ? String(r.aux_first_pct) : "30");
+    setFAuxSecondPct(r.aux_second_pct != null ? String(r.aux_second_pct) : "20");
+    setFInstrumentadorPct(r.instrumentador_pct != null ? String(r.instrumentador_pct) : "10");
     setFRepassePct(r.repasse_pct != null ? String(r.repasse_pct) : "");
     setFApplyAccessRoute(!!r.apply_access_route);
     setFPackageMainCode(r.package_main_code ?? "");
@@ -301,6 +312,8 @@ const Rules = () => {
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
+    setFGroupCompanyIds(Array.isArray(r.group_company_ids) ? r.group_company_ids : []);
+    setFGroupDoctors(Array.isArray(r.group_doctors) ? r.group_doctors : []);
     setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
     setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
     setFIncludesHolidays(!!r.includes_holidays);
@@ -356,6 +369,9 @@ const Rules = () => {
       reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
       include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
       auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
+      aux_first_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxFirstPct) ?? 30) : null,
+      aux_second_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxSecondPct) ?? 20) : null,
+      instrumentador_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fInstrumentadorPct) ?? 10) : null,
       repasse_pct: effectiveCalc === "tabela_diferenciada" ? num(fRepassePct) : null,
       apply_access_route: effectiveCalc === "tabela_diferenciada" ? fApplyAccessRoute : false,
       procedure_codes: parsedCodes.length ? parsedCodes : null,
@@ -366,6 +382,8 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
+      group_company_ids: scope === "grupo" ? fGroupCompanyIds : [],
+      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: fTimeMode,
       weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
       includes_holidays: fIncludesHolidays,
@@ -373,6 +391,9 @@ const Rules = () => {
       time_end: fTimeEnd || null,
       elective_mode: fElectiveMode,
     };
+    if (scope === "grupo" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) {
+      return toast({ title: "Vincule ao menos uma empresa ou médico ao grupo", variant: "destructive" });
+    }
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
@@ -838,6 +859,45 @@ const Rules = () => {
                   </div>
                 )}
 
+                {scope === "grupo" && (
+                  <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Grupo de médicos/empresas</Label>
+                      <p className="text-xs text-muted-foreground">A regra é aplicada quando o item pertencer a qualquer médico OU empresa vinculados abaixo.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Empresas vinculadas</Label>
+                      <CompanyCombobox
+                        value={null}
+                        onChange={(c) => {
+                          if (!c) return;
+                          setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
+                        }}
+                        placeholder="Adicionar empresa ao grupo…"
+                        className="w-full"
+                      />
+                      {fGroupCompanyIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {fGroupCompanyIds.map((id) => {
+                            const c = companies.find((x) => x.id === id);
+                            return (
+                              <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+                                {c?.name ?? id.slice(0, 8)}
+                                <button type="button" className="text-muted-foreground hover:text-foreground"
+                                  onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Médicos vinculados</Label>
+                      <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label>Natureza da regra *</Label>
                   <Select
@@ -1118,8 +1178,22 @@ const Rules = () => {
                       </div>
                     </div>
                     {fIncludeAux && (
-                      <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label>
-                        <Input type="number" step="0.01" placeholder="30" value={fAuxPct} onChange={(e) => setFAuxPct(e.target.value)} />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>1º auxiliar (%)</Label>
+                          <Input type="number" step="0.01" placeholder="30" value={fAuxFirstPct} onChange={(e) => setFAuxFirstPct(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>2º auxiliar em diante (%)</Label>
+                          <Input type="number" step="0.01" placeholder="20" value={fAuxSecondPct} onChange={(e) => setFAuxSecondPct(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Instrumentador (%)</Label>
+                          <Input type="number" step="0.01" placeholder="10" value={fInstrumentadorPct} onChange={(e) => setFInstrumentadorPct(e.target.value)} />
+                        </div>
+                        <p className="text-xs text-muted-foreground sm:col-span-3">
+                          O motor aplica o percentual conforme a função do médico no item (Primeiro Auxiliar, Segundo Auxiliar+, Instrumentador).
+                        </p>
                       </div>
                     )}
                   </div>
