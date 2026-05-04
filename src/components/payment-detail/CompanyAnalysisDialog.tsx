@@ -410,7 +410,7 @@ function ItemDetailsRow({
 
   return (
     <tr className="border-b bg-muted/20">
-      <td colSpan={8} className="px-4 py-3">
+      <td colSpan={12} className="px-4 py-3">
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Alertas */}
           <div className="space-y-2">
