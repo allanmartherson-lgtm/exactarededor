@@ -311,6 +311,90 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_companies: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          doctor_id: string
+          id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id: string
+          id?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_companies_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctors: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          crm: string
+          crm_uf: string
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          specialties: string[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          crm: string
+          crm_uf: string
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          specialties?: string[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          crm?: string
+          crm_uf?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          specialties?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_question_attachments: {
         Row: {
           author_id: string | null
