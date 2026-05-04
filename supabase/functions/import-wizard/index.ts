@@ -21,7 +21,7 @@ type FieldDef = {
   key: string;
   label: string;
   required?: boolean;
-  type?: "text" | "number" | "boolean";
+  type?: "text" | "number" | "boolean" | "array";
   aliases?: string[];
   uniqueKey?: boolean; // usado para detectar duplicidade
 };
