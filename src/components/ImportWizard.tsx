@@ -137,10 +137,18 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         mapping,
         profile,
       });
-      setResult({ inserted: data.inserted ?? 0 });
+      const res: CommitResult = {
+        total: data.total ?? 0,
+        inserted: data.inserted ?? 0,
+        skipped: data.skipped ?? 0,
+        validation_errors: data.validation_errors ?? 0,
+        duplicates: data.duplicates ?? 0,
+        insert_errors: data.insert_errors ?? [],
+      };
+      setResult(res);
       setStep("done");
-      toast({ title: `${data.inserted} linha(s) importada(s)` });
-      onComplete?.({ inserted: data.inserted ?? 0 });
+      toast({ title: `${res.inserted} de ${res.total} linha(s) importada(s)` });
+      onComplete?.(res);
     } catch (e: any) {
       toast({ title: "Erro ao importar", description: e?.message, variant: "destructive" });
     } finally {
