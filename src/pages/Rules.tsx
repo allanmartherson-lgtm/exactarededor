@@ -834,15 +834,17 @@ const Rules = () => {
                     scope === "master" ? "Todos os itens (master)"
                     : scope === "especifica" ? `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`
                     : scope === "grupo"
-                      ? (fGroupMode === "empresa"
-                          ? (fGroupCompanyIds.length === 0
-                              ? "Grupo · selecione empresa(s)"
-                              : fGroupDoctors.length === 0
-                                ? `Aplica para ${fGroupCompanyIds.length} empresa(s) — todos os médicos`
-                                : `Aplica para ${fGroupDoctors.length} médico(s) específico(s) em ${fGroupCompanyIds.length} empresa(s)`)
-                          : (fGroupDoctors.length === 0
-                              ? "Grupo · selecione médico(s)"
-                              : `Aplica para ${fGroupDoctors.map((d) => d.name).join(", ")}`))
+                      ? (() => {
+                          const parts: string[] = [];
+                          for (const link of fGroupLinks) {
+                            if (!link.company_id) continue;
+                            const co = companies.find((c) => c.id === link.company_id);
+                            const nm = co?.name ?? link.company_id.slice(0, 8);
+                            parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s) específico(s)`}`);
+                          }
+                          if (fGroupDoctors.length > 0) parts.push(`Médicos avulsos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
+                          return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) avulso(s)";
+                        })()
                       : RULE_SCOPE_LABELS[scope];
                   const calc = fNature === "informativo"
                     ? "Informativa / bloqueio (não calcula)"
