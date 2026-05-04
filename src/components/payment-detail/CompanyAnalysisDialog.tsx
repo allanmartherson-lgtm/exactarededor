@@ -311,6 +311,17 @@ function RowMain({
   hasAlert: boolean;
   onToggle: () => void;
 }) {
+  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+  const pickRaw = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return "—";
+  };
+  const convenio =
+    (it as unknown as { agreement_text?: string | null }).agreement_text ??
+    pickRaw("Convênio", "Convenio", "convenio", "convênio");
   return (
     <tr
       onClick={onToggle}
@@ -321,21 +332,29 @@ function RowMain({
         !isCritical && hasAlert && "bg-warning-soft/30",
       )}
     >
-      <td className="px-2 py-1.5 text-muted-foreground">
-        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      <td className="px-1.5 py-1 text-muted-foreground">
+        {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       </td>
-      <td className="px-2 py-1.5 break-words max-w-[220px]">{paciente}</td>
-      <td className="px-2 py-1.5 break-words max-w-[200px]">{it.doctor_name}</td>
-      <td className="px-2 py-1.5 font-mono text-[11px]">{it.procedure_code ?? "—"}</td>
-      <td className="px-2 py-1.5 hidden lg:table-cell text-muted-foreground truncate max-w-[260px]">
+      <td className="px-1.5 py-1 truncate font-mono text-[10px]" title={it.attendance_number ?? ""}>
+        {it.attendance_number ?? "—"}
+      </td>
+      <td className="px-1.5 py-1 truncate" title={paciente}>{paciente}</td>
+      <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
+      <td className="px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      <td className="px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+      <td className="px-1.5 py-1 font-mono text-[10px]">{it.procedure_code ?? "—"}</td>
+      <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
         {it.procedure_name ?? it.description ?? "—"}
       </td>
-      <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+      <td className="px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
+        {convenio}
+      </td>
+      <td className="px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap">
         {formatCurrency(Number(it.gross_amount ?? 0))}
       </td>
       <td
         className={cn(
-          "px-2 py-1.5 text-right tabular-nums",
+          "px-1.5 py-1 text-right tabular-nums whitespace-nowrap",
           expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01
             ? "text-warning-foreground"
             : "text-muted-foreground",
@@ -343,9 +362,9 @@ function RowMain({
       >
         {expected != null ? formatCurrency(Number(expected)) : "—"}
       </td>
-      <td className="px-2 py-1.5">
-        <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES[tone])}>
-          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-1 inline" />}
+      <td className="px-1.5 py-1">
+        <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
+          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
           {eff}
         </span>
       </td>
