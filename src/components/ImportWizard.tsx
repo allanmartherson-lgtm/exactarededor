@@ -164,7 +164,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     try {
       const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
       const totals: CommitResult = { total: allRows.length, inserted: 0, updated: 0, created: 0, removed_before_replace: 0, skipped: 0, validation_errors: validation?.summary.errors ?? 0, duplicates: validation?.summary.duplicates ?? 0, insert_errors: [] };
-      const CHUNK = 250;
+      const CHUNK = 100;
       for (let i = 0; i < records.length; i += CHUNK) {
         const data = await callFn({
           mode: "commit",
