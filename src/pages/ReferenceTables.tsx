@@ -68,13 +68,17 @@ const ReferenceTables = () => {
   const createTable = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const purpose = String(f.get("purpose") || "calculo") as RefPurpose;
     const { error } = await supabase.from("reference_tables").insert({
       name: String(f.get("name")),
       description: String(f.get("description")) || null,
       year: f.get("year") ? Number(f.get("year")) : null,
       kind: String(f.get("kind") || "simples") as RefKind,
+      purpose,
+      exclusion_severity: purpose === "exclusao" ? String(f.get("exclusion_severity") || "bloqueio") : "bloqueio",
+      active: true,
       created_by: user!.id,
-    });
+    } as any);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
     setOpen(false); loadTables(); toast({ title: "Tabela criada" });
   };
