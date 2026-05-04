@@ -192,23 +192,41 @@ export function CompanyAnalysisDialog({
 
         {/* Tabela */}
         <div className="flex-1 overflow-auto bg-background">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-[11px] border-collapse table-fixed">
+            <colgroup>
+              <col className="w-6" />
+              <col className="w-[8%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[7%]" />
+              <col className="w-[7%]" />
+              <col className="w-[7%]" />
+              <col className="w-[16%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[7%]" />
+            </colgroup>
             <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
               <tr className="border-b">
-                <th className="w-6 px-2 py-2"></th>
-                <th className="px-2 py-2 text-left font-medium">Paciente</th>
-                <th className="px-2 py-2 text-left font-medium">Médico</th>
-                <th className="px-2 py-2 text-left font-medium">TUSS</th>
-                <th className="px-2 py-2 text-left font-medium hidden lg:table-cell">Procedimento</th>
-                <th className="px-2 py-2 text-right font-medium">Valor</th>
-                <th className="px-2 py-2 text-right font-medium">Esperado</th>
-                <th className="px-2 py-2 text-left font-medium">Status</th>
+                <th className="px-1.5 py-1.5"></th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Atend.</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Função</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Via</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Convênio</th>
+                <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
+                <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={12} className="text-center py-8 text-muted-foreground">
                     Nenhum item para exibir.
                   </td>
                 </tr>
@@ -293,6 +311,17 @@ function RowMain({
   hasAlert: boolean;
   onToggle: () => void;
 }) {
+  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+  const pickRaw = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return "—";
+  };
+  const convenio =
+    (it as unknown as { agreement_text?: string | null }).agreement_text ??
+    pickRaw("Convênio", "Convenio", "convenio", "convênio");
   return (
     <tr
       onClick={onToggle}
@@ -303,21 +332,29 @@ function RowMain({
         !isCritical && hasAlert && "bg-warning-soft/30",
       )}
     >
-      <td className="px-2 py-1.5 text-muted-foreground">
-        {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      <td className="px-1.5 py-1 text-muted-foreground">
+        {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       </td>
-      <td className="px-2 py-1.5 break-words max-w-[220px]">{paciente}</td>
-      <td className="px-2 py-1.5 break-words max-w-[200px]">{it.doctor_name}</td>
-      <td className="px-2 py-1.5 font-mono text-[11px]">{it.procedure_code ?? "—"}</td>
-      <td className="px-2 py-1.5 hidden lg:table-cell text-muted-foreground truncate max-w-[260px]">
+      <td className="px-1.5 py-1 truncate font-mono text-[10px]" title={it.attendance_number ?? ""}>
+        {it.attendance_number ?? "—"}
+      </td>
+      <td className="px-1.5 py-1 truncate" title={paciente}>{paciente}</td>
+      <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
+      <td className="px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      <td className="px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+      <td className="px-1.5 py-1 font-mono text-[10px]">{it.procedure_code ?? "—"}</td>
+      <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
         {it.procedure_name ?? it.description ?? "—"}
       </td>
-      <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+      <td className="px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
+        {convenio}
+      </td>
+      <td className="px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap">
         {formatCurrency(Number(it.gross_amount ?? 0))}
       </td>
       <td
         className={cn(
-          "px-2 py-1.5 text-right tabular-nums",
+          "px-1.5 py-1 text-right tabular-nums whitespace-nowrap",
           expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01
             ? "text-warning-foreground"
             : "text-muted-foreground",
@@ -325,9 +362,9 @@ function RowMain({
       >
         {expected != null ? formatCurrency(Number(expected)) : "—"}
       </td>
-      <td className="px-2 py-1.5">
-        <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES[tone])}>
-          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-1 inline" />}
+      <td className="px-1.5 py-1">
+        <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
+          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
           {eff}
         </span>
       </td>
@@ -373,7 +410,7 @@ function ItemDetailsRow({
 
   return (
     <tr className="border-b bg-muted/20">
-      <td colSpan={8} className="px-4 py-3">
+      <td colSpan={12} className="px-4 py-3">
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Alertas */}
           <div className="space-y-2">
