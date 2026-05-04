@@ -11,7 +11,7 @@ export type ImportFieldDef = {
   key: string;
   label: string;
   required?: boolean;
-  type?: "text" | "number" | "boolean";
+  type?: "text" | "number" | "boolean" | "array";
   aliases?: string[];
   uniqueKey?: boolean;
 };
