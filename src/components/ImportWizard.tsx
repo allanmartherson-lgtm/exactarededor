@@ -60,7 +60,6 @@ interface Props {
 export function ImportWizard({ open, onOpenChange, title, profile, onComplete }: Props) {
   const [step, setStep] = useState<Step>("upload");
   const [busy, setBusy] = useState(false);
-  const [storagePath, setStoragePath] = useState<string>("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [rowsBySheet, setRowsBySheet] = useState<Record<string, any[]>>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
@@ -81,7 +80,6 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   useEffect(() => {
     if (!open) {
       setStep("upload");
-      setStoragePath("");
       setSheets([]);
       setRowsBySheet({});
       setActiveSheet("");
@@ -106,7 +104,6 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     setBusy(true);
     try {
       const data = await readWorkbookSheets(file);
-      setStoragePath(file.name);
       setRowsBySheet(data.rowsBySheet);
       setSheets(data.sheets);
       const first = data.sheets?.[0];
@@ -166,12 +163,24 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     setBusy(true);
     try {
       const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
-      const data = await callFn({
-        mode: "commit",
-        records,
-        totalRows: allRows.length,
-        profile: { ...profile, importMode },
-      });
+      const totals: CommitResult = { total: allRows.length, inserted: 0, updated: 0, created: 0, removed_before_replace: 0, skipped: 0, validation_errors: validation?.summary.errors ?? 0, duplicates: validation?.summary.duplicates ?? 0, insert_errors: [] };
+      const CHUNK = 250;
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const data = await callFn({
+          mode: "commit",
+          records: records.slice(i, i + CHUNK),
+          totalRows: records.slice(i, i + CHUNK).length,
+          replaceBefore: i === 0,
+          profile: { ...profile, importMode },
+        });
+        totals.inserted += data.inserted ?? 0;
+        totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
+        totals.created = (totals.created ?? 0) + (data.created ?? 0);
+        totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
+        totals.insert_errors.push(...(data.insert_errors ?? []));
+      }
+      totals.skipped = totals.validation_errors + totals.duplicates + Math.max(0, records.length - totals.inserted);
+      const data = totals;
       const res: CommitResult = {
         total: data.total ?? 0,
         inserted: data.inserted ?? 0,
