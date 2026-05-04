@@ -369,7 +369,9 @@ const Rules = () => {
     const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
     setFGroupCompanyIds(gci);
     setFGroupDoctors(gdo);
-    setFGroupMode(gci.length && gdo.length ? "ambos" : gci.length ? "empresas" : gdo.length ? "medicos" : "todos");
+    // Modo é hierárquico: se tem empresa → modo empresa (com ou sem médicos);
+    // só vai para modo médico se NÃO tem empresa e tem médicos.
+    setFGroupMode(gci.length > 0 ? "empresa" : gdo.length > 0 ? "medico" : "empresa");
     setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
     setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
     setFIncludesHolidays(!!r.includes_holidays);
