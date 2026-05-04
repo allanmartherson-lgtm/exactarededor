@@ -242,29 +242,33 @@ Deno.serve(async (req) => {
     }
 
     // commit
-    if (records.length === 0) {
-      return new Response(
-        JSON.stringify({ inserted: 0, errors: errors.length, duplicates: dups.length }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
     let inserted = 0;
-    const CHUNK = 1000;
-    for (let i = 0; i < records.length; i += CHUNK) {
-      const chunk = records.slice(i, i + CHUNK);
-      const { error } = await admin.from(profile.entity).insert(chunk);
-      if (error) throw new Error(error.message);
-      inserted += chunk.length;
+    const insertErrors: { chunk: number; reason: string }[] = [];
+    if (records.length > 0) {
+      const CHUNK = 500;
+      for (let i = 0; i < records.length; i += CHUNK) {
+        const slice = records.slice(i, i + CHUNK);
+        const { error } = await admin.from(profile.entity).insert(slice);
+        if (error) {
+          insertErrors.push({ chunk: i / CHUNK + 1, reason: error.message });
+          // continua tentando os próximos chunks
+        } else {
+          inserted += slice.length;
+        }
+      }
     }
 
-    // Apaga arquivo após commit
+    // Apaga arquivo após commit (sucesso parcial também)
     await admin.storage.from("import-uploads").remove([storagePath]);
 
     return new Response(
       JSON.stringify({
+        total: allRows.length,
         inserted,
-        errors: errors.length,
+        skipped: errors.length + dups.length + (records.length - inserted),
+        validation_errors: errors.length,
         duplicates: dups.length,
+        insert_errors: insertErrors,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
