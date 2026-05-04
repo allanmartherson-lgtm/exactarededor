@@ -126,14 +126,13 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const runValidation = async () => {
     setBusy(true);
     try {
-      const data = await callFn({
-        mode: "preview",
-        storagePath,
-        sheetName: activeSheet,
-        mapping,
-        profile,
+      const { allRows, records, errors, dups } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
+      setValidation({
+        summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
+        errors: errors.slice(0, 50),
+        duplicates: dups.slice(0, 50),
+        sample: records.slice(0, 10),
       });
-      setValidation(data);
       setStep("validate");
     } catch (e: any) {
       toast({ title: "Erro na validação", description: e?.message, variant: "destructive" });
@@ -166,11 +165,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
     setBusy(true);
     try {
+      const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
       const data = await callFn({
         mode: "commit",
-        storagePath,
-        sheetName: activeSheet,
-        mapping,
+        records,
+        totalRows: allRows.length,
         profile: { ...profile, importMode },
       });
       const res: CommitResult = {
