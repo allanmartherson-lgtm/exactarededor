@@ -39,7 +39,11 @@ const KIND_LABEL: Record<RefKind, string> = {
   lista_codigos: "Lista de códigos",
   pacote_combinacao: "Pacote fixo (combinação de códigos)",
 };
-type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
+type RefItem = {
+  id: string; code: string; description: string | null; amount: number | null;
+  port: string | null; port_multiplier: number | null; aux_count: number | null;
+  package_id: string | null; tuss_codes: string[] | null; package_amount: number | null; notes: string | null;
+};
 type PortValue = { id: string; port: string; amount: number };
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
