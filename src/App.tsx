@@ -18,6 +18,7 @@ import Users from "./pages/Users.tsx";
 import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
 import Companies from "./pages/Companies.tsx";
+import Doctors from "./pages/Doctors.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
 import SlaSettings from "./pages/SlaSettings.tsx";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
               <Route path="/classificacao-procedimentos" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcedureClassifications /></ProtectedRoute>} />
               <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
+              <Route path="/medicos" element={<ProtectedRoute roles={["diretor", "admin"]}><Doctors /></ProtectedRoute>} />
               <Route path="/centros-de-custo" element={<CostCenters />} />
               <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
