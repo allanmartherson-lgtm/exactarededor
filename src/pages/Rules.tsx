@@ -391,9 +391,6 @@ const Rules = () => {
       time_end: fTimeEnd || null,
       elective_mode: fElectiveMode,
     };
-    if (scope === "grupo" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) {
-      return toast({ title: "Vincule ao menos uma empresa ou médico ao grupo", variant: "destructive" });
-    }
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
@@ -863,7 +860,7 @@ const Rules = () => {
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <div>
                       <Label className="text-sm font-semibold">Grupo de médicos/empresas</Label>
-                      <p className="text-xs text-muted-foreground">A regra é aplicada quando o item pertencer a qualquer médico OU empresa vinculados abaixo.</p>
+                      <p className="text-xs text-muted-foreground">A regra será aplicada quando o item pertencer a qualquer empresa OU médico selecionado. Se nenhum for selecionado, aplica-se a todos.</p>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Empresas vinculadas</Label>
