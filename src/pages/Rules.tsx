@@ -206,6 +206,7 @@ const Rules = () => {
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  const [fGroupMode, setFGroupMode] = useState<"todos" | "empresas" | "medicos" | "ambos">("todos");
   // janela temporal
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
