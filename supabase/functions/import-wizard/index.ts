@@ -44,7 +44,15 @@ const ALLOWED_ENTITIES = new Set<Profile["entity"]>([
   "cost_centers",
   "rules",
   "procedure_classifications",
-]);
+  "doctors",
+] as any);
+
+// Chave natural para upsert por entidade (suporta modos update/replace)
+const ENTITY_KEYS: Partial<Record<Profile["entity"], string[]>> = {
+  doctors: ["crm", "crm_uf"],
+  procedure_classifications: ["code_tuss", "sector_classified"],
+  cost_centers: ["code_p12"],
+};
 
 const norm = (s: any) =>
   String(s ?? "")
