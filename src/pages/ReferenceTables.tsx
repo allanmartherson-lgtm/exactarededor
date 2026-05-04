@@ -12,14 +12,26 @@ import { formatCurrency } from "@/lib/status";
 import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles } from "lucide-react";
 import * as XLSX from "xlsx";
 
-type RefKind = "simples" | "cbhpm";
+type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos";
 type RefPurpose = "calculo" | "classificacao" | "exclusao";
-type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; purpose: RefPurpose; exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean; created_at: string };
+type RefTable = {
+  id: string; name: string; description: string | null; year: number | null;
+  kind: RefKind; purpose: RefPurpose;
+  exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean;
+  valid_from: string | null; valid_until: string | null; notes: string | null;
+  created_at: string;
+};
 
 const PURPOSE_LABEL: Record<RefPurpose, string> = {
   calculo: "Cálculo",
   classificacao: "Classificação",
   exclusao: "Exclusão / expurgo",
+};
+const KIND_LABEL: Record<RefKind, string> = {
+  simples: "Simples (código → valor)",
+  cbhpm: "CBHPM (porte → valor)",
+  tabela_propria: "Tabela própria",
+  lista_codigos: "Lista de códigos",
 };
 type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
 type PortValue = { id: string; port: string; amount: number };
