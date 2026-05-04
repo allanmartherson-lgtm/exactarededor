@@ -56,66 +56,8 @@ const ENTITY_KEYS: Partial<Record<Profile["entity"], string[]>> = {
   cost_centers: ["code_p12"],
 };
 
-const norm = (s: any) =>
-  String(s ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
-
-const parseNumber = (v: any): number | null => {
-  if (v == null || v === "") return null;
-  if (typeof v === "number") return isFinite(v) ? v : null;
-  let s = String(v).trim().replace(/[R$\s]/g, "");
-  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
-  else if (s.includes(",")) s = s.replace(",", ".");
-  const n = Number(s);
-  return isFinite(n) ? n : null;
-};
-
-function suggestMapping(headers: string[], fields: FieldDef[]) {
-  const out: Record<string, string | null> = {};
-  const used = new Set<string>();
-  for (const f of fields) {
-    const candidates = [f.key, f.label, ...(f.aliases ?? [])].map(norm);
-    let best: string | null = null;
-    for (const h of headers) {
-      if (used.has(h)) continue;
-      const nh = norm(h);
-      if (candidates.includes(nh) || candidates.some((c) => c && nh.includes(c))) {
-        best = h;
-        break;
-      }
-    }
-    out[f.key] = best;
-    if (best) used.add(best);
-  }
-  return out;
-}
-
 // O parsing de Excel/CSV roda no navegador. A função recebe somente linhas já mapeadas,
 // reduzindo CPU no runtime serverless e evitando WORKER_RESOURCE_LIMIT.
-
-function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: FieldDef[]) {
-  return rows.map((row) => {
-    const out: Record<string, any> = {};
-    for (const f of fields) {
-      const src = mapping[f.key];
-      const raw = src ? row[src] : undefined;
-      if (f.type === "number") out[f.key] = parseNumber(raw);
-      else if (f.type === "boolean") {
-        const s = String(raw ?? "").toLowerCase().trim();
-        out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
-      } else if (f.type === "array") {
-        const s = String(raw ?? "").trim();
-        out[f.key] = s
-          ? s.split(/[,;|\/\s]+/).map((x) => x.trim()).filter(Boolean)
-          : [];
-      } else out[f.key] = raw == null ? null : String(raw).trim();
-    }
-    return out;
-  });
-}
 
 function validate(mapped: any[], fields: FieldDef[]) {
   const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
