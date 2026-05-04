@@ -567,3 +567,58 @@ function suggestMapping(headers: string[], fields: ImportFieldDef[]) {
   }
   return out;
 }
+
+const parseNumber = (v: any): number | null => {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  let s = String(v).trim().replace(/[R$\s]/g, "");
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (s.includes(",")) s = s.replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[]) {
+  return rows.map((row) => {
+    const out: Record<string, any> = {};
+    for (const f of fields) {
+      const src = mapping[f.key];
+      const raw = src ? row[src] : undefined;
+      if (f.type === "number") out[f.key] = parseNumber(raw);
+      else if (f.type === "boolean") {
+        const s = String(raw ?? "").toLowerCase().trim();
+        out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
+      } else if (f.type === "array") {
+        const s = String(raw ?? "").trim();
+        out[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
+      } else out[f.key] = raw == null ? null : String(raw).trim();
+    }
+    return out;
+  });
+}
+
+function validateRows(mapped: any[], fields: ImportFieldDef[]) {
+  const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
+  const uniqueKeys = fields.filter((f) => f.uniqueKey).map((f) => f.key);
+  const seen = new Set<string>();
+  const errors: { row: number; reason: string }[] = [];
+  const dups: { row: number; key: string }[] = [];
+  const valid: any[] = [];
+  mapped.forEach((r, i) => {
+    const missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" || (Array.isArray(r[k]) && r[k].length === 0));
+    if (missing.length) {
+      errors.push({ row: i + 2, reason: `Campos obrigatórios ausentes: ${missing.join(", ")}` });
+      return;
+    }
+    if (uniqueKeys.length) {
+      const k = uniqueKeys.map((u) => String(r[u]).toLowerCase()).join("||");
+      if (seen.has(k)) {
+        dups.push({ row: i + 2, key: k });
+        return;
+      }
+      seen.add(k);
+    }
+    valid.push(r);
+  });
+  return { valid, errors, dups };
+}
