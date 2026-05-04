@@ -342,16 +342,16 @@ function RowMain({
         {it.attendance_number ?? "—"}
       </td>
       <td className="px-1.5 py-1 truncate" title={paciente}>{paciente}</td>
-      <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
-      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      <td className="hidden xl:table-cell px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
+        {convenio}
+      </td>
       <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
       <td className="px-1.5 py-1 font-mono text-[10px] truncate">{it.procedure_code ?? "—"}</td>
       <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
         {it.procedure_name ?? it.description ?? "—"}
       </td>
-      <td className="hidden xl:table-cell px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
-        {convenio}
-      </td>
+      <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
+      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
       <td className="px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap">
         {formatCurrency(Number(it.gross_amount ?? 0))}
       </td>
