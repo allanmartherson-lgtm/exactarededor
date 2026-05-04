@@ -99,28 +99,34 @@ function suggestMapping(headers: string[], fields: FieldDef[]) {
 // Lê apenas metadados (nome, headers, total, 20 linhas de prévia) sem materializar
 // todas as linhas de todas as abas — evita estouro de CPU/memória em arquivos grandes.
 function readSheetsMeta(buf: ArrayBuffer) {
-  const wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: false, cellText: false });
+  // Passada leve: só nomes das abas, sem materializar dados
+  const wbNames = XLSX.read(buf, { type: "array", bookSheets: true });
+  const sheetNames: string[] = wbNames.SheetNames ?? [];
   const sheets: { name: string; headers: string[]; total: number; preview: any[] }[] = [];
-  for (const name of wb.SheetNames) {
+
+  for (const name of sheetNames) {
+    // Lê apenas as primeiras 21 linhas (header + 20 de prévia) de UMA aba por vez
+    const wb = XLSX.read(buf, {
+      type: "array",
+      cellDates: false,
+      cellNF: false,
+      cellText: false,
+      sheets: [name],
+      sheetRows: 21,
+    });
     const ws = wb.Sheets[name];
-    const ref = ws["!ref"];
-    if (!ref) {
+    if (!ws || !ws["!ref"]) {
       sheets.push({ name, headers: [], total: 0, preview: [] });
       continue;
     }
-    const range = XLSX.utils.decode_range(ref);
-    const total = Math.max(0, range.e.r - range.s.r); // exclui linha de header
-    // Limita a leitura à faixa de prévia (header + 20 linhas)
-    const previewEnd = Math.min(range.e.r, range.s.r + 20);
-    const previewRange = { s: range.s, e: { r: previewEnd, c: range.e.c } };
-    const preview = XLSX.utils.sheet_to_json<any>(ws, {
-      defval: "",
-      range: XLSX.utils.encode_range(previewRange),
-    });
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    const preview = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
     const headers = preview.length ? Object.keys(preview[0]) : [];
+    // total real desconhecido sem ler tudo; reportamos o que sabemos do header (-1 do header)
+    const total = Math.max(0, range.e.r - range.s.r);
     sheets.push({ name, headers, total, preview });
   }
-  return { wb, sheets };
+  return { sheets };
 }
 
 // Lê apenas uma aba inteira (usado em preview/commit)
