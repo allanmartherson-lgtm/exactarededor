@@ -196,14 +196,15 @@ export function CompanyAnalysisDialog({
           <table className="w-full text-[11px] border-collapse table-fixed">
             <colgroup>
               <col className="w-6" />
+              {/* Ordem segue a planilha: Atend, Paciente, Convênio, Via, TUSS, Procedimento, Médico, Função, Valor, Esperado, Status */}
               <col className="hidden xl:table-column w-[7%]" />
-              <col className="w-[18%] md:w-[16%] xl:w-[12%]" />
-              <col className="w-[16%] md:w-[14%] xl:w-[12%]" />
-              <col className="hidden lg:table-column w-[6%]" />
+              <col className="w-[18%] md:w-[15%] xl:w-[12%]" />
+              <col className="hidden xl:table-column w-[9%]" />
               <col className="hidden lg:table-column w-[6%]" />
               <col className="w-[8%] md:w-[7%]" />
-              <col className="w-[22%] md:w-[20%] xl:w-[16%]" />
-              <col className="hidden xl:table-column w-[9%]" />
+              <col className="w-[22%] md:w-[20%] xl:w-[15%]" />
+              <col className="w-[16%] md:w-[14%] xl:w-[12%]" />
+              <col className="hidden lg:table-column w-[6%]" />
               <col className="w-[10%] md:w-[9%]" />
               <col className="w-[10%] md:w-[9%]" />
               <col className="w-[10%] md:w-[8%] xl:w-[7%]" />
@@ -213,12 +214,12 @@ export function CompanyAnalysisDialog({
                 <th className="px-1.5 py-1.5"></th>
                 <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Atend.</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
-                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
-                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Função</th>
+                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Convênio</th>
                 <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Via</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>
-                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Convênio</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
+                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Função</th>
                 <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
                 <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
