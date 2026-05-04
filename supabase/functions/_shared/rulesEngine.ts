@@ -777,7 +777,7 @@ function findNextCalculableRule(
 export function analyzeItem(
   item: ItemInput,
   preFilteredRules: RuleInput[],
-  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+  ctx?: EngineCtx,
 ): AnalysisResult {
   // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
   // Estes lançamentos NÃO são itens independentes para o motor de regras:
