@@ -507,7 +507,7 @@ const ReferenceTables = () => {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Tipo</Label>
+                  <Label>Tipo estrutural</Label>
                   <select
                     name="kind"
                     defaultValue="simples"
@@ -515,10 +515,28 @@ const ReferenceTables = () => {
                   >
                     <option value="simples">Simples (código → valor)</option>
                     <option value="cbhpm">CBHPM (porte → valor)</option>
+                    <option value="tabela_propria">Tabela própria (código → valor, layout livre)</option>
+                    <option value="lista_codigos">Lista de códigos (sem valor)</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
-                    CBHPM importa duas abas: <em>VALORES POR PORTE</em> e <em>CÓDIGOS</em> (com porte e nº de aux).
+                    <strong>CBHPM</strong>: importa abas de portes e códigos.{" "}
+                    <strong>Simples / Tabela própria</strong>: planilha com colunas <em>código, descrição, valor</em>.{" "}
+                    <strong>Lista de códigos</strong>: apenas <em>código</em> (e descrição opcional) — útil para exclusão/expurgo ou setor.
                   </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Vigência início</Label>
+                    <Input name="valid_from" type="date" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Vigência fim</Label>
+                    <Input name="valid_until" type="date" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Observações</Label>
+                  <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
                 </div>
                 <Button type="submit" className="w-full">Criar</Button>
               </form>
