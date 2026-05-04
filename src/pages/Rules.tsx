@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -205,6 +206,7 @@ const Rules = () => {
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  const [fGroupMode, setFGroupMode] = useState<"todos" | "empresas" | "medicos" | "ambos">("todos");
   // janela temporal
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
@@ -259,7 +261,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFGroupCompanyIds([]); setFGroupDoctors([]);
+    setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("todos");
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
@@ -312,8 +314,11 @@ const Rules = () => {
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
-    setFGroupCompanyIds(Array.isArray(r.group_company_ids) ? r.group_company_ids : []);
-    setFGroupDoctors(Array.isArray(r.group_doctors) ? r.group_doctors : []);
+    const gci = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
+    const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+    setFGroupCompanyIds(gci);
+    setFGroupDoctors(gdo);
+    setFGroupMode(gci.length && gdo.length ? "ambos" : gci.length ? "empresas" : gdo.length ? "medicos" : "todos");
     setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
     setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
     setFIncludesHolidays(!!r.includes_holidays);
@@ -382,8 +387,8 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
-      group_company_ids: scope === "grupo" ? fGroupCompanyIds : [],
-      group_doctors: scope === "grupo" ? fGroupDoctors : [],
+      group_company_ids: scope === "grupo" && (fGroupMode === "empresas" || fGroupMode === "ambos") ? fGroupCompanyIds : [],
+      group_doctors: scope === "grupo" && (fGroupMode === "medicos" || fGroupMode === "ambos") ? fGroupDoctors : [],
       time_mode: fTimeMode,
       weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
       includes_holidays: fIncludesHolidays,
@@ -859,39 +864,60 @@ const Rules = () => {
                 {scope === "grupo" && (
                   <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                     <div>
-                      <Label className="text-sm font-semibold">Grupo de médicos/empresas</Label>
-                      <p className="text-xs text-muted-foreground">A regra será aplicada quando o item pertencer a qualquer empresa OU médico selecionado. Se nenhum for selecionado, aplica-se a todos.</p>
+                      <Label className="text-sm font-semibold">Aplicação da regra</Label>
+                      <p className="text-xs text-muted-foreground">Quando "Empresas OU médicos selecionados", basta o item casar com qualquer empresa OU médico da lista (lógica OR, não AND).</p>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>Empresas vinculadas</Label>
-                      <CompanyCombobox
-                        value={null}
-                        onChange={(c) => {
-                          if (!c) return;
-                          setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
-                        }}
-                        placeholder="Adicionar empresa ao grupo…"
-                        className="w-full"
-                      />
-                      {fGroupCompanyIds.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {fGroupCompanyIds.map((id) => {
-                            const c = companies.find((x) => x.id === id);
-                            return (
-                              <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
-                                {c?.name ?? id.slice(0, 8)}
-                                <button type="button" className="text-muted-foreground hover:text-foreground"
-                                  onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Médicos vinculados</Label>
-                      <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
-                    </div>
+                    <RadioGroup
+                      value={fGroupMode}
+                      onValueChange={(v) => setFGroupMode(v as typeof fGroupMode)}
+                      className="grid gap-1.5"
+                    >
+                      {[
+                        { v: "todos", l: "Todos os itens" },
+                        { v: "empresas", l: "Apenas empresas selecionadas" },
+                        { v: "medicos", l: "Apenas médicos selecionados" },
+                        { v: "ambos", l: "Empresas OU médicos selecionados" },
+                      ].map((o) => (
+                        <label key={o.v} htmlFor={`gmode-${o.v}`} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <RadioGroupItem id={`gmode-${o.v}`} value={o.v} />
+                          {o.l}
+                        </label>
+                      ))}
+                    </RadioGroup>
+                    {(fGroupMode === "empresas" || fGroupMode === "ambos") && (
+                      <div className="space-y-1.5">
+                        <Label>Empresas vinculadas</Label>
+                        <CompanyCombobox
+                          value={null}
+                          onChange={(c) => {
+                            if (!c) return;
+                            setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
+                          }}
+                          placeholder="Adicionar empresa…"
+                          className="w-full"
+                        />
+                        {fGroupCompanyIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {fGroupCompanyIds.map((id) => {
+                              const c = companies.find((x) => x.id === id);
+                              return (
+                                <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+                                  {c?.name ?? id.slice(0, 8)}
+                                  <button type="button" className="text-muted-foreground hover:text-foreground"
+                                    onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {(fGroupMode === "medicos" || fGroupMode === "ambos") && (
+                      <div className="space-y-1.5">
+                        <Label>Médicos vinculados</Label>
+                        <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                      </div>
+                    )}
                   </div>
                 )}
 
