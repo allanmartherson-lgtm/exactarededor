@@ -12,6 +12,24 @@ import { Network, Upload, Loader2, Search, AlertCircle, ChevronDown, History, Un
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatDate } from "@/lib/status";
+import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+
+const COST_CENTERS_IMPORT_PROFILE: ImportProfile = {
+  entity: "cost_centers",
+  supportedModes: ["update", "append"],
+  fields: [
+    { key: "code_p12", label: "COD_P12", required: true, uniqueKey: true, aliases: ["COD_P12", "cod p12", "p12"] },
+    { key: "code_p10", label: "COD_P10", aliases: ["COD_P10", "cod p10", "p10"] },
+    { key: "code_pai", label: "COD_PAI", aliases: ["COD_PAI", "cod pai", "pai"] },
+    { key: "level1", label: "CENTRO_N1", aliases: ["CENTRO_N1", "centro n1", "n1"] },
+    { key: "level2", label: "CENTRO_N2", aliases: ["CENTRO_N2", "centro n2", "n2"] },
+    { key: "level3", label: "CENTRO_N3", aliases: ["CENTRO_N3", "centro n3", "n3"] },
+    { key: "level4", label: "CENTRO_N4", aliases: ["CENTRO_N4", "centro n4", "n4"] },
+    { key: "level5", label: "CENTRO_N5", aliases: ["CENTRO_N5", "centro n5", "n5"] },
+    { key: "status", label: "STATUS_MSIGA", aliases: ["STATUS_MSIGA", "status msiga", "status"] },
+  ],
+  fixedContext: { active: true },
+};
 
 interface CostCenter {
   id: string;
@@ -67,7 +85,7 @@ const CostCenters = () => {
   const [items, setItems] = useState<CostCenter[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [importing, setImporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -164,105 +182,8 @@ const CostCenters = () => {
   useEffect(() => { loadFirstPage(); }, [loadFirstPage]);
   useEffect(() => { loadLogs(); }, [loadLogs]);
 
-  const onImport = async (file: File) => {
-    if (!canManage) return;
-    setImporting(true);
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { cellDates: false });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-
-      const rows = json
-        .map((r) => ({
-          code_p12: toStr(pick(r, ["COD_P12", "cod p12"])),
-          code_p10: toStr(pick(r, ["COD_P10", "cod p10"])),
-          code_pai: toStr(pick(r, ["COD_PAI", "cod pai"])),
-          level1: toStr(pick(r, ["CENTRO_N1", "centro n1"])),
-          level2: toStr(pick(r, ["CENTRO_N2"])),
-          level3: toStr(pick(r, ["CENTRO_N3"])),
-          level4: toStr(pick(r, ["CENTRO_N4"])),
-          level5: toStr(pick(r, ["CENTRO_N5"])),
-          status: toStr(pick(r, ["STATUS_MSIGA", "status"])),
-        }))
-        .filter((r) => r.code_p12 && isUnblocked(r.status));
-
-      if (rows.length === 0) {
-        toast({ title: "Nenhuma linha 'Não Bloqueado' encontrada", variant: "destructive" });
-        setImporting(false);
-        return;
-      }
-
-      // Snapshot completo da tabela ANTES da importação (em páginas)
-      const snapshot: any[] = [];
-      const SNAP_PAGE = 1000;
-      for (let from = 0; ; from += SNAP_PAGE) {
-        const { data: page, error: snapErr } = await supabase
-          .from("cost_centers")
-          .select("code_p12,code_p10,code_pai,level1,level2,level3,level4,level5,status,active")
-          .order("code_p12")
-          .range(from, from + SNAP_PAGE - 1);
-        if (snapErr) throw snapErr;
-        if (!page || page.length === 0) break;
-        snapshot.push(...page);
-        if (page.length < SNAP_PAGE) break;
-      }
-      const existingMap = new Map(snapshot.map((e: any) => [e.code_p12, e.active]));
-      const incomingCodes = new Set(rows.map((r) => r.code_p12!));
-
-      // Upsert em lotes de 500
-      const payload = rows.map((r) => ({
-        ...r,
-        active: true,
-        imported_at: new Date().toISOString(),
-        imported_by: user!.id,
-      }));
-      const chunkSize = 500;
-      let upserted = 0;
-      for (let i = 0; i < payload.length; i += chunkSize) {
-        const chunk = payload.slice(i, i + chunkSize);
-        const { error } = await supabase.from("cost_centers").upsert(chunk, { onConflict: "code_p12" });
-        if (error) throw error;
-        upserted += chunk.length;
-      }
-
-      // Marcar como inativos os que sumiram
-      const toDeactivate: string[] = [];
-      for (const [code, active] of existingMap.entries()) {
-        if (active && !incomingCodes.has(code)) toDeactivate.push(code);
-      }
-      if (toDeactivate.length) {
-        await supabase
-          .from("cost_centers")
-          .update({ active: false })
-          .in("code_p12", toDeactivate);
-      }
-
-      const created = rows.filter((r) => !existingMap.has(r.code_p12!)).length;
-      const updated = upserted - created;
-
-      // Grava log de importação
-      const { error: logErr } = await supabase.from("cost_center_imports").insert({
-        file_name: file.name,
-        rows_in_file: rows.length,
-        created_count: created,
-        updated_count: updated,
-        deactivated_count: toDeactivate.length,
-        snapshot,
-        imported_by: user!.id,
-      });
-      if (logErr) console.warn("Falha ao registrar histórico:", logErr.message);
-
-      toast({
-        title: "Importação concluída",
-        description: `${created} criados · ${updated} atualizados · ${toDeactivate.length} desativados`,
-      });
-      await Promise.all([refreshCounts(), loadFirstPage(), loadLogs()]);
-    } catch (e: any) {
-      toast({ title: "Erro na importação", description: String(e?.message ?? e), variant: "destructive" });
-    } finally {
-      setImporting(false);
-    }
+  const handleImportComplete = async () => {
+    await Promise.all([refreshCounts(), loadFirstPage(), loadLogs()]);
   };
 
   const revertImport = async (logId: string) => {
@@ -298,30 +219,13 @@ const CostCenters = () => {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Upload className="h-4 w-4" /> Importar planilha da controladoria</CardTitle>
               <CardDescription>
-                Esperado: colunas <code>COD_P12</code>, <code>COD_P10</code>, <code>COD_PAI</code>, <code>CENTRO_N1..N5</code> e <code>STATUS_MSIGA</code>. Linhas bloqueadas são descartadas. Centros que sumirem são marcados como inativos (não excluídos).
+                Fluxo padrão: upload → prévia → mapeamento de colunas → validação → confirmação → importação. Esperado: <code>COD_P12</code>, <code>COD_P10</code>, <code>COD_PAI</code>, <code>CENTRO_N1..N5</code> e <code>STATUS_MSIGA</code>.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <label className="block border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-primary-soft/30 transition-colors">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  className="hidden"
-                  disabled={importing}
-                  onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])}
-                />
-                {importing ? (
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Processando…
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm font-medium">Clique para enviar a base P12</p>
-                    <p className="text-xs text-muted-foreground mt-1">Excel (.xlsx)</p>
-                  </>
-                )}
-              </label>
+              <Button onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" /> Iniciar importação
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -508,7 +412,15 @@ const CostCenters = () => {
           </Collapsible>
         </Card>
       </div>
+      <ImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Importar centros de custo"
+        profile={COST_CENTERS_IMPORT_PROFILE}
+        onComplete={handleImportComplete}
+      />
     </>
+
   );
 };
 
