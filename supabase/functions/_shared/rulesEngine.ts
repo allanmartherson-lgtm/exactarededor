@@ -79,6 +79,13 @@ export interface RuleInput {
   instrumentador_pct?: number | null;
   group_company_ids?: string[] | null;
   group_doctors?: { name?: string; crm?: string }[] | null;
+  /**
+   * Vínculos por empresa (novo modelo). Cada item: empresa + (opcional) lista de médicos.
+   * Se `doctors` estiver vazio → aplica a todos médicos daquela empresa.
+   * Se preenchido → aplica somente aos médicos listados naquela empresa.
+   * Tem precedência sobre `group_company_ids`/`group_doctors` quando presente.
+   */
+  group_company_links?: { company_id: string; doctors?: { name?: string; crm?: string }[] }[] | null;
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
