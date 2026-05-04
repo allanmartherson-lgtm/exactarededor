@@ -312,16 +312,31 @@ const Rules = () => {
       ids.forEach((id) => next.add(id));
       return next;
     });
-    supabase
-      .from("payment_items")
-      .select("company_id, doctor_name, doctor_document")
-      .in("company_id", ids)
-      .not("doctor_name", "is", null)
-      .limit(5000)
-      .then(({ data }) => {
+    Promise.all([
+      supabase
+        .from("payment_items")
+        .select("company_id, doctor_name, doctor_document")
+        .in("company_id", ids)
+        .not("doctor_name", "is", null)
+        .limit(5000),
+      supabase
+        .from("doctor_companies")
+        .select("company_id, doctors(full_name, crm, crm_uf, active)")
+        .in("company_id", ids),
+    ]).then(([itemsRes, masterRes]) => {
         const byCo: Record<string, Map<string, { name: string; crm?: string }>> = {};
         ids.forEach((id) => { byCo[id] = new Map(); });
-        for (const r of (data ?? []) as any[]) {
+        // Master table (preferencial)
+        for (const r of (masterRes.data ?? []) as any[]) {
+          const cid = String(r.company_id ?? "");
+          const d = r.doctors;
+          if (!cid || !d || !d.full_name || !byCo[cid]) continue;
+          if (d.active === false) continue;
+          const key = d.full_name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          byCo[cid].set(key, { name: d.full_name, crm: d.crm ? `${d.crm}/${d.crm_uf}` : undefined });
+        }
+        // Payment items (fallback / complemento)
+        for (const r of (itemsRes.data ?? []) as any[]) {
           const cid = String(r.company_id ?? "");
           const name = String(r.doctor_name ?? "").trim();
           if (!cid || !name || !byCo[cid]) continue;
