@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  FileText,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -22,10 +23,16 @@ import {
   TONE_CLASSES,
   type ItemAiStatus,
   type PaymentStatus,
+  RULE_MATCH_PRIORITY_LABELS,
+  RULE_MATCH_PRIORITY_TONES,
+  RULE_CALCULATION_TYPE_LABELS,
+  type RuleMatchPriority,
+  type RuleCalculationType,
 } from "@/lib/status";
 import { effectiveItemAiStatus } from "@/lib/paymentFlow";
 import type {
   GroupRow,
+  ObservationRow,
   PaymentItemRow as PaymentItemRowData,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
@@ -39,6 +46,7 @@ type Props = {
   items: PaymentItemRowData[];
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
+  observations?: ObservationRow[];
 };
 
 /**
