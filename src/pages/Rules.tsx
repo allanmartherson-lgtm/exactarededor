@@ -1083,8 +1083,8 @@ const Rules = () => {
                                             {loadingDocs
                                               ? "Carregando médicos…"
                                               : allowedDocs.length === 0
-                                                ? "Nenhum médico encontrado nos atendimentos. Vazio = todos."
-                                                : "Clique para refinar. Vazio = aplica a todos da empresa."}
+                                                ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
+                                                : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
                                           </p>
                                           {allowedDocs.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
@@ -1106,9 +1106,17 @@ const Rules = () => {
                                               })}
                                             </div>
                                           )}
+                                          {/* Editor manual: sempre disponível para adicionar médicos não listados */}
+                                          <DoctorsEditor
+                                            value={link.doctors}
+                                            onChange={(next) => updateLink({ doctors: next })}
+                                          />
                                           {link.doctors.length > 0 && (
-                                            <div className="text-xs text-muted-foreground">
-                                              {link.doctors.length} médico(s) específico(s) selecionado(s).
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                              <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
+                                              <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
+                                                Limpar
+                                              </Button>
                                             </div>
                                           )}
                                           {invalidPicked.length > 0 && (
