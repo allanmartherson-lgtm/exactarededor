@@ -12,14 +12,26 @@ import { formatCurrency } from "@/lib/status";
 import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles } from "lucide-react";
 import * as XLSX from "xlsx";
 
-type RefKind = "simples" | "cbhpm";
+type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos";
 type RefPurpose = "calculo" | "classificacao" | "exclusao";
-type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; purpose: RefPurpose; exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean; created_at: string };
+type RefTable = {
+  id: string; name: string; description: string | null; year: number | null;
+  kind: RefKind; purpose: RefPurpose;
+  exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean;
+  valid_from: string | null; valid_until: string | null; notes: string | null;
+  created_at: string;
+};
 
 const PURPOSE_LABEL: Record<RefPurpose, string> = {
   calculo: "Cálculo",
   classificacao: "Classificação",
   exclusao: "Exclusão / expurgo",
+};
+const KIND_LABEL: Record<RefKind, string> = {
+  simples: "Simples (código → valor)",
+  cbhpm: "CBHPM (porte → valor)",
+  tabela_propria: "Tabela própria",
+  lista_codigos: "Lista de códigos",
 };
 type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
 type PortValue = { id: string; port: string; amount: number };
@@ -76,6 +88,9 @@ const ReferenceTables = () => {
       kind: String(f.get("kind") || "simples") as RefKind,
       purpose,
       exclusion_severity: purpose === "exclusao" ? String(f.get("exclusion_severity") || "bloqueio") : "bloqueio",
+      valid_from: String(f.get("valid_from") || "") || null,
+      valid_until: String(f.get("valid_until") || "") || null,
+      notes: String(f.get("notes") || "") || null,
       active: true,
       created_by: user!.id,
     } as any);
@@ -492,7 +507,7 @@ const ReferenceTables = () => {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Tipo</Label>
+                  <Label>Tipo estrutural</Label>
                   <select
                     name="kind"
                     defaultValue="simples"
@@ -500,10 +515,28 @@ const ReferenceTables = () => {
                   >
                     <option value="simples">Simples (código → valor)</option>
                     <option value="cbhpm">CBHPM (porte → valor)</option>
+                    <option value="tabela_propria">Tabela própria (código → valor, layout livre)</option>
+                    <option value="lista_codigos">Lista de códigos (sem valor)</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
-                    CBHPM importa duas abas: <em>VALORES POR PORTE</em> e <em>CÓDIGOS</em> (com porte e nº de aux).
+                    <strong>CBHPM</strong>: importa abas de portes e códigos.{" "}
+                    <strong>Simples / Tabela própria</strong>: planilha com colunas <em>código, descrição, valor</em>.{" "}
+                    <strong>Lista de códigos</strong>: apenas <em>código</em> (e descrição opcional) — útil para exclusão/expurgo ou setor.
                   </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Vigência início</Label>
+                    <Input name="valid_from" type="date" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Vigência fim</Label>
+                    <Input name="valid_until" type="date" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Observações</Label>
+                  <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
                 </div>
                 <Button type="submit" className="w-full">Criar</Button>
               </form>
@@ -530,8 +563,8 @@ const ReferenceTables = () => {
                       <p className="font-medium text-sm">
                         {t.name}
                         {t.year ? <span className="text-muted-foreground font-normal"> · {t.year}</span> : null}
-                        <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 uppercase tracking-wide">
-                          {t.kind}
+                        <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                          {KIND_LABEL[t.kind] ?? t.kind}
                         </span>
                         <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : "bg-success/10 text-success border border-success/30"}`}>
                           {PURPOSE_LABEL[t.purpose ?? "calculo"]}
@@ -539,9 +572,17 @@ const ReferenceTables = () => {
                         {t.active === false && (
                           <span className="ml-2 text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">inativa</span>
                         )}
+                        {(t.valid_from || t.valid_until) && (
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">
+                            vigência {t.valid_from ?? "—"} → {t.valid_until ?? "—"}
+                          </span>
+                        )}
                       </p>
                       {t.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+                      )}
+                      {t.notes && (
+                        <p className="text-xs text-muted-foreground mt-0.5 italic">{t.notes}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1">

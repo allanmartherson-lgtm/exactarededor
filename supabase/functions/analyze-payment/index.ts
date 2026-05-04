@@ -171,12 +171,16 @@ serve(async (req) => {
     type ExclHit = { table_name: string; severity: "bloqueio" | "aviso" | "info"; reason: string | null };
     const exclusionByCode: Record<string, ExclHit> = {};
     if (codes.length > 0) {
-      const { data: exclTables } = await supabase
+      const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
+      const { data: exclTablesAll } = await supabase
         .from("reference_tables")
-        .select("id,name,exclusion_severity,description")
+        .select("id,name,exclusion_severity,description,valid_from,valid_until")
         .eq("purpose", "exclusao")
         .eq("active", true);
-      const exclIds = (exclTables ?? []).map((t: any) => t.id);
+      const exclTables = (exclTablesAll ?? []).filter((t: any) =>
+        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
+      );
+      const exclIds = exclTables.map((t: any) => t.id);
       if (exclIds.length > 0) {
         const { data: exclItems } = await supabase
           .from("reference_table_items")
