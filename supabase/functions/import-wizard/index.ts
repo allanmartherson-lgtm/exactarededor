@@ -182,31 +182,16 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { mode, storagePath, sheetName, mapping, profile } = body as {
+    const { mode, records: incomingRecords, totalRows, profile } = body as {
       mode: "parse" | "preview" | "commit";
-      storagePath: string;
-      sheetName?: string;
-      mapping?: Record<string, string | null>;
+      records?: Record<string, any>[];
+      totalRows?: number;
       profile?: Profile;
     };
 
-    if (!storagePath || typeof storagePath !== "string") {
-      return new Response(JSON.stringify({ error: "storagePath obrigatório" }), {
+    if (mode !== "commit") {
+      return new Response(JSON.stringify({ error: "Parsing e validação agora são executados no navegador" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Baixa arquivo do storage
-    const { data: file, error: dlErr } = await admin.storage
-      .from("import-uploads")
-      .download(storagePath);
-    if (dlErr || !file) throw new Error(`Falha ao baixar arquivo: ${dlErr?.message}`);
-    const buf = await file.arrayBuffer();
-
-    if (mode === "parse") {
-      const { sheets } = readSheetsMeta(buf);
-      return new Response(JSON.stringify({ sheets }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -218,11 +203,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Lê apenas a aba alvo (não todas) para economizar CPU/memória
-    const { rows: allRows, headers: sheetHeaders } = readSheetRows(buf, sheetName);
-    const effectiveMapping = mapping ?? suggestMapping(sheetHeaders, profile.fields);
-    const mapped = applyMapping(allRows, effectiveMapping, profile.fields);
-    const { valid, errors, dups } = validate(mapped, profile.fields);
+    if (!Array.isArray(incomingRecords)) {
+      return new Response(JSON.stringify({ error: "records obrigatório" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
 
     // Anexa contexto fixo
