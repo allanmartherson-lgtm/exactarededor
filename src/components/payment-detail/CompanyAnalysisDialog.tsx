@@ -204,16 +204,51 @@ export function CompanyAnalysisDialog({
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-2 border-b px-4 py-2 bg-muted/20">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filtrar por paciente, médico, TUSS…"
+              placeholder="Busca geral (paciente, médico, TUSS, convênio…)"
               className="h-8 pl-7 text-xs"
             />
           </div>
+          <Input
+            value={patientFilter}
+            onChange={(e) => setPatientFilter(e.target.value)}
+            placeholder="Paciente"
+            className="h-8 w-36 text-xs"
+          />
+          <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+            <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Médico" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os médicos</SelectItem>
+              {doctorOptions.map((d) => (
+                <SelectItem key={d} value={d}>{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos status</SelectItem>
+              <SelectItem value="reprovado">Reprovado</SelectItem>
+              <SelectItem value="alerta">Alerta</SelectItem>
+              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="seguido">Seguido</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={convenioFilter} onValueChange={setConvenioFilter}>
+            <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="Convênio" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos convênios</SelectItem>
+              {convenioOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             size="sm"
             variant={onlyAlerts ? "default" : "outline"}
@@ -223,6 +258,20 @@ export function CompanyAnalysisDialog({
             <AlertTriangle className="h-3.5 w-3.5 mr-1" />
             Só com alertas
           </Button>
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs"
+              onClick={() => {
+                setFilter(""); setPatientFilter("");
+                setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
+                setOnlyAlerts(false);
+              }}
+            >
+              Limpar
+            </Button>
+          )}
           <Badge variant="secondary" className="ml-auto">
             {filtered.length} de {counts.total}
           </Badge>
