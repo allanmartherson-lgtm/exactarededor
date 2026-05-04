@@ -6,10 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertBanner } from "./AlertBanner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  Columns3,
   FileText,
   Search,
   ShieldAlert,
@@ -55,6 +58,42 @@ type Props = {
  * - Linha expansível mostra: alerta, regra, explicação IA, valor esperado
  * - Sem navegação para outra rota; mantém contexto do lote
  */
+
+// Colunas opcionais com toggle de visibilidade. Obrigatórias (Paciente, Médico,
+// TUSS, Valor, Esperado, Status) ficam sempre visíveis.
+type OptionalColKey =
+  | "atendimento"
+  | "convenio"
+  | "via"
+  | "funcao"
+  | "procedimento"
+  | "regra"
+  | "diferenca"
+  | "observacao";
+
+const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
+  { key: "atendimento", label: "Atendimento" },
+  { key: "convenio", label: "Convênio" },
+  { key: "via", label: "Via de acesso" },
+  { key: "funcao", label: "Função" },
+  { key: "procedimento", label: "Procedimento" },
+  { key: "regra", label: "Regra aplicada" },
+  { key: "diferenca", label: "Diferença" },
+  { key: "observacao", label: "Observação" },
+];
+
+const COLUMN_PREFS_KEY = "companyAnalysis.columnVisibility.v1";
+const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
+  atendimento: true,
+  convenio: true,
+  via: false,
+  funcao: false,
+  procedimento: true,
+  regra: false,
+  diferenca: false,
+  observacao: false,
+};
+
 export function CompanyAnalysisDialog({
   open,
   onOpenChange,
@@ -74,6 +113,28 @@ export function CompanyAnalysisDialog({
   const [statusFilter, setStatusFilter] = useState<string>("__all__");
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+
+  // Visibilidade de colunas opcionais — persistida em localStorage
+  const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
+    if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
+    try {
+      const raw = window.localStorage.getItem(COLUMN_PREFS_KEY);
+      if (!raw) return DEFAULT_COL_VISIBILITY;
+      const parsed = JSON.parse(raw) as Partial<Record<OptionalColKey, boolean>>;
+      return { ...DEFAULT_COL_VISIBILITY, ...parsed };
+    } catch {
+      return DEFAULT_COL_VISIBILITY;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(colVis));
+    } catch {
+      /* noop */
+    }
+  }, [colVis]);
+  const toggleCol = (k: OptionalColKey) =>
+    setColVis((v) => ({ ...v, [k]: !v[k] }));
 
   const getConvenio = (it: PaymentItemRowData): string => {
     const raw = (it.raw_data ?? {}) as Record<string, unknown>;
@@ -282,7 +343,58 @@ export function CompanyAnalysisDialog({
               Limpar
             </Button>
           )}
-          <Badge variant="secondary" className="ml-auto">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8 text-xs ml-auto">
+                <Columns3 className="h-3.5 w-3.5 mr-1" />
+                Colunas
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-2">
+              <p className="px-1.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                Colunas opcionais
+              </p>
+              <div className="space-y-0.5">
+                {OPTIONAL_COLUMNS.map((c) => (
+                  <label
+                    key={c.key}
+                    className="flex items-center gap-2 rounded-sm px-1.5 py-1 text-xs hover:bg-muted cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={colVis[c.key]}
+                      onCheckedChange={() => toggleCol(c.key)}
+                    />
+                    <span>{c.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-1 flex justify-between gap-2 border-t pt-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] flex-1"
+                  onClick={() =>
+                    setColVis(
+                      Object.fromEntries(
+                        OPTIONAL_COLUMNS.map((c) => [c.key, false]),
+                      ) as Record<OptionalColKey, boolean>,
+                    )
+                  }
+                >
+                  Limpar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] flex-1"
+                  onClick={() => setColVis(DEFAULT_COL_VISIBILITY)}
+                >
+                  Padrão
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
         </div>
@@ -400,41 +512,29 @@ export function CompanyAnalysisDialog({
 
           {/* DESKTOP/TABLET — tabela densa (>= md) */}
           <table className="hidden md:table w-full text-[11px] border-collapse table-fixed">
-            <colgroup>
-              <col className="w-6" />
-              {/* Ordem segue a planilha: Atend, Paciente, Convênio, Via, TUSS, Procedimento, Médico, Função, Valor, Esperado, Status */}
-              <col className="hidden xl:table-column w-[7%]" />
-              <col className="w-[15%] xl:w-[12%]" />
-              <col className="hidden xl:table-column w-[9%]" />
-              <col className="hidden lg:table-column w-[6%]" />
-              <col className="w-[7%]" />
-              <col className="w-[20%] xl:w-[15%]" />
-              <col className="w-[14%] xl:w-[12%]" />
-              <col className="hidden lg:table-column w-[6%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[8%] xl:w-[7%]" />
-            </colgroup>
             <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
               <tr className="border-b">
-                <th className="px-1.5 py-1.5"></th>
-                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Atend.</th>
+                <th className="w-6 px-1.5 py-1.5"></th>
+                {colVis.atendimento && <th className="px-1.5 py-1.5 text-left font-medium">Atend.</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
-                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Convênio</th>
-                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Via</th>
+                {colVis.convenio && <th className="px-1.5 py-1.5 text-left font-medium">Convênio</th>}
+                {colVis.via && <th className="px-1.5 py-1.5 text-left font-medium">Via</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
-                <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>
+                {colVis.procedimento && <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
-                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Função</th>
+                {colVis.funcao && <th className="px-1.5 py-1.5 text-left font-medium">Função</th>}
+                {colVis.regra && <th className="px-1.5 py-1.5 text-left font-medium">Regra</th>}
                 <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
                 <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
+                {colVis.diferenca && <th className="px-1.5 py-1.5 text-right font-medium">Diferença</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
+                {colVis.observacao && <th className="px-1.5 py-1.5 text-left font-medium">Obs.</th>}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={20} className="text-center py-8 text-muted-foreground">
                     Nenhum item para exibir.
                   </td>
                 </tr>
@@ -459,6 +559,7 @@ export function CompanyAnalysisDialog({
                 const isOpen = expanded.has(it.id);
                 const isActive = activeId === it.id;
                 const isCritical = eff === "reprovado";
+                const obsCount = observations.filter((o) => o.item_id === it.id).length;
 
                 return (
                   <tr key={it.id} className="contents">
@@ -473,6 +574,10 @@ export function CompanyAnalysisDialog({
                       isCritical={isCritical}
                       hasAlert={alerts.length > 0}
                       onToggle={() => toggleRow(it.id)}
+                      colVis={colVis}
+                      rulesIndex={rulesIndex}
+                      rulesByName={rulesByName}
+                      obsCount={obsCount}
                     />
                     {isOpen && (
                       <ItemDetailsRow
@@ -509,6 +614,10 @@ function RowMain({
   isCritical,
   hasAlert,
   onToggle,
+  colVis,
+  rulesIndex,
+  rulesByName,
+  obsCount,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -520,6 +629,10 @@ function RowMain({
   isCritical: boolean;
   hasAlert: boolean;
   onToggle: () => void;
+  colVis: Record<OptionalColKey, boolean>;
+  rulesIndex: Record<string, RuleLite>;
+  rulesByName: Record<string, RuleLite>;
+  obsCount: number;
 }) {
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
@@ -532,6 +645,21 @@ function RowMain({
   const convenio =
     (it as unknown as { agreement_text?: string | null }).agreement_text ??
     pickRaw("Convênio", "Convenio", "convenio", "convênio");
+  const grossN = Number(it.gross_amount ?? 0);
+  const expN = expected != null ? Number(expected) : null;
+  const diff = expN != null ? expN - grossN : null;
+  const diverges = diff != null && Math.abs(diff) > 0.01;
+
+  // Regra aplicada (nome curto)
+  const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
+  const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
+  let ruleName = "—";
+  if (matchedIds[0] && rulesIndex[matchedIds[0]]) ruleName = rulesIndex[matchedIds[0]].name;
+  else if (matchedNames[0]) {
+    const r = rulesByName[String(matchedNames[0]).trim().toLowerCase()];
+    ruleName = r?.name ?? matchedNames[0];
+  }
+
   return (
     <tr
       onClick={onToggle}
@@ -545,39 +673,65 @@ function RowMain({
       <td className="px-1.5 py-1 text-muted-foreground">
         {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       </td>
-      <td className="hidden xl:table-cell px-1.5 py-1 truncate font-mono text-[10px]" title={it.attendance_number ?? ""}>
-        {it.attendance_number ?? "—"}
-      </td>
+      {colVis.atendimento && (
+        <td className="px-1.5 py-1 truncate font-mono text-[10px]" title={it.attendance_number ?? ""}>
+          {it.attendance_number ?? "—"}
+        </td>
+      )}
       <td className="px-1.5 py-1 truncate" title={paciente}>{paciente}</td>
-      <td className="hidden xl:table-cell px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
-        {convenio}
-      </td>
-      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+      {colVis.convenio && (
+        <td className="px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
+          {convenio}
+        </td>
+      )}
+      {colVis.via && (
+        <td className="px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+      )}
       <td className="px-1.5 py-1 font-mono text-[10px] truncate">{it.procedure_code ?? "—"}</td>
-      <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
-        {it.procedure_name ?? it.description ?? "—"}
-      </td>
+      {colVis.procedimento && (
+        <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
+          {it.procedure_name ?? it.description ?? "—"}
+        </td>
+      )}
       <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
-      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      {colVis.funcao && (
+        <td className="px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      )}
+      {colVis.regra && (
+        <td className="px-1.5 py-1 truncate text-muted-foreground" title={ruleName}>{ruleName}</td>
+      )}
       <td className="px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap">
-        {formatCurrency(Number(it.gross_amount ?? 0))}
+        {formatCurrency(grossN)}
       </td>
       <td
         className={cn(
           "px-1.5 py-1 text-right tabular-nums whitespace-nowrap",
-          expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01
-            ? "text-warning-foreground"
-            : "text-muted-foreground",
+          diverges ? "text-warning-foreground" : "text-muted-foreground",
         )}
       >
-        {expected != null ? formatCurrency(Number(expected)) : "—"}
+        {expN != null ? formatCurrency(expN) : "—"}
       </td>
+      {colVis.diferenca && (
+        <td
+          className={cn(
+            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap",
+            diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+          )}
+        >
+          {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+        </td>
+      )}
       <td className="px-1.5 py-1">
         <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
           {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
           {eff}
         </span>
       </td>
+      {colVis.observacao && (
+        <td className="px-1.5 py-1 text-center text-[10px] text-muted-foreground">
+          {obsCount > 0 ? obsCount : "—"}
+        </td>
+      )}
     </tr>
   );
 }
