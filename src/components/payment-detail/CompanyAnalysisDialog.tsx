@@ -614,6 +614,10 @@ function RowMain({
   isCritical,
   hasAlert,
   onToggle,
+  colVis,
+  rulesIndex,
+  rulesByName,
+  obsCount,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -625,6 +629,10 @@ function RowMain({
   isCritical: boolean;
   hasAlert: boolean;
   onToggle: () => void;
+  colVis: Record<OptionalColKey, boolean>;
+  rulesIndex: Record<string, RuleLite>;
+  rulesByName: Record<string, RuleLite>;
+  obsCount: number;
 }) {
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
@@ -637,6 +645,21 @@ function RowMain({
   const convenio =
     (it as unknown as { agreement_text?: string | null }).agreement_text ??
     pickRaw("Convênio", "Convenio", "convenio", "convênio");
+  const grossN = Number(it.gross_amount ?? 0);
+  const expN = expected != null ? Number(expected) : null;
+  const diff = expN != null ? expN - grossN : null;
+  const diverges = diff != null && Math.abs(diff) > 0.01;
+
+  // Regra aplicada (nome curto)
+  const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
+  const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
+  let ruleName = "—";
+  if (matchedIds[0] && rulesIndex[matchedIds[0]]) ruleName = rulesIndex[matchedIds[0]].name;
+  else if (matchedNames[0]) {
+    const r = rulesByName[String(matchedNames[0]).trim().toLowerCase()];
+    ruleName = r?.name ?? matchedNames[0];
+  }
+
   return (
     <tr
       onClick={onToggle}
@@ -650,39 +673,65 @@ function RowMain({
       <td className="px-1.5 py-1 text-muted-foreground">
         {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       </td>
-      <td className="hidden xl:table-cell px-1.5 py-1 truncate font-mono text-[10px]" title={it.attendance_number ?? ""}>
-        {it.attendance_number ?? "—"}
-      </td>
+      {colVis.atendimento && (
+        <td className="px-1.5 py-1 truncate font-mono text-[10px]" title={it.attendance_number ?? ""}>
+          {it.attendance_number ?? "—"}
+        </td>
+      )}
       <td className="px-1.5 py-1 truncate" title={paciente}>{paciente}</td>
-      <td className="hidden xl:table-cell px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
-        {convenio}
-      </td>
-      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+      {colVis.convenio && (
+        <td className="px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
+          {convenio}
+        </td>
+      )}
+      {colVis.via && (
+        <td className="px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+      )}
       <td className="px-1.5 py-1 font-mono text-[10px] truncate">{it.procedure_code ?? "—"}</td>
-      <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
-        {it.procedure_name ?? it.description ?? "—"}
-      </td>
+      {colVis.procedimento && (
+        <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
+          {it.procedure_name ?? it.description ?? "—"}
+        </td>
+      )}
       <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
-      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      {colVis.funcao && (
+        <td className="px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      )}
+      {colVis.regra && (
+        <td className="px-1.5 py-1 truncate text-muted-foreground" title={ruleName}>{ruleName}</td>
+      )}
       <td className="px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap">
-        {formatCurrency(Number(it.gross_amount ?? 0))}
+        {formatCurrency(grossN)}
       </td>
       <td
         className={cn(
           "px-1.5 py-1 text-right tabular-nums whitespace-nowrap",
-          expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01
-            ? "text-warning-foreground"
-            : "text-muted-foreground",
+          diverges ? "text-warning-foreground" : "text-muted-foreground",
         )}
       >
-        {expected != null ? formatCurrency(Number(expected)) : "—"}
+        {expN != null ? formatCurrency(expN) : "—"}
       </td>
+      {colVis.diferenca && (
+        <td
+          className={cn(
+            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap",
+            diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+          )}
+        >
+          {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+        </td>
+      )}
       <td className="px-1.5 py-1">
         <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
           {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
           {eff}
         </span>
       </td>
+      {colVis.observacao && (
+        <td className="px-1.5 py-1 text-center text-[10px] text-muted-foreground">
+          {obsCount > 0 ? obsCount : "—"}
+        </td>
+      )}
     </tr>
   );
 }
