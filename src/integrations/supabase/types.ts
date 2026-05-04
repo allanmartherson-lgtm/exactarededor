@@ -989,8 +989,11 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["reference_table_kind"]
           name: string
+          notes: string | null
           purpose: string
           updated_at: string
+          valid_from: string | null
+          valid_until: string | null
           year: number | null
         }
         Insert: {
@@ -1002,8 +1005,11 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name: string
+          notes?: string | null
           purpose?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
           year?: number | null
         }
         Update: {
@@ -1015,8 +1021,11 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name?: string
+          notes?: string | null
           purpose?: string
           updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
           year?: number | null
         }
         Relationships: []
@@ -1406,7 +1415,11 @@ export type Database = {
         | "aprovado_com_ressalva"
         | "nf_questionada"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
-      reference_table_kind: "simples" | "cbhpm"
+      reference_table_kind:
+        | "simples"
+        | "cbhpm"
+        | "tabela_propria"
+        | "lista_codigos"
       rule_calculation_type:
         | "percentual_sobre_convenio"
         | "regra_vias"
@@ -1606,7 +1619,12 @@ export const Constants = {
         "nf_questionada",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
-      reference_table_kind: ["simples", "cbhpm"],
+      reference_table_kind: [
+        "simples",
+        "cbhpm",
+        "tabela_propria",
+        "lista_codigos",
+      ],
       rule_calculation_type: [
         "percentual_sobre_convenio",
         "regra_vias",
