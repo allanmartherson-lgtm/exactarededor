@@ -13,7 +13,14 @@ import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles } from "lucide-
 import * as XLSX from "xlsx";
 
 type RefKind = "simples" | "cbhpm";
-type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; created_at: string };
+type RefPurpose = "calculo" | "classificacao" | "exclusao";
+type RefTable = { id: string; name: string; description: string | null; year: number | null; kind: RefKind; purpose: RefPurpose; exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean; created_at: string };
+
+const PURPOSE_LABEL: Record<RefPurpose, string> = {
+  calculo: "Cálculo",
+  classificacao: "Classificação",
+  exclusao: "Exclusão / expurgo",
+};
 type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
 type PortValue = { id: string; port: string; amount: number };
 
