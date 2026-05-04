@@ -22,16 +22,26 @@ export type ImportProfile = {
     | "companies"
     | "cost_centers"
     | "rules"
-    | "procedure_classifications";
+    | "procedure_classifications"
+    | "doctors";
   fields: ImportFieldDef[];
   fixedContext?: Record<string, any>;
+  /** Modos suportados pela tela. Default: ["append","update"]. */
+  supportedModes?: ImportMode[];
+  /** Escopo opcional para "replace" (filtra a deleção) */
+  replaceScope?: Record<string, any>;
 };
 
+export type ImportMode = "append" | "update" | "replace";
+
 type Sheet = { name: string; headers: string[]; total: number; preview: any[] };
-type Step = "upload" | "preview" | "validate" | "done";
+type Step = "upload" | "preview" | "validate" | "confirm" | "done";
 type CommitResult = {
   total: number;
   inserted: number;
+  updated?: number;
+  created?: number;
+  removed_before_replace?: number;
   skipped: number;
   validation_errors: number;
   duplicates: number;
