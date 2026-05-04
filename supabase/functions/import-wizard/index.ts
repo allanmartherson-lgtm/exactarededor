@@ -33,9 +33,14 @@ type Profile = {
     | "companies"
     | "cost_centers"
     | "rules"
-    | "procedure_classifications";
+    | "procedure_classifications"
+    | "doctors";
   fields: FieldDef[];
   fixedContext?: Record<string, any>;
+  /** Modo de gravação: append (apenas novos), update (upsert), replace (apaga e insere) */
+  importMode?: "append" | "update" | "replace";
+  /** Para "replace", filtro opcional de escopo (chave -> valor) que limita a deleção */
+  replaceScope?: Record<string, any>;
 };
 
 const ALLOWED_ENTITIES = new Set<Profile["entity"]>([
