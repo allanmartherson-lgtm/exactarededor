@@ -74,6 +74,7 @@ export type PaymentAnalysisMode = Database["public"]["Enums"]["payment_analysis_
 export const RULE_SCOPE_LABELS: Record<RuleScope, string> = {
   master: "Master (geral)",
   especifica: "Específica",
+  grupo: "Grupo de médicos/empresas",
 };
 
 export const RULE_SECTOR_LABELS: Record<RuleSector, string> = {
