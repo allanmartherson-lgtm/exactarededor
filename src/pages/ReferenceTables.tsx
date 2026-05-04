@@ -133,6 +133,10 @@ const ReferenceTables = () => {
       valid_from: String(f.get("valid_from") || "") || null,
       valid_until: String(f.get("valid_until") || "") || null,
       notes: String(f.get("notes") || "") || null,
+      package_only_main_surgeon: f.get("package_only_main_surgeon") === "on",
+      package_apply_auxiliaries: f.get("package_apply_auxiliaries") === "on",
+      package_apply_particular: f.get("package_apply_particular") === "on",
+      package_apply_intl_insurance: f.get("package_apply_intl_insurance") === "on",
       active: true,
       created_by: user!.id,
     } as any);
