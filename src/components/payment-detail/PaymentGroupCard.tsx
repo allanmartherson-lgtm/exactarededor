@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -5,6 +6,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
+import { CompanyAnalysisDialog } from "@/components/payment-detail/CompanyAnalysisDialog";
+import { Maximize2 } from "lucide-react";
 import {
   AlertTriangle,
   Building2,
