@@ -411,9 +411,43 @@ function ItemDetailsRow({
     expected != null ? Number(expected) - Number(it.gross_amount ?? 0) : null;
   const exceptionMarked = !!(it as unknown as { authorized_exception?: boolean }).authorized_exception;
 
+  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+  const pickRaw = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return "—";
+  };
+  const paciente =
+    (it.patient_name as string | null) ??
+    ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
+    "—";
+  const convenio =
+    (it as unknown as { agreement_text?: string | null }).agreement_text ??
+    pickRaw("Convênio", "Convenio", "convenio", "convênio");
+  const summary: { label: string; value: string }[] = [
+    { label: "Atendimento", value: it.attendance_number ?? "—" },
+    { label: "Paciente", value: paciente },
+    { label: "Convênio", value: String(convenio ?? "—") },
+    { label: "Via de Acesso", value: it.access_route ?? "—" },
+    { label: "TUSS", value: it.procedure_code ?? "—" },
+    { label: "Procedimento", value: it.procedure_name ?? it.description ?? "—" },
+    { label: "Médico", value: it.doctor_name ?? "—" },
+    { label: "Função", value: it.doctor_role ?? "—" },
+  ];
+
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={12} className="px-4 py-3">
+        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 text-[11px]">
+          {summary.map((s) => (
+            <div key={s.label} className="min-w-0">
+              <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className="truncate" title={s.value}>{s.value}</p>
+            </div>
+          ))}
+        </div>
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Alertas */}
           <div className="space-y-2">
