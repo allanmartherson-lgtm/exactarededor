@@ -370,6 +370,7 @@ export function CompanyAnalysisDialog({
                         it={it}
                         rulesIndex={rulesIndex}
                         rulesByName={rulesByName}
+                        observations={observations}
                       />
                     )}
                   </tr>
