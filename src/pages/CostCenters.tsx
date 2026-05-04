@@ -412,7 +412,15 @@ const CostCenters = () => {
           </Collapsible>
         </Card>
       </div>
+      <ImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Importar centros de custo"
+        profile={COST_CENTERS_IMPORT_PROFILE}
+        onComplete={handleImportComplete}
+      />
     </>
+
   );
 };
 
