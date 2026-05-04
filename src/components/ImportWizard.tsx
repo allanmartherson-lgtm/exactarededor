@@ -503,6 +503,44 @@ function stepLabel(s: Step) {
   return { upload: "1. Upload", preview: "2. Mapeamento", validate: "3. Validação", done: "4. Concluído" }[s];
 }
 
+async function readWorkbookSheets(file: File): Promise<{ sheets: Sheet[]; rowsBySheet: Record<string, any[]> }> {
+  const isCsv = /\.csv$/i.test(file.name);
+  const wb = isCsv
+    ? XLSX.read(await file.text(), { type: "string", raw: false })
+    : XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false, cellNF: false, cellText: false, cellFormula: false, cellHTML: false });
+  const rowsBySheet: Record<string, any[]> = {};
+  const sheets = (wb.SheetNames ?? []).map((name) => {
+    const ws = wb.Sheets[name];
+    const rows = ws ? XLSX.utils.sheet_to_json<any>(ws, { defval: "", raw: false }) : [];
+    rowsBySheet[name] = rows;
+    const headers = rows.length ? Object.keys(rows[0]) : [];
+    return { name, headers, total: rows.length, preview: rows.slice(0, 20) };
+  });
+  return { sheets, rowsBySheet };
+}
+
+function buildImportPayload(
+  rows: any[],
+  mapping: Record<string, string | null>,
+  fields: ImportFieldDef[],
+  fixedContext: Record<string, any> | undefined,
+  entity: ImportProfile["entity"],
+) {
+  const mapped = applyMapping(rows, mapping, fields);
+  const { valid, errors, dups } = validateRows(mapped, fields);
+  const fixed = fixedContext ?? {};
+  const records = valid.map((r) => {
+    const rec: Record<string, any> = { ...r, ...fixed };
+    if (entity === "reference_table_items" && (rec.code == null || rec.code === "") && rec.package_id) rec.code = String(rec.package_id);
+    if (entity === "doctors") {
+      if (typeof rec.crm === "string") rec.crm = rec.crm.replace(/\D/g, "");
+      if (typeof rec.crm_uf === "string") rec.crm_uf = rec.crm_uf.toUpperCase().trim();
+    }
+    return rec;
+  });
+  return { allRows: rows, records, errors, dups };
+}
+
 const norm = (s: any) =>
   String(s ?? "")
     .toLowerCase()
