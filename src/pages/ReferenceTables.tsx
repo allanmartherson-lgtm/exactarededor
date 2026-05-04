@@ -76,11 +76,19 @@ const ReferenceTables = () => {
                 { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
                 { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
               ]
-            : [
-                { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
-                { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
-                { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
-              ],
+            : selected.kind === "pacote_combinacao"
+              ? [
+                  { key: "package_id", label: "ID do pacote", required: true, aliases: ["pacote_id", "pacote", "package", "id"] },
+                  { key: "tuss_codes", label: "Códigos TUSS", required: true, type: "array", aliases: ["codigos_tuss", "codigos", "tuss", "codes"] },
+                  { key: "description", label: "Descrição", aliases: ["descricao", "procedimento"] },
+                  { key: "package_amount", label: "Valor do pacote", required: true, type: "number", aliases: ["valor_pacote", "valor", "amount", "preco"] },
+                  { key: "notes", label: "Observação", aliases: ["observacao", "obs", "notes"] },
+                ]
+              : [
+                  { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                  { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+                  { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
+                ],
       }
     : null;
 
