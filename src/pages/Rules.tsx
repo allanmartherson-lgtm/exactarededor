@@ -1029,7 +1029,7 @@ const Rules = () => {
                                   const allowedDocs = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
                                   const loadingDocs = link.company_id ? loadingCompanyDoctorsIds.has(link.company_id) : false;
                                   const allowedSet = new Set(allowedDocs.map((d) => norm(d.name)));
-                                  const invalidPicked = link.doctors.filter((d) => allowedDocs.length > 0 && !allowedSet.has(norm(d.name)));
+                                  const invalidPicked: { name: string; crm?: string }[] = []; // validação removida — médicos manuais são aceitos
                                   const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
                                   return (
                                     <div key={idx} className={cn(
