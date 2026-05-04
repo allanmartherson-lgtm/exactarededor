@@ -59,6 +59,25 @@ const ReferenceTables = () => {
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  const wizardProfile: ImportProfile | null = selected
+    ? {
+        entity: "reference_table_items",
+        fixedContext: { reference_table_id: selected.id },
+        fields:
+          selected.kind === "lista_codigos"
+            ? [
+                { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+              ]
+            : [
+                { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+                { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
+              ],
+      }
+    : null;
 
   const loadTables = () =>
     supabase.from("reference_tables").select("*").order("created_at", { ascending: false })
