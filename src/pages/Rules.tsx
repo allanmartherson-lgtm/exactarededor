@@ -427,11 +427,18 @@ const Rules = () => {
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
     const gci = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
     const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+    const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
     setFGroupCompanyIds(gci);
     setFGroupDoctors(gdo);
-    // Modo é hierárquico: se tem empresa → modo empresa (com ou sem médicos);
-    // só vai para modo médico se NÃO tem empresa e tem médicos.
     setFGroupMode(gci.length > 0 ? "empresa" : gdo.length > 0 ? "medico" : "empresa");
+    // Migra legado para o novo formato de linhas se necessário.
+    if (glinks.length > 0) {
+      setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
+    } else if (gci.length > 0) {
+      setFGroupLinks(gci.map((id: string) => ({ company_id: id, doctors: gci.length === 1 ? gdo : [] })));
+    } else {
+      setFGroupLinks([]);
+    }
     setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
     setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
     setFIncludesHolidays(!!r.includes_holidays);
