@@ -1020,6 +1020,8 @@ export type Database = {
             | Database["public"]["Enums"]["payment_type"][]
             | null
           apply_access_route: boolean
+          aux_first_pct: number | null
+          aux_second_pct: number | null
           auxiliary_pct: number | null
           bonus_amount: number | null
           bonus_pct: number | null
@@ -1034,9 +1036,12 @@ export type Database = {
           exclusion_reason: string | null
           extras_codes: string[] | null
           fixed_amount: number | null
+          group_company_ids: string[]
+          group_doctors: Json
           id: string
           include_auxiliaries: boolean
           includes_holidays: boolean
+          instrumentador_pct: number | null
           multiplier: number | null
           name: string
           package_amount: number | null
@@ -1078,6 +1083,8 @@ export type Database = {
             | Database["public"]["Enums"]["payment_type"][]
             | null
           apply_access_route?: boolean
+          aux_first_pct?: number | null
+          aux_second_pct?: number | null
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
@@ -1092,9 +1099,12 @@ export type Database = {
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          group_company_ids?: string[]
+          group_doctors?: Json
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
+          instrumentador_pct?: number | null
           multiplier?: number | null
           name: string
           package_amount?: number | null
@@ -1136,6 +1146,8 @@ export type Database = {
             | Database["public"]["Enums"]["payment_type"][]
             | null
           apply_access_route?: boolean
+          aux_first_pct?: number | null
+          aux_second_pct?: number | null
           auxiliary_pct?: number | null
           bonus_amount?: number | null
           bonus_pct?: number | null
@@ -1150,9 +1162,12 @@ export type Database = {
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          group_company_ids?: string[]
+          group_doctors?: Json
           id?: string
           include_auxiliaries?: boolean
           includes_holidays?: boolean
+          instrumentador_pct?: number | null
           multiplier?: number | null
           name?: string
           package_amount?: number | null
@@ -1397,7 +1412,7 @@ export type Database = {
         | "complemento"
         | "pacote"
       rule_payment_term: "qualquer" | "prioridade" | "habitual"
-      rule_scope: "master" | "especifica"
+      rule_scope: "master" | "especifica" | "grupo"
       rule_sector:
         | "cirurgia"
         | "hemodinamica"
@@ -1598,7 +1613,7 @@ export const Constants = {
         "pacote",
       ],
       rule_payment_term: ["qualquer", "prioridade", "habitual"],
-      rule_scope: ["master", "especifica"],
+      rule_scope: ["master", "especifica", "grupo"],
       rule_sector: [
         "cirurgia",
         "hemodinamica",
