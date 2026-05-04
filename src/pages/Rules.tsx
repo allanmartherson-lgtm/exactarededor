@@ -254,15 +254,24 @@ const Rules = () => {
       if (targetType === "empresa" && fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)) e.aplicacao++;
     }
     if (scope === "grupo") {
-      if (fGroupMode === "empresa" && fGroupCompanyIds.length === 0) e.aplicacao++;
-      if (fGroupMode === "medico" && fGroupDoctors.length === 0) e.aplicacao++;
-      // Coerência: médicos selecionados manualmente devem pertencer à(s) empresa(s).
-      if (fGroupMode === "empresa" && fGroupDoctors.length > 0 && companyDoctors.length > 0) {
-        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const allowed = new Set(companyDoctors.map((d) => norm(d.name)));
-        const invalid = fGroupDoctors.some((d) => !allowed.has(norm(d.name)));
-        if (invalid) e.aplicacao++;
+      // Linhas por empresa: nenhuma sem empresa, sem duplicatas.
+      const seenCo = new Set<string>();
+      let dupCo = false;
+      for (const link of fGroupLinks) {
+        if (!link.company_id) { e.aplicacao++; continue; }
+        if (seenCo.has(link.company_id)) dupCo = true;
+        seenCo.add(link.company_id);
+        // médicos da linha devem pertencer à empresa daquela linha
+        const allowed = companyDoctorsMap[link.company_id] ?? [];
+        if (link.doctors.length > 0 && allowed.length > 0) {
+          const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+          const allow = new Set(allowed.map((d) => norm(d.name)));
+          if (link.doctors.some((d) => !allow.has(norm(d.name)))) e.aplicacao++;
+        }
       }
+      if (dupCo) e.aplicacao++;
+      // Precisa de pelo menos linha de empresa OU médicos avulsos.
+      if (fGroupLinks.length === 0 && fGroupDoctors.length === 0) e.aplicacao++;
     }
     if (fTimeStart && fTimeEnd && fTimeStart === fTimeEnd) e.condicoes++;
     if (fNature === "calculavel") {
@@ -272,7 +281,7 @@ const Rules = () => {
     return e;
   }, [
     fName, fRuleText, fValidFrom, fValidUntil, scope, fTargetIdentifier, fTargetName,
-    targetType, fGroupMode, fGroupCompanyIds, fGroupDoctors, fTimeStart, fTimeEnd,
+    targetType, fGroupLinks, fGroupDoctors, companyDoctorsMap, fTimeStart, fTimeEnd,
     fNature, fCalculationType, fConvenioPct, fFixedAmount,
   ]);
 
