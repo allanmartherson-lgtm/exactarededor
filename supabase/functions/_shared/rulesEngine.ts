@@ -256,8 +256,10 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
 function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "grupo") return false;
   const cids = r.group_company_ids ?? [];
-  if (item.company_id && cids.includes(item.company_id)) return true;
   const docs = r.group_doctors ?? [];
+  // Sem vínculos: aplica a todos os itens (master implícito dentro do escopo grupo).
+  if (cids.length === 0 && docs.length === 0) return true;
+  if (item.company_id && cids.includes(item.company_id)) return true;
   if (docs.length > 0 && item.doctor_name) {
     const itemNm = normName(item.doctor_name);
     const itemCrm = onlyDigits(item.doctor_document);
