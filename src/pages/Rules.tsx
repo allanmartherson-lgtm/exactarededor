@@ -1052,7 +1052,11 @@ const Rules = () => {
 
                   {/* Cálculo da regra */}
                   <AccordionItem value="calculo" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Cálculo da regra</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.calculo > 0 && "text-destructive")}>
+                      <span className="flex items-center">Cálculo da regra
+                        {sectionErrors.calculo > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.calculo}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       <div className="space-y-1.5">
                         <Label>Natureza da regra *</Label>
