@@ -14,6 +14,7 @@ import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { CompanySlaSection } from "@/components/CompanySlaSection";
+import { CompanyDoctorsSection } from "@/components/CompanyDoctorsSection";
 import { dedupEmails, normalizeEmail, parseEmailList, tryAddEmail } from "@/lib/email";
 
 interface Company {
@@ -399,6 +400,9 @@ const Companies = () => {
                 <div className="space-y-1.5">
                   <Label>Prazos específicos</Label>
                   <CompanySlaSection companyId={editing.id} />
+                </div>
+                <div className="space-y-1.5 pt-2 border-t border-border">
+                  <CompanyDoctorsSection companyId={editing.id} />
                 </div>
               </div>
               <DialogFooter>
