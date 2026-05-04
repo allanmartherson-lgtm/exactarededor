@@ -1139,8 +1139,22 @@ const Rules = () => {
                       </div>
                     </div>
                     {fIncludeAux && (
-                      <div className="space-y-1.5"><Label>% por auxiliar (default 30%)</Label>
-                        <Input type="number" step="0.01" placeholder="30" value={fAuxPct} onChange={(e) => setFAuxPct(e.target.value)} />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                          <Label>1º auxiliar (%)</Label>
+                          <Input type="number" step="0.01" placeholder="30" value={fAuxFirstPct} onChange={(e) => setFAuxFirstPct(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>2º auxiliar em diante (%)</Label>
+                          <Input type="number" step="0.01" placeholder="20" value={fAuxSecondPct} onChange={(e) => setFAuxSecondPct(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Instrumentador (%)</Label>
+                          <Input type="number" step="0.01" placeholder="10" value={fInstrumentadorPct} onChange={(e) => setFInstrumentadorPct(e.target.value)} />
+                        </div>
+                        <p className="text-xs text-muted-foreground sm:col-span-3">
+                          O motor aplica o percentual conforme a função do médico no item (Primeiro Auxiliar, Segundo Auxiliar+, Instrumentador).
+                        </p>
                       </div>
                     )}
                   </div>
