@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -5,6 +6,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
+import { CompanyAnalysisDialog } from "@/components/payment-detail/CompanyAnalysisDialog";
+import { Maximize2 } from "lucide-react";
 import {
   AlertTriangle,
   Building2,
@@ -51,12 +54,12 @@ function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
           to={`/pagamentos/${id}/empresa/${groupId}`}
           onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Abrir análise dedicada da empresa"
+          aria-label="Abrir análise em página dedicada"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </Link>
       </TooltipTrigger>
-      <TooltipContent>Abrir análise dedicada</TooltipContent>
+      <TooltipContent>Abrir página dedicada</TooltipContent>
     </Tooltip>
   );
 }
@@ -153,6 +156,7 @@ export const PaymentGroupCard = ({
   onTransition,
   onExceptionChanged,
 }: PaymentGroupCardProps) => {
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const gStatus = g.status as PaymentStatus;
   const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
   const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
@@ -283,9 +287,31 @@ export const PaymentGroupCard = ({
             <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
           )}
           <StatusBadge status={gStatus} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setAnalysisOpen(true); }}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Abrir análise em modo planilha"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Análise em modo planilha</TooltipContent>
+          </Tooltip>
           <DedicatedAnalysisLink groupId={g.id} />
         </div>
       </button>
+
+      <CompanyAnalysisDialog
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
+        group={g}
+        items={groupItems}
+        rulesIndex={rulesIndex}
+        rulesByName={rulesByName}
+      />
 
       {groupExpandedEffective && nfDivergent && (
         <div className="border-t border-border/60 bg-destructive/5">
