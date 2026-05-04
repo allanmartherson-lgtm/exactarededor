@@ -369,6 +369,9 @@ const Rules = () => {
       reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
       include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
       auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
+      aux_first_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxFirstPct) ?? 30) : null,
+      aux_second_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxSecondPct) ?? 20) : null,
+      instrumentador_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fInstrumentadorPct) ?? 10) : null,
       repasse_pct: effectiveCalc === "tabela_diferenciada" ? num(fRepassePct) : null,
       apply_access_route: effectiveCalc === "tabela_diferenciada" ? fApplyAccessRoute : false,
       procedure_codes: parsedCodes.length ? parsedCodes : null,
@@ -379,6 +382,8 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
+      group_company_ids: scope === "grupo" ? fGroupCompanyIds : [],
+      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: fTimeMode,
       weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
       includes_holidays: fIncludesHolidays,
@@ -386,8 +391,8 @@ const Rules = () => {
       time_end: fTimeEnd || null,
       elective_mode: fElectiveMode,
     };
-    if (isEspecifica && !payload.target_identifier && !payload.target_name) {
-      return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
+    if (scope === "grupo" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) {
+      return toast({ title: "Vincule ao menos uma empresa ou médico ao grupo", variant: "destructive" });
     }
     if (isEspecifica && targetType === "empresa") {
       const cnpj = payload.target_identifier;
