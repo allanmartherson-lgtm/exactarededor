@@ -261,13 +261,6 @@ const Rules = () => {
         if (!link.company_id) { e.aplicacao++; continue; }
         if (seenCo.has(link.company_id)) dupCo = true;
         seenCo.add(link.company_id);
-        // médicos da linha devem pertencer à empresa daquela linha
-        const allowed = companyDoctorsMap[link.company_id] ?? [];
-        if (link.doctors.length > 0 && allowed.length > 0) {
-          const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-          const allow = new Set(allowed.map((d) => norm(d.name)));
-          if (link.doctors.some((d) => !allow.has(norm(d.name)))) e.aplicacao++;
-        }
       }
       if (dupCo) e.aplicacao++;
       // Precisa de pelo menos linha de empresa OU médicos avulsos.
@@ -1029,7 +1022,7 @@ const Rules = () => {
                                   const allowedDocs = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
                                   const loadingDocs = link.company_id ? loadingCompanyDoctorsIds.has(link.company_id) : false;
                                   const allowedSet = new Set(allowedDocs.map((d) => norm(d.name)));
-                                  const invalidPicked = link.doctors.filter((d) => allowedDocs.length > 0 && !allowedSet.has(norm(d.name)));
+                                  const invalidPicked: { name: string; crm?: string }[] = []; // validação removida — médicos manuais são aceitos
                                   const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
                                   return (
                                     <div key={idx} className={cn(
@@ -1083,8 +1076,8 @@ const Rules = () => {
                                             {loadingDocs
                                               ? "Carregando médicos…"
                                               : allowedDocs.length === 0
-                                                ? "Nenhum médico encontrado nos atendimentos. Vazio = todos."
-                                                : "Clique para refinar. Vazio = aplica a todos da empresa."}
+                                                ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
+                                                : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
                                           </p>
                                           {allowedDocs.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
@@ -1106,9 +1099,17 @@ const Rules = () => {
                                               })}
                                             </div>
                                           )}
+                                          {/* Editor manual: sempre disponível para adicionar médicos não listados */}
+                                          <DoctorsEditor
+                                            value={link.doctors}
+                                            onChange={(next) => updateLink({ doctors: next })}
+                                          />
                                           {link.doctors.length > 0 && (
-                                            <div className="text-xs text-muted-foreground">
-                                              {link.doctors.length} médico(s) específico(s) selecionado(s).
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                              <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
+                                              <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
+                                                Limpar
+                                              </Button>
                                             </div>
                                           )}
                                           {invalidPicked.length > 0 && (
