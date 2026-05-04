@@ -196,14 +196,15 @@ export function CompanyAnalysisDialog({
           <table className="w-full text-[11px] border-collapse table-fixed">
             <colgroup>
               <col className="w-6" />
+              {/* Ordem segue a planilha: Atend, Paciente, Convênio, Via, TUSS, Procedimento, Médico, Função, Valor, Esperado, Status */}
               <col className="hidden xl:table-column w-[7%]" />
-              <col className="w-[18%] md:w-[16%] xl:w-[12%]" />
-              <col className="w-[16%] md:w-[14%] xl:w-[12%]" />
-              <col className="hidden lg:table-column w-[6%]" />
+              <col className="w-[18%] md:w-[15%] xl:w-[12%]" />
+              <col className="hidden xl:table-column w-[9%]" />
               <col className="hidden lg:table-column w-[6%]" />
               <col className="w-[8%] md:w-[7%]" />
-              <col className="w-[22%] md:w-[20%] xl:w-[16%]" />
-              <col className="hidden xl:table-column w-[9%]" />
+              <col className="w-[22%] md:w-[20%] xl:w-[15%]" />
+              <col className="w-[16%] md:w-[14%] xl:w-[12%]" />
+              <col className="hidden lg:table-column w-[6%]" />
               <col className="w-[10%] md:w-[9%]" />
               <col className="w-[10%] md:w-[9%]" />
               <col className="w-[10%] md:w-[8%] xl:w-[7%]" />
@@ -213,12 +214,12 @@ export function CompanyAnalysisDialog({
                 <th className="px-1.5 py-1.5"></th>
                 <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Atend.</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
-                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
-                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Função</th>
+                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Convênio</th>
                 <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Via</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>
-                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Convênio</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
+                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Função</th>
                 <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
                 <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
                 <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
@@ -341,16 +342,16 @@ function RowMain({
         {it.attendance_number ?? "—"}
       </td>
       <td className="px-1.5 py-1 truncate" title={paciente}>{paciente}</td>
-      <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
-      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+      <td className="hidden xl:table-cell px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
+        {convenio}
+      </td>
       <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
       <td className="px-1.5 py-1 font-mono text-[10px] truncate">{it.procedure_code ?? "—"}</td>
       <td className="px-1.5 py-1 text-muted-foreground truncate" title={it.procedure_name ?? it.description ?? ""}>
         {it.procedure_name ?? it.description ?? "—"}
       </td>
-      <td className="hidden xl:table-cell px-1.5 py-1 truncate" title={typeof convenio === "string" ? convenio : ""}>
-        {convenio}
-      </td>
+      <td className="px-1.5 py-1 truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</td>
+      <td className="hidden lg:table-cell px-1.5 py-1 truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
       <td className="px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap">
         {formatCurrency(Number(it.gross_amount ?? 0))}
       </td>
@@ -410,9 +411,43 @@ function ItemDetailsRow({
     expected != null ? Number(expected) - Number(it.gross_amount ?? 0) : null;
   const exceptionMarked = !!(it as unknown as { authorized_exception?: boolean }).authorized_exception;
 
+  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+  const pickRaw = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return "—";
+  };
+  const paciente =
+    (it.patient_name as string | null) ??
+    ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
+    "—";
+  const convenio =
+    (it as unknown as { agreement_text?: string | null }).agreement_text ??
+    pickRaw("Convênio", "Convenio", "convenio", "convênio");
+  const summary: { label: string; value: string }[] = [
+    { label: "Atendimento", value: it.attendance_number ?? "—" },
+    { label: "Paciente", value: paciente },
+    { label: "Convênio", value: String(convenio ?? "—") },
+    { label: "Via de Acesso", value: it.access_route ?? "—" },
+    { label: "TUSS", value: it.procedure_code ?? "—" },
+    { label: "Procedimento", value: it.procedure_name ?? it.description ?? "—" },
+    { label: "Médico", value: it.doctor_name ?? "—" },
+    { label: "Função", value: it.doctor_role ?? "—" },
+  ];
+
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={12} className="px-4 py-3">
+        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 text-[11px]">
+          {summary.map((s) => (
+            <div key={s.label} className="min-w-0">
+              <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className="truncate" title={s.value}>{s.value}</p>
+            </div>
+          ))}
+        </div>
         <div className="grid gap-3 lg:grid-cols-2">
           {/* Alertas */}
           <div className="space-y-2">
