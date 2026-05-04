@@ -259,16 +259,29 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   const docs = r.group_doctors ?? [];
   // Sem vínculos: aplica a todos os itens (master implícito dentro do escopo grupo).
   if (cids.length === 0 && docs.length === 0) return true;
-  if (item.company_id && cids.includes(item.company_id)) return true;
-  if (docs.length > 0 && item.doctor_name) {
+
+  const matchesDoctor = (() => {
+    if (docs.length === 0 || !item.doctor_name) return false;
     const itemNm = normName(item.doctor_name);
     const itemCrm = onlyDigits(item.doctor_document);
     for (const d of docs) {
       if (d?.name && normName(d.name) === itemNm) return true;
       if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
     }
+    return false;
+  })();
+
+  // Modo 1 — Por empresa: empresa(s) selecionada(s).
+  // Sem médicos → aplica a todos da empresa. Com médicos → restringe.
+  if (cids.length > 0) {
+    const inCompany = !!(item.company_id && cids.includes(item.company_id));
+    if (!inCompany) return false;
+    if (docs.length === 0) return true;
+    return matchesDoctor;
   }
-  return false;
+
+  // Modo 2 — Por médico: aplica somente aos médicos selecionados.
+  return matchesDoctor;
 }
 
 // ---------- pré-filtro ----------

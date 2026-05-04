@@ -207,7 +207,10 @@ const Rules = () => {
   // Escopo "grupo" (inline na regra)
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
-  const [fGroupMode, setFGroupMode] = useState<"todos" | "empresas" | "medicos" | "ambos">("todos");
+  const [fGroupMode, setFGroupMode] = useState<"empresa" | "medico">("empresa");
+  // Sugestões de médicos para o modo "empresa": carregadas dinamicamente das empresas selecionadas.
+  const [companyDoctors, setCompanyDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  const [loadingCompanyDoctors, setLoadingCompanyDoctors] = useState(false);
   // janela temporal
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
@@ -246,9 +249,15 @@ const Rules = () => {
       if (targetType === "empresa" && fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)) e.aplicacao++;
     }
     if (scope === "grupo") {
-      if (fGroupMode === "empresas" && fGroupCompanyIds.length === 0) e.aplicacao++;
-      if (fGroupMode === "medicos" && fGroupDoctors.length === 0) e.aplicacao++;
-      if (fGroupMode === "ambos" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) e.aplicacao++;
+      if (fGroupMode === "empresa" && fGroupCompanyIds.length === 0) e.aplicacao++;
+      if (fGroupMode === "medico" && fGroupDoctors.length === 0) e.aplicacao++;
+      // Coerência: médicos selecionados manualmente devem pertencer à(s) empresa(s).
+      if (fGroupMode === "empresa" && fGroupDoctors.length > 0 && companyDoctors.length > 0) {
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const allowed = new Set(companyDoctors.map((d) => norm(d.name)));
+        const invalid = fGroupDoctors.some((d) => !allowed.has(norm(d.name)));
+        if (invalid) e.aplicacao++;
+      }
     }
     if (fTimeStart && fTimeEnd && fTimeStart === fTimeEnd) e.condicoes++;
     if (fNature === "calculavel") {
@@ -283,6 +292,36 @@ const Rules = () => {
   const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
+  // Carrega médicos relacionados às empresas selecionadas (a partir de payment_items).
+  useEffect(() => {
+    if (scope !== "grupo" || fGroupMode !== "empresa" || fGroupCompanyIds.length === 0) {
+      setCompanyDoctors([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCompanyDoctors(true);
+    supabase
+      .from("payment_items")
+      .select("doctor_name, doctor_document")
+      .in("company_id", fGroupCompanyIds)
+      .not("doctor_name", "is", null)
+      .limit(2000)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const seen = new Map<string, { name: string; crm?: string }>();
+        for (const r of (data ?? []) as any[]) {
+          const name = String(r.doctor_name ?? "").trim();
+          if (!name) continue;
+          const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (!seen.has(key)) seen.set(key, { name, crm: r.doctor_document ?? undefined });
+        }
+        setCompanyDoctors(Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      })
+      .then(() => { if (!cancelled) setLoadingCompanyDoctors(false); });
+    return () => { cancelled = true; };
+  }, [scope, fGroupMode, fGroupCompanyIds]);
+
+
   const resetForm = () => {
     setEditingId(null);
     setFName(""); setFDescription(""); setFRuleText("");
@@ -303,7 +342,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("todos");
+    setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa");
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
@@ -360,7 +399,9 @@ const Rules = () => {
     const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
     setFGroupCompanyIds(gci);
     setFGroupDoctors(gdo);
-    setFGroupMode(gci.length && gdo.length ? "ambos" : gci.length ? "empresas" : gdo.length ? "medicos" : "todos");
+    // Modo é hierárquico: se tem empresa → modo empresa (com ou sem médicos);
+    // só vai para modo médico se NÃO tem empresa e tem médicos.
+    setFGroupMode(gci.length > 0 ? "empresa" : gdo.length > 0 ? "medico" : "empresa");
     setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
     setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
     setFIncludesHolidays(!!r.includes_holidays);
@@ -436,8 +477,10 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
-      group_company_ids: scope === "grupo" && (fGroupMode === "empresas" || fGroupMode === "ambos") ? fGroupCompanyIds : [],
-      group_doctors: scope === "grupo" && (fGroupMode === "medicos" || fGroupMode === "ambos") ? fGroupDoctors : [],
+      // Modo empresa: salva empresas e (opcional) médicos refinando-as.
+      // Modo médico: salva apenas médicos, sem empresa.
+      group_company_ids: scope === "grupo" && fGroupMode === "empresa" ? fGroupCompanyIds : [],
+      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: fTimeMode,
       weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
       includes_holidays: fIncludesHolidays,
@@ -753,10 +796,15 @@ const Rules = () => {
                     scope === "master" ? "Todos os itens (master)"
                     : scope === "especifica" ? `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`
                     : scope === "grupo"
-                      ? (fGroupMode === "todos" ? "Grupo · todos os itens"
-                        : fGroupMode === "empresas" ? `Grupo · ${fGroupCompanyIds.length} empresa(s)`
-                        : fGroupMode === "medicos" ? `Grupo · ${fGroupDoctors.length} médico(s)`
-                        : `Grupo · ${fGroupCompanyIds.length} empresa(s) OU ${fGroupDoctors.length} médico(s)`)
+                      ? (fGroupMode === "empresa"
+                          ? (fGroupCompanyIds.length === 0
+                              ? "Grupo · selecione empresa(s)"
+                              : fGroupDoctors.length === 0
+                                ? `Aplica para ${fGroupCompanyIds.length} empresa(s) — todos os médicos`
+                                : `Aplica para ${fGroupDoctors.length} médico(s) específico(s) em ${fGroupCompanyIds.length} empresa(s)`)
+                          : (fGroupDoctors.length === 0
+                              ? "Grupo · selecione médico(s)"
+                              : `Aplica para ${fGroupDoctors.map((d) => d.name).join(", ")}`))
                       : RULE_SCOPE_LABELS[scope];
                   const calc = fNature === "informativo"
                     ? "Informativa / bloqueio (não calcula)"
@@ -902,65 +950,138 @@ const Rules = () => {
                         </div>
                       )}
 
-                      {scope === "grupo" && (
-                        <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                          <div>
-                            <Label className="text-sm font-semibold">Grupo de médicos/empresas</Label>
-                            <p className="text-xs text-muted-foreground">Quando "Empresas OU médicos selecionados", basta o item casar com qualquer empresa OU médico da lista (lógica OR, não AND).</p>
-                          </div>
-                          <RadioGroup
-                            value={fGroupMode}
-                            onValueChange={(v) => setFGroupMode(v as typeof fGroupMode)}
-                            className="grid gap-1.5"
-                          >
-                            {[
-                              { v: "todos", l: "Todos os itens" },
-                              { v: "empresas", l: "Apenas empresas selecionadas" },
-                              { v: "medicos", l: "Apenas médicos selecionados" },
-                              { v: "ambos", l: "Empresas OU médicos selecionados" },
-                            ].map((o) => (
-                              <label key={o.v} htmlFor={`gmode-${o.v}`} className="flex items-center gap-2 text-sm cursor-pointer">
-                                <RadioGroupItem id={`gmode-${o.v}`} value={o.v} />
-                                {o.l}
-                              </label>
-                            ))}
-                          </RadioGroup>
-                          {(fGroupMode === "empresas" || fGroupMode === "ambos") && (
-                            <div className="space-y-1.5">
-                              <Label>Empresas vinculadas</Label>
-                              <CompanyCombobox
-                                value={null}
-                                onChange={(c) => {
-                                  if (!c) return;
-                                  setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
-                                }}
-                                placeholder="Adicionar empresa…"
-                                className="w-full"
-                              />
-                              {fGroupCompanyIds.length > 0 && (
-                                <div className="flex flex-wrap gap-1 pt-1">
-                                  {fGroupCompanyIds.map((id) => {
-                                    const c = companies.find((x) => x.id === id);
-                                    return (
-                                      <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
-                                        {c?.name ?? id.slice(0, 8)}
-                                        <button type="button" className="text-muted-foreground hover:text-foreground"
-                                          onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
-                                      </span>
-                                    );
-                                  })}
+                      {scope === "grupo" && (() => {
+                        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        const allowedSet = new Set(companyDoctors.map((d) => norm(d.name)));
+                        const invalidDoctors = fGroupMode === "empresa" && fGroupCompanyIds.length > 0 && companyDoctors.length > 0
+                          ? fGroupDoctors.filter((d) => !allowedSet.has(norm(d.name)))
+                          : [];
+                        const isAllCompany = fGroupMode === "empresa" && fGroupCompanyIds.length > 0 && fGroupDoctors.length === 0;
+                        const isSpecificDoctors = (fGroupMode === "empresa" && fGroupDoctors.length > 0) || fGroupMode === "medico";
+                        return (
+                          <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3 animate-fade-in">
+                            <div>
+                              <Label className="text-sm font-semibold">Aplicação por empresa ou médico</Label>
+                              <p className="text-xs text-muted-foreground">
+                                Selecione uma empresa para aplicar a todos os médicos ou refine escolhendo médicos específicos. Também é possível criar regra diretamente por médico.
+                              </p>
+                            </div>
+                            <RadioGroup
+                              value={fGroupMode}
+                              onValueChange={(v) => {
+                                const next = v as "empresa" | "medico";
+                                setFGroupMode(next);
+                                if (next === "medico") {
+                                  // Médico-only: zera empresas e sugestões
+                                  setFGroupCompanyIds([]);
+                                  setCompanyDoctors([]);
+                                }
+                              }}
+                              className="grid gap-1.5"
+                            >
+                              {[
+                                { v: "empresa", l: "Por empresa (opcionalmente refinar por médico)" },
+                                { v: "medico", l: "Por médico (sem vincular empresa)" },
+                              ].map((o) => (
+                                <label key={o.v} htmlFor={`gmode-${o.v}`} className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <RadioGroupItem id={`gmode-${o.v}`} value={o.v} />
+                                  {o.l}
+                                </label>
+                              ))}
+                            </RadioGroup>
+
+                            {fGroupMode === "empresa" && (
+                              <div className="space-y-3 animate-fade-in">
+                                <div className="space-y-1.5">
+                                  <Label>Empresas vinculadas *</Label>
+                                  <CompanyCombobox
+                                    value={null}
+                                    onChange={(c) => {
+                                      if (!c) return;
+                                      setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
+                                    }}
+                                    placeholder="Adicionar empresa…"
+                                    className="w-full"
+                                  />
+                                  {fGroupCompanyIds.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pt-1">
+                                      {fGroupCompanyIds.map((id) => {
+                                        const c = companies.find((x) => x.id === id);
+                                        return (
+                                          <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+                                            {c?.name ?? id.slice(0, 8)}
+                                            <button type="button" className="text-muted-foreground hover:text-foreground"
+                                              onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          )}
-                          {(fGroupMode === "medicos" || fGroupMode === "ambos") && (
-                            <div className="space-y-1.5">
-                              <Label>Médicos vinculados</Label>
-                              <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
-                            </div>
-                          )}
-                        </div>
-                      )}
+
+                                <div className={cn("space-y-1.5 transition-opacity", fGroupCompanyIds.length === 0 && "opacity-50 pointer-events-none")}>
+                                  <Label>Médicos da(s) empresa(s) — opcional</Label>
+                                  <p className="text-xs text-muted-foreground">
+                                    {fGroupCompanyIds.length === 0
+                                      ? "Selecione ao menos uma empresa para habilitar."
+                                      : loadingCompanyDoctors
+                                        ? "Carregando médicos…"
+                                        : companyDoctors.length === 0
+                                          ? "Nenhum médico encontrado nos atendimentos da(s) empresa(s) — você pode adicionar manualmente."
+                                          : `${companyDoctors.length} médico(s) disponível(is) nos atendimentos.`}
+                                  </p>
+                                  {companyDoctors.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pt-1">
+                                      {companyDoctors.map((d, i) => {
+                                        const checked = fGroupDoctors.some((x) => norm(x.name) === norm(d.name));
+                                        return (
+                                          <Button key={`${d.name}-${i}`} type="button" size="sm"
+                                            variant={checked ? "default" : "outline"}
+                                            onClick={() => {
+                                              setFGroupDoctors((prev) => checked
+                                                ? prev.filter((x) => norm(x.name) !== norm(d.name))
+                                                : [...prev, d]);
+                                            }}>
+                                            {d.name}{d.crm ? ` · ${d.crm}` : ""}
+                                          </Button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  <div className="pt-1">
+                                    <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                                  </div>
+                                  {invalidDoctors.length > 0 && (
+                                    <p className="text-xs text-destructive">
+                                      Médico(s) fora da empresa selecionada: {invalidDoctors.map((d) => d.name).join(", ")}.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {fGroupMode === "medico" && (
+                              <div className="space-y-1.5 animate-fade-in">
+                                <Label>Médicos vinculados *</Label>
+                                <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                              </div>
+                            )}
+
+                            {(isAllCompany || isSpecificDoctors) && (
+                              <div className={cn(
+                                "rounded-md border px-2.5 py-1.5 text-xs animate-fade-in",
+                                isAllCompany
+                                  ? "border-info/40 bg-info-soft text-info-foreground"
+                                  : "border-primary/40 bg-primary/5"
+                              )}>
+                                {isAllCompany
+                                  ? "Aplicando para toda(s) a(s) empresa(s) selecionada(s) — todos os médicos."
+                                  : "Aplicando para médicos específicos."}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {scope === "master" && (
                         <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens. Altere o escopo na Identificação para vincular a empresa, médico ou grupo.</p>
