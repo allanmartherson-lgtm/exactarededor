@@ -477,31 +477,43 @@ const ReferenceTables = () => {
                 </p>
               ) : (
                 <div className="divide-y divide-border">
-                  {filteredItems.slice(0, 200).map((it) => (
-                    <div key={it.id} className="px-6 py-3 flex items-center gap-4">
-                      <span className="font-mono text-sm text-muted-foreground w-28">{it.code}</span>
-                      <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
-                      {isCbhpm ? (
-                        <>
-                          <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-24 text-center">
-                            {it.port
-                              ? it.port_multiplier && it.port_multiplier !== 1
-                                ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
-                                : it.port
-                              : "—"}
-                          </span>
-                          <span className="text-xs text-muted-foreground w-16 text-center">
-                            {it.aux_count != null ? `${it.aux_count} aux` : "—"}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-sm font-medium">{formatCurrency(it.amount ?? 0)}</span>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => removeItem(it.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                  {filteredItems.slice(0, 200).map((it) => {
+                    const isPkg = selected.kind === "pacote_combinacao";
+                    return (
+                      <div key={it.id} className="px-6 py-3 flex items-center gap-4">
+                        <span className="font-mono text-sm text-muted-foreground w-28 truncate">
+                          {isPkg ? (it.package_id ?? it.code) : it.code}
+                        </span>
+                        <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
+                        {isCbhpm ? (
+                          <>
+                            <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-24 text-center">
+                              {it.port
+                                ? it.port_multiplier && it.port_multiplier !== 1
+                                  ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
+                                  : it.port
+                                : "—"}
+                            </span>
+                            <span className="text-xs text-muted-foreground w-16 text-center">
+                              {it.aux_count != null ? `${it.aux_count} aux` : "—"}
+                            </span>
+                          </>
+                        ) : isPkg ? (
+                          <>
+                            <span className="text-xs font-mono text-muted-foreground max-w-xs truncate">
+                              {(it.tuss_codes ?? []).join(" + ") || "—"}
+                            </span>
+                            <span className="text-sm font-medium">{formatCurrency(it.package_amount ?? 0)}</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium">{formatCurrency(it.amount ?? 0)}</span>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => removeItem(it.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
