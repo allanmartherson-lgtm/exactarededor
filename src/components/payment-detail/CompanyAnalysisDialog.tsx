@@ -192,23 +192,41 @@ export function CompanyAnalysisDialog({
 
         {/* Tabela */}
         <div className="flex-1 overflow-auto bg-background">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-[11px] border-collapse table-fixed">
+            <colgroup>
+              <col className="w-6" />
+              <col className="w-[8%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[7%]" />
+              <col className="w-[7%]" />
+              <col className="w-[7%]" />
+              <col className="w-[16%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[7%]" />
+            </colgroup>
             <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
               <tr className="border-b">
-                <th className="w-6 px-2 py-2"></th>
-                <th className="px-2 py-2 text-left font-medium">Paciente</th>
-                <th className="px-2 py-2 text-left font-medium">Médico</th>
-                <th className="px-2 py-2 text-left font-medium">TUSS</th>
-                <th className="px-2 py-2 text-left font-medium hidden lg:table-cell">Procedimento</th>
-                <th className="px-2 py-2 text-right font-medium">Valor</th>
-                <th className="px-2 py-2 text-right font-medium">Esperado</th>
-                <th className="px-2 py-2 text-left font-medium">Status</th>
+                <th className="px-1.5 py-1.5"></th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Atend.</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Função</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Via</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Convênio</th>
+                <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
+                <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
+                <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={12} className="text-center py-8 text-muted-foreground">
                     Nenhum item para exibir.
                   </td>
                 </tr>
