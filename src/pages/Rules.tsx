@@ -261,7 +261,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFGroupCompanyIds([]); setFGroupDoctors([]);
+    setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("todos");
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
