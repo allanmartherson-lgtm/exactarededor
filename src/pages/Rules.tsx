@@ -766,10 +766,15 @@ const Rules = () => {
                     scope === "master" ? "Todos os itens (master)"
                     : scope === "especifica" ? `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`
                     : scope === "grupo"
-                      ? (fGroupMode === "todos" ? "Grupo · todos os itens"
-                        : fGroupMode === "empresas" ? `Grupo · ${fGroupCompanyIds.length} empresa(s)`
-                        : fGroupMode === "medicos" ? `Grupo · ${fGroupDoctors.length} médico(s)`
-                        : `Grupo · ${fGroupCompanyIds.length} empresa(s) OU ${fGroupDoctors.length} médico(s)`)
+                      ? (fGroupMode === "empresa"
+                          ? (fGroupCompanyIds.length === 0
+                              ? "Grupo · selecione empresa(s)"
+                              : fGroupDoctors.length === 0
+                                ? `Aplica para ${fGroupCompanyIds.length} empresa(s) — todos os médicos`
+                                : `Aplica para ${fGroupDoctors.length} médico(s) específico(s) em ${fGroupCompanyIds.length} empresa(s)`)
+                          : (fGroupDoctors.length === 0
+                              ? "Grupo · selecione médico(s)"
+                              : `Aplica para ${fGroupDoctors.map((d) => d.name).join(", ")}`))
                       : RULE_SCOPE_LABELS[scope];
                   const calc = fNature === "informativo"
                     ? "Informativa / bloqueio (não calcula)"
