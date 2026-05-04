@@ -469,6 +469,15 @@ const ReferenceTables = () => {
             </CardContent>
           </Card>
         </div>
+        {wizardProfile && (
+          <ImportWizard
+            open={wizardOpen}
+            onOpenChange={setWizardOpen}
+            title={`Importar para ${selected.name}`}
+            profile={wizardProfile}
+            onComplete={() => loadItems(selected.id)}
+          />
+        )}
       </>
     );
   }
