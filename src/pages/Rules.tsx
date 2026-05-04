@@ -514,9 +514,10 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
-      // Modo empresa: salva empresas e (opcional) médicos refinando-as.
-      // Modo médico: salva apenas médicos, sem empresa.
-      group_company_ids: scope === "grupo" && fGroupMode === "empresa" ? fGroupCompanyIds : [],
+      // Novo modelo: vínculos por empresa em linhas (com ou sem médicos específicos).
+      // Mantém também os campos legados (derivados) para retrocompatibilidade.
+      group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
+      group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
       group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: fTimeMode,
       weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
