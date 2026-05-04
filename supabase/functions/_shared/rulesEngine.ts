@@ -239,6 +239,22 @@ function targetsCompany(r: RuleInput, item: ItemInput): boolean {
   return false;
 }
 
+function targetsGroup(r: RuleInput, item: ItemInput): boolean {
+  if (r.scope !== "grupo") return false;
+  const cids = r.group_company_ids ?? [];
+  if (item.company_id && cids.includes(item.company_id)) return true;
+  const docs = r.group_doctors ?? [];
+  if (docs.length > 0 && item.doctor_name) {
+    const itemNm = normName(item.doctor_name);
+    const itemCrm = onlyDigits(item.doctor_document);
+    for (const d of docs) {
+      if (d?.name && normName(d.name) === itemNm) return true;
+      if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
+    }
+  }
+  return false;
+}
+
 // ---------- pré-filtro ----------
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
   return rules.filter((r) => {
