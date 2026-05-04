@@ -258,34 +258,34 @@ export const PaymentItemRow = ({
         className="align-top hover:bg-muted/20 cursor-pointer"
         onClick={() => onToggleExpanded(it.id)}
       >
-        <td className="px-1.5 py-1.5 text-muted-foreground print:hidden">
-          {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        <td className="px-1.5 py-1 text-muted-foreground print:hidden align-top">
+          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         </td>
-        <td className="px-1.5 py-1.5 text-[11px] font-mono text-muted-foreground break-all">
+        <td className="px-1.5 py-1 text-[10px] font-mono text-muted-foreground truncate" title={it.attendance_number ?? ""}>
           {it.attendance_number ?? "—"}
         </td>
-        <td className="px-1.5 py-1.5 text-[12px] leading-snug break-words">{paciente}</td>
-        <td className="px-1.5 py-1.5 text-[12px] leading-snug text-muted-foreground break-words hidden md:table-cell print:table-cell">
+        <td className="px-1.5 py-1 text-[11px] leading-tight truncate" title={paciente}>{paciente}</td>
+        <td className="px-1.5 py-1 text-[11px] leading-tight text-muted-foreground truncate hidden md:table-cell print:table-cell" title={typeof convenio === "string" ? convenio : ""}>
           {convenio}
         </td>
-        <td className="px-1.5 py-1.5 leading-snug">
-          <div className="font-medium text-[12px] break-words">{it.doctor_name}</div>
-          <div className="text-[10px] text-muted-foreground break-words">{it.doctor_role ?? "—"}</div>
+        <td className="px-1.5 py-1 leading-tight">
+          <div className="font-medium text-[11px] truncate" title={it.doctor_name ?? ""}>{it.doctor_name}</div>
+          <div className="text-[10px] text-muted-foreground truncate" title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</div>
         </td>
-        <td className="px-1.5 py-1.5 font-mono text-[11px] break-all hidden lg:table-cell print:table-cell">
+        <td className="px-1.5 py-1 font-mono text-[10px] truncate hidden lg:table-cell print:table-cell" title={it.procedure_code ?? ""}>
           {it.procedure_code ?? "—"}
         </td>
-        <td className="px-1.5 py-1.5 leading-snug">
-          <div className="text-[12px] line-clamp-2">{it.description ?? "—"}</div>
+        <td className="px-1.5 py-1 leading-tight">
+          <div className="text-[11px] text-muted-foreground line-clamp-1" title={it.description ?? ""}>{it.description ?? "—"}</div>
           {!isExpanded && alerts.length > 0 && (
-            <div className="mt-0.5 text-[10px] text-warning-foreground line-clamp-1">
+            <div className="mt-0.5 text-[10px] text-warning-foreground line-clamp-1" title={alerts.join(" · ")}>
               ⚠ {alerts[0]}
               {alerts.length > 1 && ` (+${alerts.length - 1})`}
             </div>
           )}
         </td>
-        <td className="px-1.5 py-1.5 text-right tabular-nums text-[12px]">{it.quantity ?? "—"}</td>
-        <td className="px-1.5 py-1.5 text-right" onClick={(e) => e.stopPropagation()}>
+        <td className="px-1.5 py-1 text-right tabular-nums text-[11px]">{it.quantity ?? "—"}</td>
+        <td className="px-1.5 py-1 text-right" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1.5">
             {tooltipNode ? (
               <Tooltip>
@@ -359,7 +359,7 @@ export const PaymentItemRow = ({
             </span>
           )}
         </td>
-        <td className="px-1.5 py-1.5 hidden sm:table-cell print:table-cell">
+        <td className="px-1.5 py-1 hidden sm:table-cell print:table-cell">
           {(() => {
             const aiRaw = (it.ai_status as ItemAiStatus) ?? "pendente";
             // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
@@ -368,7 +368,7 @@ export const PaymentItemRow = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.success}`}
+                      className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES.success}`}
                     >
                       seguido
                     </span>
@@ -381,7 +381,7 @@ export const PaymentItemRow = ({
             }
             return (
               <span
-                className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES[itemToneMap[aiRaw]]}`}
+                className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES[itemToneMap[aiRaw]]}`}
               >
                 {aiRaw}
               </span>
@@ -389,14 +389,14 @@ export const PaymentItemRow = ({
           })()}
           {exceptionMarked && (
             <span
-              className={`mt-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.info}`}
+              className={`mt-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES.info}`}
               title={`Exceção autorizada — ${itemAny.exception_authorizer ?? "—"}`}
             >
               <ShieldCheck className="h-2.5 w-2.5" /> exceção
             </span>
           )}
         </td>
-        <td className="pl-1 pr-2 py-1.5 print:hidden" onClick={(e) => e.stopPropagation()}>
+        <td className="pl-1 pr-2 py-1 print:hidden" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
             <button
               type="button"
