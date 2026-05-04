@@ -512,41 +512,29 @@ export function CompanyAnalysisDialog({
 
           {/* DESKTOP/TABLET — tabela densa (>= md) */}
           <table className="hidden md:table w-full text-[11px] border-collapse table-fixed">
-            <colgroup>
-              <col className="w-6" />
-              {/* Ordem segue a planilha: Atend, Paciente, Convênio, Via, TUSS, Procedimento, Médico, Função, Valor, Esperado, Status */}
-              <col className="hidden xl:table-column w-[7%]" />
-              <col className="w-[15%] xl:w-[12%]" />
-              <col className="hidden xl:table-column w-[9%]" />
-              <col className="hidden lg:table-column w-[6%]" />
-              <col className="w-[7%]" />
-              <col className="w-[20%] xl:w-[15%]" />
-              <col className="w-[14%] xl:w-[12%]" />
-              <col className="hidden lg:table-column w-[6%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[8%] xl:w-[7%]" />
-            </colgroup>
             <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
               <tr className="border-b">
-                <th className="px-1.5 py-1.5"></th>
-                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Atend.</th>
+                <th className="w-6 px-1.5 py-1.5"></th>
+                {colVis.atendimento && <th className="px-1.5 py-1.5 text-left font-medium">Atend.</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
-                <th className="hidden xl:table-cell px-1.5 py-1.5 text-left font-medium">Convênio</th>
-                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Via</th>
+                {colVis.convenio && <th className="px-1.5 py-1.5 text-left font-medium">Convênio</th>}
+                {colVis.via && <th className="px-1.5 py-1.5 text-left font-medium">Via</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
-                <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>
+                {colVis.procedimento && <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
-                <th className="hidden lg:table-cell px-1.5 py-1.5 text-left font-medium">Função</th>
+                {colVis.funcao && <th className="px-1.5 py-1.5 text-left font-medium">Função</th>}
+                {colVis.regra && <th className="px-1.5 py-1.5 text-left font-medium">Regra</th>}
                 <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
                 <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
+                {colVis.diferenca && <th className="px-1.5 py-1.5 text-right font-medium">Diferença</th>}
                 <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
+                {colVis.observacao && <th className="px-1.5 py-1.5 text-left font-medium">Obs.</th>}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={20} className="text-center py-8 text-muted-foreground">
                     Nenhum item para exibir.
                   </td>
                 </tr>
@@ -571,6 +559,7 @@ export function CompanyAnalysisDialog({
                 const isOpen = expanded.has(it.id);
                 const isActive = activeId === it.id;
                 const isCritical = eff === "reprovado";
+                const obsCount = observations.filter((o) => o.item_id === it.id).length;
 
                 return (
                   <tr key={it.id} className="contents">
@@ -585,6 +574,10 @@ export function CompanyAnalysisDialog({
                       isCritical={isCritical}
                       hasAlert={alerts.length > 0}
                       onToggle={() => toggleRow(it.id)}
+                      colVis={colVis}
+                      rulesIndex={rulesIndex}
+                      rulesByName={rulesByName}
+                      obsCount={obsCount}
                     />
                     {isOpen && (
                       <ItemDetailsRow
