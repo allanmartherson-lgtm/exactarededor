@@ -156,6 +156,7 @@ export const PaymentGroupCard = ({
   onTransition,
   onExceptionChanged,
 }: PaymentGroupCardProps) => {
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const gStatus = g.status as PaymentStatus;
   const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
   const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
