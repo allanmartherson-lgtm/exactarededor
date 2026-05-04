@@ -311,6 +311,7 @@ export const PaymentGroupCard = ({
         items={groupItems}
         rulesIndex={rulesIndex}
         rulesByName={rulesByName}
+        observations={obs}
       />
 
       {groupExpandedEffective && nfDivergent && (
