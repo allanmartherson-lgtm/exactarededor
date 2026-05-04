@@ -235,6 +235,33 @@ const Rules = () => {
     [codesInput]
   );
 
+  // Erros por seção do formulário (feedback visual + auto-abrir seção com erro)
+  const sectionErrors = useMemo(() => {
+    const e: Record<string, number> = { identificacao: 0, aplicacao: 0, condicoes: 0, calculo: 0, codigos: 0 };
+    if (!fName.trim()) e.identificacao++;
+    if (!fRuleText.trim()) e.identificacao++;
+    if (fValidFrom && fValidUntil && fValidFrom > fValidUntil) e.identificacao++;
+    if (scope === "especifica") {
+      if (!fTargetIdentifier && !fTargetName) e.aplicacao++;
+      if (targetType === "empresa" && fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)) e.aplicacao++;
+    }
+    if (scope === "grupo") {
+      if (fGroupMode === "empresas" && fGroupCompanyIds.length === 0) e.aplicacao++;
+      if (fGroupMode === "medicos" && fGroupDoctors.length === 0) e.aplicacao++;
+      if (fGroupMode === "ambos" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) e.aplicacao++;
+    }
+    if (fTimeStart && fTimeEnd && fTimeStart === fTimeEnd) e.condicoes++;
+    if (fNature === "calculavel") {
+      if (fCalculationType === "percentual_sobre_convenio" && !fConvenioPct) e.calculo++;
+      if (fCalculationType === "valor_fixo" && !fFixedAmount) e.calculo++;
+    }
+    return e;
+  }, [
+    fName, fRuleText, fValidFrom, fValidUntil, scope, fTargetIdentifier, fTargetName,
+    targetType, fGroupMode, fGroupCompanyIds, fGroupDoctors, fTimeStart, fTimeEnd,
+    fNature, fCalculationType, fConvenioPct, fFixedAmount,
+  ]);
+
   // bulk update
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
