@@ -261,13 +261,6 @@ const Rules = () => {
         if (!link.company_id) { e.aplicacao++; continue; }
         if (seenCo.has(link.company_id)) dupCo = true;
         seenCo.add(link.company_id);
-        // médicos da linha devem pertencer à empresa daquela linha
-        const allowed = companyDoctorsMap[link.company_id] ?? [];
-        if (link.doctors.length > 0 && allowed.length > 0) {
-          const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-          const allow = new Set(allowed.map((d) => norm(d.name)));
-          if (link.doctors.some((d) => !allow.has(norm(d.name)))) e.aplicacao++;
-        }
       }
       if (dupCo) e.aplicacao++;
       // Precisa de pelo menos linha de empresa OU médicos avulsos.
