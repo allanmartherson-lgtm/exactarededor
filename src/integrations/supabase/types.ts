@@ -1079,6 +1079,7 @@ export type Database = {
           extras_codes: string[] | null
           fixed_amount: number | null
           group_company_ids: string[]
+          group_company_links: Json
           group_doctors: Json
           id: string
           include_auxiliaries: boolean
@@ -1142,6 +1143,7 @@ export type Database = {
           extras_codes?: string[] | null
           fixed_amount?: number | null
           group_company_ids?: string[]
+          group_company_links?: Json
           group_doctors?: Json
           id?: string
           include_auxiliaries?: boolean
@@ -1205,6 +1207,7 @@ export type Database = {
           extras_codes?: string[] | null
           fixed_amount?: number | null
           group_company_ids?: string[]
+          group_company_links?: Json
           group_doctors?: Json
           id?: string
           include_auxiliaries?: boolean

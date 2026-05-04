@@ -1,0 +1,1 @@
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS group_company_links jsonb NOT NULL DEFAULT '[]'::jsonb;
