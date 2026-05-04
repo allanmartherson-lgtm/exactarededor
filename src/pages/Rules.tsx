@@ -251,6 +251,7 @@ const Rules = () => {
     setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
+    setFAuxFirstPct("30"); setFAuxSecondPct("20"); setFInstrumentadorPct("10");
     setFRepassePct(""); setFApplyAccessRoute(false);
     setFPackageMainCode(""); setFPackageIncludedCodes("");
     setFPackageVisitsCount(false); setFPackageOpinionsCount(false); setFPackageAuxIncluded(true);
@@ -258,6 +259,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
+    setFGroupCompanyIds([]); setFGroupDoctors([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
