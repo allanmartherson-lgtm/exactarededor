@@ -986,7 +986,11 @@ const Rules = () => {
 
                   {/* Condições de aplicação */}
                   <AccordionItem value="condicoes" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Condições de aplicação</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.condicoes > 0 && "text-destructive")}>
+                      <span className="flex items-center">Condições de aplicação
+                        {sectionErrors.condicoes > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.condicoes}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
