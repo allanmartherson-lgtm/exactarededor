@@ -89,7 +89,7 @@ export default function Doctors() {
   const [specInput, setSpecInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("");
-  const [importing, setImporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
 
   useEffect(() => {
