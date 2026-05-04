@@ -85,7 +85,7 @@ const CostCenters = () => {
   const [items, setItems] = useState<CostCenter[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [importing, setImporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
