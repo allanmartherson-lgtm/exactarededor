@@ -238,6 +238,99 @@ serve(async (req) => {
     const resultById: Record<string, AnalysisResult> = {};
     for (const r of results) resultById[r.item_id] = r;
 
+    // ---------- 4.2 PACOTES FIXOS por combinação de códigos ----------
+    // Tabelas reference_tables.kind = 'pacote_combinacao' definem pacotes:
+    // se os códigos do atendimento contêm o conjunto tuss_codes do pacote,
+    // o valor esperado dos itens participantes passa a ser o valor do pacote
+    // (rateado entre os itens elegíveis), em vez da soma individual.
+    try {
+      const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
+      const { data: pkgTablesAll } = await supabase
+        .from("reference_tables")
+        .select("id,name,active,valid_from,valid_until,package_only_main_surgeon,package_apply_auxiliaries,package_apply_particular,package_apply_intl_insurance")
+        .eq("kind", "pacote_combinacao")
+        .eq("active", true);
+      const pkgTables = (pkgTablesAll ?? []).filter((t: any) =>
+        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
+      );
+      if (pkgTables.length > 0) {
+        const pkgIds = pkgTables.map((t: any) => t.id);
+        const { data: pkgItems } = await supabase
+          .from("reference_table_items")
+          .select("id,reference_table_id,package_id,tuss_codes,package_amount,description")
+          .in("reference_table_id", pkgIds);
+
+        const byAttendance: Record<string, typeof items> = {};
+        for (const it of items) {
+          const k = (it.attendance_number ?? "").toString().trim() || `__no_att__${it.id}`;
+          (byAttendance[k] ||= []).push(it);
+        }
+        const tableById: Record<string, any> = {};
+        for (const t of pkgTables) tableById[(t as any).id] = t;
+
+        const isAuxRole = (role: string | null | undefined) => {
+          const s = (role ?? "").toLowerCase();
+          return s.includes("aux") || s.includes("instrument");
+        };
+
+        for (const attItems of Object.values(byAttendance)) {
+          const codeSet = new Set(
+            attItems.map((i) => (i.procedure_code ?? "").toString().trim()).filter(Boolean),
+          );
+          if (codeSet.size === 0) continue;
+
+          for (const pkg of (pkgItems ?? []) as any[]) {
+            const required: string[] = (pkg.tuss_codes ?? []).map((c: string) => String(c).trim()).filter(Boolean);
+            if (required.length === 0) continue;
+            if (!required.every((c) => codeSet.has(c))) continue;
+
+            const cfg = tableById[pkg.reference_table_id];
+            const eligible = attItems.filter((i) => {
+              const code = (i.procedure_code ?? "").toString().trim();
+              if (!required.includes(code)) return false;
+              const role = i.doctor_role ?? "";
+              if (cfg?.package_only_main_surgeon && isAuxRole(role)) return false;
+              if (!cfg?.package_apply_auxiliaries && isAuxRole(role)) return false;
+              return true;
+            });
+            if (eligible.length === 0) continue;
+
+            const pkgAmount = Number(pkg.package_amount ?? 0);
+            const perItem = pkgAmount / eligible.length;
+
+            for (const it of eligible) {
+              const r = resultById[it.id];
+              if (!r || r.calculation_type_used === "exclusao") continue;
+              r.expected_amount = perItem;
+              r.diff_pct = perItem ? ((it.gross_amount - perItem) / perItem) * 100 : null;
+              r.matched_rule_id = null;
+              r.matched_rule_name = `Pacote: ${cfg?.name ?? "—"} · ${pkg.package_id ?? ""}`;
+              r.matched_priority = "conflito";
+              r.calculation_type_used = "pacote_fixo";
+              r.calculation_explanation =
+                `Combinação ${required.join(" + ")} corresponde ao pacote "${pkg.package_id ?? ""}" ` +
+                `da tabela "${cfg?.name ?? ""}". Valor fixo R$ ${pkgAmount.toFixed(2)} ` +
+                `rateado entre ${eligible.length} item(ns) = R$ ${perItem.toFixed(2)} cada.`;
+              const diff = it.gross_amount - perItem;
+              if (Math.abs(diff) <= 0.01) {
+                r.status = "aprovado" as any;
+                r.needs_ai_review = false;
+              } else {
+                r.status = "alerta" as any;
+                r.needs_ai_review = true;
+                r.alerts = [
+                  `Pacote fixo "${pkg.package_id ?? ""}": esperado R$ ${perItem.toFixed(2)}, pago R$ ${it.gross_amount.toFixed(2)}.`,
+                  ...r.alerts,
+                ];
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[pacote_combinacao] falha:", e);
+    }
+
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
     const itemsToReview = results.filter((r) => r.needs_ai_review);
