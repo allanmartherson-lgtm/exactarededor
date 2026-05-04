@@ -216,10 +216,51 @@ const Rules = () => {
   const [fTimeEnd, setFTimeEnd] = useState<string>("");
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
 
+  // Persistência das seções abertas do accordion (lembra entre aberturas do modal)
+  const ACCORDION_STORAGE_KEY = "rules.form.accordion.v1";
+  const [accordionValue, setAccordionValue] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ["identificacao"];
+    try {
+      const raw = window.localStorage.getItem(ACCORDION_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) && parsed.length ? parsed : ["identificacao"];
+    } catch { return ["identificacao"]; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(accordionValue)); } catch {}
+  }, [accordionValue]);
+
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
     [codesInput]
   );
+
+  // Erros por seção do formulário (feedback visual + auto-abrir seção com erro)
+  const sectionErrors = useMemo(() => {
+    const e: Record<string, number> = { identificacao: 0, aplicacao: 0, condicoes: 0, calculo: 0, codigos: 0 };
+    if (!fName.trim()) e.identificacao++;
+    if (!fRuleText.trim()) e.identificacao++;
+    if (fValidFrom && fValidUntil && fValidFrom > fValidUntil) e.identificacao++;
+    if (scope === "especifica") {
+      if (!fTargetIdentifier && !fTargetName) e.aplicacao++;
+      if (targetType === "empresa" && fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)) e.aplicacao++;
+    }
+    if (scope === "grupo") {
+      if (fGroupMode === "empresas" && fGroupCompanyIds.length === 0) e.aplicacao++;
+      if (fGroupMode === "medicos" && fGroupDoctors.length === 0) e.aplicacao++;
+      if (fGroupMode === "ambos" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) e.aplicacao++;
+    }
+    if (fTimeStart && fTimeEnd && fTimeStart === fTimeEnd) e.condicoes++;
+    if (fNature === "calculavel") {
+      if (fCalculationType === "percentual_sobre_convenio" && !fConvenioPct) e.calculo++;
+      if (fCalculationType === "valor_fixo" && !fFixedAmount) e.calculo++;
+    }
+    return e;
+  }, [
+    fName, fRuleText, fValidFrom, fValidUntil, scope, fTargetIdentifier, fTargetName,
+    targetType, fGroupMode, fGroupCompanyIds, fGroupDoctors, fTimeStart, fTimeEnd,
+    fNature, fCalculationType, fConvenioPct, fFixedAmount,
+  ]);
 
   // bulk update
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -331,6 +372,13 @@ const Rules = () => {
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Abre automaticamente seções com erro para feedback imediato
+    const sectionsWithErr = Object.entries(sectionErrors).filter(([, n]) => n > 0).map(([k]) => k);
+    if (sectionsWithErr.length > 0) {
+      setAccordionValue((prev) => Array.from(new Set([...prev, ...sectionsWithErr])));
+      toast({ title: "Revise os campos destacados", description: `${sectionsWithErr.length} seção(ões) com pendência.`, variant: "destructive" });
+      return;
+    }
     const isEspecifica = scope === "especifica";
     // Quando Natureza = informativa/bloqueio, força calculation_type = informativo
     // e zera todos os parâmetros financeiros.
@@ -727,11 +775,15 @@ const Rules = () => {
                   );
                 })()}
 
-                <Accordion type="multiple" defaultValue={["identificacao", ...(fNature === "calculavel" ? ["calculo"] : [])]} className="space-y-2">
+                <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue} className="space-y-2">
 
                   {/* Identificação */}
                   <AccordionItem value="identificacao" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Identificação da regra</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.identificacao > 0 && "text-destructive")}>
+                      <span className="flex items-center">Identificação da regra
+                        {sectionErrors.identificacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.identificacao}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       <div className="space-y-1.5"><Label>Nome *</Label>
                         <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
@@ -786,7 +838,11 @@ const Rules = () => {
 
                   {/* Aplicação da regra */}
                   <AccordionItem value="aplicacao" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Aplicação da regra</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.aplicacao > 0 && "text-destructive")}>
+                      <span className="flex items-center">Aplicação da regra
+                        {sectionErrors.aplicacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.aplicacao}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       {scope === "especifica" && (
                         <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
@@ -937,7 +993,11 @@ const Rules = () => {
 
                   {/* Condições de aplicação */}
                   <AccordionItem value="condicoes" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Condições de aplicação</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.condicoes > 0 && "text-destructive")}>
+                      <span className="flex items-center">Condições de aplicação
+                        {sectionErrors.condicoes > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.condicoes}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -999,7 +1059,11 @@ const Rules = () => {
 
                   {/* Cálculo da regra */}
                   <AccordionItem value="calculo" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Cálculo da regra</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.calculo > 0 && "text-destructive")}>
+                      <span className="flex items-center">Cálculo da regra
+                        {sectionErrors.calculo > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.calculo}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       <div className="space-y-1.5">
                         <Label>Natureza da regra *</Label>
