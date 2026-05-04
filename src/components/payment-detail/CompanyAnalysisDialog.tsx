@@ -343,7 +343,58 @@ export function CompanyAnalysisDialog({
               Limpar
             </Button>
           )}
-          <Badge variant="secondary" className="ml-auto">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" className="h-8 text-xs ml-auto">
+                <Columns3 className="h-3.5 w-3.5 mr-1" />
+                Colunas
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-2">
+              <p className="px-1.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                Colunas opcionais
+              </p>
+              <div className="space-y-0.5">
+                {OPTIONAL_COLUMNS.map((c) => (
+                  <label
+                    key={c.key}
+                    className="flex items-center gap-2 rounded-sm px-1.5 py-1 text-xs hover:bg-muted cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={colVis[c.key]}
+                      onCheckedChange={() => toggleCol(c.key)}
+                    />
+                    <span>{c.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="mt-1 flex justify-between gap-2 border-t pt-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] flex-1"
+                  onClick={() =>
+                    setColVis(
+                      Object.fromEntries(
+                        OPTIONAL_COLUMNS.map((c) => [c.key, false]),
+                      ) as Record<OptionalColKey, boolean>,
+                    )
+                  }
+                >
+                  Limpar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] flex-1"
+                  onClick={() => setColVis(DEFAULT_COL_VISIBILITY)}
+                >
+                  Padrão
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
         </div>
