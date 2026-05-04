@@ -372,6 +372,13 @@ const Rules = () => {
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Abre automaticamente seções com erro para feedback imediato
+    const sectionsWithErr = Object.entries(sectionErrors).filter(([, n]) => n > 0).map(([k]) => k);
+    if (sectionsWithErr.length > 0) {
+      setAccordionValue((prev) => Array.from(new Set([...prev, ...sectionsWithErr])));
+      toast({ title: "Revise os campos destacados", description: `${sectionsWithErr.length} seção(ões) com pendência.`, variant: "destructive" });
+      return;
+    }
     const isEspecifica = scope === "especifica";
     // Quando Natureza = informativa/bloqueio, força calculation_type = informativo
     // e zera todos os parâmetros financeiros.
