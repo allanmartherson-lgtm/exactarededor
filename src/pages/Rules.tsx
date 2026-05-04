@@ -181,6 +181,9 @@ const Rules = () => {
   const [fDeflatorPct, setFDeflatorPct] = useState<string>("");
   const [fIncludeAux, setFIncludeAux] = useState(false);
   const [fAuxPct, setFAuxPct] = useState<string>("");
+  const [fAuxFirstPct, setFAuxFirstPct] = useState<string>("30");
+  const [fAuxSecondPct, setFAuxSecondPct] = useState<string>("20");
+  const [fInstrumentadorPct, setFInstrumentadorPct] = useState<string>("10");
   const [fRepassePct, setFRepassePct] = useState<string>("");
   const [fApplyAccessRoute, setFApplyAccessRoute] = useState(false);
   // === Configuração de pacote (subtipos) ===
