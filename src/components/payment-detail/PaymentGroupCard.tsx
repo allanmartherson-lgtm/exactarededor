@@ -510,6 +510,7 @@ export const PaymentGroupCard = ({
               ))}
             </tbody>
           </table>
+          </div>
         </CardContent>
       )}
 
