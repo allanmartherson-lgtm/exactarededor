@@ -62,6 +62,7 @@ export function CompanyAnalysisDialog({
   items,
   rulesIndex,
   rulesByName,
+  observations = [],
 }: Props) {
   const { id } = useParams<{ id: string }>();
   const gStatus = group.status as PaymentStatus;
