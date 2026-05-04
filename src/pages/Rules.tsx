@@ -772,7 +772,11 @@ const Rules = () => {
 
                   {/* Identificação */}
                   <AccordionItem value="identificacao" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Identificação da regra</AccordionTrigger>
+                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.identificacao > 0 && "text-destructive")}>
+                      <span className="flex items-center">Identificação da regra
+                        {sectionErrors.identificacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.identificacao}</span>}
+                      </span>
+                    </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
                       <div className="space-y-1.5"><Label>Nome *</Label>
                         <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
