@@ -414,13 +414,21 @@ const Companies = () => {
           </div>
         </div>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader><CardTitle className="text-base">{filtered.length} empresa(s)</CardTitle></CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-hidden">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhuma empresa cadastrada ainda.</p>
             ) : (
-              <table className="w-full text-sm">
+              <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[980px] table-fixed text-sm">
+                <colgroup>
+                  <col className="w-[32%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[24%]" />
+                  <col className="w-[10%]" />
+                </colgroup>
                 <thead className="bg-muted">
                   <tr className="text-left">
                     <th className="px-4 py-2 font-medium">Nome</th>
@@ -433,10 +441,15 @@ const Companies = () => {
                 <tbody className="divide-y divide-border">
                   {filtered.map((c) => (
                     <tr key={c.id}>
-                      <td className="px-4 py-2 font-medium flex items-center gap-2"><Building2 className="h-4 w-4 text-muted-foreground" />{c.name}</td>
+                      <td className="px-4 py-2 font-medium">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate" title={c.name}>{c.name}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-2 text-muted-foreground cell-mono">
                         {c.document ? (
-                          <span className="inline-flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             {c.document}
                             {isValidCNPJ(c.document)
                               ? <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
@@ -463,7 +476,7 @@ const Companies = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
                         <Button size="icon" variant="ghost" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => remove(c.id)}><Trash2 className="h-4 w-4" /></Button>
                       </td>
@@ -471,6 +484,7 @@ const Companies = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
