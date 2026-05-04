@@ -1,10 +1,8 @@
 // Edge function genérica para o fluxo de importação Excel/CSV.
-// Modos:
-//  - "parse"   : baixa o arquivo do storage, devolve abas, headers e 20 linhas de prévia
-//  - "preview" : aplica mapping numa aba e devolve resumo de validação (não grava)
-//  - "commit"  : aplica mapping, valida e insere no banco (dedup por chaves naturais)
+// Modo:
+//  - "commit"  : recebe linhas já mapeadas/validadas no navegador e grava no banco
 //
-// O cliente envia: { mode, storagePath, sheetName?, mapping?, profile? }
+// O cliente envia: { mode, records, totalRows?, replaceBefore?, profile }
 // profile descreve a entidade-alvo, campos obrigatórios e contexto fixo.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
@@ -182,10 +180,11 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { mode, records: incomingRecords, totalRows, profile } = body as {
+    const { mode, records: incomingRecords, totalRows, replaceBefore, profile } = body as {
       mode: "parse" | "preview" | "commit";
       records?: Record<string, any>[];
       totalRows?: number;
+      replaceBefore?: boolean;
       profile?: Profile;
     };
 
@@ -252,7 +251,7 @@ Deno.serve(async (req) => {
       }
 
       // Modo replace: apaga antes
-      if (importMode === "replace") {
+      if (importMode === "replace" && replaceBefore !== false) {
         let q = admin.from(profile.entity).delete({ count: "exact" } as any);
         const scope = profile.replaceScope ?? {};
         for (const [k, v] of Object.entries(scope)) q = q.eq(k, v);
