@@ -292,6 +292,36 @@ const Rules = () => {
   const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
+  // Carrega médicos relacionados às empresas selecionadas (a partir de payment_items).
+  useEffect(() => {
+    if (scope !== "grupo" || fGroupMode !== "empresa" || fGroupCompanyIds.length === 0) {
+      setCompanyDoctors([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCompanyDoctors(true);
+    supabase
+      .from("payment_items")
+      .select("doctor_name, doctor_document")
+      .in("company_id", fGroupCompanyIds)
+      .not("doctor_name", "is", null)
+      .limit(2000)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const seen = new Map<string, { name: string; crm?: string }>();
+        for (const r of (data ?? []) as any[]) {
+          const name = String(r.doctor_name ?? "").trim();
+          if (!name) continue;
+          const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (!seen.has(key)) seen.set(key, { name, crm: r.doctor_document ?? undefined });
+        }
+        setCompanyDoctors(Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      })
+      .then(() => { if (!cancelled) setLoadingCompanyDoctors(false); });
+    return () => { cancelled = true; };
+  }, [scope, fGroupMode, fGroupCompanyIds]);
+
+
   const resetForm = () => {
     setEditingId(null);
     setFName(""); setFDescription(""); setFRuleText("");
