@@ -144,6 +144,27 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   };
 
   const runCommit = async () => {
+    // Validações de segurança antes de chamar o backend
+    const requiredMissing = profile.fields
+      .filter((f) => f.required && !mapping[f.key])
+      .map((f) => f.label);
+    if (requiredMissing.length > 0) {
+      toast({
+        title: "Campos obrigatórios não mapeados",
+        description: requiredMissing.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!validation || validation.summary.valid <= 0) {
+      toast({ title: "Nada para importar", description: "Todas as linhas foram rejeitadas.", variant: "destructive" });
+      return;
+    }
+    if (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR") {
+      toast({ title: "Confirme a substituição", description: "Digite SUBSTITUIR para liberar.", variant: "destructive" });
+      return;
+    }
+
     setBusy(true);
     try {
       const data = await callFn({
@@ -151,11 +172,14 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         storagePath,
         sheetName: activeSheet,
         mapping,
-        profile,
+        profile: { ...profile, importMode },
       });
       const res: CommitResult = {
         total: data.total ?? 0,
         inserted: data.inserted ?? 0,
+        updated: data.updated ?? 0,
+        created: data.created ?? 0,
+        removed_before_replace: data.removed_before_replace ?? 0,
         skipped: data.skipped ?? 0,
         validation_errors: data.validation_errors ?? 0,
         duplicates: data.duplicates ?? 0,
@@ -163,7 +187,15 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       };
       setResult(res);
       setStep("done");
-      toast({ title: `${res.inserted} de ${res.total} linha(s) importada(s)` });
+      if (res.inserted > 0) {
+        toast({ title: `${res.inserted} de ${res.total} linha(s) processada(s)` });
+      } else {
+        toast({
+          title: "Nenhuma linha foi salva",
+          description: res.insert_errors[0]?.reason ?? "Verifique os erros e o mapeamento.",
+          variant: "destructive",
+        });
+      }
       onComplete?.(res);
     } catch (e: any) {
       toast({ title: "Erro ao importar", description: e?.message, variant: "destructive" });
