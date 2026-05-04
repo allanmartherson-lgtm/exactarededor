@@ -318,6 +318,7 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
 
   const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
   const companyRules = rules.filter((r) => targetsCompany(r, item));
+  const groupRules   = rules.filter((r) => targetsGroup(r, item));
   const sectorRules  = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector) && itemSector !== "outro");
   const hemoMaster   = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica"));
   const generalMaster = rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0));
@@ -331,6 +332,7 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
   }> = [
     { bucket: doctorRules,    withCodePriority: "medico_codigo",  withoutCodePriority: "medico" },
     { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
+    { bucket: groupRules,     withCodePriority: "grupo_codigo",   withoutCodePriority: "grupo" },
     { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
     { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
     { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
