@@ -447,8 +447,10 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
-      group_company_ids: scope === "grupo" && (fGroupMode === "empresas" || fGroupMode === "ambos") ? fGroupCompanyIds : [],
-      group_doctors: scope === "grupo" && (fGroupMode === "medicos" || fGroupMode === "ambos") ? fGroupDoctors : [],
+      // Modo empresa: salva empresas e (opcional) médicos refinando-as.
+      // Modo médico: salva apenas médicos, sem empresa.
+      group_company_ids: scope === "grupo" && fGroupMode === "empresa" ? fGroupCompanyIds : [],
+      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: fTimeMode,
       weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
       includes_holidays: fIncludesHolidays,
