@@ -457,36 +457,37 @@ export const PaymentGroupCard = ({
               </div>
             );
           })()}
-          <table className="w-full text-[12px] table-fixed print:text-[10px]">
+          <div className="max-h-[70vh] overflow-auto print:max-h-none print:overflow-visible">
+          <table className="w-full text-[11px] table-fixed border-collapse print:text-[10px]">
             <colgroup>
-              <col className="w-6" />
-              <col className="w-[68px]" />
-              <col className="w-[13%]" />
+              <col className="w-5" />
+              <col className="w-[60px]" />
+              <col className="w-[12%]" />
               <col className="w-[10%] hidden md:table-column print:table-column" />
-              <col className="w-[15%]" />
-              <col className="w-[68px] hidden lg:table-column print:table-column" />
+              <col className="w-[14%]" />
+              <col className="w-[60px] hidden lg:table-column print:table-column" />
               <col />
-              <col className="w-[36px]" />
-              <col className="w-[104px]" />
-              <col className="w-[78px] hidden sm:table-column print:table-column" />
-              <col className="w-10 print:hidden" />
+              <col className="w-[32px]" />
+              <col className="w-[96px]" />
+              <col className="w-[72px] hidden sm:table-column print:table-column" />
+              <col className="w-8 print:hidden" />
             </colgroup>
-            <thead className="bg-muted text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-muted text-left text-[10px] uppercase tracking-wider text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))] print:static">
               <tr>
-                <th className="px-1.5 py-2 print:hidden"></th>
-                <th className="px-1.5 py-2">Atend.</th>
-                <th className="px-1.5 py-2">Paciente</th>
-                <th className="px-1.5 py-2 hidden md:table-cell print:table-cell">Convênio</th>
-                <th className="px-1.5 py-2">Médico / Função</th>
-                <th className="px-1.5 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
-                <th className="px-1.5 py-2">Descrição</th>
-                <th className="px-1.5 py-2 text-right">Qtd</th>
-                <th className="px-1.5 py-2 text-right">Valor</th>
-                <th className="px-1.5 py-2 hidden sm:table-cell print:table-cell">IA</th>
-                <th className="px-1.5 py-2 print:hidden"></th>
+                <th className="px-1.5 py-1.5 print:hidden"></th>
+                <th className="px-1.5 py-1.5">Atend.</th>
+                <th className="px-1.5 py-1.5">Paciente</th>
+                <th className="px-1.5 py-1.5 hidden md:table-cell print:table-cell">Convênio</th>
+                <th className="px-1.5 py-1.5">Médico / Função</th>
+                <th className="px-1.5 py-1.5 hidden lg:table-cell print:table-cell">TUSS</th>
+                <th className="px-1.5 py-1.5">Descrição</th>
+                <th className="px-1.5 py-1.5 text-right">Qtd</th>
+                <th className="px-1.5 py-1.5 text-right">Valor</th>
+                <th className="px-1.5 py-1.5 hidden sm:table-cell print:table-cell">IA</th>
+                <th className="px-1.5 py-1.5 print:hidden"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/60">
               {orderedItems.map((it) => (
                 <PaymentItemRow
                   key={it.id}
