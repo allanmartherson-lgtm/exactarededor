@@ -533,12 +533,29 @@ const ReferenceTables = () => {
                         <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 uppercase tracking-wide">
                           {t.kind}
                         </span>
+                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : "bg-success/10 text-success border border-success/30"}`}>
+                          {PURPOSE_LABEL[t.purpose ?? "calculo"]}
+                        </span>
+                        {t.active === false && (
+                          <span className="ml-2 text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">inativa</span>
+                        )}
                       </p>
                       {t.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await supabase.from("reference_tables").update({ active: !t.active } as any).eq("id", t.id);
+                          loadTables();
+                        }}
+                      >
+                        {t.active === false ? "Ativar" : "Desativar"}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
