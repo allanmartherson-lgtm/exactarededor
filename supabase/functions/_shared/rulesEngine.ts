@@ -262,30 +262,49 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
 
 function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "grupo") return false;
+  const links = r.group_company_links ?? [];
   const cids = r.group_company_ids ?? [];
   const docs = r.group_doctors ?? [];
-  // Sem vínculos: aplica a todos os itens (master implícito dentro do escopo grupo).
-  if (cids.length === 0 && docs.length === 0) return true;
 
-  const matchesDoctor = (() => {
-    if (docs.length === 0 || !item.doctor_name) return false;
+  const matchDoctorList = (doctors: { name?: string; crm?: string }[]): boolean => {
+    if (!doctors.length || !item.doctor_name) return false;
     const itemNm = normName(item.doctor_name);
     const itemCrm = onlyDigits(item.doctor_document);
-    for (const d of docs) {
+    for (const d of doctors) {
       if (d?.name && normName(d.name) === itemNm) return true;
       if (d?.crm && itemCrm && onlyDigits(d.crm) === itemCrm) return true;
     }
     return false;
-  })();
+  };
 
-  // Modo 1 — Por empresa: empresa(s) selecionada(s).
-  // Sem médicos → aplica a todos da empresa. Com médicos → restringe.
+  // Novo modelo: vínculos por empresa (linha-a-linha).
+  if (links.length > 0) {
+    for (const link of links) {
+      if (!link?.company_id) continue;
+      if (item.company_id !== link.company_id) continue;
+      const ds = link.doctors ?? [];
+      if (ds.length === 0) return true; // todos os médicos daquela empresa
+      if (matchDoctorList(ds)) return true;
+    }
+    // Sem links de empresa casados, ainda permite "médicos avulsos" (sem empresa).
+    if (docs.length > 0 && cids.length === 0) return matchDoctorList(docs);
+    return false;
+  }
+
+  // Legado: sem vínculos = aplica a todos.
+  if (cids.length === 0 && docs.length === 0) return true;
+
+  // Legado modo empresa.
   if (cids.length > 0) {
     const inCompany = !!(item.company_id && cids.includes(item.company_id));
     if (!inCompany) return false;
     if (docs.length === 0) return true;
-    return matchesDoctor;
+    return matchDoctorList(docs);
   }
+
+  // Legado modo médico avulso.
+  return matchDoctorList(docs);
+}
 
   // Modo 2 — Por médico: aplica somente aos médicos selecionados.
   return matchesDoctor;
