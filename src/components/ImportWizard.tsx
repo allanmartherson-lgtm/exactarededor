@@ -419,23 +419,26 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
         {step === "done" && result && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 rounded-md border border-success/30 bg-success-soft text-success">
-              <CheckCircle2 className="h-6 w-6" />
+            <div className={`flex items-center gap-3 p-4 rounded-md border ${result.inserted > 0 ? "border-success/30 bg-success-soft text-success" : "border-destructive/30 bg-destructive/5 text-destructive"}`}>
+              {result.inserted > 0 ? <CheckCircle2 className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
               <div>
-                <div className="font-medium">Importação concluída</div>
+                <div className="font-medium">
+                  {result.inserted > 0 ? "Importação concluída" : "Nenhuma linha foi salva"}
+                </div>
                 <div className="text-sm">
-                  {result.inserted} de {result.total} linha(s) inserida(s).
+                  {result.inserted} de {result.total} linha(s) processada(s).
+                  {result.removed_before_replace ? ` ${result.removed_before_replace} apagada(s) antes da substituição.` : ""}
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Stat label="Total no arquivo" value={result.total} />
-              <Stat label="Importadas" value={result.inserted} tone="success" />
-              <Stat label="Ignoradas" value={result.skipped} tone="warn" />
-              <Stat label="Erros de validação" value={result.validation_errors} tone="warn" />
+              <Stat label="Criadas" value={result.created ?? 0} tone="success" />
+              <Stat label="Atualizadas" value={result.updated ?? 0} tone="success" />
+              <Stat label="Ignoradas / com erro" value={result.skipped} tone="warn" />
             </div>
             {result.insert_errors.length > 0 && (
-              <Section icon={<AlertTriangle className="h-4 w-4 text-destructive" />} title={`Erros ao inserir no banco (${result.insert_errors.length} lote(s))`}>
+              <Section icon={<AlertTriangle className="h-4 w-4 text-destructive" />} title={`Erros ao gravar no banco (${result.insert_errors.length} lote(s))`}>
                 <ul className="text-xs space-y-1 max-h-40 overflow-auto">
                   {result.insert_errors.map((e, i) => (
                     <li key={i}>
