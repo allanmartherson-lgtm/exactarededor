@@ -13,13 +13,17 @@ import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2 } from "
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
-type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos";
+type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos" | "pacote_combinacao";
 type RefPurpose = "calculo" | "classificacao" | "exclusao";
 type RefTable = {
   id: string; name: string; description: string | null; year: number | null;
   kind: RefKind; purpose: RefPurpose;
   exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean;
   valid_from: string | null; valid_until: string | null; notes: string | null;
+  package_only_main_surgeon: boolean;
+  package_apply_auxiliaries: boolean;
+  package_apply_particular: boolean;
+  package_apply_intl_insurance: boolean;
   created_at: string;
 };
 
@@ -33,6 +37,7 @@ const KIND_LABEL: Record<RefKind, string> = {
   cbhpm: "CBHPM (porte → valor)",
   tabela_propria: "Tabela própria",
   lista_codigos: "Lista de códigos",
+  pacote_combinacao: "Pacote fixo (combinação de códigos)",
 };
 type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
 type PortValue = { id: string; port: string; amount: number };
