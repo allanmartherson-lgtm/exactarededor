@@ -17,6 +17,23 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X } from "lucide-react";
+import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+
+const DOCTORS_IMPORT_PROFILE: ImportProfile = {
+  entity: "doctors",
+  supportedModes: ["append", "update", "replace"],
+  fields: [
+    { key: "full_name", label: "Nome completo", required: true, aliases: ["nome", "medico", "médico", "nome_completo"] },
+    { key: "crm", label: "CRM", required: true, uniqueKey: true, aliases: ["crm", "registro"] },
+    { key: "crm_uf", label: "UF do CRM", required: true, uniqueKey: true, aliases: ["uf", "estado", "uf_crm"] },
+    { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },
+    { key: "phone", label: "Telefone", aliases: ["telefone", "celular", "fone"] },
+    { key: "specialties", label: "Especialidades", type: "array", aliases: ["especialidade", "especialidades"] },
+    { key: "companies_raw", label: "Empresa(s)/PJ", type: "array", aliases: ["empresa", "empresas", "pj", "pjs", "clinica", "clínica"] },
+    { key: "notes", label: "Observações", aliases: ["obs", "observacao", "observação", "observacoes", "observações"] },
+    { key: "active", label: "Ativo", type: "boolean", aliases: ["ativo", "status"] },
+  ],
+};
 
 const UFS = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
 
