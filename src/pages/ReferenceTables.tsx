@@ -13,13 +13,17 @@ import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2 } from "
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
-type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos";
+type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos" | "pacote_combinacao";
 type RefPurpose = "calculo" | "classificacao" | "exclusao";
 type RefTable = {
   id: string; name: string; description: string | null; year: number | null;
   kind: RefKind; purpose: RefPurpose;
   exclusion_severity: "bloqueio" | "aviso" | "info"; active: boolean;
   valid_from: string | null; valid_until: string | null; notes: string | null;
+  package_only_main_surgeon: boolean;
+  package_apply_auxiliaries: boolean;
+  package_apply_particular: boolean;
+  package_apply_intl_insurance: boolean;
   created_at: string;
 };
 
@@ -33,8 +37,13 @@ const KIND_LABEL: Record<RefKind, string> = {
   cbhpm: "CBHPM (porte → valor)",
   tabela_propria: "Tabela própria",
   lista_codigos: "Lista de códigos",
+  pacote_combinacao: "Pacote fixo (combinação de códigos)",
 };
-type RefItem = { id: string; code: string; description: string | null; amount: number | null; port: string | null; port_multiplier: number | null; aux_count: number | null };
+type RefItem = {
+  id: string; code: string; description: string | null; amount: number | null;
+  port: string | null; port_multiplier: number | null; aux_count: number | null;
+  package_id: string | null; tuss_codes: string[] | null; package_amount: number | null; notes: string | null;
+};
 type PortValue = { id: string; port: string; amount: number };
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -71,11 +80,19 @@ const ReferenceTables = () => {
                 { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
                 { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
               ]
-            : [
-                { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
-                { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
-                { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
-              ],
+            : selected.kind === "pacote_combinacao"
+              ? [
+                  { key: "package_id", label: "ID do pacote", required: true, aliases: ["pacote_id", "pacote", "package", "id"] },
+                  { key: "tuss_codes", label: "Códigos TUSS", required: true, type: "array", aliases: ["codigos_tuss", "codigos", "tuss", "codes"] },
+                  { key: "description", label: "Descrição", aliases: ["descricao", "procedimento"] },
+                  { key: "package_amount", label: "Valor do pacote", required: true, type: "number", aliases: ["valor_pacote", "valor", "amount", "preco"] },
+                  { key: "notes", label: "Observação", aliases: ["observacao", "obs", "notes"] },
+                ]
+              : [
+                  { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                  { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+                  { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
+                ],
       }
     : null;
 
@@ -128,6 +145,10 @@ const ReferenceTables = () => {
       valid_from: String(f.get("valid_from") || "") || null,
       valid_until: String(f.get("valid_until") || "") || null,
       notes: String(f.get("notes") || "") || null,
+      package_only_main_surgeon: f.get("package_only_main_surgeon") === "on",
+      package_apply_auxiliaries: f.get("package_apply_auxiliaries") === "on",
+      package_apply_particular: f.get("package_apply_particular") === "on",
+      package_apply_intl_insurance: f.get("package_apply_intl_insurance") === "on",
       active: true,
       created_by: user!.id,
     } as any);
@@ -456,31 +477,43 @@ const ReferenceTables = () => {
                 </p>
               ) : (
                 <div className="divide-y divide-border">
-                  {filteredItems.slice(0, 200).map((it) => (
-                    <div key={it.id} className="px-6 py-3 flex items-center gap-4">
-                      <span className="font-mono text-sm text-muted-foreground w-28">{it.code}</span>
-                      <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
-                      {isCbhpm ? (
-                        <>
-                          <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-24 text-center">
-                            {it.port
-                              ? it.port_multiplier && it.port_multiplier !== 1
-                                ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
-                                : it.port
-                              : "—"}
-                          </span>
-                          <span className="text-xs text-muted-foreground w-16 text-center">
-                            {it.aux_count != null ? `${it.aux_count} aux` : "—"}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-sm font-medium">{formatCurrency(it.amount ?? 0)}</span>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => removeItem(it.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                  {filteredItems.slice(0, 200).map((it) => {
+                    const isPkg = selected.kind === "pacote_combinacao";
+                    return (
+                      <div key={it.id} className="px-6 py-3 flex items-center gap-4">
+                        <span className="font-mono text-sm text-muted-foreground w-28 truncate">
+                          {isPkg ? (it.package_id ?? it.code) : it.code}
+                        </span>
+                        <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
+                        {isCbhpm ? (
+                          <>
+                            <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-24 text-center">
+                              {it.port
+                                ? it.port_multiplier && it.port_multiplier !== 1
+                                  ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
+                                  : it.port
+                                : "—"}
+                            </span>
+                            <span className="text-xs text-muted-foreground w-16 text-center">
+                              {it.aux_count != null ? `${it.aux_count} aux` : "—"}
+                            </span>
+                          </>
+                        ) : isPkg ? (
+                          <>
+                            <span className="text-xs font-mono text-muted-foreground max-w-xs truncate">
+                              {(it.tuss_codes ?? []).join(" + ") || "—"}
+                            </span>
+                            <span className="text-sm font-medium">{formatCurrency(it.package_amount ?? 0)}</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium">{formatCurrency(it.amount ?? 0)}</span>
+                        )}
+                        <Button variant="ghost" size="icon" onClick={() => removeItem(it.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -563,17 +596,38 @@ const ReferenceTables = () => {
                     name="kind"
                     defaultValue="simples"
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    onChange={(e) => {
+                      const pkg = document.getElementById("rt-pkg-wrap");
+                      if (pkg) pkg.style.display = e.target.value === "pacote_combinacao" ? "" : "none";
+                    }}
                   >
                     <option value="simples">Simples (código → valor)</option>
                     <option value="cbhpm">CBHPM (porte → valor)</option>
                     <option value="tabela_propria">Tabela própria (código → valor, layout livre)</option>
                     <option value="lista_codigos">Lista de códigos (sem valor)</option>
+                    <option value="pacote_combinacao">Pacote fixo (combinação de códigos)</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
                     <strong>CBHPM</strong>: importa abas de portes e códigos.{" "}
                     <strong>Simples / Tabela própria</strong>: planilha com colunas <em>código, descrição, valor</em>.{" "}
-                    <strong>Lista de códigos</strong>: apenas <em>código</em> (e descrição opcional) — útil para exclusão/expurgo ou setor.
+                    <strong>Lista de códigos</strong>: apenas <em>código</em> (e descrição opcional).{" "}
+                    <strong>Pacote fixo</strong>: <em>pacote_id, códigos_tuss, descrição, valor_pacote</em> — quando os códigos do atendimento baterem com a combinação, o esperado é o valor do pacote.
                   </p>
+                </div>
+                <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3" style={{ display: "none" }}>
+                  <div className="text-sm font-medium">Configuração do pacote</div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="package_only_main_surgeon" /> Aplica somente ao cirurgião principal
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="package_apply_auxiliaries" defaultChecked /> Aplica a auxiliares
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="package_apply_particular" defaultChecked /> Aplica a convênio particular
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="package_apply_intl_insurance" defaultChecked /> Aplica a seguradora internacional
+                  </label>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">

@@ -21,7 +21,7 @@ type FieldDef = {
   key: string;
   label: string;
   required?: boolean;
-  type?: "text" | "number" | "boolean";
+  type?: "text" | "number" | "boolean" | "array";
   aliases?: string[];
   uniqueKey?: boolean; // usado para detectar duplicidade
 };
@@ -105,6 +105,11 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
       else if (f.type === "boolean") {
         const s = String(raw ?? "").toLowerCase().trim();
         out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
+      } else if (f.type === "array") {
+        const s = String(raw ?? "").trim();
+        out[f.key] = s
+          ? s.split(/[,;|\/\s]+/).map((x) => x.trim()).filter(Boolean)
+          : [];
       } else out[f.key] = raw == null ? null : String(raw).trim();
     }
     return out;
@@ -221,7 +226,14 @@ Deno.serve(async (req) => {
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
-    const records = valid.map((r) => ({ ...r, ...fixed }));
+    const records = valid.map((r) => {
+      const rec: Record<string, any> = { ...r, ...fixed };
+      // Para reference_table_items: 'code' é NOT NULL. Em pacotes usamos o package_id como code.
+      if (profile.entity === "reference_table_items" && (rec.code == null || rec.code === "")) {
+        if (rec.package_id) rec.code = String(rec.package_id);
+      }
+      return rec;
+    });
 
     if (mode === "preview") {
       return new Response(

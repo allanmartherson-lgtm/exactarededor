@@ -911,9 +911,13 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          notes: string | null
+          package_amount: number | null
+          package_id: string | null
           port: string | null
           port_multiplier: number
           reference_table_id: string
+          tuss_codes: string[]
         }
         Insert: {
           amount?: number | null
@@ -922,9 +926,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          notes?: string | null
+          package_amount?: number | null
+          package_id?: string | null
           port?: string | null
           port_multiplier?: number
           reference_table_id: string
+          tuss_codes?: string[]
         }
         Update: {
           amount?: number | null
@@ -933,9 +941,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          notes?: string | null
+          package_amount?: number | null
+          package_id?: string | null
           port?: string | null
           port_multiplier?: number
           reference_table_id?: string
+          tuss_codes?: string[]
         }
         Relationships: [
           {
@@ -990,6 +1002,10 @@ export type Database = {
           kind: Database["public"]["Enums"]["reference_table_kind"]
           name: string
           notes: string | null
+          package_apply_auxiliaries: boolean
+          package_apply_intl_insurance: boolean
+          package_apply_particular: boolean
+          package_only_main_surgeon: boolean
           purpose: string
           updated_at: string
           valid_from: string | null
@@ -1006,6 +1022,10 @@ export type Database = {
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name: string
           notes?: string | null
+          package_apply_auxiliaries?: boolean
+          package_apply_intl_insurance?: boolean
+          package_apply_particular?: boolean
+          package_only_main_surgeon?: boolean
           purpose?: string
           updated_at?: string
           valid_from?: string | null
@@ -1022,6 +1042,10 @@ export type Database = {
           kind?: Database["public"]["Enums"]["reference_table_kind"]
           name?: string
           notes?: string | null
+          package_apply_auxiliaries?: boolean
+          package_apply_intl_insurance?: boolean
+          package_apply_particular?: boolean
+          package_only_main_surgeon?: boolean
           purpose?: string
           updated_at?: string
           valid_from?: string | null
@@ -1420,6 +1444,7 @@ export type Database = {
         | "cbhpm"
         | "tabela_propria"
         | "lista_codigos"
+        | "pacote_combinacao"
       rule_calculation_type:
         | "percentual_sobre_convenio"
         | "regra_vias"
@@ -1624,6 +1649,7 @@ export const Constants = {
         "cbhpm",
         "tabela_propria",
         "lista_codigos",
+        "pacote_combinacao",
       ],
       rule_calculation_type: [
         "percentual_sobre_convenio",
