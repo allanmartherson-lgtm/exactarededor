@@ -477,10 +477,12 @@ function ItemDetailsRow({
   it,
   rulesIndex,
   rulesByName,
+  observations,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
+  observations: ObservationRow[];
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
@@ -504,10 +506,33 @@ function ItemDetailsRow({
   const isCritical = it.ai_status === "reprovado";
   const expected = it.ai_findings?.expected_amount;
   const explanation = it.ai_findings?.calculation_explanation;
-  const aiNote = it.ai_findings?.engine?.ai_note;
+  const engine = it.ai_findings?.engine ?? null;
+  const aiNote = engine?.ai_note;
   const diff =
     expected != null ? Number(expected) - Number(it.gross_amount ?? 0) : null;
-  const exceptionMarked = !!(it as unknown as { authorized_exception?: boolean }).authorized_exception;
+  const diffPct = (engine?.diff_pct ?? null) as number | null;
+  const priority = (engine?.matched_priority ?? null) as RuleMatchPriority | null;
+  const calcType = (engine?.calculation_type_used ?? null) as
+    | RuleCalculationType
+    | "default_geral"
+    | "default_hemodinamica"
+    | null;
+  const calcTypeLabel = calcType
+    ? (RULE_CALCULATION_TYPE_LABELS as Record<string, string>)[calcType] ??
+      (calcType === "default_geral"
+        ? "Padrão geral (100%)"
+        : calcType === "default_hemodinamica"
+        ? "Padrão hemodinâmica (88%)"
+        : calcType)
+    : null;
+  const itemAny = it as unknown as {
+    authorized_exception?: boolean;
+    exception_reason?: string | null;
+    exception_authorizer?: string | null;
+    exception_note?: string | null;
+  };
+  const exceptionMarked = !!itemAny.authorized_exception;
+  const itemObs = observations.filter((o) => o.item_id === it.id);
 
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
@@ -535,9 +560,19 @@ function ItemDetailsRow({
     { label: "Função", value: it.doctor_role ?? "—" },
   ];
 
+  const fmtDate = (d: string | null | undefined) => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+    } catch {
+      return String(d);
+    }
+  };
+
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={12} className="px-4 py-3">
+        {/* Linha 1 — Resumo dos campos da planilha */}
         <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 text-[11px]">
           {summary.map((s) => (
             <div key={s.label} className="min-w-0">
@@ -546,8 +581,9 @@ function ItemDetailsRow({
             </div>
           ))}
         </div>
+
         <div className="grid gap-3 lg:grid-cols-2">
-          {/* Alertas */}
+          {/* COL 1 — Alertas e Exceção */}
           <div className="space-y-2">
             {alerts.length > 0 && (
               <AlertBanner
@@ -573,14 +609,47 @@ function ItemDetailsRow({
               </AlertBanner>
             )}
             {exceptionMarked && (
-              <div className="rounded-md border border-info/20 bg-info-soft px-2.5 py-2 text-xs text-info flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Exceção autorizada registrada para este item.
+              <div className="rounded-md border border-info/20 bg-info-soft px-2.5 py-2 text-xs text-info">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Exceção autorizada registrada
+                </div>
+                <p className="mt-1 text-[11px]">
+                  Motivo: <strong>{itemAny.exception_reason ?? "—"}</strong> · Autorizador:{" "}
+                  <strong>{itemAny.exception_authorizer ?? "—"}</strong>
+                </p>
+                {itemAny.exception_note && (
+                  <p className="mt-1 italic text-[11px] whitespace-pre-wrap">"{itemAny.exception_note}"</p>
+                )}
               </div>
             )}
+
+            {/* Histórico do item */}
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                Histórico deste item ({itemObs.length})
+              </p>
+              {itemObs.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Sem comentários ainda.</p>
+              ) : (
+                <ul className="space-y-1.5 max-h-40 overflow-y-auto text-[11px]">
+                  {itemObs.map((o) => (
+                    <li key={o.id} className="border-b border-border/40 pb-1 last:border-0">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
+                        <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">
+                          {o.author_type}
+                        </span>
+                        <span className="ml-auto">{fmtDate(o.created_at)}</span>
+                      </div>
+                      <p className="mt-0.5 whitespace-pre-wrap">{o.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
-          {/* Regra + IA */}
+          {/* COL 2 — Regra, motor e IA */}
           <div className="space-y-2 text-xs">
             {matchedRules.length > 0 ? (
               <div className="rounded-md border bg-background p-2.5">
@@ -608,36 +677,74 @@ function ItemDetailsRow({
               </div>
             ) : null}
 
-            {(explanation || aiNote || expected != null) && (
+            {/* Detalhes do cálculo (motor) */}
+            {(engine || expected != null || explanation) && (
               <div className="rounded-md border bg-background p-2.5">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Explicação da IA
+                  <FileText className="h-3 w-3" /> Detalhes do cálculo
                 </p>
-                {expected != null && (
-                  <p className="tabular-nums text-foreground">
-                    Valor esperado: <strong>{formatCurrency(Number(expected))}</strong>
-                    {diff != null && Math.abs(diff) > 0.01 && (
-                      <span className={cn("ml-2", diff < 0 ? "text-warning-foreground" : "text-success")}>
-                        ({diff > 0 ? "+" : ""}
-                        {formatCurrency(diff)})
-                      </span>
-                    )}
-                  </p>
-                )}
-                {explanation && (
-                  <p className="mt-1 text-muted-foreground leading-snug">{explanation}</p>
-                )}
-                {aiNote && (
-                  <p className="mt-1 text-muted-foreground italic leading-snug">{aiNote}</p>
-                )}
-                {diff != null && Math.abs(diff) > 0.01 && (
-                  <p className="mt-1.5 text-foreground">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Sugestão de ajuste:{" "}
+                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                  {priority && (
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full border px-1.5 py-0.5 text-[10px]",
+                        TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]],
+                      )}
+                    >
+                      {RULE_MATCH_PRIORITY_LABELS[priority]}
                     </span>
-                    Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
-                  </p>
+                  )}
+                  {calcTypeLabel && (
+                    <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES.muted)}>
+                      {calcTypeLabel}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  <div>
+                    <span className="text-muted-foreground">Valor informado: </span>
+                    <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Valor esperado: </span>
+                    <span className="tabular-nums font-medium">
+                      {expected != null ? formatCurrency(Number(expected)) : "—"}
+                    </span>
+                  </div>
+                  {diff != null && Math.abs(diff) > 0.01 && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Diferença: </span>
+                      <span className={cn("tabular-nums", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                        {diff > 0 ? "+" : ""}{formatCurrency(diff)}
+                        {diffPct != null && (
+                          <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {explanation && (
+                  <p className="mt-1.5 text-muted-foreground italic leading-snug">{explanation}</p>
                 )}
+              </div>
+            )}
+
+            {/* IA */}
+            {aiNote && (
+              <div className="rounded-md border bg-background p-2.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                </p>
+                <p className="text-muted-foreground italic leading-snug">{aiNote}</p>
+              </div>
+            )}
+
+            {diff != null && Math.abs(diff) > 0.01 && expected != null && (
+              <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-2.5 text-[11px]">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Sugestão de ajuste:{" "}
+                </span>
+                Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
               </div>
             )}
           </div>
