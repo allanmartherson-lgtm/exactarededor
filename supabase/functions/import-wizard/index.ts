@@ -226,9 +226,9 @@ Deno.serve(async (req) => {
       .download(storagePath);
     if (dlErr || !file) throw new Error(`Falha ao baixar arquivo: ${dlErr?.message}`);
     const buf = await file.arrayBuffer();
-    const { sheets } = rowsFromBuffer(buf);
 
     if (mode === "parse") {
+      const { sheets } = readSheetsMeta(buf);
       return new Response(JSON.stringify({ sheets }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -240,15 +240,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const sheet = sheets.find((s) => s.name === sheetName) ?? sheets[0];
-    if (!sheet) throw new Error("Aba não encontrada");
 
-    // Recupera as linhas inteiras (não só preview)
-    const wbFull = XLSX.read(buf, { type: "array" });
-    const allRows = XLSX.utils.sheet_to_json<any>(wbFull.Sheets[sheet.name], { defval: "" });
-    const effectiveMapping = mapping ?? suggestMapping(sheet.headers, profile.fields);
+    // Lê apenas a aba alvo (não todas) para economizar CPU/memória
+    const { rows: allRows, headers: sheetHeaders } = readSheetRows(buf, sheetName);
+    const effectiveMapping = mapping ?? suggestMapping(sheetHeaders, profile.fields);
     const mapped = applyMapping(allRows, effectiveMapping, profile.fields);
     const { valid, errors, dups } = validate(mapped, profile.fields);
+
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
