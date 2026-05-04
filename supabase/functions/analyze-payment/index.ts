@@ -165,8 +165,72 @@ serve(async (req) => {
     });
     });
 
+    // ---------- 3.2 Tabelas de EXCLUSÃO / EXPURGO (prioridade sobre cálculo) ----------
+    // Se um código aparecer em qualquer tabela ATIVA com purpose='exclusao',
+    // o motor zera o esperado e gera alerta conforme severity da tabela.
+    type ExclHit = { table_name: string; severity: "bloqueio" | "aviso" | "info"; reason: string | null };
+    const exclusionByCode: Record<string, ExclHit> = {};
+    if (codes.length > 0) {
+      const { data: exclTables } = await supabase
+        .from("reference_tables")
+        .select("id,name,exclusion_severity,description")
+        .eq("purpose", "exclusao")
+        .eq("active", true);
+      const exclIds = (exclTables ?? []).map((t: any) => t.id);
+      if (exclIds.length > 0) {
+        const { data: exclItems } = await supabase
+          .from("reference_table_items")
+          .select("code,reference_table_id,description")
+          .in("reference_table_id", exclIds)
+          .in("code", codes);
+        const tableById: Record<string, any> = {};
+        for (const t of exclTables ?? []) tableById[(t as any).id] = t;
+        // Severidade mais forte vence se houver múltiplas tabelas
+        const sevRank: Record<string, number> = { bloqueio: 3, aviso: 2, info: 1 };
+        for (const it of (exclItems ?? []) as any[]) {
+          const t = tableById[it.reference_table_id];
+          if (!t) continue;
+          const hit: ExclHit = {
+            table_name: t.name,
+            severity: t.exclusion_severity ?? "bloqueio",
+            reason: it.description ?? t.description ?? null,
+          };
+          const prev = exclusionByCode[it.code];
+          if (!prev || sevRank[hit.severity] > sevRank[prev.severity]) {
+            exclusionByCode[it.code] = hit;
+          }
+        }
+      }
+    }
+
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
     const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx);
+
+    // ---------- 4.1 Sobrepor resultado para itens em tabela de exclusão ----------
+    for (const r of results) {
+      const it = items.find((i) => i.id === r.item_id);
+      const code = it?.procedure_code ?? "";
+      const hit = code ? exclusionByCode[code] : undefined;
+      if (!hit) continue;
+      const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
+      const status =
+        hit.severity === "bloqueio" ? "reprovado" :
+        hit.severity === "aviso" ? "alerta" : "alerta";
+      r.expected_amount = 0;
+      r.diff_pct = null;
+      r.matched_rule_id = null;
+      r.matched_rule_name = `Exclusão: ${hit.table_name}`;
+      r.matched_priority = "conflito"; // marca como override determinístico
+      r.calculation_type_used = "exclusao";
+      r.calculation_explanation = `Código ${code} consta na tabela de exclusão "${hit.table_name}"${motivo}. Esperado R$ 0.`;
+      r.alerts = [
+        `Código ${code} em tabela de exclusão "${hit.table_name}"${motivo}.`,
+        ...r.alerts.filter((a) => !a.startsWith("Diferença") && !a.startsWith("Divergência")),
+      ];
+      r.status = status as any;
+      r.needs_ai_review = status !== "aprovado";
+    }
+
     const resultById: Record<string, AnalysisResult> = {};
     for (const r of results) resultById[r.item_id] = r;
 
