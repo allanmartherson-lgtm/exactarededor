@@ -6,10 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertBanner } from "./AlertBanner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  Columns3,
   FileText,
   Search,
   ShieldAlert,
