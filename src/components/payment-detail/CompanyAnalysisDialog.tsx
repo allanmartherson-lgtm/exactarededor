@@ -114,6 +114,28 @@ export function CompanyAnalysisDialog({
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
 
+  // Visibilidade de colunas opcionais — persistida em localStorage
+  const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
+    if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
+    try {
+      const raw = window.localStorage.getItem(COLUMN_PREFS_KEY);
+      if (!raw) return DEFAULT_COL_VISIBILITY;
+      const parsed = JSON.parse(raw) as Partial<Record<OptionalColKey, boolean>>;
+      return { ...DEFAULT_COL_VISIBILITY, ...parsed };
+    } catch {
+      return DEFAULT_COL_VISIBILITY;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(colVis));
+    } catch {
+      /* noop */
+    }
+  }, [colVis]);
+  const toggleCol = (k: OptionalColKey) =>
+    setColVis((v) => ({ ...v, [k]: !v[k] }));
+
   const getConvenio = (it: PaymentItemRowData): string => {
     const raw = (it.raw_data ?? {}) as Record<string, unknown>;
     const v =
