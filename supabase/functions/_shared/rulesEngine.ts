@@ -603,13 +603,20 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
+export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string) => number | null;
+
+export interface EngineCtx {
+  appliedAttendancesByRule: Map<string, Set<string>>;
+  referenceLookup?: ReferenceTableLookup;
+}
+
 export function applyCalculation(
   rule: RuleInput,
   item: ItemInput,
-  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+  ctx?: EngineCtx,
 ): ExpectedCalc {
   if (rule.rule_type === "tabela_diferenciada" && rule.reference_table_id) {
-    return calcTabelaDiferenciada(rule, item);
+    return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
   }
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
@@ -623,8 +630,6 @@ export function applyCalculation(
       return calcPacotePorAtendimento(rule, item, set);
     }
     case "pacote": {
-      // Método unificado: sempre opera no nível do atendimento.
-      // O subtipo controla o comportamento dos extras/flags.
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
@@ -633,8 +638,8 @@ export function applyCalculation(
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao(rule);
     case "informativo":               return calcInformativo();
-    case "tabela_referencia":         return calcTabelaDiferenciada(rule, item);
-    case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item);
+    case "tabela_referencia":         return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
+    case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
     case "bonus":                     return calcBonus(rule, item);
     case "complemento":               return calcComplemento(rule, item);
   }
@@ -657,20 +662,59 @@ function calcComplemento(rule: RuleInput, item: ItemInput): ExpectedCalc {
 }
 
 /**
- * Tabela diferenciada: usa procedure_amount como aproximação do valor base
- * da tabela de referência (ex: CBHPM) e aplica os parâmetros da REGRA.
- * Ordem: base × multiplicador × (1 - deflator%) × (repasse%) × via × (1 + aux)
+ * Tabela diferenciada: busca o valor base na TABELA DE REFERÊNCIA vinculada
+ * à regra (por código TUSS do item) e aplica os parâmetros da regra.
+ * NÃO depende de `procedure_amount` da planilha.
+ * Ordem: valor_tabela_referencia × multiplicador × (1 - deflator%) × (repasse%) × via × (1 + aux)
+ *
+ * Fallback: se a regra não tiver `reference_table_id` (ou lookup ausente),
+ * usa `procedure_amount` como aproximação (compatibilidade).
  */
-function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc {
-  const base = item.procedure_amount;
-  if (base == null) {
-    return { expected: null, explanation: "Tabela diferenciada — valor base ausente.", alerts: ["procedure_amount ausente."] };
+function calcTabelaDiferenciada(
+  rule: RuleInput,
+  item: ItemInput,
+  lookup?: ReferenceTableLookup,
+): ExpectedCalc {
+  let base: number | null = null;
+  let baseLabel = "valor_tabela_referencia";
+  let baseSource = "";
+
+  if (rule.reference_table_id && lookup) {
+    const code = (item.procedure_code ?? "").toString().trim();
+    if (!code) {
+      return {
+        expected: null,
+        explanation: "Tabela diferenciada — item sem código TUSS para busca na tabela de referência.",
+        alerts: ["Item sem código TUSS — não é possível buscar na tabela de referência."],
+      };
+    }
+    const v = lookup(rule.reference_table_id, code);
+    if (v == null) {
+      return {
+        expected: null,
+        explanation: `Tabela diferenciada — código ${code} não encontrado na tabela de referência vinculada à regra.`,
+        alerts: [`Código ${code} não encontrado na tabela de referência.`],
+      };
+    }
+    base = v;
+    baseSource = ` (tabela ref., código ${code})`;
+  } else {
+    base = item.procedure_amount;
+    baseLabel = "procedure_amount";
+    if (base == null) {
+      return {
+        expected: null,
+        explanation: "Tabela diferenciada — valor base ausente (sem tabela vinculada e sem procedure_amount).",
+        alerts: ["Tabela diferenciada sem tabela de referência vinculada e sem valor base no item."],
+      };
+    }
   }
+
   const mult = rule.multiplier ?? 1;
   const defl = rule.deflator_pct ?? 0;
   const rep  = rule.repasse_pct ?? 100;
   let value = base * mult * (1 - defl / 100) * (rep / 100);
-  const parts: string[] = [`base R$ ${base.toFixed(2)}`, `× ${mult}`, `× (1 − ${defl}%)`, `× ${rep}%`];
+  const parts: string[] = [`${baseLabel} R$ ${base.toFixed(2)}${baseSource}`, `× ${mult}`, `× (1 − ${defl}%)`, `× ${rep}%`];
   if (rule.apply_access_route) {
     const f = accessRouteFactor(item.access_route);
     value *= f;
@@ -680,18 +724,17 @@ function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc 
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
       const pct = (rule.instrumentador_pct ?? 10) / 100;
-      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
       parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
     } else if (role === "primeiro_aux") {
       const pct = (rule.aux_first_pct ?? 30) / 100;
-      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
       parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
     } else if (role === "demais_aux") {
       const pct = (rule.aux_second_pct ?? 20) / 100;
-      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
       parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
     } else {
-      // sem função identificada → comportamento legado: soma composta com % por auxiliar (fallback auxiliary_pct)
       const auxPct = (rule.auxiliary_pct ?? rule.aux_first_pct ?? 30) / 100;
       value *= (1 + auxPct);
       parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
@@ -734,7 +777,7 @@ function findNextCalculableRule(
 export function analyzeItem(
   item: ItemInput,
   preFilteredRules: RuleInput[],
-  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+  ctx?: EngineCtx,
 ): AnalysisResult {
   // === Tratamento especial: complemento/bônus, glosa, reprocessamento ===
   // Estes lançamentos NÃO são itens independentes para o motor de regras:
@@ -887,11 +930,13 @@ export function analyzeItem(
   };
 }
 
-export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx: PaymentContext): AnalysisResult[] {
+export function analyzePaymentItems(
+  items: ItemInput[],
+  rules: RuleInput[],
+  ctx: PaymentContext,
+  options?: { referenceLookup?: ReferenceTableLookup },
+): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
-  // Para "pacote_por_atendimento", precisamos de ordem determinística:
-  // 1) por atendimento, 2) item com código principal primeiro,
-  // 3) demais por código. Assim o pacote é aplicado no item certo.
   const ordered = [...items].sort((a, b) => {
     const aa = (a.attendance_number ?? "").localeCompare(b.attendance_number ?? "");
     if (aa !== 0) return aa;
@@ -902,7 +947,10 @@ export function analyzePaymentItems(items: ItemInput[], rules: RuleInput[], ctx:
     if (aMain !== bMain) return aMain - bMain;
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
-  const state = { appliedAttendancesByRule: new Map<string, Set<string>>() };
+  const state: EngineCtx = {
+    appliedAttendancesByRule: new Map<string, Set<string>>(),
+    referenceLookup: options?.referenceLookup,
+  };
   const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
   // Reordenar resultados para a ordem original de `items`
   const byId = new Map(resultsOrdered.map((r) => [r.item_id, r] as const));
