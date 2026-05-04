@@ -306,34 +306,50 @@ const Rules = () => {
   const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
-  // Carrega médicos relacionados às empresas selecionadas (a partir de payment_items).
+  // Carrega médicos para cada empresa de link (cache no map).
   useEffect(() => {
-    if (scope !== "grupo" || fGroupMode !== "empresa" || fGroupCompanyIds.length === 0) {
-      setCompanyDoctors([]);
-      return;
-    }
-    let cancelled = false;
-    setLoadingCompanyDoctors(true);
+    if (scope !== "grupo") return;
+    const missing = fGroupLinks
+      .map((l) => l.company_id)
+      .filter((id) => id && !(id in companyDoctorsMap) && !loadingCompanyDoctorsIds.has(id));
+    if (missing.length === 0) return;
+    const ids = Array.from(new Set(missing));
+    setLoadingCompanyDoctorsIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
     supabase
       .from("payment_items")
-      .select("doctor_name, doctor_document")
-      .in("company_id", fGroupCompanyIds)
+      .select("company_id, doctor_name, doctor_document")
+      .in("company_id", ids)
       .not("doctor_name", "is", null)
-      .limit(2000)
+      .limit(5000)
       .then(({ data }) => {
-        if (cancelled) return;
-        const seen = new Map<string, { name: string; crm?: string }>();
+        const byCo: Record<string, Map<string, { name: string; crm?: string }>> = {};
+        ids.forEach((id) => { byCo[id] = new Map(); });
         for (const r of (data ?? []) as any[]) {
+          const cid = String(r.company_id ?? "");
           const name = String(r.doctor_name ?? "").trim();
-          if (!name) continue;
+          if (!cid || !name || !byCo[cid]) continue;
           const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-          if (!seen.has(key)) seen.set(key, { name, crm: r.doctor_document ?? undefined });
+          if (!byCo[cid].has(key)) byCo[cid].set(key, { name, crm: r.doctor_document ?? undefined });
         }
-        setCompanyDoctors(Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name)));
-      })
-      .then(() => { if (!cancelled) setLoadingCompanyDoctors(false); });
-    return () => { cancelled = true; };
-  }, [scope, fGroupMode, fGroupCompanyIds]);
+        setCompanyDoctorsMap((prev) => {
+          const next = { ...prev };
+          ids.forEach((id) => {
+            next[id] = Array.from(byCo[id].values()).sort((a, b) => a.name.localeCompare(b.name));
+          });
+          return next;
+        });
+        setLoadingCompanyDoctorsIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+      });
+  }, [scope, fGroupLinks, companyDoctorsMap, loadingCompanyDoctorsIds]);
+
 
 
   const resetForm = () => {
