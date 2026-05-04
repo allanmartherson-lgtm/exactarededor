@@ -70,7 +70,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     sample: any[];
   } | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
+  const [importMode, setImportMode] = useState<ImportMode>("append");
+  const [replaceConfirm, setReplaceConfirm] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const supportedModes = profile.supportedModes ?? ["append", "update"];
 
   useEffect(() => {
     if (!open) {
@@ -81,6 +85,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setMapping({});
       setValidation(null);
       setResult(null);
+      setImportMode(supportedModes[0] ?? "append");
+      setReplaceConfirm("");
     }
   }, [open]);
 
