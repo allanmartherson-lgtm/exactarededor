@@ -249,9 +249,14 @@ const Rules = () => {
       if (targetType === "empresa" && fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)) e.aplicacao++;
     }
     if (scope === "grupo") {
-      if (fGroupMode === "empresas" && fGroupCompanyIds.length === 0) e.aplicacao++;
-      if (fGroupMode === "medicos" && fGroupDoctors.length === 0) e.aplicacao++;
-      if (fGroupMode === "ambos" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) e.aplicacao++;
+      if (fGroupMode === "empresa" && fGroupCompanyIds.length === 0) e.aplicacao++;
+      if (fGroupMode === "medico" && fGroupDoctors.length === 0) e.aplicacao++;
+      // Coerência: médicos selecionados manualmente devem pertencer à(s) empresa(s).
+      if (fGroupMode === "empresa" && fGroupDoctors.length > 0 && companyDoctors.length > 0) {
+        const allowed = new Set(companyDoctors.map((d) => normNameLite(d.name)));
+        const invalid = fGroupDoctors.some((d) => !allowed.has(normNameLite(d.name)));
+        if (invalid) e.aplicacao++;
+      }
     }
     if (fTimeStart && fTimeEnd && fTimeStart === fTimeEnd) e.condicoes++;
     if (fNature === "calculavel") {
