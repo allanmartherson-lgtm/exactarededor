@@ -41,7 +41,7 @@ export interface RuleInput {
   description: string | null;
   active: boolean;
   severity: string;
-  scope: "master" | "especifica";
+  scope: "master" | "especifica" | "grupo";
   sector: string;
   sectors: string[] | null;
   specialties: string[] | null;
