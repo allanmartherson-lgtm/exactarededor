@@ -394,6 +394,9 @@ const Rules = () => {
     if (scope === "grupo" && fGroupCompanyIds.length === 0 && fGroupDoctors.length === 0) {
       return toast({ title: "Vincule ao menos uma empresa ou médico ao grupo", variant: "destructive" });
     }
+    if (isEspecifica && !payload.target_identifier && !payload.target_name) {
+      return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
+    }
     if (isEspecifica && targetType === "empresa") {
       const cnpj = payload.target_identifier;
       if (!cnpj || !isValidCNPJ(cnpj)) {
