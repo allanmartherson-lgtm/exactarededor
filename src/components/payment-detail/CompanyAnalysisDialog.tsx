@@ -287,24 +287,133 @@ export function CompanyAnalysisDialog({
           </Badge>
         </div>
 
-        {/* Tabela */}
+        {/* Tabela / Lista */}
         <div className="flex-1 overflow-hidden bg-background">
           <div className="h-full w-full overflow-y-auto overflow-x-hidden">
-          <table className="w-full text-[11px] border-collapse table-fixed">
+
+          {/* MOBILE — lista de cards empilhados (< md) */}
+          <ul className="md:hidden divide-y">
+            {filtered.length === 0 && (
+              <li className="text-center py-8 text-muted-foreground text-xs">Nenhum item para exibir.</li>
+            )}
+            {filtered.map((it) => {
+              const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+              const paciente =
+                (it.patient_name as string | null) ??
+                ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
+                "—";
+              const expected = it.ai_findings?.expected_amount;
+              const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
+              const tone: keyof typeof TONE_CLASSES =
+                eff === "reprovado" ? "destructive"
+                : eff === "alerta" ? "warning"
+                : eff === "aprovado" || eff === "seguido" ? "success"
+                : "muted";
+              const alerts = (it.ai_findings?.alerts ?? []) as string[];
+              const isOpen = expanded.has(it.id);
+              const isActive = activeId === it.id;
+              const isCritical = eff === "reprovado";
+              const hasAlert = alerts.length > 0;
+              const convenio =
+                (it as unknown as { agreement_text?: string | null }).agreement_text ??
+                (() => {
+                  for (const k of ["Convênio", "Convenio", "convenio", "convênio"]) {
+                    const v = raw[k];
+                    if (v != null && String(v).trim() !== "") return String(v);
+                  }
+                  return "—";
+                })();
+              const diverges = expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01;
+              return (
+                <li
+                  key={it.id}
+                  className={cn(
+                    "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
+                    isActive && "bg-primary/5",
+                    isCritical && "bg-destructive/5",
+                    !isCritical && hasAlert && "bg-warning-soft/30",
+                  )}
+                  onClick={() => toggleRow(it.id)}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="text-muted-foreground pt-0.5">
+                      {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-[13px] truncate">{paciente}</p>
+                        <span className={cn("ml-auto inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase shrink-0", TONE_CLASSES[tone])}>
+                          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+                          {eff}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        <span className="font-mono">{it.procedure_code ?? "—"}</span>
+                        {" · "}
+                        {it.procedure_name ?? it.description ?? "—"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {it.doctor_name ?? "—"}
+                        {it.doctor_role ? <span> · {it.doctor_role}</span> : null}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                        {it.attendance_number && (
+                          <span className="text-muted-foreground">
+                            Atend. <span className="font-mono text-foreground">{it.attendance_number}</span>
+                          </span>
+                        )}
+                        {it.access_route && (
+                          <span className="text-muted-foreground">Via: <span className="text-foreground">{it.access_route}</span></span>
+                        )}
+                        {convenio && convenio !== "—" && (
+                          <span className="text-muted-foreground truncate max-w-[60%]">Conv.: <span className="text-foreground">{convenio}</span></span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 flex items-baseline justify-between gap-2 text-[12px]">
+                        <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
+                        {expected != null && (
+                          <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-foreground" : "text-muted-foreground")}>
+                            esp. {formatCurrency(Number(expected))}
+                          </span>
+                        )}
+                      </div>
+                      {isOpen && (
+                        <div className="mt-2 -mx-1">
+                          <div className="rounded-md border bg-background overflow-hidden">
+                            <table className="w-full"><tbody>
+                              <ItemDetailsRow
+                                it={it}
+                                rulesIndex={rulesIndex}
+                                rulesByName={rulesByName}
+                                observations={observations}
+                              />
+                            </tbody></table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* DESKTOP/TABLET — tabela densa (>= md) */}
+          <table className="hidden md:table w-full text-[11px] border-collapse table-fixed">
             <colgroup>
               <col className="w-6" />
               {/* Ordem segue a planilha: Atend, Paciente, Convênio, Via, TUSS, Procedimento, Médico, Função, Valor, Esperado, Status */}
               <col className="hidden xl:table-column w-[7%]" />
-              <col className="w-[18%] md:w-[15%] xl:w-[12%]" />
+              <col className="w-[15%] xl:w-[12%]" />
               <col className="hidden xl:table-column w-[9%]" />
               <col className="hidden lg:table-column w-[6%]" />
-              <col className="w-[8%] md:w-[7%]" />
-              <col className="w-[22%] md:w-[20%] xl:w-[15%]" />
-              <col className="w-[16%] md:w-[14%] xl:w-[12%]" />
+              <col className="w-[7%]" />
+              <col className="w-[20%] xl:w-[15%]" />
+              <col className="w-[14%] xl:w-[12%]" />
               <col className="hidden lg:table-column w-[6%]" />
-              <col className="w-[10%] md:w-[9%]" />
-              <col className="w-[10%] md:w-[9%]" />
-              <col className="w-[10%] md:w-[8%] xl:w-[7%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[8%] xl:w-[7%]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
               <tr className="border-b">
