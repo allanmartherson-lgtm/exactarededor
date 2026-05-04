@@ -59,13 +59,29 @@ export function CompanyAnalysisDialog({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [patientFilter, setPatientFilter] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
+  const [statusFilter, setStatusFilter] = useState<string>("__all__");
+  const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+
+  const getConvenio = (it: PaymentItemRowData): string => {
+    const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+    const v =
+      (it as unknown as { agreement_text?: string | null }).agreement_text ??
+      (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? raw["convênio"]);
+    return v != null && String(v).trim() !== "" ? String(v) : "—";
+  };
 
   useEffect(() => {
     if (!open) {
       setExpanded(new Set());
       setActiveId(null);
       setFilter("");
+      setPatientFilter("");
+      setDoctorFilter("__all__");
+      setStatusFilter("__all__");
+      setConvenioFilter("__all__");
       setOnlyAlerts(false);
     }
   }, [open]);
@@ -80,27 +96,49 @@ export function CompanyAnalysisDialog({
     setActiveId(itId);
   };
 
+  // Listas únicas para os selects
+  const doctorOptions = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((it) => it.doctor_name && s.add(it.doctor_name));
+    return Array.from(s).sort();
+  }, [items]);
+  const convenioOptions = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((it) => {
+      const c = getConvenio(it);
+      if (c && c !== "—") s.add(c);
+    });
+    return Array.from(s).sort();
+  }, [items]);
+
   const filtered = useMemo(() => {
     const term = filter.trim().toLowerCase();
+    const pat = patientFilter.trim().toLowerCase();
     return items.filter((it) => {
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
+      const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
       if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
-      if (!term) return true;
+      if (statusFilter !== "__all__" && eff !== statusFilter) return false;
+      if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
+      if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const raw = (it.raw_data ?? {}) as Record<string, unknown>;
       const paciente =
         (it.patient_name as string | null) ?? ((raw["Paciente"] ?? raw["paciente"]) as string | null) ?? "";
+      if (pat && !paciente.toLowerCase().includes(pat)) return false;
+      if (!term) return true;
       return [
         paciente,
         it.doctor_name ?? "",
         it.procedure_code ?? "",
         it.procedure_name ?? "",
         it.attendance_number ?? "",
+        getConvenio(it),
       ]
         .join(" ")
         .toLowerCase()
         .includes(term);
     });
-  }, [items, filter, onlyAlerts]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, gStatus]);
 
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
