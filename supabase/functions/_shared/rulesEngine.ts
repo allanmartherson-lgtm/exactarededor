@@ -624,9 +624,25 @@ function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc 
     parts.push(`× via(${f})`);
   }
   if (rule.include_auxiliaries) {
-    const auxPct = (rule.auxiliary_pct ?? 30) / 100;
-    value *= (1 + auxPct);
-    parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
+    const role = classifyDoctorRole(item.doctor_role);
+    if (role === "instrumentador") {
+      const pct = (rule.instrumentador_pct ?? 10) / 100;
+      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
+    } else if (role === "primeiro_aux") {
+      const pct = (rule.aux_first_pct ?? 30) / 100;
+      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
+    } else if (role === "demais_aux") {
+      const pct = (rule.aux_second_pct ?? 20) / 100;
+      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
+    } else {
+      // sem função identificada → comportamento legado: soma composta com % por auxiliar (fallback auxiliary_pct)
+      const auxPct = (rule.auxiliary_pct ?? rule.aux_first_pct ?? 30) / 100;
+      value *= (1 + auxPct);
+      parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
+    }
   }
   const expected = Number(value.toFixed(2));
   return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };
