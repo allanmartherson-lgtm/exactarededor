@@ -83,16 +83,42 @@ function suggestMapping(headers: string[], fields: FieldDef[]) {
   return out;
 }
 
-function rowsFromBuffer(buf: ArrayBuffer) {
-  const wb = XLSX.read(buf, { type: "array" });
+// Lê apenas metadados (nome, headers, total, 20 linhas de prévia) sem materializar
+// todas as linhas de todas as abas — evita estouro de CPU/memória em arquivos grandes.
+function readSheetsMeta(buf: ArrayBuffer) {
+  const wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: false, cellText: false });
   const sheets: { name: string; headers: string[]; total: number; preview: any[] }[] = [];
   for (const name of wb.SheetNames) {
     const ws = wb.Sheets[name];
-    const all = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-    const headers = all.length ? Object.keys(all[0]) : [];
-    sheets.push({ name, headers, total: all.length, preview: all.slice(0, 20) });
+    const ref = ws["!ref"];
+    if (!ref) {
+      sheets.push({ name, headers: [], total: 0, preview: [] });
+      continue;
+    }
+    const range = XLSX.utils.decode_range(ref);
+    const total = Math.max(0, range.e.r - range.s.r); // exclui linha de header
+    // Limita a leitura à faixa de prévia (header + 20 linhas)
+    const previewEnd = Math.min(range.e.r, range.s.r + 20);
+    const previewRange = { s: range.s, e: { r: previewEnd, c: range.e.c } };
+    const preview = XLSX.utils.sheet_to_json<any>(ws, {
+      defval: "",
+      range: XLSX.utils.encode_range(previewRange),
+    });
+    const headers = preview.length ? Object.keys(preview[0]) : [];
+    sheets.push({ name, headers, total, preview });
   }
   return { wb, sheets };
+}
+
+// Lê apenas uma aba inteira (usado em preview/commit)
+function readSheetRows(buf: ArrayBuffer, sheetName?: string): { rows: any[]; headers: string[]; name: string } {
+  const wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: false, cellText: false, sheets: sheetName ? [sheetName] : undefined });
+  const name = sheetName ?? wb.SheetNames[0];
+  const ws = wb.Sheets[name];
+  if (!ws) throw new Error("Aba não encontrada");
+  const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  return { rows, headers, name };
 }
 
 function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: FieldDef[]) {
@@ -200,9 +226,9 @@ Deno.serve(async (req) => {
       .download(storagePath);
     if (dlErr || !file) throw new Error(`Falha ao baixar arquivo: ${dlErr?.message}`);
     const buf = await file.arrayBuffer();
-    const { sheets } = rowsFromBuffer(buf);
 
     if (mode === "parse") {
+      const { sheets } = readSheetsMeta(buf);
       return new Response(JSON.stringify({ sheets }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -214,15 +240,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const sheet = sheets.find((s) => s.name === sheetName) ?? sheets[0];
-    if (!sheet) throw new Error("Aba não encontrada");
 
-    // Recupera as linhas inteiras (não só preview)
-    const wbFull = XLSX.read(buf, { type: "array" });
-    const allRows = XLSX.utils.sheet_to_json<any>(wbFull.Sheets[sheet.name], { defval: "" });
-    const effectiveMapping = mapping ?? suggestMapping(sheet.headers, profile.fields);
+    // Lê apenas a aba alvo (não todas) para economizar CPU/memória
+    const { rows: allRows, headers: sheetHeaders } = readSheetRows(buf, sheetName);
+    const effectiveMapping = mapping ?? suggestMapping(sheetHeaders, profile.fields);
     const mapped = applyMapping(allRows, effectiveMapping, profile.fields);
     const { valid, errors, dups } = validate(mapped, profile.fields);
+
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
