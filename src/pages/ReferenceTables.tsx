@@ -346,6 +346,11 @@ const ReferenceTables = () => {
               <Button variant="outline" onClick={() => setSelected(null)}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
               </Button>
+              {!isCbhpm && (
+                <Button variant="outline" onClick={() => setWizardOpen(true)}>
+                  <Wand2 className="h-4 w-4 mr-2" /> Importar com assistente
+                </Button>
+              )}
               <label>
                 <input
                   type="file"
@@ -358,8 +363,8 @@ const ReferenceTables = () => {
                     e.currentTarget.value = "";
                   }}
                 />
-                <Button asChild disabled={importing}>
-                  <span><Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar planilha(s)"}</span>
+                <Button asChild disabled={importing} variant={isCbhpm ? "default" : "ghost"}>
+                  <span><Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : isCbhpm ? "Importar planilha(s)" : "Importar direto"}</span>
                 </Button>
               </label>
             </>
