@@ -1019,44 +1019,42 @@ const Rules = () => {
                                   )}
                                 </div>
 
-                                <div className={cn("space-y-1.5 transition-opacity", fGroupCompanyIds.length === 0 && "opacity-50 pointer-events-none")}>
-                                  <Label>Médicos da(s) empresa(s) — opcional</Label>
-                                  <p className="text-xs text-muted-foreground">
-                                    {fGroupCompanyIds.length === 0
-                                      ? "Selecione ao menos uma empresa para habilitar."
-                                      : loadingCompanyDoctors
+                                {fGroupCompanyIds.length > 0 && (
+                                  <div className="space-y-1.5 animate-fade-in">
+                                    <Label>Médicos da(s) empresa(s) — opcional</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      {loadingCompanyDoctors
                                         ? "Carregando médicos…"
                                         : companyDoctors.length === 0
-                                          ? "Nenhum médico encontrado nos atendimentos da(s) empresa(s) — você pode adicionar manualmente."
-                                          : `${companyDoctors.length} médico(s) disponível(is) nos atendimentos.`}
-                                  </p>
-                                  {companyDoctors.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 pt-1">
-                                      {companyDoctors.map((d, i) => {
-                                        const checked = fGroupDoctors.some((x) => norm(x.name) === norm(d.name));
-                                        return (
-                                          <Button key={`${d.name}-${i}`} type="button" size="sm"
-                                            variant={checked ? "default" : "outline"}
-                                            onClick={() => {
-                                              setFGroupDoctors((prev) => checked
-                                                ? prev.filter((x) => norm(x.name) !== norm(d.name))
-                                                : [...prev, d]);
-                                            }}>
-                                            {d.name}{d.crm ? ` · ${d.crm}` : ""}
-                                          </Button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                  <div className="pt-1">
-                                    <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
-                                  </div>
-                                  {invalidDoctors.length > 0 && (
-                                    <p className="text-xs text-destructive">
-                                      Médico(s) fora da empresa selecionada: {invalidDoctors.map((d) => d.name).join(", ")}.
+                                          ? "Nenhum médico encontrado nos atendimentos da(s) empresa(s). Deixe em branco para aplicar a todos."
+                                          : "Selecione um ou mais médicos para refinar. Deixe em branco para aplicar a toda a empresa."}
                                     </p>
-                                  )}
-                                </div>
+                                    {companyDoctors.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 pt-1">
+                                        {companyDoctors.map((d, i) => {
+                                          const checked = fGroupDoctors.some((x) => norm(x.name) === norm(d.name));
+                                          return (
+                                            <Button key={`${d.name}-${i}`} type="button" size="sm"
+                                              variant={checked ? "default" : "outline"}
+                                              onClick={() => {
+                                                setFGroupDoctors((prev) => checked
+                                                  ? prev.filter((x) => norm(x.name) !== norm(d.name))
+                                                  : [...prev, d]);
+                                              }}>
+                                              {d.name}{d.crm ? ` · ${d.crm}` : ""}
+                                            </Button>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                    {fGroupDoctors.length > 0 && (
+                                      <div className="flex items-center justify-between pt-1">
+                                        <span className="text-xs text-muted-foreground">{fGroupDoctors.length} médico(s) selecionado(s).</span>
+                                        <Button type="button" size="sm" variant="ghost" onClick={() => setFGroupDoctors([])}>Limpar seleção</Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
 
