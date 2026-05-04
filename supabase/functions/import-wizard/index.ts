@@ -105,6 +105,11 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
       else if (f.type === "boolean") {
         const s = String(raw ?? "").toLowerCase().trim();
         out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
+      } else if (f.type === "array") {
+        const s = String(raw ?? "").trim();
+        out[f.key] = s
+          ? s.split(/[,;|\/\s]+/).map((x) => x.trim()).filter(Boolean)
+          : [];
       } else out[f.key] = raw == null ? null : String(raw).trim();
     }
     return out;
