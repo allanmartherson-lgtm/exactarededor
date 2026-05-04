@@ -208,7 +208,12 @@ const Rules = () => {
   const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
   const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [fGroupMode, setFGroupMode] = useState<"empresa" | "medico">("empresa");
-  // Sugestões de médicos para o modo "empresa": carregadas dinamicamente das empresas selecionadas.
+  // Novo modelo: vínculos por empresa em linhas (cada linha = empresa + médicos opcionais).
+  const [fGroupLinks, setFGroupLinks] = useState<{ company_id: string; doctors: { name: string; crm?: string }[] }[]>([]);
+  // Sugestões de médicos por empresa (mapa company_id → médicos encontrados em payment_items).
+  const [companyDoctorsMap, setCompanyDoctorsMap] = useState<Record<string, { name: string; crm?: string }[]>>({});
+  const [loadingCompanyDoctorsIds, setLoadingCompanyDoctorsIds] = useState<Set<string>>(new Set());
+  // (legado) Sugestões de médicos para o modo "empresa" agregado.
   const [companyDoctors, setCompanyDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [loadingCompanyDoctors, setLoadingCompanyDoctors] = useState(false);
   // janela temporal
