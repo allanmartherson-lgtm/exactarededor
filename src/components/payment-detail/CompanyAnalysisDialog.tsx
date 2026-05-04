@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertBanner } from "./AlertBanner";
 import {
@@ -59,13 +60,29 @@ export function CompanyAnalysisDialog({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [patientFilter, setPatientFilter] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
+  const [statusFilter, setStatusFilter] = useState<string>("__all__");
+  const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+
+  const getConvenio = (it: PaymentItemRowData): string => {
+    const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+    const v =
+      (it as unknown as { agreement_text?: string | null }).agreement_text ??
+      (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? raw["convênio"]);
+    return v != null && String(v).trim() !== "" ? String(v) : "—";
+  };
 
   useEffect(() => {
     if (!open) {
       setExpanded(new Set());
       setActiveId(null);
       setFilter("");
+      setPatientFilter("");
+      setDoctorFilter("__all__");
+      setStatusFilter("__all__");
+      setConvenioFilter("__all__");
       setOnlyAlerts(false);
     }
   }, [open]);
@@ -80,27 +97,49 @@ export function CompanyAnalysisDialog({
     setActiveId(itId);
   };
 
+  // Listas únicas para os selects
+  const doctorOptions = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((it) => it.doctor_name && s.add(it.doctor_name));
+    return Array.from(s).sort();
+  }, [items]);
+  const convenioOptions = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((it) => {
+      const c = getConvenio(it);
+      if (c && c !== "—") s.add(c);
+    });
+    return Array.from(s).sort();
+  }, [items]);
+
   const filtered = useMemo(() => {
     const term = filter.trim().toLowerCase();
+    const pat = patientFilter.trim().toLowerCase();
     return items.filter((it) => {
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
+      const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
       if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
-      if (!term) return true;
+      if (statusFilter !== "__all__" && eff !== statusFilter) return false;
+      if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
+      if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
       const raw = (it.raw_data ?? {}) as Record<string, unknown>;
       const paciente =
         (it.patient_name as string | null) ?? ((raw["Paciente"] ?? raw["paciente"]) as string | null) ?? "";
+      if (pat && !paciente.toLowerCase().includes(pat)) return false;
+      if (!term) return true;
       return [
         paciente,
         it.doctor_name ?? "",
         it.procedure_code ?? "",
         it.procedure_name ?? "",
         it.attendance_number ?? "",
+        getConvenio(it),
       ]
         .join(" ")
         .toLowerCase()
         .includes(term);
     });
-  }, [items, filter, onlyAlerts]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, gStatus]);
 
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
@@ -166,16 +205,51 @@ export function CompanyAnalysisDialog({
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-2 border-b px-4 py-2 bg-muted/20">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filtrar por paciente, médico, TUSS…"
+              placeholder="Busca geral (paciente, médico, TUSS, convênio…)"
               className="h-8 pl-7 text-xs"
             />
           </div>
+          <Input
+            value={patientFilter}
+            onChange={(e) => setPatientFilter(e.target.value)}
+            placeholder="Paciente"
+            className="h-8 w-36 text-xs"
+          />
+          <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+            <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Médico" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os médicos</SelectItem>
+              {doctorOptions.map((d) => (
+                <SelectItem key={d} value={d}>{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos status</SelectItem>
+              <SelectItem value="reprovado">Reprovado</SelectItem>
+              <SelectItem value="alerta">Alerta</SelectItem>
+              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="seguido">Seguido</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={convenioFilter} onValueChange={setConvenioFilter}>
+            <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="Convênio" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos convênios</SelectItem>
+              {convenioOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             size="sm"
             variant={onlyAlerts ? "default" : "outline"}
@@ -185,6 +259,20 @@ export function CompanyAnalysisDialog({
             <AlertTriangle className="h-3.5 w-3.5 mr-1" />
             Só com alertas
           </Button>
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs"
+              onClick={() => {
+                setFilter(""); setPatientFilter("");
+                setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
+                setOnlyAlerts(false);
+              }}
+            >
+              Limpar
+            </Button>
+          )}
           <Badge variant="secondary" className="ml-auto">
             {filtered.length} de {counts.total}
           </Badge>
