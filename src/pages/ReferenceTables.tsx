@@ -9,8 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
-import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles } from "lucide-react";
+import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
 type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos";
 type RefPurpose = "calculo" | "classificacao" | "exclusao";
@@ -58,6 +59,25 @@ const ReferenceTables = () => {
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  const wizardProfile: ImportProfile | null = selected
+    ? {
+        entity: "reference_table_items",
+        fixedContext: { reference_table_id: selected.id },
+        fields:
+          selected.kind === "lista_codigos"
+            ? [
+                { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+              ]
+            : [
+                { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+                { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
+              ],
+      }
+    : null;
 
   const loadTables = () =>
     supabase.from("reference_tables").select("*").order("created_at", { ascending: false })
@@ -326,6 +346,11 @@ const ReferenceTables = () => {
               <Button variant="outline" onClick={() => setSelected(null)}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
               </Button>
+              {!isCbhpm && (
+                <Button variant="outline" onClick={() => setWizardOpen(true)}>
+                  <Wand2 className="h-4 w-4 mr-2" /> Importar com assistente
+                </Button>
+              )}
               <label>
                 <input
                   type="file"
@@ -338,8 +363,8 @@ const ReferenceTables = () => {
                     e.currentTarget.value = "";
                   }}
                 />
-                <Button asChild disabled={importing}>
-                  <span><Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar planilha(s)"}</span>
+                <Button asChild disabled={importing} variant={isCbhpm ? "default" : "ghost"}>
+                  <span><Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : isCbhpm ? "Importar planilha(s)" : "Importar direto"}</span>
                 </Button>
               </label>
             </>
@@ -444,6 +469,15 @@ const ReferenceTables = () => {
             </CardContent>
           </Card>
         </div>
+        {wizardProfile && (
+          <ImportWizard
+            open={wizardOpen}
+            onOpenChange={setWizardOpen}
+            title={`Importar para ${selected.name}`}
+            profile={wizardProfile}
+            onComplete={() => loadItems(selected.id)}
+          />
+        )}
       </>
     );
   }
