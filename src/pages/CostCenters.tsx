@@ -12,6 +12,24 @@ import { Network, Upload, Loader2, Search, AlertCircle, ChevronDown, History, Un
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatDate } from "@/lib/status";
+import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+
+const COST_CENTERS_IMPORT_PROFILE: ImportProfile = {
+  entity: "cost_centers",
+  supportedModes: ["update", "append"],
+  fields: [
+    { key: "code_p12", label: "COD_P12", required: true, uniqueKey: true, aliases: ["COD_P12", "cod p12", "p12"] },
+    { key: "code_p10", label: "COD_P10", aliases: ["COD_P10", "cod p10", "p10"] },
+    { key: "code_pai", label: "COD_PAI", aliases: ["COD_PAI", "cod pai", "pai"] },
+    { key: "level1", label: "CENTRO_N1", aliases: ["CENTRO_N1", "centro n1", "n1"] },
+    { key: "level2", label: "CENTRO_N2", aliases: ["CENTRO_N2", "centro n2", "n2"] },
+    { key: "level3", label: "CENTRO_N3", aliases: ["CENTRO_N3", "centro n3", "n3"] },
+    { key: "level4", label: "CENTRO_N4", aliases: ["CENTRO_N4", "centro n4", "n4"] },
+    { key: "level5", label: "CENTRO_N5", aliases: ["CENTRO_N5", "centro n5", "n5"] },
+    { key: "status", label: "STATUS_MSIGA", aliases: ["STATUS_MSIGA", "status msiga", "status"] },
+  ],
+  fixedContext: { active: true },
+};
 
 interface CostCenter {
   id: string;
