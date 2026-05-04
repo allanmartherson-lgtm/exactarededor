@@ -183,9 +183,10 @@ Deno.serve(async (req) => {
     };
 
     if (mode === "commit" && records.length > 0) {
-      // Pré-carrega mapa de empresas por nome se for doctors
+      // Pré-carrega mapa de empresas por nome só quando houver vínculo de médicos no lote
       let companyByName = new Map<string, string>();
-      if (profile.entity === "doctors") {
+      const hasDoctorCompanies = profile.entity === "doctors" && records.some((rec) => Array.isArray(rec.companies_raw) && rec.companies_raw.length > 0);
+      if (hasDoctorCompanies) {
         const { data: comps } = await admin.from("companies").select("id,name");
         for (const c of (comps ?? []) as any[]) {
           companyByName.set(String(c.name).toLowerCase().trim(), c.id);
@@ -243,27 +244,25 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Pós-processo: vínculos doctor -> companies por nome
-      if (profile.entity === "doctors") {
+      // Pós-processo em lote: vínculos doctor -> companies por nome
+      if (hasDoctorCompanies) {
+        const crms = [...new Set(records.map((rec) => String(rec.crm ?? "")).filter(Boolean))];
+        const { data: docs } = await admin.from("doctors").select("id,crm,crm_uf").in("crm", crms);
+        const doctorByKey = new Map<string, string>();
+        for (const doc of (docs ?? []) as any[]) doctorByKey.set(`${doc.crm}||${doc.crm_uf}`, doc.id);
+        const links: { doctor_id: string; company_id: string }[] = [];
+        const doctorIds = new Set<string>();
         for (const rec of records) {
-          const names: string[] = Array.isArray(rec.companies_raw) ? rec.companies_raw : [];
-          if (!names.length) continue;
-          const { data: doc } = await admin
-            .from("doctors")
-            .select("id")
-            .eq("crm", rec.crm)
-            .eq("crm_uf", rec.crm_uf)
-            .maybeSingle();
-          if (!doc?.id) continue;
-          const cids = names
-            .map((n) => companyByName.get(String(n).toLowerCase().trim()))
+          const doctorId = doctorByKey.get(`${rec.crm}||${rec.crm_uf}`);
+          if (!doctorId) continue;
+          const cids = (Array.isArray(rec.companies_raw) ? rec.companies_raw : [])
+            .map((n: string) => companyByName.get(String(n).toLowerCase().trim()))
             .filter(Boolean) as string[];
-          if (!cids.length) continue;
-          await admin.from("doctor_companies").delete().eq("doctor_id", doc.id);
-          await admin.from("doctor_companies").insert(
-            cids.map((cid) => ({ doctor_id: doc.id, company_id: cid })),
-          );
+          for (const cid of [...new Set(cids)]) links.push({ doctor_id: doctorId, company_id: cid });
+          if (cids.length) doctorIds.add(doctorId);
         }
+        if (doctorIds.size) await admin.from("doctor_companies").delete().in("doctor_id", [...doctorIds]);
+        if (links.length) await admin.from("doctor_companies").insert(links);
       }
     }
 
