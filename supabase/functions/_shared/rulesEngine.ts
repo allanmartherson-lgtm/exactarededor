@@ -662,20 +662,59 @@ function calcComplemento(rule: RuleInput, item: ItemInput): ExpectedCalc {
 }
 
 /**
- * Tabela diferenciada: usa procedure_amount como aproximação do valor base
- * da tabela de referência (ex: CBHPM) e aplica os parâmetros da REGRA.
- * Ordem: base × multiplicador × (1 - deflator%) × (repasse%) × via × (1 + aux)
+ * Tabela diferenciada: busca o valor base na TABELA DE REFERÊNCIA vinculada
+ * à regra (por código TUSS do item) e aplica os parâmetros da regra.
+ * NÃO depende de `procedure_amount` da planilha.
+ * Ordem: valor_tabela_referencia × multiplicador × (1 - deflator%) × (repasse%) × via × (1 + aux)
+ *
+ * Fallback: se a regra não tiver `reference_table_id` (ou lookup ausente),
+ * usa `procedure_amount` como aproximação (compatibilidade).
  */
-function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc {
-  const base = item.procedure_amount;
-  if (base == null) {
-    return { expected: null, explanation: "Tabela diferenciada — valor base ausente.", alerts: ["procedure_amount ausente."] };
+function calcTabelaDiferenciada(
+  rule: RuleInput,
+  item: ItemInput,
+  lookup?: ReferenceTableLookup,
+): ExpectedCalc {
+  let base: number | null = null;
+  let baseLabel = "valor_tabela_referencia";
+  let baseSource = "";
+
+  if (rule.reference_table_id && lookup) {
+    const code = (item.procedure_code ?? "").toString().trim();
+    if (!code) {
+      return {
+        expected: null,
+        explanation: "Tabela diferenciada — item sem código TUSS para busca na tabela de referência.",
+        alerts: ["Item sem código TUSS — não é possível buscar na tabela de referência."],
+      };
+    }
+    const v = lookup(rule.reference_table_id, code);
+    if (v == null) {
+      return {
+        expected: null,
+        explanation: `Tabela diferenciada — código ${code} não encontrado na tabela de referência vinculada à regra.`,
+        alerts: [`Código ${code} não encontrado na tabela de referência.`],
+      };
+    }
+    base = v;
+    baseSource = ` (tabela ref., código ${code})`;
+  } else {
+    base = item.procedure_amount;
+    baseLabel = "procedure_amount";
+    if (base == null) {
+      return {
+        expected: null,
+        explanation: "Tabela diferenciada — valor base ausente (sem tabela vinculada e sem procedure_amount).",
+        alerts: ["Tabela diferenciada sem tabela de referência vinculada e sem valor base no item."],
+      };
+    }
   }
+
   const mult = rule.multiplier ?? 1;
   const defl = rule.deflator_pct ?? 0;
   const rep  = rule.repasse_pct ?? 100;
   let value = base * mult * (1 - defl / 100) * (rep / 100);
-  const parts: string[] = [`base R$ ${base.toFixed(2)}`, `× ${mult}`, `× (1 − ${defl}%)`, `× ${rep}%`];
+  const parts: string[] = [`${baseLabel} R$ ${base.toFixed(2)}${baseSource}`, `× ${mult}`, `× (1 − ${defl}%)`, `× ${rep}%`];
   if (rule.apply_access_route) {
     const f = accessRouteFactor(item.access_route);
     value *= f;
@@ -685,18 +724,17 @@ function calcTabelaDiferenciada(rule: RuleInput, item: ItemInput): ExpectedCalc 
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
       const pct = (rule.instrumentador_pct ?? 10) / 100;
-      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
       parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
     } else if (role === "primeiro_aux") {
       const pct = (rule.aux_first_pct ?? 30) / 100;
-      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
       parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
     } else if (role === "demais_aux") {
       const pct = (rule.aux_second_pct ?? 20) / 100;
-      value = base * (rule.multiplier ?? 1) * (1 - (rule.deflator_pct ?? 0) / 100) * ((rule.repasse_pct ?? 100) / 100) * pct;
+      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
       parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
     } else {
-      // sem função identificada → comportamento legado: soma composta com % por auxiliar (fallback auxiliary_pct)
       const auxPct = (rule.auxiliary_pct ?? rule.aux_first_pct ?? 30) / 100;
       value *= (1 + auxPct);
       parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
