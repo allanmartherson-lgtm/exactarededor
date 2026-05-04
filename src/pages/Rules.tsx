@@ -768,7 +768,7 @@ const Rules = () => {
                   );
                 })()}
 
-                <Accordion type="multiple" defaultValue={["identificacao", ...(fNature === "calculavel" ? ["calculo"] : [])]} className="space-y-2">
+                <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue} className="space-y-2">
 
                   {/* Identificação */}
                   <AccordionItem value="identificacao" className="rounded-md border border-border bg-card px-3">
