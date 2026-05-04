@@ -287,9 +287,31 @@ export const PaymentGroupCard = ({
             <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
           )}
           <StatusBadge status={gStatus} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setAnalysisOpen(true); }}
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Abrir análise em modo planilha"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Análise em modo planilha</TooltipContent>
+          </Tooltip>
           <DedicatedAnalysisLink groupId={g.id} />
         </div>
       </button>
+
+      <CompanyAnalysisDialog
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
+        group={g}
+        items={groupItems}
+        rulesIndex={rulesIndex}
+        rulesByName={rulesByName}
+      />
 
       {groupExpandedEffective && nfDivergent && (
         <div className="border-t border-border/60 bg-destructive/5">
