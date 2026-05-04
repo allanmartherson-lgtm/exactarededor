@@ -279,6 +279,7 @@ export function CompanyAnalysisDialog({
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         <div className="border-t px-4 py-1.5 text-[10px] text-muted-foreground bg-muted/20">
