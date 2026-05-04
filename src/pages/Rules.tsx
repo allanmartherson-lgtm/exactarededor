@@ -289,6 +289,9 @@ const Rules = () => {
     setFDeflatorPct(r.deflator_pct != null ? String(r.deflator_pct) : "");
     setFIncludeAux(!!r.include_auxiliaries);
     setFAuxPct(r.auxiliary_pct != null ? String(r.auxiliary_pct) : "");
+    setFAuxFirstPct(r.aux_first_pct != null ? String(r.aux_first_pct) : "30");
+    setFAuxSecondPct(r.aux_second_pct != null ? String(r.aux_second_pct) : "20");
+    setFInstrumentadorPct(r.instrumentador_pct != null ? String(r.instrumentador_pct) : "10");
     setFRepassePct(r.repasse_pct != null ? String(r.repasse_pct) : "");
     setFApplyAccessRoute(!!r.apply_access_route);
     setFPackageMainCode(r.package_main_code ?? "");
