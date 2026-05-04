@@ -74,6 +74,11 @@ export interface RuleInput {
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
+  aux_first_pct?: number | null;
+  aux_second_pct?: number | null;
+  instrumentador_pct?: number | null;
+  group_company_ids?: string[] | null;
+  group_doctors?: { name?: string; crm?: string }[] | null;
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
