@@ -603,13 +603,20 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
+export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string) => number | null;
+
+export interface EngineCtx {
+  appliedAttendancesByRule: Map<string, Set<string>>;
+  referenceLookup?: ReferenceTableLookup;
+}
+
 export function applyCalculation(
   rule: RuleInput,
   item: ItemInput,
-  ctx?: { appliedAttendancesByRule: Map<string, Set<string>> },
+  ctx?: EngineCtx,
 ): ExpectedCalc {
   if (rule.rule_type === "tabela_diferenciada" && rule.reference_table_id) {
-    return calcTabelaDiferenciada(rule, item);
+    return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
   }
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
@@ -623,8 +630,6 @@ export function applyCalculation(
       return calcPacotePorAtendimento(rule, item, set);
     }
     case "pacote": {
-      // Método unificado: sempre opera no nível do atendimento.
-      // O subtipo controla o comportamento dos extras/flags.
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
@@ -633,8 +638,8 @@ export function applyCalculation(
     case "valor_fixo":                return calcValorFixo(rule);
     case "exclusao":                  return calcExclusao(rule);
     case "informativo":               return calcInformativo();
-    case "tabela_referencia":         return calcTabelaDiferenciada(rule, item);
-    case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item);
+    case "tabela_referencia":         return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
+    case "tabela_diferenciada":       return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
     case "bonus":                     return calcBonus(rule, item);
     case "complemento":               return calcComplemento(rule, item);
   }
