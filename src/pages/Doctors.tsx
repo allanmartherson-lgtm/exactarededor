@@ -17,6 +17,23 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X } from "lucide-react";
+import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+
+const DOCTORS_IMPORT_PROFILE: ImportProfile = {
+  entity: "doctors",
+  supportedModes: ["append", "update", "replace"],
+  fields: [
+    { key: "full_name", label: "Nome completo", required: true, aliases: ["nome", "medico", "médico", "nome_completo"] },
+    { key: "crm", label: "CRM", required: true, uniqueKey: true, aliases: ["crm", "registro"] },
+    { key: "crm_uf", label: "UF do CRM", required: true, uniqueKey: true, aliases: ["uf", "estado", "uf_crm"] },
+    { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },
+    { key: "phone", label: "Telefone", aliases: ["telefone", "celular", "fone"] },
+    { key: "specialties", label: "Especialidades", type: "array", aliases: ["especialidade", "especialidades"] },
+    { key: "companies_raw", label: "Empresa(s)/PJ", type: "array", aliases: ["empresa", "empresas", "pj", "pjs", "clinica", "clínica"] },
+    { key: "notes", label: "Observações", aliases: ["obs", "observacao", "observação", "observacoes", "observações"] },
+    { key: "active", label: "Ativo", type: "boolean", aliases: ["ativo", "status"] },
+  ],
+};
 
 const UFS = ["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
 
@@ -72,7 +89,7 @@ export default function Doctors() {
   const [specInput, setSpecInput] = useState("");
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("");
-  const [importing, setImporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
 
   useEffect(() => {
@@ -201,80 +218,7 @@ export default function Doctors() {
     XLSX.writeFile(wb, "modelo-medicos.xlsx");
   };
 
-  const importFile = async (f: File) => {
-    setImporting(true);
-    try {
-      const buf = await f.arrayBuffer();
-      const wb = XLSX.read(buf);
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-
-      const companyByName = new Map(companies.map((c) => [norm(c.name), c.id]));
-      let inserted = 0, updated = 0, failed = 0, skipped = 0;
-      const dupes: string[] = [];
-
-      for (const row of json) {
-        const name = toStr(pick(row, ["nome", "nome completo", "medico", "médico"]));
-        const crm = toStr(pick(row, ["crm"])).replace(/\D/g, "");
-        const uf = toStr(pick(row, ["uf", "uf crm", "estado"])).toUpperCase();
-        if (!name || !crm || !uf || !UFS.includes(uf)) { skipped++; continue; }
-
-        const email = toStr(pick(row, ["email", "e-mail"])) || null;
-        const phone = toStr(pick(row, ["telefone", "celular", "fone"])) || null;
-        const specRaw = toStr(pick(row, ["especialidades", "especialidade"]));
-        const specialties = specRaw ? specRaw.split(/[;|,]/).map((s) => s.trim()).filter(Boolean) : [];
-        const ativoRaw = toStr(pick(row, ["ativo", "status"])).toLowerCase();
-        const active = !["nao", "não", "inativo", "false", "0", "n"].includes(ativoRaw);
-        const notes = toStr(pick(row, ["observacoes", "observações", "notas", "obs"])) || null;
-        const empRaw = toStr(pick(row, ["empresas", "empresa", "pj", "pjs"]));
-        const empNames = empRaw ? empRaw.split(/[;|]/).map((s) => s.trim()).filter(Boolean) : [];
-
-        const payload = { full_name: name, crm, crm_uf: uf, email, phone, specialties, active, notes };
-
-        // Tenta upsert por (crm, crm_uf)
-        const { data: existing } = await supabase
-          .from("doctors").select("id").eq("crm", crm).eq("crm_uf", uf).maybeSingle();
-        let docId = existing?.id;
-        if (docId) {
-          const { error } = await supabase.from("doctors").update(payload).eq("id", docId);
-          if (error) { failed++; continue; }
-          updated++;
-        } else {
-          const { data, error } = await supabase.from("doctors").insert(payload).select("id").single();
-          if (error) {
-            if ((error as any).code === "23505") { dupes.push(`${name} (${crm}/${uf})`); failed++; }
-            else failed++;
-            continue;
-          }
-          docId = data.id;
-          inserted++;
-        }
-
-        if (docId && empNames.length > 0) {
-          const cids = empNames.map((n) => companyByName.get(norm(n))).filter(Boolean) as string[];
-          if (cids.length > 0) {
-            await supabase.from("doctor_companies").delete().eq("doctor_id", docId);
-            await supabase.from("doctor_companies").insert(
-              cids.map((cid) => ({ doctor_id: docId!, company_id: cid })),
-            );
-          }
-        }
-      }
-
-      toast({
-        title: "Importação concluída",
-        description: `${inserted} criado(s), ${updated} atualizado(s)` +
-          (failed ? `, ${failed} com erro` : "") +
-          (skipped ? `, ${skipped} ignorado(s)` : "") +
-          (dupes.length ? `. Duplicados: ${dupes.slice(0, 3).join("; ")}` : ""),
-      });
-      load();
-    } catch (e) {
-      toast({ title: "Erro ao importar", description: String(e), variant: "destructive" });
-    } finally {
-      setImporting(false);
-    }
-  };
+  // Importação via wizard padrão (ImportWizard) — fluxo: upload → mapeamento → validação → confirmação → resumo.
 
   const filtered = useMemo(() => {
     const q = norm(search);
@@ -323,20 +267,16 @@ export default function Doctors() {
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" /> Modelo
             </Button>
-            <label>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                disabled={importing}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) { importFile(f); e.target.value = ""; } }}
-              />
-              <Button variant="outline" size="sm" disabled={importing} asChild>
-                <span className="cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" /> {importing ? "Importando..." : "Importar"}
-                </span>
-              </Button>
-            </label>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" /> Importar
+            </Button>
+            <ImportWizard
+              open={importOpen}
+              onOpenChange={setImportOpen}
+              title="Importar médicos"
+              profile={DOCTORS_IMPORT_PROFILE}
+              onComplete={() => load()}
+            />
             <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setEditingCompanyIds([]); } }}>
               <DialogTrigger asChild>
                 <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo médico</Button>

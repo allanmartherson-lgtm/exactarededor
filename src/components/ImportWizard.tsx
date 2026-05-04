@@ -22,16 +22,26 @@ export type ImportProfile = {
     | "companies"
     | "cost_centers"
     | "rules"
-    | "procedure_classifications";
+    | "procedure_classifications"
+    | "doctors";
   fields: ImportFieldDef[];
   fixedContext?: Record<string, any>;
+  /** Modos suportados pela tela. Default: ["append","update"]. */
+  supportedModes?: ImportMode[];
+  /** Escopo opcional para "replace" (filtra a deleção) */
+  replaceScope?: Record<string, any>;
 };
 
+export type ImportMode = "append" | "update" | "replace";
+
 type Sheet = { name: string; headers: string[]; total: number; preview: any[] };
-type Step = "upload" | "preview" | "validate" | "done";
+type Step = "upload" | "preview" | "validate" | "confirm" | "done";
 type CommitResult = {
   total: number;
   inserted: number;
+  updated?: number;
+  created?: number;
+  removed_before_replace?: number;
   skipped: number;
   validation_errors: number;
   duplicates: number;
@@ -60,7 +70,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     sample: any[];
   } | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
+  const [importMode, setImportMode] = useState<ImportMode>("append");
+  const [replaceConfirm, setReplaceConfirm] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const supportedModes = profile.supportedModes ?? ["append", "update"];
 
   useEffect(() => {
     if (!open) {
@@ -71,6 +85,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setMapping({});
       setValidation(null);
       setResult(null);
+      setImportMode(supportedModes[0] ?? "append");
+      setReplaceConfirm("");
     }
   }, [open]);
 
@@ -128,6 +144,27 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   };
 
   const runCommit = async () => {
+    // Validações de segurança antes de chamar o backend
+    const requiredMissing = profile.fields
+      .filter((f) => f.required && !mapping[f.key])
+      .map((f) => f.label);
+    if (requiredMissing.length > 0) {
+      toast({
+        title: "Campos obrigatórios não mapeados",
+        description: requiredMissing.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!validation || validation.summary.valid <= 0) {
+      toast({ title: "Nada para importar", description: "Todas as linhas foram rejeitadas.", variant: "destructive" });
+      return;
+    }
+    if (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR") {
+      toast({ title: "Confirme a substituição", description: "Digite SUBSTITUIR para liberar.", variant: "destructive" });
+      return;
+    }
+
     setBusy(true);
     try {
       const data = await callFn({
@@ -135,11 +172,14 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         storagePath,
         sheetName: activeSheet,
         mapping,
-        profile,
+        profile: { ...profile, importMode },
       });
       const res: CommitResult = {
         total: data.total ?? 0,
         inserted: data.inserted ?? 0,
+        updated: data.updated ?? 0,
+        created: data.created ?? 0,
+        removed_before_replace: data.removed_before_replace ?? 0,
         skipped: data.skipped ?? 0,
         validation_errors: data.validation_errors ?? 0,
         duplicates: data.duplicates ?? 0,
@@ -147,7 +187,15 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       };
       setResult(res);
       setStep("done");
-      toast({ title: `${res.inserted} de ${res.total} linha(s) importada(s)` });
+      if (res.inserted > 0) {
+        toast({ title: `${res.inserted} de ${res.total} linha(s) processada(s)` });
+      } else {
+        toast({
+          title: "Nenhuma linha foi salva",
+          description: res.insert_errors[0]?.reason ?? "Verifique os erros e o mapeamento.",
+          variant: "destructive",
+        });
+      }
       onComplete?.(res);
     } catch (e: any) {
       toast({ title: "Erro ao importar", description: e?.message, variant: "destructive" });
@@ -319,6 +367,39 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
+            {supportedModes.length > 1 && (
+              <Section icon={<Upload className="h-4 w-4" />} title="Modo de importação">
+                <div className="space-y-2 text-sm">
+                  {supportedModes.includes("append") && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="mode" checked={importMode === "append"} onChange={() => setImportMode("append")} className="mt-1" />
+                      <span><strong>Adicionar novos</strong> — insere apenas registros que ainda não existem.</span>
+                    </label>
+                  )}
+                  {supportedModes.includes("update") && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="mode" checked={importMode === "update"} onChange={() => setImportMode("update")} className="mt-1" />
+                      <span><strong>Atualizar existentes</strong> — atualiza registros já cadastrados pela chave natural e insere os novos.</span>
+                    </label>
+                  )}
+                  {supportedModes.includes("replace") && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="mode" checked={importMode === "replace"} onChange={() => setImportMode("replace")} className="mt-1" />
+                      <span><strong className="text-destructive">Substituir lista atual</strong> — apaga os registros existentes antes de importar. Ação destrutiva.</span>
+                    </label>
+                  )}
+                  {importMode === "replace" && (
+                    <div className="mt-2 p-2 rounded-md border border-destructive/40 bg-destructive/5 space-y-2">
+                      <p className="text-xs text-destructive">
+                        Esta ação remove permanentemente os registros antes de gravar os novos. Para confirmar, digite <strong>SUBSTITUIR</strong> abaixo.
+                      </p>
+                      <Input value={replaceConfirm} onChange={(e) => setReplaceConfirm(e.target.value)} placeholder="SUBSTITUIR" />
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
             <DialogFooter className="gap-2">
               <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
                 Cancelar
@@ -326,7 +407,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               <Button variant="outline" onClick={() => setStep("preview")} disabled={busy}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Corrigir mapeamento
               </Button>
-              <Button onClick={runCommit} disabled={busy || validation.summary.valid === 0}>
+              <Button
+                onClick={runCommit}
+                disabled={busy || validation.summary.valid === 0 || (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR")}
+              >
                 Confirmar importação ({validation.summary.valid})
               </Button>
             </DialogFooter>
@@ -335,23 +419,26 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
         {step === "done" && result && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 rounded-md border border-success/30 bg-success-soft text-success">
-              <CheckCircle2 className="h-6 w-6" />
+            <div className={`flex items-center gap-3 p-4 rounded-md border ${result.inserted > 0 ? "border-success/30 bg-success-soft text-success" : "border-destructive/30 bg-destructive/5 text-destructive"}`}>
+              {result.inserted > 0 ? <CheckCircle2 className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
               <div>
-                <div className="font-medium">Importação concluída</div>
+                <div className="font-medium">
+                  {result.inserted > 0 ? "Importação concluída" : "Nenhuma linha foi salva"}
+                </div>
                 <div className="text-sm">
-                  {result.inserted} de {result.total} linha(s) inserida(s).
+                  {result.inserted} de {result.total} linha(s) processada(s).
+                  {result.removed_before_replace ? ` ${result.removed_before_replace} apagada(s) antes da substituição.` : ""}
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Stat label="Total no arquivo" value={result.total} />
-              <Stat label="Importadas" value={result.inserted} tone="success" />
-              <Stat label="Ignoradas" value={result.skipped} tone="warn" />
-              <Stat label="Erros de validação" value={result.validation_errors} tone="warn" />
+              <Stat label="Criadas" value={result.created ?? 0} tone="success" />
+              <Stat label="Atualizadas" value={result.updated ?? 0} tone="success" />
+              <Stat label="Ignoradas / com erro" value={result.skipped} tone="warn" />
             </div>
             {result.insert_errors.length > 0 && (
-              <Section icon={<AlertTriangle className="h-4 w-4 text-destructive" />} title={`Erros ao inserir no banco (${result.insert_errors.length} lote(s))`}>
+              <Section icon={<AlertTriangle className="h-4 w-4 text-destructive" />} title={`Erros ao gravar no banco (${result.insert_errors.length} lote(s))`}>
                 <ul className="text-xs space-y-1 max-h-40 overflow-auto">
                   {result.insert_errors.map((e, i) => (
                     <li key={i}>
