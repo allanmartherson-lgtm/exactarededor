@@ -408,12 +408,13 @@ export default function Doctors() {
           </div>
         </div>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader><CardTitle className="text-base">{filtered.length} médico(s)</CardTitle></CardHeader>
           <CardContent className="p-0">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhum médico encontrado.</p>
             ) : (
+              <div className="w-full overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
                   <tr className="text-left">
@@ -467,6 +468,7 @@ export default function Doctors() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
