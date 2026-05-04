@@ -359,7 +359,7 @@ export const PaymentItemRow = ({
             </span>
           )}
         </td>
-        <td className="px-1.5 py-1.5 hidden sm:table-cell print:table-cell">
+        <td className="px-1.5 py-1 hidden sm:table-cell print:table-cell">
           {(() => {
             const aiRaw = (it.ai_status as ItemAiStatus) ?? "pendente";
             // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
@@ -368,7 +368,7 @@ export const PaymentItemRow = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.success}`}
+                      className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES.success}`}
                     >
                       seguido
                     </span>
@@ -381,7 +381,7 @@ export const PaymentItemRow = ({
             }
             return (
               <span
-                className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES[itemToneMap[aiRaw]]}`}
+                className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES[itemToneMap[aiRaw]]}`}
               >
                 {aiRaw}
               </span>
@@ -389,14 +389,14 @@ export const PaymentItemRow = ({
           })()}
           {exceptionMarked && (
             <span
-              className={`mt-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap ${TONE_CLASSES.info}`}
+              className={`mt-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES.info}`}
               title={`Exceção autorizada — ${itemAny.exception_authorizer ?? "—"}`}
             >
               <ShieldCheck className="h-2.5 w-2.5" /> exceção
             </span>
           )}
         </td>
-        <td className="pl-1 pr-2 py-1.5 print:hidden" onClick={(e) => e.stopPropagation()}>
+        <td className="pl-1 pr-2 py-1 print:hidden" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
             <button
               type="button"
