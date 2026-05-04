@@ -88,6 +88,9 @@ const ReferenceTables = () => {
       kind: String(f.get("kind") || "simples") as RefKind,
       purpose,
       exclusion_severity: purpose === "exclusao" ? String(f.get("exclusion_severity") || "bloqueio") : "bloqueio",
+      valid_from: String(f.get("valid_from") || "") || null,
+      valid_until: String(f.get("valid_until") || "") || null,
+      notes: String(f.get("notes") || "") || null,
       active: true,
       created_by: user!.id,
     } as any);
