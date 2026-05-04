@@ -312,7 +312,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("todos");
+    setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa");
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
