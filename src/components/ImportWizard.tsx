@@ -29,13 +29,21 @@ export type ImportProfile = {
 
 type Sheet = { name: string; headers: string[]; total: number; preview: any[] };
 type Step = "upload" | "preview" | "validate" | "done";
+type CommitResult = {
+  total: number;
+  inserted: number;
+  skipped: number;
+  validation_errors: number;
+  duplicates: number;
+  insert_errors: { chunk: number; reason: string }[];
+};
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
   profile: ImportProfile;
-  onComplete?: (result: { inserted: number }) => void;
+  onComplete?: (result: CommitResult) => void;
 }
 
 export function ImportWizard({ open, onOpenChange, title, profile, onComplete }: Props) {
@@ -51,7 +59,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     duplicates: { row: number; key: string }[];
     sample: any[];
   } | null>(null);
-  const [result, setResult] = useState<{ inserted: number } | null>(null);
+  const [result, setResult] = useState<CommitResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -129,10 +137,18 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         mapping,
         profile,
       });
-      setResult({ inserted: data.inserted ?? 0 });
+      const res: CommitResult = {
+        total: data.total ?? 0,
+        inserted: data.inserted ?? 0,
+        skipped: data.skipped ?? 0,
+        validation_errors: data.validation_errors ?? 0,
+        duplicates: data.duplicates ?? 0,
+        insert_errors: data.insert_errors ?? [],
+      };
+      setResult(res);
       setStep("done");
-      toast({ title: `${data.inserted} linha(s) importada(s)` });
-      onComplete?.({ inserted: data.inserted ?? 0 });
+      toast({ title: `${res.inserted} de ${res.total} linha(s) importada(s)` });
+      onComplete?.(res);
     } catch (e: any) {
       toast({ title: "Erro ao importar", description: e?.message, variant: "destructive" });
     } finally {
@@ -323,9 +339,28 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               <CheckCircle2 className="h-6 w-6" />
               <div>
                 <div className="font-medium">Importação concluída</div>
-                <div className="text-sm">{result.inserted} linha(s) inserida(s).</div>
+                <div className="text-sm">
+                  {result.inserted} de {result.total} linha(s) inserida(s).
+                </div>
               </div>
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Stat label="Total no arquivo" value={result.total} />
+              <Stat label="Importadas" value={result.inserted} tone="success" />
+              <Stat label="Ignoradas" value={result.skipped} tone="warn" />
+              <Stat label="Erros de validação" value={result.validation_errors} tone="warn" />
+            </div>
+            {result.insert_errors.length > 0 && (
+              <Section icon={<AlertTriangle className="h-4 w-4 text-destructive" />} title={`Erros ao inserir no banco (${result.insert_errors.length} lote(s))`}>
+                <ul className="text-xs space-y-1 max-h-40 overflow-auto">
+                  {result.insert_errors.map((e, i) => (
+                    <li key={i}>
+                      <span className="font-mono text-muted-foreground">Lote {e.chunk}</span> — {e.reason}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
             <DialogFooter>
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </DialogFooter>

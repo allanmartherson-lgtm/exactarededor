@@ -82,9 +82,26 @@ const ReferenceTables = () => {
   const loadTables = () =>
     supabase.from("reference_tables").select("*").order("created_at", { ascending: false })
       .then(({ data }) => setTables((data ?? []) as RefTable[]));
-  const loadItems = (id: string) =>
-    supabase.from("reference_table_items").select("*").eq("reference_table_id", id).order("code")
-      .then(({ data }) => setItems((data ?? []) as RefItem[]));
+  const loadItems = async (id: string) => {
+    const PAGE = 1000;
+    let from = 0;
+    const all: RefItem[] = [];
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { data, error } = await supabase
+        .from("reference_table_items")
+        .select("*")
+        .eq("reference_table_id", id)
+        .order("code")
+        .range(from, from + PAGE - 1);
+      if (error) break;
+      const batch = (data ?? []) as RefItem[];
+      all.push(...batch);
+      if (batch.length < PAGE) break;
+      from += PAGE;
+    }
+    setItems(all);
+  };
   const loadPortValues = (id: string) =>
     supabase.from("reference_table_port_values").select("*").eq("reference_table_id", id).order("port")
       .then(({ data }) => setPortValues((data ?? []) as PortValue[]));
