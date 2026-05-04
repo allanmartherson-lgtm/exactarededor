@@ -8,7 +8,6 @@
 // profile descreve a entidade-alvo, campos obrigatórios e contexto fixo.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,44 +95,8 @@ function suggestMapping(headers: string[], fields: FieldDef[]) {
   return out;
 }
 
-// Lê apenas metadados (nome, headers, total, 20 linhas de prévia) com UMA única
-// passada de parsing e sheetRows limitado — evita estouro de CPU/memória.
-function readSheetsMeta(buf: ArrayBuffer) {
-  const wb = XLSX.read(buf, {
-    type: "array",
-    cellDates: false,
-    cellNF: false,
-    cellText: false,
-    cellFormula: false,
-    cellHTML: false,
-    sheetRows: 21,
-  });
-  const sheets: { name: string; headers: string[]; total: number; preview: any[] }[] = [];
-  for (const name of wb.SheetNames ?? []) {
-    const ws = wb.Sheets[name];
-    if (!ws || !ws["!ref"]) {
-      sheets.push({ name, headers: [], total: 0, preview: [] });
-      continue;
-    }
-    const range = XLSX.utils.decode_range(ws["!ref"]);
-    const preview = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-    const headers = preview.length ? Object.keys(preview[0]) : [];
-    const total = Math.max(0, range.e.r - range.s.r);
-    sheets.push({ name, headers, total, preview });
-  }
-  return { sheets };
-}
-
-// Lê apenas uma aba inteira (usado em preview/commit)
-function readSheetRows(buf: ArrayBuffer, sheetName?: string): { rows: any[]; headers: string[]; name: string } {
-  const wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: false, cellText: false, sheets: sheetName ? [sheetName] : undefined });
-  const name = sheetName ?? wb.SheetNames[0];
-  const ws = wb.Sheets[name];
-  if (!ws) throw new Error("Aba não encontrada");
-  const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-  const headers = rows.length ? Object.keys(rows[0]) : [];
-  return { rows, headers, name };
-}
+// O parsing de Excel/CSV roda no navegador. A função recebe somente linhas já mapeadas,
+// reduzindo CPU no runtime serverless e evitando WORKER_RESOURCE_LIMIT.
 
 function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: FieldDef[]) {
   return rows.map((row) => {
