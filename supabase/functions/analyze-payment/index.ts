@@ -207,8 +207,46 @@ serve(async (req) => {
       }
     }
 
+    // ---------- 3.3 Tabelas de referência vinculadas a regras "tabela_diferenciada" ----------
+    // Carrega valores (code → amount) de cada reference_table_id usado por regras
+    // que calculam por tabela diferenciada/referência. O motor consulta esse
+    // lookup; NÃO usamos `procedure_amount` quando a regra tem tabela vinculada.
+    const refTableIds = Array.from(new Set(
+      rules
+        .filter((r) =>
+          r.reference_table_id && (
+            r.rule_type === "tabela_diferenciada" ||
+            r.calculation_type === "tabela_diferenciada" ||
+            r.calculation_type === "tabela_referencia"
+          ),
+        )
+        .map((r) => r.reference_table_id as string),
+    ));
+    const refValues: Record<string, Record<string, number>> = {};
+    if (refTableIds.length > 0 && codes.length > 0) {
+      const { data: refRows } = await supabase
+        .from("reference_table_items")
+        .select("reference_table_id,code,amount,port,package_amount")
+        .in("reference_table_id", refTableIds)
+        .in("code", codes);
+      for (const row of (refRows ?? []) as any[]) {
+        const tid = row.reference_table_id as string;
+        const code = String(row.code ?? "").trim();
+        if (!tid || !code) continue;
+        const amt = row.amount != null ? Number(row.amount) : (row.package_amount != null ? Number(row.package_amount) : null);
+        if (amt == null || Number.isNaN(amt)) continue;
+        (refValues[tid] ||= {})[code] = amt;
+      }
+    }
+    const referenceLookup = (tableId: string, code: string): number | null => {
+      const t = refValues[tableId];
+      if (!t) return null;
+      const v = t[String(code).trim()];
+      return v == null ? null : v;
+    };
+
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
-    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx);
+    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup });
 
     // ---------- 4.1 Sobrepor resultado para itens em tabela de exclusão ----------
     for (const r of results) {
