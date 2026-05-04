@@ -29,13 +29,21 @@ export type ImportProfile = {
 
 type Sheet = { name: string; headers: string[]; total: number; preview: any[] };
 type Step = "upload" | "preview" | "validate" | "done";
+type CommitResult = {
+  total: number;
+  inserted: number;
+  skipped: number;
+  validation_errors: number;
+  duplicates: number;
+  insert_errors: { chunk: number; reason: string }[];
+};
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
   profile: ImportProfile;
-  onComplete?: (result: { inserted: number }) => void;
+  onComplete?: (result: CommitResult) => void;
 }
 
 export function ImportWizard({ open, onOpenChange, title, profile, onComplete }: Props) {
