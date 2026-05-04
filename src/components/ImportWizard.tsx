@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [busy, setBusy] = useState(false);
   const [storagePath, setStoragePath] = useState<string>("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
+  const [rowsBySheet, setRowsBySheet] = useState<Record<string, any[]>>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
   const [mapping, setMapping] = useState<Record<string, string | null>>({});
   const [validation, setValidation] = useState<{
@@ -81,6 +83,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setStep("upload");
       setStoragePath("");
       setSheets([]);
+      setRowsBySheet({});
       setActiveSheet("");
       setMapping({});
       setValidation(null);
@@ -102,14 +105,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const handleFile = async (file: File) => {
     setBusy(true);
     try {
-      const path = `${Date.now()}-${crypto.randomUUID()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
-      const { error: upErr } = await supabase.storage
-        .from("import-uploads")
-        .upload(path, file, { upsert: false });
-      if (upErr) throw upErr;
-      setStoragePath(path);
-      const data = await callFn({ mode: "parse", storagePath: path });
-      setSheets(data.sheets ?? []);
+      const data = await readWorkbookSheets(file);
+      setStoragePath(file.name);
+      setRowsBySheet(data.rowsBySheet);
+      setSheets(data.sheets);
       const first = data.sheets?.[0];
       if (first) {
         setActiveSheet(first.name);
