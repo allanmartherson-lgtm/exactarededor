@@ -216,6 +216,20 @@ const Rules = () => {
   const [fTimeEnd, setFTimeEnd] = useState<string>("");
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
 
+  // Persistência das seções abertas do accordion (lembra entre aberturas do modal)
+  const ACCORDION_STORAGE_KEY = "rules.form.accordion.v1";
+  const [accordionValue, setAccordionValue] = useState<string[]>(() => {
+    if (typeof window === "undefined") return ["identificacao"];
+    try {
+      const raw = window.localStorage.getItem(ACCORDION_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) && parsed.length ? parsed : ["identificacao"];
+    } catch { return ["identificacao"]; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(accordionValue)); } catch {}
+  }, [accordionValue]);
+
   const parsedCodes = useMemo(
     () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
     [codesInput]
