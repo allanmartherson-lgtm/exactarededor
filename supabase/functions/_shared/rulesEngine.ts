@@ -306,9 +306,7 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   return matchDoctorList(docs);
 }
 
-  // Modo 2 — Por médico: aplica somente aos médicos selecionados.
-  return matchesDoctor;
-}
+
 
 // ---------- pré-filtro ----------
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
