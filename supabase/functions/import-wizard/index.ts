@@ -226,7 +226,14 @@ Deno.serve(async (req) => {
 
     // Anexa contexto fixo
     const fixed = profile.fixedContext ?? {};
-    const records = valid.map((r) => ({ ...r, ...fixed }));
+    const records = valid.map((r) => {
+      const rec: Record<string, any> = { ...r, ...fixed };
+      // Para reference_table_items: 'code' é NOT NULL. Em pacotes usamos o package_id como code.
+      if (profile.entity === "reference_table_items" && (rec.code == null || rec.code === "")) {
+        if (rec.package_id) rec.code = String(rec.package_id);
+      }
+      return rec;
+    });
 
     if (mode === "preview") {
       return new Response(
