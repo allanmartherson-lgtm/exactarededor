@@ -859,6 +859,45 @@ const Rules = () => {
                   </div>
                 )}
 
+                {scope === "grupo" && (
+                  <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Grupo de médicos/empresas</Label>
+                      <p className="text-xs text-muted-foreground">A regra é aplicada quando o item pertencer a qualquer médico OU empresa vinculados abaixo.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Empresas vinculadas</Label>
+                      <CompanyCombobox
+                        value={null}
+                        onChange={(c) => {
+                          if (!c) return;
+                          setFGroupCompanyIds((prev) => prev.includes(c.id) ? prev : [...prev, c.id]);
+                        }}
+                        placeholder="Adicionar empresa ao grupo…"
+                        className="w-full"
+                      />
+                      {fGroupCompanyIds.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {fGroupCompanyIds.map((id) => {
+                            const c = companies.find((x) => x.id === id);
+                            return (
+                              <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+                                {c?.name ?? id.slice(0, 8)}
+                                <button type="button" className="text-muted-foreground hover:text-foreground"
+                                  onClick={() => setFGroupCompanyIds((prev) => prev.filter((x) => x !== id))}>×</button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Médicos vinculados</Label>
+                      <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label>Natureza da regra *</Label>
                   <Select
