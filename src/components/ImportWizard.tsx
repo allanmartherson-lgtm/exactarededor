@@ -367,6 +367,39 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
+            {supportedModes.length > 1 && (
+              <Section icon={<Upload className="h-4 w-4" />} title="Modo de importação">
+                <div className="space-y-2 text-sm">
+                  {supportedModes.includes("append") && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="mode" checked={importMode === "append"} onChange={() => setImportMode("append")} className="mt-1" />
+                      <span><strong>Adicionar novos</strong> — insere apenas registros que ainda não existem.</span>
+                    </label>
+                  )}
+                  {supportedModes.includes("update") && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="mode" checked={importMode === "update"} onChange={() => setImportMode("update")} className="mt-1" />
+                      <span><strong>Atualizar existentes</strong> — atualiza registros já cadastrados pela chave natural e insere os novos.</span>
+                    </label>
+                  )}
+                  {supportedModes.includes("replace") && (
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="mode" checked={importMode === "replace"} onChange={() => setImportMode("replace")} className="mt-1" />
+                      <span><strong className="text-destructive">Substituir lista atual</strong> — apaga os registros existentes antes de importar. Ação destrutiva.</span>
+                    </label>
+                  )}
+                  {importMode === "replace" && (
+                    <div className="mt-2 p-2 rounded-md border border-destructive/40 bg-destructive/5 space-y-2">
+                      <p className="text-xs text-destructive">
+                        Esta ação remove permanentemente os registros antes de gravar os novos. Para confirmar, digite <strong>SUBSTITUIR</strong> abaixo.
+                      </p>
+                      <Input value={replaceConfirm} onChange={(e) => setReplaceConfirm(e.target.value)} placeholder="SUBSTITUIR" />
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
             <DialogFooter className="gap-2">
               <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
                 Cancelar
@@ -374,7 +407,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               <Button variant="outline" onClick={() => setStep("preview")} disabled={busy}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Corrigir mapeamento
               </Button>
-              <Button onClick={runCommit} disabled={busy || validation.summary.valid === 0}>
+              <Button
+                onClick={runCommit}
+                disabled={busy || validation.summary.valid === 0 || (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR")}
+              >
                 Confirmar importação ({validation.summary.valid})
               </Button>
             </DialogFooter>
