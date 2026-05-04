@@ -253,8 +253,9 @@ const Rules = () => {
       if (fGroupMode === "medico" && fGroupDoctors.length === 0) e.aplicacao++;
       // Coerência: médicos selecionados manualmente devem pertencer à(s) empresa(s).
       if (fGroupMode === "empresa" && fGroupDoctors.length > 0 && companyDoctors.length > 0) {
-        const allowed = new Set(companyDoctors.map((d) => normNameLite(d.name)));
-        const invalid = fGroupDoctors.some((d) => !allowed.has(normNameLite(d.name)));
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const allowed = new Set(companyDoctors.map((d) => norm(d.name)));
+        const invalid = fGroupDoctors.some((d) => !allowed.has(norm(d.name)));
         if (invalid) e.aplicacao++;
       }
     }
