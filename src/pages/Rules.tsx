@@ -202,6 +202,9 @@ const Rules = () => {
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
+  // Escopo "grupo" (inline na regra)
+  const [fGroupCompanyIds, setFGroupCompanyIds] = useState<string[]>([]);
+  const [fGroupDoctors, setFGroupDoctors] = useState<{ name: string; crm?: string }[]>([]);
   // janela temporal
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
