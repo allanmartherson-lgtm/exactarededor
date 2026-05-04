@@ -423,11 +423,11 @@ const Companies = () => {
               <div className="w-full overflow-x-auto">
               <table className="w-full min-w-[980px] table-fixed text-sm">
                 <colgroup>
-                  <col className="w-[34%]" />
+                  <col className="w-[32%]" />
                   <col className="w-[18%]" />
                   <col className="w-[16%]" />
                   <col className="w-[24%]" />
-                  <col className="w-[8%]" />
+                  <col className="w-[10%]" />
                 </colgroup>
                 <thead className="bg-muted">
                   <tr className="text-left">
@@ -476,7 +476,7 @@ const Companies = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-2 py-2 text-right whitespace-nowrap">
                         <Button size="icon" variant="ghost" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" onClick={() => remove(c.id)}><Trash2 className="h-4 w-4" /></Button>
                       </td>
