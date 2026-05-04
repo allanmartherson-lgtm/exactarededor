@@ -563,8 +563,8 @@ const ReferenceTables = () => {
                       <p className="font-medium text-sm">
                         {t.name}
                         {t.year ? <span className="text-muted-foreground font-normal"> · {t.year}</span> : null}
-                        <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 uppercase tracking-wide">
-                          {t.kind}
+                        <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                          {KIND_LABEL[t.kind] ?? t.kind}
                         </span>
                         <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : "bg-success/10 text-success border border-success/30"}`}>
                           {PURPOSE_LABEL[t.purpose ?? "calculo"]}
@@ -572,9 +572,17 @@ const ReferenceTables = () => {
                         {t.active === false && (
                           <span className="ml-2 text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">inativa</span>
                         )}
+                        {(t.valid_from || t.valid_until) && (
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">
+                            vigência {t.valid_from ?? "—"} → {t.valid_until ?? "—"}
+                          </span>
+                        )}
                       </p>
                       {t.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+                      )}
+                      {t.notes && (
+                        <p className="text-xs text-muted-foreground mt-0.5 italic">{t.notes}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1">
