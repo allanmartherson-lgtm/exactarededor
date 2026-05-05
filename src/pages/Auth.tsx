@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
@@ -46,7 +46,8 @@ const Auth = () => {
     sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
     sessionStorage.setItem(PASSWORD_RECOVERY_EMAIL_KEY, parsed.data);
     setResetting(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
+    const recoveryClient = createPasswordRecoveryClient();
+    const { error } = await recoveryClient.auth.resetPasswordForEmail(parsed.data, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
     });
     setResetting(false);

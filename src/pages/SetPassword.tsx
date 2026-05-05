@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
+import { createPasswordRecoveryClient, getPasswordRecoveryVerifierState } from "@/lib/passwordRecoveryClient";
 
 /**
  * Página pública que captura o token enviado por email (convite ou recuperação)
@@ -120,12 +120,14 @@ const SetPassword = () => {
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [flow, setFlow] = useState<AuthFlow>("recovery");
+  const [recoveryClient] = useState(() => createPasswordRecoveryClient());
 
   useEffect(() => {
     document.title = "Definir senha | MedPay Approval";
     let cancelled = false;
     let settled = false;
     const { authUrl, usedCachedUrl } = chooseAuthUrl();
+    const verifierState = getPasswordRecoveryVerifierState();
 
     console.groupCollapsed("[auth recovery] validar link");
     console.info("URL recebida", maskAuthUrl(authUrl.href));
@@ -140,6 +142,8 @@ const SetPassword = () => {
       hasRefreshToken: Boolean(authUrl.refreshToken),
       hasTokenHash: Boolean(authUrl.tokenHash),
       hasCode: Boolean(authUrl.code),
+      hasCodeVerifier: verifierState.hasCodeVerifier,
+      isRecoveryVerifier: verifierState.isRecoveryVerifier,
       usedCachedUrl,
     });
     console.groupEnd();
@@ -156,10 +160,10 @@ const SetPassword = () => {
       setPhase("ready");
     };
 
-    const waitForSession = async (attempts = 300) => {
+    const waitForSession = async (attempts = 40) => {
       for (let i = 0; i < attempts; i++) {
         if (cancelled || settled) return false;
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } = await recoveryClient.auth.getSession();
         console.info("[auth recovery] resultado de getSession()", {
           attempt: i + 1,
           hasSession: Boolean(data.session),
@@ -177,7 +181,7 @@ const SetPassword = () => {
     };
 
     const useExistingSessionIfAvailable = async (source: string, f?: AuthFlow) => {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await recoveryClient.auth.getSession();
       console.info("[auth recovery] sessão existente após " + source + "?", {
         hasSession: Boolean(data.session),
         userId: data.session?.user.id ?? null,
@@ -193,7 +197,7 @@ const SetPassword = () => {
     // Listener para eventos do Supabase. O cliente tem detectSessionInUrl=true,
     // então ele processa o ?code=/#access_token= automaticamente e dispara
     // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: sub } = recoveryClient.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       console.info("[auth recovery] evento de onAuthStateChange", {
         event,
@@ -229,13 +233,27 @@ const SetPassword = () => {
         // automaticamente ?code=/#access_token=). Apenas leia getSession.
         if (await useExistingSessionIfAvailable("getSession inicial")) return;
 
+        if (authUrl.code) {
+          console.info("[auth recovery] tentando exchangeCodeForSession PKCE", getPasswordRecoveryVerifierState());
+          const { error } = await recoveryClient.auth.exchangeCodeForSession(authUrl.code);
+          if (error) {
+            console.warn("[auth recovery] exchangeCodeForSession falhou", {
+              message: error.message,
+              name: error.name,
+              status: error.status ?? null,
+            });
+          } else if (await useExistingSessionIfAvailable("exchangeCodeForSession", "recovery")) {
+            return;
+          }
+        }
+
         // Fallback explícito SOMENTE para hash implicit com tokens completos
         // (não-PKCE). Para ?code= NUNCA chamamos exchangeCodeForSession aqui
         // porque o cliente já consumiu o code_verifier; um segundo exchange
         // falharia e marcaríamos como inválido por engano.
         if (authUrl.accessToken && authUrl.refreshToken && !authUrl.code) {
           console.info("[auth recovery] tentando setSession com tokens implicit do hash");
-          const { error } = await supabase.auth.setSession({
+          const { error } = await recoveryClient.auth.setSession({
             access_token: authUrl.accessToken,
             refresh_token: authUrl.refreshToken,
           });
@@ -251,7 +269,7 @@ const SetPassword = () => {
         // token_hash é usado em alguns links gerados pelo admin.
         if (authUrl.tokenHash && authUrl.type && !authUrl.code) {
           console.info("[auth recovery] tentando verifyOtp com token_hash");
-          const { error } = await supabase.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
+          const { error } = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
           if (error) {
             console.warn("[auth recovery] verifyOtp falhou; aguardando sessão via listener", error);
           } else {
@@ -261,9 +279,9 @@ const SetPassword = () => {
           }
         }
 
-        // Aguarda o supabase-js terminar de processar a URL (PKCE/implicit) e
+        // Aguarda o cliente de recovery terminar de processar a URL (PKCE/implicit) e
         // disparar PASSWORD_RECOVERY/SIGNED_IN/INITIAL_SESSION.
-        console.info("[auth recovery] aguardando sessão via listener/getSession (até 30s)");
+        console.info("[auth recovery] aguardando sessão via listener/getSession (até 4s)");
         if (await waitForSession()) {
           finishAuthUrl();
           markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
@@ -300,14 +318,14 @@ const SetPassword = () => {
       return;
     }
     setPhase("saving");
-    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+    const { error } = await recoveryClient.auth.updateUser({ password: parsed.data.password });
     if (error) {
       console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
     }
-    await supabase.auth.signOut();
+    await recoveryClient.auth.signOut();
     setPhase("done");
     toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
     setTimeout(() => navigate("/auth", { replace: true }), 800);
