@@ -393,11 +393,34 @@ export const PaymentItemRow = ({
               );
             }
             return (
-              <span
-                className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap ${TONE_CLASSES[itemToneMap[aiRaw]]}`}
-              >
-                {aiRaw}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] whitespace-nowrap cursor-help ${TONE_CLASSES[itemToneMap[aiRaw]]}`}
+                  >
+                    {aiRaw}
+                  </span>
+                </TooltipTrigger>
+                {(alerts.length > 0 || expectedAmount != null) && (
+                  <TooltipContent side="left" className="max-w-xs text-xs space-y-1">
+                    {expectedAmount != null && (
+                      <p className="tabular-nums">
+                        Esperado: <strong>{formatCurrency(expectedAmount)}</strong>
+                        {diffPct != null && Math.abs(diffPct) > 0.001 && (
+                          <> ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</>
+                        )}
+                      </p>
+                    )}
+                    {alerts.length > 0 && (
+                      <ul className="space-y-0.5">
+                        {alerts.slice(0, 3).map((a, i) => <li key={i}>• {a}</li>)}
+                        {alerts.length > 3 && <li className="italic">+{alerts.length - 3} alerta(s)…</li>}
+                      </ul>
+                    )}
+                    <p className="text-[10px] text-muted-foreground italic">Clique na linha para ver detalhes</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             );
           })()}
           {exceptionMarked && (
