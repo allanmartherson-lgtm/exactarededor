@@ -132,6 +132,14 @@ export function CompanyAnalysisDialog({
 }: Props) {
   const { id } = useParams<{ id: string }>();
   const gStatus = group.status as PaymentStatus;
+  const isGroupAnalista = !!isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
+  const isGroupValidador = !!isValidador && gStatus === "aguardando_validacao";
+  const isGroupDiretor = !!isDiretor && gStatus === "aguardando_aprovacao";
+  const showFooter = isGroupAnalista || isGroupValidador || isGroupDiretor;
+  const returnerForResend =
+    gStatus === "devolvido_analista"
+      ? resolveResendTarget(observations, group.company_name)?.role ?? null
+      : null;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
