@@ -341,22 +341,40 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
 
 
 // ---------- match por convênio ----------
-/**
- * Compara o convênio do item com o nome principal e os aliases da regra.
- * Comparação case/acento-insensitive. Vazio dos dois lados = não bate.
- */
-function targetsAgreement(r: RuleInput, item: ItemInput): boolean {
-  const itemAg = normName(item.agreement_name);
-  if (!itemAg) return false;
-  const main = normName(r.agreement_name);
-  if (main && main === itemAg) return true;
-  const aliases = (r.agreement_aliases ?? []).map(normName).filter(Boolean);
-  return aliases.includes(itemAg);
+/** Normaliza removendo acentos, caixa e TODOS os espaços para tolerar variações
+ *  de escrita ("Sul América" = "SUL AMERICA" = "sulamerica"). */
+const normAgreement = (s: string | null | undefined): string =>
+  (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "");
+
+/** Lista consolidada de tags da regra (aliases + nome principal legado). */
+function ruleAgreementTags(r: RuleInput): string[] {
+  const tags = Array.isArray(r.agreement_aliases) ? [...r.agreement_aliases] : [];
+  if (r.agreement_name && r.agreement_name.trim()) tags.push(r.agreement_name.trim());
+  return Array.from(new Set(tags.map(normAgreement).filter(Boolean)));
 }
 
+/**
+ * A regra se aplica ao item considerando whitelist/blacklist:
+ *  - sem tags                 → aplica a todos os convênios
+ *  - whitelist + tags         → aplica APENAS se o convênio do item ∈ tags
+ *  - blacklist + tags         → aplica a TODOS exceto os convênios em tags
+ *  - blacklist sem convênio no item → aplica (não há o que excluir)
+ *  - whitelist sem convênio no item → não aplica (não há como confirmar match)
+ */
+function targetsAgreement(r: RuleInput, item: ItemInput): boolean {
+  const tags = ruleAgreementTags(r);
+  if (tags.length === 0) return true;
+  const mode = r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+  const itemAg = normAgreement(item.agreement_name);
+  if (mode === "whitelist") return !!itemAg && tags.includes(itemAg);
+  // blacklist
+  if (!itemAg) return true;
+  return !tags.includes(itemAg);
+}
+
+/** A regra possui restrição explícita por convênio (= entra no eixo determinístico). */
 function ruleHasAgreement(r: RuleInput): boolean {
-  return !!(r.agreement_name && r.agreement_name.trim()) ||
-    (Array.isArray(r.agreement_aliases) && r.agreement_aliases.length > 0);
+  return ruleAgreementTags(r).length > 0;
 }
 
 function ruleHasSpecialty(r: RuleInput): boolean {
