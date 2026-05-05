@@ -41,6 +41,22 @@ const SetPassword = () => {
   useEffect(() => {
     document.title = "Definir senha | MedPay Approval";
     let cancelled = false;
+    let settled = false;
+
+    // 1) Listener para o evento PASSWORD_RECOVERY que o Supabase dispara
+    //    automaticamente ao detectar o hash/code da URL.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === "PASSWORD_RECOVERY") {
+        settled = true;
+        setFlow("recovery");
+        setPhase("ready");
+      } else if (event === "SIGNED_IN" && session && !settled) {
+        // Convite (invite) ou usuário recém-autenticado pelo link
+        settled = true;
+        setPhase("ready");
+      }
+    });
 
     const run = async () => {
       try {
@@ -68,6 +84,7 @@ const SetPassword = () => {
           });
           if (error) throw error;
           window.history.replaceState({}, "", window.location.pathname);
+          settled = true;
           if (!cancelled) setPhase("ready");
           return;
         }
@@ -76,8 +93,8 @@ const SetPassword = () => {
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-          // Limpa o parâmetro da URL
           window.history.replaceState({}, "", window.location.pathname);
+          settled = true;
           if (!cancelled) setPhase("ready");
           return;
         }
@@ -87,29 +104,39 @@ const SetPassword = () => {
           const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (error) throw error;
           window.history.replaceState({}, "", window.location.pathname);
+          settled = true;
           if (!cancelled) setPhase("ready");
           return;
         }
 
-        // Caminho 3 — usuário já está logado e quer trocar a senha manualmente
+        // Caminho 3 — aguarda evento PASSWORD_RECOVERY/SIGNED_IN do listener
+        // (Supabase pode estar processando o hash em background).
+        await new Promise((r) => setTimeout(r, 600));
+        if (cancelled || settled) return;
+
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          setFlow("session");
-          if (!cancelled) setPhase("ready");
+          setFlow((f) => (f === "invite" ? "invite" : "session"));
+          settled = true;
+          setPhase("ready");
           return;
         }
 
         setErrorMsg("Link inválido ou expirado. Solicite um novo convite ou recuperação de senha.");
-        if (!cancelled) setPhase("invalid");
-      } catch (e: any) {
+        setPhase("invalid");
+      } catch (e: unknown) {
         if (cancelled) return;
-        setErrorMsg(e?.message ?? "Não foi possível validar o link.");
+        const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
+        setErrorMsg(msg);
         setPhase("invalid");
       }
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
