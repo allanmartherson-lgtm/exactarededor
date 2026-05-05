@@ -111,6 +111,8 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
 ];
 
 const COLUMN_PREFS_KEY = "companyAnalysis.columnVisibility.v1";
+const DENSITY_PREFS_KEY = "companyAnalysis.density.v1";
+type Density = "compact" | "comfortable";
 const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   atendimento: true,
   convenio: true,
