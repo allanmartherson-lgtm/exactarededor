@@ -783,6 +783,7 @@ function RowMain({
   eff,
   tone,
   isActive,
+  isExpanded,
   isCritical,
   hasAlert,
   onSelect,
@@ -790,8 +791,10 @@ function RowMain({
   colVis,
   rulesIndex,
   rulesByName,
+  observations,
   obsCount,
   isCompact,
+  totalCols,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -799,6 +802,7 @@ function RowMain({
   eff: ItemAiStatus | "seguido";
   tone: keyof typeof TONE_CLASSES;
   isActive: boolean;
+  isExpanded: boolean;
   isCritical: boolean;
   hasAlert: boolean;
   onSelect: () => void;
@@ -806,8 +810,10 @@ function RowMain({
   colVis: Record<OptionalColKey, boolean>;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
+  observations: ObservationRow[];
   obsCount: number;
   isCompact: boolean;
+  totalCols: number;
 }) {
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
@@ -835,115 +841,126 @@ function RowMain({
     ruleName = r?.name ?? matchedNames[0];
   }
 
-  // Cor base/ativa para a célula sticky (precisa cobrir o conteúdo abaixo).
-  const baseCellBg = isActive
+  const baseCellBg = isExpanded
     ? "bg-primary/10"
+    : isActive
+    ? "bg-primary/5"
     : isCritical
     ? "bg-destructive/5"
     : hasAlert
     ? "bg-warning-soft/30"
     : "bg-background";
-  // Sticky cells MUST be fully opaque to prevent text bleed from neighbouring columns.
-  const stickyBg = isActive
+  const stickyBg = isExpanded
     ? "bg-primary-soft"
+    : isActive
+    ? "bg-primary-soft/60"
     : isCritical
     ? "bg-destructive-soft"
     : hasAlert
     ? "bg-warning-soft"
     : "bg-card";
   const stickyHover =
-    !isActive && !isCritical && !hasAlert ? "group-hover:bg-muted" : "";
+    !isActive && !isExpanded && !isCritical && !hasAlert ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const stickyCell = cn(
-    cellPad,
-    "truncate border-b sticky z-10",
-    stickyBg,
-    stickyHover,
-  );
+  const stickyCell = cn(cellPad, "truncate border-b sticky z-10", stickyBg, stickyHover);
   const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
 
   return (
-    <tr
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      data-row-id={it.id}
-      aria-selected={isActive}
-      tabIndex={-1}
-      className={cn(
-        "group cursor-pointer hover:bg-muted/40 transition-colors",
-        isActive && "ring-1 ring-inset ring-primary/40",
-      )}
-    >
-      {colVis.atendimento && (
-        <td className={cn(cell, "font-mono text-[10px]", baseCellBg)} title={it.attendance_number ?? ""}>
-          {it.attendance_number ?? "—"}
-        </td>
-      )}
-      <td className={cn(stickyCell, "left-0 min-w-[180px]")} title={paciente}>
-        <span className="truncate block">{paciente}</span>
-      </td>
-      {colVis.convenio && (
-        <td className={cn(cell, baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
-          {convenio}
-        </td>
-      )}
-      {colVis.via && (
-        <td className={cn(cell, baseCellBg)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
-      )}
-      <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
-      <td
-        className={cn(stickyCell, "left-[180px] min-w-[200px] text-muted-foreground")}
-        title={it.procedure_name ?? it.description ?? ""}
-      >
-        <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
-      </td>
-      <td
-        className={cn(stickyCell, "left-[380px] min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}
-        title={it.doctor_name ?? ""}
-      >
-        <span className="truncate block">{it.doctor_name}</span>
-      </td>
-      {colVis.funcao && (
-        <td className={cn(cell, baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
-      )}
-      {colVis.regra && (
-        <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
-      )}
-      <td className={cn("px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
-        {formatCurrency(grossN)}
-      </td>
-      <td
+    <>
+      <tr
+        onClick={() => {
+          onSelect();
+          onOpen();
+        }}
+        data-row-id={it.id}
+        aria-selected={isActive}
+        aria-expanded={isExpanded}
+        tabIndex={-1}
         className={cn(
-          "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
-          diverges ? "text-warning-foreground" : "text-muted-foreground",
-          baseCellBg,
+          "group cursor-pointer hover:bg-muted/40 transition-colors",
+          isExpanded && "ring-1 ring-inset ring-primary/40",
         )}
       >
-        {expN != null ? formatCurrency(expN) : "—"}
-      </td>
-      {colVis.diferenca && (
+        {colVis.atendimento && (
+          <td className={cn(cell, "font-mono text-[10px]", baseCellBg)} title={it.attendance_number ?? ""}>
+            {it.attendance_number ?? "—"}
+          </td>
+        )}
+        <td className={cn(stickyCell, "left-0 min-w-[180px]")} title={paciente}>
+          <span className="truncate block">{paciente}</span>
+        </td>
+        {colVis.convenio && (
+          <td className={cn(cell, baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
+            {convenio}
+          </td>
+        )}
+        {colVis.via && (
+          <td className={cn(cell, baseCellBg)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+        )}
+        <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
+        <td
+          className={cn(stickyCell, "left-[180px] min-w-[200px] text-muted-foreground")}
+          title={it.procedure_name ?? it.description ?? ""}
+        >
+          <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+        </td>
+        <td
+          className={cn(stickyCell, "left-[380px] min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}
+          title={it.doctor_name ?? ""}
+        >
+          <span className="truncate block">{it.doctor_name}</span>
+        </td>
+        {colVis.funcao && (
+          <td className={cn(cell, baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+        )}
+        {colVis.regra && (
+          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
+        )}
+        <td className={cn("px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+          {formatCurrency(grossN)}
+        </td>
         <td
           className={cn(
             "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
-            diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+            diverges ? "text-warning-foreground" : "text-muted-foreground",
             baseCellBg,
           )}
         >
-          {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+          {expN != null ? formatCurrency(expN) : "—"}
         </td>
-      )}
-      <td className={cn("px-1.5 py-1 border-b", baseCellBg)}>
-        <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
-          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
-          {eff}
-        </span>
-      </td>
-      {colVis.observacao && (
-        <td className={cn("px-1.5 py-1 text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
-          {obsCount > 0 ? obsCount : "—"}
+        {colVis.diferenca && (
+          <td
+            className={cn(
+              "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
+              diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+              baseCellBg,
+            )}
+          >
+            {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+          </td>
+        )}
+        <td className={cn("px-1.5 py-1 border-b", baseCellBg)}>
+          <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
+            {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+            {eff}
+          </span>
         </td>
+        {colVis.observacao && (
+          <td className={cn("px-1.5 py-1 text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
+            {obsCount > 0 ? obsCount : "—"}
+          </td>
+        )}
+      </tr>
+      {isExpanded && (
+        <ItemDetailsRow
+          it={it}
+          rulesIndex={rulesIndex}
+          rulesByName={rulesByName}
+          observations={observations}
+          colSpan={totalCols}
+        />
       )}
-    </tr>
+    </>
   );
 }
 
