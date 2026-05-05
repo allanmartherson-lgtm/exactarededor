@@ -246,7 +246,7 @@ export const PaymentGroupCard = ({
   const groupRisk = classifyRisk(groupMaxScore);
 
   return (
-    <Card className="shadow-card overflow-hidden">
+    <Card className="shadow-card">
       <button
         type="button"
         onClick={onToggleExpanded}
