@@ -170,9 +170,18 @@ interface CompanyRow { id: string; name: string; aliases: string[] }
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 
 const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
+  // 1) Exact normalized match (header-based lookup, ordem das colunas é irrelevante)
   for (const k of keys) {
+    const nk = norm(k);
     for (const rk of Object.keys(row)) {
-      if (norm(rk).includes(norm(k))) return row[rk];
+      if (norm(rk) === nk) return row[rk];
+    }
+  }
+  // 2) Fallback: substring match (mantém compat com headers ligeiramente diferentes)
+  for (const k of keys) {
+    const nk = norm(k);
+    for (const rk of Object.keys(row)) {
+      if (norm(rk).includes(nk)) return row[rk];
     }
   }
   return undefined;
@@ -308,7 +317,7 @@ const NewPayment = () => {
         procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
         access_route: toStr(pick(row, ["via de acesso", "viaacesso", "via acesso"])),
         doctor_role: role,
-        agreement_text: toStr(pick(row, ["percentual", "acordo"])),
+        agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo"])),
         procedure_amount: procVal || null,
         quantity: toNumber(pick(row, ["qtd", "quantidade"])) || null,
         procedure_date: excelDateToISO(pick(row, ["data"])),
