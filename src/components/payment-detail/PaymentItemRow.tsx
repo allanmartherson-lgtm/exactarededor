@@ -47,6 +47,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { AuthorizedExceptionDialog } from "./AuthorizedExceptionDialog";
+import { getAgreement, getPatient } from "@/lib/itemFields";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted",
