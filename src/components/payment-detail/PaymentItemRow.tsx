@@ -171,6 +171,25 @@ export const PaymentItemRow = ({
   const fXs = fSec;
   const [excOpen, setExcOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+
+  // Atalhos: ↑/↓ navegam entre itens enquanto o drawer estiver aberto.
+  useEffect(() => {
+    if (!isExpanded || !onNavigate) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (e.key === "ArrowUp" && hasPrev) {
+        e.preventDefault();
+        onNavigate("prev");
+      } else if (e.key === "ArrowDown" && hasNext) {
+        e.preventDefault();
+        onNavigate("next");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isExpanded, onNavigate, hasPrev, hasNext]);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
   const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
