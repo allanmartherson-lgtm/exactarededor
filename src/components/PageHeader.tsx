@@ -44,8 +44,8 @@ export const PageHeader = ({
     <div
       className={
         sticky
-          ? "border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-8 py-4 sticky z-30 shadow-sm"
-          : "border-b border-border bg-card px-8 py-6"
+          ? "border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-6 py-3 sticky z-30 shadow-sm"
+          : "border-b border-border bg-card px-6 py-4"
       }
       style={sticky ? { top: stickyOffset } : undefined}
     >
