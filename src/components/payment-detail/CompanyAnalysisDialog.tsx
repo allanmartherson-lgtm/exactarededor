@@ -898,6 +898,23 @@ function RowMain({
   );
 }
 
+function ItemDetailsPanel(props: {
+  it: PaymentItemRowData;
+  rulesIndex: Record<string, RuleLite>;
+  rulesByName: Record<string, RuleLite>;
+  observations: ObservationRow[];
+}) {
+  return (
+    <div className="flex-1 overflow-auto">
+      <table className="w-full">
+        <tbody>
+          <ItemDetailsRow {...props} />
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ItemDetailsRow({
   it,
   rulesIndex,
