@@ -18,10 +18,11 @@ export const createPasswordRecoveryClient = (options: PasswordRecoveryClientOpti
     storageKey: PASSWORD_RECOVERY_STORAGE_KEY,
     persistSession: true,
     autoRefreshToken: true,
-    // Deixa a auth-js processar #access_token=... ou ?code=... automaticamente
-    // e disparar PASSWORD_RECOVERY/SIGNED_IN no listener correto.
+    // PKCE coloca o token de recuperação em ?code=..., que sobrevive aos
+    // redirects do preview. Hash implicit (#access_token=...) é mantido só
+    // como fallback para links antigos.
     detectSessionInUrl: true,
-    flowType: options.flowType ?? "implicit",
+    flowType: options.flowType ?? "pkce",
     skipAutoInitialize: options.skipAutoInitialize,
   } as Parameters<typeof createClient>[2]["auth"] & { skipAutoInitialize?: boolean };
 
