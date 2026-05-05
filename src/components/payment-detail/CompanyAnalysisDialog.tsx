@@ -800,6 +800,7 @@ function RowMain({
   rulesIndex,
   rulesByName,
   obsCount,
+  isCompact,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -815,6 +816,7 @@ function RowMain({
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   obsCount: number;
+  isCompact: boolean;
 }) {
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
