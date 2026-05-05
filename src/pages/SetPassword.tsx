@@ -97,7 +97,7 @@ const SetPassword = () => {
 
     const run = async () => {
       try {
-        const errorDescription = hashParams.get("error_description") ?? params.get("error_description");
+        const errorDescription = urlHashParams.get("error_description") ?? queryParams.get("error_description");
         if (errorDescription) {
           setErrorMsg(decodeURIComponent(errorDescription));
           setPhase("invalid");
@@ -105,7 +105,7 @@ const SetPassword = () => {
         }
 
         const type = (urlHashParams.get("type") ?? queryParams.get("type") ?? "") as "invite" | "recovery" | "";
-        const tokenHash = queryParams.get("token_hash") ?? urlHashParams.get("token_hash");
+        const tokenHash = queryParams.get("token_hash") ?? urlHashParams.get("token_hash") ?? queryParams.get("token") ?? urlHashParams.get("token");
         const accessToken = urlHashParams.get("access_token");
         const refreshToken = urlHashParams.get("refresh_token");
         const code = queryParams.get("code");
