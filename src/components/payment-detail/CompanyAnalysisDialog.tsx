@@ -308,9 +308,9 @@ export function CompanyAnalysisDialog({
       } else if (e.key === "Enter" && activeId) {
         e.preventDefault();
         openDetail(activeId);
-      } else if (e.key === "Escape" && detailOpen) {
+      } else if (e.key === "Escape" && expandedId) {
         e.preventDefault();
-        setDetailOpen(false);
+        setExpandedId(null);
       }
     };
     window.addEventListener("keydown", handler);
