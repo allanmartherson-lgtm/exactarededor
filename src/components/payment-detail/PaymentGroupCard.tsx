@@ -345,6 +345,17 @@ export const PaymentGroupCard = ({
         rulesIndex={rulesIndex}
         rulesByName={rulesByName}
         observations={obs}
+        isAnalista={isAnalista}
+        isValidador={isValidador}
+        isDiretor={isDiretor}
+        busy={busy}
+        reanalyzingGroupId={reanalyzingGroupId}
+        groupCommentDraft={groupCommentDraft}
+        onGroupCommentDraftChange={onGroupCommentDraftChange}
+        onReanalyze={onReanalyze}
+        onResend={onResend}
+        onSendForValidation={onSendForValidation}
+        onTransition={onTransition}
       />
 
       {groupExpandedEffective && nfDivergent && (
