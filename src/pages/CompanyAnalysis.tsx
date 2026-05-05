@@ -174,7 +174,91 @@ export default function CompanyAnalysis() {
     load();
   };
 
-  if (loading) {
+  // Ações de fluxo (paridade com o popup de análise por empresa).
+  const reanalyzeGroup = async () => {
+    if (!id || !group) return;
+    setReanalyzing(true);
+    try {
+      const { error } = await supabase.functions.invoke("analyze-payment", {
+        body: { payment_id: id, company_name: group.company_name },
+      });
+      if (error) throw error;
+      await recordObservation({
+        payment_id: id,
+        author_type: myAuthorType,
+        author_id: user!.id,
+        message: `[${group.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
+        status_from: group.status,
+        status_to: group.status,
+      });
+      toast.success("Regras reaplicadas");
+      load();
+    } catch (e) {
+      toast.error("Falha ao reaplicar regras", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
+  const sendForValidation = async () => {
+    if (!id || !group) return;
+    if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
+    setBusy(true);
+    const target = resolveResendTarget(obs, group.company_name);
+    const next = target?.nextStatus ?? "aguardando_validacao";
+    const { error } = await supabase
+      .from("payment_company_groups")
+      .update({ status: next })
+      .eq("id", group.id);
+    if (error) {
+      setBusy(false);
+      return toast.error("Erro ao enviar", { description: error.message });
+    }
+    const text = groupDraft.trim();
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: target
+        ? `[${group.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`
+        : `[${group.company_name}] Enviado para validação pelo analista${text ? `: ${text}` : ""}.`,
+      status_from: group.status,
+      status_to: next,
+    });
+    setGroupDraft("");
+    setBusy(false);
+    toast.success(target ? `Reencaminhado ao ${target.role}` : "Enviado para validação");
+    load();
+  };
+
+  const returnToAnalyst = async () => {
+    if (!id || !group) return;
+    const text = groupDraft.trim();
+    if (!text) return toast.error("Observação obrigatória", { description: "Descreva o motivo da devolução." });
+    setBusy(true);
+    const { error } = await supabase
+      .from("payment_company_groups")
+      .update({ status: "devolvido_analista" })
+      .eq("id", group.id);
+    if (error) {
+      setBusy(false);
+      return toast.error("Erro ao devolver", { description: error.message });
+    }
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] Devolvido ao analista: ${text}`,
+      status_from: group.status,
+      status_to: "devolvido_analista",
+    });
+    setGroupDraft("");
+    setBusy(false);
+    toast.success("Devolvido ao analista");
+    load();
+  };
     return (
       <div className="space-y-4">
         <PageHeader title="Carregando análise…" />
