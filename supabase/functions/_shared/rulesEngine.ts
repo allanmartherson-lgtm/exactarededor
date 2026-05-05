@@ -713,33 +713,53 @@ function calcTabelaDiferenciada(
   const mult = rule.multiplier ?? 1;
   const defl = rule.deflator_pct ?? 0;
   const rep  = rule.repasse_pct ?? 100;
-  let value = base * mult * (1 - defl / 100) * (rep / 100);
-  const parts: string[] = [`${baseLabel} R$ ${base.toFixed(2)}${baseSource}`, `× ${mult}`, `× (1 − ${defl}%)`, `× ${rep}%`];
-  if (rule.apply_access_route) {
-    const f = accessRouteFactor(item.access_route);
-    value *= f;
-    parts.push(`× via(${f})`);
-  }
+
+  // 1) base × multiplicador
+  let value = base * mult;
+  const parts: string[] = [
+    `${baseLabel} R$ ${base.toFixed(2)}${baseSource}`,
+    `× mult ${mult}`,
+  ];
+
+  // 2) via/função (auxiliares têm precedência sobre via simples)
+  let viaAuxApplied = false;
   if (rule.include_auxiliaries) {
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
       const pct = (rule.instrumentador_pct ?? 10) / 100;
-      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
+      value *= pct;
       parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
+      viaAuxApplied = true;
     } else if (role === "primeiro_aux") {
       const pct = (rule.aux_first_pct ?? 30) / 100;
-      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
+      value *= pct;
       parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
+      viaAuxApplied = true;
     } else if (role === "demais_aux") {
       const pct = (rule.aux_second_pct ?? 20) / 100;
-      value = base * mult * (1 - defl / 100) * (rep / 100) * pct;
+      value *= pct;
       parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
-    } else {
-      const auxPct = (rule.auxiliary_pct ?? rule.aux_first_pct ?? 30) / 100;
-      value *= (1 + auxPct);
-      parts.push(`× (1 + aux ${(auxPct * 100).toFixed(0)}%)`);
+      viaAuxApplied = true;
     }
   }
+  if (!viaAuxApplied && rule.apply_access_route) {
+    const f = accessRouteFactor(item.access_route);
+    value *= f;
+    parts.push(`× via(${(f * 100).toFixed(0)}%)`);
+  }
+
+  // 3) repasse (% do convênio repassado), se configurado < 100
+  if (rep !== 100) {
+    value *= (rep / 100);
+    parts.push(`× repasse ${rep}%`);
+  }
+
+  // 4) deflator/glosa por último
+  if (defl !== 0) {
+    value *= (1 - defl / 100);
+    parts.push(`× (1 − deflator ${defl}%)`);
+  }
+
   const expected = Number(value.toFixed(2));
   return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };
 }
