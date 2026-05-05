@@ -497,62 +497,7 @@ function Stat({
   );
 }
 
-function ItemsTable({ items, gStatus }: { items: PaymentItemRow[]; gStatus: PaymentStatus }) {
-  if (items.length === 0) {
-    return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        Sem itens para exibir.
-      </div>
-    );
-  }
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Paciente</TableHead>
-            <TableHead>Médico</TableHead>
-            <TableHead>TUSS</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
-            <TableHead className="text-right">Esperado</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((it) => {
-            const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-            const paciente =
-              (it.patient_name as string | null) ??
-              ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-              "—";
-            const expected = it.ai_findings?.expected_amount;
-            const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
-            const tone: keyof typeof TONE_CLASSES =
-              eff === "reprovado" ? "destructive" : eff === "alerta" ? "warning" : eff === "aprovado" || eff === "seguido" ? "success" : "muted";
-            return (
-              <TableRow key={it.id} className={cn(eff === "reprovado" && "bg-destructive/5")}>
-                <TableCell className="text-sm">{paciente}</TableCell>
-                <TableCell className="text-sm">{it.doctor_name}</TableCell>
-                <TableCell className="text-xs font-mono">{it.procedure_code ?? "—"}</TableCell>
-                <TableCell className="text-sm text-right tabular-nums">
-                  {formatCurrency(Number(it.gross_amount ?? 0))}
-                </TableCell>
-                <TableCell className="text-sm text-right tabular-nums text-muted-foreground">
-                  {expected != null ? formatCurrency(Number(expected)) : "—"}
-                </TableCell>
-                <TableCell>
-                  <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px]", TONE_CLASSES[tone])}>
-                    {eff}
-                  </span>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
+// ItemsTable foi substituída por <ItemsDataGrid /> compartilhado.
 
 function DivergenceCard({
   it,
