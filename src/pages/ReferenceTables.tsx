@@ -14,7 +14,7 @@ import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
 type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos" | "pacote_combinacao";
-type RefPurpose = "calculo" | "classificacao" | "exclusao";
+type RefPurpose = "calculo" | "classificacao" | "exclusao" | "sem_acordo";
 type RefTable = {
   id: string; name: string; description: string | null; year: number | null;
   kind: RefKind; purpose: RefPurpose;
@@ -31,6 +31,7 @@ const PURPOSE_LABEL: Record<RefPurpose, string> = {
   calculo: "Cálculo",
   classificacao: "Classificação",
   exclusao: "Exclusão / expurgo",
+  sem_acordo: "Sem acordo (usar valor do convênio)",
 };
 const KIND_LABEL: Record<RefKind, string> = {
   simples: "Simples (código → valor)",
@@ -573,6 +574,7 @@ const ReferenceTables = () => {
                     <option value="calculo">Cálculo (calcula valor esperado)</option>
                     <option value="classificacao">Classificação (categoriza códigos)</option>
                     <option value="exclusao">Exclusão / expurgo (não pagar)</option>
+                    <option value="sem_acordo">Sem acordo (usar valor do convênio)</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
                     Não misture códigos pagáveis e não pagáveis na mesma finalidade.
@@ -671,7 +673,7 @@ const ReferenceTables = () => {
                         <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
                           {KIND_LABEL[t.kind] ?? t.kind}
                         </span>
-                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : "bg-success/10 text-success border border-success/30"}`}>
+                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : t.purpose === "sem_acordo" ? "bg-warning/10 text-warning border border-warning/30" : "bg-success/10 text-success border border-success/30"}`}>
                           {PURPOSE_LABEL[t.purpose ?? "calculo"]}
                         </span>
                         {t.active === false && (
