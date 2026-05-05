@@ -1084,7 +1084,7 @@ function ItemDetailsRow({
 
         <div className="grid gap-3 lg:grid-cols-2">
           {/* COL 1 — Alertas e Exceção */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             {alerts.length > 0 && (
               <AlertBanner
                 severity={isCritical ? "critico" : "alerta"}
