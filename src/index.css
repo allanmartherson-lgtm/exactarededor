@@ -264,7 +264,7 @@ All colors MUST be HSL.
   table thead th {
     font-size: 10px !important;
     font-weight: 600 !important;
-    color: hsl(var(--text-tertiary));
+    color: hsl(var(--text-tertiary)) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     border-bottom: 1px solid hsl(var(--border));
@@ -282,7 +282,7 @@ All colors MUST be HSL.
     line-height: 1.4 !important;
     vertical-align: middle !important;
     padding: 8px 16px !important;
-    color: hsl(var(--foreground));
+    color: hsl(var(--foreground)) !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

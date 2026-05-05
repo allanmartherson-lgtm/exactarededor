@@ -893,7 +893,7 @@ function RowMain({
           <span className="truncate block">{paciente}</span>
         </td>
         {colVis.convenio && (
-          <td className={cn(cell, baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
+          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
             {convenio}
           </td>
         )}
@@ -902,7 +902,7 @@ function RowMain({
         )}
         <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
         <td
-          className={cn(stickyCell, "left-[180px] min-w-[200px] text-muted-foreground")}
+          className={cn(stickyCell, "left-[180px] min-w-[200px]")}
           title={it.procedure_name ?? it.description ?? ""}
         >
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
@@ -914,7 +914,7 @@ function RowMain({
           <span className="truncate block">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
-          <td className={cn(cell, baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
         )}
         {colVis.regra && (
           <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
@@ -924,8 +924,8 @@ function RowMain({
         </td>
         <td
           className={cn(
-            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
-            diverges ? "text-warning-foreground" : "text-muted-foreground",
+            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b font-medium",
+            diverges ? "text-warning-foreground" : "text-foreground",
             baseCellBg,
           )}
         >
