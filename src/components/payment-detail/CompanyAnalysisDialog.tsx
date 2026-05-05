@@ -724,11 +724,11 @@ function RowMain({
   expected,
   eff,
   tone,
-  isOpen,
   isActive,
   isCritical,
   hasAlert,
-  onToggle,
+  onSelect,
+  onOpen,
   colVis,
   rulesIndex,
   rulesByName,
@@ -739,11 +739,11 @@ function RowMain({
   expected: number | null;
   eff: ItemAiStatus | "seguido";
   tone: keyof typeof TONE_CLASSES;
-  isOpen: boolean;
   isActive: boolean;
   isCritical: boolean;
   hasAlert: boolean;
-  onToggle: () => void;
+  onSelect: () => void;
+  onOpen: () => void;
   colVis: Record<OptionalColKey, boolean>;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
