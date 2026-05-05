@@ -971,28 +971,27 @@ export function analyzeItem(
     // consultadas — cada regra é uma unidade autocontida.
     if (ruleHasAgreement(winner) && !ruleAcceptsItemAgreement(winner, item)) {
       const mode = winner.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
-      const def = calcDefault(item);
       const motivo = mode === "blacklist"
         ? `Convênio "${item.agreement_name ?? "—"}" está na blacklist da regra "${winner.name}".`
         : `Convênio "${item.agreement_name ?? "—"}" não satisfaz a whitelist da regra "${winner.name}".`;
+      const paid = Number(item.gross_amount ?? 0);
       return {
         item_id: item.id,
-        status: "alerta",
-        expected_amount: def.expected,
-        diff_pct: def.expected != null ? classifyDiff(def.expected, item.gross_amount).diff_pct : null,
+        status: "aprovado",
+        expected_amount: paid,
+        diff_pct: 0,
         matched_rule_id: null,
-        matched_rule_name: null,
+        matched_rule_name: `Camada 1 — Bloqueio de convênio: ${winner.name}`,
         matched_priority: "sem_regra",
-        calculation_type_used: def.calculation_type_used,
+        calculation_type_used: "informativo",
         calculation_explanation:
-          `Bloqueado pela Camada 1 (${motivo}). ` +
-          `Regra de cálculo ignorada — ${def.explanation}`,
+          `Bloqueado pela Camada 1 (${motivo}) — sem acordo para esta combinação. ` +
+          `Sistema não tem acesso à tabela interna do convênio; aceita o valor pago como esperado (R$ ${paid.toFixed(2)}).`,
         alerts: [
-          `${motivo} Cálculo da regra ignorado; aplicado fallback por setor.`,
-          ...def.alerts,
+          `${motivo} Regra de cálculo não aplicada — esperado = valor pago pelo convênio.`,
         ],
-        needs_ai_review: true,
-        needs_human_review: true,
+        needs_ai_review: false,
+        needs_human_review: false,
       };
     }
 
