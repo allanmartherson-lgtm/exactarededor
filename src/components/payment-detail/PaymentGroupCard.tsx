@@ -301,6 +301,23 @@ export const PaymentGroupCard = ({
             <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
           )}
           <StatusBadge status={gStatus} />
+          <div onClick={(e) => e.stopPropagation()}>
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={density}
+              onValueChange={(v) => v && setDensity(v as RowDensity)}
+              className="h-7 rounded-md border border-border bg-background"
+              aria-label="Densidade da tabela"
+            >
+              <ToggleGroupItem value="compact" className="h-6 px-2 text-[10px]" title="Compacto (padrão analista)">
+                Compacto
+              </ToggleGroupItem>
+              <ToggleGroupItem value="comfortable" className="h-6 px-2 text-[10px]" title="Confortável">
+                Confortável
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
