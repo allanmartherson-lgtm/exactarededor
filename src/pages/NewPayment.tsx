@@ -319,6 +319,7 @@ const NewPayment = () => {
         access_route: toStr(pick(row, ["via de acesso", "viaacesso", "via acesso"])),
         doctor_role: role,
         agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo"])),
+        specialty: toStr(pick(row, ["especialidade", "especialid", "especialidade médica", "especialidade medica"])) || null,
         procedure_amount: procVal || null,
         quantity: toNumber(pick(row, ["qtd", "quantidade"])) || null,
         procedure_date: excelDateToISO(pick(row, ["data"])),
