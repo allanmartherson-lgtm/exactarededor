@@ -192,7 +192,9 @@ export function ItemsDataGrid({
     return items.filter((it) => {
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+      const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
       if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
+      if (onlyNeedsReview && !needsReview) return false;
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
@@ -213,7 +215,12 @@ export function ItemsDataGrid({
         .toLowerCase()
         .includes(term);
     });
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, groupStatus]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
+
+  const needsReviewCount = useMemo(
+    () => items.filter((it) => !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review).length,
+    [items],
+  );
 
   const counts = useMemo(() => {
     const c = { alerta: 0, critico: 0, total: items.length };
@@ -308,7 +315,17 @@ export function ItemsDataGrid({
             <AlertTriangle className="h-3.5 w-3.5 mr-1" />
             Só com alertas
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts) && (
+          <Button
+            size="sm"
+            variant={onlyNeedsReview ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setOnlyNeedsReview((v) => !v)}
+            title="Itens sem regra que casa — precisam de decisão humana"
+          >
+            <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+            Sem regra ({needsReviewCount})
+          </Button>
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyNeedsReview) && (
             <Button
               size="sm"
               variant="ghost"
@@ -316,7 +333,7 @@ export function ItemsDataGrid({
               onClick={() => {
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
-                setOnlyAlerts(false);
+                setOnlyAlerts(false); setOnlyNeedsReview(false);
               }}
             >
               Limpar
