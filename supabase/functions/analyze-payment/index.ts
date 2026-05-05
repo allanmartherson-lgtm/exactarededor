@@ -72,7 +72,8 @@ serve(async (req) => {
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,
-        exclusion_reason,allows_authorized_exception
+        exclusion_reason,allows_authorized_exception,
+        agreement_name,agreement_aliases
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
