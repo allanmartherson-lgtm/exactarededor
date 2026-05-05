@@ -1071,13 +1071,13 @@ function ItemDetailsRow({
 
   return (
     <tr className="border-b bg-muted/20">
-      <td colSpan={12} className="px-4 py-3">
+      <td colSpan={12} className="px-5 py-3 align-top">
         {/* Linha 1 — Resumo dos campos da planilha */}
-        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 text-[11px]">
+        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-3 gap-y-2 text-[11px]">
           {summary.map((s) => (
             <div key={s.label} className="min-w-0">
               <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-              <p className="truncate" title={s.value}>{s.value}</p>
+              <p className="break-words leading-snug" title={s.value}>{s.value}</p>
             </div>
           ))}
         </div>
