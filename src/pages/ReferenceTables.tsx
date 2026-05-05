@@ -543,16 +543,16 @@ const ReferenceTables = () => {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Nova tabela</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Nova tabela de referência</DialogTitle>
               </DialogHeader>
-              <form onSubmit={createTable} className="space-y-3">
-                <div className="space-y-1.5">
+              <form onSubmit={createTable} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Nome</Label>
                   <Input name="name" required maxLength={100} placeholder="Ex: CBHPM 2018" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Descrição</Label>
                   <Input name="description" maxLength={300} />
                 </div>
