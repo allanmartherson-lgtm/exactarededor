@@ -852,11 +852,13 @@ function RowMain({
     : hasAlert
     ? "bg-warning-soft/30"
     : "bg-background";
+  const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
   const stickyCell = cn(
-    "px-1.5 py-1 truncate border-b sticky z-10",
+    cellPad,
+    "truncate border-b sticky z-10",
     baseCellBg,
   );
-  const cell = "px-1.5 py-1 truncate border-b whitespace-nowrap";
+  const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
 
   return (
     <tr
