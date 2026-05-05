@@ -57,6 +57,26 @@ type Props = {
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations?: ObservationRow[];
+  // Permissões e ações de fluxo (footer sticky)
+  isAnalista?: boolean;
+  isValidador?: boolean;
+  isDiretor?: boolean;
+  busy?: boolean;
+  reanalyzingGroupId?: string | null;
+  groupCommentDraft?: string;
+  onGroupCommentDraftChange?: (v: string) => void;
+  onReanalyze?: (g: GroupRow) => void;
+  onResend?: (groupId: string) => void;
+  onSendForValidation?: (groupId: string) => void;
+  onTransition?: (
+    groupId: string,
+    to: PaymentStatus,
+    actor: "validador" | "diretor",
+    label: string,
+    requireComment?: boolean,
+  ) => void;
+  /** "Voltar ao lote" — fecha o dialog e (opcionalmente) navega. Por padrão, fecha. */
+  onBackToBatch?: () => void;
 };
 
 /**
