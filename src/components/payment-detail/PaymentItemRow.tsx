@@ -272,7 +272,7 @@ export const PaymentItemRow = ({
         onClick={() => onToggleExpanded(it.id)}
       >
         <td className={`${cellPad} text-muted-foreground print:hidden align-top`}>
-          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <ChevronRight className="h-3 w-3" />
         </td>
         <td className={`${cellPad} ${fXs} font-mono text-muted-foreground truncate`} title={it.attendance_number ?? ""}>
           {it.attendance_number ?? "—"}
