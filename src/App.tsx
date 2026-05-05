@@ -25,6 +25,7 @@ import SlaSettings from "./pages/SlaSettings.tsx";
 import WcagAudit from "./pages/WcagAudit.tsx";
 import Kpis from "./pages/Kpis.tsx";
 import SidebarDiagnostic from "./pages/SidebarDiagnostic.tsx";
+import OverflowAudit from "./pages/OverflowAudit.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
               <Route path="/wcag-audit" element={<WcagAudit />} />
               <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
+              <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
             </Route>
             <Route path="*" element={<NotFound />} />
             </Routes>
