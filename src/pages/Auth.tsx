@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
+import { lovable } from "@/integrations/lovable";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
