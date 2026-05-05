@@ -277,8 +277,11 @@ export default function CompanyAnalysis() {
     );
   }
 
+  const canAct = gStatus === "revisao_analista" || gStatus === "devolvido_analista";
+  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-32">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link to={`/pagamentos/${id}`}>
