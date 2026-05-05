@@ -47,6 +47,8 @@ export default function CompanyAnalysis() {
   const [items, setItems] = useState<PaymentItemRow[]>([]);
   const [obs, setObs] = useState<ObservationRow[]>([]);
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
+  const [rulesIndex, setRulesIndex] = useState<Record<string, RuleLite>>({});
+  const [rulesByName, setRulesByName] = useState<Record<string, RuleLite>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
