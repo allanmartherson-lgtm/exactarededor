@@ -152,8 +152,9 @@ export function CompanyAnalysisDialog({
     gStatus === "devolvido_analista"
       ? resolveResendTarget(observations, group.company_name)?.role ?? null
       : null;
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Painel lateral (drawer) — id da linha selecionada (null = painel fechado).
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [patientFilter, setPatientFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
