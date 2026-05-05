@@ -300,12 +300,13 @@ const SetPassword = () => {
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
     }
+    await supabase.auth.signOut();
     setPhase("done");
-    toast({ title: "Senha definida", description: "Você já está autenticado." });
-    setTimeout(() => navigate("/", { replace: true }), 800);
+    toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
+    setTimeout(() => navigate("/auth", { replace: true }), 800);
   };
 
-  if (phase === "done") return <Navigate to="/" replace />;
+  if (phase === "done") return <Navigate to="/auth" replace />;
 
   const title = flow === "invite" ? "Bem-vindo(a)!" : flow === "recovery" ? "Redefinir senha" : "Trocar senha";
   const desc = flow === "invite"
