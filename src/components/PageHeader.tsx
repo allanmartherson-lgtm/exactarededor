@@ -72,7 +72,7 @@ export const PageHeader = ({
             </span>
           )}
           <div>
-            <h1 className={sticky ? "text-xl font-semibold tracking-tight" : "text-2xl font-semibold tracking-tight"}>{title}</h1>
+            <h1 className={sticky ? "text-lg font-semibold tracking-tight" : "text-xl font-semibold tracking-tight"}>{title}</h1>
             {description && (
               <p className={sticky ? "text-xs text-muted-foreground mt-0.5" : "text-sm text-muted-foreground mt-1"}>{description}</p>
             )}
