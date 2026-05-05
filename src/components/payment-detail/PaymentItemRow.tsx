@@ -162,6 +162,8 @@ export const PaymentItemRow = ({
   onNavigate,
   hasPrev = false,
   hasNext = false,
+  isSelected = false,
+  onSelect,
 }: PaymentItemRowProps) => {
   const isComfy = density === "comfortable";
   // Compacto profissional: padding 6-8px / 10-12px, linha ~36-40px.
