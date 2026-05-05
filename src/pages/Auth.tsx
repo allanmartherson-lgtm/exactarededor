@@ -11,6 +11,9 @@ import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
+const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
+
 const signInSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
   password: z.string().min(6, "Mínimo 6 caracteres").max(72),
@@ -40,6 +43,8 @@ const Auth = () => {
       toast({ title: "Informe seu email", description: "Preencha o campo de email para enviarmos o link de recuperação.", variant: "destructive" });
       return;
     }
+    sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
+    sessionStorage.setItem(PASSWORD_RECOVERY_EMAIL_KEY, parsed.data);
     setResetting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
