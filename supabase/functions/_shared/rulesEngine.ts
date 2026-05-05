@@ -415,6 +415,47 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
   const itemSector = inferItemSector(item);
   const isHemo = itemSector === "hemodinamica";
 
+  // ===== EIXO CONVÊNIO (precedência sobre médico/empresa/setor) =====
+  // Só rodamos quando o item tem convênio E existe ao menos uma regra
+  // que define agreement_name/aliases que casa com esse convênio.
+  const agreementRules = rules.filter((r) => ruleHasAgreement(r) && targetsAgreement(r, item));
+  if (agreementRules.length > 0) {
+    const agreementLevels: Array<{
+      bucket: RuleInput[];
+      priority: RuleMatchPriority;
+    }> = [
+      {
+        bucket: agreementRules.filter((r) => ruleHasSpecialty(r) && matchesItemSpecialty(r, item) && hasCodeRestriction(r) && matchesProcedureCode(r, item)),
+        priority: "convenio_especialidade_codigo",
+      },
+      {
+        bucket: agreementRules.filter((r) => ruleHasSpecialty(r) && matchesItemSpecialty(r, item) && !hasCodeRestriction(r)),
+        priority: "convenio_especialidade",
+      },
+      {
+        bucket: agreementRules.filter((r) => !ruleHasSpecialty(r) && hasCodeRestriction(r) && matchesProcedureCode(r, item)),
+        priority: "convenio_codigo",
+      },
+      {
+        bucket: agreementRules.filter((r) => !ruleHasSpecialty(r) && !hasCodeRestriction(r)),
+        priority: "convenio",
+      },
+    ];
+    for (const lvl of agreementLevels) {
+      if (lvl.bucket.length === 0) continue;
+      const { winner, tied } = breakTie(lvl.bucket);
+      if (winner) return { rule: winner, priority: lvl.priority };
+      return {
+        rule: null,
+        priority: "conflito",
+        conflict: {
+          candidate_rule_ids: tied.map((r) => r.id),
+          reason: `Conflito de regras de convênio no nível ${lvl.priority}: ${tied.length} regras empatadas.`,
+        },
+      };
+    }
+  }
+
   const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
   const companyRules = rules.filter((r) => targetsCompany(r, item));
   const groupRules   = rules.filter((r) => targetsGroup(r, item));
