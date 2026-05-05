@@ -1145,6 +1145,7 @@ export type Database = {
         Row: {
           active: boolean
           agreement_aliases: string[]
+          agreement_match_mode: string
           agreement_name: string | null
           allows_authorized_exception: boolean
           applies_payment_types:
@@ -1211,6 +1212,7 @@ export type Database = {
         Insert: {
           active?: boolean
           agreement_aliases?: string[]
+          agreement_match_mode?: string
           agreement_name?: string | null
           allows_authorized_exception?: boolean
           applies_payment_types?:
@@ -1277,6 +1279,7 @@ export type Database = {
         Update: {
           active?: boolean
           agreement_aliases?: string[]
+          agreement_match_mode?: string
           agreement_name?: string | null
           allows_authorized_exception?: boolean
           applies_payment_types?:
