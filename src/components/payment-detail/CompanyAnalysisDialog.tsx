@@ -299,7 +299,18 @@ export function CompanyAnalysisDialog({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 border-b px-4 py-3 bg-background">
+        <div className="flex items-center gap-3 border-b px-4 py-3 pr-12 bg-background">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (onBackToBatch) onBackToBatch();
+              else onOpenChange(false);
+            }}
+            aria-label="Voltar ao lote"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Voltar ao lote
+          </Button>
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-base truncate">{group.company_name}</DialogTitle>
             <DialogDescription className="text-xs">
@@ -316,9 +327,6 @@ export function CompanyAnalysisDialog({
               </Link>
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Toolbar */}
