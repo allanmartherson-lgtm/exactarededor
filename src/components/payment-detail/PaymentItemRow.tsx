@@ -152,10 +152,15 @@ export const PaymentItemRow = ({
   density = "compact",
 }: PaymentItemRowProps) => {
   const isComfy = density === "comfortable";
-  const cellPad = isComfy ? "px-2 py-2" : "px-1.5 py-1";
-  const cellPadRight = isComfy ? "px-2 py-2 text-right" : "px-1.5 py-1 text-right";
-  const fSm = isComfy ? "text-[12px]" : "text-[11px]";
-  const fXs = isComfy ? "text-[11px]" : "text-[10px]";
+  // Compacto profissional: padding 6-8px / 10-12px, linha ~36-40px.
+  // Confortável: padding 10-12px, linha mais alta.
+  const cellPad = isComfy ? "px-3 py-2.5" : "px-2.5 py-1.5";
+  const cellPadRight = `${cellPad} text-right`;
+  const fMain = isComfy ? "text-[14px]" : "text-[13px]"; // texto principal
+  const fSec = isComfy ? "text-[13px]" : "text-[12px]"; // texto secundário
+  const fVal = isComfy ? "text-[14px] font-semibold" : "text-[13px] font-semibold"; // valores
+  const fSm = fMain;
+  const fXs = fSec;
   const [excOpen, setExcOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
