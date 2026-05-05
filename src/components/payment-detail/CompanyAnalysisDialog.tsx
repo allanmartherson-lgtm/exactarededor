@@ -288,7 +288,10 @@ export function CompanyAnalysisDialog({
         if (prev) setActiveId(prev.id);
       } else if (e.key === "Enter" && activeId) {
         e.preventDefault();
-        toggleRow(activeId);
+        openDetail(activeId);
+      } else if (e.key === "Escape" && detailOpen) {
+        e.preventDefault();
+        setDetailOpen(false);
       }
     };
     window.addEventListener("keydown", handler);
