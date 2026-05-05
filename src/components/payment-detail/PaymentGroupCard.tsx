@@ -536,6 +536,7 @@ export const PaymentGroupCard = ({
                   onCommentDraftChange={(v) => onItemCommentDraftChange(it.id, v)}
                   onAddComment={() => onAddItemComment(it.id)}
                   busy={busy}
+                  density={density}
                   onExceptionChanged={onExceptionChanged}
                 />
               ))}
