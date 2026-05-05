@@ -12,8 +12,8 @@ type PasswordRecoveryClientOptions = {
   skipAutoInitialize?: boolean;
 };
 
-export const createPasswordRecoveryClient = (options: PasswordRecoveryClientOptions = {}) => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: ({
+export const createPasswordRecoveryClient = (options: PasswordRecoveryClientOptions = {}) => {
+  const authOptions = {
     storage: localStorage,
     storageKey: PASSWORD_RECOVERY_STORAGE_KEY,
     persistSession: true,
@@ -23,8 +23,10 @@ export const createPasswordRecoveryClient = (options: PasswordRecoveryClientOpti
     detectSessionInUrl: true,
     flowType: options.flowType ?? "implicit",
     skipAutoInitialize: options.skipAutoInitialize,
-  }),
-});
+  } as Parameters<typeof createClient>[2]["auth"] & { skipAutoInitialize?: boolean };
+
+  return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: authOptions });
+};
 
 export const preparePasswordRecoveryCodeVerifier = () => {
   const recoveryKey = `${PASSWORD_RECOVERY_STORAGE_KEY}-code-verifier`;
