@@ -52,6 +52,16 @@ const SetPassword = () => {
       setPhase("ready");
     };
 
+    const waitForSession = async (attempts = 40) => {
+      for (let i = 0; i < attempts; i++) {
+        if (cancelled || settled) return false;
+        const { data } = await supabase.auth.getSession();
+        if (data.session) return true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return false;
+    };
+
     // Listener para eventos do Supabase. O cliente tem detectSessionInUrl=true,
     // então ele processa o ?code=/#access_token= automaticamente e dispara
     // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
@@ -103,24 +113,16 @@ const SetPassword = () => {
           return;
         }
 
-        // Para PKCE, deixamos o cliente tentar detectar primeiro; se não houver
-        // sessão depois de um curto intervalo, fazemos o exchange como fallback.
+        // Para PKCE, deixamos o cliente de auth fazer a troca automaticamente.
+        // Evita corrida onde o código já foi consumido antes deste componente.
         if (code) {
-          for (let i = 0; i < 10; i++) {
-            if (cancelled || settled) return;
-            await new Promise((r) => setTimeout(r, 100));
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-              window.history.replaceState({}, "", window.location.pathname);
-              markReady(type === "invite" ? "invite" : "recovery");
-              return;
-            }
+          if (await waitForSession()) {
+            window.history.replaceState({}, "", window.location.pathname);
+            markReady(type === "invite" ? "invite" : "recovery");
+          } else if (!cancelled && !settled) {
+            setErrorMsg("Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
+            setPhase("invalid");
           }
-
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          window.history.replaceState({}, "", window.location.pathname);
-          markReady(type === "invite" ? "invite" : "recovery");
           return;
         }
 
@@ -143,9 +145,9 @@ const SetPassword = () => {
           return;
         }
 
-        // Sem parâmetros na URL — talvez já esteja logado e queira trocar a senha.
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
+        // Sem parâmetros na URL: o cliente pode ter removido o hash após processar
+        // o link de recuperação. Aguardamos a sessão antes de marcar como inválido.
+        if (await waitForSession()) {
           markReady("session");
           return;
         }
