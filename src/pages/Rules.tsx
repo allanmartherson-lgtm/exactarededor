@@ -459,6 +459,9 @@ const Rules = () => {
     setFTimeStart(r.time_start ? String(r.time_start).slice(0, 5) : "");
     setFTimeEnd(r.time_end ? String(r.time_end).slice(0, 5) : "");
     setFElectiveMode((r.elective_mode as ElectiveMode) ?? "qualquer");
+    // Garante que a seção "Identificação" esteja aberta ao editar
+    // (contém o bloco Convênio — eixo determinístico do motor de regras).
+    setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
     setOpen(true);
   };
 
