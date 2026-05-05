@@ -255,13 +255,13 @@ All colors MUST be HSL.
 @layer components {
   /* ============ Global table typography & layout ============ */
   table thead th {
-    font-size: 11.5px !important;
+    font-size: 11px !important;
     font-weight: 600 !important;
     color: hsl(var(--muted-foreground));
     text-transform: uppercase !important;
-    letter-spacing: 0.04em !important;
+    letter-spacing: 0.05em !important;
     border-bottom: 1px solid hsl(var(--border));
-    padding: 10px 16px !important;
+    padding: 8px 16px !important;
     text-align: left;
     vertical-align: middle !important;
     height: auto !important;
@@ -270,11 +270,11 @@ All colors MUST be HSL.
 
   table tbody td {
     text-transform: none !important;
-    font-size: 13.5px !important;
+    font-size: 13px !important;
     font-weight: 400;
     line-height: 1.4 !important;
     vertical-align: middle !important;
-    padding: 12px 16px !important;
+    padding: 10px 16px !important;
     color: hsl(var(--foreground));
     white-space: nowrap;
     overflow: hidden;
@@ -363,15 +363,16 @@ All colors MUST be HSL.
 
   /* ============ Compact density mode ============
    * Apply by adding `data-density="compact"` on the <table> or any ancestor.
-   * Guarantees rows never exceed 52px. */
+   * Guarantees rows never exceed 40px. */
   [data-density="compact"] table tbody tr,
   table[data-density="compact"] tbody tr {
-    max-height: 52px;
+    max-height: 40px;
   }
   [data-density="compact"] table tbody td,
   table[data-density="compact"] tbody td {
-    max-height: 52px;
-    padding: 8px 16px;
+    max-height: 40px;
+    padding: 6px 16px;
+    font-size: 12.5px !important;
     line-height: 1.35;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -379,17 +380,17 @@ All colors MUST be HSL.
   }
   [data-density="compact"] table thead th,
   table[data-density="compact"] thead th {
-    padding: 8px 16px;
+    padding: 6px 16px;
   }
 }
 
-/* Default density = compact across the app, so the 52px cap holds everywhere. */
+/* Default density = confortável: rows entre 40 e 48px. */
 @layer components {
   table tbody tr {
-    max-height: 52px;
+    max-height: 48px;
   }
   table tbody td {
-    max-height: 52px;
+    max-height: 48px;
   }
 }
 
