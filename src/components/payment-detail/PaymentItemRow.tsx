@@ -129,6 +129,10 @@ export type PaymentItemRowProps = {
   onNavigate?: (direction: "prev" | "next") => void;
   hasPrev?: boolean;
   hasNext?: boolean;
+  /** Linha está selecionada/foco visual (mantida durante scroll). */
+  isSelected?: boolean;
+  /** Notificar pai quando a linha for selecionada (clique). */
+  onSelect?: (itemId: string) => void;
 };
 
 /**
