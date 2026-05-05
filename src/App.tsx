@@ -70,6 +70,7 @@ const App = () => (
               <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
               <Route path="/wcag-audit" element={<WcagAudit />} />
               <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
+              <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
             </Route>
             <Route path="*" element={<NotFound />} />
             </Routes>
