@@ -665,6 +665,7 @@ export type Database = {
           procedure_name: string | null
           quantity: number | null
           raw_data: Json | null
+          specialty: string | null
           tipo_linha: string | null
         }
         Insert: {
@@ -701,6 +702,7 @@ export type Database = {
           procedure_name?: string | null
           quantity?: number | null
           raw_data?: Json | null
+          specialty?: string | null
           tipo_linha?: string | null
         }
         Update: {
@@ -737,6 +739,7 @@ export type Database = {
           procedure_name?: string | null
           quantity?: number | null
           raw_data?: Json | null
+          specialty?: string | null
           tipo_linha?: string | null
         }
         Relationships: [
@@ -1141,6 +1144,8 @@ export type Database = {
       rules: {
         Row: {
           active: boolean
+          agreement_aliases: string[]
+          agreement_name: string | null
           allows_authorized_exception: boolean
           applies_payment_types:
             | Database["public"]["Enums"]["payment_type"][]
@@ -1205,6 +1210,8 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          agreement_aliases?: string[]
+          agreement_name?: string | null
           allows_authorized_exception?: boolean
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
@@ -1269,6 +1276,8 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          agreement_aliases?: string[]
+          agreement_name?: string | null
           allows_authorized_exception?: boolean
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]

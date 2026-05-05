@@ -201,6 +201,9 @@ const Rules = () => {
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
+  // Convênio (eixo determinístico do motor de regras)
+  const [fAgreementName, setFAgreementName] = useState<string>("");
+  const [fAgreementAliases, setFAgreementAliases] = useState<string[]>([]);
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
@@ -380,6 +383,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
+    setFAgreementName(""); setFAgreementAliases([]);
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -430,6 +434,8 @@ const Rules = () => {
     setFAllowsAuthorizedException(!!r.allows_authorized_exception);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
+    setFAgreementName(r.agreement_name ?? "");
+    setFAgreementAliases(Array.isArray(r.agreement_aliases) ? r.agreement_aliases : []);
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
@@ -519,6 +525,8 @@ const Rules = () => {
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
       sectors: fSectors,
       specialties: fSpecialties,
+      agreement_name: fAgreementName.trim() || null,
+      agreement_aliases: fAgreementAliases.map((a) => a.trim()).filter(Boolean),
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
@@ -920,6 +928,46 @@ const Rules = () => {
                       </div>
                       <div className="space-y-1.5"><Label>Especialidade(s)</Label>
                         <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
+                      </div>
+                      <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                        <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Quando preenchido, esta regra é aplicada a itens cujo header <strong>Convênio</strong> bata com o nome ou um dos aliases. Tem precedência sobre regras por médico/empresa/setor.
+                        </p>
+                        <Input
+                          value={fAgreementName}
+                          onChange={(e) => setFAgreementName(e.target.value)}
+                          placeholder="Nome principal do convênio (ex: Sul América, BRADESCO, Acordo)"
+                        />
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Aliases (variações de escrita)</Label>
+                          <Input
+                            placeholder="Pressione Enter para adicionar alias (ex: sulamerica)"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                const v = (e.target as HTMLInputElement).value.trim();
+                                if (v && !fAgreementAliases.includes(v)) setFAgreementAliases((p) => [...p, v]);
+                                (e.target as HTMLInputElement).value = "";
+                              }
+                            }}
+                          />
+                          {fAgreementAliases.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {fAgreementAliases.map((a) => (
+                                <button
+                                  key={a}
+                                  type="button"
+                                  onClick={() => setFAgreementAliases((p) => p.filter((x) => x !== a))}
+                                  className="text-xs rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                                  title="Remover"
+                                >
+                                  {a} ✕
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5"><Label>Vigência — início</Label>

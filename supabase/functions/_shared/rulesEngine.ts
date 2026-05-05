@@ -92,6 +92,11 @@ export interface RuleInput {
   // Exclusão / não pagar
   exclusion_reason?: string | null;
   allows_authorized_exception?: boolean | null;
+  // ===== Eixo "convênio" (matching determinístico por operadora) =====
+  /** Nome principal do convênio/operadora (ex.: "Sul América"). */
+  agreement_name?: string | null;
+  /** Variações aceitas do nome (ex.: ["sulamerica", "sul america saude"]). */
+  agreement_aliases?: string[] | null;
 }
 
 export interface ItemInput {
@@ -125,6 +130,10 @@ export interface ItemInput {
   tipo_linha?: string | null;
   /** Motivo/justificativa quando tipo_linha = complemento_bonus. */
   complement_reason?: string | null;
+  /** Convênio/operadora lido da base (header "Convênio"). */
+  agreement_name?: string | null;
+  /** Especialidade resolvida no import (header "Especialidade" ou cadastro do médico). */
+  specialty?: string | null;
 }
 
 export interface PaymentContext {
@@ -135,6 +144,10 @@ export interface PaymentContext {
 }
 
 export type RuleMatchPriority =
+  | "convenio_especialidade_codigo"
+  | "convenio_especialidade"
+  | "convenio_codigo"
+  | "convenio"
   | "medico_codigo"
   | "medico"
   | "empresa_codigo"
@@ -147,6 +160,7 @@ export type RuleMatchPriority =
   | "setor_hemodinamica_master"
   | "setor_master_geral"
   | "default_setor"
+  | "sem_regra"
   | "conflito";
 
 export interface AnalysisResult {
@@ -161,6 +175,8 @@ export interface AnalysisResult {
   calculation_explanation: string;
   alerts: string[];
   needs_ai_review: boolean;
+  /** Marca itens que não bateram em nenhuma regra (em nenhum nível) — exigem revisão humana. */
+  needs_human_review?: boolean;
   conflict?: {
     candidate_rule_ids: string[];
     reason: string;
@@ -308,6 +324,36 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
 
 
 
+// ---------- match por convênio ----------
+/**
+ * Compara o convênio do item com o nome principal e os aliases da regra.
+ * Comparação case/acento-insensitive. Vazio dos dois lados = não bate.
+ */
+function targetsAgreement(r: RuleInput, item: ItemInput): boolean {
+  const itemAg = normName(item.agreement_name);
+  if (!itemAg) return false;
+  const main = normName(r.agreement_name);
+  if (main && main === itemAg) return true;
+  const aliases = (r.agreement_aliases ?? []).map(normName).filter(Boolean);
+  return aliases.includes(itemAg);
+}
+
+function ruleHasAgreement(r: RuleInput): boolean {
+  return !!(r.agreement_name && r.agreement_name.trim()) ||
+    (Array.isArray(r.agreement_aliases) && r.agreement_aliases.length > 0);
+}
+
+function ruleHasSpecialty(r: RuleInput): boolean {
+  return Array.isArray(r.specialties) && r.specialties.length > 0;
+}
+
+function matchesItemSpecialty(r: RuleInput, item: ItemInput): boolean {
+  const its = normName(item.specialty);
+  if (!its) return false;
+  const list = (r.specialties ?? []).map(normName);
+  return list.includes(its);
+}
+
 // ---------- pré-filtro ----------
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
   return rules.filter((r) => {
@@ -368,6 +414,47 @@ export interface SelectionOutcome {
 export function selectWinningRule(item: ItemInput, rules: RuleInput[]): SelectionOutcome | null {
   const itemSector = inferItemSector(item);
   const isHemo = itemSector === "hemodinamica";
+
+  // ===== EIXO CONVÊNIO (precedência sobre médico/empresa/setor) =====
+  // Só rodamos quando o item tem convênio E existe ao menos uma regra
+  // que define agreement_name/aliases que casa com esse convênio.
+  const agreementRules = rules.filter((r) => ruleHasAgreement(r) && targetsAgreement(r, item));
+  if (agreementRules.length > 0) {
+    const agreementLevels: Array<{
+      bucket: RuleInput[];
+      priority: RuleMatchPriority;
+    }> = [
+      {
+        bucket: agreementRules.filter((r) => ruleHasSpecialty(r) && matchesItemSpecialty(r, item) && hasCodeRestriction(r) && matchesProcedureCode(r, item)),
+        priority: "convenio_especialidade_codigo",
+      },
+      {
+        bucket: agreementRules.filter((r) => ruleHasSpecialty(r) && matchesItemSpecialty(r, item) && !hasCodeRestriction(r)),
+        priority: "convenio_especialidade",
+      },
+      {
+        bucket: agreementRules.filter((r) => !ruleHasSpecialty(r) && hasCodeRestriction(r) && matchesProcedureCode(r, item)),
+        priority: "convenio_codigo",
+      },
+      {
+        bucket: agreementRules.filter((r) => !ruleHasSpecialty(r) && !hasCodeRestriction(r)),
+        priority: "convenio",
+      },
+    ];
+    for (const lvl of agreementLevels) {
+      if (lvl.bucket.length === 0) continue;
+      const { winner, tied } = breakTie(lvl.bucket);
+      if (winner) return { rule: winner, priority: lvl.priority };
+      return {
+        rule: null,
+        priority: "conflito",
+        conflict: {
+          candidate_rule_ids: tied.map((r) => r.id),
+          reason: `Conflito de regras de convênio no nível ${lvl.priority}: ${tied.length} regras empatadas.`,
+        },
+      };
+    }
+  }
 
   const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
   const companyRules = rules.filter((r) => targetsCompany(r, item));
@@ -913,12 +1000,17 @@ export function analyzeItem(
   } else {
     const def = calcDefault(item);
     calc = def;
-    priority = "default_setor";
+    priority = "sem_regra";
     calculation_type_used = def.calculation_type_used;
+    calc.alerts = [
+      "Nenhuma regra cadastrada bate com este item — encaminhar para revisão humana.",
+      ...calc.alerts,
+    ];
   }
 
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
   if (priority === "conflito") status = "alerta";
+  if (priority === "sem_regra") status = "alerta";
   // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.
   if (
     item.authorized_exception === true &&
@@ -946,6 +1038,7 @@ export function analyzeItem(
     calculation_explanation: calc.explanation,
     alerts,
     needs_ai_review: status !== "aprovado",
+    needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
   };
 }

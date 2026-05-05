@@ -72,7 +72,8 @@ serve(async (req) => {
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,
-        exclusion_reason,allows_authorized_exception
+        exclusion_reason,allows_authorized_exception,
+        agreement_name,agreement_aliases
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
@@ -85,7 +86,8 @@ serve(async (req) => {
         procedure_code,procedure_name,description,access_route,doctor_role,
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
-        tipo_linha,complement_reason
+        tipo_linha,complement_reason,
+        agreement_text,specialty
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -162,6 +164,8 @@ serve(async (req) => {
       classification_confidence: cls?.confidence ?? null,
       tipo_linha: it.tipo_linha ?? null,
       complement_reason: it.complement_reason ?? null,
+      agreement_name: it.agreement_text ?? null,
+      specialty: it.specialty ?? null,
     });
     });
 
