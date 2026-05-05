@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,10 @@ import { ShieldCheck } from "lucide-react";
  * Página pública que captura o token enviado por email (convite ou recuperação)
  * e permite ao usuário definir uma nova senha.
  *
- * Suporta os dois formatos do Supabase:
+ * Suporta os formatos do Supabase:
  *  - Hash legado:  #access_token=...&type=invite|recovery
- *  - PKCE (novo):  ?code=...   (precisa exchangeCodeForSession)
+ *  - PKCE:          ?code=...
+ *  - Token hash:    ?token_hash=...&type=invite|recovery
  */
 
 const schema = z.object({
@@ -31,6 +32,7 @@ const SetPassword = () => {
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [flow, setFlow] = useState<"invite" | "recovery" | "session">("recovery");
+  const urlSessionRef = useRef<{ access_token: string; refresh_token: string } | null>(null);
 
   // Detecta os parâmetros vindos do email (hash ou query).
   const hashParams = useMemo(() => {
@@ -71,23 +73,54 @@ const SetPassword = () => {
           return;
         }
 
-        const code = params.get("code");
         const type = (hashParams.get("type") ?? params.get("type") ?? "") as "invite" | "recovery" | "";
         const tokenHash = params.get("token_hash") ?? hashParams.get("token_hash");
         const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const code = params.get("code");
         const hasUrlAuth = !!(code || tokenHash || accessToken);
 
         if (type === "invite") setFlow("invite");
         else if (type === "recovery") setFlow("recovery");
 
-        // token_hash é o único caminho onde PRECISAMOS chamar verifyOtp manualmente
-        // (links gerados pelo admin). Os demais (?code=, #access_token=) o cliente
-        // do Supabase processa sozinho — apenas escutamos o evento.
+        // Links de hash/implicit podem chegar antes do listener processar a sessão.
+        // Nesse caso, criamos a sessão explicitamente com os tokens da própria URL.
+        if (accessToken && refreshToken) {
+          urlSessionRef.current = { access_token: accessToken, refresh_token: refreshToken };
+          const { error } = await supabase.auth.setSession(urlSessionRef.current);
+          if (error) throw error;
+          window.history.replaceState({}, "", window.location.pathname);
+          markReady(type === "invite" ? "invite" : "recovery");
+          return;
+        }
+
+        // token_hash é usado em alguns links gerados pelo admin.
         if (tokenHash && (type === "invite" || type === "recovery")) {
           const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
           if (error) throw error;
           window.history.replaceState({}, "", window.location.pathname);
           markReady(type);
+          return;
+        }
+
+        // Para PKCE, deixamos o cliente tentar detectar primeiro; se não houver
+        // sessão depois de um curto intervalo, fazemos o exchange como fallback.
+        if (code) {
+          for (let i = 0; i < 10; i++) {
+            if (cancelled || settled) return;
+            await new Promise((r) => setTimeout(r, 100));
+            const { data } = await supabase.auth.getSession();
+            if (data.session) {
+              window.history.replaceState({}, "", window.location.pathname);
+              markReady(type === "invite" ? "invite" : "recovery");
+              return;
+            }
+          }
+
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          window.history.replaceState({}, "", window.location.pathname);
+          markReady(type === "invite" ? "invite" : "recovery");
           return;
         }
 
