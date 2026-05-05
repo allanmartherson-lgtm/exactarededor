@@ -207,6 +207,43 @@ serve(async (req) => {
       }
     }
 
+    // ---------- 3.2.b Tabelas SEM ACORDO (usar valor do convênio) ----------
+    // Códigos nessas tabelas NÃO devem ter regras de cálculo aplicadas.
+    // O esperado = valor pago (procedure_amount/gross_amount). Tem prioridade
+    // sobre regras de cálculo, mas NÃO sobre exclusões.
+    const semAcordoByCode: Record<string, { table_name: string; reason: string | null }> = {};
+    if (codes.length > 0) {
+      const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
+      const { data: saTablesAll } = await supabase
+        .from("reference_tables")
+        .select("id,name,description,valid_from,valid_until")
+        .eq("purpose", "sem_acordo")
+        .eq("active", true);
+      const saTables = (saTablesAll ?? []).filter((t: any) =>
+        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
+      );
+      const saIds = saTables.map((t: any) => t.id);
+      if (saIds.length > 0) {
+        const { data: saItems } = await supabase
+          .from("reference_table_items")
+          .select("code,reference_table_id,description")
+          .in("reference_table_id", saIds)
+          .in("code", codes);
+        const tableById: Record<string, any> = {};
+        for (const t of saTables ?? []) tableById[(t as any).id] = t;
+        for (const it of (saItems ?? []) as any[]) {
+          const t = tableById[it.reference_table_id];
+          if (!t) continue;
+          if (!semAcordoByCode[it.code]) {
+            semAcordoByCode[it.code] = {
+              table_name: t.name,
+              reason: it.description ?? t.description ?? null,
+            };
+          }
+        }
+      }
+    }
+
     // ---------- 3.3 Tabelas de referência vinculadas a regras "tabela_diferenciada" ----------
     // Carrega valores (code → amount) de cada reference_table_id usado por regras
     // que calculam por tabela diferenciada/referência. O motor consulta esse
