@@ -156,11 +156,17 @@ const SetPassword = () => {
       setPhase("ready");
     };
 
-    const waitForSession = async (attempts = 80) => {
+    const waitForSession = async (attempts = 300) => {
       for (let i = 0; i < attempts; i++) {
         if (cancelled || settled) return false;
-        const { data } = await supabase.auth.getSession();
-        console.info("[auth recovery] sessão detectada?", { attempt: i + 1, hasSession: Boolean(data.session) });
+        const { data, error } = await supabase.auth.getSession();
+        console.info("[auth recovery] resultado de getSession()", {
+          attempt: i + 1,
+          hasSession: Boolean(data.session),
+          userId: data.session?.user.id ?? null,
+          expiresAt: data.session?.expires_at ?? null,
+          error: error?.message ?? null,
+        });
         if (data.session) {
           console.info("[auth recovery] sessão detectada", { attempt: i + 1, userId: data.session.user.id });
           return true;
@@ -171,8 +177,13 @@ const SetPassword = () => {
     };
 
     const useExistingSessionIfAvailable = async (source: string, f?: AuthFlow) => {
-      const { data } = await supabase.auth.getSession();
-      console.info("[auth recovery] sessão existente após " + source + "?", { hasSession: Boolean(data.session) });
+      const { data, error } = await supabase.auth.getSession();
+      console.info("[auth recovery] sessão existente após " + source + "?", {
+        hasSession: Boolean(data.session),
+        userId: data.session?.user.id ?? null,
+        expiresAt: data.session?.expires_at ?? null,
+        error: error?.message ?? null,
+      });
       if (!data.session) return false;
       finishAuthUrl();
       markReady(f ?? (authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session"));
@@ -184,10 +195,18 @@ const SetPassword = () => {
     // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      console.info("[auth recovery] evento auth", { event, hasSession: Boolean(session) });
+      console.info("[auth recovery] evento de onAuthStateChange", {
+        event,
+        hasSession: Boolean(session),
+        userId: session?.user.id ?? null,
+        expiresAt: session?.expires_at ?? null,
+      });
       if (event === "PASSWORD_RECOVERY") {
         finishAuthUrl();
         markReady("recovery");
+      } else if (event === "INITIAL_SESSION" && session) {
+        finishAuthUrl();
+        markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
       } else if (event === "SIGNED_IN" && session) {
         finishAuthUrl();
         markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
@@ -209,8 +228,7 @@ const SetPassword = () => {
         // O cliente de Auth pode consumir o hash e salvar a sessão antes deste
         // componente montar. Nesse caso, não reprocessamos token/cache: exibimos
         // o formulário assim que a sessão já estiver disponível.
-        await supabase.auth.initialize();
-        if (await useExistingSessionIfAvailable("initialize")) return;
+        if (await useExistingSessionIfAvailable("getSession inicial")) return;
 
         // Links de hash/implicit podem chegar antes do listener processar a sessão.
         // Nesse caso, criamos a sessão explicitamente com os tokens da própria URL.
@@ -271,13 +289,13 @@ const SetPassword = () => {
           return;
         }
 
-        // Sem parâmetros na URL: o cliente pode ter removido o hash após processar
-        // o link de recuperação. Aguardamos a sessão antes de redirecionar.
-        if (await waitForSession()) {
-          finishAuthUrl();
-          markReady("session");
-          return;
-        }
+        // Sem parâmetros na URL: no Lovable Cloud, a página intermediária de
+        // sucesso pode consumir o token antes do app receber a rota final.
+        // Mantemos a tela em validação e aceitamos a sessão assim que ela surgir,
+        // sem exigir access_token/code visível na URL.
+        await waitForSession();
+        if (cancelled || settled) return;
+        console.info("[auth recovery] nenhuma sessão/token detectado após aguardar auth state");
 
         // Sem token e sem sessão: aí sim o link está ausente nesta rota.
         if (!cancelled) {
@@ -313,6 +331,7 @@ const SetPassword = () => {
     setPhase("saving");
     const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
     if (error) {
+      console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
