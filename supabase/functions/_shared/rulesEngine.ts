@@ -92,6 +92,11 @@ export interface RuleInput {
   // Exclusão / não pagar
   exclusion_reason?: string | null;
   allows_authorized_exception?: boolean | null;
+  // ===== Eixo "convênio" (matching determinístico por operadora) =====
+  /** Nome principal do convênio/operadora (ex.: "Sul América"). */
+  agreement_name?: string | null;
+  /** Variações aceitas do nome (ex.: ["sulamerica", "sul america saude"]). */
+  agreement_aliases?: string[] | null;
 }
 
 export interface ItemInput {
