@@ -41,6 +41,7 @@ interface ParsedRow {
   access_route: string | null;
   doctor_role: string | null;
   agreement_text: string | null;
+  specialty: string | null;
   procedure_amount: number | null;
   quantity: number | null;
   procedure_date: string | null;
