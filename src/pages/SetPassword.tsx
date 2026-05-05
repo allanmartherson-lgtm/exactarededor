@@ -266,15 +266,36 @@ const SetPassword = () => {
           }
         }
 
-        // token_hash é usado em alguns links gerados pelo admin.
-        if (authUrl.tokenHash && authUrl.type && !authUrl.code) {
-          console.info("[auth recovery] tentando verifyOtp com token_hash");
-          const { error } = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
+        // Fallback principal quando não há access_token na URL: token_hash via verifyOtp.
+        // Suportamos também quando `type` veio ausente (default = recovery), pois alguns
+        // redirects intermediários removem o parâmetro `type`.
+        if (authUrl.tokenHash) {
+          const otpType: EmailOtpFlow = (authUrl.type as EmailOtpFlow) || "recovery";
+          console.info("[auth recovery] tentando verifyOtp com token_hash", { type: otpType, hadTypeParam: Boolean(authUrl.type) });
+          const { data, error } = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: otpType });
           if (error) {
-            console.warn("[auth recovery] verifyOtp falhou; aguardando sessão via listener", error);
-          } else {
+            console.warn("[auth recovery] verifyOtp falhou", {
+              message: error.message,
+              name: error.name,
+              status: error.status ?? null,
+            });
+            // Se falhou como recovery e não tínhamos type explícito, tenta como invite.
+            if (!authUrl.type) {
+              console.info("[auth recovery] retry verifyOtp como invite");
+              const retry = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: "invite" });
+              if (!retry.error && retry.data.session) {
+                finishAuthUrl();
+                markReady("invite");
+                return;
+              }
+              console.warn("[auth recovery] retry verifyOtp(invite) também falhou", retry.error?.message);
+            }
+          } else if (data.session) {
+            console.info("[auth recovery] verifyOtp retornou sessão", { userId: data.session.user.id });
             finishAuthUrl();
-            markReady(authUrl.type);
+            markReady(otpType);
+            return;
+          } else if (await useExistingSessionIfAvailable("verifyOtp", otpType)) {
             return;
           }
         }
