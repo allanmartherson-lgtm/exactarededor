@@ -367,7 +367,7 @@ export const PaymentItemRow = ({
             </span>
           )}
         </td>
-        <td className="px-1.5 py-1 hidden sm:table-cell print:table-cell">
+        <td className={`${cellPad} hidden sm:table-cell print:table-cell`}>
           {(() => {
             const aiRaw = (it.ai_status as ItemAiStatus) ?? "pendente";
             // Se o analista já encaminhou adiante, "reprovado/alerta" da IA viram "seguido".
