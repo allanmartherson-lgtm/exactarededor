@@ -1074,11 +1074,14 @@ function ItemDetailsRow({
           style={{ fontSize: "13px", lineHeight: 1.4 }}
         >
           {/* Resumo dos campos da planilha */}
-          <div className="mb-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-4 gap-y-3">
+          <div
+            className="mb-4 grid gap-x-4 gap-y-3"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
+          >
             {summary.map((s) => (
               <div key={s.label} className="min-w-0">
                 <p className="uppercase tracking-wide text-muted-foreground" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>{s.label}</p>
-                <p className="break-words" style={{ fontSize: "13px", lineHeight: 1.4 }}>{s.value}</p>
+                <p style={{ fontSize: "13px", lineHeight: 1.4, overflowWrap: "anywhere", wordBreak: "break-word" }}>{s.value}</p>
               </div>
             ))}
           </div>
