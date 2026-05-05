@@ -800,30 +800,15 @@ function ItemDetailsRow({
   const exceptionMarked = !!itemAny.authorized_exception;
   const itemObs = observations.filter((o) => o.item_id === it.id);
 
-  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-  const pickRaw = (...keys: string[]): string => {
-    for (const k of keys) {
-      const v = raw[k];
-      if (v != null && String(v).trim() !== "") return String(v);
-    }
-    return "—";
-  };
-  const paciente =
-    (it.patient_name as string | null) ??
-    ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-    "—";
-  const convenio =
-    (it as unknown as { agreement_text?: string | null }).agreement_text ??
-    pickRaw("Convênio", "Convenio", "convenio", "convênio");
   const summary: { label: string; value: string }[] = [
     { label: "Atendimento", value: it.attendance_number ?? "—" },
-    { label: "Paciente", value: paciente },
-    { label: "Convênio", value: String(convenio ?? "—") },
-    { label: "Via de Acesso", value: it.access_route ?? "—" },
-    { label: "TUSS", value: it.procedure_code ?? "—" },
-    { label: "Procedimento", value: it.procedure_name ?? it.description ?? "—" },
+    { label: "Paciente", value: getPatient(it) },
+    { label: "Convênio", value: getAgreement(it) },
+    { label: "Via de Acesso", value: getAccessRoute(it) },
+    { label: "TUSS", value: getProcedureCode(it) },
+    { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
-    { label: "Função", value: it.doctor_role ?? "—" },
+    { label: "Função", value: getDoctorRole(it) },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
