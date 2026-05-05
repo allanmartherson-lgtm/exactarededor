@@ -335,6 +335,7 @@ serve(async (req) => {
       r.status = "aprovado";
       r.needs_ai_review = false;
     }
+    const resultById: Record<string, AnalysisResult> = {};
     for (const r of results) resultById[r.item_id] = r;
 
     // ---------- 4.2 PACOTES FIXOS por combinação de códigos ----------
