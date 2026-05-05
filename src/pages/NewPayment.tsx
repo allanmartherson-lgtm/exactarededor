@@ -518,6 +518,40 @@ const NewPayment = () => {
       return;
     }
 
+    // Fallback de especialidade: para itens sem coluna 'Especialidade' no Excel,
+    // tentamos resolver pelo cadastro do médico (CRM ou nome).
+    const missingSpecCRMs = Array.from(new Set(
+      allRows.filter((r) => !r.specialty).map((r) => onlyDigits(r.doctor_document)).filter(Boolean),
+    ));
+    const missingSpecNames = Array.from(new Set(
+      allRows.filter((r) => !r.specialty && !onlyDigits(r.doctor_document)).map((r) => r.doctor_name).filter(Boolean),
+    ));
+    const doctorSpecByCRM: Record<string, string> = {};
+    const doctorSpecByName: Record<string, string> = {};
+    if (missingSpecCRMs.length > 0 || missingSpecNames.length > 0) {
+      const { data: docs } = await supabase
+        .from("doctors")
+        .select("crm,full_name,specialties")
+        .or([
+          missingSpecCRMs.length ? `crm.in.(${missingSpecCRMs.map((c) => `"${c}"`).join(",")})` : "",
+          missingSpecNames.length ? `full_name.in.(${missingSpecNames.map((n) => `"${n.replace(/"/g, "")}"`).join(",")})` : "",
+        ].filter(Boolean).join(","));
+      for (const d of docs ?? []) {
+        const sp = Array.isArray((d as any).specialties) && (d as any).specialties.length > 0 ? (d as any).specialties[0] : null;
+        if (!sp) continue;
+        const crm = onlyDigits((d as any).crm);
+        if (crm) doctorSpecByCRM[crm] = sp;
+        if ((d as any).full_name) doctorSpecByName[(d as any).full_name] = sp;
+      }
+    }
+    const resolveSpecialty = (r: ParsedRow): string | null => {
+      if (r.specialty) return r.specialty;
+      const crm = onlyDigits(r.doctor_document);
+      if (crm && doctorSpecByCRM[crm]) return doctorSpecByCRM[crm];
+      if (r.doctor_name && doctorSpecByName[r.doctor_name]) return doctorSpecByName[r.doctor_name];
+      return null;
+    };
+
     const items = allRows.map((r) => ({
       payment_id: payment.id,
       doctor_name: r.doctor_name,
@@ -533,6 +567,7 @@ const NewPayment = () => {
       access_route: r.access_route,
       doctor_role: r.doctor_role,
       agreement_text: r.agreement_text,
+      specialty: resolveSpecialty(r),
       procedure_amount: r.procedure_amount,
       quantity: r.quantity,
       procedure_date: r.procedure_date,
