@@ -642,6 +642,7 @@ export function CompanyAnalysisDialog({
                     rulesIndex={rulesIndex}
                     rulesByName={rulesByName}
                     obsCount={obsCount}
+                    isCompact={isCompact}
                   />
                 );
               })}
