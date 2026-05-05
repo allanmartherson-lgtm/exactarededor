@@ -1065,182 +1065,195 @@ function ItemDetailsRow({
 
   return (
     <tr className="border-b bg-muted/20">
-      <td colSpan={12} className="px-5 py-3 align-top">
-        {/* Linha 1 — Resumo dos campos da planilha */}
-        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-3 gap-y-2 text-[11px]">
-          {summary.map((s) => (
-            <div key={s.label} className="min-w-0">
-              <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-              <p className="break-words leading-snug" title={s.value}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-2">
-          {/* COL 1 — Alertas e Exceção */}
-          <div className="space-y-2 min-w-0">
-            {alerts.length > 0 && (
-              <AlertBanner
-                severity={isCritical ? "critico" : "alerta"}
-                title={
-                  isCritical
-                    ? "Item reprovado pela análise"
-                    : alerts.length === 1
-                    ? "Alerta"
-                    : `${alerts.length} alertas`
-                }
-              >
-                <ul className="space-y-0.5 list-disc pl-4">
-                  {alerts.map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
-                </ul>
-              </AlertBanner>
-            )}
-            {alerts.length === 0 && !isCritical && (
-              <AlertBanner severity="informativo" title="Sem alertas">
-                <p>Item sem divergências detectadas pela análise.</p>
-              </AlertBanner>
-            )}
-            {exceptionMarked && (
-              <div className="rounded-md border border-info/20 bg-info-soft px-2.5 py-2 text-xs text-info">
-                <div className="flex items-center gap-1.5 font-medium">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Exceção autorizada registrada
-                </div>
-                <p className="mt-1 text-[11px]">
-                  Motivo: <strong>{itemAny.exception_reason ?? "—"}</strong> · Autorizador:{" "}
-                  <strong>{itemAny.exception_authorizer ?? "—"}</strong>
-                </p>
-                {itemAny.exception_note && (
-                  <p className="mt-1 italic text-[11px] whitespace-pre-wrap">"{itemAny.exception_note}"</p>
-                )}
+      <td colSpan={colSpan} className="p-0 align-top">
+        <div
+          className="px-5 py-4 animate-accordion-down overflow-hidden"
+          style={{ fontSize: "13px", lineHeight: 1.4 }}
+        >
+          {/* Resumo dos campos da planilha */}
+          <div className="mb-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-4 gap-y-3">
+            {summary.map((s) => (
+              <div key={s.label} className="min-w-0">
+                <p className="uppercase tracking-wide text-muted-foreground" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>{s.label}</p>
+                <p className="break-words" style={{ fontSize: "13px", lineHeight: 1.4 }}>{s.value}</p>
               </div>
-            )}
-
-            {/* Histórico do item */}
-            <div className="rounded-md border bg-background p-2.5">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                Histórico deste item ({itemObs.length})
-              </p>
-              {itemObs.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Sem comentários ainda.</p>
-              ) : (
-                <ul className="space-y-1.5 max-h-40 overflow-y-auto text-[11px]">
-                  {itemObs.map((o) => (
-                    <li key={o.id} className="border-b border-border/40 pb-1 last:border-0">
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
-                        <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">
-                          {o.author_type}
-                        </span>
-                        <span className="ml-auto">{fmtDate(o.created_at)}</span>
-                      </div>
-                      <p className="mt-0.5 whitespace-pre-wrap">{o.message}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            ))}
           </div>
 
-          {/* COL 2 — Regra, motor e IA */}
-          <div className="space-y-2 text-xs min-w-0 break-words">
-            {matchedRules.length > 0 ? (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                  Regra aplicada
-                </p>
-                <p className="font-medium text-primary">{matchedRules[0].name}</p>
-                {matchedRules[0].rule_text && (
-                  <p className="mt-1 text-muted-foreground whitespace-pre-wrap leading-snug">
-                    {matchedRules[0].rule_text}
+          {/* 3-column grid */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+            {/* COL 1 — Alertas / Exceção / Histórico */}
+            <div className="space-y-2 min-w-0">
+              {alerts.length > 0 && (
+                <AlertBanner
+                  severity={isCritical ? "critico" : "alerta"}
+                  title={
+                    isCritical
+                      ? "Item reprovado pela análise"
+                      : alerts.length === 1
+                      ? "Alerta"
+                      : `${alerts.length} alertas`
+                  }
+                >
+                  <ul className="space-y-0.5 list-disc pl-4">
+                    {alerts.map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+                </AlertBanner>
+              )}
+              {alerts.length === 0 && !isCritical && (
+                <AlertBanner severity="informativo" title="Sem alertas">
+                  <p>Item sem divergências detectadas pela análise.</p>
+                </AlertBanner>
+              )}
+              {exceptionMarked && (
+                <div className="rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Exceção autorizada registrada
+                  </div>
+                  <p className="mt-1 break-words">
+                    Motivo: <strong>{itemAny.exception_reason ?? "—"}</strong> · Autorizador:{" "}
+                    <strong>{itemAny.exception_authorizer ?? "—"}</strong>
                   </p>
-                )}
-                {matchedRules.length > 1 && (
-                  <p className="mt-1 text-[10px] text-muted-foreground italic">
-                    + {matchedRules.length - 1} regra(s) também casaram
-                  </p>
-                )}
-              </div>
-            ) : matchedNames.length > 0 ? (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                  Regra aplicada
-                </p>
-                <p className="font-medium">{matchedNames[0]}</p>
-              </div>
-            ) : null}
-
-            {/* Detalhes do cálculo (motor) */}
-            {(engine || expected != null || explanation) && (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> Detalhes do cálculo
-                </p>
-                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                  {priority && (
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full border px-1.5 py-0.5 text-[10px]",
-                        TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]],
-                      )}
-                    >
-                      {RULE_MATCH_PRIORITY_LABELS[priority]}
-                    </span>
-                  )}
-                  {calcTypeLabel && (
-                    <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES.muted)}>
-                      {calcTypeLabel}
-                    </span>
+                  {itemAny.exception_note && (
+                    <p className="mt-1 italic whitespace-pre-wrap break-words">"{itemAny.exception_note}"</p>
                   )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
-                    <span className="text-muted-foreground">Valor informado:</span>
-                    <span className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
-                  </div>
-                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
-                    <span className="text-muted-foreground">Valor esperado:</span>
-                    <span className="tabular-nums font-medium break-words">
-                      {expected != null ? formatCurrency(Number(expected)) : "—"}
-                    </span>
-                  </div>
-                  {diff != null && Math.abs(diff) > 0.01 && (
-                    <div className="sm:col-span-2 flex flex-wrap items-baseline gap-x-1 min-w-0">
-                      <span className="text-muted-foreground">Diferença:</span>
-                      <span className={cn("tabular-nums break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
-                        {diff > 0 ? "+" : ""}{formatCurrency(diff)}
-                        {diffPct != null && (
-                          <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
+              )}
+
+              <div className="rounded-md border bg-background p-3">
+                <p className="uppercase tracking-wide text-muted-foreground mb-1.5" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                  Histórico deste item ({itemObs.length})
+                </p>
+                {itemObs.length === 0 ? (
+                  <p className="text-muted-foreground">Sem comentários ainda.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-56 overflow-y-auto">
+                    {itemObs.map((o) => (
+                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0">
+                        <div className="flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: "11px" }}>
+                          <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">
+                            {o.author_type}
+                          </span>
+                          <span className="ml-auto">{fmtDate(o.created_at)}</span>
+                        </div>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words">{o.message}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* COL 2 — Regra aplicada */}
+            <div className="space-y-2 min-w-0">
+              {matchedRules.length > 0 ? (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    Regra aplicada
+                  </p>
+                  <p className="font-medium text-primary break-words">{matchedRules[0].name}</p>
+                  {matchedRules[0].rule_text && (
+                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words">
+                      {matchedRules[0].rule_text}
+                    </p>
+                  )}
+                  {matchedRules.length > 1 && (
+                    <p className="mt-1 text-muted-foreground italic" style={{ fontSize: "11px" }}>
+                      + {matchedRules.length - 1} regra(s) também casaram
+                    </p>
+                  )}
+                </div>
+              ) : matchedNames.length > 0 ? (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    Regra aplicada
+                  </p>
+                  <p className="font-medium break-words">{matchedNames[0]}</p>
+                </div>
+              ) : (
+                <div className="rounded-md border bg-background p-3 text-muted-foreground">
+                  Nenhuma regra específica casou.
+                </div>
+              )}
+
+              {aiNote && (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                  </p>
+                  <p className="text-muted-foreground italic whitespace-pre-wrap break-words">{aiNote}</p>
+                </div>
+              )}
+            </div>
+
+            {/* COL 3 — Detalhes do cálculo + sugestão */}
+            <div className="space-y-2 min-w-0">
+              {(engine || expected != null || explanation) && (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    <FileText className="h-3 w-3" /> Detalhes do cálculo
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {priority && (
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-1.5 py-0.5",
+                          TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]],
                         )}
+                        style={{ fontSize: "11px" }}
+                      >
+                        {RULE_MATCH_PRIORITY_LABELS[priority]}
                       </span>
+                    )}
+                    {calcTypeLabel && (
+                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5", TONE_CLASSES.muted)} style={{ fontSize: "11px" }}>
+                        {calcTypeLabel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Valor informado</p>
+                      <p className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Valor esperado</p>
+                      <p className="tabular-nums font-medium break-words">
+                        {expected != null ? formatCurrency(Number(expected)) : "—"}
+                      </p>
+                    </div>
+                    {diff != null && Math.abs(diff) > 0.01 && (
+                      <div className="col-span-2 min-w-0">
+                        <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Diferença</p>
+                        <p className={cn("tabular-nums font-medium break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                          {diff > 0 ? "+" : ""}{formatCurrency(diff)}
+                          {diffPct != null && (
+                            <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {explanation && (
+                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words">{explanation}</p>
                   )}
                 </div>
-                {explanation && (
-                  <p className="mt-1.5 text-muted-foreground italic leading-snug">{explanation}</p>
-                )}
-              </div>
-            )}
+              )}
 
-            {/* IA */}
-            {aiNote && (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
-                </p>
-                <p className="text-muted-foreground italic leading-snug">{aiNote}</p>
-              </div>
-            )}
-
-            {diff != null && Math.abs(diff) > 0.01 && expected != null && (
-              <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-2.5 text-[11px]">
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Sugestão de ajuste:{" "}
-                </span>
-                Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
-              </div>
-            )}
+              {diff != null && Math.abs(diff) > 0.01 && expected != null && (
+                <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    Sugestão de ajuste
+                  </p>
+                  <p className="break-words">
+                    Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </td>
