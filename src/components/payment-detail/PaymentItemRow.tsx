@@ -301,8 +301,13 @@ export const PaymentItemRow = ({
   return (
     <Fragment>
       <tr
-        className="align-top hover:bg-muted/20 cursor-pointer"
-        onClick={() => onToggleExpanded(it.id)}
+        data-row-id={it.id}
+        aria-selected={isSelected}
+        className={`align-top cursor-pointer ${isSelected ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : "hover:bg-muted/20"}`}
+        onClick={() => {
+          onSelect?.(it.id);
+          onToggleExpanded(it.id);
+        }}
       >
         <td className={`${cellPad} text-muted-foreground print:hidden align-top md:sticky md:left-0 z-[1] bg-background`}>
           <ChevronRight className="h-3 w-3" />
