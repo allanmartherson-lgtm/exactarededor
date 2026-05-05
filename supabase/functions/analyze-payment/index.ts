@@ -337,10 +337,10 @@ serve(async (req) => {
       r.matched_priority = "conflito";
       r.calculation_type_used = "informativo";
       r.calculation_explanation =
-        `Bloqueado pela Camada 1 (convênio "${it.agreement_text ?? "—"}" em blacklist da regra "${gate.name}"). ` +
+        `Bloqueado pela Camada 1 (convênio "${it.agreement_name ?? "—"}" em blacklist da regra "${gate.name}"). ` +
         `Regras de cálculo ignoradas — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`;
       r.alerts = [
-        `Convênio "${it.agreement_text ?? "—"}" bloqueado pela regra "${gate.name}" (blacklist contextual) — sem cálculo aplicado.`,
+        `Convênio "${it.agreement_name ?? "—"}" bloqueado pela regra "${gate.name}" (blacklist contextual) — sem cálculo aplicado.`,
       ];
       r.status = "aprovado";
       r.needs_ai_review = false;
