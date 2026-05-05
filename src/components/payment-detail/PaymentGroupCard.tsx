@@ -488,7 +488,7 @@ export const PaymentGroupCard = ({
               </div>
             );
           })()}
-          <div className="w-full overflow-x-auto print:overflow-visible rounded-md border border-border/60">
+          <div className="w-full max-h-[70vh] overflow-auto print:overflow-visible print:max-h-none rounded-md border border-border/60">
           <table className={`w-full min-w-[1100px] ${isComfy ? "text-[14px]" : "text-[13px]"} table-fixed border-collapse print:text-[10px] print:min-w-0`} data-density={density}>
             <colgroup>
               <col className="w-6" />
@@ -503,11 +503,11 @@ export const PaymentGroupCard = ({
               <col className="w-[80px] hidden sm:table-column print:table-column" />
               <col className="w-8 print:hidden" />
             </colgroup>
-            <thead className={`sticky top-0 z-10 bg-muted/80 backdrop-blur-sm text-left ${isComfy ? "text-[12px]" : "text-[11px]"} font-semibold uppercase tracking-wider text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))] print:static`}>
-              <tr>
-                <th className="px-2.5 py-2 print:hidden"></th>
-                <th className="px-2.5 py-2">Atend.</th>
-                <th className="px-2.5 py-2">Paciente</th>
+            <thead className={`text-left ${isComfy ? "text-[12px]" : "text-[11px]"} font-semibold uppercase tracking-wider text-muted-foreground print:static`}>
+              <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:bg-muted [&>th]:z-10 [&>th]:shadow-[0_1px_0_0_hsl(var(--border))]">
+                <th className="px-2.5 py-2 print:hidden !left-0 md:!sticky !z-20"></th>
+                <th className="px-2.5 py-2 !left-6 md:!sticky !z-20">Atend.</th>
+                <th className="px-2.5 py-2 !left-[104px] md:!sticky !z-20">Paciente</th>
                 <th className="px-2.5 py-2 hidden md:table-cell print:table-cell">Convênio</th>
                 <th className="px-2.5 py-2">Médico / Função</th>
                 <th className="px-2.5 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
