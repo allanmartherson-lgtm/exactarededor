@@ -225,84 +225,55 @@ const SetPassword = () => {
 
         if (authUrl.type) setFlow(authUrl.type);
 
-        // O cliente de Auth pode consumir o hash e salvar a sessão antes deste
-        // componente montar. Nesse caso, não reprocessamos token/cache: exibimos
-        // o formulário assim que a sessão já estiver disponível.
+        // Sessão já estabelecida (detectSessionInUrl do supabase-js consome
+        // automaticamente ?code=/#access_token=). Apenas leia getSession.
         if (await useExistingSessionIfAvailable("getSession inicial")) return;
 
-        // Links de hash/implicit podem chegar antes do listener processar a sessão.
-        // Nesse caso, criamos a sessão explicitamente com os tokens da própria URL.
-        if (authUrl.accessToken && authUrl.refreshToken) {
+        // Fallback explícito SOMENTE para hash implicit com tokens completos
+        // (não-PKCE). Para ?code= NUNCA chamamos exchangeCodeForSession aqui
+        // porque o cliente já consumiu o code_verifier; um segundo exchange
+        // falharia e marcaríamos como inválido por engano.
+        if (authUrl.accessToken && authUrl.refreshToken && !authUrl.code) {
+          console.info("[auth recovery] tentando setSession com tokens implicit do hash");
           const { error } = await supabase.auth.setSession({
             access_token: authUrl.accessToken,
             refresh_token: authUrl.refreshToken,
           });
           if (error) {
-            console.error("[auth recovery] erro em setSession", error);
-            if (await useExistingSessionIfAvailable("setSession com erro", authUrl.type === "invite" ? "invite" : "recovery")) return;
-            throw error;
+            console.warn("[auth recovery] setSession falhou; aguardando sessão via listener", error);
+          } else {
+            finishAuthUrl();
+            markReady(authUrl.type === "invite" ? "invite" : "recovery");
+            return;
           }
-          finishAuthUrl();
-          markReady(authUrl.type === "invite" ? "invite" : "recovery");
-          return;
         }
 
         // token_hash é usado em alguns links gerados pelo admin.
-        if (authUrl.tokenHash && authUrl.type) {
+        if (authUrl.tokenHash && authUrl.type && !authUrl.code) {
+          console.info("[auth recovery] tentando verifyOtp com token_hash");
           const { error } = await supabase.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
           if (error) {
-            console.error("[auth recovery] erro em verifyOtp", error);
-            if (await useExistingSessionIfAvailable("verifyOtp com erro", authUrl.type)) return;
-            throw error;
-          }
-          finishAuthUrl();
-          markReady(authUrl.type);
-          return;
-        }
-
-        // Para PKCE, fazemos a troca explicitamente; se o cliente já tiver consumido
-        // o code antes, o fallback por sessão abaixo evita falso "link expirado".
-        if (authUrl.code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(authUrl.code);
-          if (error) console.warn("[auth recovery] erro do auth provider em exchangeCodeForSession; tentando sessão existente", error);
-          if (await waitForSession()) {
+            console.warn("[auth recovery] verifyOtp falhou; aguardando sessão via listener", error);
+          } else {
             finishAuthUrl();
-            markReady(authUrl.type === "invite" ? "invite" : "recovery");
-          } else if (!cancelled && !settled && error) {
-            setErrorMsg(error.message || "Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
-            setPhase("invalid");
-          }
-          return;
-        }
-
-        if (authUrl.hasAuthSignal) {
-          // Aguarda o Supabase terminar de processar a URL e disparar o evento.
-          // Checamos a sessão como fallback sem declarar link inválido prematuramente.
-          if (await waitForSession()) {
-            finishAuthUrl();
-            markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+            markReady(authUrl.type);
             return;
           }
-          if (cancelled || settled) return;
-          setErrorMsg("Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
-          setPhase("invalid");
+        }
+
+        // Aguarda o supabase-js terminar de processar a URL (PKCE/implicit) e
+        // disparar PASSWORD_RECOVERY/SIGNED_IN/INITIAL_SESSION.
+        console.info("[auth recovery] aguardando sessão via listener/getSession (até 30s)");
+        if (await waitForSession()) {
+          finishAuthUrl();
+          markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
           return;
         }
 
-        // Sem parâmetros na URL: no Lovable Cloud, a página intermediária de
-        // sucesso pode consumir o token antes do app receber a rota final.
-        // Mantemos a tela em validação e aceitamos a sessão assim que ela surgir,
-        // sem exigir access_token/code visível na URL.
-        await waitForSession();
         if (cancelled || settled) return;
-        console.info("[auth recovery] nenhuma sessão/token detectado após aguardar auth state");
-
-        // Sem token e sem sessão: aí sim o link está ausente nesta rota.
-        if (!cancelled) {
-          console.info("[auth recovery] sem token/hash/code e sem sessão; redirecionando para solicitar novo link");
-          setErrorMsg("Link expirado ou ausente. Solicite um novo link de recuperação de senha.");
-          setPhase("invalid");
-        }
+        console.info("[auth recovery] sem sessão após aguardar; marcando link como inválido");
+        setErrorMsg("Link expirado ou ausente. Solicite um novo link de recuperação de senha.");
+        setPhase("invalid");
       } catch (e: unknown) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
