@@ -279,9 +279,9 @@ const SetPassword = () => {
           }
         }
 
-        // Aguarda o supabase-js terminar de processar a URL (PKCE/implicit) e
+        // Aguarda o cliente de recovery terminar de processar a URL (PKCE/implicit) e
         // disparar PASSWORD_RECOVERY/SIGNED_IN/INITIAL_SESSION.
-        console.info("[auth recovery] aguardando sessão via listener/getSession (até 30s)");
+        console.info("[auth recovery] aguardando sessão via listener/getSession (até 4s)");
         if (await waitForSession()) {
           finishAuthUrl();
           markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
@@ -318,14 +318,14 @@ const SetPassword = () => {
       return;
     }
     setPhase("saving");
-    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+    const { error } = await recoveryClient.auth.updateUser({ password: parsed.data.password });
     if (error) {
       console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
     }
-    await supabase.auth.signOut();
+    await recoveryClient.auth.signOut();
     setPhase("done");
     toast({ title: "Senha definida", description: "Entre novamente com sua nova senha." });
     setTimeout(() => navigate("/auth", { replace: true }), 800);
