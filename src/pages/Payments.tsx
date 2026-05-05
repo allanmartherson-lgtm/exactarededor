@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -53,9 +53,23 @@ const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "criti
   return "none";
 };
 
+type OwnerGroup = "all" | "analista" | "validador" | "diretor";
+
+const STATUSES_BY_OWNER: Record<Exclude<OwnerGroup, "all">, PaymentStatus[]> = {
+  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
+  validador: ["aguardando_validacao", "devolvido_validador"],
+  diretor: ["aguardando_aprovacao"],
+};
+
+const OWNER_LABELS: Record<Exclude<OwnerGroup, "all">, string> = {
+  analista: "Com analista",
+  validador: "Com validador",
+  diretor: "Com diretor",
+};
+
 const Payments = () => {
-  const { roles } = useAuth();
-  const [searchParams] = useSearchParams();
+  const { roles, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
@@ -72,13 +86,25 @@ const Payments = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [competenceFilter, setCompetenceFilter] = useState<string>("all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
+  // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
+  // restringem por grupo de status + (opcional) só os meus.
+  const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>(() => {
+    const s = searchParams.get("status");
+    return s === "analista" || s === "validador" || s === "diretor" ? s : "all";
+  });
+  const [onlyMine, setOnlyMine] = useState(() => searchParams.get("owner") === "me");
 
   // Sincroniza filtros simples vindos de outras telas (ex: Dashboard)
   useEffect(() => {
     const d = searchParams.get("delayed") === "1";
     setDelayedOnly(d);
     const st = searchParams.get("status");
-    if (st) setStatusFilter(st);
+    if (st === "analista" || st === "validador" || st === "diretor") {
+      setOwnerGroup(st);
+    } else if (st) {
+      setStatusFilter(st);
+    }
+    setOnlyMine(searchParams.get("owner") === "me");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
   const [view, setView] = useState<"lista" | "kanban">("lista");
@@ -247,6 +273,14 @@ const Payments = () => {
     if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
     if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (ownerGroup !== "all") {
+      const allowed = STATUSES_BY_OWNER[ownerGroup];
+      if (!allowed.includes(r.status)) return false;
+    }
+    if (onlyMine && user?.id) {
+      // "Meus": criado por mim, OU validado por mim. created_by já está na linha.
+      if (r.created_by !== user.id) return false;
+    }
     if (competenceFilter !== "all") {
       const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
       if (!months.some((m) => m.startsWith(competenceFilter))) return false;
@@ -257,7 +291,7 @@ const Payments = () => {
       if (lvl === "none") return false;
     }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, competenceFilter, delayedOnly, statusEnteredAt, now]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, user?.id, competenceFilter, delayedOnly, statusEnteredAt, now]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
@@ -466,10 +500,48 @@ const Payments = () => {
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
           </Button>
-          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly) && (
+          {ownerGroup !== "all" && (
+            <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
+              <UserCheck className="h-3.5 w-3.5" /> {OWNER_LABELS[ownerGroup]}
+              <button
+                type="button"
+                aria-label="Remover filtro de papel"
+                className="ml-1 hover:opacity-70"
+                onClick={() => {
+                  setOwnerGroup("all");
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("status");
+                  setSearchParams(next, { replace: true });
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {onlyMine && (
+            <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
+              <User className="h-3.5 w-3.5" /> Apenas meus
+              <button
+                type="button"
+                aria-label="Remover filtro apenas meus"
+                className="ml-1 hover:opacity-70"
+                onClick={() => {
+                  setOnlyMine(false);
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("owner");
+                  setSearchParams(next, { replace: true });
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine) && (
             <Button variant="ghost" size="sm" onClick={() => {
               setCompanyFilter(null);
               setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+              setOwnerGroup("all"); setOnlyMine(false);
+              setSearchParams(new URLSearchParams(), { replace: true });
             }}>
               <X className="h-4 w-4 mr-1" /> Limpar
             </Button>
