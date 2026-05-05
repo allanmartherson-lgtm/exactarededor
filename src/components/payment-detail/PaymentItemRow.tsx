@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +19,7 @@ import {
 import { AlertBanner } from "./AlertBanner";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   MessageSquare,
   MessageSquarePlus,
@@ -124,6 +125,10 @@ export type PaymentItemRowProps = {
   onExceptionChanged?: () => void;
   /** Densidade visual da linha. */
   density?: "compact" | "comfortable";
+  /** Navegação Anterior/Próximo no drawer (respeita ordenação/filtros aplicados pelo pai). */
+  onNavigate?: (direction: "prev" | "next") => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 };
 
 /**
@@ -150,6 +155,9 @@ export const PaymentItemRow = ({
   paymentId,
   onExceptionChanged,
   density = "compact",
+  onNavigate,
+  hasPrev = false,
+  hasNext = false,
 }: PaymentItemRowProps) => {
   const isComfy = density === "comfortable";
   // Compacto profissional: padding 6-8px / 10-12px, linha ~36-40px.
@@ -163,6 +171,25 @@ export const PaymentItemRow = ({
   const fXs = fSec;
   const [excOpen, setExcOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+
+  // Atalhos: ↑/↓ navegam entre itens enquanto o drawer estiver aberto.
+  useEffect(() => {
+    if (!isExpanded || !onNavigate) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (e.key === "ArrowUp" && hasPrev) {
+        e.preventDefault();
+        onNavigate("prev");
+      } else if (e.key === "ArrowDown" && hasNext) {
+        e.preventDefault();
+        onNavigate("next");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isExpanded, onNavigate, hasPrev, hasNext]);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
   const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
@@ -459,12 +486,44 @@ export const PaymentItemRow = ({
       >
         <SheetContent side="right" className="w-full sm:max-w-[520px] overflow-y-auto p-0">
           <SheetHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-5 py-3">
-            <SheetTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Detalhes do item
-            </SheetTitle>
-            <SheetDescription className="text-xs">
-              {paciente} · Atend. {it.attendance_number ?? "—"} · {formatCurrency(it.gross_amount)}
-            </SheetDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <SheetTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Detalhes do item
+                </SheetTitle>
+                <SheetDescription className="text-xs">
+                  {paciente} · Atend. {it.attendance_number ?? "—"} · {formatCurrency(it.gross_amount)}
+                </SheetDescription>
+              </div>
+              {onNavigate && (
+                <div className="flex items-center gap-1 mr-8 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={!hasPrev}
+                    onClick={() => onNavigate("prev")}
+                    title="Item anterior (↑)"
+                    aria-label="Item anterior"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={!hasNext}
+                    onClick={() => onNavigate("next")}
+                    title="Próximo item (↓)"
+                    aria-label="Próximo item"
+                  >
+                    Próximo <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </SheetHeader>
           <div className="px-5 py-4 space-y-4">
             <div className="rounded-md border border-border/70 bg-muted/20 p-3">
