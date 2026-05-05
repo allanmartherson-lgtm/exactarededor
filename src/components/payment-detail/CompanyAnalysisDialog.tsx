@@ -462,9 +462,9 @@ export function CompanyAnalysisDialog({
 
         {/* Tabela / Lista */}
         <div className="flex-1 overflow-hidden bg-background">
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden">
+          <div className="h-full w-full overflow-auto">
 
-          {/* MOBILE — lista de cards empilhados (< md) */}
+          {/* MOBILE — lista de cards (< md) */}
           <ul className="md:hidden divide-y">
             {filtered.length === 0 && (
               <li className="text-center py-8 text-muted-foreground text-xs">Nenhum item para exibir.</li>
@@ -483,86 +483,41 @@ export function CompanyAnalysisDialog({
                 : eff === "aprovado" || eff === "seguido" ? "success"
                 : "muted";
               const alerts = (it.ai_findings?.alerts ?? []) as string[];
-              const isOpen = expanded.has(it.id);
               const isActive = activeId === it.id;
               const isCritical = eff === "reprovado";
               const hasAlert = alerts.length > 0;
-              const convenio =
-                (it as unknown as { agreement_text?: string | null }).agreement_text ??
-                (() => {
-                  for (const k of ["Convênio", "Convenio", "convenio", "convênio"]) {
-                    const v = raw[k];
-                    if (v != null && String(v).trim() !== "") return String(v);
-                  }
-                  return "—";
-                })();
               const diverges = expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01;
               return (
                 <li
                   key={it.id}
                   className={cn(
                     "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
-                    isActive && "bg-primary/5",
-                    isCritical && "bg-destructive/5",
-                    !isCritical && hasAlert && "bg-warning-soft/30",
+                    isActive && "bg-primary/10 ring-1 ring-inset ring-primary/30",
+                    !isActive && isCritical && "bg-destructive/5",
+                    !isActive && !isCritical && hasAlert && "bg-warning-soft/30",
                   )}
-                  onClick={() => toggleRow(it.id)}
+                  onClick={() => { selectRow(it.id); openDetail(it.id); }}
                 >
-                  <div className="flex items-start gap-2">
-                    <div className="text-muted-foreground pt-0.5">
-                      {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-[13px] truncate">{paciente}</p>
+                      <span className={cn("ml-auto inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase shrink-0", TONE_CLASSES[tone])}>
+                        {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+                        {eff}
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-[13px] truncate">{paciente}</p>
-                        <span className={cn("ml-auto inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase shrink-0", TONE_CLASSES[tone])}>
-                          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
-                          {eff}
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      <span className="font-mono">{it.procedure_code ?? "—"}</span>
+                      {" · "}
+                      {it.procedure_name ?? it.description ?? "—"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">{it.doctor_name ?? "—"}</p>
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2 text-[12px]">
+                      <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
+                      {expected != null && (
+                        <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-foreground" : "text-muted-foreground")}>
+                          esp. {formatCurrency(Number(expected))}
                         </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        <span className="font-mono">{it.procedure_code ?? "—"}</span>
-                        {" · "}
-                        {it.procedure_name ?? it.description ?? "—"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {it.doctor_name ?? "—"}
-                        {it.doctor_role ? <span> · {it.doctor_role}</span> : null}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
-                        {it.attendance_number && (
-                          <span className="text-muted-foreground">
-                            Atend. <span className="font-mono text-foreground">{it.attendance_number}</span>
-                          </span>
-                        )}
-                        {it.access_route && (
-                          <span className="text-muted-foreground">Via: <span className="text-foreground">{it.access_route}</span></span>
-                        )}
-                        {convenio && convenio !== "—" && (
-                          <span className="text-muted-foreground truncate max-w-[60%]">Conv.: <span className="text-foreground">{convenio}</span></span>
-                        )}
-                      </div>
-                      <div className="mt-1.5 flex items-baseline justify-between gap-2 text-[12px]">
-                        <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
-                        {expected != null && (
-                          <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-foreground" : "text-muted-foreground")}>
-                            esp. {formatCurrency(Number(expected))}
-                          </span>
-                        )}
-                      </div>
-                      {isOpen && (
-                        <div className="mt-2 -mx-1">
-                          <div className="rounded-md border bg-background overflow-hidden">
-                            <table className="w-full"><tbody>
-                              <ItemDetailsRow
-                                it={it}
-                                rulesIndex={rulesIndex}
-                                rulesByName={rulesByName}
-                                observations={observations}
-                              />
-                            </tbody></table>
-                          </div>
-                        </div>
                       )}
                     </div>
                   </div>
@@ -572,24 +527,30 @@ export function CompanyAnalysisDialog({
           </ul>
 
           {/* DESKTOP/TABLET — tabela densa (>= md) */}
-          <table className="hidden md:table w-full text-[11px] border-collapse table-fixed">
-            <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
-              <tr className="border-b">
-                <th className="w-6 px-1.5 py-1.5"></th>
-                {colVis.atendimento && <th className="px-1.5 py-1.5 text-left font-medium">Atend.</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium">Paciente</th>
-                {colVis.convenio && <th className="px-1.5 py-1.5 text-left font-medium">Convênio</th>}
-                {colVis.via && <th className="px-1.5 py-1.5 text-left font-medium">Via</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium">TUSS</th>
-                {colVis.procedimento && <th className="px-1.5 py-1.5 text-left font-medium">Procedimento</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium">Médico</th>
-                {colVis.funcao && <th className="px-1.5 py-1.5 text-left font-medium">Função</th>}
-                {colVis.regra && <th className="px-1.5 py-1.5 text-left font-medium">Regra</th>}
-                <th className="px-1.5 py-1.5 text-right font-medium">Valor</th>
-                <th className="px-1.5 py-1.5 text-right font-medium">Esperado</th>
-                {colVis.diferenca && <th className="px-1.5 py-1.5 text-right font-medium">Diferença</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium">Status</th>
-                {colVis.observacao && <th className="px-1.5 py-1.5 text-left font-medium">Obs.</th>}
+          {/*
+            Modelo Excel + painel lateral:
+            - Sem expansão inline; a linha selecionada apenas destaca.
+            - Clique ou Enter abre o painel lateral (Sheet).
+            - Colunas Paciente / Procedimento / Médico ficam sticky na horizontal.
+            - O scroll horizontal continua para o restante da tabela.
+          */}
+          <table className="hidden md:table w-max min-w-full text-[11px] border-separate border-spacing-0">
+            <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
+              <tr>
+                {colVis.atendimento && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Atend.</th>}
+                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 min-w-[180px]">Paciente</th>
+                {colVis.convenio && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Convênio</th>}
+                {colVis.via && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Via</th>}
+                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">TUSS</th>
+                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[180px] z-30 min-w-[200px]">Procedimento</th>
+                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[380px] z-30 min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]">Médico</th>
+                {colVis.funcao && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Função</th>}
+                {colVis.regra && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Regra</th>}
+                <th className="px-1.5 py-1.5 text-right font-medium border-b bg-muted whitespace-nowrap">Valor</th>
+                <th className="px-1.5 py-1.5 text-right font-medium border-b bg-muted whitespace-nowrap">Esperado</th>
+                {colVis.diferenca && <th className="px-1.5 py-1.5 text-right font-medium border-b bg-muted whitespace-nowrap">Diferença</th>}
+                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Status</th>
+                {colVis.observacao && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Obs.</th>}
               </tr>
             </thead>
             <tbody>
@@ -617,38 +578,28 @@ export function CompanyAnalysisDialog({
                     ? "success"
                     : "muted";
                 const alerts = (it.ai_findings?.alerts ?? []) as string[];
-                const isOpen = expanded.has(it.id);
                 const isActive = activeId === it.id;
                 const isCritical = eff === "reprovado";
                 const obsCount = observations.filter((o) => o.item_id === it.id).length;
 
                 return (
-                  <tr key={it.id} className="contents">
-                    <RowMain
-                      it={it}
-                      paciente={paciente}
-                      expected={expected ?? null}
-                      eff={eff}
-                      tone={tone}
-                      isOpen={isOpen}
-                      isActive={isActive}
-                      isCritical={isCritical}
-                      hasAlert={alerts.length > 0}
-                      onToggle={() => toggleRow(it.id)}
-                      colVis={colVis}
-                      rulesIndex={rulesIndex}
-                      rulesByName={rulesByName}
-                      obsCount={obsCount}
-                    />
-                    {isOpen && (
-                      <ItemDetailsRow
-                        it={it}
-                        rulesIndex={rulesIndex}
-                        rulesByName={rulesByName}
-                        observations={observations}
-                      />
-                    )}
-                  </tr>
+                  <RowMain
+                    key={it.id}
+                    it={it}
+                    paciente={paciente}
+                    expected={expected ?? null}
+                    eff={eff}
+                    tone={tone}
+                    isActive={isActive}
+                    isCritical={isCritical}
+                    hasAlert={alerts.length > 0}
+                    onSelect={() => selectRow(it.id)}
+                    onOpen={() => openDetail(it.id)}
+                    colVis={colVis}
+                    rulesIndex={rulesIndex}
+                    rulesByName={rulesByName}
+                    obsCount={obsCount}
+                  />
                 );
               })}
             </tbody>
