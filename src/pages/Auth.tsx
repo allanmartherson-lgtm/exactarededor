@@ -28,6 +28,22 @@ const Auth = () => {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setGoogleLoading(false);
+      toast({ title: "Não foi possível entrar com Google", description: result.error.message ?? "Tente novamente.", variant: "destructive" });
+      return;
+    }
+    if (result.redirected) return;
+    setGoogleLoading(false);
+    navigate("/", { replace: true });
+  };
 
   useEffect(() => {
     document.title = "Entrar | Aprovação de Pagamentos Médicos";
