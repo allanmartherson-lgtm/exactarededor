@@ -194,8 +194,8 @@ export function CompanyAnalysisDialog({
 
   useEffect(() => {
     if (!open) {
-      setExpanded(new Set());
       setActiveId(null);
+      setDetailOpen(false);
       setFilter("");
       setPatientFilter("");
       setDoctorFilter("__all__");
@@ -205,14 +205,16 @@ export function CompanyAnalysisDialog({
     }
   }, [open]);
 
-  const toggleRow = (itId: string) => {
-    setExpanded((s) => {
-      const n = new Set(s);
-      if (n.has(itId)) n.delete(itId);
-      else n.add(itId);
-      return n;
-    });
+  // Selecionar uma linha — destaca apenas. Só abre o painel via Enter ou clique.
+  const selectRow = (itId: string) => {
     setActiveId(itId);
+  };
+  // Abre o painel lateral com o item indicado (ou o ativo).
+  const openDetail = (itId?: string) => {
+    const target = itId ?? activeId;
+    if (!target) return;
+    setActiveId(target);
+    setDetailOpen(true);
   };
 
   // Listas únicas para os selects
