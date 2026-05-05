@@ -78,6 +78,14 @@ const maskAuthUrl = (href: string) => {
   }
 };
 
+const maskParamsForLog = (params: URLSearchParams) =>
+  Object.fromEntries(
+    [...params.entries()].map(([key, value]) => [
+      key,
+      [...TOKEN_KEYS, ...ERROR_KEYS].includes(key) ? (value ? "[presente]" : "[vazio]") : value,
+    ]),
+  );
+
 const SetPassword = () => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
@@ -110,8 +118,8 @@ const SetPassword = () => {
     console.groupCollapsed("[auth recovery] validar link");
     console.info("URL recebida", maskAuthUrl(authUrl.href));
     console.info("Parâmetros detectados", {
-      query: Object.fromEntries(authUrl.query.entries()),
-      hash: Object.fromEntries(authUrl.hash.entries()),
+      query: maskParamsForLog(authUrl.query),
+      hash: maskParamsForLog(authUrl.hash),
       type: authUrl.type || "ausente",
       hasAccessToken: Boolean(authUrl.accessToken),
       hasRefreshToken: Boolean(authUrl.refreshToken),

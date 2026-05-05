@@ -46,6 +46,7 @@ const App = () => (
           <ErrorBoundary>
             <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/reset-password" element={<SetPassword />} />
             <Route path="/definir-senha" element={<SetPassword />} />
             <Route path="/reset-password" element={<SetPassword />} />
             <Route path="/portal/nota/:token" element={<InvoicePortal />} />
