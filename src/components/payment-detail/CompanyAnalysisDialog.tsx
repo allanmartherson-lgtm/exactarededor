@@ -852,11 +852,22 @@ function RowMain({
     : hasAlert
     ? "bg-warning-soft/30"
     : "bg-background";
+  // Sticky cells MUST be fully opaque to prevent text bleed from neighbouring columns.
+  const stickyBg = isActive
+    ? "bg-primary-soft"
+    : isCritical
+    ? "bg-destructive-soft"
+    : hasAlert
+    ? "bg-warning-soft"
+    : "bg-card";
+  const stickyHover =
+    !isActive && !isCritical && !hasAlert ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
   const stickyCell = cn(
     cellPad,
     "truncate border-b sticky z-10",
-    baseCellBg,
+    stickyBg,
+    stickyHover,
   );
   const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
 
@@ -868,7 +879,7 @@ function RowMain({
       aria-selected={isActive}
       tabIndex={-1}
       className={cn(
-        "cursor-pointer hover:bg-muted/40 transition-colors",
+        "group cursor-pointer hover:bg-muted/40 transition-colors",
         isActive && "ring-1 ring-inset ring-primary/40",
       )}
     >
