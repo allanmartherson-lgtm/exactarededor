@@ -42,7 +42,7 @@ const Auth = () => {
     }
     setResetting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
-      redirectTo: `${window.location.origin}/definir-senha`,
+      redirectTo: `${window.location.origin}/auth/reset-password`,
     });
     setResetting(false);
     if (error) {
