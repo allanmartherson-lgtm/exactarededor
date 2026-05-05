@@ -944,30 +944,60 @@ const Rules = () => {
                       <div className="space-y-1.5"><Label>Especialidade(s)</Label>
                         <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
                       </div>
-                      <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                      <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                         <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
                         <p className="text-xs text-muted-foreground">
-                          Quando preenchido, esta regra é aplicada a itens cujo header <strong>Convênio</strong> bata com o nome ou um dos aliases. Tem precedência sobre regras por médico/empresa/setor.
+                          Defina o modo e adicione os convênios como tags livres. A comparação ignora caixa, acentos e espaços (ex.: "Sul América" = "SULAMERICA"). <strong>Sem tags</strong> = aplica a todos os convênios.
                         </p>
-                        <Input
-                          value={fAgreementName}
-                          onChange={(e) => setFAgreementName(e.target.value)}
-                          placeholder="Nome principal do convênio (ex: Sul América, BRADESCO, Acordo)"
-                        />
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Aliases (variações de escrita)</Label>
+
+                        <RadioGroup
+                          value={fAgreementMatchMode}
+                          onValueChange={(v) => setFAgreementMatchMode(v as "whitelist" | "blacklist")}
+                          className="grid gap-1.5 pt-1"
+                        >
+                          <label className="flex items-start gap-2 cursor-pointer text-sm">
+                            <RadioGroupItem value="whitelist" id="agmode-wl" className="mt-0.5" />
+                            <span>
+                              <span className="font-medium">Aplicar somente aos convênios informados</span>
+                              <span className="block text-xs text-muted-foreground">A regra só vale quando o convênio do item estiver na lista.</span>
+                            </span>
+                          </label>
+                          <label className="flex items-start gap-2 cursor-pointer text-sm">
+                            <RadioGroupItem value="blacklist" id="agmode-bl" className="mt-0.5" />
+                            <span>
+                              <span className="font-medium">Não aplicar aos convênios informados</span>
+                              <span className="block text-xs text-muted-foreground">A regra vale para todos, exceto os convênios listados.</span>
+                            </span>
+                          </label>
+                        </RadioGroup>
+
+                        <div className="space-y-1 pt-1">
+                          <Label className="text-xs text-muted-foreground">Convênios</Label>
                           <Input
-                            placeholder="Pressione Enter para adicionar alias (ex: sulamerica)"
+                            value={fAgreementInput}
+                            onChange={(e) => setFAgreementInput(e.target.value)}
+                            placeholder="Digite e pressione Enter (ex.: Sul América, Bradesco, SUS)"
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              if (e.key === "Enter" || e.key === ",") {
                                 e.preventDefault();
-                                const v = (e.target as HTMLInputElement).value.trim();
-                                if (v && !fAgreementAliases.includes(v)) setFAgreementAliases((p) => [...p, v]);
-                                (e.target as HTMLInputElement).value = "";
+                                const v = fAgreementInput.trim();
+                                if (v && !fAgreementAliases.some((a) => a.trim().toLowerCase() === v.toLowerCase())) {
+                                  setFAgreementAliases((p) => [...p, v]);
+                                }
+                                setFAgreementInput("");
+                              } else if (e.key === "Backspace" && !fAgreementInput && fAgreementAliases.length > 0) {
+                                setFAgreementAliases((p) => p.slice(0, -1));
+                              }
+                            }}
+                            onBlur={() => {
+                              const v = fAgreementInput.trim();
+                              if (v && !fAgreementAliases.some((a) => a.trim().toLowerCase() === v.toLowerCase())) {
+                                setFAgreementAliases((p) => [...p, v]);
+                                setFAgreementInput("");
                               }
                             }}
                           />
-                          {fAgreementAliases.length > 0 && (
+                          {fAgreementAliases.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5 pt-1">
                               {fAgreementAliases.map((a) => (
                                 <button
@@ -981,6 +1011,8 @@ const Rules = () => {
                                 </button>
                               ))}
                             </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">Nenhum convênio listado — a regra se aplica a todos.</p>
                           )}
                         </div>
                       </div>
