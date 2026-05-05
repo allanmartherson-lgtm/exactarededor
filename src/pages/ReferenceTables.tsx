@@ -592,7 +592,7 @@ const ReferenceTables = () => {
                     <option value="info">Informativo (apenas registra)</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Tipo estrutural</Label>
                   <select
                     name="kind"
