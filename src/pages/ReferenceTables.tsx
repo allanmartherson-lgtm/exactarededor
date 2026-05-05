@@ -616,7 +616,7 @@ const ReferenceTables = () => {
                     <strong>Pacote fixo</strong>: <em>pacote_id, códigos_tuss, descrição, valor_pacote</em> — quando os códigos do atendimento baterem com a combinação, o esperado é o valor do pacote.
                   </p>
                 </div>
-                <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3" style={{ display: "none" }}>
+                <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3 md:col-span-2" style={{ display: "none" }}>
                   <div className="text-sm font-medium">Configuração do pacote</div>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="package_only_main_surgeon" /> Aplica somente ao cirurgião principal
