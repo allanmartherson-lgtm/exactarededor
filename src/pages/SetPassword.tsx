@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
-import { createPasswordRecoveryClient, getPasswordRecoveryVerifierState } from "@/lib/passwordRecoveryClient";
+import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
 
 /**
  * Página pública que captura o token enviado por email (convite ou recuperação)
