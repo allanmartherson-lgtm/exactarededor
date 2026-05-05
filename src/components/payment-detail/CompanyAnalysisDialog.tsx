@@ -215,7 +215,7 @@ export function CompanyAnalysisDialog({
   useEffect(() => {
     if (!open) {
       setActiveId(null);
-      setDetailOpen(false);
+      setExpandedId(null);
       setFilter("");
       setPatientFilter("");
       setDoctorFilter("__all__");
@@ -225,16 +225,15 @@ export function CompanyAnalysisDialog({
     }
   }, [open]);
 
-  // Selecionar uma linha — destaca apenas. Só abre o painel via Enter ou clique.
   const selectRow = (itId: string) => {
     setActiveId(itId);
   };
-  // Abre o painel lateral com o item indicado (ou o ativo).
+  // Toggle expansão inline; apenas uma linha expandida por vez.
   const openDetail = (itId?: string) => {
     const target = itId ?? activeId;
     if (!target) return;
     setActiveId(target);
-    setDetailOpen(true);
+    setExpandedId((prev) => (prev === target ? null : target));
   };
 
   // Listas únicas para os selects
