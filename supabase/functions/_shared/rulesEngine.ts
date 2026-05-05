@@ -665,7 +665,7 @@ function calcComplemento(rule: RuleInput, item: ItemInput): ExpectedCalc {
  * Tabela diferenciada: busca o valor base na TABELA DE REFERÊNCIA vinculada
  * à regra (por código TUSS do item) e aplica os parâmetros da regra.
  * NÃO depende de `procedure_amount` da planilha.
- * Ordem: valor_tabela_referencia × multiplicador × (1 - deflator%) × (repasse%) × via × (1 + aux)
+ * Ordem correta: tabela → multiplicador → via/função (auxiliares) → repasse → deflator
  *
  * Fallback: se a regra não tiver `reference_table_id` (ou lookup ausente),
  * usa `procedure_amount` como aproximação (compatibilidade).
