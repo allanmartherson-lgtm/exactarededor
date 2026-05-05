@@ -924,8 +924,8 @@ function RowMain({
         </td>
         <td
           className={cn(
-            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
-            diverges ? "text-warning-foreground" : "text-muted-foreground",
+            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b font-medium",
+            diverges ? "text-warning-foreground" : "text-foreground",
             baseCellBg,
           )}
         >
