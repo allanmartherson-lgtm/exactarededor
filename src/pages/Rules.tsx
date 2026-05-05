@@ -929,6 +929,46 @@ const Rules = () => {
                       <div className="space-y-1.5"><Label>Especialidade(s)</Label>
                         <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
                       </div>
+                      <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                        <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Quando preenchido, esta regra é aplicada a itens cujo header <strong>Convênio</strong> bata com o nome ou um dos aliases. Tem precedência sobre regras por médico/empresa/setor.
+                        </p>
+                        <Input
+                          value={fAgreementName}
+                          onChange={(e) => setFAgreementName(e.target.value)}
+                          placeholder="Nome principal do convênio (ex: Sul América, BRADESCO, Acordo)"
+                        />
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Aliases (variações de escrita)</Label>
+                          <Input
+                            placeholder="Pressione Enter para adicionar alias (ex: sulamerica)"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                const v = (e.target as HTMLInputElement).value.trim();
+                                if (v && !fAgreementAliases.includes(v)) setFAgreementAliases((p) => [...p, v]);
+                                (e.target as HTMLInputElement).value = "";
+                              }
+                            }}
+                          />
+                          {fAgreementAliases.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {fAgreementAliases.map((a) => (
+                                <button
+                                  key={a}
+                                  type="button"
+                                  onClick={() => setFAgreementAliases((p) => p.filter((x) => x !== a))}
+                                  className="text-xs rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                                  title="Remover"
+                                >
+                                  {a} ✕
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5"><Label>Vigência — início</Label>
                           <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
