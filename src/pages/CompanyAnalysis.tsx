@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, Filter, RefreshCcw, Send, RotateCcw } from "lucide-react";
@@ -28,6 +28,7 @@ import type {
   GroupRow,
   AiVersionRow,
   AiFindings,
+  RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,8 @@ export default function CompanyAnalysis() {
   const [items, setItems] = useState<PaymentItemRow[]>([]);
   const [obs, setObs] = useState<ObservationRow[]>([]);
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
+  const [rulesIndex, setRulesIndex] = useState<Record<string, RuleLite>>({});
+  const [rulesByName, setRulesByName] = useState<Record<string, RuleLite>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -92,6 +95,25 @@ export default function CompanyAnalysis() {
       setItems(filtered);
       setObs((o ?? []) as ObservationRow[]);
       setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
+
+      // Carrega regras citadas pela IA p/ alimentar o ItemsDataGrid
+      const ids = Array.from(new Set(filtered.flatMap((x) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
+      const names = Array.from(new Set(filtered.flatMap((x) => x.ai_findings?.matched_rules ?? []))).filter(Boolean) as string[];
+      const [byIdRes, byNameRes] = await Promise.all([
+        ids.length
+          ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("id", ids)
+          : Promise.resolve({ data: [] as RuleLite[] }),
+        names.length
+          ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("name", names)
+          : Promise.resolve({ data: [] as RuleLite[] }),
+      ]);
+      const idx: Record<string, RuleLite> = {};
+      (byIdRes.data ?? []).forEach((r) => { idx[(r as RuleLite).id] = r as RuleLite; });
+      (byNameRes.data ?? []).forEach((r) => { idx[(r as RuleLite).id] = r as RuleLite; });
+      const nameIdx: Record<string, RuleLite> = {};
+      Object.values(idx).forEach((r) => { nameIdx[String(r.name).trim().toLowerCase()] = r; });
+      setRulesIndex(idx);
+      setRulesByName(nameIdx);
     }
     setLoading(false);
   };
@@ -362,7 +384,14 @@ export default function CompanyAnalysis() {
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <ItemsTable items={itemsForAnalysis} gStatus={gStatus} />
+              <ItemsDataGrid
+                items={itemsForAnalysis}
+                groupStatus={gStatus}
+                rulesIndex={rulesIndex}
+                rulesByName={rulesByName}
+                observations={obs}
+                storageKey="companyAnalysisPage"
+              />
             </CardContent>
           </Card>
 
@@ -494,62 +523,7 @@ function Stat({
   );
 }
 
-function ItemsTable({ items, gStatus }: { items: PaymentItemRow[]; gStatus: PaymentStatus }) {
-  if (items.length === 0) {
-    return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        Sem itens para exibir.
-      </div>
-    );
-  }
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Paciente</TableHead>
-            <TableHead>Médico</TableHead>
-            <TableHead>TUSS</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
-            <TableHead className="text-right">Esperado</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((it) => {
-            const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-            const paciente =
-              (it.patient_name as string | null) ??
-              ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-              "—";
-            const expected = it.ai_findings?.expected_amount;
-            const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
-            const tone: keyof typeof TONE_CLASSES =
-              eff === "reprovado" ? "destructive" : eff === "alerta" ? "warning" : eff === "aprovado" || eff === "seguido" ? "success" : "muted";
-            return (
-              <TableRow key={it.id} className={cn(eff === "reprovado" && "bg-destructive/5")}>
-                <TableCell className="text-sm">{paciente}</TableCell>
-                <TableCell className="text-sm">{it.doctor_name}</TableCell>
-                <TableCell className="text-xs font-mono">{it.procedure_code ?? "—"}</TableCell>
-                <TableCell className="text-sm text-right tabular-nums">
-                  {formatCurrency(Number(it.gross_amount ?? 0))}
-                </TableCell>
-                <TableCell className="text-sm text-right tabular-nums text-muted-foreground">
-                  {expected != null ? formatCurrency(Number(expected)) : "—"}
-                </TableCell>
-                <TableCell>
-                  <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px]", TONE_CLASSES[tone])}>
-                    {eff}
-                  </span>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
+// ItemsTable foi substituída por <ItemsDataGrid /> compartilhado.
 
 function DivergenceCard({
   it,
