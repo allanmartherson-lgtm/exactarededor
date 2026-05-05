@@ -673,7 +673,7 @@ const ReferenceTables = () => {
                         <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
                           {KIND_LABEL[t.kind] ?? t.kind}
                         </span>
-                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : "bg-success/10 text-success border border-success/30"}`}>
+                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : t.purpose === "sem_acordo" ? "bg-warning/10 text-warning border border-warning/30" : "bg-success/10 text-success border border-success/30"}`}>
                           {PURPOSE_LABEL[t.purpose ?? "calculo"]}
                         </span>
                         {t.active === false && (
