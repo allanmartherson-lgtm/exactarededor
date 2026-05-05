@@ -201,9 +201,12 @@ const Rules = () => {
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
-  // Convênio (eixo determinístico do motor de regras)
-  const [fAgreementName, setFAgreementName] = useState<string>("");
+  // Convênio (eixo determinístico do motor de regras) — modo whitelist/blacklist + tags livres.
+  // `agreement_name` legado é mantido apenas para retrocompatibilidade na leitura
+  // (mesclado em `fAgreementAliases` no openEdit). Novas regras gravam só em aliases.
+  const [fAgreementMatchMode, setFAgreementMatchMode] = useState<"whitelist" | "blacklist">("whitelist");
   const [fAgreementAliases, setFAgreementAliases] = useState<string[]>([]);
+  const [fAgreementInput, setFAgreementInput] = useState<string>("");
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
