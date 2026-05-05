@@ -569,9 +569,12 @@ export const PaymentGroupCard = ({
                   onExceptionChanged={onExceptionChanged}
                   hasPrev={idx > 0}
                   hasNext={idx < orderedItems.length - 1}
+                  isSelected={focusedRowId === it.id}
+                  onSelect={(id) => setFocusedRowId(id)}
                   onNavigate={(dir) => {
                     const target = orderedItems[dir === "prev" ? idx - 1 : idx + 1];
                     if (!target) return;
+                    setFocusedRowId(target.id);
                     // Fecha o atual e abre o vizinho — toggle é idempotente para o pai.
                     onToggleItemExpanded(it.id);
                     onToggleItemExpanded(target.id);
