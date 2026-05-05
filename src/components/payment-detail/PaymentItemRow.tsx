@@ -309,13 +309,13 @@ export const PaymentItemRow = ({
           onToggleExpanded(it.id);
         }}
       >
-        <td className={`${cellPad} text-muted-foreground print:hidden align-top md:sticky md:left-0 z-[1] ${isSelected ? "bg-primary/10" : "bg-background"}`}>
+        <td className={`${cellPad} text-muted-foreground print:hidden align-top md:sticky md:left-0 z-20 ${isSelected ? "bg-primary/10" : "bg-background"}`}>
           <ChevronRight className="h-3 w-3" />
         </td>
-        <td className={`${cellPad} ${fXs} font-mono text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-6 z-[1] ${isSelected ? "bg-primary/10" : "bg-background"}`} title={it.attendance_number ?? ""}>
+        <td className={`${cellPad} ${fXs} font-mono text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[28px] z-20 ${isSelected ? "bg-primary/10" : "bg-background"}`} title={it.attendance_number ?? ""}>
           {it.attendance_number ?? "—"}
         </td>
-        <td className={`${cellPad} ${fSm} leading-tight whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[104px] z-[1] shadow-[1px_0_0_0_hsl(var(--border))] ${isSelected ? "bg-primary/10" : "bg-background"}`} title={paciente}>{paciente}</td>
+        <td className={`${cellPad} ${fSm} leading-tight whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[124px] z-20 shadow-[1px_0_0_0_hsl(var(--border))] ${isSelected ? "bg-primary/10" : "bg-background"}`} title={paciente}>{paciente}</td>
         <td className={`${cellPad} ${fSm} leading-tight text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis hidden md:table-cell print:table-cell`} title={typeof convenio === "string" ? convenio : ""}>
           {convenio}
         </td>

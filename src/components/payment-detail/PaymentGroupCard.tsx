@@ -545,9 +545,9 @@ export const PaymentGroupCard = ({
             </colgroup>
             <thead className={`text-left ${isComfy ? "text-[12px]" : "text-[11px]"} font-semibold uppercase tracking-wider text-muted-foreground print:static`}>
               <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:bg-muted [&>th]:z-10 [&>th]:shadow-[0_1px_0_0_hsl(var(--border))]">
-                <th className="px-2.5 py-2 print:hidden !left-0 md:!sticky !z-20"></th>
-                <th className="px-2.5 py-2 !left-6 md:!sticky !z-20">Atend.</th>
-                <th className="px-2.5 py-2 !left-[104px] md:!sticky !z-20">Paciente</th>
+                <th className="px-2.5 py-2 print:hidden !left-0 md:!sticky !z-30 !bg-muted"></th>
+                <th className="px-2.5 py-2 !left-[28px] md:!sticky !z-30 !bg-muted">Atend.</th>
+                <th className="px-2.5 py-2 !left-[124px] md:!sticky !z-30 !bg-muted shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]">Paciente</th>
                 <th className="px-2.5 py-2 hidden md:table-cell print:table-cell">Convênio</th>
                 <th className="px-2.5 py-2">Médico / Função</th>
                 <th className="px-2.5 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
