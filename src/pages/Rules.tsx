@@ -201,6 +201,9 @@ const Rules = () => {
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
+  // Convênio (eixo determinístico do motor de regras)
+  const [fAgreementName, setFAgreementName] = useState<string>("");
+  const [fAgreementAliases, setFAgreementAliases] = useState<string[]>([]);
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
