@@ -297,7 +297,7 @@ export const PaymentItemRow = ({
             </div>
           )}
         </td>
-        <td className={`${cellPadRight} tabular-nums ${fSm}`}>{it.quantity ?? "—"}</td>
+        <td className={`${cellPadRight} tabular-nums ${fSec}`}>{it.quantity ?? "—"}</td>
         <td className={`${cellPadRight}`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1.5">
             {tooltipNode ? (
