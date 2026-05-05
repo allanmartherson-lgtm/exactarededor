@@ -1,0 +1,2 @@
+ALTER TABLE public.reference_tables DROP CONSTRAINT IF EXISTS reference_tables_purpose_chk;
+ALTER TABLE public.reference_tables ADD CONSTRAINT reference_tables_purpose_chk CHECK (purpose = ANY (ARRAY['calculo'::text, 'classificacao'::text, 'exclusao'::text, 'sem_acordo'::text]));
