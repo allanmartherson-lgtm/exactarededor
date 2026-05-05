@@ -259,6 +259,8 @@ export default function CompanyAnalysis() {
     toast.success("Devolvido ao analista");
     load();
   };
+
+  if (loading) {
     return (
       <div className="space-y-4">
         <PageHeader title="Carregando análise…" />
