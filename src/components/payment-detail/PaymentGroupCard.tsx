@@ -167,6 +167,8 @@ export const PaymentGroupCard = ({
 }: PaymentGroupCardProps) => {
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [density, setDensity] = useState<RowDensity>(() => readDensity());
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window !== "undefined") window.localStorage.setItem(DENSITY_LS_KEY, density);
   }, [density]);
