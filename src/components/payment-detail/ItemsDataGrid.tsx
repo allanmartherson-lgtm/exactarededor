@@ -33,6 +33,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
