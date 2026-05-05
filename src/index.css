@@ -28,7 +28,8 @@ All colors MUST be HSL.
     --secondary-foreground: 213 25% 32%;
 
     --muted: 204 24% 94%;               /* bg-hover #edf2f5 */
-    --muted-foreground: 209 19% 58%;    /* text-muted */
+    --muted-foreground: 209 19% 45%;    /* text-secondary (mid grey) */
+    --text-tertiary: 209 15% 62%;       /* text-tertiary (lighter grey) */
 
     --accent: 171 50% 94%;              /* accent-light */
     --accent-foreground: 173 84% 26%;   /* accent-text */
