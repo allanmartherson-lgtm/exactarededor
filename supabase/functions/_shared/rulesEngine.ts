@@ -962,6 +962,40 @@ export function analyzeItem(
     let winner = outcome.rule;
     let winnerPriority = outcome.priority;
 
+    // === Camada 1 — Gating por-regra de convênio ===
+    // A vencedora foi escolhida pelos eixos (especialidade/código/médico/
+    // empresa/grupo/setor) sem considerar convênio. Agora validamos se a
+    // PRÓPRIA regra aceita o convênio do item (whitelist/blacklist dela).
+    // Se não aceita → o item cai no fallback (default por setor) com alerta
+    // explicando qual regra/blacklist disparou. Outras regras NÃO são
+    // consultadas — cada regra é uma unidade autocontida.
+    if (ruleHasAgreement(winner) && !ruleAcceptsItemAgreement(winner, item)) {
+      const mode = winner.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+      const def = calcDefault(item);
+      const motivo = mode === "blacklist"
+        ? `Convênio "${item.agreement_name ?? "—"}" está na blacklist da regra "${winner.name}".`
+        : `Convênio "${item.agreement_name ?? "—"}" não satisfaz a whitelist da regra "${winner.name}".`;
+      return {
+        item_id: item.id,
+        status: "alerta",
+        expected_amount: def.expected,
+        diff_pct: def.expected != null ? classifyDiff(def.expected, item.gross_amount).diff_pct : null,
+        matched_rule_id: null,
+        matched_rule_name: null,
+        matched_priority: "sem_regra",
+        calculation_type_used: def.calculation_type_used,
+        calculation_explanation:
+          `Bloqueado pela Camada 1 (${motivo}). ` +
+          `Regra de cálculo ignorada — ${def.explanation}`,
+        alerts: [
+          `${motivo} Cálculo da regra ignorado; aplicado fallback por setor.`,
+          ...def.alerts,
+        ],
+        needs_ai_review: true,
+        needs_human_review: true,
+      };
+    }
+
     // === Tratamento de "Exclusão / não pagar" como bloqueio com exceção autorizada ===
     // Se a regra vencedora é uma exclusão e o analista marcou o item como
     // "exceção autorizada", e a regra permite essa exceção, o motor NÃO aplica
