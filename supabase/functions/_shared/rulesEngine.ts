@@ -449,6 +449,12 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
   const itemSector = inferItemSector(item);
   const isHemo = itemSector === "hemodinamica";
 
+  // Pré-filtro global: se a regra define restrição de convênio (whitelist/blacklist)
+  // e o convênio do item NÃO satisfaz, a regra é descartada para TODOS os eixos.
+  // Isso garante que blacklist de convênio prevaleça mesmo quando a regra também
+  // case por médico/empresa/grupo/setor.
+  rules = rules.filter((r) => !ruleHasAgreement(r) || targetsAgreement(r, item));
+
   // ===== EIXO CONVÊNIO (precedência sobre médico/empresa/setor) =====
   // Só rodamos quando o item tem convênio E existe ao menos uma regra
   // que define agreement_name/aliases que casa com esse convênio.
