@@ -129,6 +129,18 @@ export function CompanyAnalysisDialog({
   rulesIndex,
   rulesByName,
   observations = [],
+  isAnalista,
+  isValidador,
+  isDiretor,
+  busy,
+  reanalyzingGroupId,
+  groupCommentDraft = "",
+  onGroupCommentDraftChange,
+  onReanalyze,
+  onResend,
+  onSendForValidation,
+  onTransition,
+  onBackToBatch,
 }: Props) {
   const { id } = useParams<{ id: string }>();
   const gStatus = group.status as PaymentStatus;
