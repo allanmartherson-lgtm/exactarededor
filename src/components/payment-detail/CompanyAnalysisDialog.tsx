@@ -1150,7 +1150,7 @@ function ItemDetailsRow({
           </div>
 
           {/* COL 2 — Regra, motor e IA */}
-          <div className="space-y-2 text-xs">
+          <div className="space-y-2 text-xs min-w-0 break-words">
             {matchedRules.length > 0 ? (
               <div className="rounded-md border bg-background p-2.5">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
