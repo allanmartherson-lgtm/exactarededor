@@ -315,7 +315,38 @@ serve(async (req) => {
       r.needs_ai_review = status !== "aprovado";
     }
 
-    // ---------- 4.1.b Sobrepor para itens em tabela "Sem acordo" ----------
+    // ---------- 4.1.a CAMADA 1 — Gating contextual por convênio (blacklist) ----------
+    // Antes de aceitar qualquer regra de cálculo, verifica se existe regra
+    // blacklist cujo convênio do item está bloqueado E que bate nos demais
+    // eixos (especialidade/setor/código/médico/empresa/grupo). Se existir,
+    // o item cai no fallback "100% do valor do convênio" — espelhando o
+    // comportamento de sem_acordo, mas acionado por regra (não por tabela).
+    // Pula códigos já marcados como exclusão (exclusão tem prioridade).
+    for (const r of results) {
+      const it = items.find((i) => i.id === r.item_id);
+      if (!it) continue;
+      const code = it.procedure_code ?? "";
+      if (code && exclusionByCode[code]) continue;
+      const gate = findContextualBlacklistGate(it as any, rules);
+      if (!gate) continue;
+      const paid = Number(it.gross_amount ?? 0);
+      r.expected_amount = paid;
+      r.diff_pct = 0;
+      r.matched_rule_id = null;
+      r.matched_rule_name = `Camada 1 — Bloqueio de convênio: ${gate.name}`;
+      r.matched_priority = "conflito";
+      r.calculation_type_used = "informativo";
+      r.calculation_explanation =
+        `Bloqueado pela Camada 1 (convênio "${it.agreement_text ?? "—"}" em blacklist da regra "${gate.name}"). ` +
+        `Regras de cálculo ignoradas — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`;
+      r.alerts = [
+        `Convênio "${it.agreement_text ?? "—"}" bloqueado pela regra "${gate.name}" (blacklist contextual) — sem cálculo aplicado.`,
+      ];
+      r.status = "aprovado";
+      r.needs_ai_review = false;
+    }
+
+
     // Não aplica regras de cálculo: usa diretamente o valor pago como esperado.
     // Pula códigos já marcados como exclusão (exclusão tem prioridade).
     for (const r of results) {
