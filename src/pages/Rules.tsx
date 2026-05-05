@@ -386,7 +386,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFAgreementName(""); setFAgreementAliases([]);
+    setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
