@@ -92,7 +92,14 @@ const ReferenceTables = () => {
               : [
                   { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
                   { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
-                  { key: "amount", label: "Valor", required: true, type: "number", aliases: ["valor", "preco", "preço", "amount"] },
+                  {
+                    key: "amount",
+                    label: "Valor",
+                    // Apenas finalidade "calculo" exige valor. Exclusão e Sem acordo ignoram.
+                    required: selected.purpose !== "exclusao" && selected.purpose !== "sem_acordo",
+                    type: "number",
+                    aliases: ["valor", "preco", "preço", "amount"],
+                  },
                 ],
       }
     : null;
