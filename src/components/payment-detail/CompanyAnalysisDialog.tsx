@@ -653,6 +653,109 @@ export function CompanyAnalysisDialog({
         <div className="border-t px-4 py-1.5 text-[10px] text-muted-foreground bg-muted/20">
           Use ↑/↓ ou j/k para navegar · Enter para expandir
         </div>
+
+        {/* Footer sticky com ações de fluxo (sempre visível) */}
+        {showFooter && (
+          <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+            <div className="flex flex-col md:flex-row md:items-start gap-2">
+              <Textarea
+                rows={2}
+                value={groupCommentDraft}
+                onChange={(e) => onGroupCommentDraftChange?.(e.target.value)}
+                placeholder="Observação para esta empresa (obrigatória para devolver/rejeitar)..."
+                className="md:flex-1 text-xs"
+              />
+              <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
+                {isGroupAnalista && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReanalyze?.(group)}
+                      disabled={busy || reanalyzingGroupId === group.id}
+                    >
+                      <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzingGroupId === group.id && "animate-spin")} />
+                      {reanalyzingGroupId === group.id ? "Reaplicando..." : "Reaplicar regras"}
+                    </Button>
+                    {returnerForResend ? (
+                      <Button size="sm" onClick={() => onResend?.(group.id)} disabled={busy}>
+                        <Send className="h-4 w-4 mr-2" /> Reencaminhar ao {returnerForResend}
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => onSendForValidation?.(group.id)} disabled={busy}>
+                        <Send className="h-4 w-4 mr-2" /> Enviar para validação
+                      </Button>
+                    )}
+                  </>
+                )}
+                {isGroupValidador && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReanalyze?.(group)}
+                      disabled={busy || reanalyzingGroupId === group.id}
+                    >
+                      <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzingGroupId === group.id && "animate-spin")} />
+                      Reaplicar regras
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "devolvido_analista", "validador", "Devolvido ao analista", true)}
+                      disabled={busy}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "aguardando_aprovacao", "validador", "Validado", false)}
+                      disabled={busy}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Validar empresa
+                    </Button>
+                  </>
+                )}
+                {isGroupDiretor && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReanalyze?.(group)}
+                      disabled={busy || reanalyzingGroupId === group.id}
+                    >
+                      <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzingGroupId === group.id && "animate-spin")} />
+                      Reaplicar regras
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "devolvido_analista", "diretor", "Devolvido ao analista", true)}
+                      disabled={busy}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "rejeitado", "diretor", "Rejeitado", true)}
+                      disabled={busy}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" /> Rejeitar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "aprovado", "diretor", "Aprovado", false)}
+                      disabled={busy}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
