@@ -282,7 +282,7 @@ export const AppLayout = () => {
           className="sticky top-0 z-40 bg-card border-b border-border shadow-soft"
           style={{ height: 56 }}
         >
-          <div className="h-full max-w-[1400px] mx-auto px-5 flex items-center gap-5">
+          <div className="h-full max-w-[1600px] mx-auto px-5 flex items-center gap-5">
             <Logo />
             <TopbarNav items={visibleTopNav} />
 
