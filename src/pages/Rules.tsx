@@ -525,6 +525,8 @@ const Rules = () => {
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
       sectors: fSectors,
       specialties: fSpecialties,
+      agreement_name: fAgreementName.trim() || null,
+      agreement_aliases: fAgreementAliases.map((a) => a.trim()).filter(Boolean),
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
