@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -155,9 +155,10 @@ export function CompanyAnalysisDialog({
     gStatus === "devolvido_analista"
       ? resolveResendTarget(observations, group.company_name)?.role ?? null
       : null;
-  // Painel lateral (drawer) — id da linha selecionada (null = painel fechado).
+  // Linha selecionada (destacada) e linha expandida (mostrando detalhes inline).
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const [filter, setFilter] = useState("");
   const [patientFilter, setPatientFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState<string>("__all__");
@@ -214,7 +215,7 @@ export function CompanyAnalysisDialog({
   useEffect(() => {
     if (!open) {
       setActiveId(null);
-      setDetailOpen(false);
+      setExpandedId(null);
       setFilter("");
       setPatientFilter("");
       setDoctorFilter("__all__");
@@ -224,16 +225,15 @@ export function CompanyAnalysisDialog({
     }
   }, [open]);
 
-  // Selecionar uma linha — destaca apenas. Só abre o painel via Enter ou clique.
   const selectRow = (itId: string) => {
     setActiveId(itId);
   };
-  // Abre o painel lateral com o item indicado (ou o ativo).
+  // Toggle expansão inline; apenas uma linha expandida por vez.
   const openDetail = (itId?: string) => {
     const target = itId ?? activeId;
     if (!target) return;
     setActiveId(target);
-    setDetailOpen(true);
+    setExpandedId((prev) => (prev === target ? null : target));
   };
 
   // Listas únicas para os selects
@@ -308,9 +308,9 @@ export function CompanyAnalysisDialog({
       } else if (e.key === "Enter" && activeId) {
         e.preventDefault();
         openDetail(activeId);
-      } else if (e.key === "Escape" && detailOpen) {
+      } else if (e.key === "Escape" && expandedId) {
         e.preventDefault();
-        setDetailOpen(false);
+        setExpandedId(null);
       }
     };
     window.addEventListener("keydown", handler);
@@ -625,6 +625,17 @@ export function CompanyAnalysisDialog({
                 const isCritical = eff === "reprovado";
                 const obsCount = observations.filter((o) => o.item_id === it.id).length;
 
+                const totalCols =
+                  6 + // sticky/required: paciente, tuss, procedimento, médico, valor, esperado, status (7) — minus 1 for status counted below
+                  1 + // status
+                  (colVis.atendimento ? 1 : 0) +
+                  (colVis.convenio ? 1 : 0) +
+                  (colVis.via ? 1 : 0) +
+                  (colVis.funcao ? 1 : 0) +
+                  (colVis.regra ? 1 : 0) +
+                  (colVis.diferenca ? 1 : 0) +
+                  (colVis.observacao ? 1 : 0);
+                const isExpanded = expandedId === it.id;
                 return (
                   <RowMain
                     key={it.id}
@@ -634,6 +645,7 @@ export function CompanyAnalysisDialog({
                     eff={eff}
                     tone={tone}
                     isActive={isActive}
+                    isExpanded={isExpanded}
                     isCritical={isCritical}
                     hasAlert={alerts.length > 0}
                     onSelect={() => selectRow(it.id)}
@@ -641,8 +653,10 @@ export function CompanyAnalysisDialog({
                     colVis={colVis}
                     rulesIndex={rulesIndex}
                     rulesByName={rulesByName}
+                    observations={observations}
                     obsCount={obsCount}
                     isCompact={isCompact}
+                    totalCols={totalCols}
                   />
                 );
               })}
@@ -652,31 +666,8 @@ export function CompanyAnalysisDialog({
         </div>
 
         <div className="border-t px-4 py-1.5 text-[10px] text-muted-foreground bg-muted/20">
-          Use ↑/↓ ou j/k para navegar · Enter para abrir o painel · Esc para fechar
+          Use ↑/↓ ou j/k para navegar · Enter para expandir/colapsar · Esc para fechar
         </div>
-
-        {/* Painel lateral (drawer) com detalhe do item selecionado */}
-        <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-          <SheetContent
-            side="right"
-            className="w-full sm:max-w-xl p-0 flex flex-col gap-0 overflow-hidden"
-          >
-            {(() => {
-              const it = items.find((x) => x.id === activeId);
-              if (!it) return (
-                <div className="p-6 text-sm text-muted-foreground">Selecione um item para ver os detalhes.</div>
-              );
-              return (
-                <ItemDetailsPanel
-                  it={it}
-                  rulesIndex={rulesIndex}
-                  rulesByName={rulesByName}
-                  observations={observations}
-                />
-              );
-            })()}
-          </SheetContent>
-        </Sheet>
 
         {/* Footer sticky com ações de fluxo (sempre visível) */}
         {showFooter && (
@@ -792,6 +783,7 @@ function RowMain({
   eff,
   tone,
   isActive,
+  isExpanded,
   isCritical,
   hasAlert,
   onSelect,
@@ -799,8 +791,10 @@ function RowMain({
   colVis,
   rulesIndex,
   rulesByName,
+  observations,
   obsCount,
   isCompact,
+  totalCols,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -808,6 +802,7 @@ function RowMain({
   eff: ItemAiStatus | "seguido";
   tone: keyof typeof TONE_CLASSES;
   isActive: boolean;
+  isExpanded: boolean;
   isCritical: boolean;
   hasAlert: boolean;
   onSelect: () => void;
@@ -815,8 +810,10 @@ function RowMain({
   colVis: Record<OptionalColKey, boolean>;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
+  observations: ObservationRow[];
   obsCount: number;
   isCompact: boolean;
+  totalCols: number;
 }) {
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
@@ -844,145 +841,142 @@ function RowMain({
     ruleName = r?.name ?? matchedNames[0];
   }
 
-  // Cor base/ativa para a célula sticky (precisa cobrir o conteúdo abaixo).
-  const baseCellBg = isActive
+  const baseCellBg = isExpanded
     ? "bg-primary/10"
+    : isActive
+    ? "bg-primary/5"
     : isCritical
     ? "bg-destructive/5"
     : hasAlert
     ? "bg-warning-soft/30"
     : "bg-background";
-  // Sticky cells MUST be fully opaque to prevent text bleed from neighbouring columns.
-  const stickyBg = isActive
+  const stickyBg = isExpanded
     ? "bg-primary-soft"
+    : isActive
+    ? "bg-primary-soft/60"
     : isCritical
     ? "bg-destructive-soft"
     : hasAlert
     ? "bg-warning-soft"
     : "bg-card";
   const stickyHover =
-    !isActive && !isCritical && !hasAlert ? "group-hover:bg-muted" : "";
+    !isActive && !isExpanded && !isCritical && !hasAlert ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const stickyCell = cn(
-    cellPad,
-    "truncate border-b sticky z-10",
-    stickyBg,
-    stickyHover,
-  );
+  const stickyCell = cn(cellPad, "truncate border-b sticky z-10", stickyBg, stickyHover);
   const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
 
   return (
-    <tr
-      onClick={onSelect}
-      onDoubleClick={onOpen}
-      data-row-id={it.id}
-      aria-selected={isActive}
-      tabIndex={-1}
-      className={cn(
-        "group cursor-pointer hover:bg-muted/40 transition-colors",
-        isActive && "ring-1 ring-inset ring-primary/40",
-      )}
-    >
-      {colVis.atendimento && (
-        <td className={cn(cell, "font-mono text-[10px]", baseCellBg)} title={it.attendance_number ?? ""}>
-          {it.attendance_number ?? "—"}
-        </td>
-      )}
-      <td className={cn(stickyCell, "left-0 min-w-[180px]")} title={paciente}>
-        <span className="truncate block">{paciente}</span>
-      </td>
-      {colVis.convenio && (
-        <td className={cn(cell, baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
-          {convenio}
-        </td>
-      )}
-      {colVis.via && (
-        <td className={cn(cell, baseCellBg)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
-      )}
-      <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
-      <td
-        className={cn(stickyCell, "left-[180px] min-w-[200px] text-muted-foreground")}
-        title={it.procedure_name ?? it.description ?? ""}
-      >
-        <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
-      </td>
-      <td
-        className={cn(stickyCell, "left-[380px] min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}
-        title={it.doctor_name ?? ""}
-      >
-        <span className="truncate block">{it.doctor_name}</span>
-      </td>
-      {colVis.funcao && (
-        <td className={cn(cell, baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
-      )}
-      {colVis.regra && (
-        <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
-      )}
-      <td className={cn("px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
-        {formatCurrency(grossN)}
-      </td>
-      <td
+    <>
+      <tr
+        onClick={() => {
+          onSelect();
+          onOpen();
+        }}
+        data-row-id={it.id}
+        aria-selected={isActive}
+        aria-expanded={isExpanded}
+        tabIndex={-1}
         className={cn(
-          "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
-          diverges ? "text-warning-foreground" : "text-muted-foreground",
-          baseCellBg,
+          "group cursor-pointer hover:bg-muted/40 transition-colors",
+          isExpanded && "ring-1 ring-inset ring-primary/40",
         )}
       >
-        {expN != null ? formatCurrency(expN) : "—"}
-      </td>
-      {colVis.diferenca && (
+        {colVis.atendimento && (
+          <td className={cn(cell, "font-mono text-[10px]", baseCellBg)} title={it.attendance_number ?? ""}>
+            {it.attendance_number ?? "—"}
+          </td>
+        )}
+        <td className={cn(stickyCell, "left-0 min-w-[180px]")} title={paciente}>
+          <span className="truncate block">{paciente}</span>
+        </td>
+        {colVis.convenio && (
+          <td className={cn(cell, baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
+            {convenio}
+          </td>
+        )}
+        {colVis.via && (
+          <td className={cn(cell, baseCellBg)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+        )}
+        <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
+        <td
+          className={cn(stickyCell, "left-[180px] min-w-[200px] text-muted-foreground")}
+          title={it.procedure_name ?? it.description ?? ""}
+        >
+          <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
+        </td>
+        <td
+          className={cn(stickyCell, "left-[380px] min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}
+          title={it.doctor_name ?? ""}
+        >
+          <span className="truncate block">{it.doctor_name}</span>
+        </td>
+        {colVis.funcao && (
+          <td className={cn(cell, baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+        )}
+        {colVis.regra && (
+          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
+        )}
+        <td className={cn("px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+          {formatCurrency(grossN)}
+        </td>
         <td
           className={cn(
             "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
-            diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+            diverges ? "text-warning-foreground" : "text-muted-foreground",
             baseCellBg,
           )}
         >
-          {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+          {expN != null ? formatCurrency(expN) : "—"}
         </td>
-      )}
-      <td className={cn("px-1.5 py-1 border-b", baseCellBg)}>
-        <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
-          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
-          {eff}
-        </span>
-      </td>
-      {colVis.observacao && (
-        <td className={cn("px-1.5 py-1 text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
-          {obsCount > 0 ? obsCount : "—"}
+        {colVis.diferenca && (
+          <td
+            className={cn(
+              "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
+              diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
+              baseCellBg,
+            )}
+          >
+            {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
+          </td>
+        )}
+        <td className={cn("px-1.5 py-1 border-b", baseCellBg)}>
+          <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
+            {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+            {eff}
+          </span>
         </td>
+        {colVis.observacao && (
+          <td className={cn("px-1.5 py-1 text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
+            {obsCount > 0 ? obsCount : "—"}
+          </td>
+        )}
+      </tr>
+      {isExpanded && (
+        <ItemDetailsRow
+          it={it}
+          rulesIndex={rulesIndex}
+          rulesByName={rulesByName}
+          observations={observations}
+          colSpan={totalCols}
+        />
       )}
-    </tr>
+    </>
   );
 }
 
-function ItemDetailsPanel(props: {
-  it: PaymentItemRowData;
-  rulesIndex: Record<string, RuleLite>;
-  rulesByName: Record<string, RuleLite>;
-  observations: ObservationRow[];
-}) {
-  return (
-    <div className="flex-1 overflow-auto">
-      <table className="w-full">
-        <tbody>
-          <ItemDetailsRow {...props} />
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function ItemDetailsRow({
   it,
   rulesIndex,
   rulesByName,
   observations,
+  colSpan,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
+  colSpan: number;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
@@ -1071,182 +1065,195 @@ function ItemDetailsRow({
 
   return (
     <tr className="border-b bg-muted/20">
-      <td colSpan={12} className="px-5 py-3 align-top">
-        {/* Linha 1 — Resumo dos campos da planilha */}
-        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-3 gap-y-2 text-[11px]">
-          {summary.map((s) => (
-            <div key={s.label} className="min-w-0">
-              <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-              <p className="break-words leading-snug" title={s.value}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-2">
-          {/* COL 1 — Alertas e Exceção */}
-          <div className="space-y-2 min-w-0">
-            {alerts.length > 0 && (
-              <AlertBanner
-                severity={isCritical ? "critico" : "alerta"}
-                title={
-                  isCritical
-                    ? "Item reprovado pela análise"
-                    : alerts.length === 1
-                    ? "Alerta"
-                    : `${alerts.length} alertas`
-                }
-              >
-                <ul className="space-y-0.5 list-disc pl-4">
-                  {alerts.map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
-                </ul>
-              </AlertBanner>
-            )}
-            {alerts.length === 0 && !isCritical && (
-              <AlertBanner severity="informativo" title="Sem alertas">
-                <p>Item sem divergências detectadas pela análise.</p>
-              </AlertBanner>
-            )}
-            {exceptionMarked && (
-              <div className="rounded-md border border-info/20 bg-info-soft px-2.5 py-2 text-xs text-info">
-                <div className="flex items-center gap-1.5 font-medium">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Exceção autorizada registrada
-                </div>
-                <p className="mt-1 text-[11px]">
-                  Motivo: <strong>{itemAny.exception_reason ?? "—"}</strong> · Autorizador:{" "}
-                  <strong>{itemAny.exception_authorizer ?? "—"}</strong>
-                </p>
-                {itemAny.exception_note && (
-                  <p className="mt-1 italic text-[11px] whitespace-pre-wrap">"{itemAny.exception_note}"</p>
-                )}
+      <td colSpan={colSpan} className="p-0 align-top">
+        <div
+          className="px-5 py-4 animate-accordion-down overflow-hidden"
+          style={{ fontSize: "13px", lineHeight: 1.4 }}
+        >
+          {/* Resumo dos campos da planilha */}
+          <div className="mb-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-4 gap-y-3">
+            {summary.map((s) => (
+              <div key={s.label} className="min-w-0">
+                <p className="uppercase tracking-wide text-muted-foreground" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>{s.label}</p>
+                <p className="break-words" style={{ fontSize: "13px", lineHeight: 1.4 }}>{s.value}</p>
               </div>
-            )}
-
-            {/* Histórico do item */}
-            <div className="rounded-md border bg-background p-2.5">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                Histórico deste item ({itemObs.length})
-              </p>
-              {itemObs.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Sem comentários ainda.</p>
-              ) : (
-                <ul className="space-y-1.5 max-h-40 overflow-y-auto text-[11px]">
-                  {itemObs.map((o) => (
-                    <li key={o.id} className="border-b border-border/40 pb-1 last:border-0">
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
-                        <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">
-                          {o.author_type}
-                        </span>
-                        <span className="ml-auto">{fmtDate(o.created_at)}</span>
-                      </div>
-                      <p className="mt-0.5 whitespace-pre-wrap">{o.message}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            ))}
           </div>
 
-          {/* COL 2 — Regra, motor e IA */}
-          <div className="space-y-2 text-xs min-w-0 break-words">
-            {matchedRules.length > 0 ? (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                  Regra aplicada
-                </p>
-                <p className="font-medium text-primary">{matchedRules[0].name}</p>
-                {matchedRules[0].rule_text && (
-                  <p className="mt-1 text-muted-foreground whitespace-pre-wrap leading-snug">
-                    {matchedRules[0].rule_text}
+          {/* 3-column grid */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+            {/* COL 1 — Alertas / Exceção / Histórico */}
+            <div className="space-y-2 min-w-0">
+              {alerts.length > 0 && (
+                <AlertBanner
+                  severity={isCritical ? "critico" : "alerta"}
+                  title={
+                    isCritical
+                      ? "Item reprovado pela análise"
+                      : alerts.length === 1
+                      ? "Alerta"
+                      : `${alerts.length} alertas`
+                  }
+                >
+                  <ul className="space-y-0.5 list-disc pl-4">
+                    {alerts.map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+                </AlertBanner>
+              )}
+              {alerts.length === 0 && !isCritical && (
+                <AlertBanner severity="informativo" title="Sem alertas">
+                  <p>Item sem divergências detectadas pela análise.</p>
+                </AlertBanner>
+              )}
+              {exceptionMarked && (
+                <div className="rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Exceção autorizada registrada
+                  </div>
+                  <p className="mt-1 break-words">
+                    Motivo: <strong>{itemAny.exception_reason ?? "—"}</strong> · Autorizador:{" "}
+                    <strong>{itemAny.exception_authorizer ?? "—"}</strong>
                   </p>
-                )}
-                {matchedRules.length > 1 && (
-                  <p className="mt-1 text-[10px] text-muted-foreground italic">
-                    + {matchedRules.length - 1} regra(s) também casaram
-                  </p>
-                )}
-              </div>
-            ) : matchedNames.length > 0 ? (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                  Regra aplicada
-                </p>
-                <p className="font-medium">{matchedNames[0]}</p>
-              </div>
-            ) : null}
-
-            {/* Detalhes do cálculo (motor) */}
-            {(engine || expected != null || explanation) && (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
-                  <FileText className="h-3 w-3" /> Detalhes do cálculo
-                </p>
-                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                  {priority && (
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full border px-1.5 py-0.5 text-[10px]",
-                        TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]],
-                      )}
-                    >
-                      {RULE_MATCH_PRIORITY_LABELS[priority]}
-                    </span>
-                  )}
-                  {calcTypeLabel && (
-                    <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES.muted)}>
-                      {calcTypeLabel}
-                    </span>
+                  {itemAny.exception_note && (
+                    <p className="mt-1 italic whitespace-pre-wrap break-words">"{itemAny.exception_note}"</p>
                   )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
-                    <span className="text-muted-foreground">Valor informado:</span>
-                    <span className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
-                  </div>
-                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
-                    <span className="text-muted-foreground">Valor esperado:</span>
-                    <span className="tabular-nums font-medium break-words">
-                      {expected != null ? formatCurrency(Number(expected)) : "—"}
-                    </span>
-                  </div>
-                  {diff != null && Math.abs(diff) > 0.01 && (
-                    <div className="sm:col-span-2 flex flex-wrap items-baseline gap-x-1 min-w-0">
-                      <span className="text-muted-foreground">Diferença:</span>
-                      <span className={cn("tabular-nums break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
-                        {diff > 0 ? "+" : ""}{formatCurrency(diff)}
-                        {diffPct != null && (
-                          <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
+              )}
+
+              <div className="rounded-md border bg-background p-3">
+                <p className="uppercase tracking-wide text-muted-foreground mb-1.5" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                  Histórico deste item ({itemObs.length})
+                </p>
+                {itemObs.length === 0 ? (
+                  <p className="text-muted-foreground">Sem comentários ainda.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-56 overflow-y-auto">
+                    {itemObs.map((o) => (
+                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0">
+                        <div className="flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: "11px" }}>
+                          <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">
+                            {o.author_type}
+                          </span>
+                          <span className="ml-auto">{fmtDate(o.created_at)}</span>
+                        </div>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words">{o.message}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* COL 2 — Regra aplicada */}
+            <div className="space-y-2 min-w-0">
+              {matchedRules.length > 0 ? (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    Regra aplicada
+                  </p>
+                  <p className="font-medium text-primary break-words">{matchedRules[0].name}</p>
+                  {matchedRules[0].rule_text && (
+                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words">
+                      {matchedRules[0].rule_text}
+                    </p>
+                  )}
+                  {matchedRules.length > 1 && (
+                    <p className="mt-1 text-muted-foreground italic" style={{ fontSize: "11px" }}>
+                      + {matchedRules.length - 1} regra(s) também casaram
+                    </p>
+                  )}
+                </div>
+              ) : matchedNames.length > 0 ? (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    Regra aplicada
+                  </p>
+                  <p className="font-medium break-words">{matchedNames[0]}</p>
+                </div>
+              ) : (
+                <div className="rounded-md border bg-background p-3 text-muted-foreground">
+                  Nenhuma regra específica casou.
+                </div>
+              )}
+
+              {aiNote && (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                  </p>
+                  <p className="text-muted-foreground italic whitespace-pre-wrap break-words">{aiNote}</p>
+                </div>
+              )}
+            </div>
+
+            {/* COL 3 — Detalhes do cálculo + sugestão */}
+            <div className="space-y-2 min-w-0">
+              {(engine || expected != null || explanation) && (
+                <div className="rounded-md border bg-background p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    <FileText className="h-3 w-3" /> Detalhes do cálculo
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {priority && (
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-1.5 py-0.5",
+                          TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]],
                         )}
+                        style={{ fontSize: "11px" }}
+                      >
+                        {RULE_MATCH_PRIORITY_LABELS[priority]}
                       </span>
+                    )}
+                    {calcTypeLabel && (
+                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5", TONE_CLASSES.muted)} style={{ fontSize: "11px" }}>
+                        {calcTypeLabel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Valor informado</p>
+                      <p className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Valor esperado</p>
+                      <p className="tabular-nums font-medium break-words">
+                        {expected != null ? formatCurrency(Number(expected)) : "—"}
+                      </p>
+                    </div>
+                    {diff != null && Math.abs(diff) > 0.01 && (
+                      <div className="col-span-2 min-w-0">
+                        <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Diferença</p>
+                        <p className={cn("tabular-nums font-medium break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                          {diff > 0 ? "+" : ""}{formatCurrency(diff)}
+                          {diffPct != null && (
+                            <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {explanation && (
+                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words">{explanation}</p>
                   )}
                 </div>
-                {explanation && (
-                  <p className="mt-1.5 text-muted-foreground italic leading-snug">{explanation}</p>
-                )}
-              </div>
-            )}
+              )}
 
-            {/* IA */}
-            {aiNote && (
-              <div className="rounded-md border bg-background p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
-                </p>
-                <p className="text-muted-foreground italic leading-snug">{aiNote}</p>
-              </div>
-            )}
-
-            {diff != null && Math.abs(diff) > 0.01 && expected != null && (
-              <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-2.5 text-[11px]">
-                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Sugestão de ajuste:{" "}
-                </span>
-                Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
-              </div>
-            )}
+              {diff != null && Math.abs(diff) > 0.01 && expected != null && (
+                <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-3">
+                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                    Sugestão de ajuste
+                  </p>
+                  <p className="break-words">
+                    Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </td>
