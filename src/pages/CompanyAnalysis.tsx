@@ -95,6 +95,25 @@ export default function CompanyAnalysis() {
       setItems(filtered);
       setObs((o ?? []) as ObservationRow[]);
       setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
+
+      // Carrega regras citadas pela IA p/ alimentar o ItemsDataGrid
+      const ids = Array.from(new Set(filtered.flatMap((x) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
+      const names = Array.from(new Set(filtered.flatMap((x) => x.ai_findings?.matched_rules ?? []))).filter(Boolean) as string[];
+      const [byIdRes, byNameRes] = await Promise.all([
+        ids.length
+          ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("id", ids)
+          : Promise.resolve({ data: [] as RuleLite[] }),
+        names.length
+          ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("name", names)
+          : Promise.resolve({ data: [] as RuleLite[] }),
+      ]);
+      const idx: Record<string, RuleLite> = {};
+      (byIdRes.data ?? []).forEach((r) => { idx[(r as RuleLite).id] = r as RuleLite; });
+      (byNameRes.data ?? []).forEach((r) => { idx[(r as RuleLite).id] = r as RuleLite; });
+      const nameIdx: Record<string, RuleLite> = {};
+      Object.values(idx).forEach((r) => { nameIdx[String(r.name).trim().toLowerCase()] = r; });
+      setRulesIndex(idx);
+      setRulesByName(nameIdx);
     }
     setLoading(false);
   };
@@ -365,7 +384,14 @@ export default function CompanyAnalysis() {
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <ItemsTable items={itemsForAnalysis} gStatus={gStatus} />
+              <ItemsDataGrid
+                items={itemsForAnalysis}
+                groupStatus={gStatus}
+                rulesIndex={rulesIndex}
+                rulesByName={rulesByName}
+                observations={obs}
+                storageKey="companyAnalysisPage"
+              />
             </CardContent>
           </Card>
 
