@@ -518,19 +518,19 @@ export const PaymentGroupCard = ({
             }}
             className="w-full max-h-[70vh] overflow-auto print:overflow-visible print:max-h-none rounded-md border border-border/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-          <table className={`w-full min-w-[1100px] ${isComfy ? "text-[14px]" : "text-[13px]"} table-fixed border-collapse print:text-[10px] print:min-w-0`} data-density={density}>
+          <table className={`w-full min-w-[1380px] ${isComfy ? "text-[13px]" : "text-[12px]"} border-collapse print:text-[10px] print:min-w-0`} data-density={density}>
             <colgroup>
-              <col className="w-6" />
-              <col className="w-[80px]" />
-              <col className="w-[180px]" />
-              <col className="w-[140px] hidden md:table-column print:table-column" />
-              <col className="w-[180px]" />
-              <col className="w-[80px] hidden lg:table-column print:table-column" />
-              <col />
-              <col className="w-[48px]" />
-              <col className="w-[120px]" />
-              <col className="w-[80px] hidden sm:table-column print:table-column" />
-              <col className="w-8 print:hidden" />
+              <col style={{ width: 28 }} />
+              <col style={{ minWidth: 96, width: 96 }} />
+              <col style={{ minWidth: 220, width: 240 }} />
+              <col className="hidden md:table-column print:table-column" style={{ minWidth: 160, width: 160 }} />
+              <col style={{ minWidth: 220, width: 220 }} />
+              <col className="hidden lg:table-column print:table-column" style={{ minWidth: 110, width: 110 }} />
+              <col style={{ minWidth: 280 }} />
+              <col style={{ minWidth: 56, width: 56 }} />
+              <col style={{ minWidth: 130, width: 130 }} />
+              <col className="hidden sm:table-column print:table-column" style={{ minWidth: 96, width: 96 }} />
+              <col className="print:hidden" style={{ width: 36 }} />
             </colgroup>
             <thead className={`text-left ${isComfy ? "text-[12px]" : "text-[11px]"} font-semibold uppercase tracking-wider text-muted-foreground print:static`}>
               <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:bg-muted [&>th]:z-10 [&>th]:shadow-[0_1px_0_0_hsl(var(--border))]">
