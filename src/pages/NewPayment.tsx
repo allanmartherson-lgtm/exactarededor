@@ -518,6 +518,7 @@ const NewPayment = () => {
       return;
     }
 
+    const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
     // Fallback de especialidade: para itens sem coluna 'Especialidade' no Excel,
     // tentamos resolver pelo cadastro do médico (CRM ou nome).
     const missingSpecCRMs = Array.from(new Set(
