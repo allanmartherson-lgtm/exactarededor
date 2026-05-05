@@ -7,7 +7,7 @@ const cachePasswordAuthUrl = () => {
   if (typeof window === "undefined") return;
 
   const url = new URL(window.location.href);
-  const isPasswordRoute = url.pathname === "/definir-senha" || url.pathname === "/reset-password";
+  const isPasswordRoute = ["/definir-senha", "/reset-password", "/auth/reset-password"].includes(url.pathname);
   const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
   const authType = url.searchParams.get("type") || hashParams.get("type");
   const hasAuthParams = Boolean(
@@ -27,7 +27,7 @@ const cachePasswordAuthUrl = () => {
     sessionStorage.setItem(PASSWORD_AUTH_URL_CACHE_KEY, JSON.stringify({ href: window.location.href, savedAt: Date.now() }));
 
     if (!isPasswordRoute) {
-      url.pathname = "/definir-senha";
+      url.pathname = "/auth/reset-password";
       window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
     }
   }

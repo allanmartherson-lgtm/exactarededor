@@ -56,7 +56,7 @@ serve(async (req) => {
       });
     }
     const appOrigin = isAllowedOrigin(rawOrigin) ? rawOrigin.replace(/\/+$/, "") : "";
-    const redirectTo = appOrigin ? `${appOrigin}/definir-senha` : undefined;
+    const redirectTo = appOrigin ? `${appOrigin}/auth/reset-password` : undefined;
 
     // Descobre se o usuário já confirmou o e-mail. Se nunca confirmou, reenvia "invite"; senão "recovery".
     // Busca via listUsers (paginação básica por e-mail).

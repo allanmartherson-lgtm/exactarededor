@@ -50,7 +50,7 @@ serve(async (req) => {
       } catch { return false; }
     };
     const appOrigin = isAllowedOrigin(rawOrigin) ? rawOrigin.replace(/\/+$/, "") : "";
-    const redirectTo = appOrigin ? `${appOrigin}/definir-senha` : undefined;
+    const redirectTo = appOrigin ? `${appOrigin}/auth/reset-password` : undefined;
 
     if (!email) {
       return new Response(JSON.stringify({ error: "E-mail obrigatório" }), {

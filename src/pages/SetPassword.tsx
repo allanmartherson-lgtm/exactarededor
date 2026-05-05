@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,26 +27,77 @@ const schema = z.object({
 type Phase = "loading" | "ready" | "invalid" | "saving" | "done";
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 
+type AuthFlow = "invite" | "recovery" | "session";
+type EmailOtpFlow = "invite" | "recovery";
+
+const TOKEN_KEYS = ["access_token", "refresh_token", "token_hash", "token", "code"];
+const ERROR_KEYS = ["error", "error_code", "error_description"];
+
+const parseAuthUrl = (href: string) => {
+  const url = new URL(href);
+  const query = url.searchParams;
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const read = (key: string) => query.get(key) ?? hash.get(key);
+  const typeValue = read("type");
+  const type: EmailOtpFlow | "" = typeValue === "invite" || typeValue === "recovery" ? typeValue : "";
+  const hasAuthSignal = [...TOKEN_KEYS, ...ERROR_KEYS, "type"].some((key) => Boolean(read(key)));
+
+  return {
+    href,
+    url,
+    query,
+    hash,
+    read,
+    type,
+    accessToken: read("access_token"),
+    refreshToken: read("refresh_token"),
+    tokenHash: read("token_hash") ?? read("token"),
+    code: read("code"),
+    errorDescription: read("error_description"),
+    hasAuthSignal,
+  };
+};
+
+const maskAuthUrl = (href: string) => {
+  try {
+    const url = new URL(href);
+    const maskParams = (params: URLSearchParams) => {
+      [...TOKEN_KEYS, ...ERROR_KEYS].forEach((key) => {
+        if (params.has(key)) params.set(key, "[presente]");
+      });
+    };
+    maskParams(url.searchParams);
+    if (url.hash) {
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+      maskParams(hash);
+      url.hash = hash.toString();
+    }
+    return url.toString();
+  } catch {
+    return "[url inválida]";
+  }
+};
+
+const maskParamsForLog = (params: URLSearchParams) =>
+  Object.fromEntries(
+    [...params.entries()].map(([key, value]) => [
+      key,
+      [...TOKEN_KEYS, ...ERROR_KEYS].includes(key) ? (value ? "[presente]" : "[vazio]") : value,
+    ]),
+  );
+
 const SetPassword = () => {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [flow, setFlow] = useState<"invite" | "recovery" | "session">("recovery");
-  const urlSessionRef = useRef<{ access_token: string; refresh_token: string } | null>(null);
-
-  // Detecta os parâmetros vindos do email (hash ou query).
-  const hashParams = useMemo(() => {
-    if (typeof window === "undefined") return new URLSearchParams();
-    return new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  }, []);
+  const [flow, setFlow] = useState<AuthFlow>("recovery");
 
   useEffect(() => {
     document.title = "Definir senha | MedPay Approval";
     let cancelled = false;
     let settled = false;
 
-    const cachedUrl = (() => {
+    const consumeCachedAuthUrl = (() => {
       const raw = sessionStorage.getItem(PASSWORD_AUTH_URL_CACHE_KEY);
       if (!raw) return null;
       try {
@@ -55,29 +106,49 @@ const SetPassword = () => {
           sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
           return null;
         }
-        return new URL(parsed.href);
+        return parsed.href;
       } catch {
         sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
         return null;
       }
     })();
 
-    const cachedHashParams = cachedUrl ? new URLSearchParams(cachedUrl.hash.replace(/^#/, "")) : null;
-    const queryParams = cachedUrl?.searchParams ?? params;
-    const urlHashParams = cachedHashParams ?? hashParams;
+    const authUrl = parseAuthUrl(consumeCachedAuthUrl ?? window.location.href);
 
-    const markReady = (f?: "invite" | "recovery" | "session") => {
+    console.groupCollapsed("[auth recovery] validar link");
+    console.info("URL recebida", maskAuthUrl(authUrl.href));
+    console.info("Parâmetros detectados", {
+      query: maskParamsForLog(authUrl.query),
+      hash: maskParamsForLog(authUrl.hash),
+      type: authUrl.type || "ausente",
+      hasAccessToken: Boolean(authUrl.accessToken),
+      hasRefreshToken: Boolean(authUrl.refreshToken),
+      hasTokenHash: Boolean(authUrl.tokenHash),
+      hasCode: Boolean(authUrl.code),
+      usedCachedUrl: Boolean(consumeCachedAuthUrl),
+    });
+    console.groupEnd();
+
+    const finishAuthUrl = () => {
+      sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
+      window.history.replaceState({}, "", window.location.pathname);
+    };
+
+    const markReady = (f?: AuthFlow) => {
       if (cancelled || settled) return;
       settled = true;
       if (f) setFlow(f);
       setPhase("ready");
     };
 
-    const waitForSession = async (attempts = 40) => {
+    const waitForSession = async (attempts = 60) => {
       for (let i = 0; i < attempts; i++) {
         if (cancelled || settled) return false;
         const { data } = await supabase.auth.getSession();
-        if (data.session) return true;
+        if (data.session) {
+          console.info("[auth recovery] sessão detectada", { attempt: i + 1, userId: data.session.user.id });
+          return true;
+        }
         await new Promise((r) => setTimeout(r, 100));
       }
       return false;
@@ -88,61 +159,64 @@ const SetPassword = () => {
     // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
+      console.info("[auth recovery] evento auth", { event, hasSession: Boolean(session) });
       if (event === "PASSWORD_RECOVERY") {
+        finishAuthUrl();
         markReady("recovery");
       } else if (event === "SIGNED_IN" && session) {
-        markReady();
+        finishAuthUrl();
+        markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
       }
     });
 
     const run = async () => {
       try {
-        const errorDescription = urlHashParams.get("error_description") ?? queryParams.get("error_description");
-        if (errorDescription) {
-          setErrorMsg(decodeURIComponent(errorDescription));
+        if (authUrl.errorDescription) {
+          const message = decodeURIComponent(authUrl.errorDescription);
+          console.warn("[auth recovery] erro recebido na URL", message);
+          setErrorMsg(message);
           setPhase("invalid");
           return;
         }
 
-        const type = (urlHashParams.get("type") ?? queryParams.get("type") ?? "") as "invite" | "recovery" | "";
-        const tokenHash = queryParams.get("token_hash") ?? urlHashParams.get("token_hash") ?? queryParams.get("token") ?? urlHashParams.get("token");
-        const accessToken = urlHashParams.get("access_token");
-        const refreshToken = urlHashParams.get("refresh_token");
-        const code = queryParams.get("code");
-        const hasUrlAuth = !!(code || tokenHash || accessToken);
-
-        if (type === "invite") setFlow("invite");
-        else if (type === "recovery") setFlow("recovery");
+        if (authUrl.type) setFlow(authUrl.type);
 
         // Links de hash/implicit podem chegar antes do listener processar a sessão.
         // Nesse caso, criamos a sessão explicitamente com os tokens da própria URL.
-        if (accessToken && refreshToken) {
-          urlSessionRef.current = { access_token: accessToken, refresh_token: refreshToken };
-          const { error } = await supabase.auth.setSession(urlSessionRef.current);
-          if (error) throw error;
-          sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
-          window.history.replaceState({}, "", window.location.pathname);
-          markReady(type === "invite" ? "invite" : "recovery");
+        if (authUrl.accessToken && authUrl.refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: authUrl.accessToken,
+            refresh_token: authUrl.refreshToken,
+          });
+          if (error) {
+            console.error("[auth recovery] erro em setSession", error);
+            throw error;
+          }
+          finishAuthUrl();
+          markReady(authUrl.type === "invite" ? "invite" : "recovery");
           return;
         }
 
         // token_hash é usado em alguns links gerados pelo admin.
-        if (tokenHash && (type === "invite" || type === "recovery")) {
-          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-          if (error) throw error;
-          sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
-          window.history.replaceState({}, "", window.location.pathname);
-          markReady(type);
+        if (authUrl.tokenHash && authUrl.type) {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
+          if (error) {
+            console.error("[auth recovery] erro em verifyOtp", error);
+            throw error;
+          }
+          finishAuthUrl();
+          markReady(authUrl.type);
           return;
         }
 
-        // Para PKCE, deixamos o cliente de auth fazer a troca automaticamente.
-        // Evita corrida onde o código já foi consumido antes deste componente.
-        if (code) {
+        // Para PKCE, fazemos a troca explicitamente; se o cliente já tiver consumido
+        // o code antes, o fallback por sessão abaixo evita falso "link expirado".
+        if (authUrl.code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(authUrl.code);
+          if (error) console.warn("[auth recovery] exchangeCodeForSession falhou; tentando sessão existente", error);
           if (await waitForSession()) {
-            sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
-            window.history.replaceState({}, "", window.location.pathname);
-            markReady(type === "invite" ? "invite" : "recovery");
+            finishAuthUrl();
+            markReady(authUrl.type === "invite" ? "invite" : "recovery");
           } else if (!cancelled && !settled) {
             setErrorMsg("Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
             setPhase("invalid");
@@ -150,19 +224,13 @@ const SetPassword = () => {
           return;
         }
 
-        if (hasUrlAuth) {
+        if (authUrl.hasAuthSignal) {
           // Aguarda o Supabase terminar de processar a URL e disparar o evento.
-          // Damos um tempo generoso (3s) e checamos a sessão como fallback.
-          for (let i = 0; i < 30; i++) {
-            if (cancelled || settled) return;
-            await new Promise((r) => setTimeout(r, 100));
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-              sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
-              window.history.replaceState({}, "", window.location.pathname);
-              markReady(type === "invite" ? "invite" : "recovery");
-              return;
-            }
+          // Checamos a sessão como fallback sem declarar link inválido prematuramente.
+          if (await waitForSession()) {
+            finishAuthUrl();
+            markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
+            return;
           }
           if (cancelled || settled) return;
           setErrorMsg("Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
@@ -180,6 +248,7 @@ const SetPassword = () => {
         // Sem token e sem sessão: não marcamos como inválido — apenas redirecionamos
         // o usuário para solicitar um novo link de recuperação.
         if (!cancelled) {
+          console.info("[auth recovery] sem token/hash/code e sem sessão; redirecionando para solicitar novo link");
           toast({
             title: "Link expirado ou ausente",
             description: "Solicite um novo link de recuperação de senha.",
@@ -189,6 +258,7 @@ const SetPassword = () => {
       } catch (e: unknown) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
+        console.error("[auth recovery] erro retornado pelo auth provider", e);
         setErrorMsg(msg);
         setPhase("invalid");
       }
