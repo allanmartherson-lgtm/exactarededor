@@ -201,9 +201,12 @@ const Rules = () => {
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
-  // Convênio (eixo determinístico do motor de regras)
-  const [fAgreementName, setFAgreementName] = useState<string>("");
+  // Convênio (eixo determinístico do motor de regras) — modo whitelist/blacklist + tags livres.
+  // `agreement_name` legado é mantido apenas para retrocompatibilidade na leitura
+  // (mesclado em `fAgreementAliases` no openEdit). Novas regras gravam só em aliases.
+  const [fAgreementMatchMode, setFAgreementMatchMode] = useState<"whitelist" | "blacklist">("whitelist");
   const [fAgreementAliases, setFAgreementAliases] = useState<string[]>([]);
+  const [fAgreementInput, setFAgreementInput] = useState<string>("");
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
@@ -383,7 +386,7 @@ const Rules = () => {
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFAgreementName(""); setFAgreementAliases([]);
+    setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
@@ -434,8 +437,16 @@ const Rules = () => {
     setFAllowsAuthorizedException(!!r.allows_authorized_exception);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
-    setFAgreementName(r.agreement_name ?? "");
-    setFAgreementAliases(Array.isArray(r.agreement_aliases) ? r.agreement_aliases : []);
+    // Mescla nome principal legado dentro da nova lista de tags.
+    {
+      const aliases = Array.isArray(r.agreement_aliases) ? [...r.agreement_aliases] : [];
+      if (r.agreement_name && r.agreement_name.trim() && !aliases.some((a) => a.trim().toLowerCase() === r.agreement_name.trim().toLowerCase())) {
+        aliases.unshift(r.agreement_name.trim());
+      }
+      setFAgreementAliases(aliases);
+      setFAgreementInput("");
+      setFAgreementMatchMode((r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist") as "whitelist" | "blacklist");
+    }
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
@@ -528,8 +539,9 @@ const Rules = () => {
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
       sectors: fSectors,
       specialties: fSpecialties,
-      agreement_name: fAgreementName.trim() || null,
+      agreement_name: null,
       agreement_aliases: fAgreementAliases.map((a) => a.trim()).filter(Boolean),
+      agreement_match_mode: fAgreementMatchMode,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
@@ -932,30 +944,60 @@ const Rules = () => {
                       <div className="space-y-1.5"><Label>Especialidade(s)</Label>
                         <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
                       </div>
-                      <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
+                      <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                         <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
                         <p className="text-xs text-muted-foreground">
-                          Quando preenchido, esta regra é aplicada a itens cujo header <strong>Convênio</strong> bata com o nome ou um dos aliases. Tem precedência sobre regras por médico/empresa/setor.
+                          Defina o modo e adicione os convênios como tags livres. A comparação ignora caixa, acentos e espaços (ex.: "Sul América" = "SULAMERICA"). <strong>Sem tags</strong> = aplica a todos os convênios.
                         </p>
-                        <Input
-                          value={fAgreementName}
-                          onChange={(e) => setFAgreementName(e.target.value)}
-                          placeholder="Nome principal do convênio (ex: Sul América, BRADESCO, Acordo)"
-                        />
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Aliases (variações de escrita)</Label>
+
+                        <RadioGroup
+                          value={fAgreementMatchMode}
+                          onValueChange={(v) => setFAgreementMatchMode(v as "whitelist" | "blacklist")}
+                          className="grid gap-1.5 pt-1"
+                        >
+                          <label className="flex items-start gap-2 cursor-pointer text-sm">
+                            <RadioGroupItem value="whitelist" id="agmode-wl" className="mt-0.5" />
+                            <span>
+                              <span className="font-medium">Aplicar somente aos convênios informados</span>
+                              <span className="block text-xs text-muted-foreground">A regra só vale quando o convênio do item estiver na lista.</span>
+                            </span>
+                          </label>
+                          <label className="flex items-start gap-2 cursor-pointer text-sm">
+                            <RadioGroupItem value="blacklist" id="agmode-bl" className="mt-0.5" />
+                            <span>
+                              <span className="font-medium">Não aplicar aos convênios informados</span>
+                              <span className="block text-xs text-muted-foreground">A regra vale para todos, exceto os convênios listados.</span>
+                            </span>
+                          </label>
+                        </RadioGroup>
+
+                        <div className="space-y-1 pt-1">
+                          <Label className="text-xs text-muted-foreground">Convênios</Label>
                           <Input
-                            placeholder="Pressione Enter para adicionar alias (ex: sulamerica)"
+                            value={fAgreementInput}
+                            onChange={(e) => setFAgreementInput(e.target.value)}
+                            placeholder="Digite e pressione Enter (ex.: Sul América, Bradesco, SUS)"
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              if (e.key === "Enter" || e.key === ",") {
                                 e.preventDefault();
-                                const v = (e.target as HTMLInputElement).value.trim();
-                                if (v && !fAgreementAliases.includes(v)) setFAgreementAliases((p) => [...p, v]);
-                                (e.target as HTMLInputElement).value = "";
+                                const v = fAgreementInput.trim();
+                                if (v && !fAgreementAliases.some((a) => a.trim().toLowerCase() === v.toLowerCase())) {
+                                  setFAgreementAliases((p) => [...p, v]);
+                                }
+                                setFAgreementInput("");
+                              } else if (e.key === "Backspace" && !fAgreementInput && fAgreementAliases.length > 0) {
+                                setFAgreementAliases((p) => p.slice(0, -1));
+                              }
+                            }}
+                            onBlur={() => {
+                              const v = fAgreementInput.trim();
+                              if (v && !fAgreementAliases.some((a) => a.trim().toLowerCase() === v.toLowerCase())) {
+                                setFAgreementAliases((p) => [...p, v]);
+                                setFAgreementInput("");
                               }
                             }}
                           />
-                          {fAgreementAliases.length > 0 && (
+                          {fAgreementAliases.length > 0 ? (
                             <div className="flex flex-wrap gap-1.5 pt-1">
                               {fAgreementAliases.map((a) => (
                                 <button
@@ -969,6 +1011,8 @@ const Rules = () => {
                                 </button>
                               ))}
                             </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">Nenhum convênio listado — a regra se aplica a todos.</p>
                           )}
                         </div>
                       </div>
