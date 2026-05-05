@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,57 @@ const schema = z.object({
 
 type Phase = "loading" | "ready" | "invalid" | "saving" | "done";
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
+
+type AuthFlow = "invite" | "recovery" | "session";
+type EmailOtpFlow = "invite" | "recovery";
+
+const TOKEN_KEYS = ["access_token", "refresh_token", "token_hash", "token", "code"];
+const ERROR_KEYS = ["error", "error_code", "error_description"];
+
+const parseAuthUrl = (href: string) => {
+  const url = new URL(href);
+  const query = url.searchParams;
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const read = (key: string) => query.get(key) ?? hash.get(key);
+  const typeValue = read("type");
+  const type = typeValue === "invite" || typeValue === "recovery" ? typeValue : "";
+  const hasAuthSignal = [...TOKEN_KEYS, ...ERROR_KEYS, "type"].some((key) => Boolean(read(key)));
+
+  return {
+    href,
+    url,
+    query,
+    hash,
+    read,
+    type,
+    accessToken: read("access_token"),
+    refreshToken: read("refresh_token"),
+    tokenHash: read("token_hash") ?? read("token"),
+    code: read("code"),
+    errorDescription: read("error_description"),
+    hasAuthSignal,
+  };
+};
+
+const maskAuthUrl = (href: string) => {
+  try {
+    const url = new URL(href);
+    const maskParams = (params: URLSearchParams) => {
+      [...TOKEN_KEYS, ...ERROR_KEYS].forEach((key) => {
+        if (params.has(key)) params.set(key, "[presente]");
+      });
+    };
+    maskParams(url.searchParams);
+    if (url.hash) {
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+      maskParams(hash);
+      url.hash = hash.toString();
+    }
+    return url.toString();
+  } catch {
+    return "[url inválida]";
+  }
+};
 
 const SetPassword = () => {
   const navigate = useNavigate();
