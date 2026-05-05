@@ -175,6 +175,8 @@ export interface AnalysisResult {
   calculation_explanation: string;
   alerts: string[];
   needs_ai_review: boolean;
+  /** Marca itens que não bateram em nenhuma regra (em nenhum nível) — exigem revisão humana. */
+  needs_human_review?: boolean;
   conflict?: {
     candidate_rule_ids: string[];
     reason: string;
