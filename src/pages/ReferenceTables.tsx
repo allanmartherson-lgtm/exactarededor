@@ -31,6 +31,7 @@ const PURPOSE_LABEL: Record<RefPurpose, string> = {
   calculo: "Cálculo",
   classificacao: "Classificação",
   exclusao: "Exclusão / expurgo",
+  sem_acordo: "Sem acordo (usar valor do convênio)",
 };
 const KIND_LABEL: Record<RefKind, string> = {
   simples: "Simples (código → valor)",
