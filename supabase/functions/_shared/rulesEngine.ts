@@ -130,6 +130,10 @@ export interface ItemInput {
   tipo_linha?: string | null;
   /** Motivo/justificativa quando tipo_linha = complemento_bonus. */
   complement_reason?: string | null;
+  /** Convênio/operadora lido da base (header "Convênio"). */
+  agreement_name?: string | null;
+  /** Especialidade resolvida no import (header "Especialidade" ou cadastro do médico). */
+  specialty?: string | null;
 }
 
 export interface PaymentContext {
