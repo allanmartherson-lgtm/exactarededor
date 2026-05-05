@@ -201,8 +201,8 @@ export function CompanyAnalysisDialog({
     try { window.localStorage.setItem(DENSITY_PREFS_KEY, density); } catch { /* noop */ }
   }, [density]);
   const isCompact = density === "compact";
-  const headPad = isCompact ? "px-1.5 py-1" : "px-1.5 py-1.5";
-  const tableTextSize = isCompact ? "text-[12px]" : "text-[11px]";
+  const headPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
+  const tableTextSize = isCompact ? "text-[12px]" : "text-[13px]";
   const getConvenio = (it: PaymentItemRowData): string => {
     const raw = (it.raw_data ?? {}) as Record<string, unknown>;
     const v =
