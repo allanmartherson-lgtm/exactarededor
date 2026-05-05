@@ -489,7 +489,7 @@ export const PaymentGroupCard = ({
             );
           })()}
           <div className="max-h-[70vh] overflow-auto print:max-h-none print:overflow-visible">
-          <table className="w-full text-[11px] table-fixed border-collapse print:text-[10px]">
+          <table className={`w-full ${isComfy ? "text-[12px]" : "text-[11px]"} table-fixed border-collapse print:text-[10px]`} data-density={density}>
             <colgroup>
               <col className="w-5" />
               <col className="w-[60px]" />
