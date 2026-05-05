@@ -124,6 +124,10 @@ export type PaymentItemRowProps = {
   onExceptionChanged?: () => void;
   /** Densidade visual da linha. */
   density?: "compact" | "comfortable";
+  /** Navegação Anterior/Próximo no drawer (respeita ordenação/filtros aplicados pelo pai). */
+  onNavigate?: (direction: "prev" | "next") => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 };
 
 /**
