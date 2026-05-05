@@ -574,6 +574,7 @@ const ReferenceTables = () => {
                     <option value="calculo">Cálculo (calcula valor esperado)</option>
                     <option value="classificacao">Classificação (categoriza códigos)</option>
                     <option value="exclusao">Exclusão / expurgo (não pagar)</option>
+                    <option value="sem_acordo">Sem acordo (usar valor do convênio)</option>
                   </select>
                   <p className="text-xs text-muted-foreground">
                     Não misture códigos pagáveis e não pagáveis na mesma finalidade.
