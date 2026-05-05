@@ -303,19 +303,19 @@ export const PaymentItemRow = ({
       <tr
         data-row-id={it.id}
         aria-selected={isSelected}
-        className={`align-top cursor-pointer ${isSelected ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : "hover:bg-muted/20"}`}
+        className={`group align-top cursor-pointer ${isSelected ? "bg-primary/10 ring-1 ring-inset ring-primary/30" : "hover:bg-muted/20"}`}
         onClick={() => {
           onSelect?.(it.id);
           onToggleExpanded(it.id);
         }}
       >
-        <td className={`${cellPad} text-muted-foreground print:hidden align-top md:sticky md:left-0 z-20 ${isSelected ? "bg-primary/10" : "bg-background"}`}>
+        <td className={`${cellPad} text-muted-foreground print:hidden align-top md:sticky md:left-0 z-20 ${isSelected ? "bg-primary-soft" : "bg-card group-hover:bg-muted"}`}>
           <ChevronRight className="h-3 w-3" />
         </td>
-        <td className={`${cellPad} ${fXs} font-mono text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[28px] z-20 ${isSelected ? "bg-primary/10" : "bg-background"}`} title={it.attendance_number ?? ""}>
+        <td className={`${cellPad} ${fXs} font-mono text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[28px] z-20 ${isSelected ? "bg-primary-soft" : "bg-card group-hover:bg-muted"}`} title={it.attendance_number ?? ""}>
           {it.attendance_number ?? "—"}
         </td>
-        <td className={`${cellPad} ${fSm} leading-tight whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[124px] z-20 shadow-[1px_0_0_0_hsl(var(--border))] ${isSelected ? "bg-primary/10" : "bg-background"}`} title={paciente}>{paciente}</td>
+        <td className={`${cellPad} ${fSm} leading-tight whitespace-nowrap overflow-hidden text-ellipsis md:sticky md:left-[124px] z-20 shadow-[1px_0_0_0_hsl(var(--border))] ${isSelected ? "bg-primary-soft" : "bg-card group-hover:bg-muted"}`} title={paciente}>{paciente}</td>
         <td className={`${cellPad} ${fSm} leading-tight text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis hidden md:table-cell print:table-cell`} title={typeof convenio === "string" ? convenio : ""}>
           {convenio}
         </td>
