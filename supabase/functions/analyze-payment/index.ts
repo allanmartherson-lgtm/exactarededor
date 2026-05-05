@@ -164,6 +164,8 @@ serve(async (req) => {
       classification_confidence: cls?.confidence ?? null,
       tipo_linha: it.tipo_linha ?? null,
       complement_reason: it.complement_reason ?? null,
+      agreement_name: it.agreement_text ?? null,
+      specialty: it.specialty ?? null,
     });
     });
 
