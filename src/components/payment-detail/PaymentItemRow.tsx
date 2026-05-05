@@ -253,7 +253,7 @@ export const PaymentItemRow = ({
     : null;
   const valueEl = (
     <span
-      className={`tabular-nums font-medium ${
+      className={`tabular-nums ${fVal} ${
         firstRule?.id
           ? "text-primary underline decoration-dotted decoration-primary/50 cursor-help"
           : tooltipNode
