@@ -320,7 +320,7 @@ export function CompanyAnalysisDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-none w-screen h-screen p-0 gap-0 sm:rounded-none border-0 flex flex-col"
+        className="max-w-none w-screen h-screen p-0 gap-0 sm:rounded-none border-0 flex flex-col overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
@@ -504,7 +504,7 @@ export function CompanyAnalysisDialog({
         </div>
 
         {/* Tabela / Lista */}
-        <div className="flex-1 overflow-hidden bg-background isolate">
+        <div className="flex-1 min-h-0 overflow-hidden bg-background isolate">
           <div className="h-full w-full overflow-auto isolate">
 
           {/* MOBILE — lista de cards (< md) */}
@@ -680,7 +680,7 @@ export function CompanyAnalysisDialog({
 
         {/* Footer sticky com ações de fluxo (sempre visível) */}
         {showFooter && (
-          <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+          <div className="shrink-0 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
             <div className="flex flex-col md:flex-row md:items-start gap-2">
               <Textarea
                 rows={2}
