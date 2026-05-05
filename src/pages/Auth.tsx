@@ -14,6 +14,12 @@ import { lovable } from "@/integrations/lovable";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
+const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+
+const getPasswordRecoveryOrigin = () => {
+  if (window.location.hostname.endsWith(".lovableproject.com")) return PROJECT_PREVIEW_ORIGIN;
+  return window.location.origin;
+};
 
 const signInSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
@@ -65,7 +71,7 @@ const Auth = () => {
     setResetting(true);
     const recoveryClient = createPasswordRecoveryClient();
     const { error } = await recoveryClient.auth.resetPasswordForEmail(parsed.data, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${getPasswordRecoveryOrigin()}/auth/reset-password`,
     });
     setResetting(false);
     if (error) {
