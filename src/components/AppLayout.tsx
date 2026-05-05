@@ -496,7 +496,7 @@ export const AppLayout = () => {
         </header>
 
         <main className="flex-1 min-w-0">
-          <div style={{ padding: "28px 32px" }}>
+          <div style={{ padding: "20px 28px", maxWidth: 1600, margin: "0 auto" }}>
             <Breadcrumbs />
             <Outlet />
           </div>
