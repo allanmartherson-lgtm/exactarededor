@@ -1000,12 +1000,17 @@ export function analyzeItem(
   } else {
     const def = calcDefault(item);
     calc = def;
-    priority = "default_setor";
+    priority = "sem_regra";
     calculation_type_used = def.calculation_type_used;
+    calc.alerts = [
+      "Nenhuma regra cadastrada bate com este item — encaminhar para revisão humana.",
+      ...calc.alerts,
+    ];
   }
 
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
   if (priority === "conflito") status = "alerta";
+  if (priority === "sem_regra") status = "alerta";
   // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.
   if (
     item.authorized_exception === true &&
@@ -1033,6 +1038,7 @@ export function analyzeItem(
     calculation_explanation: calc.explanation,
     alerts,
     needs_ai_review: status !== "aprovado",
+    needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
   };
 }
