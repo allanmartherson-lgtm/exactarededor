@@ -193,13 +193,9 @@ const SetPassword = () => {
         // 2. Fallback explícito para PKCE (?code=...). O flow configurado no
         //    cliente padrão da biblioteca é implicit, mas alguns links podem
         //    chegar como PKCE quando há code_verifier salvo no navegador.
-        if (authUrl.code && verifierState.hasCodeVerifier) {
+        if (authUrl.code) {
           console.info("[auth recovery] exchangeCodeForSession(code)", { isRecoveryVerifier: verifierState.isRecoveryVerifier });
-          const pkceClient = createPasswordRecoveryClient({ flowType: "pkce", skipAutoInitialize: true });
-          pkceClient.auth.onAuthStateChange((event, session) => {
-            if (event === "PASSWORD_RECOVERY" && session) markReady("recovery");
-          });
-          const { data, error } = await pkceClient.auth.exchangeCodeForSession(authUrl.code);
+          const { data, error } = await recoveryClient.auth.exchangeCodeForSession(authUrl.code);
           if (!error && data.session) {
             markReady(verifierState.isRecoveryVerifier ? "recovery" : "session");
             return;
