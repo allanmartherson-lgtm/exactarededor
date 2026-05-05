@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+export type RowDensity = "compact" | "comfortable";
+const DENSITY_LS_KEY = "paymentGroupCard.density.v1";
+const readDensity = (): RowDensity => {
+  if (typeof window === "undefined") return "compact";
+  const v = window.localStorage.getItem(DENSITY_LS_KEY);
+  return v === "comfortable" ? "comfortable" : "compact";
+};
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
