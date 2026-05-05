@@ -428,283 +428,260 @@ export const PaymentItemRow = ({
           </div>
         </td>
       </tr>
-      {isExpanded && (
-        <tr className="bg-muted/20">
-          <td colSpan={11} className="px-4 py-4 sm:px-6">
-            <div className="space-y-4">
-              <div className="rounded-md border border-border/70 bg-background/80 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Dados completos do item
-                </p>
-                <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="min-w-0">
-                    <dt className="font-medium text-muted-foreground">Atendimento</dt>
-                    <dd className="mt-0.5 break-words font-mono text-foreground">{it.attendance_number ?? "—"}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="font-medium text-muted-foreground">Paciente</dt>
-                    <dd className="mt-0.5 break-words text-foreground">{paciente}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="font-medium text-muted-foreground">Convênio</dt>
-                    <dd className="mt-0.5 break-words text-foreground">{convenio}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="font-medium text-muted-foreground">TUSS</dt>
-                    <dd className="mt-0.5 break-words font-mono text-foreground">{it.procedure_code ?? "—"}</dd>
-                  </div>
-                  <div className="min-w-0 sm:col-span-2">
-                    <dt className="font-medium text-muted-foreground">Médico / Função</dt>
-                    <dd className="mt-0.5 break-words text-foreground">
-                      {it.doctor_name ?? "—"}
-                      <span className="text-muted-foreground"> · {it.doctor_role ?? "—"}</span>
+      <Sheet
+        open={isExpanded}
+        onOpenChange={(o) => {
+          if (!o && isExpanded) onToggleExpanded(it.id);
+        }}
+      >
+        <SheetContent side="right" className="w-full sm:max-w-[520px] overflow-y-auto p-0">
+          <SheetHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-5 py-3">
+            <SheetTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Detalhes do item
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              {paciente} · Atend. {it.attendance_number ?? "—"} · {formatCurrency(it.gross_amount)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-5 py-4 space-y-4">
+            <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Dados do item
+              </p>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <div className="min-w-0">
+                  <dt className="font-medium text-muted-foreground">Convênio</dt>
+                  <dd className="mt-0.5 break-words text-foreground">{convenio}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-muted-foreground">TUSS</dt>
+                  <dd className="mt-0.5 break-words font-mono text-foreground">{it.procedure_code ?? "—"}</dd>
+                </div>
+                <div className="min-w-0 col-span-2">
+                  <dt className="font-medium text-muted-foreground">Médico / Função</dt>
+                  <dd className="mt-0.5 break-words text-foreground">
+                    {it.doctor_name ?? "—"}
+                    <span className="text-muted-foreground"> · {it.doctor_role ?? "—"}</span>
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-muted-foreground">Quantidade</dt>
+                  <dd className="mt-0.5 tabular-nums text-foreground">{it.quantity ?? "—"}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-medium text-muted-foreground">Valor</dt>
+                  <dd className="mt-0.5 tabular-nums font-medium text-foreground">{formatCurrency(it.gross_amount)}</dd>
+                </div>
+                <div className="min-w-0 col-span-2">
+                  <dt className="font-medium text-muted-foreground">Descrição</dt>
+                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">{it.description ?? "—"}</dd>
+                </div>
+                {firstRuleLabel && (
+                  <div className="min-w-0 col-span-2">
+                    <dt className="font-medium text-muted-foreground">Regra vinculada</dt>
+                    <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">
+                      {(matchedRuleObjs.length ? matchedRuleObjs.map((r) => r.name) : matchedNames).join(" · ")}
                     </dd>
                   </div>
-                  <div className="min-w-0">
-                    <dt className="font-medium text-muted-foreground">Quantidade</dt>
-                    <dd className="mt-0.5 tabular-nums text-foreground">{it.quantity ?? "—"}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="font-medium text-muted-foreground">Valor</dt>
-                    <dd className="mt-0.5 tabular-nums font-medium text-foreground">{formatCurrency(it.gross_amount)}</dd>
-                  </div>
-                  <div className="min-w-0 sm:col-span-2 lg:col-span-4">
-                    <dt className="font-medium text-muted-foreground">Descrição</dt>
-                    <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">{it.description ?? "—"}</dd>
-                  </div>
-                  {firstRuleLabel && (
-                    <div className="min-w-0 sm:col-span-2 lg:col-span-4">
-                      <dt className="font-medium text-muted-foreground">Regra vinculada</dt>
-                      <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">
-                        {(matchedRuleObjs.length ? matchedRuleObjs.map((r) => r.name) : matchedNames).join(" · ")}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(alerts.length > 0 || it.ai_findings?.calculation_explanation || engine || expectedAmount != null) && (
-                  <div className="md:col-span-2 space-y-2">
-                    {/* CRÍTICO — status reprovado tem prioridade visual máxima */}
-                    {it.ai_status === "reprovado" && !analystDone && (
-                      <AlertBanner
-                        severity="critico"
-                        title="Item reprovado pela análise"
-                      >
-                        {alerts.length > 0 ? (
-                          <ul className="space-y-0.5">
-                            {alerts.map((a, i) => (
-                              <li key={i}>{a}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p>Revisar antes de seguir.</p>
-                        )}
-                      </AlertBanner>
-                    )}
-
-                    {/* ALERTA — destaque moderado */}
-                    {it.ai_status !== "reprovado" && alerts.length > 0 && (
-                      <AlertBanner severity="alerta" title={alerts.length === 1 ? "Alerta" : `${alerts.length} alertas`}>
-                        <ul className="space-y-0.5">
-                          {alerts.map((a, i) => (
-                            <li key={i}>{a}</li>
-                          ))}
-                        </ul>
-                      </AlertBanner>
-                    )}
-
-                    {/* INFORMATIVO — motor / cálculo / IA recolhidos por padrão */}
-                    {(engine || expectedAmount != null || it.ai_findings?.calculation_explanation || alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
-                      <Accordion type="single" collapsible className="border border-border/60 rounded-md bg-muted/20">
-                        {(engine || expectedAmount != null || it.ai_findings?.calculation_explanation) && (
-                          <AccordionItem value="motor" className="border-b-0">
-                            <AccordionTrigger className="px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:no-underline">
-                              <span className="flex items-center gap-1.5">
-                                <FileText className="h-3 w-3" /> Detalhes do cálculo
-                                {expectedAmount != null && (
-                                  <span className="ml-1 normal-case tracking-normal text-foreground tabular-nums">
-                                    · esperado {formatCurrency(expectedAmount)}
-                                    {diffPct != null && Math.abs(diffPct) > 0.001 && (
-                                      <span className={`ml-1 ${Math.abs(diffPct) > 0.01 ? "text-warning-foreground" : "text-muted-foreground"}`}>
-                                        ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
-                              </span>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-3 pb-3 text-xs space-y-2">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {priority && (
-                                  <span
-                                    className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]]}`}
-                                    title="Nível de precedência da regra escolhida"
-                                  >
-                                    {RULE_MATCH_PRIORITY_LABELS[priority]}
-                                  </span>
-                                )}
-                                {calcTypeLabel && (
-                                  <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.muted}`}>
-                                    {calcTypeLabel}
-                                  </span>
-                                )}
-                              </div>
-                              {it.ai_findings?.calculation_explanation && (
-                                <p className="text-muted-foreground italic">
-                                  {it.ai_findings.calculation_explanation}
-                                </p>
-                              )}
-                              {engine?.ai_note && (
-                                <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
-                              )}
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setLogOpen(true); }}
-                                className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 inline-flex items-center gap-1"
-                              >
-                                <FileText className="h-3 w-3" /> Ver log completo
-                              </button>
-                            </AccordionContent>
-                          </AccordionItem>
-                        )}
-                        {(alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
-                          <AccordionItem value="ia" className="border-b-0">
-                            <AccordionTrigger className="px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:no-underline">
-                              <span className="flex items-center gap-1.5">
-                                <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
-                              </span>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-3 pb-3 text-xs space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-muted-foreground">
-                            Apenas interpreta. Não altera valor, status ou regra.
-                          </span>
-                          {!aiExplain && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs"
-                              disabled={aiExplainLoading}
-                              onClick={requestAiExplain}
-                            >
-                              {aiExplainLoading ? (
-                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Gerando…</>
-                              ) : (
-                                <><Sparkles className="h-3 w-3 mr-1" /> Explicar com IA</>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                        {aiExplain ? (
-                          <div className="space-y-1.5">
-                            <p className="text-foreground">{aiExplain.explanation}</p>
-                            {aiExplain.possible_causes?.length > 0 && (
-                              <div>
-                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Possíveis causas</p>
-                                <ul className="list-disc pl-4 text-muted-foreground">
-                                  {aiExplain.possible_causes.map((c, i) => <li key={i}>{c}</li>)}
-                                </ul>
-                              </div>
-                            )}
-                            {aiExplain.what_to_check && (
-                              <p className="text-muted-foreground">
-                                <span className="font-semibold text-foreground">O que conferir: </span>
-                                {aiExplain.what_to_check}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-muted-foreground">
-                            Gere uma interpretação contextual deste alerta (histórico, auxiliares, múltiplos procedimentos, pacote/tabela diferenciada).
-                          </p>
-                        )}
-                            </AccordionContent>
-                          </AccordionItem>
-                        )}
-                      </Accordion>
-                    )}
-                  </div>
                 )}
-                {showExceptionAction && (
-                  <div className="md:col-span-2 rounded-md border border-border/70 bg-background/80 p-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-                          <ShieldCheck className="h-3.5 w-3.5" /> Exceção autorizada
-                        </p>
-                        {exceptionMarked ? (
-                          <p className="text-xs text-foreground">
-                            Marcada — motivo: <strong>{itemAny.exception_reason ?? "—"}</strong>
-                            {" · "}autorizador: <strong>{itemAny.exception_authorizer ?? "—"}</strong>
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            Esta regra de exclusão admite exceção. Marque para reprocessar com a próxima regra calculável.
-                          </p>
+              </dl>
+            </div>
+
+            {it.ai_status === "reprovado" && !analystDone && (
+              <AlertBanner severity="critico" title="Item reprovado pela análise">
+                {alerts.length > 0 ? (
+                  <ul className="space-y-0.5">
+                    {alerts.map((a, i) => <li key={i}>{a}</li>)}
+                  </ul>
+                ) : (
+                  <p>Revisar antes de seguir.</p>
+                )}
+              </AlertBanner>
+            )}
+            {it.ai_status !== "reprovado" && alerts.length > 0 && (
+              <AlertBanner severity="alerta" title={alerts.length === 1 ? "Alerta" : `${alerts.length} alertas`}>
+                <ul className="space-y-0.5">
+                  {alerts.map((a, i) => <li key={i}>{a}</li>)}
+                </ul>
+              </AlertBanner>
+            )}
+
+            {(engine || expectedAmount != null || it.ai_findings?.calculation_explanation || alerts.length > 0) && (
+              <Accordion type="single" collapsible defaultValue="motor" className="border border-border/60 rounded-md bg-muted/10">
+                {(engine || expectedAmount != null || it.ai_findings?.calculation_explanation) && (
+                  <AccordionItem value="motor" className="border-b-0">
+                    <AccordionTrigger className="px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:no-underline">
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="h-3 w-3" /> Detalhes do cálculo
+                        {expectedAmount != null && (
+                          <span className="ml-1 normal-case tracking-normal text-foreground tabular-nums">
+                            · esperado {formatCurrency(expectedAmount)}
+                            {diffPct != null && Math.abs(diffPct) > 0.001 && (
+                              <span className={`ml-1 ${Math.abs(diffPct) > 0.01 ? "text-warning-foreground" : "text-muted-foreground"}`}>
+                                ({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)
+                              </span>
+                            )}
+                          </span>
                         )}
-                        {exceptionMarked && itemAny.exception_note && (
-                          <p className="text-[11px] whitespace-pre-wrap text-muted-foreground">
-                            “{itemAny.exception_note}”
-                          </p>
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 pb-3 text-xs space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {priority && (
+                          <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]]}`}>
+                            {RULE_MATCH_PRIORITY_LABELS[priority]}
+                          </span>
+                        )}
+                        {calcTypeLabel && (
+                          <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.muted}`}>
+                            {calcTypeLabel}
+                          </span>
                         )}
                       </div>
-                      {canComment && (
-                        <Button size="sm" variant={exceptionMarked ? "outline" : "default"} onClick={() => setExcOpen(true)}>
-                          {exceptionMarked ? "Editar exceção" : "Marcar exceção"}
-                        </Button>
+                      {it.ai_findings?.calculation_explanation && (
+                        <p className="text-muted-foreground italic">{it.ai_findings.calculation_explanation}</p>
                       )}
-                    </div>
-                  </div>
+                      {engine?.ai_note && (
+                        <p className="text-muted-foreground italic">IA: {engine.ai_note}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setLogOpen(true); }}
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 inline-flex items-center gap-1"
+                      >
+                        <FileText className="h-3 w-3" /> Ver log completo
+                      </button>
+                    </AccordionContent>
+                  </AccordionItem>
                 )}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                    Histórico deste item
-                  </p>
-                  {itemObs.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Sem comentários ainda.</p>
-                  ) : (
-                    <ul className="space-y-2 max-h-48 overflow-y-auto">
-                      {itemObs.map((o) => (
-                        <li key={o.id} className="text-xs">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <span
-                              className={`inline-flex rounded-full border px-1.5 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}
-                            >
-                              {o.author_type}
-                            </span>
-                            {o.author_id && <span>{profiles[o.author_id] ?? ""}</span>}
-                            <span className="ml-auto">{formatDate(o.created_at)}</span>
-                          </div>
-                          <p className="mt-1 whitespace-pre-wrap">{o.message}</p>
-                        </li>
-                      ))}
-                    </ul>
+                {(alerts.length > 0 || it.ai_status === "alerta" || it.ai_status === "reprovado") && (
+                  <AccordionItem value="ia" className="border-b-0">
+                    <AccordionTrigger className="px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:no-underline">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-3 pb-3 text-xs space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-muted-foreground">
+                          Apenas interpreta. Não altera valor, status ou regra.
+                        </span>
+                        {!aiExplain && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={aiExplainLoading} onClick={requestAiExplain}>
+                            {aiExplainLoading ? (
+                              <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Gerando…</>
+                            ) : (
+                              <><Sparkles className="h-3 w-3 mr-1" /> Explicar com IA</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      {aiExplain ? (
+                        <div className="space-y-1.5">
+                          <p className="text-foreground">{aiExplain.explanation}</p>
+                          {aiExplain.possible_causes?.length > 0 && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Possíveis causas</p>
+                              <ul className="list-disc pl-4 text-muted-foreground">
+                                {aiExplain.possible_causes.map((c, i) => <li key={i}>{c}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {aiExplain.what_to_check && (
+                            <p className="text-muted-foreground">
+                              <span className="font-semibold text-foreground">O que conferir: </span>
+                              {aiExplain.what_to_check}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground">
+                          Gere uma interpretação contextual deste alerta (histórico, auxiliares, múltiplos procedimentos, pacote/tabela diferenciada).
+                        </p>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
+            )}
+
+            {showExceptionAction && (
+              <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Exceção autorizada
+                    </p>
+                    {exceptionMarked ? (
+                      <p className="text-xs text-foreground">
+                        Marcada — motivo: <strong>{itemAny.exception_reason ?? "—"}</strong>
+                        {" · "}autorizador: <strong>{itemAny.exception_authorizer ?? "—"}</strong>
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Esta regra de exclusão admite exceção. Marque para reprocessar com a próxima regra calculável.
+                      </p>
+                    )}
+                    {exceptionMarked && itemAny.exception_note && (
+                      <p className="text-[11px] whitespace-pre-wrap text-muted-foreground">
+                        “{itemAny.exception_note}”
+                      </p>
+                    )}
+                  </div>
+                  {canComment && (
+                    <Button size="sm" variant={exceptionMarked ? "outline" : "default"} onClick={() => setExcOpen(true)}>
+                      {exceptionMarked ? "Editar exceção" : "Marcar exceção"}
+                    </Button>
                   )}
                 </div>
-                {canComment && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                      Adicionar comentário neste item
-                    </p>
-                    <Textarea
-                      rows={3}
-                      value={commentDraft}
-                      onChange={(e) => onCommentDraftChange(e.target.value)}
-                      placeholder="Motivo de dúvida, reprovação, observação..."
-                    />
-                    <div className="flex justify-end mt-2">
-                      <Button size="sm" disabled={busy || !commentDraft.trim()} onClick={onAddComment}>
-                        <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Salvar
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
+            )}
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Histórico deste item
+              </p>
+              {itemObs.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Sem comentários ainda.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {itemObs.map((o) => (
+                    <li key={o.id} className="text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className={`inline-flex rounded-full border px-1.5 py-0.5 uppercase tracking-wide ${authorBadgeClass(o.author_type)}`}>
+                          {o.author_type}
+                        </span>
+                        {o.author_id && <span>{profiles[o.author_id] ?? ""}</span>}
+                        <span className="ml-auto">{formatDate(o.created_at)}</span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap">{o.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          </td>
-        </tr>
-      )}
+
+            {canComment && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Adicionar comentário neste item
+                </p>
+                <Textarea
+                  rows={3}
+                  value={commentDraft}
+                  onChange={(e) => onCommentDraftChange(e.target.value)}
+                  placeholder="Motivo de dúvida, reprovação, observação..."
+                />
+                <div className="flex justify-end mt-2">
+                  <Button size="sm" disabled={busy || !commentDraft.trim()} onClick={onAddComment}>
+                    <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Salvar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
       {showExceptionAction && (
         <AuthorizedExceptionDialog
           open={excOpen}
