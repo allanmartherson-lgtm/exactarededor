@@ -504,7 +504,7 @@ export function CompanyAnalysisDialog({
         </div>
 
         {/* Tabela / Lista */}
-        <div className="flex-1 overflow-hidden bg-background isolate">
+        <div className="flex-1 min-h-0 overflow-hidden bg-background isolate">
           <div className="h-full w-full overflow-auto isolate">
 
           {/* MOBILE — lista de cards (< md) */}
