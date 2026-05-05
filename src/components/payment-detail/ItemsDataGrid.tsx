@@ -33,6 +33,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
@@ -156,13 +157,7 @@ export function ItemsDataGrid({
   const headPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
   const tableTextSize = isCompact ? "text-[12px]" : "text-[13px]";
 
-  const getConvenio = (it: PaymentItemRowData): string => {
-    const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-    const v =
-      (it as unknown as { agreement_text?: string | null }).agreement_text ??
-      (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? raw["convênio"]);
-    return v != null && String(v).trim() !== "" ? String(v) : "—";
-  };
+  const getConvenio = getAgreement;
 
   const selectRow = (itId: string) => setActiveId(itId);
   const openDetail = (itId?: string) => {
@@ -198,9 +193,7 @@ export function ItemsDataGrid({
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
-      const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-      const paciente =
-        (it.patient_name as string | null) ?? ((raw["Paciente"] ?? raw["paciente"]) as string | null) ?? "";
+      const paciente = getPatient(it);
       if (pat && !paciente.toLowerCase().includes(pat)) return false;
       if (!term) return true;
       return [
@@ -429,11 +422,7 @@ export function ItemsDataGrid({
               <li className="text-center py-8 text-muted-foreground text-xs">Nenhum item para exibir.</li>
             )}
             {filtered.map((it) => {
-              const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-              const paciente =
-                (it.patient_name as string | null) ??
-                ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-                "—";
+              const paciente = getPatient(it);
               const expected = it.ai_findings?.expected_amount;
               const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
               const tone: keyof typeof TONE_CLASSES =
@@ -517,11 +506,7 @@ export function ItemsDataGrid({
                 </tr>
               )}
               {filtered.map((it) => {
-                const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-                const paciente =
-                  (it.patient_name as string | null) ??
-                  ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-                  "—";
+                const paciente = getPatient(it);
                 const expected = it.ai_findings?.expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
                 const tone: keyof typeof TONE_CLASSES =
@@ -624,17 +609,7 @@ function RowMain({
   isCompact: boolean;
   totalCols: number;
 }) {
-  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-  const pickRaw = (...keys: string[]): string => {
-    for (const k of keys) {
-      const v = raw[k];
-      if (v != null && String(v).trim() !== "") return String(v);
-    }
-    return "—";
-  };
-  const convenio =
-    (it as unknown as { agreement_text?: string | null }).agreement_text ??
-    pickRaw("Convênio", "Convenio", "convenio", "convênio");
+  const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
   const expN = expected != null ? Number(expected) : null;
   const diff = expN != null ? expN - grossN : null;
@@ -825,30 +800,15 @@ function ItemDetailsRow({
   const exceptionMarked = !!itemAny.authorized_exception;
   const itemObs = observations.filter((o) => o.item_id === it.id);
 
-  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-  const pickRaw = (...keys: string[]): string => {
-    for (const k of keys) {
-      const v = raw[k];
-      if (v != null && String(v).trim() !== "") return String(v);
-    }
-    return "—";
-  };
-  const paciente =
-    (it.patient_name as string | null) ??
-    ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-    "—";
-  const convenio =
-    (it as unknown as { agreement_text?: string | null }).agreement_text ??
-    pickRaw("Convênio", "Convenio", "convenio", "convênio");
   const summary: { label: string; value: string }[] = [
     { label: "Atendimento", value: it.attendance_number ?? "—" },
-    { label: "Paciente", value: paciente },
-    { label: "Convênio", value: String(convenio ?? "—") },
-    { label: "Via de Acesso", value: it.access_route ?? "—" },
-    { label: "TUSS", value: it.procedure_code ?? "—" },
-    { label: "Procedimento", value: it.procedure_name ?? it.description ?? "—" },
+    { label: "Paciente", value: getPatient(it) },
+    { label: "Convênio", value: getAgreement(it) },
+    { label: "Via de Acesso", value: getAccessRoute(it) },
+    { label: "TUSS", value: getProcedureCode(it) },
+    { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
-    { label: "Função", value: it.doctor_role ?? "—" },
+    { label: "Função", value: getDoctorRole(it) },
   ];
 
   const fmtDate = (d: string | null | undefined) => {

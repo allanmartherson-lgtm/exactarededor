@@ -47,6 +47,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { AuthorizedExceptionDialog } from "./AuthorizedExceptionDialog";
+import { getAgreement, getPatient } from "@/lib/itemFields";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted",
@@ -196,9 +197,8 @@ export const PaymentItemRow = ({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isExpanded, onNavigate, hasPrev, hasNext]);
-  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-  const paciente = (raw["Paciente"] ?? raw["paciente"] ?? "—") as string;
-  const convenio = (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? "—") as string;
+  const paciente = getPatient(it);
+  const convenio = getAgreement(it);
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
   const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
   const seen = new Set<string>();
