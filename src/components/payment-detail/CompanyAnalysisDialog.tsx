@@ -320,7 +320,7 @@ export function CompanyAnalysisDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-none w-screen h-screen p-0 gap-0 sm:rounded-none border-0 flex flex-col"
+        className="max-w-none w-screen h-screen p-0 gap-0 sm:rounded-none border-0 flex flex-col overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
