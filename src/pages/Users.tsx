@@ -15,6 +15,12 @@ import { Plus, Copy, Send, Loader2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
+const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+
+const getPasswordRecoveryOrigin = () => {
+  if (window.location.hostname.endsWith(".lovableproject.com")) return PROJECT_PREVIEW_ORIGIN;
+  return window.location.origin;
+};
 
 const Users = () => {
   const { roles: myRoles } = useAuth();
@@ -56,7 +62,7 @@ const Users = () => {
     setResendingId(u.id);
     try {
       const { data, error } = await supabase.functions.invoke("admin-resend-invite", {
-        body: { email: u.email, app_origin: window.location.origin },
+        body: { email: u.email, app_origin: getPasswordRecoveryOrigin() },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -94,7 +100,7 @@ const Users = () => {
           full_name: form.full_name.trim(),
           roles: form.roles,
           send_invite: form.send_invite,
-          app_origin: window.location.origin,
+          app_origin: getPasswordRecoveryOrigin(),
         },
       });
       if (error) throw error;
