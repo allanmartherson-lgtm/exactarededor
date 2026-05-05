@@ -1071,20 +1071,20 @@ function ItemDetailsRow({
 
   return (
     <tr className="border-b bg-muted/20">
-      <td colSpan={12} className="px-4 py-3">
+      <td colSpan={12} className="px-5 py-3 align-top">
         {/* Linha 1 — Resumo dos campos da planilha */}
-        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2 text-[11px]">
+        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-x-3 gap-y-2 text-[11px]">
           {summary.map((s) => (
             <div key={s.label} className="min-w-0">
               <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-              <p className="truncate" title={s.value}>{s.value}</p>
+              <p className="break-words leading-snug" title={s.value}>{s.value}</p>
             </div>
           ))}
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2">
           {/* COL 1 — Alertas e Exceção */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             {alerts.length > 0 && (
               <AlertBanner
                 severity={isCritical ? "critico" : "alerta"}
@@ -1150,7 +1150,7 @@ function ItemDetailsRow({
           </div>
 
           {/* COL 2 — Regra, motor e IA */}
-          <div className="space-y-2 text-xs">
+          <div className="space-y-2 text-xs min-w-0 break-words">
             {matchedRules.length > 0 ? (
               <div className="rounded-md border bg-background p-2.5">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
@@ -1200,21 +1200,21 @@ function ItemDetailsRow({
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                  <div>
-                    <span className="text-muted-foreground">Valor informado: </span>
-                    <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
+                    <span className="text-muted-foreground">Valor informado:</span>
+                    <span className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Valor esperado: </span>
-                    <span className="tabular-nums font-medium">
+                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
+                    <span className="text-muted-foreground">Valor esperado:</span>
+                    <span className="tabular-nums font-medium break-words">
                       {expected != null ? formatCurrency(Number(expected)) : "—"}
                     </span>
                   </div>
                   {diff != null && Math.abs(diff) > 0.01 && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Diferença: </span>
-                      <span className={cn("tabular-nums", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                    <div className="sm:col-span-2 flex flex-wrap items-baseline gap-x-1 min-w-0">
+                      <span className="text-muted-foreground">Diferença:</span>
+                      <span className={cn("tabular-nums break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
                         {diff > 0 ? "+" : ""}{formatCurrency(diff)}
                         {diffPct != null && (
                           <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
