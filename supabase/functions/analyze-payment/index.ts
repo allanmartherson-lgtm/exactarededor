@@ -310,7 +310,31 @@ serve(async (req) => {
       r.needs_ai_review = status !== "aprovado";
     }
 
-    const resultById: Record<string, AnalysisResult> = {};
+    // ---------- 4.1.b Sobrepor para itens em tabela "Sem acordo" ----------
+    // Não aplica regras de cálculo: usa diretamente o valor pago como esperado.
+    // Pula códigos já marcados como exclusão (exclusão tem prioridade).
+    for (const r of results) {
+      const it = items.find((i) => i.id === r.item_id);
+      const code = it?.procedure_code ?? "";
+      if (!code) continue;
+      if (exclusionByCode[code]) continue;
+      const hit = semAcordoByCode[code];
+      if (!hit) continue;
+      const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
+      const paid = Number(it?.gross_amount ?? 0);
+      r.expected_amount = paid;
+      r.diff_pct = 0;
+      r.matched_rule_id = null;
+      r.matched_rule_name = `Sem acordo: ${hit.table_name}`;
+      r.matched_priority = "conflito";
+      r.calculation_type_used = "informativo";
+      r.calculation_explanation = `Código ${code} consta na tabela "Sem acordo / usar valor do convênio" (${hit.table_name})${motivo}. Regras de cálculo ignoradas — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`;
+      r.alerts = [
+        `Código ${code} em tabela "Sem acordo" (${hit.table_name})${motivo} — regras diferenciadas não aplicadas.`,
+      ];
+      r.status = "aprovado";
+      r.needs_ai_review = false;
+    }
     for (const r of results) resultById[r.item_id] = r;
 
     // ---------- 4.2 PACOTES FIXOS por combinação de códigos ----------
