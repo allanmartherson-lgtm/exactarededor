@@ -273,6 +273,14 @@ const Payments = () => {
     if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
     if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (ownerGroup !== "all") {
+      const allowed = STATUSES_BY_OWNER[ownerGroup];
+      if (!allowed.includes(r.status)) return false;
+    }
+    if (onlyMine && user?.id) {
+      // "Meus": criado por mim, OU validado por mim. created_by já está na linha.
+      if (r.created_by !== user.id) return false;
+    }
     if (competenceFilter !== "all") {
       const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
       if (!months.some((m) => m.startsWith(competenceFilter))) return false;
@@ -283,7 +291,7 @@ const Payments = () => {
       if (lvl === "none") return false;
     }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, competenceFilter, delayedOnly, statusEnteredAt, now]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, user?.id, competenceFilter, delayedOnly, statusEnteredAt, now]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
