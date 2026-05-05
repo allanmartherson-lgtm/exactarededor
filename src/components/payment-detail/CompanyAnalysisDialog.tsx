@@ -187,6 +187,22 @@ export function CompanyAnalysisDialog({
   const toggleCol = (k: OptionalColKey) =>
     setColVis((v) => ({ ...v, [k]: !v[k] }));
 
+  // Densidade da tabela — Compacto x Confortável
+  const [density, setDensity] = useState<Density>(() => {
+    if (typeof window === "undefined") return "comfortable";
+    try {
+      const v = window.localStorage.getItem(DENSITY_PREFS_KEY);
+      return v === "compact" ? "compact" : "comfortable";
+    } catch {
+      return "comfortable";
+    }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(DENSITY_PREFS_KEY, density); } catch { /* noop */ }
+  }, [density]);
+  const isCompact = density === "compact";
+  const headPad = isCompact ? "px-1.5 py-1" : "px-1.5 py-1.5";
+  const tableTextSize = isCompact ? "text-[12px]" : "text-[11px]";
   const getConvenio = (it: PaymentItemRowData): string => {
     const raw = (it.raw_data ?? {}) as Record<string, unknown>;
     const v =
