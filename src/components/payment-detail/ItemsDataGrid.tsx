@@ -193,9 +193,7 @@ export function ItemsDataGrid({
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
-      const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-      const paciente =
-        (it.patient_name as string | null) ?? ((raw["Paciente"] ?? raw["paciente"]) as string | null) ?? "";
+      const paciente = getPatient(it);
       if (pat && !paciente.toLowerCase().includes(pat)) return false;
       if (!term) return true;
       return [
