@@ -434,6 +434,8 @@ const Rules = () => {
     setFAllowsAuthorizedException(!!r.allows_authorized_exception);
     setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
     setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
+    setFAgreementName(r.agreement_name ?? "");
+    setFAgreementAliases(Array.isArray(r.agreement_aliases) ? r.agreement_aliases : []);
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
