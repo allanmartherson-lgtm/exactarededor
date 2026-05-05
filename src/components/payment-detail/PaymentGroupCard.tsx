@@ -166,6 +166,11 @@ export const PaymentGroupCard = ({
   onExceptionChanged,
 }: PaymentGroupCardProps) => {
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [density, setDensity] = useState<RowDensity>(() => readDensity());
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem(DENSITY_LS_KEY, density);
+  }, [density]);
+  const isComfy = density === "comfortable";
   const gStatus = g.status as PaymentStatus;
   const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
   const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
