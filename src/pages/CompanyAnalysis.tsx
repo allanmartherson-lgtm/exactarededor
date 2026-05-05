@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, Filter } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, Filter, RefreshCcw, Send, RotateCcw } from "lucide-react";
+import { resolveResendTarget } from "@/lib/paymentFlow";
 import {
   formatCurrency,
   TONE_CLASSES,
@@ -51,6 +52,7 @@ export default function CompanyAnalysis() {
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
   const [showAllInAnalysis, setShowAllInAnalysis] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
@@ -172,6 +174,92 @@ export default function CompanyAnalysis() {
     load();
   };
 
+  // Ações de fluxo (paridade com o popup de análise por empresa).
+  const reanalyzeGroup = async () => {
+    if (!id || !group) return;
+    setReanalyzing(true);
+    try {
+      const { error } = await supabase.functions.invoke("analyze-payment", {
+        body: { payment_id: id, company_name: group.company_name },
+      });
+      if (error) throw error;
+      await recordObservation({
+        payment_id: id,
+        author_type: myAuthorType,
+        author_id: user!.id,
+        message: `[${group.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
+        status_from: group.status,
+        status_to: group.status,
+      });
+      toast.success("Regras reaplicadas");
+      load();
+    } catch (e) {
+      toast.error("Falha ao reaplicar regras", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
+  const sendForValidation = async () => {
+    if (!id || !group) return;
+    if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
+    setBusy(true);
+    const target = resolveResendTarget(obs, group.company_name);
+    const next = target?.nextStatus ?? "aguardando_validacao";
+    const { error } = await supabase
+      .from("payment_company_groups")
+      .update({ status: next })
+      .eq("id", group.id);
+    if (error) {
+      setBusy(false);
+      return toast.error("Erro ao enviar", { description: error.message });
+    }
+    const text = groupDraft.trim();
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: target
+        ? `[${group.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`
+        : `[${group.company_name}] Enviado para validação pelo analista${text ? `: ${text}` : ""}.`,
+      status_from: group.status,
+      status_to: next,
+    });
+    setGroupDraft("");
+    setBusy(false);
+    toast.success(target ? `Reencaminhado ao ${target.role}` : "Enviado para validação");
+    load();
+  };
+
+  const returnToAnalyst = async () => {
+    if (!id || !group) return;
+    const text = groupDraft.trim();
+    if (!text) return toast.error("Observação obrigatória", { description: "Descreva o motivo da devolução." });
+    setBusy(true);
+    const { error } = await supabase
+      .from("payment_company_groups")
+      .update({ status: "devolvido_analista" })
+      .eq("id", group.id);
+    if (error) {
+      setBusy(false);
+      return toast.error("Erro ao devolver", { description: error.message });
+    }
+    await recordObservation({
+      payment_id: id,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] Devolvido ao analista: ${text}`,
+      status_from: group.status,
+      status_to: "devolvido_analista",
+    });
+    setGroupDraft("");
+    setBusy(false);
+    toast.success("Devolvido ao analista");
+    load();
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -191,8 +279,11 @@ export default function CompanyAnalysis() {
     );
   }
 
+  const canAct = gStatus === "revisao_analista" || gStatus === "devolvido_analista";
+  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-32">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild>
           <Link to={`/pagamentos/${id}`}>
@@ -341,6 +432,34 @@ export default function CompanyAnalysis() {
           <AiDetail items={items} versions={aiVersions} />
         </TabsContent>
       </Tabs>
+
+      {/* Footer sticky com ações de fluxo */}
+      {canAct && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+          <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row md:items-start gap-2">
+            <Textarea
+              rows={2}
+              value={groupDraft}
+              onChange={(e) => setGroupDraft(e.target.value)}
+              placeholder="Observação para esta empresa (obrigatória para devolver)..."
+              className="md:flex-1 text-xs"
+            />
+            <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
+              <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
+                <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
+                {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={returnToAnalyst} disabled={busy}>
+                <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
+              </Button>
+              <Button size="sm" onClick={sendForValidation} disabled={busy}>
+                <Send className="h-4 w-4 mr-2" />
+                {returner ? `Reencaminhar ao ${returner}` : "Enviar para validação"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

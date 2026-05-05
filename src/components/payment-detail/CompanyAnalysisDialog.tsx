@@ -3,22 +3,29 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AlertBanner } from "./AlertBanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Columns3,
   FileText,
+  RefreshCcw,
+  RotateCcw,
   Search,
+  Send,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  X,
+  XCircle,
   ExternalLink,
 } from "lucide-react";
 import {
@@ -32,7 +39,7 @@ import {
   type RuleMatchPriority,
   type RuleCalculationType,
 } from "@/lib/status";
-import { effectiveItemAiStatus } from "@/lib/paymentFlow";
+import { effectiveItemAiStatus, resolveResendTarget } from "@/lib/paymentFlow";
 import type {
   GroupRow,
   ObservationRow,
@@ -50,6 +57,26 @@ type Props = {
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations?: ObservationRow[];
+  // Permissões e ações de fluxo (footer sticky)
+  isAnalista?: boolean;
+  isValidador?: boolean;
+  isDiretor?: boolean;
+  busy?: boolean;
+  reanalyzingGroupId?: string | null;
+  groupCommentDraft?: string;
+  onGroupCommentDraftChange?: (v: string) => void;
+  onReanalyze?: (g: GroupRow) => void;
+  onResend?: (groupId: string) => void;
+  onSendForValidation?: (groupId: string) => void;
+  onTransition?: (
+    groupId: string,
+    to: PaymentStatus,
+    actor: "validador" | "diretor",
+    label: string,
+    requireComment?: boolean,
+  ) => void;
+  /** "Voltar ao lote" — fecha o dialog e (opcionalmente) navega. Por padrão, fecha. */
+  onBackToBatch?: () => void;
 };
 
 /**
@@ -102,9 +129,29 @@ export function CompanyAnalysisDialog({
   rulesIndex,
   rulesByName,
   observations = [],
+  isAnalista,
+  isValidador,
+  isDiretor,
+  busy,
+  reanalyzingGroupId,
+  groupCommentDraft = "",
+  onGroupCommentDraftChange,
+  onReanalyze,
+  onResend,
+  onSendForValidation,
+  onTransition,
+  onBackToBatch,
 }: Props) {
   const { id } = useParams<{ id: string }>();
   const gStatus = group.status as PaymentStatus;
+  const isGroupAnalista = !!isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
+  const isGroupValidador = !!isValidador && gStatus === "aguardando_validacao";
+  const isGroupDiretor = !!isDiretor && gStatus === "aguardando_aprovacao";
+  const showFooter = isGroupAnalista || isGroupValidador || isGroupDiretor;
+  const returnerForResend =
+    gStatus === "devolvido_analista"
+      ? resolveResendTarget(observations, group.company_name)?.role ?? null
+      : null;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -252,7 +299,18 @@ export function CompanyAnalysisDialog({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 border-b px-4 py-3 bg-background">
+        <div className="flex items-center gap-3 border-b px-4 py-3 pr-12 bg-background">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (onBackToBatch) onBackToBatch();
+              else onOpenChange(false);
+            }}
+            aria-label="Voltar ao lote"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Voltar ao lote
+          </Button>
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-base truncate">{group.company_name}</DialogTitle>
             <DialogDescription className="text-xs">
@@ -269,9 +327,6 @@ export function CompanyAnalysisDialog({
               </Link>
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Toolbar */}
@@ -598,6 +653,109 @@ export function CompanyAnalysisDialog({
         <div className="border-t px-4 py-1.5 text-[10px] text-muted-foreground bg-muted/20">
           Use ↑/↓ ou j/k para navegar · Enter para expandir
         </div>
+
+        {/* Footer sticky com ações de fluxo (sempre visível) */}
+        {showFooter && (
+          <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+            <div className="flex flex-col md:flex-row md:items-start gap-2">
+              <Textarea
+                rows={2}
+                value={groupCommentDraft}
+                onChange={(e) => onGroupCommentDraftChange?.(e.target.value)}
+                placeholder="Observação para esta empresa (obrigatória para devolver/rejeitar)..."
+                className="md:flex-1 text-xs"
+              />
+              <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
+                {isGroupAnalista && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReanalyze?.(group)}
+                      disabled={busy || reanalyzingGroupId === group.id}
+                    >
+                      <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzingGroupId === group.id && "animate-spin")} />
+                      {reanalyzingGroupId === group.id ? "Reaplicando..." : "Reaplicar regras"}
+                    </Button>
+                    {returnerForResend ? (
+                      <Button size="sm" onClick={() => onResend?.(group.id)} disabled={busy}>
+                        <Send className="h-4 w-4 mr-2" /> Reencaminhar ao {returnerForResend}
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => onSendForValidation?.(group.id)} disabled={busy}>
+                        <Send className="h-4 w-4 mr-2" /> Enviar para validação
+                      </Button>
+                    )}
+                  </>
+                )}
+                {isGroupValidador && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReanalyze?.(group)}
+                      disabled={busy || reanalyzingGroupId === group.id}
+                    >
+                      <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzingGroupId === group.id && "animate-spin")} />
+                      Reaplicar regras
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "devolvido_analista", "validador", "Devolvido ao analista", true)}
+                      disabled={busy}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "aguardando_aprovacao", "validador", "Validado", false)}
+                      disabled={busy}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Validar empresa
+                    </Button>
+                  </>
+                )}
+                {isGroupDiretor && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReanalyze?.(group)}
+                      disabled={busy || reanalyzingGroupId === group.id}
+                    >
+                      <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzingGroupId === group.id && "animate-spin")} />
+                      Reaplicar regras
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "devolvido_analista", "diretor", "Devolvido ao analista", true)}
+                      disabled={busy}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "rejeitado", "diretor", "Rejeitado", true)}
+                      disabled={busy}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" /> Rejeitar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => onTransition?.(group.id, "aprovado", "diretor", "Aprovado", false)}
+                      disabled={busy}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
