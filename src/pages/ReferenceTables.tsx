@@ -631,7 +631,7 @@ const ReferenceTables = () => {
                     <input type="checkbox" name="package_apply_intl_insurance" defaultChecked /> Aplica a seguradora internacional
                   </label>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 md:col-span-2">
                   <div className="space-y-1.5">
                     <Label>Vigência início</Label>
                     <Input name="valid_from" type="date" />
@@ -641,11 +641,11 @@ const ReferenceTables = () => {
                     <Input name="valid_until" type="date" />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Observações</Label>
                   <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
                 </div>
-                <Button type="submit" className="w-full">Criar</Button>
+                <Button type="submit" className="w-full md:col-span-2">Criar</Button>
               </form>
             </DialogContent>
           </Dialog>
