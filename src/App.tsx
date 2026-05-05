@@ -25,6 +25,7 @@ import SlaSettings from "./pages/SlaSettings.tsx";
 import WcagAudit from "./pages/WcagAudit.tsx";
 import Kpis from "./pages/Kpis.tsx";
 import SidebarDiagnostic from "./pages/SidebarDiagnostic.tsx";
+import OverflowAudit from "./pages/OverflowAudit.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
