@@ -125,27 +125,13 @@ const SetPassword = () => {
     document.title = "Definir senha | MedPay Approval";
     let cancelled = false;
     let settled = false;
-
-    const consumeCachedAuthUrl = (() => {
-      const raw = sessionStorage.getItem(PASSWORD_AUTH_URL_CACHE_KEY);
-      if (!raw) return null;
-      try {
-        const parsed = JSON.parse(raw) as { href?: string; savedAt?: number };
-        if (!parsed.href || !parsed.savedAt || Date.now() - parsed.savedAt > 15 * 60 * 1000) {
-          sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
-          return null;
-        }
-        return parsed.href;
-      } catch {
-        sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
-        return null;
-      }
-    })();
-
-    const authUrl = parseAuthUrl(consumeCachedAuthUrl ?? window.location.href);
+    const { authUrl, usedCachedUrl } = chooseAuthUrl();
 
     console.groupCollapsed("[auth recovery] validar link");
     console.info("URL recebida", maskAuthUrl(authUrl.href));
+    console.info("URL completa recebida", maskAuthUrl(window.location.href));
+    console.info("Hash presente?", Boolean(authUrl.url.hash));
+    console.info("Query params presentes?", Boolean(authUrl.url.search));
     console.info("Parâmetros detectados", {
       query: maskParamsForLog(authUrl.query),
       hash: maskParamsForLog(authUrl.hash),
@@ -154,7 +140,7 @@ const SetPassword = () => {
       hasRefreshToken: Boolean(authUrl.refreshToken),
       hasTokenHash: Boolean(authUrl.tokenHash),
       hasCode: Boolean(authUrl.code),
-      usedCachedUrl: Boolean(consumeCachedAuthUrl),
+      usedCachedUrl,
     });
     console.groupEnd();
 
@@ -170,10 +156,11 @@ const SetPassword = () => {
       setPhase("ready");
     };
 
-    const waitForSession = async (attempts = 60) => {
+    const waitForSession = async (attempts = 80) => {
       for (let i = 0; i < attempts; i++) {
         if (cancelled || settled) return false;
         const { data } = await supabase.auth.getSession();
+        console.info("[auth recovery] sessão detectada?", { attempt: i + 1, hasSession: Boolean(data.session) });
         if (data.session) {
           console.info("[auth recovery] sessão detectada", { attempt: i + 1, userId: data.session.user.id });
           return true;
