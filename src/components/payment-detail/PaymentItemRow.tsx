@@ -467,12 +467,44 @@ export const PaymentItemRow = ({
       >
         <SheetContent side="right" className="w-full sm:max-w-[520px] overflow-y-auto p-0">
           <SheetHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-5 py-3">
-            <SheetTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Detalhes do item
-            </SheetTitle>
-            <SheetDescription className="text-xs">
-              {paciente} · Atend. {it.attendance_number ?? "—"} · {formatCurrency(it.gross_amount)}
-            </SheetDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <SheetTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Detalhes do item
+                </SheetTitle>
+                <SheetDescription className="text-xs">
+                  {paciente} · Atend. {it.attendance_number ?? "—"} · {formatCurrency(it.gross_amount)}
+                </SheetDescription>
+              </div>
+              {onNavigate && (
+                <div className="flex items-center gap-1 mr-8 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={!hasPrev}
+                    onClick={() => onNavigate("prev")}
+                    title="Item anterior (↑)"
+                    aria-label="Item anterior"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={!hasNext}
+                    onClick={() => onNavigate("next")}
+                    title="Próximo item (↓)"
+                    aria-label="Próximo item"
+                  >
+                    Próximo <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </SheetHeader>
           <div className="px-5 py-4 space-y-4">
             <div className="rounded-md border border-border/70 bg-muted/20 p-3">
