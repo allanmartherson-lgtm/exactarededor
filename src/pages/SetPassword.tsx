@@ -25,6 +25,7 @@ const schema = z.object({
 }).refine((d) => d.password === d.confirm, { path: ["confirm"], message: "As senhas não coincidem" });
 
 type Phase = "loading" | "ready" | "invalid" | "saving" | "done";
+const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 
 const SetPassword = () => {
   const navigate = useNavigate();
@@ -44,6 +45,26 @@ const SetPassword = () => {
     document.title = "Definir senha | MedPay Approval";
     let cancelled = false;
     let settled = false;
+
+    const cachedUrl = (() => {
+      const raw = sessionStorage.getItem(PASSWORD_AUTH_URL_CACHE_KEY);
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw) as { href?: string; savedAt?: number };
+        if (!parsed.href || !parsed.savedAt || Date.now() - parsed.savedAt > 15 * 60 * 1000) {
+          sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
+          return null;
+        }
+        return new URL(parsed.href);
+      } catch {
+        sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
+        return null;
+      }
+    })();
+
+    const cachedHashParams = cachedUrl ? new URLSearchParams(cachedUrl.hash.replace(/^#/, "")) : null;
+    const queryParams = cachedUrl?.searchParams ?? params;
+    const urlHashParams = cachedHashParams ?? hashParams;
 
     const markReady = (f?: "invite" | "recovery" | "session") => {
       if (cancelled || settled) return;
@@ -83,11 +104,11 @@ const SetPassword = () => {
           return;
         }
 
-        const type = (hashParams.get("type") ?? params.get("type") ?? "") as "invite" | "recovery" | "";
-        const tokenHash = params.get("token_hash") ?? hashParams.get("token_hash");
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-        const code = params.get("code");
+        const type = (urlHashParams.get("type") ?? queryParams.get("type") ?? "") as "invite" | "recovery" | "";
+        const tokenHash = queryParams.get("token_hash") ?? urlHashParams.get("token_hash");
+        const accessToken = urlHashParams.get("access_token");
+        const refreshToken = urlHashParams.get("refresh_token");
+        const code = queryParams.get("code");
         const hasUrlAuth = !!(code || tokenHash || accessToken);
 
         if (type === "invite") setFlow("invite");
@@ -99,6 +120,7 @@ const SetPassword = () => {
           urlSessionRef.current = { access_token: accessToken, refresh_token: refreshToken };
           const { error } = await supabase.auth.setSession(urlSessionRef.current);
           if (error) throw error;
+          sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
           window.history.replaceState({}, "", window.location.pathname);
           markReady(type === "invite" ? "invite" : "recovery");
           return;
@@ -108,6 +130,7 @@ const SetPassword = () => {
         if (tokenHash && (type === "invite" || type === "recovery")) {
           const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
           if (error) throw error;
+          sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
           window.history.replaceState({}, "", window.location.pathname);
           markReady(type);
           return;
@@ -117,6 +140,7 @@ const SetPassword = () => {
         // Evita corrida onde o código já foi consumido antes deste componente.
         if (code) {
           if (await waitForSession()) {
+            sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
             window.history.replaceState({}, "", window.location.pathname);
             markReady(type === "invite" ? "invite" : "recovery");
           } else if (!cancelled && !settled) {
@@ -134,6 +158,7 @@ const SetPassword = () => {
             await new Promise((r) => setTimeout(r, 100));
             const { data } = await supabase.auth.getSession();
             if (data.session) {
+              sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
               window.history.replaceState({}, "", window.location.pathname);
               markReady(type === "invite" ? "invite" : "recovery");
               return;
