@@ -404,7 +404,7 @@ export const PaymentItemRow = ({
             </span>
           )}
         </td>
-        <td className="pl-1 pr-2 py-1 print:hidden" onClick={(e) => e.stopPropagation()}>
+        <td className={`${isComfy ? "pl-2 pr-2 py-2" : "pl-1 pr-2 py-1"} print:hidden`} onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-center">
             <button
               type="button"
