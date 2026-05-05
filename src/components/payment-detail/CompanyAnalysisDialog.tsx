@@ -474,6 +474,30 @@ export function CompanyAnalysisDialog({
               </div>
             </PopoverContent>
           </Popover>
+          <div className="inline-flex items-center rounded-md border bg-background p-0.5">
+            <button
+              type="button"
+              onClick={() => setDensity("compact")}
+              className={cn(
+                "h-7 px-2 text-[11px] rounded-sm transition-colors",
+                isCompact ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Modo compacto"
+            >
+              Compacto
+            </button>
+            <button
+              type="button"
+              onClick={() => setDensity("comfortable")}
+              className={cn(
+                "h-7 px-2 text-[11px] rounded-sm transition-colors",
+                !isCompact ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Modo confortável"
+            >
+              Confortável
+            </button>
+          </div>
           <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
