@@ -324,6 +324,36 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
 
 
 
+// ---------- match por convênio ----------
+/**
+ * Compara o convênio do item com o nome principal e os aliases da regra.
+ * Comparação case/acento-insensitive. Vazio dos dois lados = não bate.
+ */
+function targetsAgreement(r: RuleInput, item: ItemInput): boolean {
+  const itemAg = normName(item.agreement_name);
+  if (!itemAg) return false;
+  const main = normName(r.agreement_name);
+  if (main && main === itemAg) return true;
+  const aliases = (r.agreement_aliases ?? []).map(normName).filter(Boolean);
+  return aliases.includes(itemAg);
+}
+
+function ruleHasAgreement(r: RuleInput): boolean {
+  return !!(r.agreement_name && r.agreement_name.trim()) ||
+    (Array.isArray(r.agreement_aliases) && r.agreement_aliases.length > 0);
+}
+
+function ruleHasSpecialty(r: RuleInput): boolean {
+  return Array.isArray(r.specialties) && r.specialties.length > 0;
+}
+
+function matchesItemSpecialty(r: RuleInput, item: ItemInput): boolean {
+  const its = normName(item.specialty);
+  if (!its) return false;
+  const list = (r.specialties ?? []).map(normName);
+  return list.includes(its);
+}
+
 // ---------- pré-filtro ----------
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
   return rules.filter((r) => {
