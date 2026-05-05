@@ -332,7 +332,7 @@ export const AppLayout = () => {
           className="flex-1 min-w-0 nav-main"
           style={{ marginLeft: 0, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
         >
-          <div className="mx-auto w-full" style={{ maxWidth: 1080, padding: "32px 28px" }}>
+          <div className="mx-auto w-full" style={{ maxWidth: 1600, padding: "20px 24px" }}>
             <Breadcrumbs />
             <Outlet />
           </div>
