@@ -500,10 +500,48 @@ const Payments = () => {
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
           </Button>
-          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly) && (
+          {ownerGroup !== "all" && (
+            <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
+              <UserCheck className="h-3.5 w-3.5" /> {OWNER_LABELS[ownerGroup]}
+              <button
+                type="button"
+                aria-label="Remover filtro de papel"
+                className="ml-1 hover:opacity-70"
+                onClick={() => {
+                  setOwnerGroup("all");
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("status");
+                  setSearchParams(next, { replace: true });
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {onlyMine && (
+            <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
+              <User className="h-3.5 w-3.5" /> Apenas meus
+              <button
+                type="button"
+                aria-label="Remover filtro apenas meus"
+                className="ml-1 hover:opacity-70"
+                onClick={() => {
+                  setOnlyMine(false);
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("owner");
+                  setSearchParams(next, { replace: true });
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine) && (
             <Button variant="ghost" size="sm" onClick={() => {
               setCompanyFilter(null);
               setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+              setOwnerGroup("all"); setOnlyMine(false);
+              setSearchParams(new URLSearchParams(), { replace: true });
             }}>
               <X className="h-4 w-4 mr-1" /> Limpar
             </Button>
