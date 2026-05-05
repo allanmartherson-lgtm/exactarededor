@@ -289,13 +289,13 @@ const SetPassword = () => {
           return;
         }
 
-        // Sem parâmetros na URL: o cliente pode ter removido o hash após processar
-        // o link de recuperação. Aguardamos a sessão antes de redirecionar.
-        if (await waitForSession()) {
-          finishAuthUrl();
-          markReady("session");
-          return;
-        }
+        // Sem parâmetros na URL: no Lovable Cloud, a página intermediária de
+        // sucesso pode consumir o token antes do app receber a rota final.
+        // Mantemos a tela em validação e aceitamos a sessão assim que ela surgir,
+        // sem exigir access_token/code visível na URL.
+        await waitForSession();
+        if (cancelled || settled) return;
+        console.info("[auth recovery] nenhuma sessão/token detectado após aguardar auth state");
 
         // Sem token e sem sessão: aí sim o link está ausente nesta rota.
         if (!cancelled) {
@@ -331,6 +331,7 @@ const SetPassword = () => {
     setPhase("saving");
     const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
     if (error) {
+      console.error("[auth recovery] erro retornado ao tentar updateUser", error);
       setPhase("ready");
       toast({ title: "Erro ao salvar senha", description: error.message, variant: "destructive" });
       return;
