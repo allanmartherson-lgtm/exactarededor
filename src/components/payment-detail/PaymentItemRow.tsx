@@ -122,6 +122,8 @@ export type PaymentItemRowProps = {
   paymentId: string;
   /** Recarrega os dados após marcar/remover exceção. */
   onExceptionChanged?: () => void;
+  /** Densidade visual da linha. */
+  density?: "compact" | "comfortable";
 };
 
 /**
