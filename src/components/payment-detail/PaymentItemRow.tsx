@@ -19,6 +19,7 @@ import {
 import { AlertBanner } from "./AlertBanner";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   MessageSquare,
   MessageSquarePlus,
