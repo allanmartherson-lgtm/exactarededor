@@ -170,6 +170,15 @@ const SetPassword = () => {
       return false;
     };
 
+    const useExistingSessionIfAvailable = async (source: string, f?: AuthFlow) => {
+      const { data } = await supabase.auth.getSession();
+      console.info("[auth recovery] sessão existente após " + source + "?", { hasSession: Boolean(data.session) });
+      if (!data.session) return false;
+      finishAuthUrl();
+      markReady(f ?? (authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session"));
+      return true;
+    };
+
     // Listener para eventos do Supabase. O cliente tem detectSessionInUrl=true,
     // então ele processa o ?code=/#access_token= automaticamente e dispara
     // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
@@ -197,6 +206,12 @@ const SetPassword = () => {
 
         if (authUrl.type) setFlow(authUrl.type);
 
+        // O cliente de Auth pode consumir o hash e salvar a sessão antes deste
+        // componente montar. Nesse caso, não reprocessamos token/cache: exibimos
+        // o formulário assim que a sessão já estiver disponível.
+        await supabase.auth.initialize();
+        if (await useExistingSessionIfAvailable("initialize")) return;
+
         // Links de hash/implicit podem chegar antes do listener processar a sessão.
         // Nesse caso, criamos a sessão explicitamente com os tokens da própria URL.
         if (authUrl.accessToken && authUrl.refreshToken) {
@@ -206,6 +221,7 @@ const SetPassword = () => {
           });
           if (error) {
             console.error("[auth recovery] erro em setSession", error);
+            if (await useExistingSessionIfAvailable("setSession com erro", authUrl.type === "invite" ? "invite" : "recovery")) return;
             throw error;
           }
           finishAuthUrl();
@@ -218,6 +234,7 @@ const SetPassword = () => {
           const { error } = await supabase.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
           if (error) {
             console.error("[auth recovery] erro em verifyOtp", error);
+            if (await useExistingSessionIfAvailable("verifyOtp com erro", authUrl.type)) return;
             throw error;
           }
           finishAuthUrl();
