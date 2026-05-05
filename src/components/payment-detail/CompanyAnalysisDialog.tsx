@@ -970,11 +970,13 @@ function ItemDetailsRow({
   rulesIndex,
   rulesByName,
   observations,
+  colSpan,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
+  colSpan: number;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
