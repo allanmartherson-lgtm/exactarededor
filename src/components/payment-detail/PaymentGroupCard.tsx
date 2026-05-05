@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+export type RowDensity = "compact" | "comfortable";
+const DENSITY_LS_KEY = "paymentGroupCard.density.v1";
+const readDensity = (): RowDensity => {
+  if (typeof window === "undefined") return "compact";
+  const v = window.localStorage.getItem(DENSITY_LS_KEY);
+  return v === "comfortable" ? "comfortable" : "compact";
+};
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
@@ -157,6 +166,11 @@ export const PaymentGroupCard = ({
   onExceptionChanged,
 }: PaymentGroupCardProps) => {
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [density, setDensity] = useState<RowDensity>(() => readDensity());
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem(DENSITY_LS_KEY, density);
+  }, [density]);
+  const isComfy = density === "comfortable";
   const gStatus = g.status as PaymentStatus;
   const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
   const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
@@ -287,6 +301,23 @@ export const PaymentGroupCard = ({
             <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
           )}
           <StatusBadge status={gStatus} />
+          <div onClick={(e) => e.stopPropagation()}>
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={density}
+              onValueChange={(v) => v && setDensity(v as RowDensity)}
+              className="h-7 rounded-md border border-border bg-background"
+              aria-label="Densidade da tabela"
+            >
+              <ToggleGroupItem value="compact" className="h-6 px-2 text-[10px]" title="Compacto (padrão analista)">
+                Compacto
+              </ToggleGroupItem>
+              <ToggleGroupItem value="comfortable" className="h-6 px-2 text-[10px]" title="Confortável">
+                Confortável
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -458,7 +489,7 @@ export const PaymentGroupCard = ({
             );
           })()}
           <div className="max-h-[70vh] overflow-auto print:max-h-none print:overflow-visible">
-          <table className="w-full text-[11px] table-fixed border-collapse print:text-[10px]">
+          <table className={`w-full ${isComfy ? "text-[12px]" : "text-[11px]"} table-fixed border-collapse print:text-[10px]`} data-density={density}>
             <colgroup>
               <col className="w-5" />
               <col className="w-[60px]" />
@@ -505,6 +536,7 @@ export const PaymentGroupCard = ({
                   onCommentDraftChange={(v) => onItemCommentDraftChange(it.id, v)}
                   onAddComment={() => onAddItemComment(it.id)}
                   busy={busy}
+                  density={density}
                   onExceptionChanged={onExceptionChanged}
                 />
               ))}
