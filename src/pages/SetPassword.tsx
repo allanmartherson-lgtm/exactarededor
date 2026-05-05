@@ -229,12 +229,12 @@ const SetPassword = () => {
         // o code antes, o fallback por sessão abaixo evita falso "link expirado".
         if (authUrl.code) {
           const { error } = await supabase.auth.exchangeCodeForSession(authUrl.code);
-          if (error) console.warn("[auth recovery] exchangeCodeForSession falhou; tentando sessão existente", error);
+          if (error) console.warn("[auth recovery] erro do auth provider em exchangeCodeForSession; tentando sessão existente", error);
           if (await waitForSession()) {
             finishAuthUrl();
             markReady(authUrl.type === "invite" ? "invite" : "recovery");
-          } else if (!cancelled && !settled) {
-            setErrorMsg("Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
+          } else if (!cancelled && !settled && error) {
+            setErrorMsg(error.message || "Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
             setPhase("invalid");
           }
           return;
@@ -257,24 +257,21 @@ const SetPassword = () => {
         // Sem parâmetros na URL: o cliente pode ter removido o hash após processar
         // o link de recuperação. Aguardamos a sessão antes de redirecionar.
         if (await waitForSession()) {
+          finishAuthUrl();
           markReady("session");
           return;
         }
 
-        // Sem token e sem sessão: não marcamos como inválido — apenas redirecionamos
-        // o usuário para solicitar um novo link de recuperação.
+        // Sem token e sem sessão: aí sim o link está ausente nesta rota.
         if (!cancelled) {
           console.info("[auth recovery] sem token/hash/code e sem sessão; redirecionando para solicitar novo link");
-          toast({
-            title: "Link expirado ou ausente",
-            description: "Solicite um novo link de recuperação de senha.",
-          });
-          navigate("/auth?recover=1", { replace: true });
+          setErrorMsg("Link expirado ou ausente. Solicite um novo link de recuperação de senha.");
+          setPhase("invalid");
         }
       } catch (e: unknown) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
-        console.error("[auth recovery] erro retornado pelo auth provider", e);
+        console.error("[auth recovery] erro do auth provider", e);
         setErrorMsg(msg);
         setPhase("invalid");
       }
