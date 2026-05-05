@@ -506,11 +506,7 @@ export function ItemsDataGrid({
                 </tr>
               )}
               {filtered.map((it) => {
-                const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-                const paciente =
-                  (it.patient_name as string | null) ??
-                  ((raw["Paciente"] ?? raw["paciente"]) as string | null) ??
-                  "—";
+                const paciente = getPatient(it);
                 const expected = it.ai_findings?.expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
                 const tone: keyof typeof TONE_CLASSES =
