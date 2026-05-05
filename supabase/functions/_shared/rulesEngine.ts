@@ -144,6 +144,10 @@ export interface PaymentContext {
 }
 
 export type RuleMatchPriority =
+  | "convenio_especialidade_codigo"
+  | "convenio_especialidade"
+  | "convenio_codigo"
+  | "convenio"
   | "medico_codigo"
   | "medico"
   | "empresa_codigo"
@@ -156,6 +160,7 @@ export type RuleMatchPriority =
   | "setor_hemodinamica_master"
   | "setor_master_geral"
   | "default_setor"
+  | "sem_regra"
   | "conflito";
 
 export interface AnalysisResult {
