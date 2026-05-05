@@ -282,7 +282,7 @@ export const AppLayout = () => {
           className="sticky top-0 z-40 bg-card border-b border-border shadow-soft"
           style={{ height: 56 }}
         >
-          <div className="h-full max-w-[1400px] mx-auto px-5 flex items-center gap-5">
+          <div className="h-full max-w-[1600px] mx-auto px-5 flex items-center gap-5">
             <Logo />
             <TopbarNav items={visibleTopNav} />
 
@@ -332,7 +332,7 @@ export const AppLayout = () => {
           className="flex-1 min-w-0 nav-main"
           style={{ marginLeft: 0, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
         >
-          <div className="mx-auto w-full" style={{ maxWidth: 1080, padding: "32px 28px" }}>
+          <div className="mx-auto w-full" style={{ maxWidth: 1600, padding: "20px 24px" }}>
             <Breadcrumbs />
             <Outlet />
           </div>
@@ -496,7 +496,7 @@ export const AppLayout = () => {
         </header>
 
         <main className="flex-1 min-w-0">
-          <div style={{ padding: "28px 32px" }}>
+          <div style={{ padding: "20px 28px", maxWidth: 1600, margin: "0 auto" }}>
             <Breadcrumbs />
             <Outlet />
           </div>

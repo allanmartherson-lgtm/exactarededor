@@ -543,16 +543,16 @@ const ReferenceTables = () => {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Nova tabela</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Nova tabela de referência</DialogTitle>
               </DialogHeader>
-              <form onSubmit={createTable} className="space-y-3">
-                <div className="space-y-1.5">
+              <form onSubmit={createTable} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Nome</Label>
                   <Input name="name" required maxLength={100} placeholder="Ex: CBHPM 2018" />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Descrição</Label>
                   <Input name="description" maxLength={300} />
                 </div>
@@ -592,7 +592,7 @@ const ReferenceTables = () => {
                     <option value="info">Informativo (apenas registra)</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Tipo estrutural</Label>
                   <select
                     name="kind"
@@ -616,7 +616,7 @@ const ReferenceTables = () => {
                     <strong>Pacote fixo</strong>: <em>pacote_id, códigos_tuss, descrição, valor_pacote</em> — quando os códigos do atendimento baterem com a combinação, o esperado é o valor do pacote.
                   </p>
                 </div>
-                <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3" style={{ display: "none" }}>
+                <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3 md:col-span-2" style={{ display: "none" }}>
                   <div className="text-sm font-medium">Configuração do pacote</div>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" name="package_only_main_surgeon" /> Aplica somente ao cirurgião principal
@@ -631,7 +631,7 @@ const ReferenceTables = () => {
                     <input type="checkbox" name="package_apply_intl_insurance" defaultChecked /> Aplica a seguradora internacional
                   </label>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 md:col-span-2">
                   <div className="space-y-1.5">
                     <Label>Vigência início</Label>
                     <Input name="valid_from" type="date" />
@@ -641,11 +641,11 @@ const ReferenceTables = () => {
                     <Input name="valid_until" type="date" />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <Label>Observações</Label>
                   <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
                 </div>
-                <Button type="submit" className="w-full">Criar</Button>
+                <Button type="submit" className="w-full md:col-span-2">Criar</Button>
               </form>
             </DialogContent>
           </Dialog>
