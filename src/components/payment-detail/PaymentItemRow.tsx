@@ -149,7 +149,13 @@ export const PaymentItemRow = ({
   busy,
   paymentId,
   onExceptionChanged,
+  density = "compact",
 }: PaymentItemRowProps) => {
+  const isComfy = density === "comfortable";
+  const cellPad = isComfy ? "px-2 py-2" : "px-1.5 py-1";
+  const cellPadRight = isComfy ? "px-2 py-2 text-right" : "px-1.5 py-1 text-right";
+  const fSm = isComfy ? "text-[12px]" : "text-[11px]";
+  const fXs = isComfy ? "text-[11px]" : "text-[10px]";
   const [excOpen, setExcOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
