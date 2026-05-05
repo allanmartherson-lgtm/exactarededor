@@ -577,7 +577,10 @@ export function CompanyAnalysisDialog({
             - Colunas Paciente / Procedimento / Médico ficam sticky na horizontal.
             - O scroll horizontal continua para o restante da tabela.
           */}
-          <table className={cn("hidden md:table w-max min-w-full border-separate border-spacing-0", tableTextSize)}>
+          <table
+            data-density={isCompact ? "compact" : "comfortable"}
+            className={cn("hidden md:table w-max min-w-full border-separate border-spacing-0", tableTextSize)}
+          >
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
                 {colVis.atendimento && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Atend.</th>}
