@@ -14,7 +14,7 @@ import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
 type RefKind = "simples" | "cbhpm" | "tabela_propria" | "lista_codigos" | "pacote_combinacao";
-type RefPurpose = "calculo" | "classificacao" | "exclusao";
+type RefPurpose = "calculo" | "classificacao" | "exclusao" | "sem_acordo";
 type RefTable = {
   id: string; name: string; description: string | null; year: number | null;
   kind: RefKind; purpose: RefPurpose;
