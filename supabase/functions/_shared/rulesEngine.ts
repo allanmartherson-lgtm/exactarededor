@@ -93,10 +93,26 @@ export interface RuleInput {
   exclusion_reason?: string | null;
   allows_authorized_exception?: boolean | null;
   // ===== Eixo "convênio" (matching determinístico por operadora) =====
-  /** Nome principal do convênio/operadora (ex.: "Sul América"). */
+  /**
+   * (Legado) Nome principal do convênio. Mantido como tag adicional na lista
+   * de convênios da regra para retrocompatibilidade. Novas regras devem usar
+   * apenas `agreement_aliases` como lista única de tags.
+   */
   agreement_name?: string | null;
-  /** Variações aceitas do nome (ex.: ["sulamerica", "sul america saude"]). */
+  /**
+   * Lista de convênios (tags livres) que parametrizam a regra junto com
+   * `agreement_match_mode`. Comparação case/acento-insensitive e tolerante
+   * a espaços (ex.: "Sul América" = "SULAMERICA").
+   */
   agreement_aliases?: string[] | null;
+  /**
+   * Modo de aplicação:
+   *   - 'whitelist' (padrão): regra aplica APENAS quando o convênio do item
+   *     bater com uma das tags. Lista vazia = aplica a todos.
+   *   - 'blacklist': regra aplica a TODOS os convênios EXCETO os listados.
+   *     Lista vazia = aplica a todos.
+   */
+  agreement_match_mode?: "whitelist" | "blacklist" | null;
 }
 
 export interface ItemInput {
