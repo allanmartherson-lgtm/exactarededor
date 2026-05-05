@@ -43,18 +43,22 @@ const SetPassword = () => {
     let cancelled = false;
     let settled = false;
 
-    // 1) Listener para o evento PASSWORD_RECOVERY que o Supabase dispara
-    //    automaticamente ao detectar o hash/code da URL.
+    const markReady = (f?: "invite" | "recovery" | "session") => {
+      if (cancelled || settled) return;
+      settled = true;
+      if (f) setFlow(f);
+      setPhase("ready");
+    };
+
+    // Listener para eventos do Supabase. O cliente tem detectSessionInUrl=true,
+    // então ele processa o ?code=/#access_token= automaticamente e dispara
+    // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       if (event === "PASSWORD_RECOVERY") {
-        settled = true;
-        setFlow("recovery");
-        setPhase("ready");
-      } else if (event === "SIGNED_IN" && session && !settled) {
-        // Convite (invite) ou usuário recém-autenticado pelo link
-        settled = true;
-        setPhase("ready");
+        markReady("recovery");
+      } else if (event === "SIGNED_IN" && session) {
+        markReady();
       }
     });
 
@@ -71,59 +75,50 @@ const SetPassword = () => {
         const type = (hashParams.get("type") ?? params.get("type") ?? "") as "invite" | "recovery" | "";
         const tokenHash = params.get("token_hash") ?? hashParams.get("token_hash");
         const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
+        const hasUrlAuth = !!(code || tokenHash || accessToken);
 
         if (type === "invite") setFlow("invite");
         else if (type === "recovery") setFlow("recovery");
 
-        // Caminho 0 — link manual gerado pelo admin (?token_hash=...&type=invite|recovery)
+        // token_hash é o único caminho onde PRECISAMOS chamar verifyOtp manualmente
+        // (links gerados pelo admin). Os demais (?code=, #access_token=) o cliente
+        // do Supabase processa sozinho — apenas escutamos o evento.
         if (tokenHash && (type === "invite" || type === "recovery")) {
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type,
-          });
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
           if (error) throw error;
           window.history.replaceState({}, "", window.location.pathname);
-          settled = true;
-          if (!cancelled) setPhase("ready");
+          markReady(type);
           return;
         }
 
-        // Caminho 1 — fluxo PKCE moderno (?code=...)
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          window.history.replaceState({}, "", window.location.pathname);
-          settled = true;
-          if (!cancelled) setPhase("ready");
+        if (hasUrlAuth) {
+          // Aguarda o Supabase terminar de processar a URL e disparar o evento.
+          // Damos um tempo generoso (3s) e checamos a sessão como fallback.
+          for (let i = 0; i < 30; i++) {
+            if (cancelled || settled) return;
+            await new Promise((r) => setTimeout(r, 100));
+            const { data } = await supabase.auth.getSession();
+            if (data.session) {
+              window.history.replaceState({}, "", window.location.pathname);
+              markReady(type === "invite" ? "invite" : "recovery");
+              return;
+            }
+          }
+          if (cancelled || settled) return;
+          setErrorMsg("Não foi possível validar o link. Ele pode ter expirado — solicite um novo.");
+          setPhase("invalid");
           return;
         }
 
-        // Caminho 2 — fluxo legado por hash (#access_token=...)
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          if (error) throw error;
-          window.history.replaceState({}, "", window.location.pathname);
-          settled = true;
-          if (!cancelled) setPhase("ready");
-          return;
-        }
-
-        // Caminho 3 — aguarda evento PASSWORD_RECOVERY/SIGNED_IN do listener
-        // (Supabase pode estar processando o hash em background).
-        await new Promise((r) => setTimeout(r, 600));
-        if (cancelled || settled) return;
-
+        // Sem parâmetros na URL — talvez já esteja logado e queira trocar a senha.
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          setFlow((f) => (f === "invite" ? "invite" : "session"));
-          settled = true;
-          setPhase("ready");
+          markReady("session");
           return;
         }
 
         setErrorMsg("Link inválido ou expirado. Solicite um novo convite ou recuperação de senha.");
-        setPhase("invalid");
+        if (!cancelled) setPhase("invalid");
       } catch (e: unknown) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
