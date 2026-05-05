@@ -28,7 +28,8 @@ All colors MUST be HSL.
     --secondary-foreground: 213 25% 32%;
 
     --muted: 204 24% 94%;               /* bg-hover #edf2f5 */
-    --muted-foreground: 209 19% 58%;    /* text-muted */
+    --muted-foreground: 209 19% 45%;    /* text-secondary (mid grey) */
+    --text-tertiary: 209 15% 62%;       /* text-tertiary (lighter grey) */
 
     --accent: 171 50% 94%;              /* accent-light */
     --accent-foreground: 173 84% 26%;   /* accent-text */
@@ -112,7 +113,8 @@ All colors MUST be HSL.
     --secondary: 225 36% 16%;           /* border-light #1a2236 */
     --secondary-foreground: 213 27% 93%;
     --muted: 224 29% 15%;               /* bg-hover #1c2333 */
-    --muted-foreground: 213 9% 58%;     /* text-secondary */
+    --muted-foreground: 213 12% 65%;    /* text-secondary */
+    --text-tertiary: 213 10% 48%;       /* text-tertiary */
     --accent: 172 56% 11%;              /* accent-light */
     --accent-foreground: 168 76% 64%;   /* accent-text */
     --success: 142 71% 58%;             /* green-text */
@@ -253,11 +255,16 @@ All colors MUST be HSL.
 }
 
 @layer components {
-  /* ============ Global table typography & layout ============ */
+  /* ============ Global table typography & layout ============
+   * Excel-like density. Hierarchy:
+   *   - Primary text (patient name, procedure, value, status) → --foreground
+   *   - Secondary text (.cell-secondary, e.g. doctor role)    → --muted-foreground
+   *   - Tertiary metadata (.cell-meta, headers)               → --text-tertiary
+   */
   table thead th {
-    font-size: 11px !important;
+    font-size: 10px !important;
     font-weight: 600 !important;
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--text-tertiary));
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     border-bottom: 1px solid hsl(var(--border));
@@ -270,16 +277,32 @@ All colors MUST be HSL.
 
   table tbody td {
     text-transform: none !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     font-weight: 400;
     line-height: 1.4 !important;
     vertical-align: middle !important;
-    padding: 10px 16px !important;
+    padding: 8px 16px !important;
     color: hsl(var(--foreground));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 320px;
+  }
+
+  /* Hierarchy helpers — usable on td or any inline element inside td */
+  table tbody td.cell-secondary,
+  table tbody td .cell-secondary {
+    font-size: 11px !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
+  }
+  table tbody td.cell-meta,
+  table tbody td .cell-meta {
+    font-size: 10px !important;
+    color: hsl(var(--text-tertiary)) !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
   }
   table tbody td.cell-wrap {
     white-space: normal;
@@ -372,7 +395,7 @@ All colors MUST be HSL.
   table[data-density="compact"] tbody td {
     max-height: 40px;
     padding: 6px 16px;
-    font-size: 12.5px !important;
+    font-size: 11.5px !important;
     line-height: 1.35;
     overflow: hidden;
     text-overflow: ellipsis;
