@@ -113,7 +113,8 @@ All colors MUST be HSL.
     --secondary: 225 36% 16%;           /* border-light #1a2236 */
     --secondary-foreground: 213 27% 93%;
     --muted: 224 29% 15%;               /* bg-hover #1c2333 */
-    --muted-foreground: 213 9% 58%;     /* text-secondary */
+    --muted-foreground: 213 12% 65%;    /* text-secondary */
+    --text-tertiary: 213 10% 48%;       /* text-tertiary */
     --accent: 172 56% 11%;              /* accent-light */
     --accent-foreground: 168 76% 64%;   /* accent-text */
     --success: 142 71% 58%;             /* green-text */
