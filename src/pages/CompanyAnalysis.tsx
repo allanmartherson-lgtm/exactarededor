@@ -430,6 +430,34 @@ export default function CompanyAnalysis() {
           <AiDetail items={items} versions={aiVersions} />
         </TabsContent>
       </Tabs>
+
+      {/* Footer sticky com ações de fluxo */}
+      {canAct && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+          <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row md:items-start gap-2">
+            <Textarea
+              rows={2}
+              value={groupDraft}
+              onChange={(e) => setGroupDraft(e.target.value)}
+              placeholder="Observação para esta empresa (obrigatória para devolver)..."
+              className="md:flex-1 text-xs"
+            />
+            <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
+              <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
+                <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
+                {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={returnToAnalyst} disabled={busy}>
+                <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
+              </Button>
+              <Button size="sm" onClick={sendForValidation} disabled={busy}>
+                <Send className="h-4 w-4 mr-2" />
+                {returner ? `Reencaminhar ao ${returner}` : "Enviar para validação"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
