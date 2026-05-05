@@ -652,31 +652,8 @@ export function CompanyAnalysisDialog({
         </div>
 
         <div className="border-t px-4 py-1.5 text-[10px] text-muted-foreground bg-muted/20">
-          Use ↑/↓ ou j/k para navegar · Enter para abrir o painel · Esc para fechar
+          Use ↑/↓ ou j/k para navegar · Enter para expandir/colapsar · Esc para fechar
         </div>
-
-        {/* Painel lateral (drawer) com detalhe do item selecionado */}
-        <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-          <SheetContent
-            side="right"
-            className="w-full sm:max-w-xl p-0 flex flex-col gap-0 overflow-hidden"
-          >
-            {(() => {
-              const it = items.find((x) => x.id === activeId);
-              if (!it) return (
-                <div className="p-6 text-sm text-muted-foreground">Selecione um item para ver os detalhes.</div>
-              );
-              return (
-                <ItemDetailsPanel
-                  it={it}
-                  rulesIndex={rulesIndex}
-                  rulesByName={rulesByName}
-                  observations={observations}
-                />
-              );
-            })()}
-          </SheetContent>
-        </Sheet>
 
         {/* Footer sticky com ações de fluxo (sempre visível) */}
         {showFooter && (
