@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { createPasswordRecoveryClient, getPasswordRecoveryVerifierState } from "@/lib/passwordRecoveryClient";
@@ -161,10 +160,10 @@ const SetPassword = () => {
       setPhase("ready");
     };
 
-    const waitForSession = async (attempts = 300) => {
+    const waitForSession = async (attempts = 40) => {
       for (let i = 0; i < attempts; i++) {
         if (cancelled || settled) return false;
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } = await recoveryClient.auth.getSession();
         console.info("[auth recovery] resultado de getSession()", {
           attempt: i + 1,
           hasSession: Boolean(data.session),
@@ -182,7 +181,7 @@ const SetPassword = () => {
     };
 
     const useExistingSessionIfAvailable = async (source: string, f?: AuthFlow) => {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await recoveryClient.auth.getSession();
       console.info("[auth recovery] sessão existente após " + source + "?", {
         hasSession: Boolean(data.session),
         userId: data.session?.user.id ?? null,
@@ -198,7 +197,7 @@ const SetPassword = () => {
     // Listener para eventos do Supabase. O cliente tem detectSessionInUrl=true,
     // então ele processa o ?code=/#access_token= automaticamente e dispara
     // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: sub } = recoveryClient.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       console.info("[auth recovery] evento de onAuthStateChange", {
         event,
@@ -254,7 +253,7 @@ const SetPassword = () => {
         // falharia e marcaríamos como inválido por engano.
         if (authUrl.accessToken && authUrl.refreshToken && !authUrl.code) {
           console.info("[auth recovery] tentando setSession com tokens implicit do hash");
-          const { error } = await supabase.auth.setSession({
+          const { error } = await recoveryClient.auth.setSession({
             access_token: authUrl.accessToken,
             refresh_token: authUrl.refreshToken,
           });
@@ -270,7 +269,7 @@ const SetPassword = () => {
         // token_hash é usado em alguns links gerados pelo admin.
         if (authUrl.tokenHash && authUrl.type && !authUrl.code) {
           console.info("[auth recovery] tentando verifyOtp com token_hash");
-          const { error } = await supabase.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
+          const { error } = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: authUrl.type as EmailOtpFlow });
           if (error) {
             console.warn("[auth recovery] verifyOtp falhou; aguardando sessão via listener", error);
           } else {
