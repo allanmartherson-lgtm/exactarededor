@@ -625,6 +625,17 @@ export function CompanyAnalysisDialog({
                 const isCritical = eff === "reprovado";
                 const obsCount = observations.filter((o) => o.item_id === it.id).length;
 
+                const totalCols =
+                  6 + // sticky/required: paciente, tuss, procedimento, médico, valor, esperado, status (7) — minus 1 for status counted below
+                  1 + // status
+                  (colVis.atendimento ? 1 : 0) +
+                  (colVis.convenio ? 1 : 0) +
+                  (colVis.via ? 1 : 0) +
+                  (colVis.funcao ? 1 : 0) +
+                  (colVis.regra ? 1 : 0) +
+                  (colVis.diferenca ? 1 : 0) +
+                  (colVis.observacao ? 1 : 0);
+                const isExpanded = expandedId === it.id;
                 return (
                   <RowMain
                     key={it.id}
@@ -634,6 +645,7 @@ export function CompanyAnalysisDialog({
                     eff={eff}
                     tone={tone}
                     isActive={isActive}
+                    isExpanded={isExpanded}
                     isCritical={isCritical}
                     hasAlert={alerts.length > 0}
                     onSelect={() => selectRow(it.id)}
@@ -641,8 +653,10 @@ export function CompanyAnalysisDialog({
                     colVis={colVis}
                     rulesIndex={rulesIndex}
                     rulesByName={rulesByName}
+                    observations={observations}
                     obsCount={obsCount}
                     isCompact={isCompact}
+                    totalCols={totalCols}
                   />
                 );
               })}
