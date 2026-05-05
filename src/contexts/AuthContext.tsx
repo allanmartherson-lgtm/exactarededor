@@ -29,6 +29,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    const path = window.location.pathname;
+    const isPasswordRecoveryRoute = ["/definir-senha", "/reset-password", "/auth/reset-password"].includes(path);
+
+    if (isPasswordRecoveryRoute) {
+      console.info("[auth recovery] AuthProvider pulou init global na rota de recovery", { path });
+      setSession(null);
+      setUser(null);
+      setRoles([]);
+      setLoading(false);
+      return;
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
