@@ -39,7 +39,7 @@ const parseAuthUrl = (href: string) => {
   const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
   const read = (key: string) => query.get(key) ?? hash.get(key);
   const typeValue = read("type");
-  const type = typeValue === "invite" || typeValue === "recovery" ? typeValue : "";
+  const type: EmailOtpFlow | "" = typeValue === "invite" || typeValue === "recovery" ? typeValue : "";
   const hasAuthSignal = [...TOKEN_KEYS, ...ERROR_KEYS, "type"].some((key) => Boolean(read(key)));
 
   return {
