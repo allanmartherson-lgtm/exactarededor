@@ -301,31 +301,31 @@ export const PaymentItemRow = ({
         <td className={`${cellPad} text-muted-foreground print:hidden align-top`}>
           <ChevronRight className="h-3 w-3" />
         </td>
-        <td className={`${cellPad} ${fXs} font-mono text-muted-foreground truncate`} title={it.attendance_number ?? ""}>
+        <td className={`${cellPad} ${fXs} font-mono text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis`} title={it.attendance_number ?? ""}>
           {it.attendance_number ?? "—"}
         </td>
-        <td className={`${cellPad} ${fSm} leading-tight truncate`} title={paciente}>{paciente}</td>
-        <td className={`${cellPad} ${fSm} leading-tight text-muted-foreground truncate hidden md:table-cell print:table-cell`} title={typeof convenio === "string" ? convenio : ""}>
+        <td className={`${cellPad} ${fSm} leading-tight whitespace-nowrap overflow-hidden text-ellipsis`} title={paciente}>{paciente}</td>
+        <td className={`${cellPad} ${fSm} leading-tight text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis hidden md:table-cell print:table-cell`} title={typeof convenio === "string" ? convenio : ""}>
           {convenio}
         </td>
-        <td className={`${cellPad} leading-tight`}>
-          <div className={`font-medium ${fSm} truncate`} title={it.doctor_name ?? ""}>{it.doctor_name}</div>
-          <div className={`${fXs} text-muted-foreground truncate`} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</div>
+        <td className={`${cellPad} leading-tight overflow-hidden`}>
+          <div className={`font-medium ${fSm} whitespace-nowrap overflow-hidden text-ellipsis`} title={it.doctor_name ?? ""}>{it.doctor_name}</div>
+          <div className={`${fXs} text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis`} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</div>
         </td>
-        <td className={`${cellPad} font-mono ${fXs} truncate hidden lg:table-cell print:table-cell`} title={it.procedure_code ?? ""}>
+        <td className={`${cellPad} font-mono ${fXs} whitespace-nowrap overflow-hidden text-ellipsis hidden lg:table-cell print:table-cell`} title={it.procedure_code ?? ""}>
           {it.procedure_code ?? "—"}
         </td>
-        <td className={`${cellPad} leading-tight`}>
-          <div className={`${fSm} text-muted-foreground ${isComfy ? "line-clamp-2" : "line-clamp-1"}`} title={it.description ?? ""}>{it.description ?? "—"}</div>
+        <td className={`${cellPad} leading-tight overflow-hidden`}>
+          <div className={`${fSm} text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis`} title={it.description ?? ""}>{it.description ?? "—"}</div>
           {!isExpanded && alerts.length > 0 && (
-            <div className={`mt-0.5 ${fXs} text-warning-foreground line-clamp-1`} title={alerts.join(" · ")}>
+            <div className={`mt-0.5 ${fXs} text-warning-foreground whitespace-nowrap overflow-hidden text-ellipsis`} title={alerts.join(" · ")}>
               ⚠ {alerts[0]}
               {alerts.length > 1 && ` (+${alerts.length - 1})`}
             </div>
           )}
         </td>
-        <td className={`${cellPadRight} tabular-nums ${fSec}`}>{it.quantity ?? "—"}</td>
-        <td className={`${cellPadRight}`} onClick={(e) => e.stopPropagation()}>
+        <td className={`${cellPadRight} tabular-nums ${fSec} whitespace-nowrap text-right`}>{it.quantity ?? "—"}</td>
+        <td className={`${cellPadRight} whitespace-nowrap text-right`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1.5">
             {tooltipNode ? (
               <Tooltip>

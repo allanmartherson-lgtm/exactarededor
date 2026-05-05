@@ -489,17 +489,17 @@ export const PaymentGroupCard = ({
             );
           })()}
           <div className="w-full overflow-x-auto print:overflow-visible rounded-md border border-border/60">
-          <table className={`w-full ${isComfy ? "text-[14px]" : "text-[13px]"} table-fixed border-collapse print:text-[10px]`} data-density={density}>
+          <table className={`w-full min-w-[1100px] ${isComfy ? "text-[14px]" : "text-[13px]"} table-fixed border-collapse print:text-[10px] print:min-w-0`} data-density={density}>
             <colgroup>
               <col className="w-6" />
-              <col className="w-[64px]" />
-              <col className="w-[14%]" />
-              <col className="w-[10%] hidden md:table-column print:table-column" />
-              <col className="w-[14%]" />
-              <col className="w-[64px] hidden lg:table-column print:table-column" />
+              <col className="w-[80px]" />
+              <col className="w-[180px]" />
+              <col className="w-[140px] hidden md:table-column print:table-column" />
+              <col className="w-[180px]" />
+              <col className="w-[80px] hidden lg:table-column print:table-column" />
               <col />
-              <col className="w-[40px]" />
-              <col className="w-[112px]" />
+              <col className="w-[48px]" />
+              <col className="w-[120px]" />
               <col className="w-[80px] hidden sm:table-column print:table-column" />
               <col className="w-8 print:hidden" />
             </colgroup>
