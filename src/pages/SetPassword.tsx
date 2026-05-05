@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
+import { createPasswordRecoveryClient, getPasswordRecoveryVerifierState } from "@/lib/passwordRecoveryClient";
 
 /**
  * Página pública que captura o token enviado por email (convite ou recuperação)
@@ -120,12 +121,14 @@ const SetPassword = () => {
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [flow, setFlow] = useState<AuthFlow>("recovery");
+  const [recoveryClient] = useState(() => createPasswordRecoveryClient());
 
   useEffect(() => {
     document.title = "Definir senha | MedPay Approval";
     let cancelled = false;
     let settled = false;
     const { authUrl, usedCachedUrl } = chooseAuthUrl();
+    const verifierState = getPasswordRecoveryVerifierState();
 
     console.groupCollapsed("[auth recovery] validar link");
     console.info("URL recebida", maskAuthUrl(authUrl.href));
@@ -140,6 +143,8 @@ const SetPassword = () => {
       hasRefreshToken: Boolean(authUrl.refreshToken),
       hasTokenHash: Boolean(authUrl.tokenHash),
       hasCode: Boolean(authUrl.code),
+      hasCodeVerifier: verifierState.hasCodeVerifier,
+      isRecoveryVerifier: verifierState.isRecoveryVerifier,
       usedCachedUrl,
     });
     console.groupEnd();
@@ -228,6 +233,20 @@ const SetPassword = () => {
         // Sessão já estabelecida (detectSessionInUrl do supabase-js consome
         // automaticamente ?code=/#access_token=). Apenas leia getSession.
         if (await useExistingSessionIfAvailable("getSession inicial")) return;
+
+        if (authUrl.code) {
+          console.info("[auth recovery] tentando exchangeCodeForSession PKCE", getPasswordRecoveryVerifierState());
+          const { error } = await recoveryClient.auth.exchangeCodeForSession(authUrl.code);
+          if (error) {
+            console.warn("[auth recovery] exchangeCodeForSession falhou", {
+              message: error.message,
+              name: error.name,
+              status: error.status ?? null,
+            });
+          } else if (await useExistingSessionIfAvailable("exchangeCodeForSession", "recovery")) {
+            return;
+          }
+        }
 
         // Fallback explícito SOMENTE para hash implicit com tokens completos
         // (não-PKCE). Para ?code= NUNCA chamamos exchangeCodeForSession aqui
