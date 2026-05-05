@@ -373,8 +373,88 @@ function targetsAgreement(r: RuleInput, item: ItemInput): boolean {
 }
 
 /** A regra possui restrição explícita por convênio (= entra no eixo determinístico). */
-function ruleHasAgreement(r: RuleInput): boolean {
+export function ruleHasAgreement(r: RuleInput): boolean {
   return ruleAgreementTags(r).length > 0;
+}
+
+/**
+ * Camada 1 — Gating contextual por convênio (blacklist).
+ *
+ * Verifica se a regra está dizendo "para esta combinação de eixos, este
+ * convênio NÃO tem acordo": ou seja, é uma regra blacklist cujo convênio do
+ * item está na lista de bloqueio E que bate em todos os demais eixos
+ * relevantes (especialidade, setor, código TUSS, médico/empresa/grupo)
+ * conforme o que a regra define.
+ *
+ * Se nenhum eixo restritivo estiver configurado na regra, ela funciona como
+ * "lista negra global do convênio para qualquer item" — o que pode ser
+ * agressivo. Por isso só consideramos blacklist contextual quando a regra
+ * declara EXPLICITAMENTE pelo menos um eixo (especialidade, setor, código,
+ * scope especifica/grupo). Regras 'master' globais sem eixos extras são
+ * ignoradas neste gating para evitar bloqueios indesejados.
+ */
+export function isContextualBlacklistGate(r: RuleInput, item: ItemInput): boolean {
+  if (!r.active) return false;
+  // mode blacklist
+  const mode = r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+  if (mode !== "blacklist") return false;
+  const tags = ruleAgreementTags(r);
+  if (tags.length === 0) return false;
+  // O convênio do item TEM que estar na blacklist (caso contrário a regra
+  // simplesmente se aplica normalmente — não é caso de gating).
+  const itemAg = normAgreement(item.agreement_name);
+  if (!itemAg || !tags.includes(itemAg)) return false;
+
+  // Eixos restritivos da regra precisam bater no item.
+  // Especialidade: se restringe, item precisa estar.
+  if (ruleHasSpecialty(r) && !matchesItemSpecialty(r, item)) return false;
+  // Setor: se restringe (e não é 'outro' genérico), item precisa estar.
+  const sectors = ruleSectors(r).filter((s) => s && s !== "outro");
+  if (sectors.length > 0) {
+    const itemSector = inferItemSector(item);
+    if (!sectors.includes(itemSector)) return false;
+  }
+  // Código TUSS: se restringe, item precisa estar.
+  if (hasCodeRestriction(r) && !matchesProcedureCode(r, item)) return false;
+  // Scope específica/grupo: precisa bater no alvo.
+  if (r.scope === "especifica") {
+    if (r.target_type === "medico" && !targetsDoctor(r, item)) return false;
+    if (r.target_type === "empresa" && !targetsCompany(r, item)) return false;
+  }
+  if (r.scope === "grupo" && !targetsGroup(r, item)) return false;
+
+  // Exige pelo menos UM eixo restritivo (especialidade, setor específico,
+  // código, ou scope especifica/grupo) para evitar bloqueio global por uma
+  // regra master genérica.
+  const hasRestrictiveAxis =
+    ruleHasSpecialty(r) ||
+    sectors.length > 0 ||
+    hasCodeRestriction(r) ||
+    r.scope === "especifica" ||
+    r.scope === "grupo";
+  return hasRestrictiveAxis;
+}
+
+/**
+ * Procura, dentre as regras pré-filtradas, alguma que ative o gating
+ * contextual de blacklist para o item. Retorna a primeira encontrada
+ * (mais específica primeiro).
+ */
+export function findContextualBlacklistGate(
+  item: ItemInput,
+  rules: RuleInput[],
+): RuleInput | null {
+  // Ordena por especificidade para priorizar a regra mais específica no log.
+  const score = (r: RuleInput) =>
+    (r.scope === "especifica" ? 4 : 0) +
+    (r.scope === "grupo" ? 3 : 0) +
+    (hasCodeRestriction(r) ? 2 : 0) +
+    (ruleHasSpecialty(r) ? 1 : 0);
+  const sorted = [...rules].sort((a, b) => score(b) - score(a));
+  for (const r of sorted) {
+    if (isContextualBlacklistGate(r, item)) return r;
+  }
+  return null;
 }
 
 function ruleHasSpecialty(r: RuleInput): boolean {
