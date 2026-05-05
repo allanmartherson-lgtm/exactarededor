@@ -609,17 +609,7 @@ function RowMain({
   isCompact: boolean;
   totalCols: number;
 }) {
-  const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-  const pickRaw = (...keys: string[]): string => {
-    for (const k of keys) {
-      const v = raw[k];
-      if (v != null && String(v).trim() !== "") return String(v);
-    }
-    return "—";
-  };
-  const convenio =
-    (it as unknown as { agreement_text?: string | null }).agreement_text ??
-    pickRaw("Convênio", "Convenio", "convenio", "convênio");
+  const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
   const expN = expected != null ? Number(expected) : null;
   const diff = expN != null ? expN - grossN : null;
