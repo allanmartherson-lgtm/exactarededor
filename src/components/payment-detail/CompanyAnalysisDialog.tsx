@@ -680,7 +680,7 @@ export function CompanyAnalysisDialog({
 
         {/* Footer sticky com ações de fluxo (sempre visível) */}
         {showFooter && (
-          <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
+          <div className="shrink-0 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
             <div className="flex flex-col md:flex-row md:items-start gap-2">
               <Textarea
                 rows={2}
