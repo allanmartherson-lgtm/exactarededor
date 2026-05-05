@@ -40,7 +40,7 @@ const norm = (s: string) =>
     .replace(/[\s_\-./]+/g, "");
 
 /** Procura no raw_data por qualquer header equivalente (case/acento/separador-insensitive). */
-export function rawPick(raw: unknown, keys: string[]): string | null {
+export function rawPick(raw: unknown, keys: readonly string[]): string | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
   const wanted = keys.map(norm);
