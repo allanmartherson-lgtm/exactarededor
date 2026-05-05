@@ -171,14 +171,21 @@ const SetPassword = () => {
         }
 
         // Sem parâmetros na URL: o cliente pode ter removido o hash após processar
-        // o link de recuperação. Aguardamos a sessão antes de marcar como inválido.
+        // o link de recuperação. Aguardamos a sessão antes de redirecionar.
         if (await waitForSession()) {
           markReady("session");
           return;
         }
 
-        setErrorMsg("Link inválido ou expirado. Solicite um novo convite ou recuperação de senha.");
-        if (!cancelled) setPhase("invalid");
+        // Sem token e sem sessão: não marcamos como inválido — apenas redirecionamos
+        // o usuário para solicitar um novo link de recuperação.
+        if (!cancelled) {
+          toast({
+            title: "Link expirado ou ausente",
+            description: "Solicite um novo link de recuperação de senha.",
+          });
+          navigate("/auth?recover=1", { replace: true });
+        }
       } catch (e: unknown) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
