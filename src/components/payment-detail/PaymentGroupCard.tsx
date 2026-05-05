@@ -490,7 +490,34 @@ export const PaymentGroupCard = ({
               </div>
             );
           })()}
-          <div className="w-full max-h-[70vh] overflow-auto print:overflow-visible print:max-h-none rounded-md border border-border/60">
+          <div
+            ref={scrollerRef}
+            tabIndex={0}
+            role="grid"
+            aria-label="Itens do grupo"
+            onKeyDown={(e) => {
+              const el = scrollerRef.current;
+              if (!el) return;
+              const STEP = 120;
+              const PAGE = el.clientWidth * 0.85;
+              const isHoriz = e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End" || e.key === "PageUp" || e.key === "PageDown";
+              if (!isHoriz) return;
+              if (e.shiftKey || e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End" || e.key === "PageUp" || e.key === "PageDown") {
+                let dx = 0;
+                if (e.key === "ArrowLeft") dx = -STEP;
+                else if (e.key === "ArrowRight") dx = STEP;
+                else if (e.key === "PageUp") dx = -PAGE;
+                else if (e.key === "PageDown") dx = PAGE;
+                else if (e.key === "Home") { el.scrollTo({ left: 0, behavior: "smooth" }); e.preventDefault(); return; }
+                else if (e.key === "End") { el.scrollTo({ left: el.scrollWidth, behavior: "smooth" }); e.preventDefault(); return; }
+                if (dx !== 0) {
+                  el.scrollBy({ left: dx, behavior: "smooth" });
+                  e.preventDefault();
+                }
+              }
+            }}
+            className="w-full max-h-[70vh] overflow-auto print:overflow-visible print:max-h-none rounded-md border border-border/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
           <table className={`w-full min-w-[1100px] ${isComfy ? "text-[14px]" : "text-[13px]"} table-fixed border-collapse print:text-[10px] print:min-w-0`} data-density={density}>
             <colgroup>
               <col className="w-6" />
