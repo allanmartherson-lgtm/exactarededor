@@ -157,13 +157,7 @@ export function ItemsDataGrid({
   const headPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
   const tableTextSize = isCompact ? "text-[12px]" : "text-[13px]";
 
-  const getConvenio = (it: PaymentItemRowData): string => {
-    const raw = (it.raw_data ?? {}) as Record<string, unknown>;
-    const v =
-      (it as unknown as { agreement_text?: string | null }).agreement_text ??
-      (raw["Convênio"] ?? raw["Convenio"] ?? raw["convenio"] ?? raw["convênio"]);
-    return v != null && String(v).trim() !== "" ? String(v) : "—";
-  };
+  const getConvenio = getAgreement;
 
   const selectRow = (itId: string) => setActiveId(itId);
   const openDetail = (itId?: string) => {
