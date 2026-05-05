@@ -25,6 +25,42 @@
       rel="stylesheet"
     />
     <script>
+      (function () {
+        try {
+          var key = "medpay-password-auth-url";
+          var url = new URL(window.location.href);
+          var hashParams = new URLSearchParams((url.hash || "").replace(/^#/, ""));
+          var authType = url.searchParams.get("type") || hashParams.get("type");
+          var isPasswordRoute = ["/definir-senha", "/reset-password", "/auth/reset-password"].indexOf(url.pathname) >= 0;
+          var hasAuthParams = Boolean(
+            url.searchParams.get("code") ||
+              url.searchParams.get("token_hash") ||
+              url.searchParams.get("token") ||
+              url.searchParams.get("error_description") ||
+              hashParams.get("access_token") ||
+              hashParams.get("refresh_token") ||
+              hashParams.get("token_hash") ||
+              hashParams.get("token") ||
+              hashParams.get("error_description")
+          );
+          if ((isPasswordRoute || authType === "recovery" || authType === "invite") && hasAuthParams) {
+            sessionStorage.setItem(key, JSON.stringify({ href: window.location.href, savedAt: Date.now() }));
+            console.info("[auth recovery] URL de auth capturada antes do app", {
+              path: url.pathname,
+              hasHash: Boolean(url.hash),
+              hasQuery: Boolean(url.search),
+              type: authType || "ausente",
+            });
+            if (!isPasswordRoute) {
+              url.pathname = "/auth/reset-password";
+              window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+            }
+          }
+        } catch (e) {
+          console.warn("[auth recovery] falha ao capturar URL inicial", e);
+        }
+      })();
+
       // Apply nav layout preference before render to avoid flash.
       (function () {
         try {
