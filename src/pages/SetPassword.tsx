@@ -29,6 +29,7 @@ const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 
 type AuthFlow = "invite" | "recovery" | "session";
 type EmailOtpFlow = "invite" | "recovery";
+type ParsedAuthUrl = ReturnType<typeof parseAuthUrl>;
 
 const TOKEN_KEYS = ["access_token", "refresh_token", "token_hash", "token", "code"];
 const ERROR_KEYS = ["error", "error_code", "error_description"];
@@ -85,6 +86,34 @@ const maskParamsForLog = (params: URLSearchParams) =>
       [...TOKEN_KEYS, ...ERROR_KEYS].includes(key) ? (value ? "[presente]" : "[vazio]") : value,
     ]),
   );
+
+const getCachedAuthUrl = () => {
+  const raw = sessionStorage.getItem(PASSWORD_AUTH_URL_CACHE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { href?: string; savedAt?: number };
+    if (!parsed.href || !parsed.savedAt || Date.now() - parsed.savedAt > 15 * 60 * 1000) {
+      sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
+      return null;
+    }
+    return parsed.href;
+  } catch {
+    sessionStorage.removeItem(PASSWORD_AUTH_URL_CACHE_KEY);
+    return null;
+  }
+};
+
+const chooseAuthUrl = (): { authUrl: ParsedAuthUrl; usedCachedUrl: boolean } => {
+  const current = parseAuthUrl(window.location.href);
+  const cachedHref = getCachedAuthUrl();
+  const cached = cachedHref ? parseAuthUrl(cachedHref) : null;
+
+  // Se o link atual tem token/hash/code, ele sempre vence para evitar reaproveitar
+  // um token antigo salvo em sessionStorage após uma tentativa expirada.
+  if (current.hasAuthSignal) return { authUrl: current, usedCachedUrl: false };
+  if (cached?.hasAuthSignal) return { authUrl: cached, usedCachedUrl: true };
+  return { authUrl: current, usedCachedUrl: false };
+};
 
 const SetPassword = () => {
   const navigate = useNavigate();
