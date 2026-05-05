@@ -378,83 +378,20 @@ export function ruleHasAgreement(r: RuleInput): boolean {
 }
 
 /**
- * Camada 1 — Gating contextual por convênio (blacklist).
+ * Camada 1 — Gating por-regra de convênio.
  *
- * Verifica se a regra está dizendo "para esta combinação de eixos, este
- * convênio NÃO tem acordo": ou seja, é uma regra blacklist cujo convênio do
- * item está na lista de bloqueio E que bate em todos os demais eixos
- * relevantes (especialidade, setor, código TUSS, médico/empresa/grupo)
- * conforme o que a regra define.
+ * Após o motor identificar a regra vencedora pelos eixos (especialidade,
+ * código TUSS, médico, empresa, grupo, setor) IGNORANDO convênio, esta função
+ * decide se essa MESMA regra aceita o convênio do item:
+ *  - whitelist + tags → só aplica se o convênio do item ∈ tags
+ *  - blacklist + tags → não aplica se o convênio do item ∈ tags
+ *  - sem tags         → aplica
  *
- * Se nenhum eixo restritivo estiver configurado na regra, ela funciona como
- * "lista negra global do convênio para qualquer item" — o que pode ser
- * agressivo. Por isso só consideramos blacklist contextual quando a regra
- * declara EXPLICITAMENTE pelo menos um eixo (especialidade, setor, código,
- * scope especifica/grupo). Regras 'master' globais sem eixos extras são
- * ignoradas neste gating para evitar bloqueios indesejados.
+ * Cada regra é uma unidade autocontida: blacklists/whitelists de OUTRAS
+ * regras NÃO interferem nesta decisão.
  */
-export function isContextualBlacklistGate(r: RuleInput, item: ItemInput): boolean {
-  if (!r.active) return false;
-  // mode blacklist
-  const mode = r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
-  if (mode !== "blacklist") return false;
-  const tags = ruleAgreementTags(r);
-  if (tags.length === 0) return false;
-  // O convênio do item TEM que estar na blacklist (caso contrário a regra
-  // simplesmente se aplica normalmente — não é caso de gating).
-  const itemAg = normAgreement(item.agreement_name);
-  if (!itemAg || !tags.includes(itemAg)) return false;
-
-  // Eixos restritivos da regra precisam bater no item.
-  // Especialidade: se restringe, item precisa estar.
-  if (ruleHasSpecialty(r) && !matchesItemSpecialty(r, item)) return false;
-  // Setor: se restringe (e não é 'outro' genérico), item precisa estar.
-  const sectors = ruleSectors(r).filter((s) => s && s !== "outro");
-  if (sectors.length > 0) {
-    const itemSector = inferItemSector(item);
-    if (!sectors.includes(itemSector)) return false;
-  }
-  // Código TUSS: se restringe, item precisa estar.
-  if (hasCodeRestriction(r) && !matchesProcedureCode(r, item)) return false;
-  // Scope específica/grupo: precisa bater no alvo.
-  if (r.scope === "especifica") {
-    if (r.target_type === "medico" && !targetsDoctor(r, item)) return false;
-    if (r.target_type === "empresa" && !targetsCompany(r, item)) return false;
-  }
-  if (r.scope === "grupo" && !targetsGroup(r, item)) return false;
-
-  // Exige pelo menos UM eixo restritivo (especialidade, setor específico,
-  // código, ou scope especifica/grupo) para evitar bloqueio global por uma
-  // regra master genérica.
-  const hasRestrictiveAxis =
-    ruleHasSpecialty(r) ||
-    sectors.length > 0 ||
-    hasCodeRestriction(r) ||
-    r.scope === "especifica" ||
-    r.scope === "grupo";
-  return hasRestrictiveAxis;
-}
-
-/**
- * Procura, dentre as regras pré-filtradas, alguma que ative o gating
- * contextual de blacklist para o item. Retorna a primeira encontrada
- * (mais específica primeiro).
- */
-export function findContextualBlacklistGate(
-  item: ItemInput,
-  rules: RuleInput[],
-): RuleInput | null {
-  // Ordena por especificidade para priorizar a regra mais específica no log.
-  const score = (r: RuleInput) =>
-    (r.scope === "especifica" ? 4 : 0) +
-    (r.scope === "grupo" ? 3 : 0) +
-    (hasCodeRestriction(r) ? 2 : 0) +
-    (ruleHasSpecialty(r) ? 1 : 0);
-  const sorted = [...rules].sort((a, b) => score(b) - score(a));
-  for (const r of sorted) {
-    if (isContextualBlacklistGate(r, item)) return r;
-  }
-  return null;
+export function ruleAcceptsItemAgreement(r: RuleInput, item: ItemInput): boolean {
+  return targetsAgreement(r, item);
 }
 
 function ruleHasSpecialty(r: RuleInput): boolean {
@@ -529,52 +466,11 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
   const itemSector = inferItemSector(item);
   const isHemo = itemSector === "hemodinamica";
 
-  // Pré-filtro global: se a regra define restrição de convênio (whitelist/blacklist)
-  // e o convênio do item NÃO satisfaz, a regra é descartada para TODOS os eixos.
-  // Isso garante que blacklist de convênio prevaleça mesmo quando a regra também
-  // case por médico/empresa/grupo/setor.
-  rules = rules.filter((r) => !ruleHasAgreement(r) || targetsAgreement(r, item));
-
-  // ===== EIXO CONVÊNIO (precedência sobre médico/empresa/setor) =====
-  // Só rodamos quando o item tem convênio E existe ao menos uma regra
-  // que define agreement_name/aliases que casa com esse convênio.
-  const agreementRules = rules.filter((r) => ruleHasAgreement(r) && targetsAgreement(r, item));
-  if (agreementRules.length > 0) {
-    const agreementLevels: Array<{
-      bucket: RuleInput[];
-      priority: RuleMatchPriority;
-    }> = [
-      {
-        bucket: agreementRules.filter((r) => ruleHasSpecialty(r) && matchesItemSpecialty(r, item) && hasCodeRestriction(r) && matchesProcedureCode(r, item)),
-        priority: "convenio_especialidade_codigo",
-      },
-      {
-        bucket: agreementRules.filter((r) => ruleHasSpecialty(r) && matchesItemSpecialty(r, item) && !hasCodeRestriction(r)),
-        priority: "convenio_especialidade",
-      },
-      {
-        bucket: agreementRules.filter((r) => !ruleHasSpecialty(r) && hasCodeRestriction(r) && matchesProcedureCode(r, item)),
-        priority: "convenio_codigo",
-      },
-      {
-        bucket: agreementRules.filter((r) => !ruleHasSpecialty(r) && !hasCodeRestriction(r)),
-        priority: "convenio",
-      },
-    ];
-    for (const lvl of agreementLevels) {
-      if (lvl.bucket.length === 0) continue;
-      const { winner, tied } = breakTie(lvl.bucket);
-      if (winner) return { rule: winner, priority: lvl.priority };
-      return {
-        rule: null,
-        priority: "conflito",
-        conflict: {
-          candidate_rule_ids: tied.map((r) => r.id),
-          reason: `Conflito de regras de convênio no nível ${lvl.priority}: ${tied.length} regras empatadas.`,
-        },
-      };
-    }
-  }
+  // Convênio NÃO entra na seleção. A regra é escolhida pelos eixos
+  // (especialidade/código/médico/empresa/grupo/setor); a aceitação por
+  // convênio (whitelist/blacklist) é validada DEPOIS, sobre a vencedora,
+  // em `analyzeItem`. Cada regra é uma unidade autocontida — listas de
+  // outras regras não interferem.
 
   const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
   const companyRules = rules.filter((r) => targetsCompany(r, item));
@@ -1065,6 +961,40 @@ export function analyzeItem(
   } else if (outcome && outcome.rule) {
     let winner = outcome.rule;
     let winnerPriority = outcome.priority;
+
+    // === Camada 1 — Gating por-regra de convênio ===
+    // A vencedora foi escolhida pelos eixos (especialidade/código/médico/
+    // empresa/grupo/setor) sem considerar convênio. Agora validamos se a
+    // PRÓPRIA regra aceita o convênio do item (whitelist/blacklist dela).
+    // Se não aceita → o item cai no fallback (default por setor) com alerta
+    // explicando qual regra/blacklist disparou. Outras regras NÃO são
+    // consultadas — cada regra é uma unidade autocontida.
+    if (ruleHasAgreement(winner) && !ruleAcceptsItemAgreement(winner, item)) {
+      const mode = winner.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+      const def = calcDefault(item);
+      const motivo = mode === "blacklist"
+        ? `Convênio "${item.agreement_name ?? "—"}" está na blacklist da regra "${winner.name}".`
+        : `Convênio "${item.agreement_name ?? "—"}" não satisfaz a whitelist da regra "${winner.name}".`;
+      return {
+        item_id: item.id,
+        status: "alerta",
+        expected_amount: def.expected,
+        diff_pct: def.expected != null ? classifyDiff(def.expected, item.gross_amount).diff_pct : null,
+        matched_rule_id: null,
+        matched_rule_name: null,
+        matched_priority: "sem_regra",
+        calculation_type_used: def.calculation_type_used,
+        calculation_explanation:
+          `Bloqueado pela Camada 1 (${motivo}). ` +
+          `Regra de cálculo ignorada — ${def.explanation}`,
+        alerts: [
+          `${motivo} Cálculo da regra ignorado; aplicado fallback por setor.`,
+          ...def.alerts,
+        ],
+        needs_ai_review: true,
+        needs_human_review: true,
+      };
+    }
 
     // === Tratamento de "Exclusão / não pagar" como bloqueio com exceção autorizada ===
     // Se a regra vencedora é uma exclusão e o analista marcou o item como
