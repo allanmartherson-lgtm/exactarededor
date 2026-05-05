@@ -488,34 +488,34 @@ export const PaymentGroupCard = ({
               </div>
             );
           })()}
-          <div className="max-h-[70vh] overflow-auto print:max-h-none print:overflow-visible">
-          <table className={`w-full ${isComfy ? "text-[12px]" : "text-[11px]"} table-fixed border-collapse print:text-[10px]`} data-density={density}>
+          <div className="max-h-[70vh] overflow-auto print:max-h-none print:overflow-visible rounded-md border border-border/60">
+          <table className={`w-full ${isComfy ? "text-[14px]" : "text-[13px]"} table-fixed border-collapse print:text-[10px]`} data-density={density}>
             <colgroup>
-              <col className="w-5" />
-              <col className="w-[60px]" />
-              <col className="w-[12%]" />
+              <col className="w-6" />
+              <col className="w-[64px]" />
+              <col className="w-[14%]" />
               <col className="w-[10%] hidden md:table-column print:table-column" />
               <col className="w-[14%]" />
-              <col className="w-[60px] hidden lg:table-column print:table-column" />
+              <col className="w-[64px] hidden lg:table-column print:table-column" />
               <col />
-              <col className="w-[32px]" />
-              <col className="w-[96px]" />
-              <col className="w-[72px] hidden sm:table-column print:table-column" />
+              <col className="w-[40px]" />
+              <col className="w-[112px]" />
+              <col className="w-[80px] hidden sm:table-column print:table-column" />
               <col className="w-8 print:hidden" />
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-muted text-left text-[10px] uppercase tracking-wider text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))] print:static">
+            <thead className={`sticky top-0 z-10 bg-muted/80 backdrop-blur-sm text-left ${isComfy ? "text-[12px]" : "text-[11px]"} font-semibold uppercase tracking-wider text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))] print:static`}>
               <tr>
-                <th className="px-1.5 py-1.5 print:hidden"></th>
-                <th className="px-1.5 py-1.5">Atend.</th>
-                <th className="px-1.5 py-1.5">Paciente</th>
-                <th className="px-1.5 py-1.5 hidden md:table-cell print:table-cell">Convênio</th>
-                <th className="px-1.5 py-1.5">Médico / Função</th>
-                <th className="px-1.5 py-1.5 hidden lg:table-cell print:table-cell">TUSS</th>
-                <th className="px-1.5 py-1.5">Descrição</th>
-                <th className="px-1.5 py-1.5 text-right">Qtd</th>
-                <th className="px-1.5 py-1.5 text-right">Valor</th>
-                <th className="px-1.5 py-1.5 hidden sm:table-cell print:table-cell">IA</th>
-                <th className="px-1.5 py-1.5 print:hidden"></th>
+                <th className="px-2.5 py-2 print:hidden"></th>
+                <th className="px-2.5 py-2">Atend.</th>
+                <th className="px-2.5 py-2">Paciente</th>
+                <th className="px-2.5 py-2 hidden md:table-cell print:table-cell">Convênio</th>
+                <th className="px-2.5 py-2">Médico / Função</th>
+                <th className="px-2.5 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
+                <th className="px-2.5 py-2">Descrição</th>
+                <th className="px-2.5 py-2 text-right">Qtd</th>
+                <th className="px-2.5 py-2 text-right">Valor</th>
+                <th className="px-2.5 py-2 hidden sm:table-cell print:table-cell">IA</th>
+                <th className="px-2.5 py-2 print:hidden"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
