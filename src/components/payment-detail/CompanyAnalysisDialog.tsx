@@ -111,6 +111,8 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
 ];
 
 const COLUMN_PREFS_KEY = "companyAnalysis.columnVisibility.v1";
+const DENSITY_PREFS_KEY = "companyAnalysis.density.v1";
+type Density = "compact" | "comfortable";
 const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   atendimento: true,
   convenio: true,
@@ -185,6 +187,22 @@ export function CompanyAnalysisDialog({
   const toggleCol = (k: OptionalColKey) =>
     setColVis((v) => ({ ...v, [k]: !v[k] }));
 
+  // Densidade da tabela — Compacto x Confortável
+  const [density, setDensity] = useState<Density>(() => {
+    if (typeof window === "undefined") return "comfortable";
+    try {
+      const v = window.localStorage.getItem(DENSITY_PREFS_KEY);
+      return v === "compact" ? "compact" : "comfortable";
+    } catch {
+      return "comfortable";
+    }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(DENSITY_PREFS_KEY, density); } catch { /* noop */ }
+  }, [density]);
+  const isCompact = density === "compact";
+  const headPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
+  const tableTextSize = isCompact ? "text-[12px]" : "text-[13px]";
   const getConvenio = (it: PaymentItemRowData): string => {
     const raw = (it.raw_data ?? {}) as Record<string, unknown>;
     const v =
@@ -456,6 +474,30 @@ export function CompanyAnalysisDialog({
               </div>
             </PopoverContent>
           </Popover>
+          <div className="inline-flex items-center rounded-md border bg-background p-0.5">
+            <button
+              type="button"
+              onClick={() => setDensity("compact")}
+              className={cn(
+                "h-7 px-2 text-[11px] rounded-sm transition-colors",
+                isCompact ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Modo compacto"
+            >
+              Compacto
+            </button>
+            <button
+              type="button"
+              onClick={() => setDensity("comfortable")}
+              className={cn(
+                "h-7 px-2 text-[11px] rounded-sm transition-colors",
+                !isCompact ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Modo confortável"
+            >
+              Confortável
+            </button>
+          </div>
           <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
@@ -535,23 +577,23 @@ export function CompanyAnalysisDialog({
             - Colunas Paciente / Procedimento / Médico ficam sticky na horizontal.
             - O scroll horizontal continua para o restante da tabela.
           */}
-          <table className="hidden md:table w-max min-w-full text-[11px] border-separate border-spacing-0">
+          <table className={cn("hidden md:table w-max min-w-full border-separate border-spacing-0", tableTextSize)}>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
-                {colVis.atendimento && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Atend.</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 min-w-[180px]">Paciente</th>
-                {colVis.convenio && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Convênio</th>}
-                {colVis.via && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Via</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">TUSS</th>
-                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[180px] z-30 min-w-[200px]">Procedimento</th>
-                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[380px] z-30 min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]">Médico</th>
-                {colVis.funcao && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Função</th>}
-                {colVis.regra && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Regra</th>}
-                <th className="px-1.5 py-1.5 text-right font-medium border-b bg-muted whitespace-nowrap">Valor</th>
-                <th className="px-1.5 py-1.5 text-right font-medium border-b bg-muted whitespace-nowrap">Esperado</th>
-                {colVis.diferenca && <th className="px-1.5 py-1.5 text-right font-medium border-b bg-muted whitespace-nowrap">Diferença</th>}
-                <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Status</th>
-                {colVis.observacao && <th className="px-1.5 py-1.5 text-left font-medium border-b bg-muted whitespace-nowrap">Obs.</th>}
+                {colVis.atendimento && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Atend.</th>}
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 min-w-[180px]")}>Paciente</th>
+                {colVis.convenio && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Convênio</th>}
+                {colVis.via && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Via</th>}
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>TUSS</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[180px] z-30 min-w-[200px]")}>Procedimento</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[380px] z-30 min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}>Médico</th>
+                {colVis.funcao && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Função</th>}
+                {colVis.regra && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Regra</th>}
+                <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Valor</th>
+                <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Esperado</th>
+                {colVis.diferenca && <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Diferença</th>}
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Status</th>
+                {colVis.observacao && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Obs.</th>}
               </tr>
             </thead>
             <tbody>
@@ -600,6 +642,7 @@ export function CompanyAnalysisDialog({
                     rulesIndex={rulesIndex}
                     rulesByName={rulesByName}
                     obsCount={obsCount}
+                    isCompact={isCompact}
                   />
                 );
               })}
@@ -757,6 +800,7 @@ function RowMain({
   rulesIndex,
   rulesByName,
   obsCount,
+  isCompact,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -772,6 +816,7 @@ function RowMain({
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   obsCount: number;
+  isCompact: boolean;
 }) {
   const raw = (it.raw_data ?? {}) as Record<string, unknown>;
   const pickRaw = (...keys: string[]): string => {
@@ -807,11 +852,13 @@ function RowMain({
     : hasAlert
     ? "bg-warning-soft/30"
     : "bg-background";
+  const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
   const stickyCell = cn(
-    "px-1.5 py-1 truncate border-b sticky z-10",
+    cellPad,
+    "truncate border-b sticky z-10",
     baseCellBg,
   );
-  const cell = "px-1.5 py-1 truncate border-b whitespace-nowrap";
+  const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
 
   return (
     <tr
