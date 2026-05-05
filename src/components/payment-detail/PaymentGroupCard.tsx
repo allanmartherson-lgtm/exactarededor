@@ -519,7 +519,7 @@ export const PaymentGroupCard = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {orderedItems.map((it) => (
+              {orderedItems.map((it, idx) => (
                 <PaymentItemRow
                   key={it.id}
                   it={it}
@@ -538,6 +538,15 @@ export const PaymentGroupCard = ({
                   busy={busy}
                   density={density}
                   onExceptionChanged={onExceptionChanged}
+                  hasPrev={idx > 0}
+                  hasNext={idx < orderedItems.length - 1}
+                  onNavigate={(dir) => {
+                    const target = orderedItems[dir === "prev" ? idx - 1 : idx + 1];
+                    if (!target) return;
+                    // Fecha o atual e abre o vizinho — toggle é idempotente para o pai.
+                    onToggleItemExpanded(it.id);
+                    onToggleItemExpanded(target.id);
+                  }}
                 />
               ))}
             </tbody>
