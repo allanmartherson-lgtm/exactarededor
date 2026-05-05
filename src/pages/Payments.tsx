@@ -53,9 +53,23 @@ const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "criti
   return "none";
 };
 
+type OwnerGroup = "all" | "analista" | "validador" | "diretor";
+
+const STATUSES_BY_OWNER: Record<Exclude<OwnerGroup, "all">, PaymentStatus[]> = {
+  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
+  validador: ["aguardando_validacao", "devolvido_validador"],
+  diretor: ["aguardando_aprovacao"],
+};
+
+const OWNER_LABELS: Record<Exclude<OwnerGroup, "all">, string> = {
+  analista: "Com analista",
+  validador: "Com validador",
+  diretor: "Com diretor",
+};
+
 const Payments = () => {
-  const { roles } = useAuth();
-  const [searchParams] = useSearchParams();
+  const { roles, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
@@ -72,13 +86,25 @@ const Payments = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [competenceFilter, setCompetenceFilter] = useState<string>("all");
   const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
+  // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
+  // restringem por grupo de status + (opcional) só os meus.
+  const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>(() => {
+    const s = searchParams.get("status");
+    return s === "analista" || s === "validador" || s === "diretor" ? s : "all";
+  });
+  const [onlyMine, setOnlyMine] = useState(() => searchParams.get("owner") === "me");
 
   // Sincroniza filtros simples vindos de outras telas (ex: Dashboard)
   useEffect(() => {
     const d = searchParams.get("delayed") === "1";
     setDelayedOnly(d);
     const st = searchParams.get("status");
-    if (st) setStatusFilter(st);
+    if (st === "analista" || st === "validador" || st === "diretor") {
+      setOwnerGroup(st);
+    } else if (st) {
+      setStatusFilter(st);
+    }
+    setOnlyMine(searchParams.get("owner") === "me");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
   const [view, setView] = useState<"lista" | "kanban">("lista");
