@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
-import { createPasswordRecoveryClient, getPasswordRecoveryVerifierState } from "@/lib/passwordRecoveryClient";
+import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
 
 /**
  * Página pública que captura o token enviado por email (convite ou recuperação)
@@ -127,7 +127,6 @@ const SetPassword = () => {
     let cancelled = false;
     let settled = false;
     const { authUrl, usedCachedUrl } = chooseAuthUrl();
-    const verifierState = getPasswordRecoveryVerifierState();
 
     console.groupCollapsed("[auth recovery] validar link");
     console.info("URL recebida", maskAuthUrl(authUrl.href));
@@ -142,8 +141,6 @@ const SetPassword = () => {
       hasRefreshToken: Boolean(authUrl.refreshToken),
       hasTokenHash: Boolean(authUrl.tokenHash),
       hasCode: Boolean(authUrl.code),
-      hasCodeVerifier: verifierState.hasCodeVerifier,
-      isRecoveryVerifier: verifierState.isRecoveryVerifier,
       usedCachedUrl,
     });
     console.groupEnd();
@@ -153,66 +150,33 @@ const SetPassword = () => {
       window.history.replaceState({}, "", window.location.pathname);
     };
 
-    const markReady = (f?: AuthFlow) => {
+    const markReady = (f: AuthFlow) => {
       if (cancelled || settled) return;
       settled = true;
-      if (f) setFlow(f);
+      setFlow(f);
       setPhase("ready");
-    };
-
-    const waitForSession = async (attempts = 40) => {
-      for (let i = 0; i < attempts; i++) {
-        if (cancelled || settled) return false;
-        const { data, error } = await recoveryClient.auth.getSession();
-        console.info("[auth recovery] resultado de getSession()", {
-          attempt: i + 1,
-          hasSession: Boolean(data.session),
-          userId: data.session?.user.id ?? null,
-          expiresAt: data.session?.expires_at ?? null,
-          error: error?.message ?? null,
-        });
-        if (data.session) {
-          console.info("[auth recovery] sessão detectada", { attempt: i + 1, userId: data.session.user.id });
-          return true;
-        }
-        await new Promise((r) => setTimeout(r, 100));
-      }
-      return false;
-    };
-
-    const useExistingSessionIfAvailable = async (source: string, f?: AuthFlow) => {
-      const { data, error } = await recoveryClient.auth.getSession();
-      console.info("[auth recovery] sessão existente após " + source + "?", {
-        hasSession: Boolean(data.session),
-        userId: data.session?.user.id ?? null,
-        expiresAt: data.session?.expires_at ?? null,
-        error: error?.message ?? null,
-      });
-      if (!data.session) return false;
       finishAuthUrl();
-      markReady(f ?? (authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session"));
-      return true;
     };
 
-    // Listener para eventos do Supabase. O cliente tem detectSessionInUrl=true,
-    // então ele processa o ?code=/#access_token= automaticamente e dispara
-    // PASSWORD_RECOVERY (recuperação) ou SIGNED_IN (convite).
+    const markInvalid = (msg: string) => {
+      if (cancelled || settled) return;
+      settled = true;
+      console.warn("[auth recovery]", msg);
+      setErrorMsg(msg);
+      setPhase("invalid");
+    };
+
+    if (authUrl.type) setFlow(authUrl.type);
+
+    // 1. Listener PASSWORD_RECOVERY/SIGNED_IN — caminho principal:
+    //    detectSessionInUrl=true faz a auth-js processar #access_token / ?code
+    //    automaticamente e disparar o evento correto.
     const { data: sub } = recoveryClient.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      console.info("[auth recovery] evento de onAuthStateChange", {
-        event,
-        hasSession: Boolean(session),
-        userId: session?.user.id ?? null,
-        expiresAt: session?.expires_at ?? null,
-      });
+      console.info("[auth recovery] evento onAuthStateChange", { event, hasSession: Boolean(session) });
       if (event === "PASSWORD_RECOVERY") {
-        finishAuthUrl();
         markReady("recovery");
-      } else if (event === "INITIAL_SESSION" && session) {
-        finishAuthUrl();
-        markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
-      } else if (event === "SIGNED_IN" && session) {
-        finishAuthUrl();
+      } else if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
         markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
       }
     });
@@ -220,105 +184,58 @@ const SetPassword = () => {
     const run = async () => {
       try {
         if (authUrl.errorDescription) {
-          const message = decodeURIComponent(authUrl.errorDescription);
-          console.warn("[auth recovery] erro recebido na URL", message);
-          setErrorMsg(message);
-          setPhase("invalid");
+          markInvalid(decodeURIComponent(authUrl.errorDescription));
           return;
         }
 
-        if (authUrl.type) setFlow(authUrl.type);
-
-        // Sessão já estabelecida (detectSessionInUrl do supabase-js consome
-        // automaticamente ?code=/#access_token=). Apenas leia getSession.
-        if (await useExistingSessionIfAvailable("getSession inicial")) return;
-
-        if (authUrl.code) {
-          console.info("[auth recovery] tentando exchangeCodeForSession PKCE", getPasswordRecoveryVerifierState());
-          const { error } = await recoveryClient.auth.exchangeCodeForSession(authUrl.code);
-          if (error) {
-            console.warn("[auth recovery] exchangeCodeForSession falhou", {
-              message: error.message,
-              name: error.name,
-              status: error.status ?? null,
-            });
-          } else if (await useExistingSessionIfAvailable("exchangeCodeForSession", "recovery")) {
+        // 2. Fallback explícito para token_hash (links manuais do edge function
+        //    admin-resend-invite). verifyOtp é o método correto aqui.
+        if (authUrl.tokenHash) {
+          const otpType: EmailOtpFlow = (authUrl.type as EmailOtpFlow) || "recovery";
+          console.info("[auth recovery] verifyOtp(token_hash)", { type: otpType });
+          const { data, error } = await recoveryClient.auth.verifyOtp({
+            token_hash: authUrl.tokenHash,
+            type: otpType,
+          });
+          if (!error && data.session) {
+            markReady(otpType);
             return;
           }
+          if (error) console.warn("[auth recovery] verifyOtp falhou", error.message);
         }
 
-        // Fallback explícito SOMENTE para hash implicit com tokens completos
-        // (não-PKCE). Para ?code= NUNCA chamamos exchangeCodeForSession aqui
-        // porque o cliente já consumiu o code_verifier; um segundo exchange
-        // falharia e marcaríamos como inválido por engano.
-        if (authUrl.accessToken && authUrl.refreshToken && !authUrl.code) {
-          console.info("[auth recovery] tentando setSession com tokens implicit do hash");
+        // 3. Fallback explícito para access_token+refresh_token no hash
+        //    (caso o detectSessionInUrl tenha falhado por algum motivo).
+        if (authUrl.accessToken && authUrl.refreshToken) {
+          console.info("[auth recovery] setSession(access_token+refresh_token)");
           const { error } = await recoveryClient.auth.setSession({
             access_token: authUrl.accessToken,
             refresh_token: authUrl.refreshToken,
           });
-          if (error) {
-            console.warn("[auth recovery] setSession falhou; aguardando sessão via listener", error);
-          } else {
-            finishAuthUrl();
+          if (!error) {
             markReady(authUrl.type === "invite" ? "invite" : "recovery");
             return;
           }
+          console.warn("[auth recovery] setSession falhou", error.message);
         }
 
-        // Fallback principal quando não há access_token na URL: token_hash via verifyOtp.
-        // Suportamos também quando `type` veio ausente (default = recovery), pois alguns
-        // redirects intermediários removem o parâmetro `type`.
-        if (authUrl.tokenHash) {
-          const otpType: EmailOtpFlow = (authUrl.type as EmailOtpFlow) || "recovery";
-          console.info("[auth recovery] tentando verifyOtp com token_hash", { type: otpType, hadTypeParam: Boolean(authUrl.type) });
-          const { data, error } = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: otpType });
-          if (error) {
-            console.warn("[auth recovery] verifyOtp falhou", {
-              message: error.message,
-              name: error.name,
-              status: error.status ?? null,
-            });
-            // Se falhou como recovery e não tínhamos type explícito, tenta como invite.
-            if (!authUrl.type) {
-              console.info("[auth recovery] retry verifyOtp como invite");
-              const retry = await recoveryClient.auth.verifyOtp({ token_hash: authUrl.tokenHash, type: "invite" });
-              if (!retry.error && retry.data.session) {
-                finishAuthUrl();
-                markReady("invite");
-                return;
-              }
-              console.warn("[auth recovery] retry verifyOtp(invite) também falhou", retry.error?.message);
-            }
-          } else if (data.session) {
-            console.info("[auth recovery] verifyOtp retornou sessão", { userId: data.session.user.id });
-            finishAuthUrl();
-            markReady(otpType);
-            return;
-          } else if (await useExistingSessionIfAvailable("verifyOtp", otpType)) {
-            return;
+        // 4. Aguarda 1.5s o listener disparar (caso seja implicit puro).
+        //    Se nada chegou, o link está sem tokens — provavelmente Redirect URL
+        //    não cadastrada ou usuário abriu a rota direto.
+        setTimeout(() => {
+          if (settled || cancelled) return;
+          if (!authUrl.tokenHash && !authUrl.accessToken && !authUrl.code) {
+            markInvalid(
+              "Link inválido ou expirado. Abra o link diretamente do email mais recente. " +
+              "Se o problema persistir, peça um novo link de recuperação.",
+            );
+          } else {
+            markInvalid("Não foi possível validar o link. Solicite um novo link de recuperação.");
           }
-        }
-
-        // Aguarda o cliente de recovery terminar de processar a URL (PKCE/implicit) e
-        // disparar PASSWORD_RECOVERY/SIGNED_IN/INITIAL_SESSION.
-        console.info("[auth recovery] aguardando sessão via listener/getSession (até 4s)");
-        if (await waitForSession()) {
-          finishAuthUrl();
-          markReady(authUrl.type === "invite" ? "invite" : authUrl.type === "recovery" ? "recovery" : "session");
-          return;
-        }
-
-        if (cancelled || settled) return;
-        console.info("[auth recovery] sem sessão após aguardar; marcando link como inválido");
-        setErrorMsg("Link expirado ou ausente. Solicite um novo link de recuperação de senha.");
-        setPhase("invalid");
+        }, 1500);
       } catch (e: unknown) {
-        if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Não foi possível validar o link.";
-        console.error("[auth recovery] erro do auth provider", e);
-        setErrorMsg(msg);
-        setPhase("invalid");
+        markInvalid(msg);
       }
     };
 

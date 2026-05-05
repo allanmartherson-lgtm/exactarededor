@@ -11,7 +11,9 @@ export const createPasswordRecoveryClient = () => createClient(SUPABASE_URL, SUP
     storageKey: PASSWORD_RECOVERY_STORAGE_KEY,
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    // Deixa a auth-js processar #access_token=... e ?code=... automaticamente
+    // e disparar PASSWORD_RECOVERY/SIGNED_IN no listener.
+    detectSessionInUrl: true,
     flowType: "implicit",
   },
 });
