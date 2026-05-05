@@ -1200,21 +1200,21 @@ function ItemDetailsRow({
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                  <div>
-                    <span className="text-muted-foreground">Valor informado: </span>
-                    <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
+                    <span className="text-muted-foreground">Valor informado:</span>
+                    <span className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Valor esperado: </span>
-                    <span className="tabular-nums font-medium">
+                  <div className="flex flex-wrap items-baseline gap-x-1 min-w-0">
+                    <span className="text-muted-foreground">Valor esperado:</span>
+                    <span className="tabular-nums font-medium break-words">
                       {expected != null ? formatCurrency(Number(expected)) : "—"}
                     </span>
                   </div>
                   {diff != null && Math.abs(diff) > 0.01 && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Diferença: </span>
-                      <span className={cn("tabular-nums", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                    <div className="sm:col-span-2 flex flex-wrap items-baseline gap-x-1 min-w-0">
+                      <span className="text-muted-foreground">Diferença:</span>
+                      <span className={cn("tabular-nums break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
                         {diff > 0 ? "+" : ""}{formatCurrency(diff)}
                         {diffPct != null && (
                           <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
