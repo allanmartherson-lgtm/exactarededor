@@ -879,7 +879,7 @@ function RowMain({
       aria-selected={isActive}
       tabIndex={-1}
       className={cn(
-        "cursor-pointer hover:bg-muted/40 transition-colors",
+        "group cursor-pointer hover:bg-muted/40 transition-colors",
         isActive && "ring-1 ring-inset ring-primary/40",
       )}
     >
