@@ -94,7 +94,9 @@ export function CompanyHistoryPanel({
         at: o.created_at,
         kind: "obs",
         authorType: o.author_type,
-        authorName: (o.author_id && profiles[o.author_id]) || "—",
+        authorName: o.author_id
+          ? (profiles[o.author_id] ?? `Usuário ${o.author_id.slice(0, 8)}`)
+          : (o.author_type === "sistema" || o.author_type === "ia" ? "Sistema" : "Usuário desconhecido"),
         itemId: o.item_id ?? null,
         itemLabel: itemLabelOf(it),
         body: (
