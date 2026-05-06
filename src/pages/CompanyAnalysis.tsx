@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, Filter, RefreshCcw, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw } from "lucide-react";
 import { resolveResendTarget } from "@/lib/paymentFlow";
 import {
   formatCurrency,
@@ -54,7 +54,6 @@ export default function CompanyAnalysis() {
 
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
-  const [showAllInAnalysis, setShowAllInAnalysis] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
 
   useEffect(() => {
@@ -149,11 +148,7 @@ export default function CompanyAnalysis() {
     [items],
   );
 
-  const itemsForAnalysis = useMemo(() => {
-    if (showAllInAnalysis) return items;
-    // Por padrão: mostra primeiro divergentes; oculta itens "limpos".
-    return divergentes;
-  }, [items, divergentes, showAllInAnalysis]);
+
 
   const groupComments = useMemo(
     () => obs.filter((o) => !o.item_id),
@@ -364,28 +359,15 @@ export default function CompanyAnalysis() {
         {/* ABA 1 — Análise */}
         <TabsContent value="analise" className="space-y-3">
           <Card className="shadow-card">
-            <CardHeader className="pb-2 flex-row items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">Itens</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {showAllInAnalysis
-                    ? `Exibindo ${items.length} itens.`
-                    : `Exibindo ${itemsForAnalysis.length} itens com observação. Itens sem problema estão ocultos.`}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowAllInAnalysis((v) => !v)}
-                className="shrink-0"
-              >
-                <Filter className="h-3.5 w-3.5 mr-1" />
-                {showAllInAnalysis ? "Ocultar itens limpos" : "Mostrar todos"}
-              </Button>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Itens</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
+              </p>
             </CardHeader>
             <CardContent className="p-0">
               <ItemsDataGrid
-                items={itemsForAnalysis}
+                items={items}
                 groupStatus={gStatus}
                 rulesIndex={rulesIndex}
                 rulesByName={rulesByName}
