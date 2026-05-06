@@ -371,7 +371,9 @@ export default function CompanyAnalysis() {
                   {groupComments.slice(0, 5).map((o) => (
                     <li key={o.id} className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
                       <div className="text-muted-foreground mb-0.5">
-                        {o.author_type} · {new Date(o.created_at).toLocaleString("pt-BR")}
+                        {o.author_type}
+                        {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
+                        {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
                       </div>
                       <div className="whitespace-pre-wrap">{o.message}</div>
                     </li>
