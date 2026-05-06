@@ -33,6 +33,44 @@ export const ANALYST_OWNED_STATUSES: ReadonlySet<PaymentStatus> = new Set<Paymen
   "devolvido_analista",
 ]);
 
+/**
+ * Estados em que o lote ainda pode ser editado pelo analista.
+ * Inclui o `em_analise_ia` (IA processando) e `rascunho` para a janela inicial,
+ * além dos estados em que o analista é o "dono" da bola. A partir de
+ * `aguardando_validacao` o conteúdo congela.
+ */
+export const ANALYST_EDITABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  "rascunho",
+  "em_analise_ia",
+  "revisao_analista",
+  "devolvido_analista",
+]);
+
+/**
+ * Pode editar conteúdo do lote (metadados, itens, empresa do grupo)?
+ * - Analista criador edita enquanto o lote está com ele.
+ * - Admin/diretor editam para correção administrativa em qualquer status
+ *   (responsabilidade deles registrar a observação).
+ */
+export const canEditBatch = (
+  status: PaymentStatus,
+  opts: { isOwner: boolean; isAnalista: boolean; isAdminOrDiretor: boolean },
+): boolean => {
+  if (opts.isAdminOrDiretor) return true;
+  if (opts.isAnalista && opts.isOwner && ANALYST_EDITABLE_STATUSES.has(status)) return true;
+  return false;
+};
+
+/**
+ * Segregação de funções: quem CRIA o lote não pode VALIDAR nem APROVAR.
+ * Use para esconder/desabilitar botões e como guarda no cliente
+ * (a regra é replicada no banco por trigger).
+ */
+export const canActAsValidatorOrDirector = (
+  createdBy: string | null | undefined,
+  currentUserId: string | null | undefined,
+): boolean => Boolean(createdBy && currentUserId && createdBy !== currentUserId);
+
 /** Estado terminal? (não há mais transições úteis) */
 export const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
   "aprovado",
