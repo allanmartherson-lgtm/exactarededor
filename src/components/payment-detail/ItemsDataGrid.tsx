@@ -1007,6 +1007,9 @@ function ItemDetailsRow({
                       <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0">
                         <div className={cn("flex items-center gap-1.5", TEXT_META)}>
                           <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">{o.author_type}</span>
+                          {o.author_id && profiles[o.author_id] && (
+                            <span className="text-muted-foreground truncate">{profiles[o.author_id]}</span>
+                          )}
                           <span className="ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
                         <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{o.message}</p>
