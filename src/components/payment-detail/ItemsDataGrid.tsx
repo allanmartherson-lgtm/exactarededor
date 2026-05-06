@@ -89,6 +89,8 @@ export type ItemsDataGridProps = {
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations?: ObservationRow[];
+  /** Mapa author_id → nome completo (rastreabilidade no histórico). */
+  profiles?: Record<string, string>;
   /** Chave de persistência das preferências de coluna/densidade. */
   storageKey?: string;
   /** Mostra a toolbar de filtros + colunas + densidade. */
@@ -104,6 +106,7 @@ export function ItemsDataGrid({
   rulesIndex,
   rulesByName,
   observations = [],
+  profiles = {},
   storageKey = "itemsDataGrid.default",
   showToolbar = true,
   showKeyboardHint = true,
@@ -612,6 +615,7 @@ export function ItemsDataGrid({
                     rulesIndex={rulesIndex}
                     rulesByName={rulesByName}
                     observations={observations}
+                    profiles={profiles}
                     obsCount={obsCount}
                     isCompact={isCompact}
                     totalCols={totalCols}
@@ -696,6 +700,7 @@ function RowMain({
   rulesIndex,
   rulesByName,
   observations,
+  profiles,
   obsCount,
   isCompact,
   totalCols,
@@ -715,6 +720,7 @@ function RowMain({
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
+  profiles: Record<string, string>;
   obsCount: number;
   isCompact: boolean;
   totalCols: number;
@@ -841,6 +847,7 @@ function RowMain({
           rulesIndex={rulesIndex}
           rulesByName={rulesByName}
           observations={observations}
+          profiles={profiles}
           colSpan={totalCols}
         />
       )}
@@ -853,12 +860,14 @@ function ItemDetailsRow({
   rulesIndex,
   rulesByName,
   observations,
+  profiles,
   colSpan,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
+  profiles: Record<string, string>;
   colSpan: number;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
@@ -998,6 +1007,9 @@ function ItemDetailsRow({
                       <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0">
                         <div className={cn("flex items-center gap-1.5", TEXT_META)}>
                           <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">{o.author_type}</span>
+                          {o.author_id && profiles[o.author_id] && (
+                            <span className="text-muted-foreground truncate">{profiles[o.author_id]}</span>
+                          )}
                           <span className="ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
                         <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{o.message}</p>

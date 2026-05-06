@@ -47,6 +47,7 @@ export default function CompanyAnalysis() {
     groups,
     rulesIndex,
     rulesByName,
+    profiles,
     load,
   } = usePaymentDetailData(id);
 
@@ -339,6 +340,7 @@ export default function CompanyAnalysis() {
                 rulesIndex={rulesIndex}
                 rulesByName={rulesByName}
                 observations={obs}
+                profiles={profiles}
                 storageKey="companyAnalysisPage"
               />
             </CardContent>
@@ -369,7 +371,9 @@ export default function CompanyAnalysis() {
                   {groupComments.slice(0, 5).map((o) => (
                     <li key={o.id} className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
                       <div className="text-muted-foreground mb-0.5">
-                        {o.author_type} · {new Date(o.created_at).toLocaleString("pt-BR")}
+                        {o.author_type}
+                        {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
+                        {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
                       </div>
                       <div className="whitespace-pre-wrap">{o.message}</div>
                     </li>
@@ -395,6 +399,7 @@ export default function CompanyAnalysis() {
                   key={it.id}
                   it={it}
                   comments={itemComments(it.id)}
+                  profiles={profiles}
                   draft={itemDraft[it.id] ?? ""}
                   onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
                   onAdd={() => addItemComment(it.id)}
@@ -477,6 +482,7 @@ function Stat({
 function DivergenceCard({
   it,
   comments,
+  profiles,
   draft,
   onDraftChange,
   onAdd,
@@ -484,6 +490,7 @@ function DivergenceCard({
 }: {
   it: PaymentItemRow;
   comments: ObservationRow[];
+  profiles: Record<string, string>;
   draft: string;
   onDraftChange: (v: string) => void;
   onAdd: () => void;
@@ -565,7 +572,9 @@ function DivergenceCard({
             {comments.slice(0, 3).map((o) => (
               <li key={o.id} className="rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
                 <div className="text-muted-foreground text-[10px] mb-0.5">
-                  {o.author_type} · {new Date(o.created_at).toLocaleString("pt-BR")}
+                  {o.author_type}
+                  {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
+                  {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
                 </div>
                 <div className="whitespace-pre-wrap">{o.message}</div>
               </li>
