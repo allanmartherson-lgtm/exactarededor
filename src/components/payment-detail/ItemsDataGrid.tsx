@@ -35,6 +35,13 @@ import type {
 import { cn } from "@/lib/utils";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 
+// ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
+// Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
+// Tamanho de referência = AlertBanner (text-xs / 12px).
+export const TEXT_BODY = "text-xs leading-snug tracking-normal";
+export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
+export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
+
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
  * Usado tanto pelo CompanyAnalysisDialog (modal habitual) quanto pela
@@ -155,7 +162,7 @@ export function ItemsDataGrid({
   }, [density, DENSITY_PREFS_KEY]);
   const isCompact = density === "compact";
   const headPad = isCompact ? "px-1.5 py-1" : "px-2 py-2";
-  const tableTextSize = isCompact ? "text-[12px]" : "text-[13px]";
+  const tableTextSize = TEXT_BODY;
 
   const getConvenio = getAgreement;
 
@@ -498,20 +505,20 @@ export function ItemsDataGrid({
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
-                {colVis.atendimento && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Atend.</th>}
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}>Paciente</th>
-                {colVis.convenio && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Convênio</th>}
-                {colVis.via && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Via</th>}
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>TUSS</th>
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Procedimento</th>
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Médico</th>
-                {colVis.funcao && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Função</th>}
-                {colVis.regra && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Regra</th>}
-                <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Valor</th>
-                <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Esperado</th>
-                {colVis.diferenca && <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Diferença</th>}
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Status</th>
-                {colVis.observacao && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Obs.</th>}
+                {colVis.atendimento && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Atend.</th>}
+                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}>Paciente</th>
+                {colVis.convenio && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Convênio</th>}
+                {colVis.via && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
+                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>TUSS</th>
+                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
+                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Médico</th>
+                {colVis.funcao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
+                {colVis.regra && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
+                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Valor</th>
+                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Esperado</th>
+                {colVis.diferenca && <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Diferença</th>}
+                <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Status</th>
+                {colVis.observacao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
               </tr>
             </thead>
             <tbody>
@@ -675,40 +682,41 @@ function RowMain({
         )}
       >
         {colVis.atendimento && (
-          <td className={cn(cell, "font-mono text-[10px]")} title={it.attendance_number ?? ""}>
+          <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
             {it.attendance_number ?? "—"}
           </td>
         )}
-        <td className={stickyCell} title={paciente}>
+        <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
           <span className="truncate block">{paciente}</span>
         </td>
         {colVis.convenio && (
-          <td className={cn(cell, "text-muted-foreground")} title={typeof convenio === "string" ? convenio : ""}>
+          <td className={cn(cell, TEXT_META)} title={typeof convenio === "string" ? convenio : ""}>
             {convenio}
           </td>
         )}
         {colVis.via && (
-          <td className={cell} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+          <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono text-[10px]")}>{it.procedure_code ?? "—"}</td>
-        <td className={cell} title={it.procedure_name ?? it.description ?? ""}>
+        <td className={cn(cell, "font-mono", TEXT_META)}>{it.procedure_code ?? "—"}</td>
+        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        <td className={cell} title={it.doctor_name ?? ""}>
+        <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
-          <td className={cn(cell, "text-muted-foreground")} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+          <td className={cn(cell, TEXT_META)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
         )}
         {colVis.regra && (
-          <td className={cn(cell, "text-muted-foreground")} title={ruleName}>{ruleName}</td>
+          <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
           {formatCurrency(grossN)}
         </td>
         <td
           className={cn(
             cellPad,
+            TEXT_BODY,
             "text-right tabular-nums whitespace-nowrap border-b font-medium",
             diverges ? "text-warning-foreground" : "text-foreground",
             baseCellBg,
@@ -720,6 +728,7 @@ function RowMain({
           <td
             className={cn(
               cellPad,
+              TEXT_BODY,
               "text-right tabular-nums whitespace-nowrap border-b",
               diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
               baseCellBg,
@@ -729,13 +738,13 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
-          <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
+          <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
             {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
             {eff}
           </span>
         </td>
         {colVis.observacao && (
-          <td className={cn(cellPad, "text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
+          <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
           </td>
         )}
@@ -827,11 +836,8 @@ function ItemDetailsRow({
   };
 
   // ============ TIPOGRAFIA UNIFICADA ============
-  // Toda a tela do painel expandido (AlertBanner + cards + conteúdo) usa o mesmo
-  // conjunto de classes. Tamanho de referência = AlertBanner (text-xs / 12px).
-  const TEXT_BODY = "text-xs leading-snug tracking-normal";
-  const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
-  const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
+  // Reusa o set tipográfico exportado no topo do arquivo (TEXT_BODY/TEXT_LABEL/TEXT_META)
+  // para manter o painel expandido idêntico ao restante da tela (headers + cells + AlertBanner).
   // Card base: contém o conteúdo com overflow seguro (nada vaza, nada invade vizinhos).
   const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]";
 
