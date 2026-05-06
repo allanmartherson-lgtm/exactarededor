@@ -653,8 +653,13 @@ function RowMain({
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const stickyCell = cn(cellPad, "truncate border-b sticky z-10", stickyBg, stickyHover);
-  const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
+  const cell = cn(cellPad, "truncate border-b whitespace-nowrap", baseCellBg);
+  const stickyCell = cn(
+    cellPad,
+    "truncate border-b whitespace-nowrap sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
+    stickyBg,
+    stickyHover,
+  );
 
   return (
     <>
@@ -670,46 +675,41 @@ function RowMain({
         )}
       >
         {colVis.atendimento && (
-          <td className={cn(cell, "font-mono text-[10px]", baseCellBg)} title={it.attendance_number ?? ""}>
+          <td className={cn(cell, "font-mono text-[10px]")} title={it.attendance_number ?? ""}>
             {it.attendance_number ?? "—"}
           </td>
         )}
-        <td className={cn(stickyCell, "left-0 min-w-[180px]")} title={paciente}>
+        <td className={stickyCell} title={paciente}>
           <span className="truncate block">{paciente}</span>
         </td>
         {colVis.convenio && (
-          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
+          <td className={cn(cell, "text-muted-foreground")} title={typeof convenio === "string" ? convenio : ""}>
             {convenio}
           </td>
         )}
         {colVis.via && (
-          <td className={cn(cell, baseCellBg)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+          <td className={cell} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
-        <td
-          className={cn(stickyCell, "left-[180px] min-w-[200px]")}
-          title={it.procedure_name ?? it.description ?? ""}
-        >
+        <td className={cn(cell, "font-mono text-[10px]")}>{it.procedure_code ?? "—"}</td>
+        <td className={cell} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        <td
-          className={cn(stickyCell, "left-[380px] min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}
-          title={it.doctor_name ?? ""}
-        >
+        <td className={cell} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
-          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+          <td className={cn(cell, "text-muted-foreground")} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
         )}
         {colVis.regra && (
-          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
+          <td className={cn(cell, "text-muted-foreground")} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn("px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+        <td className={cn(cellPad, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
           {formatCurrency(grossN)}
         </td>
         <td
           className={cn(
-            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b font-medium",
+            cellPad,
+            "text-right tabular-nums whitespace-nowrap border-b font-medium",
             diverges ? "text-warning-foreground" : "text-foreground",
             baseCellBg,
           )}
@@ -719,7 +719,8 @@ function RowMain({
         {colVis.diferenca && (
           <td
             className={cn(
-              "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
+              cellPad,
+              "text-right tabular-nums whitespace-nowrap border-b",
               diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
               baseCellBg,
             )}
@@ -727,14 +728,14 @@ function RowMain({
             {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
           </td>
         )}
-        <td className={cn("px-1.5 py-1 border-b", baseCellBg)}>
+        <td className={cn(cellPad, "border-b", baseCellBg)}>
           <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
             {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
             {eff}
           </span>
         </td>
         {colVis.observacao && (
-          <td className={cn("px-1.5 py-1 text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
+          <td className={cn(cellPad, "text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
           </td>
         )}
