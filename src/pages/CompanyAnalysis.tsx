@@ -257,7 +257,7 @@ export default function CompanyAnalysis() {
     return (
       <div className="space-y-4">
         <PageHeader title="Empresa não encontrada" />
-        <Button variant="outline" onClick={() => navigate(`/pagamentos/${id}`)}>
+        <Button variant="outline" onClick={() => navigate(`/pagamentos/${id}${groupId ? `#group-${groupId}` : ""}`)}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
         </Button>
       </div>
@@ -271,7 +271,7 @@ export default function CompanyAnalysis() {
     <div className="space-y-4 pb-32">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild>
-          <Link to={`/pagamentos/${id}`}>
+          <Link to={`/pagamentos/${id}#group-${groupId}`}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
           </Link>
         </Button>
