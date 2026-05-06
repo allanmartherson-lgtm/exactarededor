@@ -41,7 +41,7 @@ const Users = () => {
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
-  const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
+  const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
 
