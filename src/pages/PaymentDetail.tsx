@@ -168,6 +168,7 @@ const PaymentDetail = () => {
     await load();
     setComment("");
     setBusy(false);
+    if (newStatus === "aguardando_aprovacao") await notifyDirectorsIfPending(id);
     if (obsRes.ok) toast({ title: "Status atualizado", description: message });
   };
 
@@ -227,6 +228,10 @@ const PaymentDetail = () => {
     setGroupComment((m) => ({ ...m, [groupId]: "" }));
     await load();
     setBusy(false);
+    // Após o trigger recomputar payments.status a partir dos grupos, dispara
+    // a notificação aos diretores se o pagamento agregado virou aguardando_aprovacao.
+    // A edge function valida o status atual e é idempotente por payment_id.
+    await notifyDirectorsIfPending(id);
     toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
   };
 
