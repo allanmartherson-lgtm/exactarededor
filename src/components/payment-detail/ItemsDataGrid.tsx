@@ -217,6 +217,28 @@ export function ItemsDataGrid({
     });
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
 
+  // Totais da seleção atual (após filtros). Considera quantidade quando presente.
+  const totals = useMemo(() => {
+    let valor = 0;
+    let esperado = 0;
+    let temEsperado = false;
+    for (const it of filtered) {
+      const qty = Number((it as { quantity?: number | null }).quantity ?? 1) || 1;
+      valor += Number(it.gross_amount ?? 0) * qty;
+      const exp = it.ai_findings?.expected_amount;
+      if (exp != null) {
+        esperado += Number(exp) * qty;
+        temEsperado = true;
+      }
+    }
+    return {
+      count: filtered.length,
+      valor,
+      esperado: temEsperado ? esperado : null,
+      diferenca: temEsperado ? esperado - valor : null,
+    };
+  }, [filtered]);
+
   const needsReviewCount = useMemo(
     () => items.filter((it) => !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review).length,
     [items],
