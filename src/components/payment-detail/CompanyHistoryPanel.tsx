@@ -16,6 +16,7 @@ import type {
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { authorRoleLabel } from "@/lib/observations";
 
 /**
  * Painel unificado de histórico (IA + analistas/validadores/diretores) para
