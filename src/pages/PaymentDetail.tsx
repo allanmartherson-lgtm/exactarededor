@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -303,7 +303,21 @@ const PaymentDetail = () => {
     });
   };
 
-  const generatePdf = async () => {
+  /**
+   * Gera o PDF da validação/aprovação. Inclui:
+   *  - Identificação do pagamento e quem aprovou.
+   *  - Tabela completa de itens (com status da IA).
+   *  - Lista de divergências (alertas/reprovações com motivos).
+   *  - Histórico de observações (data, autor, papel e mensagem) — base de
+   *    auditoria para qualquer revisão futura.
+   *
+   * Faz upload em `approval-pdfs`, registra o caminho em `payments.approval_pdf_path`
+   * e dispara o download local automaticamente.
+   *
+   * Quando `silentUpload=true`, não dispara o download (usado pelo gatilho
+   * automático de aprovação a fim de não interromper o fluxo do diretor).
+   */
+  const generatePdf = async (opts: { silentUpload?: boolean } = {}) => {
     if (!payment) return;
     const doc = new jsPDF();
     doc.setFontSize(16); doc.text("Validação de Pagamento Médico", 14, 18);
@@ -311,19 +325,100 @@ const PaymentDetail = () => {
     doc.text(`Referência: ${payment.reference}`, 14, 28);
     doc.text(`Status: ${payment.status}`, 14, 34);
     doc.text(`Total: ${formatCurrency(payment.total_amount)}`, 14, 40);
-    doc.text(`Aprovado por: ${profiles[payment.approved_by] ?? "—"} em ${formatDate(payment.approved_at)}`, 14, 46);
+    const aprovador = payment.approved_by ? (profiles[payment.approved_by] ?? "—") : "—";
+    doc.text(`Aprovado por: ${aprovador} em ${formatDate(payment.approved_at)}`, 14, 46);
+
     autoTable(doc, {
       startY: 54,
       head: [["Médico", "Doc", "Descrição", "Valor", "IA"]],
       body: items.map((i) => [i.doctor_name, i.doctor_document ?? "", i.description ?? "", formatCurrency(i.gross_amount), i.ai_status]),
+      styles: { fontSize: 8 },
     });
+
+    // Divergências relevantes (alertas/reprovações)
+    type DocWithLastTable = jsPDF & { lastAutoTable?: { finalY?: number } };
+    let cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? 60) + 8;
+    const divergencias = items.filter(
+      (i) => i.ai_status === "alerta" || i.ai_status === "reprovado" || (i.ai_findings?.alerts?.length ?? 0) > 0,
+    );
+    if (divergencias.length > 0) {
+      doc.setFontSize(12);
+      doc.text(`Divergências (${divergencias.length})`, 14, cursorY);
+      autoTable(doc, {
+        startY: cursorY + 4,
+        head: [["Item", "Status", "Motivos"]],
+        body: divergencias.map((i) => [
+          `${i.doctor_name}${i.attendance_number ? ` · #${i.attendance_number}` : ""}`,
+          i.ai_status,
+          ((i.ai_findings?.alerts ?? []) as string[]).join(" | ") || "—",
+        ]),
+        styles: { fontSize: 8, cellWidth: "wrap" },
+        columnStyles: { 2: { cellWidth: 110 } },
+      });
+      cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
+    }
+
+    // Histórico (observações) — base de auditoria
+    if (obs.length > 0) {
+      if (cursorY > 250) { doc.addPage(); cursorY = 20; }
+      doc.setFontSize(12);
+      doc.text(`Histórico de observações (${obs.length})`, 14, cursorY);
+      autoTable(doc, {
+        startY: cursorY + 4,
+        head: [["Data/hora", "Autor", "Papel", "Mensagem"]],
+        body: [...obs]
+          .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
+          .map((o) => [
+            formatDate(o.created_at),
+            (o.author_id && profiles[o.author_id]) || "—",
+            o.author_type,
+            o.message,
+          ]),
+        styles: { fontSize: 8 },
+        columnStyles: { 3: { cellWidth: 95 } },
+      });
+    }
+
     const blob = doc.output("blob");
     const path = `${payment.id}/aprovacao.pdf`;
     await supabase.storage.from("approval-pdfs").upload(path, blob, { upsert: true, contentType: "application/pdf" });
     await supabase.from("payments").update({ approval_pdf_path: path }).eq("id", payment.id);
-    doc.save(`aprovacao-${payment.reference}.pdf`);
-    toast({ title: "PDF gerado" });
+    if (!opts.silentUpload) {
+      doc.save(`aprovacao-${payment.reference}.pdf`);
+      toast({ title: "PDF gerado" });
+    }
   };
+
+  // Auto-gera + baixa o PDF da validação assim que o pagamento é aprovado.
+  // Dispara apenas quando o diretor/admin atual está vendo a tela e ainda
+  // não há `approval_pdf_path` salvo — evita reemissão a cada visita e
+  // garante que o documento de auditoria seja produzido na hora da decisão.
+  const autoPdfFiredRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!payment) return;
+    if (payment.status !== "aprovado") return;
+    if (payment.approval_pdf_path) return;
+    if (!(hasRole("diretor") || hasRole("admin"))) return;
+    if (autoPdfFiredRef.current === payment.id) return;
+    if (items.length === 0) return; // espera carregar itens p/ não gerar PDF vazio
+    autoPdfFiredRef.current = payment.id;
+    (async () => {
+      try {
+        await generatePdf();
+        toast({
+          title: "PDF da aprovação gerado",
+          description: "Download iniciado e cópia salva no histórico do lote.",
+        });
+      } catch (e) {
+        toast({
+          title: "Falha ao gerar PDF da aprovação",
+          description: e instanceof Error ? e.message : "Tente novamente em Pós-aprovação → Gerar PDF.",
+          variant: "destructive",
+        });
+        autoPdfFiredRef.current = null;
+      }
+    })();
+  }, [payment, items.length, hasRole]);
 
   const sendInvoiceRequest = async () => {
     setBusy(true);
@@ -1086,7 +1181,7 @@ const PaymentDetail = () => {
             <Card className="shadow-card border-success/30">
               <CardHeader><CardTitle className="text-base">Pós-aprovação</CardTitle></CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                {isDiretor && <Button variant="outline" onClick={generatePdf}><FileDown className="h-4 w-4 mr-2" /> Gerar PDF</Button>}
+                {isDiretor && <Button variant="outline" onClick={() => generatePdf()}><FileDown className="h-4 w-4 mr-2" /> Gerar PDF</Button>}
                 {canRequestNf && <Button onClick={sendInvoiceRequest} disabled={busy}><Mail className="h-4 w-4 mr-2" /> Enviar pedido de NF</Button>}
               </CardContent>
             </Card>
