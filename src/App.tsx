@@ -51,6 +51,7 @@ const App = () => (
             <Route path="/definir-senha" element={<SetPassword />} />
             <Route path="/reset-password" element={<SetPassword />} />
             <Route path="/portal/nota/:token" element={<InvoicePortal />} />
+            <Route path="/trocar-senha" element={<ForceChangePassword />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/pagamentos" element={<Payments />} />
