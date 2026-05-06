@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
 import { lovable } from "@/integrations/lovable";
+import { supabase } from "@/integrations/supabase/client";
+import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
@@ -25,12 +28,12 @@ const signInSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
   password: z.string().min(6, "Mínimo 6 caracteres").max(72),
 });
-const signUpSchema = signInSchema.extend({
-  fullName: z.string().trim().min(2, "Informe seu nome").max(100),
+const accessRequestSchema = userExtraSchema.extend({
+  message: z.string().trim().max(500).optional(),
 });
 
 const Auth = () => {
-  const { user, loading, signIn, signUp } = useAuth();
+  const { user, loading, signIn } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -99,26 +102,37 @@ const Auth = () => {
     navigate("/", { replace: true });
   };
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  const [reqForm, setReqForm] = useState({
+    full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
+  });
+  const handleAccessRequest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const parsed = signUpSchema.safeParse({
-      email: data.get("email"),
-      password: data.get("password"),
-      fullName: data.get("fullName"),
-    });
+    const parsed = accessRequestSchema.safeParse(reqForm);
     if (!parsed.success) {
       toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
       return;
     }
     setSubmitting(true);
-    const { error } = await signUp(parsed.data.email, parsed.data.password, parsed.data.fullName);
+    const { error } = await supabase.from("access_requests").insert({
+      full_name: parsed.data.full_name,
+      email: parsed.data.email.toLowerCase(),
+      phone: parsed.data.phone,
+      role_title: parsed.data.role_title,
+      department: parsed.data.department,
+      birth_date: parsed.data.birth_date,
+      message: parsed.data.message || null,
+      requested_roles: ["analista"],
+    });
     setSubmitting(false);
     if (error) {
-      toast({ title: "Não foi possível criar a conta", description: error, variant: "destructive" });
+      const desc = /duplicate|unique/i.test(error.message)
+        ? "Já existe uma solicitação pendente para este e-mail."
+        : error.message;
+      toast({ title: "Não foi possível enviar a solicitação", description: desc, variant: "destructive" });
       return;
     }
-    toast({ title: "Conta criada", description: "Você já pode entrar." });
+    setReqForm({ full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "" });
+    toast({ title: "Solicitação enviada", description: "Um administrador analisará seu pedido. Você receberá um e-mail com o convite após a aprovação." });
   };
 
   return (
@@ -153,7 +167,7 @@ const Auth = () => {
             <Tabs defaultValue="signin">
               <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="signin">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Criar conta</TabsTrigger>
+                <TabsTrigger value="signup">Solicitar acesso</TabsTrigger>
               </TabsList>
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4 pt-4">
@@ -179,24 +193,45 @@ const Auth = () => {
                 </form>
               </TabsContent>
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4 pt-4">
+                <form onSubmit={handleAccessRequest} className="space-y-3 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nome completo</Label>
-                    <Input id="signup-name" name="fullName" required />
+                    <Label htmlFor="req-name">Nome completo</Label>
+                    <Input id="req-name" value={reqForm.full_name} onChange={(e) => setReqForm({ ...reqForm, full_name: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input id="signup-email" name="email" type="email" autoComplete="email" required />
+                    <Label htmlFor="req-email">Email</Label>
+                    <Input id="req-email" type="email" value={reqForm.email} onChange={(e) => setReqForm({ ...reqForm, email: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Senha</Label>
-                    <Input id="signup-password" name="password" type="password" autoComplete="new-password" required minLength={6} />
+                    <Label htmlFor="req-phone">Telefone celular</Label>
+                    <Input id="req-phone" inputMode="numeric" placeholder="(11) 99999-9999"
+                      value={formatPhone(reqForm.phone)}
+                      onChange={(e) => setReqForm({ ...reqForm, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                      required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="req-role">Cargo</Label>
+                      <Input id="req-role" value={reqForm.role_title} onChange={(e) => setReqForm({ ...reqForm, role_title: e.target.value })} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="req-dept">Setor</Label>
+                      <Input id="req-dept" value={reqForm.department} onChange={(e) => setReqForm({ ...reqForm, department: e.target.value })} required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="req-birth">Data de nascimento</Label>
+                    <Input id="req-birth" type="date" value={reqForm.birth_date} onChange={(e) => setReqForm({ ...reqForm, birth_date: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="req-msg">Mensagem (opcional)</Label>
+                    <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                   </div>
                   <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? "Criando..." : "Criar conta"}
+                    {submitting ? "Enviando..." : "Solicitar acesso"}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    O primeiro usuário cadastrado vira <strong>Diretor + Admin</strong>. Os demais entram como Analista e podem ter o papel ajustado pelo Admin.
+                    Sua solicitação será analisada por um administrador. Após a aprovação, você receberá um e-mail com o link para definir sua senha.
                   </p>
                 </form>
               </TabsContent>

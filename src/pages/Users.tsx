@@ -3,7 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
@@ -11,8 +13,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
@@ -29,8 +32,12 @@ const Users = () => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    email: "", full_name: "", roles: [] as AppRole[], send_invite: true,
+    email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "",
+    roles: [] as AppRole[], send_invite: true,
   });
+  const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
@@ -53,7 +60,42 @@ const Users = () => {
     const map = (profiles ?? []).map((p) => ({ ...p, roles: (roles ?? []).filter((r) => r.user_id === p.id).map((r) => r.role) }));
     setUsers(map);
   };
-  useEffect(() => { document.title = "Usuários | MedPay"; load(); }, []);
+  const loadRequests = async () => {
+    if (!isAdmin) return;
+    const { data } = await supabase
+      .from("access_requests")
+      .select("*")
+      .eq("status", "pendente")
+      .order("created_at", { ascending: false });
+    setRequests(data ?? []);
+  };
+  useEffect(() => { document.title = "Usuários | MedPay"; load(); loadRequests(); }, [isAdmin]);
+
+  const openCreateFromRequest = (r: any) => {
+    setForm({
+      email: r.email, full_name: r.full_name, phone: r.phone, role_title: r.role_title,
+      department: r.department, birth_date: r.birth_date,
+      roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
+    });
+    setAccessRequestId(r.id);
+    setOpen(true);
+  };
+
+  const rejectRequest = async () => {
+    if (!rejecting) return;
+    const { error } = await supabase.from("access_requests").update({
+      status: "rejeitada",
+      rejection_reason: rejecting.reason || null,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", rejecting.id);
+    if (error) {
+      toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRejecting(null);
+    loadRequests();
+    toast({ title: "Solicitação rejeitada" });
+  };
 
   const toggle = async (userId: string, role: AppRole, has: boolean) => {
     if (has) await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
@@ -104,24 +146,34 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", roles: [], send_invite: true });
+    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true });
+    setAccessRequestId(null);
     setTempPwd(null);
   };
 
   const submit = async () => {
-    if (!form.email.trim()) {
-      toast({ title: "E-mail obrigatório", variant: "destructive" });
+    const parsed = userExtraSchema.safeParse({
+      full_name: form.full_name, email: form.email, phone: form.phone,
+      role_title: form.role_title, department: form.department, birth_date: form.birth_date,
+    });
+    if (!parsed.success) {
+      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: {
-          email: form.email.trim(),
-          full_name: form.full_name.trim(),
+          email: parsed.data.email,
+          full_name: parsed.data.full_name,
+          phone: parsed.data.phone,
+          role_title: parsed.data.role_title,
+          department: parsed.data.department,
+          birth_date: parsed.data.birth_date,
           roles: form.roles,
           send_invite: form.send_invite,
           app_origin: getPasswordRecoveryOrigin(),
+          access_request_id: accessRequestId,
         },
       });
       if (error) throw error;
@@ -136,6 +188,7 @@ const Users = () => {
         resetForm();
       }
       load();
+      loadRequests();
     } catch (e: any) {
       toast({ title: "Erro ao criar usuário", description: e.message, variant: "destructive" });
     } finally {
@@ -170,14 +223,39 @@ const Users = () => {
                   </DialogFooter>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                  {accessRequestId && (
+                    <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+                      Criando a partir de uma solicitação de acesso aprovada.
+                    </div>
+                  )}
                   <div className="space-y-2">
-                    <Label>Nome completo</Label>
+                    <Label>Nome completo *</Label>
                     <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Maria Silva" />
                   </div>
                   <div className="space-y-2">
                     <Label>E-mail *</Label>
                     <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="maria@empresa.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone celular *</Label>
+                    <Input inputMode="numeric" placeholder="(11) 99999-9999"
+                      value={formatPhone(form.phone)}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>Cargo *</Label>
+                      <Input value={form.role_title} onChange={(e) => setForm({ ...form, role_title: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Setor *</Label>
+                      <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de nascimento *</Label>
+                    <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Papéis</Label>
@@ -215,12 +293,51 @@ const Users = () => {
           </Dialog>
         ) : undefined}
       />
-      <div className="p-8">
+      <div className="p-8 space-y-6">
+        {isAdmin && requests.length > 0 && (
+          <Card className="shadow-card border-primary/30">
+            <CardContent className="p-0">
+              <div className="px-6 py-3 border-b flex items-center justify-between">
+                <p className="font-medium text-sm">Solicitações de acesso pendentes</p>
+                <Badge variant="secondary">{requests.length}</Badge>
+              </div>
+              <div className="divide-y divide-border">
+                {requests.map((r) => (
+                  <div key={r.id} className="px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
+                    <div className="space-y-1 min-w-0">
+                      <p className="font-medium text-sm">{r.full_name} <span className="text-muted-foreground font-normal">— {r.email}</span></p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPhone(r.phone)} · {r.role_title} · {r.department} · Nasc. {new Date(r.birth_date).toLocaleDateString("pt-BR")}
+                      </p>
+                      {r.message && <p className="text-xs text-muted-foreground italic">"{r.message}"</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button size="sm" onClick={() => openCreateFromRequest(r)}>
+                        <Check className="h-3.5 w-3.5 mr-1.5" /> Aprovar e criar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setRejecting({ id: r.id, reason: "" })}>
+                        <X className="h-3.5 w-3.5 mr-1.5" /> Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card className="shadow-card"><CardContent className="p-0">
           <div className="divide-y divide-border">
             {users.map((u) => (
               <div key={u.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-                <div><p className="font-medium text-sm">{u.full_name || u.email}</p><p className="text-xs text-muted-foreground">{u.email}</p></div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{u.full_name || u.email}</p>
+                  <p className="text-xs text-muted-foreground">{u.email}</p>
+                  {(u.phone || u.role_title || u.department) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[u.phone && formatPhone(u.phone), u.role_title, u.department].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {ROLES.map((r) => {
                     const has = u.roles.includes(r);
@@ -334,6 +451,23 @@ const Users = () => {
           </div>
           <DialogFooter>
             <Button onClick={() => setResetResult(null)}>Concluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar solicitação?</DialogTitle>
+            <DialogDescription>Opcionalmente, registre o motivo da rejeição.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Motivo (opcional)"
+            value={rejecting?.reason ?? ""}
+            onChange={(e) => setRejecting((r) => (r ? { ...r, reason: e.target.value } : r))}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejecting(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={rejectRequest}>Rejeitar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

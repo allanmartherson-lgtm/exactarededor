@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          birth_date: string
+          created_at: string
+          department: string
+          email: string
+          full_name: string
+          id: string
+          message: string | null
+          phone: string
+          rejection_reason: string | null
+          requested_roles: string[]
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role_title: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          birth_date: string
+          created_at?: string
+          department: string
+          email: string
+          full_name: string
+          id?: string
+          message?: string | null
+          phone: string
+          rejection_reason?: string | null
+          requested_roles?: string[]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_title: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string
+          created_at?: string
+          department?: string
+          email?: string
+          full_name?: string
+          id?: string
+          message?: string | null
+          phone?: string
+          rejection_reason?: string | null
+          requested_roles?: string[]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_title?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_analysis_versions: {
         Row: {
           ai_status: string
@@ -1001,27 +1055,39 @@ export type Database = {
       }
       profiles: {
         Row: {
+          birth_date: string | null
           created_at: string
+          department: string | null
           email: string
           full_name: string | null
           id: string
+          phone: string | null
           preferences: Json
+          role_title: string | null
           updated_at: string
         }
         Insert: {
+          birth_date?: string | null
           created_at?: string
+          department?: string | null
           email: string
           full_name?: string | null
           id: string
+          phone?: string | null
           preferences?: Json
+          role_title?: string | null
           updated_at?: string
         }
         Update: {
+          birth_date?: string | null
           created_at?: string
+          department?: string | null
           email?: string
           full_name?: string | null
           id?: string
+          phone?: string | null
           preferences?: Json
+          role_title?: string | null
           updated_at?: string
         }
         Relationships: []
