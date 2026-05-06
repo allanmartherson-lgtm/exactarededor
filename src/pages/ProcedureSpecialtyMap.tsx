@@ -134,6 +134,28 @@ export default function ProcedureSpecialtyMap() {
     await load();
   };
 
+  const bulkUpdateSuggested = async (newStatus: "aprovado" | "rejeitado") => {
+    const codes = filtered.filter((r) => r.status === "sugerido").map((r) => r.procedure_code);
+    if (codes.length === 0) return;
+    const userRes = await supabase.auth.getUser();
+    const uid = userRes.data.user?.id ?? null;
+    const payload: any = { status: newStatus };
+    if (newStatus === "aprovado") {
+      payload.approved_by = uid;
+      payload.approved_at = new Date().toISOString();
+    }
+    const { error } = await supabase
+      .from("procedure_specialty_map" as any)
+      .update(payload)
+      .in("procedure_code", codes);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: newStatus === "aprovado" ? "Sugestões aprovadas" : "Sugestões rejeitadas", description: `${codes.length} itens atualizados.` });
+    await load();
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
