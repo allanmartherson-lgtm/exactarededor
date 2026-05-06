@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { ShieldCheck } from "lucide-react";
 import { createPasswordRecoveryClient } from "@/lib/passwordRecoveryClient";
 import { lovable } from "@/integrations/lovable";
+import { supabase } from "@/integrations/supabase/client";
+import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
 const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
 const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
@@ -25,8 +28,8 @@ const signInSchema = z.object({
   email: z.string().trim().email("Email inválido").max(255),
   password: z.string().min(6, "Mínimo 6 caracteres").max(72),
 });
-const signUpSchema = signInSchema.extend({
-  fullName: z.string().trim().min(2, "Informe seu nome").max(100),
+const accessRequestSchema = userExtraSchema.extend({
+  message: z.string().trim().max(500).optional(),
 });
 
 const Auth = () => {
