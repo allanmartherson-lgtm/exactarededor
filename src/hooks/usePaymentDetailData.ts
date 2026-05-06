@@ -83,6 +83,7 @@ export function usePaymentDetailData(id: string | undefined) {
   const [questions, setQuestions] = useState<(InvoiceQuestion & { invoice_id: string })[]>([]);
   const [rulesIndex, setRulesIndex] = useState<Record<string, RuleLite>>({});
   const [rulesByName, setRulesByName] = useState<Record<string, RuleLite>>({});
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const loadTokenRef = useRef(0);
