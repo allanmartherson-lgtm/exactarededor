@@ -172,6 +172,8 @@ const Rules = () => {
   const [fFixedAmount, setFFixedAmount] = useState<string>("");
   const [fExtrasCodes, setFExtrasCodes] = useState<string>("");
   const [refTableId, setRefTableId] = useState<string>("");
+  // Tabelas de exceção vinculadas (purpose IN sem_acordo, exclusao) — bloqueiam o cálculo da regra.
+  const [fExceptionTableIds, setFExceptionTableIds] = useState<string[]>([]);
   const [codesInput, setCodesInput] = useState<string>("");
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
   const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
