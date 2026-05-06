@@ -69,12 +69,14 @@ serve(async (req) => {
         target_type,target_identifier,target_name,target_company_id,
         procedure_codes,applies_payment_types,valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
-        package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,
+        package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,package_subtype,
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
-        apply_access_route,include_auxiliaries,auxiliary_pct,
+        apply_access_route,include_auxiliaries,auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
         exclusion_reason,allows_authorized_exception,
         agreement_name,agreement_aliases,agreement_match_mode,
-        exception_table_ids
+        exception_table_ids,
+        group_company_ids,group_doctors,group_company_links,
+        bonus_amount,bonus_pct,target_amount
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
@@ -205,6 +207,30 @@ serve(async (req) => {
     }
 
     const normSpec = (s: string) => s.trim().toLowerCase();
+
+    // ---------- 3.16 Especialidade DOMINANTE do lote/empresa ----------
+    // Conta a especialidade resolvida (via procedure_specialty_map) de cada
+    // item. Se uma concentra > 51% dos itens com especialidade conhecida,
+    // ela é a "especialidade do lote" — usada como fallback para itens cujo
+    // código não está mapeado, e persistida em payments.specialties para
+    // rastreabilidade e indicador.
+    const specCounts: Record<string, { label: string; count: number }> = {};
+    let withSpec = 0;
+    for (const it of (itemsRaw ?? []) as any[]) {
+      const code = (it.procedure_code ?? "").toString().trim();
+      const sp = code ? specMap[code] : null;
+      if (!sp) continue;
+      const k = normSpec(sp);
+      (specCounts[k] ||= { label: sp, count: 0 }).count++;
+      withSpec++;
+    }
+    let dominantSpecialty: string | null = null;
+    if (withSpec > 0) {
+      const sorted = Object.values(specCounts).sort((a, b) => b.count - a.count);
+      const top = sorted[0];
+      if (top && top.count / withSpec > 0.51) dominantSpecialty = top.label;
+    }
+
     const resolveMedicalSpecialty = (it: any): { value: string | null; source: string } => {
       const code = (it.procedure_code ?? "").toString().trim();
       const fromMap = code ? specMap[code] ?? null : null;
@@ -218,7 +244,9 @@ serve(async (req) => {
       if (fromMap) return { value: fromMap, source: "map" };
       // 3) médico tem só uma especialidade
       if (docList.length === 1) return { value: docList[0], source: "doctor" };
-      // 4) nada
+      // 4) fallback: especialidade dominante do lote/empresa (>51%)
+      if (dominantSpecialty) return { value: dominantSpecialty, source: "lote_dominante" };
+      // 5) nada
       return { value: null, source: "none" };
     };
 
@@ -723,10 +751,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const summary = (aiJustifications as any).__summary
       || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
 
-    await supabase.from("payments").update({
+    const paymentUpdate: Record<string, unknown> = {
       status: "revisao_analista",
       ai_summary: summary,
-    }).eq("id", payment_id);
+    };
+    // Persiste especialidade dominante do lote (>51%) para rastreabilidade.
+    if (dominantSpecialty) paymentUpdate.specialties = [dominantSpecialty];
+    await supabase.from("payments").update(paymentUpdate).eq("id", payment_id);
 
     const consolidatedDiff = itemDiffSummaries.length
       ? `\nMudanças nesta rodada (${itemDiffSummaries.length} item(ns)):\n` +
