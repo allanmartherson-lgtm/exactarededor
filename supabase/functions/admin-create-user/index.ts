@@ -118,7 +118,30 @@ serve(async (req) => {
         reviewed_by: userData.user.id,
         reviewed_at: new Date().toISOString(),
       }).eq("id", accessRequestId);
+
+      await admin.from("audit_log").insert({
+        actor_id: userData.user.id,
+        entity_type: "access_request",
+        entity_id: accessRequestId,
+        action: "approved",
+        diff: { email, full_name: fullName, roles: filtered, created_user_id: newUserId },
+      });
     }
+
+    // Audit: user creation
+    await admin.from("audit_log").insert({
+      actor_id: userData.user.id,
+      entity_type: "user",
+      entity_id: newUserId,
+      action: "created",
+      diff: {
+        email,
+        full_name: fullName,
+        roles: filtered,
+        send_invite: sendInvite,
+        from_access_request: accessRequestId,
+      },
+    });
 
     return new Response(
       JSON.stringify({ success: true, user_id: newUserId, temp_password: tempPassword }),

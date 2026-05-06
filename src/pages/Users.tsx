@@ -94,6 +94,17 @@ const Users = () => {
       toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
       return;
     }
+    const req = requests.find((r) => r.id === rejecting.id);
+    const { data: auth } = await supabase.auth.getUser();
+    if (auth?.user) {
+      await supabase.from("audit_log").insert({
+        actor_id: auth.user.id,
+        entity_type: "access_request",
+        entity_id: rejecting.id,
+        action: "rejected",
+        diff: { email: req?.email, full_name: req?.full_name, reason: rejecting.reason || null },
+      });
+    }
     setRejecting(null);
     loadRequests();
     toast({ title: "Solicitação rejeitada" });
