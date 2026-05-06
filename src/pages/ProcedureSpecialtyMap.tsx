@@ -5,7 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "@/hooks/use-toast";
-import { Stethoscope, Check, X, Wand2, Plus } from "lucide-react";
+import { Stethoscope, Check, X, Wand2, Plus, CheckCheck, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Row = {
   procedure_code: string;
@@ -123,6 +134,28 @@ export default function ProcedureSpecialtyMap() {
     await load();
   };
 
+  const bulkUpdateSuggested = async (newStatus: "aprovado" | "rejeitado") => {
+    const codes = filtered.filter((r) => r.status === "sugerido").map((r) => r.procedure_code);
+    if (codes.length === 0) return;
+    const userRes = await supabase.auth.getUser();
+    const uid = userRes.data.user?.id ?? null;
+    const payload: any = { status: newStatus };
+    if (newStatus === "aprovado") {
+      payload.approved_by = uid;
+      payload.approved_at = new Date().toISOString();
+    }
+    const { error } = await supabase
+      .from("procedure_specialty_map" as any)
+      .update(payload)
+      .in("procedure_code", codes);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: newStatus === "aprovado" ? "Sugestões aprovadas" : "Sugestões rejeitadas", description: `${codes.length} itens atualizados.` });
+    await load();
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -136,6 +169,49 @@ export default function ProcedureSpecialtyMap() {
         <Badge variant="outline" className={STATUS_BADGE.aprovado}>{counts.aprovado} aprovadas</Badge>
         <Badge variant="outline" className={STATUS_BADGE.rejeitado}>{counts.rejeitado} rejeitadas</Badge>
         <div className="flex-1" />
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="default" disabled={filtered.filter((r) => r.status === "sugerido").length === 0}>
+              <CheckCheck className="h-4 w-4 mr-2" />
+              Aprovar todas sugeridas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Aprovar todas as sugestões?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Serão aprovadas {filtered.filter((r) => r.status === "sugerido").length} sugestões {filter ? "(filtro atual)" : "(todas)"}. Você pode editar individualmente depois.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => bulkUpdateSuggested("aprovado")}>Aprovar todas</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" disabled={filtered.filter((r) => r.status === "sugerido").length === 0}>
+              <XCircle className="h-4 w-4 mr-2" />
+              Rejeitar todas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Rejeitar todas as sugestões?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Serão rejeitadas {filtered.filter((r) => r.status === "sugerido").length} sugestões {filter ? "(filtro atual)" : "(todas)"}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => bulkUpdateSuggested("rejeitado")}>Rejeitar todas</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <Button variant="outline" onClick={generate} disabled={running}>
           <Wand2 className="h-4 w-4 mr-2" />
           {running ? "Gerando..." : "Gerar sugestões agora"}
