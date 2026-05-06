@@ -441,8 +441,6 @@ export function ItemsDataGrid({
                   className={cn(
                     "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
                     isActive && "bg-primary/10 ring-1 ring-inset ring-primary/30",
-                    !isActive && isCritical && "bg-destructive/5",
-                    !isActive && !isCritical && hasAlert && "bg-warning-soft/30",
                   )}
                   onClick={() => { selectRow(it.id); openDetail(it.id); }}
                 >
