@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, User as UserIcon, UserCheck } from "lucide-react";
+import { History, User as UserIcon, UserCheck, FileDown } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
@@ -47,6 +50,8 @@ type Entry = {
   itemId: string | null;
   itemLabel: string | null;
   body: React.ReactNode;
+  /** Versão somente texto do body — usada na exportação em PDF. */
+  bodyText: string;
 };
 
 function fmtDate(iso: string) {
@@ -101,6 +106,7 @@ export function CompanyHistoryPanel({
           : (o.author_type === "sistema" || o.author_type === "ia" ? "Sistema" : "Usuário desconhecido"),
         itemId: o.item_id ?? null,
         itemLabel: itemLabelOf(it),
+        bodyText: o.message ?? "",
         body: (
           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
             {o.message}
@@ -114,6 +120,13 @@ export function CompanyHistoryPanel({
       if (!itemIds.has(v.item_id)) continue;
       const it = itemMap.get(v.item_id);
       const alerts = (v.alerts ?? []) as string[];
+      const aiHeader = `Versão ${v.version} · status: ${v.ai_status}`
+        + (v.expected_amount != null ? ` · esperado: R$ ${Number(v.expected_amount).toFixed(2)}` : "");
+      const aiBodyText = [
+        aiHeader,
+        ...alerts.map((a) => `• ${a}`),
+        v.calculation_explanation ? v.calculation_explanation : "",
+      ].filter(Boolean).join("\n");
       out.push({
         id: `ai-${v.id}`,
         at: v.created_at,
@@ -122,6 +135,7 @@ export function CompanyHistoryPanel({
         authorName: v.model || "Motor IA",
         itemId: v.item_id,
         itemLabel: itemLabelOf(it),
+        bodyText: aiBodyText,
         body: (
           <div className="space-y-1">
             <div className="text-[11px] text-muted-foreground">
@@ -155,6 +169,11 @@ export function CompanyHistoryPanel({
       const analystName = profiles[a.analyst_id] || "—";
       const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
       const isTransfer = a.action === "transferiu";
+      const assignText = `${analystName} ${
+        isTransfer
+          ? `assumiu o lote${prevName ? ` de ${prevName}` : ""}`
+          : "assumiu o lote"
+      }${a.source === "auto" ? " (registro automático na 1ª ação)" : ""}${a.note ? ` — ${a.note}` : ""}.`;
       out.push({
         id: `assign-${a.id}`,
         at: a.created_at,
@@ -163,6 +182,7 @@ export function CompanyHistoryPanel({
         authorName: analystName,
         itemId: null,
         itemLabel: null,
+        bodyText: assignText,
         body: (
           <p className="whitespace-pre-wrap">
             <strong>{analystName}</strong>{" "}
@@ -204,6 +224,57 @@ export function CompanyHistoryPanel({
       }))
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [items]);
+
+  /**
+   * Exporta o histórico atualmente filtrado para PDF (paisagem A4).
+   * Inclui autor (nome + papel), data/hora, item relacionado e o conteúdo
+   * em texto puro — útil para anexar em auditorias / atas.
+   */
+  const exportPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    doc.setFontSize(14);
+    doc.text("Histórico do pagamento", 40, 40);
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    const filterDesc = [
+      filterItem === "all" ? "Todos os itens" : filterItem === "geral" ? "Comentários gerais" : `Item: ${itemOptions.find((o) => o.id === filterItem)?.label ?? filterItem}`,
+      filterRole === "all" ? "Todos os papéis" : `Papel: ${authorRoleLabel(filterRole)}`,
+    ].join(" · ");
+    doc.text(`Gerado em ${generatedAt} · ${filterDesc} · ${filtered.length} registro(s)`, 40, 56);
+    doc.setTextColor(0);
+
+    autoTable(doc, {
+      startY: 72,
+      head: [["Data/Hora", "Autor", "Papel", "Item", "Mensagem"]],
+      body: filtered.map((e) => [
+        fmtDate(e.at),
+        e.authorName,
+        authorRoleLabel(e.authorType),
+        e.itemLabel ?? "—",
+        e.bodyText || "—",
+      ]),
+      styles: { fontSize: 8, cellPadding: 4, valign: "top", overflow: "linebreak" },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 110 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 130 },
+        4: { cellWidth: "auto" },
+      },
+      didDrawPage: (data) => {
+        const str = `Página ${doc.getNumberOfPages()}`;
+        doc.setFontSize(8);
+        doc.setTextColor(140);
+        doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 12);
+        doc.setTextColor(0);
+      },
+    });
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    doc.save(`historico-${stamp}.pdf`);
+  };
 
   return (
     <Card className="shadow-card">
@@ -253,6 +324,17 @@ export function CompanyHistoryPanel({
                 })}
               </SelectContent>
             </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={exportPdf}
+              disabled={filtered.length === 0}
+              title="Exportar histórico filtrado em PDF"
+            >
+              <FileDown className="h-3.5 w-3.5 mr-1.5" />
+              Exportar PDF
+            </Button>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
