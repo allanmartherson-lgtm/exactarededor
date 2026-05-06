@@ -444,22 +444,26 @@ const Users = () => {
       <Dialog open={!!resetResult} onOpenChange={(o) => !o && setResetResult(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Senha temporária gerada</DialogTitle>
+            <DialogTitle>{resetResult?.emailSent ? "E-mail de redefinição enviado" : "Não foi possível enviar o e-mail"}</DialogTitle>
             <DialogDescription>
-              Compartilhe com {resetResult?.email} por um canal seguro. O usuário precisará trocá-la no primeiro acesso.
+              {resetResult?.emailSent
+                ? <>Enviamos um link para <strong>{resetResult?.email}</strong>. O usuário deverá abrir o e-mail e definir uma nova senha.</>
+                : (resetResult?.warning ?? "Use o link manual abaixo para compartilhar com o usuário por um canal seguro.")}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Input readOnly value={resetResult?.password ?? ""} className="font-mono" />
-              <Button size="icon" variant="outline" onClick={() => resetResult && copyText(resetResult.password, "Senha copiada")}>
-                <Copy className="h-4 w-4" />
-              </Button>
+          {resetResult?.actionLink && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Link de redefinição manual (válido por tempo limitado). Use somente se o e-mail não chegar.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={resetResult.actionLink} className="font-mono text-xs" />
+                <Button size="icon" variant="outline" onClick={() => resetResult.actionLink && copyText(resetResult.actionLink, "Link copiado")}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Esta senha não será mostrada novamente. Se perder, gere uma nova clicando em "Resetar senha".
-            </p>
-          </div>
+          )}
           <DialogFooter>
             <Button onClick={() => setResetResult(null)}>Concluir</Button>
           </DialogFooter>
