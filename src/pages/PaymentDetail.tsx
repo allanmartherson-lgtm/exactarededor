@@ -79,6 +79,9 @@ const PaymentDetail = () => {
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
+  const [editMetaOpen, setEditMetaOpen] = useState(false);
+  const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
+  const [savingMeta, setSavingMeta] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
