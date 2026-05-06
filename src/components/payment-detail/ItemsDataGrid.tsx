@@ -847,6 +847,7 @@ function RowMain({
           rulesIndex={rulesIndex}
           rulesByName={rulesByName}
           observations={observations}
+          profiles={profiles}
           colSpan={totalCols}
         />
       )}
@@ -859,12 +860,14 @@ function ItemDetailsRow({
   rulesIndex,
   rulesByName,
   observations,
+  profiles,
   colSpan,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
+  profiles: Record<string, string>;
   colSpan: number;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
