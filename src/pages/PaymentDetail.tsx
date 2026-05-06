@@ -1031,9 +1031,6 @@ const PaymentDetail = () => {
                   searchActive={!!sq}
                   obs={obs}
                   invoices={invoices}
-                  profiles={profiles}
-                  rulesIndex={rulesIndex}
-                  rulesByName={rulesByName}
                   isExpanded={expandedGroups.has(g.id)}
                   onToggleExpanded={() =>
                     setExpandedGroups((prev) => {
@@ -1050,28 +1047,6 @@ const PaymentDetail = () => {
                       return n;
                     })
                   }
-                  expandedItems={expandedItems}
-                  onToggleItemExpanded={toggleItemExpanded}
-                  canComment={canComment}
-                  itemCommentDraft={itemCommentDraft}
-                  onItemCommentDraftChange={(itemId, v) =>
-                    setItemCommentDraft((m) => ({ ...m, [itemId]: v }))
-                  }
-                  onAddItemComment={addItemComment}
-                  groupCommentDraft={groupComment[g.id] ?? ""}
-                  onGroupCommentDraftChange={(v) =>
-                    setGroupComment((m) => ({ ...m, [g.id]: v }))
-                  }
-                  isAnalista={isAnalista}
-                  isValidador={isValidador}
-                  isDiretor={isDiretor}
-                  busy={busy}
-                  reanalyzingGroupId={reanalyzingGroupId}
-                  onReanalyze={reanalyzeGroup}
-                  onResend={resendGroup}
-                  onSendForValidation={(id) => sendForValidation(id)}
-                  onTransition={transitionGroup}
-                  onExceptionChanged={load}
                 />
               );
               });
