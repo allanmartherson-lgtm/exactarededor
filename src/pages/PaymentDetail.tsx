@@ -61,6 +61,7 @@ const PaymentDetail = () => {
     groups,
     invoices,
     questions,
+    assignments,
     rulesIndex,
     rulesByName,
     expandedGroups,
