@@ -472,12 +472,15 @@ function matchesItemSpecialty(r: RuleInput, item: ItemInput): boolean {
 }
 
 // ---------- pré-filtro ----------
+// Observação: especialidade NÃO é filtrada aqui — o `payments.specialties` é
+// uma propriedade do pagamento (frequentemente vazia) enquanto a whitelist da
+// regra é por item (`item.specialty`). O match correto é feito no nível de
+// item dentro de `selectWinningRule` via `matchesItemSpecialty`.
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
   return rules.filter((r) => {
     if (!r.active) return false;
     if (!isInValidity(r, ctx.reference_date)) return false;
     if (!intersectsAll(ruleSectors(r), ctx.sectors)) return false;
-    if (!intersectsAll(r.specialties, ctx.specialties)) return false;
     if (!intersectsAll(r.applies_payment_types, ctx.payment_type ? [ctx.payment_type] : [])) return false;
     return true;
   });
