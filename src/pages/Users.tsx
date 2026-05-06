@@ -329,7 +329,15 @@ const Users = () => {
           <div className="divide-y divide-border">
             {users.map((u) => (
               <div key={u.id} className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-                <div><p className="font-medium text-sm">{u.full_name || u.email}</p><p className="text-xs text-muted-foreground">{u.email}</p></div>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{u.full_name || u.email}</p>
+                  <p className="text-xs text-muted-foreground">{u.email}</p>
+                  {(u.phone || u.role_title || u.department) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[u.phone && formatPhone(u.phone), u.role_title, u.department].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {ROLES.map((r) => {
                     const has = u.roles.includes(r);
