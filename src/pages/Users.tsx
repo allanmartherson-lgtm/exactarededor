@@ -446,6 +446,23 @@ const Users = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar solicitação?</DialogTitle>
+            <DialogDescription>Opcionalmente, registre o motivo da rejeição.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Motivo (opcional)"
+            value={rejecting?.reason ?? ""}
+            onChange={(e) => setRejecting((r) => (r ? { ...r, reason: e.target.value } : r))}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejecting(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={rejectRequest}>Rejeitar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
