@@ -500,6 +500,21 @@ export function ItemsDataGrid({
               );
             })}
           </ul>
+          {filtered.length > 0 && (
+            <div className="md:hidden flex items-baseline justify-between gap-2 border-t bg-muted/40 px-3 py-2">
+              <span className={cn(TEXT_LABEL)}>Total ({totals.count})</span>
+              <div className="flex items-baseline gap-3">
+                {totals.esperado != null && (
+                  <span className={cn(TEXT_META, "tabular-nums")}>
+                    esp. {formatCurrency(totals.esperado)}
+                  </span>
+                )}
+                <span className="tabular-nums font-semibold text-xs">
+                  {formatCurrency(totals.valor)}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* DESKTOP/TABLET — tabela densa (>= md). Apenas a coluna Paciente
               é sticky à esquerda — múltiplas sticky causavam sobreposição
