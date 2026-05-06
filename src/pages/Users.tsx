@@ -48,6 +48,55 @@ const Users = () => {
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; role_title: string; department: string; birth_date: string } | null>(null);
   const [savingUser, setSavingUser] = useState(false);
+  const [historyUser, setHistoryUser] = useState<{ id: string; label: string } | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<any[] | null>(null);
+  const [historyActors, setHistoryActors] = useState<Record<string, string>>({});
+
+  const FIELD_LABELS: Record<string, string> = {
+    full_name: "Nome",
+    phone: "Telefone",
+    role_title: "Cargo",
+    department: "Setor",
+    birth_date: "Data de nascimento",
+  };
+
+  const formatHistoryValue = (field: string, value: any) => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (field === "phone") return formatPhone(String(value));
+    if (field === "birth_date") {
+      const s = String(value).slice(0, 10);
+      const [y, m, d] = s.split("-");
+      return d && m && y ? `${d}/${m}/${y}` : s;
+    }
+    return String(value);
+  };
+
+  const openHistory = async (u: { id: string; email: string; full_name?: string | null }) => {
+    setHistoryUser({ id: u.id, label: u.full_name || u.email });
+    setHistoryEntries(null);
+    const { data, error } = await supabase
+      .from("audit_log")
+      .select("id, created_at, actor_id, action, diff")
+      .eq("entity_type", "user")
+      .eq("entity_id", u.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast({ title: "Erro ao carregar histórico", description: error.message, variant: "destructive" });
+      setHistoryEntries([]);
+      return;
+    }
+    const entries = data ?? [];
+    const actorIds = Array.from(new Set(entries.map((e) => e.actor_id).filter(Boolean))) as string[];
+    if (actorIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, email").in("id", actorIds);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name || p.email; });
+      setHistoryActors(map);
+    } else {
+      setHistoryActors({});
+    }
+    setHistoryEntries(entries);
+  };
 
   const saveUser = async () => {
     if (!editingUser) return;
