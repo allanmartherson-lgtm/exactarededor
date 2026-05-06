@@ -14,6 +14,7 @@ import {
   Timer,
   BadgeDollarSign,
   Stethoscope,
+  Sparkles,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
