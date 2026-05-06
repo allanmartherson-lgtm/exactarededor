@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
@@ -48,6 +48,55 @@ const Users = () => {
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; role_title: string; department: string; birth_date: string } | null>(null);
   const [savingUser, setSavingUser] = useState(false);
+  const [historyUser, setHistoryUser] = useState<{ id: string; label: string } | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<any[] | null>(null);
+  const [historyActors, setHistoryActors] = useState<Record<string, string>>({});
+
+  const FIELD_LABELS: Record<string, string> = {
+    full_name: "Nome",
+    phone: "Telefone",
+    role_title: "Cargo",
+    department: "Setor",
+    birth_date: "Data de nascimento",
+  };
+
+  const formatHistoryValue = (field: string, value: any) => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (field === "phone") return formatPhone(String(value));
+    if (field === "birth_date") {
+      const s = String(value).slice(0, 10);
+      const [y, m, d] = s.split("-");
+      return d && m && y ? `${d}/${m}/${y}` : s;
+    }
+    return String(value);
+  };
+
+  const openHistory = async (u: { id: string; email: string; full_name?: string | null }) => {
+    setHistoryUser({ id: u.id, label: u.full_name || u.email });
+    setHistoryEntries(null);
+    const { data, error } = await supabase
+      .from("audit_log")
+      .select("id, created_at, actor_id, action, diff")
+      .eq("entity_type", "user")
+      .eq("entity_id", u.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast({ title: "Erro ao carregar histórico", description: error.message, variant: "destructive" });
+      setHistoryEntries([]);
+      return;
+    }
+    const entries = data ?? [];
+    const actorIds = Array.from(new Set(entries.map((e) => e.actor_id).filter(Boolean))) as string[];
+    if (actorIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, email").in("id", actorIds);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name || p.email; });
+      setHistoryActors(map);
+    } else {
+      setHistoryActors({});
+    }
+    setHistoryEntries(entries);
+  };
 
   const saveUser = async () => {
     if (!editingUser) return;
@@ -474,6 +523,17 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => openHistory(u)}
+                      title="Ver histórico de alterações deste usuário"
+                    >
+                      <History className="h-3.5 w-3.5 mr-1.5" />
+                      Histórico
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
                       title="Envia e-mail com link para o usuário definir uma nova senha"
@@ -569,6 +629,61 @@ const Users = () => {
               {savingUser && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
               Salvar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!historyUser} onOpenChange={(o) => { if (!o) { setHistoryUser(null); setHistoryEntries(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Histórico — {historyUser?.label}</DialogTitle>
+            <DialogDescription>
+              Alterações de dados deste usuário, com autor, data e campos modificados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-3">
+            {historyEntries === null && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+              </div>
+            )}
+            {historyEntries && historyEntries.length === 0 && (
+              <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma alteração registrada.</p>
+            )}
+            {historyEntries?.map((e) => {
+              const isCreate = e.action === "created";
+              const diff = e.diff ?? {};
+              const when = new Date(e.created_at).toLocaleString("pt-BR");
+              const actor = e.actor_id ? (historyActors[e.actor_id] ?? "—") : "Sistema";
+              return (
+                <div key={e.id} className="border rounded-md p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="font-medium">{isCreate ? "Usuário criado" : "Dados atualizados"}</span>
+                    <span className="text-xs text-muted-foreground">{when}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">por {actor}</p>
+                  {isCreate ? (
+                    <p className="text-xs text-muted-foreground">
+                      {diff.email ? `E-mail: ${diff.email}` : null}
+                      {diff.full_name ? ` · Nome: ${diff.full_name}` : null}
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {Object.entries(diff).map(([field, change]: any) => (
+                        <li key={field} className="text-xs">
+                          <span className="font-medium">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                          <span className="text-muted-foreground line-through">{formatHistoryValue(field, change?.from)}</span>
+                          {" → "}
+                          <span>{formatHistoryValue(field, change?.to)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setHistoryUser(null); setHistoryEntries(null); }}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
