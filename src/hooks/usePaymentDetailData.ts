@@ -42,6 +42,17 @@ export type AiVersionRow = Omit<
 };
 export type GroupRow = Tables["payment_company_groups"]["Row"];
 export type InvoiceRow = Tables["invoices"]["Row"];
+export type AssignmentRow = {
+  id: string;
+  payment_id: string;
+  analyst_id: string;
+  previous_analyst_id: string | null;
+  action: "assumiu" | "transferiu";
+  source: "manual" | "auto";
+  note: string | null;
+  created_by: string;
+  created_at: string;
+};
 export type RuleLite = {
   id: string;
   name: string;
@@ -72,6 +83,7 @@ export function usePaymentDetailData(id: string | undefined) {
   const [questions, setQuestions] = useState<(InvoiceQuestion & { invoice_id: string })[]>([]);
   const [rulesIndex, setRulesIndex] = useState<Record<string, RuleLite>>({});
   const [rulesByName, setRulesByName] = useState<Record<string, RuleLite>>({});
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const loadTokenRef = useRef(0);
@@ -93,6 +105,7 @@ export function usePaymentDetailData(id: string | undefined) {
       { data: gs },
       { data: inv },
       { data: qs },
+      { data: as },
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").abortSignal(ac.signal),
@@ -122,6 +135,11 @@ export function usePaymentDetailData(id: string | undefined) {
         .eq("payment_id", id)
         .order("created_at", { ascending: true })
         .abortSignal(ac.signal),
+      (supabase.from as unknown as (t: string) => ReturnType<typeof supabase.from>)("payment_assignments")
+        .select("*")
+        .eq("payment_id", id)
+        .order("created_at", { ascending: false })
+        .abortSignal(ac.signal),
     ]);
     if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
     setPayment(p);
@@ -131,6 +149,7 @@ export function usePaymentDetailData(id: string | undefined) {
     setGroups(gs ?? []);
     setInvoices(inv ?? []);
     setQuestions((qs ?? []) as unknown as (InvoiceQuestion & { invoice_id: string })[]);
+    setAssignments((as ?? []) as unknown as AssignmentRow[]);
     setExpandedGroups(new Set((gs ?? []).map((g) => g.id)));
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x) => {
@@ -208,6 +227,11 @@ export function usePaymentDetailData(id: string | undefined) {
         { event: "*", schema: "public", table: "invoice_questions", filter: `payment_id=eq.${id}` },
         () => { load(); },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_assignments", filter: `payment_id=eq.${id}` },
+        () => { load(); },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -224,6 +248,7 @@ export function usePaymentDetailData(id: string | undefined) {
     groups,
     invoices,
     questions,
+    assignments,
     rulesIndex,
     rulesByName,
     expandedGroups,

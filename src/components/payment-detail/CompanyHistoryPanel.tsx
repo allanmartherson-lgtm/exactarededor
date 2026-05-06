@@ -8,9 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, Sparkles, MessageSquare, Bot, User as UserIcon } from "lucide-react";
+import { History, Sparkles, MessageSquare, Bot, User as UserIcon, UserCheck } from "lucide-react";
 import type {
   AiVersionRow,
+  AssignmentRow,
   ObservationRow,
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
@@ -32,13 +33,14 @@ export type CompanyHistoryPanelProps = {
   items: PaymentItemRow[];
   observations: ObservationRow[];
   aiVersions: AiVersionRow[];
+  assignments?: AssignmentRow[];
   profiles: Record<string, string>;
 };
 
 type Entry = {
   id: string;
   at: string;
-  kind: "obs" | "ai";
+  kind: "obs" | "ai" | "assign";
   authorType: string;
   authorName: string;
   itemId: string | null;
@@ -65,6 +67,7 @@ export function CompanyHistoryPanel({
   items,
   observations,
   aiVersions,
+  assignments = [],
   profiles,
 }: CompanyHistoryPanelProps) {
   const itemIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
@@ -142,8 +145,37 @@ export function CompanyHistoryPanel({
       });
     }
 
+    // Atribuições (assumiu/transferiu) — escopo do lote inteiro, sempre
+    // exibidas (não filtradas por item, pois afetam o lote todo).
+    for (const a of assignments) {
+      const analystName = profiles[a.analyst_id] || "—";
+      const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
+      const isTransfer = a.action === "transferiu";
+      out.push({
+        id: `assign-${a.id}`,
+        at: a.created_at,
+        kind: "assign",
+        authorType: isTransfer ? "transferência" : "atribuição",
+        authorName: analystName,
+        itemId: null,
+        itemLabel: null,
+        body: (
+          <p className="whitespace-pre-wrap">
+            <strong>{analystName}</strong>{" "}
+            {isTransfer ? (
+              <>assumiu o lote {prevName ? <>de <strong>{prevName}</strong></> : null}</>
+            ) : (
+              <>assumiu o lote</>
+            )}
+            {a.source === "auto" ? " (registro automático na 1ª ação)" : ""}
+            {a.note ? ` — ${a.note}` : ""}.
+          </p>
+        ),
+      });
+    }
+
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [observations, aiVersions, itemIds, itemMap, profiles]);
+  }, [observations, aiVersions, assignments, itemIds, itemMap, profiles]);
 
   const filtered = useMemo(() => {
     if (filterItem === "all") return entries;
@@ -204,7 +236,9 @@ export function CompanyHistoryPanel({
           <ul className="space-y-2">
             {filtered.map((e) => {
               const Icon =
-                e.kind === "ai"
+                e.kind === "assign"
+                  ? UserCheck
+                  : e.kind === "ai"
                   ? Bot
                   : e.authorType === "sistema"
                   ? Sparkles
@@ -212,7 +246,9 @@ export function CompanyHistoryPanel({
                   ? Bot
                   : MessageSquare;
               const tone =
-                e.kind === "ai" || e.authorType === "ia"
+                e.kind === "assign"
+                  ? "border-l-warning"
+                  : e.kind === "ai" || e.authorType === "ia"
                   ? "border-l-info"
                   : e.authorType === "validador"
                   ? "border-l-primary"

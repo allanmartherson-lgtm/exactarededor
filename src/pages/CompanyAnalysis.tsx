@@ -49,6 +49,7 @@ export default function CompanyAnalysis() {
     rulesIndex,
     rulesByName,
     profiles,
+    assignments,
     load,
   } = usePaymentDetailData(id);
 
@@ -420,6 +421,7 @@ export default function CompanyAnalysis() {
             items={items}
             observations={obs}
             aiVersions={aiVersions}
+            assignments={assignments}
             profiles={profiles}
           />
         </TabsContent>

@@ -23,6 +23,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
+import { claimPayment } from "@/lib/assignments";
+import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import type {
   PaymentItemRow as PaymentItemRowType,
@@ -59,6 +61,7 @@ const PaymentDetail = () => {
     groups,
     invoices,
     questions,
+    assignments,
     rulesIndex,
     rulesByName,
     expandedGroups,
@@ -110,6 +113,29 @@ const PaymentDetail = () => {
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }, [location.hash, groups, setExpandedGroups]);
+
+  // Auto-claim: ao executar a 1ª ação como analista, registra automaticamente
+  // que ele assumiu (ou transferiu para si) o lote. No-op se ele já é o
+  // último responsável registrado.
+  const autoClaim = async () => {
+    if (!id || !user) return;
+    if (!(hasRole("analista") || hasRole("admin"))) return;
+    await claimPayment(id, user.id, "auto");
+  };
+
+  // Botão explícito "Assumir / Transferir para mim" no card do topo.
+  const handleManualAssume = async () => {
+    if (!id || !user) return;
+    const res = await claimPayment(id, user.id, "manual");
+    if (!res.ok) {
+      toast({ title: "Falha ao assumir lote", description: (res as { error: string }).error, variant: "destructive" });
+      return;
+    }
+    if ((res as { created?: boolean }).created) {
+      toast({ title: "Lote atribuído a você", description: "Registrado no histórico de atribuições." });
+      await load();
+    }
+  };
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
@@ -166,6 +192,7 @@ const PaymentDetail = () => {
       return;
     }
     setBusy(true);
+    if (authorType === "analista") await autoClaim();
     const updates: GroupUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
       updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
@@ -209,6 +236,7 @@ const PaymentDetail = () => {
     }
     const text = (groupComment[groupId] ?? "").trim();
     setBusy(true);
+    await autoClaim();
     const { error: upErr } = await supabase.from("payment_company_groups")
       .update({ status: target.nextStatus }).eq("id", groupId);
     if (upErr) {
@@ -238,6 +266,7 @@ const PaymentDetail = () => {
   const reanalyzeGroup = async (g: GroupRow) => {
     if (!id) return;
     setReanalyzingGroupId(g.id);
+    await autoClaim();
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
         body: { payment_id: id, company_name: g.company_name },
@@ -274,6 +303,7 @@ const PaymentDetail = () => {
       return;
     }
     setBusy(true);
+    await autoClaim();
     for (const g of targets) {
       const { error: upErr } = await supabase.from("payment_company_groups")
         .update({ status: "aguardando_validacao" }).eq("id", g.id);
@@ -593,6 +623,7 @@ const PaymentDetail = () => {
     const text = (itemCommentDraft[itemId] ?? "").trim();
     if (!text) return;
     setBusy(true);
+    if (myAuthorType === "analista") await autoClaim();
     const obsRes = await recordObservation({
       payment_id: id!, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
     });
@@ -902,6 +933,14 @@ const PaymentDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        <AssignmentCard
+          assignments={assignments}
+          profiles={profiles}
+          currentUserId={user?.id ?? null}
+          canAssume={isAnalista}
+          onAssume={handleManualAssume}
+        />
 
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
