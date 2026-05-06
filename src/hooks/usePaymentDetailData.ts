@@ -149,6 +149,7 @@ export function usePaymentDetailData(id: string | undefined) {
     setGroups(gs ?? []);
     setInvoices(inv ?? []);
     setQuestions((qs ?? []) as unknown as (InvoiceQuestion & { invoice_id: string })[]);
+    setAssignments((as ?? []) as unknown as AssignmentRow[]);
     setExpandedGroups(new Set((gs ?? []).map((g) => g.id)));
     const map: Record<string, string> = {};
     (pr ?? []).forEach((x) => {
