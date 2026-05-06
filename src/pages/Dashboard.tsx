@@ -749,6 +749,18 @@ const Dashboard = () => {
 
   const myPayments = payments.filter(isMine).slice(0, 6);
 
+  // Fila coletiva (qualquer pagamento em status acionável, do time todo)
+  const ACTIONABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+    "em_analise_ia", "revisao_analista", "aguardando_validacao",
+    "aguardando_aprovacao", "devolvido_analista", "devolvido_validador",
+    "nf_questionada", "aprovado_com_ressalva",
+  ]);
+  const teamOpenPayments = payments
+    .filter((p) => ACTIONABLE_STATUSES.has(p.status))
+    .slice(0, 8);
+  const teamOpenTotal =
+    counts.teamAnalise + counts.teamValidacao + counts.teamAprovacao;
+
   // ============================================================
   // CÁLCULO DE SLA + URGÊNCIA
   // ============================================================
