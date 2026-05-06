@@ -33,13 +33,14 @@ export type CompanyHistoryPanelProps = {
   items: PaymentItemRow[];
   observations: ObservationRow[];
   aiVersions: AiVersionRow[];
+  assignments?: AssignmentRow[];
   profiles: Record<string, string>;
 };
 
 type Entry = {
   id: string;
   at: string;
-  kind: "obs" | "ai";
+  kind: "obs" | "ai" | "assign";
   authorType: string;
   authorName: string;
   itemId: string | null;
