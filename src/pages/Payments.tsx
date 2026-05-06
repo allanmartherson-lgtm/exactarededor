@@ -8,13 +8,15 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
+import { toast } from "sonner";
 
 interface Row {
   id: string;
@@ -117,6 +119,41 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
+  // Fila de reprocessamento: ids selecionados + estado de execução em lote.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [reprocessing, setReprocessing] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const runReanalysis = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    setReprocessing(true);
+    setReprocessProgress({ done: 0, total: ids.length });
+    let ok = 0; let fail = 0;
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        const { error } = await supabase.functions.invoke("analyze-payment", { body: { payment_id: ids[i] } });
+        if (error) throw error;
+        ok++;
+      } catch (e) {
+        console.error("reanalyze failed", ids[i], e);
+        fail++;
+      }
+      setReprocessProgress({ done: i + 1, total: ids.length });
+    }
+    setReprocessing(false);
+    setReprocessProgress(null);
+    setSelected(new Set());
+    toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
+  };
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
@@ -424,8 +461,17 @@ const Payments = () => {
         </Link>
       );
     }
+    const isSelected = selected.has(p.id);
     return (
-      <Link key={p.id} to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
+      <div key={p.id} className={cn("flex items-start gap-3 px-6 py-4 hover:bg-muted/40 transition-colors", isSelected && "bg-primary/5")}>
+        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => toggleSelect(p.id)}
+            aria-label={`Selecionar ${p.reference} para reprocessamento`}
+          />
+        </div>
+        <Link to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 flex-1 min-w-0">
         <div className="min-w-0 flex-1 space-y-2">
           <p className="font-medium text-sm truncate">{p.reference}</p>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
@@ -476,7 +522,8 @@ const Payments = () => {
           </p>
         </div>
         <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
-      </Link>
+        </Link>
+      </div>
     );
   };
 
@@ -638,6 +685,60 @@ const Payments = () => {
             </ToggleGroup>
           </div>
         </div>
+        {/* Barra de seleção em massa para reprocessamento de regras/mapeamentos */}
+        {view === "lista" && sortedList.length > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-4 py-2">
+            <div className="flex items-center gap-3 text-xs">
+              <Checkbox
+                checked={
+                  selected.size > 0 && sortedList.every((p) => selected.has(p.id))
+                    ? true
+                    : selected.size > 0
+                    ? "indeterminate"
+                    : false
+                }
+                onCheckedChange={(v) => {
+                  if (v) setSelected(new Set(sortedList.map((p) => p.id)));
+                  else setSelected(new Set());
+                }}
+                aria-label="Selecionar todos os pagamentos visíveis"
+              />
+              <span className="text-muted-foreground">
+                {selected.size > 0
+                  ? `${selected.size} selecionado${selected.size > 1 ? "s" : ""}`
+                  : "Selecione pagamentos para reprocessar regras/mapeamentos"}
+              </span>
+              {selected.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                >
+                  limpar
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {reprocessProgress && (
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {reprocessProgress.done}/{reprocessProgress.total}
+                </span>
+              )}
+              <Button
+                size="sm"
+                disabled={selected.size === 0 || reprocessing}
+                onClick={runReanalysis}
+              >
+                {reprocessing ? (
+                  <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                {reprocessing ? "Reprocessando..." : "Reanalisar selecionados"}
+              </Button>
+            </div>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <Card className="shadow-card">
             <CardContent className="p-0">
