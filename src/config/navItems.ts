@@ -68,7 +68,6 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["diretor", "admin"] },
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["diretor", "admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["diretor", "admin"] },
-      { to: "/classificacao-procedimentos", label: "Classificação de procedimentos", icon: Tags, iconName: "Tags", roles: ["diretor", "admin"] },
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["diretor", "admin"] },
       { to: "/medicos", label: "Médicos", icon: Stethoscope, iconName: "Stethoscope", roles: ["diretor", "admin"] },
       { to: "/centros-de-custo", label: "Centros de custo", icon: Network, iconName: "Network", roles: ALL_ROLES },
