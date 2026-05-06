@@ -20,6 +20,7 @@ import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
 import Companies from "./pages/Companies.tsx";
 import Doctors from "./pages/Doctors.tsx";
+import ProcedureSpecialtyMap from "./pages/ProcedureSpecialtyMap.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
 import SlaSettings from "./pages/SlaSettings.tsx";
