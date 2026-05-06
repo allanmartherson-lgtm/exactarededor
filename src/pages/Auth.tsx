@@ -167,7 +167,7 @@ const Auth = () => {
             <Tabs defaultValue="signin">
               <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="signin">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Criar conta</TabsTrigger>
+                <TabsTrigger value="signup">Solicitar acesso</TabsTrigger>
               </TabsList>
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4 pt-4">
@@ -193,24 +193,45 @@ const Auth = () => {
                 </form>
               </TabsContent>
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4 pt-4">
+                <form onSubmit={handleAccessRequest} className="space-y-3 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nome completo</Label>
-                    <Input id="signup-name" name="fullName" required />
+                    <Label htmlFor="req-name">Nome completo</Label>
+                    <Input id="req-name" value={reqForm.full_name} onChange={(e) => setReqForm({ ...reqForm, full_name: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input id="signup-email" name="email" type="email" autoComplete="email" required />
+                    <Label htmlFor="req-email">Email</Label>
+                    <Input id="req-email" type="email" value={reqForm.email} onChange={(e) => setReqForm({ ...reqForm, email: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Senha</Label>
-                    <Input id="signup-password" name="password" type="password" autoComplete="new-password" required minLength={6} />
+                    <Label htmlFor="req-phone">Telefone celular</Label>
+                    <Input id="req-phone" inputMode="numeric" placeholder="(11) 99999-9999"
+                      value={formatPhone(reqForm.phone)}
+                      onChange={(e) => setReqForm({ ...reqForm, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                      required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="req-role">Cargo</Label>
+                      <Input id="req-role" value={reqForm.role_title} onChange={(e) => setReqForm({ ...reqForm, role_title: e.target.value })} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="req-dept">Setor</Label>
+                      <Input id="req-dept" value={reqForm.department} onChange={(e) => setReqForm({ ...reqForm, department: e.target.value })} required />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="req-birth">Data de nascimento</Label>
+                    <Input id="req-birth" type="date" value={reqForm.birth_date} onChange={(e) => setReqForm({ ...reqForm, birth_date: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="req-msg">Mensagem (opcional)</Label>
+                    <Textarea id="req-msg" rows={2} value={reqForm.message} onChange={(e) => setReqForm({ ...reqForm, message: e.target.value })} />
                   </div>
                   <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? "Criando..." : "Criar conta"}
+                    {submitting ? "Enviando..." : "Solicitar acesso"}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    O primeiro usuário cadastrado vira <strong>Diretor + Admin</strong>. Os demais entram como Analista e podem ter o papel ajustado pelo Admin.
+                    Sua solicitação será analisada por um administrador. Após a aprovação, você receberá um e-mail com o link para definir sua senha.
                   </p>
                 </form>
               </TabsContent>
