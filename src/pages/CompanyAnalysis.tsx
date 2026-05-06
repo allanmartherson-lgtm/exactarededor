@@ -47,6 +47,7 @@ export default function CompanyAnalysis() {
     groups,
     rulesIndex,
     rulesByName,
+    profiles,
     load,
   } = usePaymentDetailData(id);
 
