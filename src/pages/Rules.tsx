@@ -492,6 +492,24 @@ const Rules = () => {
     setFHasConditions(
       tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer"
     );
+    // Carrega itens de cálculo (1:N) — se não houver, monta um a partir dos
+    // campos legados da própria regra para retrocompatibilidade.
+    const { data: calcRows } = await supabase
+      .from("rule_calculations")
+      .select("*")
+      .eq("rule_id", r.id)
+      .order("sort_order", { ascending: true });
+    if (calcRows && calcRows.length > 0) {
+      setFCalculations(calcRows.map(calcFromDb));
+    } else {
+      // monta 1 item a partir da própria regra (retrocompatibilidade)
+      setFCalculations([calcFromDb({
+        ...r,
+        // coerções para o helper
+        time_mode: tMode, weekdays: wdays, time_start: tStart, time_end: tEnd,
+        includes_holidays: r.includes_holidays, elective_mode: eMode,
+      })]);
+    }
     // Garante que a seção "Identificação" esteja aberta ao editar
     // (contém o bloco Convênio — eixo determinístico do motor de regras).
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
