@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, Filter, RefreshCcw, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw } from "lucide-react";
 import { resolveResendTarget } from "@/lib/paymentFlow";
 import {
   formatCurrency,
