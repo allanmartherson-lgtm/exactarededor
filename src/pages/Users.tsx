@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
@@ -38,6 +38,8 @@ const Users = () => {
   const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
+  const [editingReq, setEditingReq] = useState<any | null>(null);
+  const [savingReq, setSavingReq] = useState(false);
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
@@ -95,6 +97,38 @@ const Users = () => {
     setRejecting(null);
     loadRequests();
     toast({ title: "Solicitação rejeitada" });
+  };
+
+  const saveEditedRequest = async () => {
+    if (!editingReq) return;
+    const parsed = userExtraSchema.safeParse({
+      full_name: editingReq.full_name,
+      email: editingReq.email,
+      phone: editingReq.phone ?? "",
+      role_title: editingReq.role_title ?? "",
+      department: editingReq.department ?? "",
+      birth_date: editingReq.birth_date ?? "",
+    });
+    if (!parsed.success) {
+      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
+      return;
+    }
+    setSavingReq(true);
+    const { error } = await supabase.from("access_requests").update({
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      role_title: parsed.data.role_title,
+      department: parsed.data.department,
+      birth_date: parsed.data.birth_date,
+    }).eq("id", editingReq.id);
+    setSavingReq(false);
+    if (error) {
+      toast({ title: "Falha ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditingReq(null);
+    loadRequests();
+    toast({ title: "Solicitação atualizada" });
   };
 
   const toggle = async (userId: string, role: AppRole, has: boolean) => {
@@ -326,6 +360,9 @@ const Users = () => {
                       <Button size="sm" onClick={() => openCreateFromRequest(r)}>
                         <Check className="h-3.5 w-3.5 mr-1.5" /> Aprovar e criar
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingReq({ ...r })}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => setRejecting({ id: r.id, reason: "" })}>
                         <X className="h-3.5 w-3.5 mr-1.5" /> Rejeitar
                       </Button>
@@ -483,6 +520,59 @@ const Users = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejecting(null)}>Cancelar</Button>
             <Button variant="destructive" onClick={rejectRequest}>Rejeitar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editingReq} onOpenChange={(o) => !o && setEditingReq(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar solicitação</DialogTitle>
+            <DialogDescription>
+              Ajuste os dados antes de aprovar. O e-mail não pode ser alterado.
+            </DialogDescription>
+          </DialogHeader>
+          {editingReq && (
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-2">
+                <Label>Nome completo *</Label>
+                <Input value={editingReq.full_name ?? ""} onChange={(e) => setEditingReq({ ...editingReq, full_name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input type="email" value={editingReq.email ?? ""} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone celular *</Label>
+                <Input
+                  inputMode="numeric"
+                  placeholder="(11) 99999-9999"
+                  value={formatPhone(editingReq.phone ?? "")}
+                  onChange={(e) => setEditingReq({ ...editingReq, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>Cargo *</Label>
+                  <Input value={editingReq.role_title ?? ""} onChange={(e) => setEditingReq({ ...editingReq, role_title: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Setor *</Label>
+                  <Input value={editingReq.department ?? ""} onChange={(e) => setEditingReq({ ...editingReq, department: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Data de nascimento *</Label>
+                <Input
+                  type="date"
+                  value={editingReq.birth_date ? String(editingReq.birth_date).slice(0, 10) : ""}
+                  onChange={(e) => setEditingReq({ ...editingReq, birth_date: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingReq(null)} disabled={savingReq}>Cancelar</Button>
+            <Button onClick={saveEditedRequest} disabled={savingReq}>{savingReq ? "Salvando..." : "Salvar alterações"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
