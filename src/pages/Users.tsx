@@ -60,7 +60,42 @@ const Users = () => {
     const map = (profiles ?? []).map((p) => ({ ...p, roles: (roles ?? []).filter((r) => r.user_id === p.id).map((r) => r.role) }));
     setUsers(map);
   };
-  useEffect(() => { document.title = "Usuários | MedPay"; load(); }, []);
+  const loadRequests = async () => {
+    if (!isAdmin) return;
+    const { data } = await supabase
+      .from("access_requests")
+      .select("*")
+      .eq("status", "pendente")
+      .order("created_at", { ascending: false });
+    setRequests(data ?? []);
+  };
+  useEffect(() => { document.title = "Usuários | MedPay"; load(); loadRequests(); }, [isAdmin]);
+
+  const openCreateFromRequest = (r: any) => {
+    setForm({
+      email: r.email, full_name: r.full_name, phone: r.phone, role_title: r.role_title,
+      department: r.department, birth_date: r.birth_date,
+      roles: (r.requested_roles ?? ["analista"]) as AppRole[], send_invite: true,
+    });
+    setAccessRequestId(r.id);
+    setOpen(true);
+  };
+
+  const rejectRequest = async () => {
+    if (!rejecting) return;
+    const { error } = await supabase.from("access_requests").update({
+      status: "rejeitada",
+      rejection_reason: rejecting.reason || null,
+      reviewed_at: new Date().toISOString(),
+    }).eq("id", rejecting.id);
+    if (error) {
+      toast({ title: "Falha ao rejeitar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRejecting(null);
+    loadRequests();
+    toast({ title: "Solicitação rejeitada" });
+  };
 
   const toggle = async (userId: string, role: AppRole, has: boolean) => {
     if (has) await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
