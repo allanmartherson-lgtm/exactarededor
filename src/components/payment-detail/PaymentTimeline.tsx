@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, TONE_CLASSES } from "@/lib/status";
-import { MessageCircleQuestion, Pencil, Save, X } from "lucide-react";
+import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
 
 /**
@@ -147,9 +147,17 @@ export const PaymentTimeline = ({
               >
                 {o.author_type}
               </span>
-              {o.author_id && (
-                <span className="text-muted-foreground">{profiles[o.author_id] ?? ""}</span>
-              )}
+              <span
+                className="inline-flex items-center gap-1 font-medium text-foreground"
+                title={o.author_id ? `ID: ${o.author_id}` : "Autor não identificado"}
+              >
+                <UserIcon className="h-3 w-3 text-muted-foreground" />
+                {o.author_id
+                  ? (profiles[o.author_id] ?? `Usuário ${o.author_id.slice(0, 8)}`)
+                  : o.author_type === "sistema" || o.author_type === "ia"
+                    ? "Sistema"
+                    : "Usuário desconhecido"}
+              </span>
               {o.item_id && (
                 <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>
               )}
