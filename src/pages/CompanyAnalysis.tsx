@@ -624,6 +624,9 @@ export default function CompanyAnalysis() {
                 observations={obs}
                 profiles={profiles}
                 storageKey="companyAnalysisPage"
+                canEdit={canEdit}
+                onEditItem={openEditItem}
+                onDeleteItem={(it) => setDeleteItem(it)}
               />
             </CardContent>
           </Card>
