@@ -33,7 +33,7 @@ const accessRequestSchema = userExtraSchema.extend({
 });
 
 const Auth = () => {
-  const { user, loading, signIn, signUp } = useAuth();
+  const { user, loading, signIn } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
