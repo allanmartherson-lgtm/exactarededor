@@ -8,9 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, Sparkles, MessageSquare, Bot, User as UserIcon } from "lucide-react";
+import { History, Sparkles, MessageSquare, Bot, User as UserIcon, UserCheck } from "lucide-react";
 import type {
   AiVersionRow,
+  AssignmentRow,
   ObservationRow,
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
