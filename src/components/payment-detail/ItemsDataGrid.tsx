@@ -856,8 +856,8 @@ function ItemDetailsRow({
           cortado pelo scroll horizontal, usamos sticky + max-width baseado em 100vw.
         */}
         <div
-          className={cn("sticky left-0 px-4 py-4 animate-accordion-down", TEXT_BODY)}
-          style={{ width: "min(100%, calc(100vw - 2rem))", maxWidth: "calc(100vw - 2rem)" }}
+          className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4 animate-accordion-down", TEXT_BODY)}
+          style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
         >
           {/* Resumo do item */}
           <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
