@@ -1,36 +1,16 @@
-import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-
-export type RowDensity = "compact" | "comfortable";
-const DENSITY_LS_KEY = "paymentGroupCard.density.v1";
-const readDensity = (): RowDensity => {
-  if (typeof window === "undefined") return "compact";
-  const v = window.localStorage.getItem(DENSITY_LS_KEY);
-  return v === "comfortable" ? "comfortable" : "compact";
-};
+import { Button } from "@/components/ui/button";
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "@/components/StatusBadge";
-import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
-import { CompanyAnalysisDialog } from "@/components/payment-detail/CompanyAnalysisDialog";
-import { Maximize2 } from "lucide-react";
 import {
   AlertTriangle,
+  ArrowRight,
   Building2,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
   Receipt,
-  RefreshCcw,
-  RotateCcw,
-  Send,
-  ShieldCheck,
   Sparkles,
-  XCircle,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -41,38 +21,16 @@ import {
 import {
   ANALYST_DONE_STATUSES,
   effectiveItemAiStatus,
-  resolveResendTarget,
 } from "@/lib/paymentFlow";
 import type {
   GroupRow,
   InvoiceRow,
   ObservationRow,
   PaymentItemRow as PaymentItemRowData,
-  RuleLite,
 } from "@/hooks/usePaymentDetailData";
-import { scoreAttendance, classifyRisk, RISK_LABELS } from "@/lib/riskScore";
+import { scoreAttendance, classifyRisk } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
 import { cn } from "@/lib/utils";
-
-function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
-  const { id } = useParams<{ id: string }>();
-  if (!id) return null;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link
-          to={`/pagamentos/${id}/empresa/${groupId}`}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label="Abrir análise em página dedicada"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
-      </TooltipTrigger>
-      <TooltipContent>Abrir página dedicada</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export type PaymentGroupCardProps = {
   g: GroupRow;
@@ -82,57 +40,21 @@ export type PaymentGroupCardProps = {
   searchActive: boolean;
   obs: ObservationRow[];
   invoices: InvoiceRow[];
-  profiles: Record<string, string>;
-  rulesIndex: Record<string, RuleLite>;
-  rulesByName: Record<string, RuleLite>;
 
   // Estado controlado pelo parent (mantido global pois a página inteira lê).
   isExpanded: boolean;
   onToggleExpanded: () => void;
   isAiOpen: boolean;
   onToggleAiOpen: () => void;
-  expandedItems: Set<string>;
-  onToggleItemExpanded: (itemId: string) => void;
-
-  // Comentários
-  canComment: boolean;
-  itemCommentDraft: Record<string, string>;
-  onItemCommentDraftChange: (itemId: string, value: string) => void;
-  onAddItemComment: (itemId: string) => void;
-  groupCommentDraft: string;
-  onGroupCommentDraftChange: (value: string) => void;
-
-  // Permissões para a barra inferior
-  isAnalista: boolean;
-  isValidador: boolean;
-  isDiretor: boolean;
-
-  // Ações
-  busy: boolean;
-  reanalyzingGroupId: string | null;
-  onReanalyze: (g: GroupRow) => void;
-  onResend: (groupId: string) => void;
-  onSendForValidation: (groupId: string) => void;
-  onTransition: (
-    groupId: string,
-    to: PaymentStatus,
-    actor: "validador" | "diretor",
-    label: string,
-    requireComment?: boolean,
-  ) => void;
-  /** Recarregar dados após marcar/remover exceção autorizada em um item. */
-  onExceptionChanged?: () => void;
 };
 
 /**
- * Card de uma empresa (grupo) dentro do pagamento.
+ * Card-resumo executivo de uma empresa (grupo) dentro do pagamento.
  *
- * - Calcula localmente: status efetivos, contadores de itens, alertas da IA,
- *   conferência bruto x NF (por empresa), e quem foi o "devolvedor" para o
- *   botão "Reencaminhar ao …".
- * - Renderiza tabela de items via <PaymentItemRow/> (PR #3).
- * - Toda mutação (transição/reanálise/envio) é delegada via callbacks ao
- *   parent — assim a regra de negócio segue centralizada no PaymentDetail.
+ * Mostra somente o panorama (totais, status, risco, parecer da IA, NF).
+ * Toda interação detalhada (tabela, comentários, ações de fluxo, exceções
+ * autorizadas, comparação de versões da IA) acontece na página dedicada
+ * `/pagamentos/:id/empresa/:groupId`, que é a única fonte de trabalho.
  */
 export const PaymentGroupCard = ({
   g,
@@ -140,46 +62,13 @@ export const PaymentGroupCard = ({
   searchActive,
   obs,
   invoices,
-  profiles,
-  rulesIndex,
-  rulesByName,
   isExpanded,
   onToggleExpanded,
   isAiOpen,
   onToggleAiOpen,
-  expandedItems,
-  onToggleItemExpanded,
-  canComment,
-  itemCommentDraft,
-  onItemCommentDraftChange,
-  onAddItemComment,
-  groupCommentDraft,
-  onGroupCommentDraftChange,
-  isAnalista,
-  isValidador,
-  isDiretor,
-  busy,
-  reanalyzingGroupId,
-  onReanalyze,
-  onResend,
-  onSendForValidation,
-  onTransition,
-  onExceptionChanged,
 }: PaymentGroupCardProps) => {
-  const [analysisOpen, setAnalysisOpen] = useState(false);
-  const [density, setDensity] = useState<RowDensity>(() => readDensity());
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
-  useEffect(() => {
-    if (typeof window !== "undefined") window.localStorage.setItem(DENSITY_LS_KEY, density);
-  }, [density]);
-  const isComfy = density === "comfortable";
+  const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
-  const isGroupAnalista = isAnalista && (gStatus === "revisao_analista" || gStatus === "devolvido_analista");
-  const isGroupValidador = isValidador && gStatus === "aguardando_validacao";
-  const isGroupDiretor = isDiretor && gStatus === "aguardando_aprovacao";
-  // Se o analista já concluiu a triagem, o parecer da IA não é mais alerta
-  // ativo: vira informativo e deixa de pintar o item como "reprovado".
   const analystDone = ANALYST_DONE_STATUSES.has(gStatus);
   const groupAlerts = groupItems
     .filter((it) => (it.ai_findings?.alerts ?? []).length > 0)
@@ -187,20 +76,14 @@ export const PaymentGroupCard = ({
   const gCounts = groupItems.reduce(
     (acc, it) => {
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
-      // "seguido" conta como aprovado para fins de resumo no header da empresa.
       const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : eff;
       acc[bucket] = (acc[bucket] ?? 0) + 1;
       return acc;
     },
     { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
   );
-  const returnerForResend =
-    gStatus === "devolvido_analista"
-      ? resolveResendTarget(obs, g.company_name)?.role ?? null
-      : null;
-  // Conferência bruto x NF (por empresa, tolerância zero):
-  // - Considera apenas notas RECEBIDAS deste grupo (received_amount não nulo).
-  // - Não trava se ainda não há NF (decisão de produto).
+
+  // Conferência bruto x NF (por empresa) — apenas notas RECEBIDAS.
   const groupInvoices = invoices.filter((inv) => {
     if (inv.received_amount == null) return false;
     if (inv.company_id && g.company_id) return inv.company_id === g.company_id;
@@ -214,39 +97,28 @@ export const PaymentGroupCard = ({
     ? Number((nfReceivedTotal - Number(g.total_amount)).toFixed(2))
     : 0;
   const nfDivergent = groupInvoices.length > 0 && Math.abs(nfDiff) > 0;
-  // Quando há busca ativa, força a expansão para não esconder os itens que casaram.
   const groupExpandedEffective = searchActive ? true : isExpanded;
 
   // === Priorização por risco ===
-  // Agrupa itens por atendimento, calcula score e ordena (desc).
-  // Itens sem nº de atendimento ficam no fim, mantendo ordem original.
   const attendanceMap = new Map<string, PaymentItemRowData[]>();
-  const noAttendance: PaymentItemRowData[] = [];
   for (const it of groupItems) {
     const att = (it.attendance_number ?? "").trim();
-    if (!att) noAttendance.push(it);
-    else {
-      const arr = attendanceMap.get(att) ?? [];
-      arr.push(it);
-      attendanceMap.set(att, arr);
-    }
+    if (!att) continue;
+    const arr = attendanceMap.get(att) ?? [];
+    arr.push(it);
+    attendanceMap.set(att, arr);
   }
   const attendanceScores = new Map<string, ReturnType<typeof scoreAttendance>>();
   for (const [att, arr] of attendanceMap) {
     attendanceScores.set(att, scoreAttendance(arr));
   }
-  const sortedAttendances = Array.from(attendanceMap.entries()).sort(
-    (a, b) => (attendanceScores.get(b[0])!.score) - (attendanceScores.get(a[0])!.score),
-  );
-  const orderedItems: PaymentItemRowData[] = [
-    ...sortedAttendances.flatMap(([, arr]) => arr),
-    ...noAttendance,
-  ];
   const groupMaxScore = Math.max(
     0,
     ...Array.from(attendanceScores.values()).map((s) => s.score),
   );
   const groupRisk = classifyRisk(groupMaxScore);
+
+  const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
   return (
     <Card className="shadow-card">
@@ -304,60 +176,8 @@ export const PaymentGroupCard = ({
             <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
           )}
           <StatusBadge status={gStatus} />
-          <div onClick={(e) => e.stopPropagation()}>
-            <ToggleGroup
-              type="single"
-              size="sm"
-              value={density}
-              onValueChange={(v) => v && setDensity(v as RowDensity)}
-              className="h-7 rounded-md border border-border bg-background"
-              aria-label="Densidade da tabela"
-            >
-              <ToggleGroupItem value="compact" className="h-6 px-2 text-[10px]" title="Compacto (padrão analista)">
-                Compacto
-              </ToggleGroupItem>
-              <ToggleGroupItem value="comfortable" className="h-6 px-2 text-[10px]" title="Confortável">
-                Confortável
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setAnalysisOpen(true); }}
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                aria-label="Abrir análise em modo planilha"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Análise em modo planilha</TooltipContent>
-          </Tooltip>
-          <DedicatedAnalysisLink groupId={g.id} />
         </div>
       </button>
-
-      <CompanyAnalysisDialog
-        open={analysisOpen}
-        onOpenChange={setAnalysisOpen}
-        group={g}
-        items={groupItems}
-        rulesIndex={rulesIndex}
-        rulesByName={rulesByName}
-        observations={obs}
-        isAnalista={isAnalista}
-        isValidador={isValidador}
-        isDiretor={isDiretor}
-        busy={busy}
-        reanalyzingGroupId={reanalyzingGroupId}
-        groupCommentDraft={groupCommentDraft}
-        onGroupCommentDraftChange={onGroupCommentDraftChange}
-        onReanalyze={onReanalyze}
-        onResend={onResend}
-        onSendForValidation={onSendForValidation}
-        onTransition={onTransition}
-      />
 
       {groupExpandedEffective && nfDivergent && (
         <div className="border-t border-border/60 bg-destructive/5">
@@ -371,7 +191,7 @@ export const PaymentGroupCard = ({
                 Bruto do pedido: <span className="text-foreground tabular-nums">{formatCurrency(Number(g.total_amount))}</span> · NF recebida: <span className="text-foreground tabular-nums">{formatCurrency(nfReceivedTotal)}</span> · Diferença: <span className="text-destructive tabular-nums font-medium">{formatCurrency(nfDiff)}</span>
               </p>
               <p className="text-muted-foreground mt-1">
-                O analista precisa resolver com a empresa antes de reencaminhar — corrija o pedido ou solicite reemissão da nota.
+                Resolva na página dedicada: corrija o pedido ou solicite reemissão da nota.
               </p>
             </div>
           </div>
@@ -423,8 +243,7 @@ export const PaymentGroupCard = ({
           </button>
           {isAiOpen && (
             <ul className="divide-y divide-border/40 border-t border-border/40 bg-background/60">
-              {groupAlerts.map(({ item, alerts }) => {
-                // Quando o analista já concluiu, baixamos o tom: vira info, não destrutivo.
+              {groupAlerts.slice(0, 6).map(({ item, alerts }) => {
                 const tone: keyof typeof TONE_CLASSES = analystDone
                   ? "muted"
                   : item.ai_status === "reprovado"
@@ -472,281 +291,75 @@ export const PaymentGroupCard = ({
                   </li>
                 );
               })}
+              {groupAlerts.length > 6 && (
+                <li className="px-4 py-2 text-[11px] text-muted-foreground italic">
+                  +{groupAlerts.length - 6} item(ns) com observação — veja todos na análise dedicada.
+                </li>
+              )}
             </ul>
           )}
         </div>
       )}
 
+      {groupExpandedEffective && (() => {
+        // Resumo por atendimento: base, complemento, glosa
+        const byAtt = new Map<string, { att: string; base: number; compl: number; glosa: number }>();
+        for (const it of groupItems) {
+          const att = (it.attendance_number ?? "").trim();
+          if (!att) continue;
+          const cur = byAtt.get(att) ?? { att, base: 0, compl: 0, glosa: 0 };
+          const tl = (it as unknown as { tipo_linha?: string | null }).tipo_linha ?? null;
+          const v = Number(it.gross_amount ?? 0);
+          if (tl === "complemento_bonus") cur.compl += v;
+          else if (tl === "glosa_desconto") cur.glosa += v;
+          else cur.base += v;
+          byAtt.set(att, cur);
+        }
+        const withCompl = Array.from(byAtt.values())
+          .filter((g) => g.compl !== 0 || g.glosa !== 0)
+          .sort((a, b) => (attendanceScores.get(b.att)?.score ?? 0) - (attendanceScores.get(a.att)?.score ?? 0));
+        if (withCompl.length === 0) return null;
+        return (
+          <div className="border-t border-border/60 bg-muted/30 px-4 py-2 text-[11px]">
+            <div className="font-semibold mb-1 text-muted-foreground uppercase tracking-wider text-[10px]">
+              Atendimentos com complemento/glosa
+            </div>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
+              {withCompl.map((row) => {
+                const total = row.base + row.compl + row.glosa;
+                const sc = attendanceScores.get(row.att);
+                return (
+                  <li key={row.att} className="font-mono flex items-center gap-1.5 flex-wrap">
+                    {sc && sc.score > 0 && (
+                      <RiskBadge level={sc.level} score={sc.score} showLabel={false} />
+                    )}
+                    <span>
+                      Atend. #{row.att}: base {formatCurrency(row.base)}
+                      {row.compl !== 0 && <> · compl {formatCurrency(row.compl)}</>}
+                      {row.glosa !== 0 && <> · glosa {formatCurrency(row.glosa)}</>}
+                      {" "}= <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })()}
+
       {groupExpandedEffective && (
-        <CardContent className="p-0 print:overflow-visible">
-          {(() => {
-            // Resumo por atendimento: base, complemento, total
-            const byAtt = new Map<string, { att: string; base: number; compl: number; glosa: number }>();
-            for (const it of groupItems) {
-              const att = (it.attendance_number ?? "").trim();
-              if (!att) continue;
-              const key = att;
-              const cur = byAtt.get(key) ?? { att, base: 0, compl: 0, glosa: 0 };
-              const tl = (it as any).tipo_linha as string | null;
-              const v = Number(it.gross_amount ?? 0);
-              if (tl === "complemento_bonus") cur.compl += v;
-              else if (tl === "glosa_desconto") cur.glosa += v;
-              else cur.base += v;
-              byAtt.set(key, cur);
-            }
-            const withCompl = Array.from(byAtt.values())
-              .filter((g) => g.compl !== 0 || g.glosa !== 0)
-              .sort((a, b) => (attendanceScores.get(b.att)?.score ?? 0) - (attendanceScores.get(a.att)?.score ?? 0));
-            if (withCompl.length === 0) return null;
-            return (
-              <div className="border-b border-border/60 bg-muted/30 px-4 py-2 text-[11px]">
-                <div className="font-semibold mb-1 text-muted-foreground uppercase tracking-wider text-[10px]">
-                  Atendimentos com complemento/glosa
-                </div>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
-                  {withCompl.map((g) => {
-                    const total = g.base + g.compl + g.glosa;
-                    const sc = attendanceScores.get(g.att);
-                    return (
-                      <li key={g.att} className="font-mono flex items-center gap-1.5 flex-wrap">
-                        {sc && sc.score > 0 && (
-                          <RiskBadge level={sc.level} score={sc.score} showLabel={false} />
-                        )}
-                        <span>
-                          Atend. #{g.att}: base {formatCurrency(g.base)}
-                          {g.compl !== 0 && <> · compl {formatCurrency(g.compl)}</>}
-                          {g.glosa !== 0 && <> · glosa {formatCurrency(g.glosa)}</>}
-                          {" "}= <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })()}
-          <div
-            ref={scrollerRef}
-            tabIndex={0}
-            role="grid"
-            aria-label="Itens do grupo"
-            onKeyDown={(e) => {
-              const el = scrollerRef.current;
-              if (!el) return;
-              const STEP = 120;
-              const PAGE = el.clientWidth * 0.85;
-              const isHoriz = e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End" || e.key === "PageUp" || e.key === "PageDown";
-              if (!isHoriz) return;
-              if (e.shiftKey || e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End" || e.key === "PageUp" || e.key === "PageDown") {
-                let dx = 0;
-                if (e.key === "ArrowLeft") dx = -STEP;
-                else if (e.key === "ArrowRight") dx = STEP;
-                else if (e.key === "PageUp") dx = -PAGE;
-                else if (e.key === "PageDown") dx = PAGE;
-                else if (e.key === "Home") { el.scrollTo({ left: 0, behavior: "smooth" }); e.preventDefault(); return; }
-                else if (e.key === "End") { el.scrollTo({ left: el.scrollWidth, behavior: "smooth" }); e.preventDefault(); return; }
-                if (dx !== 0) {
-                  el.scrollBy({ left: dx, behavior: "smooth" });
-                  e.preventDefault();
-                }
-              }
-            }}
-            className="w-full max-h-[70vh] overflow-auto print:overflow-visible print:max-h-none rounded-md border border-border/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-          <table className={`w-full min-w-[1380px] ${isComfy ? "text-[13px]" : "text-[12px]"} border-collapse print:text-[10px] print:min-w-0`} data-density={density}>
-            <colgroup>
-              <col style={{ width: 28 }} />
-              <col style={{ minWidth: 96, width: 96 }} />
-              <col style={{ minWidth: 220, width: 240 }} />
-              <col className="hidden md:table-column print:table-column" style={{ minWidth: 160, width: 160 }} />
-              <col style={{ minWidth: 220, width: 220 }} />
-              <col className="hidden lg:table-column print:table-column" style={{ minWidth: 110, width: 110 }} />
-              <col style={{ minWidth: 280 }} />
-              <col style={{ minWidth: 56, width: 56 }} />
-              <col style={{ minWidth: 130, width: 130 }} />
-              <col className="hidden sm:table-column print:table-column" style={{ minWidth: 96, width: 96 }} />
-              <col className="print:hidden" style={{ width: 36 }} />
-            </colgroup>
-            <thead className={`text-left ${isComfy ? "text-[12px]" : "text-[11px]"} font-semibold uppercase tracking-wider text-muted-foreground print:static`}>
-              <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:bg-muted [&>th]:z-10 [&>th]:shadow-[0_1px_0_0_hsl(var(--border))]">
-                <th className="px-2.5 py-2 print:hidden !left-0 md:!sticky !z-30 !bg-muted"></th>
-                <th className="px-2.5 py-2 !left-[28px] md:!sticky !z-30 !bg-muted">Atend.</th>
-                <th className="px-2.5 py-2 !left-[124px] md:!sticky !z-30 !bg-muted shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]">Paciente</th>
-                <th className="px-2.5 py-2 hidden md:table-cell print:table-cell">Convênio</th>
-                <th className="px-2.5 py-2">Médico / Função</th>
-                <th className="px-2.5 py-2 hidden lg:table-cell print:table-cell">TUSS</th>
-                <th className="px-2.5 py-2">Descrição</th>
-                <th className="px-2.5 py-2 text-right">Qtd</th>
-                <th className="px-2.5 py-2 text-right">Valor</th>
-                <th className="px-2.5 py-2 hidden sm:table-cell print:table-cell">IA</th>
-                <th className="px-2.5 py-2 print:hidden"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {orderedItems.map((it, idx) => (
-                <PaymentItemRow
-                  key={it.id}
-                  it={it}
-                  paymentId={g.payment_id}
-                  obs={obs}
-                  profiles={profiles}
-                  rulesIndex={rulesIndex}
-                  rulesByName={rulesByName}
-                  isExpanded={expandedItems.has(it.id)}
-                  onToggleExpanded={onToggleItemExpanded}
-                  analystDone={analystDone}
-                  canComment={canComment}
-                  commentDraft={itemCommentDraft[it.id] ?? ""}
-                  onCommentDraftChange={(v) => onItemCommentDraftChange(it.id, v)}
-                  onAddComment={() => onAddItemComment(it.id)}
-                  busy={busy}
-                  density={density}
-                  onExceptionChanged={onExceptionChanged}
-                  hasPrev={idx > 0}
-                  hasNext={idx < orderedItems.length - 1}
-                  isSelected={focusedRowId === it.id}
-                  onSelect={(id) => setFocusedRowId(id)}
-                  onNavigate={(dir) => {
-                    const target = orderedItems[dir === "prev" ? idx - 1 : idx + 1];
-                    if (!target) return;
-                    setFocusedRowId(target.id);
-                    // Fecha o atual e abre o vizinho — toggle é idempotente para o pai.
-                    onToggleItemExpanded(it.id);
-                    onToggleItemExpanded(target.id);
-                  }}
-                />
-              ))}
-            </tbody>
-            {orderedItems.length > 0 && (() => {
-              const totalValor = orderedItems.reduce((sum, it) => sum + Number(it.gross_amount ?? 0), 0);
-              return (
-                <tfoot className="bg-muted/60 font-medium">
-                  <tr className="border-t border-border">
-                    <td className="px-2.5 py-2 print:hidden" />
-                    <td className="px-2.5 py-2 text-right uppercase tracking-wide text-[10px] text-muted-foreground" colSpan={6}>
-                      Total ({orderedItems.length} {orderedItems.length === 1 ? "item" : "itens"})
-                    </td>
-                    <td className="px-2.5 py-2" />
-                    <td className="px-2.5 py-2 text-right tabular-nums font-semibold">{formatCurrency(totalValor)}</td>
-                    <td className="px-2.5 py-2 hidden sm:table-cell print:table-cell" />
-                    <td className="px-2.5 py-2 print:hidden" />
-                  </tr>
-                </tfoot>
-              );
-            })()}
-          </table>
+        <CardContent className="border-t border-border/60 p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-xs text-muted-foreground">
+              Toda análise, comentários e ações de fluxo desta empresa acontecem na página dedicada — abrir mantém o mesmo conjunto de dados, apenas com o ambiente de trabalho completo.
+            </div>
+            <Button asChild size="sm">
+              <Link to={dedicatedHref}>
+                Abrir análise da empresa <ArrowRight className="h-4 w-4 ml-1.5" />
+              </Link>
+            </Button>
           </div>
         </CardContent>
-      )}
-
-      {groupExpandedEffective && (isGroupAnalista || isGroupValidador || isGroupDiretor) && (
-        <div className="border-t border-border bg-muted/20 p-4 space-y-2">
-          <Textarea
-            rows={2}
-            value={groupCommentDraft}
-            onChange={(e) => onGroupCommentDraftChange(e.target.value)}
-            placeholder="Observação para esta empresa (obrigatória para devolver/rejeitar)..."
-          />
-          <div className="flex flex-wrap gap-2 justify-end">
-            {isGroupAnalista && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => onReanalyze(g)}
-                  disabled={busy || reanalyzingGroupId === g.id}
-                >
-                  <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
-                  {reanalyzingGroupId === g.id ? "Reaplicando..." : "Reaplicar regras"}
-                </Button>
-                {returnerForResend ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button onClick={() => onResend(g.id)} disabled={busy || nfDivergent}>
-                          <Send className="h-4 w-4 mr-2" />
-                          Reencaminhar ao {returnerForResend}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {nfDivergent && (
-                      <TooltipContent>NF divergente: ajuste o pedido ou peça reemissão antes de reencaminhar.</TooltipContent>
-                    )}
-                  </Tooltip>
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button onClick={() => onSendForValidation(g.id)} disabled={busy || nfDivergent}>
-                          <Send className="h-4 w-4 mr-2" /> Enviar esta empresa para validação
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {nfDivergent && (
-                      <TooltipContent>NF divergente: ajuste o pedido ou peça reemissão antes de enviar.</TooltipContent>
-                    )}
-                  </Tooltip>
-                )}
-              </>
-            )}
-            {isGroupValidador && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => onReanalyze(g)}
-                  disabled={busy || reanalyzingGroupId === g.id}
-                >
-                  <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
-                  {reanalyzingGroupId === g.id ? "Reanalisando..." : "Reanalisar com IA"}
-                </Button>
-                <Button
-                  onClick={() => onTransition(g.id, "aguardando_aprovacao", "validador", "Validado", false)}
-                  disabled={busy}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Validar empresa
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onTransition(g.id, "devolvido_analista", "validador", "Devolvido ao analista")}
-                  disabled={busy}
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao analista
-                </Button>
-              </>
-            )}
-            {isGroupDiretor && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => onReanalyze(g)}
-                  disabled={busy || reanalyzingGroupId === g.id}
-                >
-                  <RefreshCcw className={`h-4 w-4 mr-2 ${reanalyzingGroupId === g.id ? "animate-spin" : ""}`} />
-                  {reanalyzingGroupId === g.id ? "Reanalisando..." : "Reanalisar com IA"}
-                </Button>
-                <Button
-                  onClick={() => onTransition(g.id, "aprovado", "diretor", "Aprovado", false)}
-                  disabled={busy}
-                >
-                  <ShieldCheck className="h-4 w-4 mr-2" /> Aprovar empresa
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onTransition(g.id, "devolvido_analista", "diretor", "Devolvido ao analista")}
-                  disabled={busy}
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" /> Devolver ao analista
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => onTransition(g.id, "rejeitado", "diretor", "Rejeitado")}
-                  disabled={busy}
-                >
-                  <XCircle className="h-4 w-4 mr-2" /> Rejeitar empresa
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
       )}
     </Card>
   );

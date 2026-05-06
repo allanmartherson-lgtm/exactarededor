@@ -44,10 +44,9 @@ export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-f
 
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
- * Usado tanto pelo CompanyAnalysisDialog (modal habitual) quanto pela
- * página dedicada CompanyAnalysis. Garante hierarquia tipográfica,
- * mapeamento header-based de convênio/paciente, expandable row e
- * controles de densidade idênticos nos dois lugares.
+ * Usado pela página dedicada `/pagamentos/:id/empresa/:groupId` —
+ * é a única fonte de trabalho da empresa (tabela densa com filtros,
+ * expandable row, comentários, exceções autorizadas).
  */
 
 type OptionalColKey =
