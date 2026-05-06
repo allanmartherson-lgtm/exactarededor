@@ -324,6 +324,17 @@ export function CompanyHistoryPanel({
                 })}
               </SelectContent>
             </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={exportPdf}
+              disabled={filtered.length === 0}
+              title="Exportar histórico filtrado em PDF"
+            >
+              <FileDown className="h-3.5 w-3.5 mr-1.5" />
+              Exportar PDF
+            </Button>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
