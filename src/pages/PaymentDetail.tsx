@@ -114,6 +114,29 @@ const PaymentDetail = () => {
     });
   }, [location.hash, groups, setExpandedGroups]);
 
+  // Auto-claim: ao executar a 1ª ação como analista, registra automaticamente
+  // que ele assumiu (ou transferiu para si) o lote. No-op se ele já é o
+  // último responsável registrado.
+  const autoClaim = async () => {
+    if (!id || !user) return;
+    if (!(hasRole("analista") || hasRole("admin"))) return;
+    await claimPayment(id, user.id, "auto");
+  };
+
+  // Botão explícito "Assumir / Transferir para mim" no card do topo.
+  const handleManualAssume = async () => {
+    if (!id || !user) return;
+    const res = await claimPayment(id, user.id, "manual");
+    if (!res.ok) {
+      toast({ title: "Falha ao assumir lote", description: res.error, variant: "destructive" });
+      return;
+    }
+    if (res.created) {
+      toast({ title: "Lote atribuído a você", description: "Registrado no histórico de atribuições." });
+      await load();
+    }
+  };
+
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
     setBusy(true);
