@@ -922,8 +922,8 @@ function ItemDetailsRow({
               </div>
             </div>
 
-            {/* Coluna 2: regra + IA */}
-            <div className="space-y-2 min-w-0">
+            {/* Coluna 2 (mobile: 3º — regra + IA) */}
+            <div className="space-y-2 min-w-0 order-3 lg:order-2">
               {matchedRules.length > 0 ? (
                 <div className={CARD}>
                   <Label>Regra aplicada</Label>
