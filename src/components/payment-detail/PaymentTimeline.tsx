@@ -146,7 +146,7 @@ export const PaymentTimeline = ({
                   o.author_type,
                 )}`}
               >
-                {o.author_type}
+                {authorRoleLabel(o.author_type)}
               </span>
               <span
                 className="inline-flex items-center gap-1 font-medium text-foreground"
@@ -158,6 +158,9 @@ export const PaymentTimeline = ({
                   : o.author_type === "sistema" || o.author_type === "ia"
                     ? "Sistema"
                     : "Usuário desconhecido"}
+                <span className="text-muted-foreground font-normal">
+                  ({authorRoleLabel(o.author_type)})
+                </span>
               </span>
               {o.item_id && (
                 <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>
