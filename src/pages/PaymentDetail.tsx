@@ -196,9 +196,18 @@ const PaymentDetail = () => {
     messagePrefix: string,
     requireMsg = true,
   ) => {
-    if (!id) return;
+    if (!id || !payment) return;
     const g = groups.find((x) => x.id === groupId);
     if (!g) return;
+    // Segregação de funções: criador não valida nem aprova.
+    if ((authorType === "validador" || authorType === "diretor") && !canActAsValidatorOrDirector(payment.created_by, user?.id)) {
+      toast({
+        title: "Ação bloqueada",
+        description: "Quem cria o lote não pode validar nem aprovar. Outro usuário precisa concluir esta etapa.",
+        variant: "destructive",
+      });
+      return;
+    }
     // Guarda autoritativa: bloqueia transições inválidas no cliente.
     if (!canTransition(authorType, g.status as PaymentStatus, newStatus)) {
       toast({
