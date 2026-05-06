@@ -700,6 +700,7 @@ function RowMain({
   rulesIndex,
   rulesByName,
   observations,
+  profiles,
   obsCount,
   isCompact,
   totalCols,
@@ -719,6 +720,7 @@ function RowMain({
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
+  profiles: Record<string, string>;
   obsCount: number;
   isCompact: boolean;
   totalCols: number;
