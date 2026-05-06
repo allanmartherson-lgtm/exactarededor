@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, User as UserIcon, UserCheck } from "lucide-react";
+import { History, User as UserIcon, UserCheck, FileDown } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
