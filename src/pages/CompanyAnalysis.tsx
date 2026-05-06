@@ -421,6 +421,7 @@ export default function CompanyAnalysis() {
             items={items}
             observations={obs}
             aiVersions={aiVersions}
+            assignments={assignments}
             profiles={profiles}
           />
         </TabsContent>
