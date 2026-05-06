@@ -106,6 +106,7 @@ export function ItemsDataGrid({
   rulesIndex,
   rulesByName,
   observations = [],
+  profiles = {},
   storageKey = "itemsDataGrid.default",
   showToolbar = true,
   showKeyboardHint = true,
