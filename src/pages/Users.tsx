@@ -360,6 +360,9 @@ const Users = () => {
                       <Button size="sm" onClick={() => openCreateFromRequest(r)}>
                         <Check className="h-3.5 w-3.5 mr-1.5" /> Aprovar e criar
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingReq({ ...r })}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => setRejecting({ id: r.id, reason: "" })}>
                         <X className="h-3.5 w-3.5 mr-1.5" /> Rejeitar
                       </Button>
