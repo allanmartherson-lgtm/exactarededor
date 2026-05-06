@@ -5,7 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import { toast } from "@/hooks/use-toast";
-import { Stethoscope, Check, X, Wand2, Plus } from "lucide-react";
+import { Stethoscope, Check, X, Wand2, Plus, CheckCheck, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Row = {
   procedure_code: string;
