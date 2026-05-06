@@ -10,7 +10,7 @@ import {
   Users,
   History,
   ScrollText,
-  Tags,
+  
   Timer,
   BadgeDollarSign,
   Stethoscope,
