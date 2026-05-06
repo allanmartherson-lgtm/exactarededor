@@ -526,16 +526,21 @@ const Rules = () => {
       return;
     }
     const isEspecifica = scope === "especifica";
-    // Quando Natureza = informativa/bloqueio, força calculation_type = informativo
-    // e zera todos os parâmetros financeiros.
-    const effectiveCalc: RuleCalculationType = fNature === "informativo" ? "informativo" : fCalculationType;
+    // === Espelho legado: o motor antigo ainda lê os campos planos da regra.
+    // Por isso, derivamos os campos legados a partir do PRIMEIRO item de cálculo
+    // (fCalculations[0]) e mantemos o restante da lista em rule_calculations.
+    // Etapa B do plano remove esse espelhamento.
+    const head = fCalculations[0] ?? makeEmptyCalc();
+    const effectiveCalc: RuleCalculationType =
+      fNature === "informativo" ? "informativo" : head.calculation_type;
     const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
     const isPacote =
       effectiveCalc === "pacote" ||
       effectiveCalc === "pacote_fechado" ||
       effectiveCalc === "pacote_com_extras" ||
       effectiveCalc === "pacote_por_atendimento";
-    const isPacoteComExtras = isPacote && fPackageSubtype === "com_extras";
+    const isPacoteComExtras = isPacote && head.package_subtype === "com_extras";
+    const isTabela = effectiveCalc === "tabela_diferenciada";
     const payload: any = {
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope, sector: fSector,
@@ -544,37 +549,36 @@ const Rules = () => {
       target_name: isEspecifica ? (fTargetName || null) : null,
       rule_type: effectiveRuleType,
       calculation_type: effectiveCalc,
-      convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(fConvenioPct) : null,
-      fixed_amount: effectiveCalc === "valor_fixo" ? num(fFixedAmount) : null,
+      convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(head.convenio_percentage) : null,
+      fixed_amount: effectiveCalc === "valor_fixo" ? num(head.fixed_amount) : null,
       extras_codes: isPacoteComExtras
-        ? fExtrasCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
+        ? head.extras_codes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
-      package_amount: isPacote ? num(fPackageAmount) : null,
-      package_main_code: isPacote ? (fPackageMainCode.trim() || null) : null,
+      package_amount: isPacote ? num(head.package_amount) : null,
+      package_main_code: isPacote ? (head.package_main_code.trim() || null) : null,
       package_included_codes: isPacote
-        ? (fPackageIncludedCodes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) || null)
+        ? head.package_included_codes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
         : null,
-      // Em pacote fechado, as flags ficam desabilitadas (false).
-      package_visits_count: isPacoteComExtras ? fPackageVisitsCount : false,
-      package_opinions_count: isPacoteComExtras ? fPackageOpinionsCount : false,
-      package_auxiliaries_included: isPacoteComExtras ? fPackageAuxIncluded : false,
-      package_subtype: isPacote ? fPackageSubtype : null,
+      package_visits_count: isPacoteComExtras ? head.package_visits_count : false,
+      package_opinions_count: isPacoteComExtras ? head.package_opinions_count : false,
+      package_auxiliaries_included: isPacoteComExtras ? head.package_auxiliaries_included : false,
+      package_subtype: isPacote ? head.package_subtype : null,
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
-      bonus_amount: effectiveCalc === "bonus" ? num(fBonusAmount) : null,
-      bonus_pct: effectiveCalc === "bonus" ? num(fBonusPct) : null,
-      target_amount: effectiveCalc === "complemento" ? num(fTargetAmount) : null,
-      multiplier: effectiveCalc === "tabela_diferenciada" ? num(fMultiplier) : null,
-      deflator_pct: effectiveCalc === "tabela_diferenciada" ? num(fDeflatorPct) : null,
-      reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
+      bonus_amount: effectiveCalc === "bonus" ? num(head.bonus_amount) : null,
+      bonus_pct: effectiveCalc === "bonus" ? num(head.bonus_pct) : null,
+      target_amount: effectiveCalc === "complemento" ? num(head.target_amount) : null,
+      multiplier: isTabela ? num(head.multiplier) : null,
+      deflator_pct: isTabela ? num(head.deflator_pct) : null,
+      reference_table_id: isTabela ? (head.reference_table_id || null) : null,
       exception_table_ids: fExceptionTableIds,
-      include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
-      auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
-      aux_first_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxFirstPct) ?? 30) : null,
-      aux_second_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxSecondPct) ?? 20) : null,
-      instrumentador_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fInstrumentadorPct) ?? 10) : null,
-      repasse_pct: effectiveCalc === "tabela_diferenciada" ? num(fRepassePct) : null,
-      apply_access_route: effectiveCalc === "tabela_diferenciada" ? fApplyAccessRoute : false,
+      include_auxiliaries: isTabela ? head.include_auxiliaries : false,
+      auxiliary_pct: isTabela ? num(head.auxiliary_pct) : null,
+      aux_first_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_first_pct) ?? 30) : null,
+      aux_second_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_second_pct) ?? 20) : null,
+      instrumentador_pct: (isTabela && head.include_auxiliaries) ? (num(head.instrumentador_pct) ?? 10) : null,
+      repasse_pct: isTabela ? num(head.repasse_pct) : null,
+      apply_access_route: isTabela ? head.apply_access_route : false,
       procedure_codes: parsedCodes.length ? parsedCodes : null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
@@ -586,17 +590,15 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
-      // Novo modelo: vínculos por empresa em linhas (com ou sem médicos específicos).
-      // Mantém também os campos legados (derivados) para retrocompatibilidade.
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
       group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
       group_doctors: scope === "grupo" ? fGroupDoctors : [],
-      time_mode: fHasConditions ? fTimeMode : "qualquer",
-      weekdays: fHasConditions && fTimeMode === "personalizado" ? fWeekdays : [],
-      includes_holidays: fHasConditions ? fIncludesHolidays : false,
-      time_start: fHasConditions ? (fTimeStart || null) : null,
-      time_end: fHasConditions ? (fTimeEnd || null) : null,
-      elective_mode: fHasConditions ? fElectiveMode : "qualquer",
+      time_mode: head.has_conditions ? head.time_mode : "qualquer",
+      weekdays: head.has_conditions && head.time_mode === "personalizado" ? head.weekdays : [],
+      includes_holidays: head.has_conditions ? head.includes_holidays : false,
+      time_start: head.has_conditions ? (head.time_start || null) : null,
+      time_end: head.has_conditions ? (head.time_end || null) : null,
+      elective_mode: head.has_conditions ? head.elective_mode : "qualquer",
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
