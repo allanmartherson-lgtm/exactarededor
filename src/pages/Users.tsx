@@ -38,6 +38,8 @@ const Users = () => {
   const [accessRequestId, setAccessRequestId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
+  const [editingReq, setEditingReq] = useState<any | null>(null);
+  const [savingReq, setSavingReq] = useState(false);
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
