@@ -498,6 +498,33 @@ const Users = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!editingPhone} onOpenChange={(o) => !o && setEditingPhone(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Telefone (WhatsApp) — {editingPhone?.full_name || editingPhone?.email}</DialogTitle>
+            <DialogDescription>
+              Usado para enviar a notificação automática quando um pagamento entra em "aguardando aprovação".
+              Formato: DDD + 9 dígitos (ex.: 11987654321). Deixe em branco para remover.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="edit-phone">Telefone</Label>
+            <Input
+              id="edit-phone"
+              value={formatPhone(editingPhone?.phone ?? "")}
+              onChange={(e) => setEditingPhone(editingPhone ? { ...editingPhone, phone: e.target.value.replace(/\D/g, "").slice(0, 11) } : null)}
+              placeholder="(11) 98765-4321"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPhone(null)} disabled={savingPhone}>Cancelar</Button>
+            <Button onClick={savePhone} disabled={savingPhone}>
+              {savingPhone && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!confirmReset} onOpenChange={(o) => !o && setConfirmReset(null)}>
         <DialogContent>
           <DialogHeader>
