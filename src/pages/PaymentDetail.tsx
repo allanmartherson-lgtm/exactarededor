@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +85,31 @@ const PaymentDetail = () => {
   useEffect(() => {
     document.title = "Pagamento | MedPay";
   }, []);
+
+  // Retorno rápido da página dedicada: se a URL trouxer #group-<id>, garante
+  // que o card desse grupo esteja expandido e faz scroll até ele assim que
+  // os grupos forem carregados. Mantém continuidade de contexto entre lote
+  // e análise dedicada (ex.: usuário clica "Voltar ao lote" e cai exatamente
+  // onde estava).
+  const location = useLocation();
+  useEffect(() => {
+    const hash = location.hash;
+    if (!hash || !hash.startsWith("#group-")) return;
+    if (groups.length === 0) return;
+    const targetId = hash.slice("#group-".length);
+    if (!groups.some((g) => g.id === targetId)) return;
+    setExpandedGroups((prev) => {
+      if (prev.has(targetId)) return prev;
+      const n = new Set(prev);
+      n.add(targetId);
+      return n;
+    });
+    // Scroll após o paint para o card já estar montado/expandido.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`group-${targetId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [location.hash, groups, setExpandedGroups]);
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
@@ -1027,30 +1052,31 @@ const PaymentDetail = () => {
               if (sq && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByErrorOnly.length === 0) return null;
               return (
-                <PaymentGroupCard
-                  key={g.id}
-                  g={g}
-                  groupItems={groupItemsAll}
-                  searchActive={!!sq}
-                  obs={obs}
-                  invoices={invoices}
-                  isExpanded={expandedGroups.has(g.id)}
-                  onToggleExpanded={() =>
-                    setExpandedGroups((prev) => {
-                      const n = new Set(prev);
-                      n.has(g.id) ? n.delete(g.id) : n.add(g.id);
-                      return n;
-                    })
-                  }
-                  isAiOpen={groupAiOpen.has(g.id)}
-                  onToggleAiOpen={() =>
-                    setGroupAiOpen((prev) => {
-                      const n = new Set(prev);
-                      n.has(g.id) ? n.delete(g.id) : n.add(g.id);
-                      return n;
-                    })
-                  }
-                />
+                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20">
+                  <PaymentGroupCard
+                    g={g}
+                    groupItems={groupItemsAll}
+                    searchActive={!!sq}
+                    obs={obs}
+                    invoices={invoices}
+                    isExpanded={expandedGroups.has(g.id)}
+                    onToggleExpanded={() =>
+                      setExpandedGroups((prev) => {
+                        const n = new Set(prev);
+                        n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                        return n;
+                      })
+                    }
+                    isAiOpen={groupAiOpen.has(g.id)}
+                    onToggleAiOpen={() =>
+                      setGroupAiOpen((prev) => {
+                        const n = new Set(prev);
+                        n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                        return n;
+                      })
+                    }
+                  />
+                </div>
               );
               });
             })()}
