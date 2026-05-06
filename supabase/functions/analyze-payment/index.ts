@@ -656,6 +656,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         ai_status: r.status,
         ai_findings: findings,
         attendance_group_key: r.attendance_group_key ?? null,
+        specialty: resolvedSpec?.value ?? null,
       }).eq("id", r.item_id);
 
       if (r.status === "alerta") alerts++;
