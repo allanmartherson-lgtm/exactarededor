@@ -1649,6 +1649,53 @@ const Rules = () => {
                     </AccordionContent>
                   </AccordionItem>
 
+                  {/* Tabelas de exceção vinculadas */}
+                  <AccordionItem value="excecoes" className="rounded-md border border-border bg-card px-3">
+                    <AccordionTrigger className="text-sm font-semibold">
+                      Tabelas de exceção vinculadas
+                      {fExceptionTableIds.length > 0 && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">({fExceptionTableIds.length})</span>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3 pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Vincule tabelas do tipo <strong>Códigos sem acordo</strong> ou <strong>Exclusão</strong> que invalidam esta regra.
+                        Quando o item bater nesta regra e o código estiver em uma tabela vinculada, o motor pula o cálculo e aceita o valor pago pelo convênio.
+                        Tabelas só têm efeito quando vinculadas — não há varredura global.
+                      </p>
+                      {(() => {
+                        const eligible = refTables.filter((t) => t.purpose === "sem_acordo" || t.purpose === "exclusao");
+                        if (eligible.length === 0) {
+                          return <p className="text-xs text-muted-foreground italic">Nenhuma tabela com propósito “Códigos sem acordo” ou “Exclusão” cadastrada.</p>;
+                        }
+                        return (
+                          <div className="space-y-1.5">
+                            {eligible.map((t) => {
+                              const checked = fExceptionTableIds.includes(t.id);
+                              const purposeLabel = t.purpose === "sem_acordo" ? "Sem acordo" : "Exclusão";
+                              return (
+                                <label key={t.id} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(v) => {
+                                      setFExceptionTableIds((prev) =>
+                                        v ? Array.from(new Set([...prev, t.id])) : prev.filter((id) => id !== t.id)
+                                      );
+                                    }}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-tight">{t.name}</p>
+                                    <p className="text-xs text-muted-foreground">{purposeLabel}</p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </AccordionContent>
+                  </AccordionItem>
+
                   {/* Códigos específicos */}
                   <AccordionItem value="codigos" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className="text-sm font-semibold">Códigos específicos</AccordionTrigger>
