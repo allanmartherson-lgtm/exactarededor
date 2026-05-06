@@ -223,14 +223,39 @@ const Users = () => {
                   </DialogFooter>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                  {accessRequestId && (
+                    <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+                      Criando a partir de uma solicitação de acesso aprovada.
+                    </div>
+                  )}
                   <div className="space-y-2">
-                    <Label>Nome completo</Label>
+                    <Label>Nome completo *</Label>
                     <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Maria Silva" />
                   </div>
                   <div className="space-y-2">
                     <Label>E-mail *</Label>
                     <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="maria@empresa.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone celular *</Label>
+                    <Input inputMode="numeric" placeholder="(11) 99999-9999"
+                      value={formatPhone(form.phone)}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>Cargo *</Label>
+                      <Input value={form.role_title} onChange={(e) => setForm({ ...form, role_title: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Setor *</Label>
+                      <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de nascimento *</Label>
+                    <Input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Papéis</Label>
