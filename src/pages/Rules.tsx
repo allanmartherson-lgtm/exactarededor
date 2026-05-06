@@ -530,6 +530,7 @@ const Rules = () => {
       multiplier: effectiveCalc === "tabela_diferenciada" ? num(fMultiplier) : null,
       deflator_pct: effectiveCalc === "tabela_diferenciada" ? num(fDeflatorPct) : null,
       reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
+      exception_table_ids: fExceptionTableIds,
       include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
       auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
       aux_first_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxFirstPct) ?? 30) : null,
