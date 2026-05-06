@@ -34,7 +34,12 @@ import { cn } from "@/lib/utils";
 
 export type PaymentGroupCardProps = {
   g: GroupRow;
-  /** Itens já filtrados pela busca quando aplicável (groupItems). */
+  /**
+   * TODOS os itens da empresa (sem aplicar filtros/busca do lote).
+   * O resumo (totais, badges, alertas, risco, complementos) deve sempre
+   * refletir o mesmo conjunto exibido na página dedicada — caso contrário
+   * o lote e a dedicada divergem ao aplicar filtros.
+   */
   groupItems: PaymentItemRowData[];
   /** Indica se a busca atual já casou com o nome do grupo (afeta a expansão forçada). */
   searchActive: boolean;

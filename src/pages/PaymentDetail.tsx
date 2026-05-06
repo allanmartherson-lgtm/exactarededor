@@ -1015,19 +1015,22 @@ const PaymentDetail = () => {
                 const st = (it.ai_status as string) ?? "pendente";
                 return st === "alerta" || st === "reprovado" || (it.ai_findings?.alerts?.length ?? 0) > 0;
               };
-              const baseGroupItems = sq && !groupNameMatches
+              // Filtro só decide se o card aparece (busca / modo erro-apenas).
+              // O resumo dentro do card SEMPRE usa groupItemsAll, para bater
+              // com a página dedicada (que não conhece os filtros do lote).
+              const matchedItems = sq && !groupNameMatches
                 ? groupItemsAll.filter(itemMatches)
                 : groupItemsAll;
-              const groupItems = isErrorOnly
-                ? baseGroupItems.filter(errorOnlyFilter)
-                : baseGroupItems;
-              // No modo empresa_prioritaria, oculta grupos sem nenhum erro.
-              if (isErrorOnly && groupItems.length === 0) return null;
+              const visibleByErrorOnly = isErrorOnly
+                ? matchedItems.filter(errorOnlyFilter)
+                : matchedItems;
+              if (sq && !groupNameMatches && matchedItems.length === 0) return null;
+              if (isErrorOnly && visibleByErrorOnly.length === 0) return null;
               return (
                 <PaymentGroupCard
                   key={g.id}
                   g={g}
-                  groupItems={groupItems}
+                  groupItems={groupItemsAll}
                   searchActive={!!sq}
                   obs={obs}
                   invoices={invoices}
