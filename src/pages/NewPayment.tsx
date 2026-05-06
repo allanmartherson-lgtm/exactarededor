@@ -355,6 +355,56 @@ const NewPayment = () => {
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
 
+  /**
+   * Troca manual da empresa do arquivo + aprendizado: salva o `rawCompanyName`
+   * (extraído do nome do arquivo) como alias da empresa correta, para que o
+   * próximo match acerte sozinho. Atualiza também as linhas já parseadas.
+   */
+  const overrideBucketCompany = async (idx: number, picked: CompanyOption) => {
+    const b = buckets[idx];
+    if (!b) return;
+    const previousId = b.matchedCompany?.id ?? null;
+    // Atualiza o bucket localmente
+    setBuckets((prev) =>
+      prev.map((x, i) =>
+        i === idx
+          ? {
+              ...x,
+              matchedCompany: { id: picked.id, name: picked.name },
+              matchScore: 1,
+              manualOverride: true,
+              rows: x.rows.map((r) => ({ ...r, company_id: picked.id, company_name: picked.name })),
+            }
+          : x,
+      ),
+    );
+    // Aprendizado: adiciona o nome bruto do arquivo como alias da empresa correta.
+    // Só faz isso quando o usuário trocou de fato a sugestão automática.
+    if (previousId !== picked.id) {
+      try {
+        const rawAlias = b.rawCompanyName?.trim();
+        const current = companies.find((c) => c.id === picked.id);
+        const aliases = new Set([...(current?.aliases ?? [])]);
+        if (rawAlias && !aliases.has(rawAlias)) aliases.add(rawAlias);
+        await supabase.from("companies").update({ aliases: Array.from(aliases) }).eq("id", picked.id);
+        // Atualiza o cache local de companies para refletir o novo alias
+        setCompanies((prev) =>
+          prev.map((c) => (c.id === picked.id ? { ...c, aliases: Array.from(aliases) } : c)),
+        );
+        toast({
+          title: "Empresa atualizada",
+          description: `"${rawAlias}" foi salvo como apelido de ${picked.name}. Próximas importações com esse nome serão reconhecidas automaticamente.`,
+        });
+      } catch (e) {
+        // Falha de aprendizado não bloqueia a troca — apenas avisa.
+        toast({
+          title: "Empresa atualizada (sem aprender apelido)",
+          description: `Troca aplicada, mas não foi possível salvar o apelido: ${String(e)}`,
+        });
+      }
+    }
+  };
+
   const allRows = useMemo(() => {
     return buckets.flatMap((b) => b.rows).map((r) => {
       const tipo_linha = classifyLine(r, paymentKind || null);
