@@ -628,22 +628,13 @@ function RowMain({
     ? "bg-primary/10"
     : isActive
     ? "bg-primary/5"
-    : isCritical
-    ? "bg-destructive/5"
-    : hasAlert
-    ? "bg-warning-soft/30"
     : "bg-background";
   const stickyBg = isExpanded
     ? "bg-primary-soft"
     : isActive
     ? "bg-primary-soft/60"
-    : isCritical
-    ? "bg-destructive-soft"
-    : hasAlert
-    ? "bg-warning-soft"
     : "bg-card";
-  const stickyHover =
-    !isActive && !isExpanded && !isCritical && !hasAlert ? "group-hover:bg-muted" : "";
+  const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
   const stickyCell = cn(cellPad, "truncate border-b sticky z-10", stickyBg, stickyHover);
   const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
