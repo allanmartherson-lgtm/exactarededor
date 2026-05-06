@@ -1155,7 +1155,7 @@ export function analyzePaymentItems(
   items: ItemInput[],
   rules: RuleInput[],
   ctx: PaymentContext,
-  options?: { referenceLookup?: ReferenceTableLookup },
+  options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup },
 ): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
   const ordered = [...items].sort((a, b) => {
