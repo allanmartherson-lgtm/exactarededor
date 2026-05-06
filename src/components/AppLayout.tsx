@@ -28,6 +28,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
+import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
@@ -256,6 +257,8 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
 
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
+  // Notificações realtime de fila/devolução para o usuário logado.
+  useQueueNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const { layout } = useNavLayout();
