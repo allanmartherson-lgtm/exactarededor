@@ -674,63 +674,16 @@ const Rules = () => {
     }
 
     // === Persiste rule_calculations (1:N) ===
-    // Estratégia simples: substitui completamente o conjunto de itens.
-    const syncErrors: CalcSyncError[] = [];
     setCalcSyncErrors([]);
-    if (savedRuleId && fNature === "calculavel") {
-      const { error: delErr } = await supabase
-        .from("rule_calculations")
-        .delete()
-        .eq("rule_id", savedRuleId);
-      if (delErr) {
-        syncErrors.push({
-          step: "delete-calculavel",
-          message: delErr.message,
-          code: (delErr as any).code ?? null,
-          details: (delErr as any).details ?? null,
-          hint: (delErr as any).hint ?? null,
-        });
-      } else {
-        const rows = fCalculations.map((c, i) => calcToDbPayload(c, savedRuleId!, i));
-        if (rows.length > 0) {
-          const { error: insErr } = await supabase
-            .from("rule_calculations")
-            .insert(rows as any);
-          if (insErr) {
-            syncErrors.push({
-              step: "insert-calculavel",
-              message: insErr.message,
-              code: (insErr as any).code ?? null,
-              details: (insErr as any).details ?? null,
-              hint: (insErr as any).hint ?? null,
-              rowsAttempted: rows.length,
-            });
-          } else {
-            toast({ title: `${rows.length} cálculo(s) sincronizado(s)` });
-          }
-        }
-      }
-    } else if (savedRuleId && fNature === "informativo") {
-      const { error: delErr } = await supabase
-        .from("rule_calculations")
-        .delete()
-        .eq("rule_id", savedRuleId);
-      if (delErr) {
-        syncErrors.push({
-          step: "delete-informativo",
-          message: delErr.message,
-          code: (delErr as any).code ?? null,
-          details: (delErr as any).details ?? null,
-          hint: (delErr as any).hint ?? null,
-        });
-      }
-    }
+    setCalcSyncRuleId(savedRuleId);
+    setCalcSyncAttempt(1);
+    const syncErrors = await runCalcSync(savedRuleId, fNature, fCalculations, 1);
 
     if (syncErrors.length > 0) {
       setCalcSyncErrors(syncErrors);
       toast({
         title: `Falha em ${syncErrors.length} etapa(s) da sincronização`,
-        description: "Veja os detalhes no topo do modal para corrigir.",
+        description: "Veja os detalhes no topo do modal e use “Tentar novamente”.",
         variant: "destructive",
       });
       load();
@@ -739,6 +692,93 @@ const Rules = () => {
 
     setOpen(false); resetForm(); load();
   };
+
+  /** Executa o delete + insert dos rule_calculations e devolve a lista de erros. */
+  const runCalcSync = async (
+    ruleId: string,
+    nature: typeof fNature,
+    calcs: CalcItem[],
+    attempt: number,
+  ): Promise<CalcSyncError[]> => {
+    const errors: CalcSyncError[] = [];
+    if (nature === "calculavel") {
+      const { error: delErr } = await supabase
+        .from("rule_calculations")
+        .delete()
+        .eq("rule_id", ruleId);
+      if (delErr) {
+        errors.push({
+          step: "delete-calculavel",
+          message: delErr.message,
+          code: (delErr as any).code ?? null,
+          details: (delErr as any).details ?? null,
+          hint: (delErr as any).hint ?? null,
+        });
+      } else {
+        const rows = calcs.map((c, i) => calcToDbPayload(c, ruleId, i));
+        if (rows.length > 0) {
+          const { error: insErr } = await supabase
+            .from("rule_calculations")
+            .insert(rows as any);
+          if (insErr) {
+            errors.push({
+              step: "insert-calculavel",
+              message: insErr.message,
+              code: (insErr as any).code ?? null,
+              details: (insErr as any).details ?? null,
+              hint: (insErr as any).hint ?? null,
+              rowsAttempted: rows.length,
+            });
+          } else if (attempt > 1) {
+            toast({ title: `${rows.length} cálculo(s) sincronizado(s) (tentativa ${attempt})` });
+          } else {
+            toast({ title: `${rows.length} cálculo(s) sincronizado(s)` });
+          }
+        }
+      }
+    } else if (nature === "informativo") {
+      const { error: delErr } = await supabase
+        .from("rule_calculations")
+        .delete()
+        .eq("rule_id", ruleId);
+      if (delErr) {
+        errors.push({
+          step: "delete-informativo",
+          message: delErr.message,
+          code: (delErr as any).code ?? null,
+          details: (delErr as any).details ?? null,
+          hint: (delErr as any).hint ?? null,
+        });
+      }
+    }
+    return errors;
+  };
+
+  /** Refaz a sincronização sem precisar reenviar o formulário. */
+  const retryCalcSync = async () => {
+    if (!calcSyncRuleId || calcSyncRetrying) return;
+    const nextAttempt = calcSyncAttempt + 1;
+    setCalcSyncRetrying(true);
+    setCalcSyncAttempt(nextAttempt);
+    try {
+      const errors = await runCalcSync(calcSyncRuleId, fNature, fCalculations, nextAttempt);
+      setCalcSyncErrors(errors);
+      if (errors.length === 0) {
+        toast({ title: "Cálculos sincronizados com sucesso" });
+        setOpen(false);
+        resetForm();
+        load();
+      } else {
+        toast({
+          title: `Tentativa ${nextAttempt}: ${errors.length} etapa(s) ainda falham`,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setCalcSyncRetrying(false);
+    }
+  };
+
 
   const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
     const r = new FileReader();
