@@ -421,6 +421,9 @@ const Rules = () => {
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
     setFCalculations([makeEmptyCalc()]);
     setCalcSyncErrors([]);
+    setCalcSyncRuleId(null);
+    setCalcSyncAttempt(0);
+    setCalcSyncRetrying(false);
   };
 
   const openEdit = async (r: RuleRow) => {
