@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, TONE_CLASSES } from "@/lib/status";
 import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
+import { authorRoleLabel } from "@/lib/observations";
 
 /**
  * Helper de cor por autor — mantido aqui por ser exclusivo da timeline.
@@ -145,7 +146,7 @@ export const PaymentTimeline = ({
                   o.author_type,
                 )}`}
               >
-                {o.author_type}
+                {authorRoleLabel(o.author_type)}
               </span>
               <span
                 className="inline-flex items-center gap-1 font-medium text-foreground"
@@ -157,6 +158,9 @@ export const PaymentTimeline = ({
                   : o.author_type === "sistema" || o.author_type === "ia"
                     ? "Sistema"
                     : "Usuário desconhecido"}
+                <span className="text-muted-foreground font-normal">
+                  ({authorRoleLabel(o.author_type)})
+                </span>
               </span>
               {o.item_id && (
                 <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>

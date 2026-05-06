@@ -5,6 +5,22 @@ import type { PaymentStatus } from "@/lib/status";
 type ObservationRow = Database["public"]["Tables"]["payment_observations"]["Row"];
 export type ObservationAuthorType = ObservationRow["author_type"];
 
+/**
+ * Rótulo legível do papel do autor de uma observação/registro de histórico.
+ * Centralizado para garantir consistência visual em todas as telas que
+ * exibem o autor (timeline, histórico do item, histórico unificado).
+ */
+export function authorRoleLabel(t: string | null | undefined): string {
+  switch (t) {
+    case "analista": return "Analista";
+    case "validador": return "Validador";
+    case "diretor": return "Diretor";
+    case "sistema": return "Sistema";
+    case "ia": return "IA";
+    default: return t ? t.charAt(0).toUpperCase() + t.slice(1) : "—";
+  }
+}
+
 export type RecordObservationInput = {
   payment_id: string;
   author_type: ObservationAuthorType;

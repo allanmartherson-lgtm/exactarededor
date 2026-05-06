@@ -16,6 +16,7 @@ import type {
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { authorRoleLabel } from "@/lib/observations";
 
 /**
  * Painel unificado de histórico (IA + analistas/validadores/diretores) para
@@ -270,12 +271,15 @@ export function CompanyHistoryPanel({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted text-foreground/80">
-                      {e.authorType}
+                      {e.kind === "assign" ? e.authorType : authorRoleLabel(e.authorType)}
                     </span>
                     {e.authorName && (
                       <span className="flex items-center gap-1 text-foreground/80">
                         <UserIcon className="h-3 w-3" />
                         {e.authorName}
+                        {e.kind !== "assign" && (
+                          <span className="opacity-70">({authorRoleLabel(e.authorType)})</span>
+                        )}
                       </span>
                     )}
                     <span className="ml-auto tabular-nums">{fmtDate(e.at)}</span>
