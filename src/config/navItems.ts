@@ -14,6 +14,7 @@ import {
   Timer,
   BadgeDollarSign,
   Stethoscope,
+  Sparkles,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -69,6 +70,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["diretor", "admin"] },
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["diretor", "admin"] },
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["diretor", "admin"] },
+      { to: "/empresas/apelidos", label: "Apelidos aprendidos", icon: Sparkles, iconName: "Sparkles", roles: ["diretor", "admin"] },
       { to: "/medicos", label: "Médicos", icon: Stethoscope, iconName: "Stethoscope", roles: ["diretor", "admin"] },
       { to: "/mapa-especialidades", label: "Mapa Especialidades", icon: Stethoscope, iconName: "Stethoscope", roles: ["diretor", "admin"] },
       { to: "/centros-de-custo", label: "Centros de custo", icon: Network, iconName: "Network", roles: ALL_ROLES },
@@ -100,6 +102,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Regras de Validação", iconName: "ShieldCheck" },
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
+  { label: "Apelidos aprendidos", iconName: "Sparkles" },
   { label: "Médicos", iconName: "Stethoscope" },
   { label: "Mapa Especialidades", iconName: "Stethoscope" },
   { label: "Centros de custo", iconName: "Network" },
