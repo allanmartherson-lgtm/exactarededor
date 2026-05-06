@@ -793,13 +793,13 @@ export interface EngineCtx {
  * vinculadas (período/dia/horário/eletivo). Quando uma condição não está
  * configurada (modo "qualquer"/vazio), ela é considerada satisfeita.
  */
-export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): boolean {
+export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
   // Dia da semana
   const wds = Array.isArray(c.weekdays) ? c.weekdays : [];
   if (wds.length > 0 && item.procedure_date) {
     const d = new Date(item.procedure_date);
     if (!Number.isNaN(d.getTime())) {
-      if (!wds.includes(d.getDay())) return false;
+      if (!wds.includes(d.getDay())) return { ok: false, reason: "dia_da_semana" };
     }
   }
   // Janela horária
@@ -809,13 +809,10 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): boolea
       const hhmm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       const s = c.time_start, e = c.time_end;
       const inside = s <= e ? (hhmm >= s && hhmm <= e) : (hhmm >= s || hhmm <= e);
-      if (!inside) return false;
+      if (!inside) return { ok: false, reason: "horario" };
     }
   }
-  // time_mode/elective_mode: 'qualquer' / vazio = sempre aplica.
-  // Modos específicos (comercial/noturno/etc) já implicam time_start/end ou
-  // weekdays preenchidos pelo cadastro — nada extra a verificar aqui.
-  return true;
+  return { ok: true };
 }
 
 /** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
