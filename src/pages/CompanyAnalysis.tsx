@@ -762,6 +762,60 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
+
+      {/* Editar item */}
+      <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar item</DialogTitle>
+            <DialogDescription>
+              Ajuste valores ou metadados desta linha. O item será reanalisado pela IA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs">Médico</Label>
+              <Input value={editDraft.doctor_name} onChange={(e) => setEditDraft((d) => ({ ...d, doctor_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Valor (R$)</Label>
+              <Input value={editDraft.gross_amount} onChange={(e) => setEditDraft((d) => ({ ...d, gross_amount: e.target.value }))} inputMode="decimal" />
+            </div>
+            <div>
+              <Label className="text-xs">Especialidade</Label>
+              <Input value={editDraft.specialty} onChange={(e) => setEditDraft((d) => ({ ...d, specialty: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Descrição</Label>
+              <Input value={editDraft.description} onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)} disabled={savingItem}>Cancelar</Button>
+            <Button onClick={saveItem} disabled={savingItem}>{savingItem ? "Salvando…" : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir item */}
+      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteItem && (
+                <>Remove a linha de <strong>{deleteItem.doctor_name}</strong> ({formatCurrency(Number(deleteItem.gross_amount ?? 0))}). Os totais do grupo serão recalculados.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingItem}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem} disabled={deletingItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingItem ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </Dialog>
     </div>
   );
 }
