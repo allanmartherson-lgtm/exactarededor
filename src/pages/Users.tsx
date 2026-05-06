@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
