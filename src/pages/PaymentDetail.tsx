@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
-import { PaymentItemRow } from "@/components/payment-detail/PaymentItemRow";
+
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { scoreAttendance } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
