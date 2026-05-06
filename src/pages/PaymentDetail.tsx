@@ -86,6 +86,31 @@ const PaymentDetail = () => {
     document.title = "Pagamento | MedPay";
   }, []);
 
+  // Retorno rápido da página dedicada: se a URL trouxer #group-<id>, garante
+  // que o card desse grupo esteja expandido e faz scroll até ele assim que
+  // os grupos forem carregados. Mantém continuidade de contexto entre lote
+  // e análise dedicada (ex.: usuário clica "Voltar ao lote" e cai exatamente
+  // onde estava).
+  const location = useLocation();
+  useEffect(() => {
+    const hash = location.hash;
+    if (!hash || !hash.startsWith("#group-")) return;
+    if (groups.length === 0) return;
+    const targetId = hash.slice("#group-".length);
+    if (!groups.some((g) => g.id === targetId)) return;
+    setExpandedGroups((prev) => {
+      if (prev.has(targetId)) return prev;
+      const n = new Set(prev);
+      n.add(targetId);
+      return n;
+    });
+    // Scroll após o paint para o card já estar montado/expandido.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`group-${targetId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [location.hash, groups, setExpandedGroups]);
+
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
     setBusy(true);
