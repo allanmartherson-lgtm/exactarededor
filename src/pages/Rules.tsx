@@ -408,6 +408,7 @@ const Rules = () => {
     setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
+    setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
     setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
     setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
