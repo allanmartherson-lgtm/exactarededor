@@ -623,6 +623,7 @@ const PaymentDetail = () => {
     const text = (itemCommentDraft[itemId] ?? "").trim();
     if (!text) return;
     setBusy(true);
+    if (myAuthorType === "analista") await autoClaim();
     const obsRes = await recordObservation({
       payment_id: id!, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
     });
