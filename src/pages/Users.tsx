@@ -523,7 +523,57 @@ const Users = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
-  );
-};
+      <Dialog open={!!editingReq} onOpenChange={(o) => !o && setEditingReq(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar solicitação</DialogTitle>
+            <DialogDescription>
+              Ajuste os dados antes de aprovar. O e-mail não pode ser alterado.
+            </DialogDescription>
+          </DialogHeader>
+          {editingReq && (
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-2">
+                <Label>Nome completo *</Label>
+                <Input value={editingReq.full_name ?? ""} onChange={(e) => setEditingReq({ ...editingReq, full_name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input type="email" value={editingReq.email ?? ""} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone celular *</Label>
+                <Input
+                  inputMode="numeric"
+                  placeholder="(11) 99999-9999"
+                  value={formatPhone(editingReq.phone ?? "")}
+                  onChange={(e) => setEditingReq({ ...editingReq, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>Cargo *</Label>
+                  <Input value={editingReq.role_title ?? ""} onChange={(e) => setEditingReq({ ...editingReq, role_title: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Setor *</Label>
+                  <Input value={editingReq.department ?? ""} onChange={(e) => setEditingReq({ ...editingReq, department: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Data de nascimento *</Label>
+                <Input
+                  type="date"
+                  value={editingReq.birth_date ? String(editingReq.birth_date).slice(0, 10) : ""}
+                  onChange={(e) => setEditingReq({ ...editingReq, birth_date: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingReq(null)} disabled={savingReq}>Cancelar</Button>
+            <Button onClick={saveEditedRequest} disabled={savingReq}>{savingReq ? "Salvando..." : "Salvar alterações"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 export default Users;
