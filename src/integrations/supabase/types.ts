@@ -1243,6 +1243,131 @@ export type Database = {
         }
         Relationships: []
       }
+      rule_calculations: {
+        Row: {
+          apply_access_route: boolean
+          aux_first_pct: number | null
+          aux_second_pct: number | null
+          auxiliary_pct: number | null
+          bonus_amount: number | null
+          bonus_pct: number | null
+          calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
+          convenio_percentage: number | null
+          created_at: string
+          deflator_pct: number | null
+          elective_mode: string
+          extras_codes: string[] | null
+          fixed_amount: number | null
+          id: string
+          include_auxiliaries: boolean
+          includes_holidays: boolean
+          instrumentador_pct: number | null
+          label: string | null
+          multiplier: number | null
+          package_amount: number | null
+          package_auxiliaries_included: boolean
+          package_included_codes: string[] | null
+          package_main_code: string | null
+          package_opinions_count: boolean
+          package_subtype: string | null
+          package_visits_count: boolean
+          reference_table_id: string | null
+          repasse_pct: number | null
+          rule_id: string
+          sort_order: number
+          target_amount: number | null
+          time_end: string | null
+          time_mode: string
+          time_start: string | null
+          updated_at: string
+          weekdays: number[]
+        }
+        Insert: {
+          apply_access_route?: boolean
+          aux_first_pct?: number | null
+          aux_second_pct?: number | null
+          auxiliary_pct?: number | null
+          bonus_amount?: number | null
+          bonus_pct?: number | null
+          calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          convenio_percentage?: number | null
+          created_at?: string
+          deflator_pct?: number | null
+          elective_mode?: string
+          extras_codes?: string[] | null
+          fixed_amount?: number | null
+          id?: string
+          include_auxiliaries?: boolean
+          includes_holidays?: boolean
+          instrumentador_pct?: number | null
+          label?: string | null
+          multiplier?: number | null
+          package_amount?: number | null
+          package_auxiliaries_included?: boolean
+          package_included_codes?: string[] | null
+          package_main_code?: string | null
+          package_opinions_count?: boolean
+          package_subtype?: string | null
+          package_visits_count?: boolean
+          reference_table_id?: string | null
+          repasse_pct?: number | null
+          rule_id: string
+          sort_order?: number
+          target_amount?: number | null
+          time_end?: string | null
+          time_mode?: string
+          time_start?: string | null
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Update: {
+          apply_access_route?: boolean
+          aux_first_pct?: number | null
+          aux_second_pct?: number | null
+          auxiliary_pct?: number | null
+          bonus_amount?: number | null
+          bonus_pct?: number | null
+          calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          convenio_percentage?: number | null
+          created_at?: string
+          deflator_pct?: number | null
+          elective_mode?: string
+          extras_codes?: string[] | null
+          fixed_amount?: number | null
+          id?: string
+          include_auxiliaries?: boolean
+          includes_holidays?: boolean
+          instrumentador_pct?: number | null
+          label?: string | null
+          multiplier?: number | null
+          package_amount?: number | null
+          package_auxiliaries_included?: boolean
+          package_included_codes?: string[] | null
+          package_main_code?: string | null
+          package_opinions_count?: boolean
+          package_subtype?: string | null
+          package_visits_count?: boolean
+          reference_table_id?: string | null
+          repasse_pct?: number | null
+          rule_id?: string
+          sort_order?: number
+          target_amount?: number | null
+          time_end?: string | null
+          time_mode?: string
+          time_start?: string | null
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rule_calculations_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rules: {
         Row: {
           active: boolean
