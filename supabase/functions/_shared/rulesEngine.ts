@@ -1409,14 +1409,16 @@ export function analyzeItem(
       ];
     }
   } else {
+    // Sem regra específica → fallback determinístico (default por setor:
+    // hemodinâmica = 88%, demais = 100%). Esse é o COMPORTAMENTO ESPERADO,
+    // não uma exceção: se o valor pago bater com o default, o item é
+    // aprovado normalmente. O alerta só aparece se houver divergência real
+    // (tratada por classifyDiff abaixo). A rastreabilidade fica no
+    // calculation_explanation e no calculation_type_used.
     const def = calcDefault(item);
     calc = def;
-    priority = "sem_regra";
+    priority = "default_setor";
     calculation_type_used = def.calculation_type_used;
-    calc.alerts = [
-      "Nenhuma regra cadastrada bate com este item — encaminhar para revisão humana.",
-      ...calc.alerts,
-    ];
   }
 
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
