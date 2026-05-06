@@ -383,6 +383,8 @@ export default function CompanyAnalysis() {
       setChangingCompany(false);
     }
   };
+
+  if (loading) {
     return (
       <div className="space-y-4">
         <PageHeader title="Carregando análise…" />
