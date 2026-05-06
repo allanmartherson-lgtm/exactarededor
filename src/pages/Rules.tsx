@@ -232,7 +232,8 @@ const Rules = () => {
   // (legado) Sugestões de médicos para o modo "empresa" agregado.
   const [companyDoctors, setCompanyDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [loadingCompanyDoctors, setLoadingCompanyDoctors] = useState(false);
-  // janela temporal
+  // janela temporal — LEGADO (espelhado a partir do PRIMEIRO item de fCalculations
+  // para manter o motor antigo funcionando até a Etapa B). Não há mais UI própria.
   const [fHasConditions, setFHasConditions] = useState(false);
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
@@ -240,6 +241,8 @@ const Rules = () => {
   const [fTimeStart, setFTimeStart] = useState<string>("");
   const [fTimeEnd, setFTimeEnd] = useState<string>("");
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
+  // === Lista de itens de cálculo (1:N com a regra) ===
+  const [fCalculations, setFCalculations] = useState<CalcItem[]>([makeEmptyCalc()]);
 
   // Persistência das seções abertas do accordion (lembra entre aberturas do modal)
   const ACCORDION_STORAGE_KEY = "rules.form.accordion.v1";
