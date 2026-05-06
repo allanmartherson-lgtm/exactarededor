@@ -103,8 +103,7 @@ const Users = () => {
       setConfirmReset(null);
     }
   };
-
-
+  const resetForm = () => {
     setForm({ email: "", full_name: "", roles: [], send_invite: true });
     setTempPwd(null);
   };
