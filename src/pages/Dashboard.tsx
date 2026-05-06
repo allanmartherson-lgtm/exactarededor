@@ -1128,6 +1128,43 @@ const Dashboard = () => {
         </SurfaceCard>
       </section>
 
+      {/* PROGRESSO POR LOTE */}
+      <section aria-labelledby="progresso-lotes-heading">
+        <SectionLabel>Progresso por lote</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Onde cada lote está no fluxo"
+            icon={ListChecks}
+            iconColor="purple"
+            rightAction={
+              <Link
+                to="/pagamentos"
+                style={{ fontSize: 12, color: "hsl(var(--accent-foreground))", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                Ver todos <ArrowRight size={13} />
+              </Link>
+            }
+          />
+          {loading ? (
+            <div style={{ padding: 22 }}>
+              <Skeleton className="h-4 w-2/3 mb-3" />
+              <Skeleton className="h-4 w-1/2 mb-3" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : payments.length === 0 ? (
+            <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+              Nenhum lote recente.
+            </div>
+          ) : (
+            <div>
+              {payments.slice(0, 8).map((p) => (
+                <BatchProgressRow key={p.id} p={p} />
+              ))}
+            </div>
+          )}
+        </SurfaceCard>
+      </section>
+
       {/* BOTTOM ROW */}
       <section>
         <SectionLabel>Visão geral</SectionLabel>
@@ -1164,8 +1201,122 @@ const Dashboard = () => {
 };
 
 /* ================================================================
-   ROW / PIPELINE
+   BATCH PROGRESS — IA → Validação → Aprovação → Pago
    ================================================================ */
+
+type BatchStage = "ia" | "validacao" | "aprovacao" | "pago";
+const STAGE_LABELS: Record<BatchStage, string> = {
+  ia: "IA",
+  validacao: "Validação",
+  aprovacao: "Aprovação",
+  pago: "Pago",
+};
+
+interface StageState {
+  state: "done" | "current" | "returned" | "todo" | "rejected";
+}
+
+const computeStages = (status: PaymentStatus): Record<BatchStage, StageState> => {
+  const s: Record<BatchStage, StageState> = {
+    ia: { state: "todo" }, validacao: { state: "todo" },
+    aprovacao: { state: "todo" }, pago: { state: "todo" },
+  };
+  switch (status) {
+    case "rascunho":
+    case "em_analise_ia":
+    case "revisao_analista":
+      s.ia.state = "current"; break;
+    case "devolvido_analista":
+      s.ia.state = "returned"; s.validacao.state = "todo"; break;
+    case "aguardando_validacao":
+      s.ia.state = "done"; s.validacao.state = "current"; break;
+    case "devolvido_validador":
+      s.ia.state = "done"; s.validacao.state = "returned"; s.aprovacao.state = "todo"; break;
+    case "aguardando_aprovacao":
+      s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "current"; break;
+    case "aprovado":
+    case "aprovado_com_ressalva":
+    case "pedido_nf_enviado":
+    case "nf_recebida":
+    case "nf_questionada":
+    case "nf_conciliada":
+    case "nf_divergente":
+      s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "done";
+      s.pago.state = status === "nf_questionada" || status === "nf_divergente" ? "returned" : "current";
+      break;
+    case "pago":
+      s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "done"; s.pago.state = "done";
+      break;
+    case "rejeitado":
+    case "cancelado":
+      s.ia.state = "rejected"; break;
+  }
+  return s;
+};
+
+const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: string } => {
+  switch (st) {
+    case "done": return { bg: "hsl(var(--bubble-green-bg))", fg: "hsl(var(--bubble-green-fg))", border: "hsl(var(--bubble-green-fg) / 0.3)" };
+    case "current": return { bg: "hsl(var(--primary))", fg: "hsl(var(--primary-foreground))", border: "hsl(var(--primary))" };
+    case "returned": return { bg: "hsl(var(--destructive) / 0.12)", fg: "hsl(var(--destructive))", border: "hsl(var(--destructive) / 0.4)" };
+    case "rejected": return { bg: "hsl(var(--destructive))", fg: "hsl(var(--destructive-foreground))", border: "hsl(var(--destructive))" };
+    case "todo":
+    default: return { bg: "hsl(var(--muted))", fg: "hsl(var(--muted-foreground))", border: "hsl(var(--border))" };
+  }
+};
+
+const BatchProgressRow = ({ p }: { p: PaymentRow }) => {
+  const stages = computeStages(p.status);
+  const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
+  return (
+    <Link
+      to={`/pagamentos/${p.id}`}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 16, padding: "14px 22px",
+        borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
+        textDecoration: "none", color: "inherit", transition: "background 0.15s ease",
+      }}
+      className="task-row"
+    >
+      <div className="min-w-0" style={{ flex: "0 0 auto", maxWidth: 260 }}>
+        <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
+        <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+          {p.items_count} itens · {formatCurrency(p.total_amount)}
+        </p>
+      </div>
+      <div className="flex items-center" style={{ gap: 6, flex: 1, minWidth: 0, justifyContent: "center" }}>
+        {order.map((stage, idx) => {
+          const c = stageColor(stages[stage].state);
+          const label = stages[stage].state === "returned" ? `${STAGE_LABELS[stage]} • devolvido` : STAGE_LABELS[stage];
+          return (
+            <div key={stage} className="flex items-center" style={{ gap: 6 }}>
+              <span
+                title={label}
+                style={{
+                  fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
+                  background: c.bg, color: c.fg, border: `1px solid ${c.border}`,
+                  borderRadius: 999, padding: "4px 10px", lineHeight: 1, whiteSpace: "nowrap",
+                }}
+              >
+                {STAGE_LABELS[stage]}
+                {stages[stage].state === "returned" && " ↩"}
+                {stages[stage].state === "current" && " •"}
+              </span>
+              {idx < order.length - 1 && (
+                <span style={{ width: 14, height: 2, background: "hsl(var(--border))", borderRadius: 2 }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ flex: "0 0 auto" }}>
+        <StatusBadge status={p.status} />
+      </div>
+    </Link>
+  );
+};
+
 
 const TaskRow = ({
   p,
