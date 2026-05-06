@@ -1,72 +1,54 @@
-
 ## Objetivo
 
-Hoje o campo `specialty` em `payment_items` recebe o **tipo de ato** (Cirurgia, Anestesia, Visita…), não a **especialidade médica** (Urologia, Ortopedia…). Isso quebra o filtro de especialidade nas regras. Vamos separar os dois conceitos e ensinar o motor a inferir a especialidade médica a partir de um mapa código TUSS → especialidade.
+Permitir alterar o lote enquanto está com o analista (status "em análise pela IA", "revisão analista" ou "devolvido analista"). Depois que vai para validação/aprovação, fica bloqueado. E garantir que quem cria o lote não pode validar nem aprovar.
 
-## Etapas
+## Regras (resumo)
 
-### 1. Schema — separar conceitos
+**Status "editáveis pelo analista"** (chamamos `analystEditableStatuses`):
+- `em_analise_ia`, `revisao_analista`, `devolvido_analista`, `rascunho`
 
-Migration:
-- Adicionar coluna `tipo_item TEXT` em `payment_items`.
-- Copiar `specialty → tipo_item` para todos os registros existentes.
-- Limpar `specialty` (passa a representar especialidade médica, populado pelo motor).
-- Criar tabela `procedure_specialty_map`:
-  - `procedure_code` (PK)
-  - `medical_specialty`
-  - `status` (`aprovado` | `sugerido` | `rejeitado`)
-  - `confidence_pct`, `sample_size`
-  - `approved_by`, `approved_at`, `created_at`, `updated_at`
-  - RLS: leitura para workflow autenticado; escrita para admin/diretor.
+**Quem pode editar nesse estado:** o analista criador do lote (e admin/diretor para correções administrativas).
 
-### 2. Motor de regras — resolver especialidade médica em runtime
+**Segregação de funções:** validador/diretor que também é o `created_by` do lote NÃO pode validar nem aprovar este lote (mesmo tendo o papel). Mostra aviso no rodapé explicando.
 
-Em `supabase/functions/_shared/rulesEngine.ts`:
-- Novo helper `resolveMedicalSpecialty(item, doctorsCache, mapCache)`:
-  1. `mapCache[item.procedure_code]` se status=aprovado → usa.
-  2. Se médico tem 1 só especialidade → usa.
-  3. Se mapa devolve especialidade e médico tem várias → interseção.
-  4. Caso contrário → `null` (regras com whitelist são puladas, cai default).
-- `analyze-payment` carrega mapa aprovado + cache de doctors antes do loop.
-- `ruleAcceptsItemSpecialty` passa a usar `specialty_efetiva` em vez de `item.specialty`.
-- `selection_trace` registra `specialty_resolved` + fonte (`map`, `doctor`, `null`).
+## Mudanças
 
-### 3. Job de sugestões (nightly)
+### 1. `src/lib/paymentFlow.ts`
+Exportar conjunto `ANALYST_EDITABLE_STATUSES` e helper `canEditBatch(role, status, isOwner)` — single source of truth.
 
-Edge function `suggest-procedure-specialties`:
-- Para cada `procedure_code` com ≥10 ocorrências em `payment_items`:
-  - Conta especialidades dos médicos que executaram (via `doctors.specialties`).
-  - Se uma especialidade concentra ≥60% das ocorrências → cria/atualiza linha em `procedure_specialty_map` com `status='sugerido'`, `confidence_pct`, `sample_size`.
-  - Não sobrescreve linhas com `status='aprovado'` ou `status='rejeitado'`.
-- Agendar via `pg_cron` 1x/dia às 03:00.
+### 2. `src/pages/PaymentDetail.tsx` (header / metadados do lote)
+- Habilitar edição inline dos campos do lote: `reference`, `description`, `competence_months`, `payment_type`, `payment_due_date`, `cost_center_code` quando `canEditBatch(...)` for true.
+- Botão "Reimportar base" (substitui itens) visível só nesses status — abre o `ImportWizard` reaproveitando o `payment_id`.
+- Esconder/bloquear "Validar" para o usuário se ele for o `created_by` (mesmo sendo validador).
+- Esconder/bloquear "Aprovar" para o usuário se ele for o `created_by` (mesmo sendo diretor).
+- Mostrar banner de aviso: "Você criou este lote — outro validador/diretor precisa concluir."
 
-### 4. Tela de aprovação (admin)
+### 3. `src/pages/CompanyAnalysis.tsx` (tela atual do print)
+- Adicionar botão "Editar empresa do grupo" (abre dialog com `CompanyCombobox`) quando editável — corrige match de empresa de TODOS os itens do grupo de uma vez.
+- Linhas do `ItemsDataGrid` ganham menu "…" com:
+  - Editar item (valor bruto, especialidade, médico, empresa, centro de custo)
+  - Excluir item
+  Disponíveis apenas se `canEditBatch` for true.
+- Após qualquer edição: recomputar `total_amount`/`items_count` do grupo e disparar reanálise da IA automaticamente para os itens afetados.
+- Bloquear "Enviar para validação" se grupo está vazio depois de exclusões.
 
-Nova rota `/admin/mapa-especialidades`:
-- Lista entradas agrupadas por status (sugeridas no topo).
-- Colunas: código, descrição (do TUSS mais frequente), especialidade sugerida, confiança, amostra.
-- Ações: Aprovar / Editar especialidade / Rejeitar / Adicionar manual.
-- Acessível só para admin/diretor (link no menu lateral).
+### 4. RLS / banco
+Os policies atuais já permitem update por `analista`/`admin`/`diretor` sem checar status. Para travar de verdade no servidor:
+- Migration: ajustar policy `payments_update_workflow` e `items_manage_workflow` para exigir
+  `status IN ('rascunho','em_analise_ia','revisao_analista','devolvido_analista')` quando o ator for analista. Admin/diretor mantêm update irrestrito (já podem corrigir).
+- Migration: policy nova que impede `validated_by = created_by` e `approved_by = created_by` (CHECK via trigger BEFORE UPDATE em `payment_company_groups` e `payments`).
 
-### 5. Importador / UI
+### 5. UI auxiliar
+- Em todas as tabelas/listas (Payments.tsx) onde já aparece "Validar"/"Aprovar", desabilitar a ação quando `row.created_by === user.id` com tooltip "Você criou este lote".
 
-- Importador de pagamento: campo lido como `tipo_item` (mantém parsing atual, só renomeia).
-- Tela de detalhe do pagamento: exibir `tipo_item` na coluna onde hoje aparece "Cirurgia"; adicionar coluna/tooltip "Especialidade (inferida)" com a fonte (mapa/médico).
-- Cadastro de regras: ajustar label do campo para deixar claro que é "Especialidade médica" (não tipo de ato).
-
-### 6. Backfill
-
-Após aprovar o primeiro lote de sugestões, rodar reanálise dos pagamentos pendentes/recentes para que itens passem a casar com regras corretas.
+## Não muda
+- Fluxo de status / transições (`paymentFlow.ts` TRANSITIONS) permanece igual.
+- Validador/diretor seguem podendo devolver para o analista — quando volta, o lote fica editável de novo automaticamente (já está em `devolvido_analista`).
 
 ## Detalhes técnicos
 
-- Cache do mapa carregado uma vez por execução de `analyze-payment` (Map em memória).
-- Doctors carregados em batch por `crm`/`crm_uf` ou `full_name` normalizado, conforme já feito hoje.
-- Job nightly idempotente: usa `INSERT ... ON CONFLICT (procedure_code) DO UPDATE` filtrado por `status <> 'aprovado' AND status <> 'rejeitado'`.
-- Cron via `pg_cron` + `pg_net` chamando a edge function (não migration — vai pelo insert tool com a anon key).
+- Reanálise automática ao editar item: chamar a edge function `analyze-payment` com flag `only_item_ids` (já existe ou adicionar parâmetro).
+- Edição de empresa do grupo: `UPDATE payment_items SET company_id, company_name WHERE id IN (...)` + recriar/atualizar `payment_company_groups` (mover itens entre grupos se a empresa nova já existir como grupo, ou criar grupo novo).
+- Aprendizado de alias: igual ao já implementado em `NewPayment.tsx` — quando trocar empresa, append no `companies.aliases` da nova empresa o nome antigo.
 
-## Fora de escopo desta etapa
-
-- Versionamento do mapa.
-- Aprendizado considerando convênio/setor (só especialidade por enquanto).
-- Migração retroativa de regras já cadastradas (admin revisa manualmente após renomear o label).
+Confirmar plano antes de implementar?
