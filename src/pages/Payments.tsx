@@ -191,6 +191,28 @@ const Payments = () => {
       });
   }, []);
 
+  // Carrega ids de pagamentos com divergência IA vs regra (item alerta/reprovado)
+  // e com NF questionada (status nf_questionada ou invoice_questions abertas).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [{ data: divItems }, { data: questPays }, { data: iq }] = await Promise.all([
+        supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
+        supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
+        supabase.from("invoice_questions").select("payment_id").limit(5000),
+      ]);
+      if (cancelled) return;
+      const div = new Set<string>();
+      (divItems ?? []).forEach((r: any) => r.payment_id && div.add(r.payment_id));
+      const quest = new Set<string>();
+      (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
+      (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
+      setPaymentIdsWithDivergence(div);
+      setPaymentIdsWithQuestions(quest);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
   useEffect(() => {
     let cancelled = false;
