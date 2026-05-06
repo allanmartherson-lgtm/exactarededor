@@ -79,6 +79,36 @@ serve(async (req) => {
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
 
+    // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
+    if (rules.length > 0) {
+      const ruleIds = rules.map((r) => r.id);
+      const { data: calcRows } = await supabase
+        .from("rule_calculations")
+        .select(`
+          id,rule_id,label,sort_order,calculation_type,
+          time_mode,time_start,time_end,weekdays,includes_holidays,elective_mode,
+          convenio_percentage,fixed_amount,
+          package_amount,package_main_code,package_included_codes,package_visits_count,
+          package_opinions_count,package_auxiliaries_included,package_subtype,extras_codes,
+          reference_table_id,multiplier,deflator_pct,repasse_pct,
+          apply_access_route,include_auxiliaries,
+          auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
+          bonus_amount,bonus_pct,target_amount
+        `)
+        .in("rule_id", ruleIds)
+        .order("sort_order", { ascending: true });
+      const byRule: Record<string, any[]> = {};
+      for (const c of (calcRows ?? []) as any[]) {
+        (byRule[c.rule_id as string] ||= []).push(c);
+      }
+      for (const r of rules) {
+        const list = byRule[r.id] ?? [];
+        if (list.length > 0) (r as any).calculations = list;
+      }
+      // Coleta reference_table_ids dos itens de cálculo p/ pré-carregamento adiante
+      // (já tratado em refTableIds via filter sobre rules — atualizamos abaixo)
+    }
+
     // ---------- 3. carrega itens (filtra por empresa se aplicável) ----------
     const itemsQuery = supabase
       .from("payment_items")
