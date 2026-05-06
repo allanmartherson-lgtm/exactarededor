@@ -148,11 +148,7 @@ export default function CompanyAnalysis() {
     [items],
   );
 
-  const itemsForAnalysis = useMemo(() => {
-    if (showAllInAnalysis) return items;
-    // Por padrão: mostra primeiro divergentes; oculta itens "limpos".
-    return divergentes;
-  }, [items, divergentes, showAllInAnalysis]);
+
 
   const groupComments = useMemo(
     () => obs.filter((o) => !o.item_id),
