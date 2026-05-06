@@ -519,28 +519,54 @@ const Users = () => {
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!editingPhone} onOpenChange={(o) => !o && setEditingPhone(null)}>
+      <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Telefone (WhatsApp) — {editingPhone?.full_name || editingPhone?.email}</DialogTitle>
+            <DialogTitle>Editar usuário — {editingUser?.full_name || editingUser?.email}</DialogTitle>
             <DialogDescription>
-              Usado para enviar a notificação automática quando um pagamento entra em "aguardando aprovação".
-              Formato: DDD + 9 dígitos (ex.: 11987654321). Deixe em branco para remover.
+              Atualize os dados do usuário. O e-mail é usado como login e não pode ser alterado.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="edit-phone">Telefone</Label>
-            <Input
-              id="edit-phone"
-              value={formatPhone(editingPhone?.phone ?? "")}
-              onChange={(e) => setEditingPhone(editingPhone ? { ...editingPhone, phone: e.target.value.replace(/\D/g, "").slice(0, 11) } : null)}
-              placeholder="(11) 98765-4321"
-            />
-          </div>
+          {editingUser && (
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-2">
+                <Label>Nome completo *</Label>
+                <Input value={editingUser.full_name} onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>E-mail (login)</Label>
+                <Input type="email" value={editingUser.email} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone celular *</Label>
+                <Input
+                  inputMode="numeric"
+                  placeholder="(11) 99999-9999"
+                  value={formatPhone(editingUser.phone)}
+                  onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                />
+                <p className="text-xs text-muted-foreground">Também usado para WhatsApp em notificações de aprovação.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>Cargo *</Label>
+                  <Input value={editingUser.role_title} onChange={(e) => setEditingUser({ ...editingUser, role_title: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Setor *</Label>
+                  <Input value={editingUser.department} onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Data de nascimento *</Label>
+                <Input type="date" value={editingUser.birth_date} onChange={(e) => setEditingUser({ ...editingUser, birth_date: e.target.value })} />
+              </div>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingPhone(null)} disabled={savingPhone}>Cancelar</Button>
-            <Button onClick={savePhone} disabled={savingPhone}>
-              {savingPhone && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={savingUser}>Cancelar</Button>
+            <Button onClick={saveUser} disabled={savingUser}>
+              {savingUser && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
               Salvar
             </Button>
           </DialogFooter>
