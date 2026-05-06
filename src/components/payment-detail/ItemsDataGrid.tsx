@@ -610,7 +610,8 @@ export function ItemsDataGrid({
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
-                  (colVis.observacao ? 1 : 0);
+                  (colVis.observacao ? 1 : 0) +
+                  (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
                 return (
                   <RowMain
@@ -634,6 +635,9 @@ export function ItemsDataGrid({
                     obsCount={obsCount}
                     isCompact={isCompact}
                     totalCols={totalCols}
+                    canEdit={canEdit}
+                    onEditItem={onEditItem}
+                    onDeleteItem={onDeleteItem}
                   />
                 );
               })}
