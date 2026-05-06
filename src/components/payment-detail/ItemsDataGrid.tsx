@@ -865,6 +865,37 @@ function RowMain({
             {obsCount > 0 ? obsCount : "—"}
           </td>
         )}
+        {canEdit && (
+          <td
+            className={cn(cellPad, "text-center border-b whitespace-nowrap", baseCellBg)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="inline-flex gap-0.5">
+              {onEditItem && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  title="Editar item"
+                  onClick={() => onEditItem(it)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {onDeleteItem && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  title="Excluir item"
+                  onClick={() => onDeleteItem(it)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </td>
+        )}
       </tr>
       {isExpanded && (
         <ItemDetailsRow
