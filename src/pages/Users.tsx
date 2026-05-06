@@ -85,7 +85,26 @@ const Users = () => {
     }
   };
 
-  const resetForm = () => {
+  const resetPassword = async (u: { id: string; email: string }) => {
+    setResettingId(u.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+        body: { user_id: u.id, email: u.email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.temp_password) throw new Error("Resposta inválida do servidor");
+      setResetResult({ email: data.email ?? u.email, password: data.temp_password });
+      toast({ title: "Senha resetada", description: "Compartilhe a senha temporária. O usuário precisará trocá-la no primeiro acesso." });
+    } catch (e: any) {
+      toast({ title: "Falha ao resetar senha", description: e.message, variant: "destructive" });
+    } finally {
+      setResettingId(null);
+      setConfirmReset(null);
+    }
+  };
+
+
     setForm({ email: "", full_name: "", roles: [], send_invite: true });
     setTempPwd(null);
   };
