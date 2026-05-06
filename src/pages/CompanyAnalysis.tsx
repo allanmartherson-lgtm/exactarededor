@@ -414,6 +414,16 @@ export default function CompanyAnalysis() {
           )}
         </TabsContent>
 
+        {/* ABA — Histórico unificado (IA + analistas/validadores/diretores) */}
+        <TabsContent value="historico" className="space-y-3">
+          <CompanyHistoryPanel
+            items={items}
+            observations={obs}
+            aiVersions={aiVersions}
+            profiles={profiles}
+          />
+        </TabsContent>
+
         {/* ABA 3 — Detalhe IA */}
         <TabsContent value="ia" className="space-y-3">
           <AiDetail items={items} versions={aiVersions} />
