@@ -46,6 +46,28 @@ const Users = () => {
   const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
+  const [editingPhone, setEditingPhone] = useState<{ id: string; email: string; full_name: string | null; phone: string } | null>(null);
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  const savePhone = async () => {
+    if (!editingPhone) return;
+    const digits = editingPhone.phone.replace(/\D/g, "");
+    if (digits && digits.length !== 11) {
+      toast({ title: "Telefone inválido", description: "Use DDD + 9 dígitos (11 números) ou deixe em branco.", variant: "destructive" });
+      return;
+    }
+    setSavingPhone(true);
+    const { error } = await supabase.from("profiles").update({ phone: digits || null }).eq("id", editingPhone.id);
+    setSavingPhone(false);
+    if (error) {
+      toast({ title: "Erro ao salvar telefone", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Telefone atualizado", description: "Usado para WhatsApp do diretor." });
+    setEditingPhone(null);
+    load();
+  };
+
 
   const copyText = async (text: string, successTitle = "Copiado") => {
     try {
