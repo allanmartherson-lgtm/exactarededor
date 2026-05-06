@@ -289,6 +289,54 @@ const Users = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!confirmReset} onOpenChange={(o) => !o && setConfirmReset(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resetar senha de {confirmReset?.full_name || confirmReset?.email}?</DialogTitle>
+            <DialogDescription>
+              Será gerada uma senha temporária e o usuário será obrigado a trocá-la no primeiro acesso.
+              A senha atual deixará de funcionar imediatamente. Esta ação não afeta logins via Google/SSO.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReset(null)} disabled={resettingId !== null}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmReset && resetPassword({ id: confirmReset.id, email: confirmReset.email })}
+              disabled={resettingId !== null}
+            >
+              {resettingId !== null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
+              Resetar senha
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!resetResult} onOpenChange={(o) => !o && setResetResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Senha temporária gerada</DialogTitle>
+            <DialogDescription>
+              Compartilhe com {resetResult?.email} por um canal seguro. O usuário precisará trocá-la no primeiro acesso.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Input readOnly value={resetResult?.password ?? ""} className="font-mono" />
+              <Button size="icon" variant="outline" onClick={() => resetResult && copyText(resetResult.password, "Senha copiada")}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Esta senha não será mostrada novamente. Se perder, gere uma nova clicando em "Resetar senha".
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetResult(null)}>Concluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
