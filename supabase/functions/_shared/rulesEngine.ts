@@ -113,6 +113,13 @@ export interface RuleInput {
    *     Lista vazia = aplica a todos.
    */
   agreement_match_mode?: "whitelist" | "blacklist" | null;
+  /**
+   * IDs de reference_tables (purpose IN ('sem_acordo','exclusao')) vinculadas
+   * a esta regra. Camada 2: quando o item bate na regra e o código TUSS está
+   * em uma dessas tabelas, o motor pula o cálculo. Tabelas só têm efeito
+   * quando explicitamente vinculadas — nada de varredura global.
+   */
+  exception_table_ids?: string[] | null;
 }
 
 export interface ItemInput {
