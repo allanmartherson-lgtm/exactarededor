@@ -151,6 +151,15 @@ const PaymentDetail = () => {
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
+    // Segregação de funções: quem criou o lote não pode validá-lo nem aprová-lo.
+    if ((authorType === "validador" || authorType === "diretor") && !canActAsValidatorOrDirector(payment.created_by, user?.id)) {
+      toast({
+        title: "Ação bloqueada",
+        description: "Quem cria o lote não pode validar nem aprovar. Outro usuário precisa concluir esta etapa.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
     const updates: PaymentUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
