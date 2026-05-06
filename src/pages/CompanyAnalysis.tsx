@@ -231,31 +231,39 @@ export default function CompanyAnalysis() {
     load();
   };
 
-  const returnToAnalyst = async () => {
+  const cancelBatch = async () => {
     if (!id || !group) return;
     const text = groupDraft.trim();
-    if (!text) return toast.error("Observação obrigatória", { description: "Descreva o motivo da devolução." });
     setBusy(true);
-    const { error } = await supabase
+    // Cancela todos os grupos do lote + o próprio pagamento
+    const { error: gErr } = await supabase
       .from("payment_company_groups")
-      .update({ status: "devolvido_analista" })
-      .eq("id", group.id);
-    if (error) {
+      .update({ status: "cancelado" })
+      .eq("payment_id", id);
+    if (gErr) {
       setBusy(false);
-      return toast.error("Erro ao devolver", { description: error.message });
+      return toast.error("Erro ao cancelar", { description: gErr.message });
+    }
+    const { error: pErr } = await supabase
+      .from("payments")
+      .update({ status: "cancelado" })
+      .eq("id", id);
+    if (pErr) {
+      setBusy(false);
+      return toast.error("Erro ao cancelar pagamento", { description: pErr.message });
     }
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
-      message: `[${group.company_name}] Devolvido ao analista: ${text}`,
+      message: `[${group.company_name}] Lote cancelado pelo analista${text ? `: ${text}` : "."}`,
       status_from: group.status,
-      status_to: "devolvido_analista",
+      status_to: "cancelado",
     });
     setGroupDraft("");
     setBusy(false);
-    toast.success("Devolvido ao analista");
-    load();
+    toast.success("Lote cancelado");
+    navigate(`/pagamentos/${id}`);
   };
 
   if (loading) {
