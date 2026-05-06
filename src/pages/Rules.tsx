@@ -669,18 +669,20 @@ const Rules = () => {
 
     // === Persiste rule_calculations (1:N) ===
     // Estratégia simples: substitui completamente o conjunto de itens.
-    let calcSyncFailed = false;
+    const syncErrors: CalcSyncError[] = [];
+    setCalcSyncErrors([]);
     if (savedRuleId && fNature === "calculavel") {
       const { error: delErr } = await supabase
         .from("rule_calculations")
         .delete()
         .eq("rule_id", savedRuleId);
       if (delErr) {
-        calcSyncFailed = true;
-        toast({
-          title: "Erro ao sincronizar cálculos",
-          description: `Não foi possível remover os cálculos antigos: ${delErr.message}. A regra foi salva, mas os cálculos podem estar desatualizados.`,
-          variant: "destructive",
+        syncErrors.push({
+          step: "delete-calculavel",
+          message: delErr.message,
+          code: (delErr as any).code ?? null,
+          details: (delErr as any).details ?? null,
+          hint: (delErr as any).hint ?? null,
         });
       } else {
         const rows = fCalculations.map((c, i) => calcToDbPayload(c, savedRuleId!, i));
@@ -689,11 +691,13 @@ const Rules = () => {
             .from("rule_calculations")
             .insert(rows as any);
           if (insErr) {
-            calcSyncFailed = true;
-            toast({
-              title: "Erro ao salvar cálculos",
-              description: `${insErr.message}. Os cálculos antigos foram removidos e os novos não foram inseridos — edite a regra novamente para tentar de novo.`,
-              variant: "destructive",
+            syncErrors.push({
+              step: "insert-calculavel",
+              message: insErr.message,
+              code: (insErr as any).code ?? null,
+              details: (insErr as any).details ?? null,
+              hint: (insErr as any).hint ?? null,
+              rowsAttempted: rows.length,
             });
           } else {
             toast({ title: `${rows.length} cálculo(s) sincronizado(s)` });
@@ -701,23 +705,28 @@ const Rules = () => {
         }
       }
     } else if (savedRuleId && fNature === "informativo") {
-      // Regra informativa: limpa quaisquer cálculos remanescentes.
       const { error: delErr } = await supabase
         .from("rule_calculations")
         .delete()
         .eq("rule_id", savedRuleId);
       if (delErr) {
-        calcSyncFailed = true;
-        toast({
-          title: "Erro ao limpar cálculos",
-          description: `Não foi possível remover cálculos antigos desta regra informativa: ${delErr.message}.`,
-          variant: "destructive",
+        syncErrors.push({
+          step: "delete-informativo",
+          message: delErr.message,
+          code: (delErr as any).code ?? null,
+          details: (delErr as any).details ?? null,
+          hint: (delErr as any).hint ?? null,
         });
       }
     }
 
-    if (calcSyncFailed) {
-      // Mantém o modal aberto para o usuário poder tentar novamente sem perder o estado.
+    if (syncErrors.length > 0) {
+      setCalcSyncErrors(syncErrors);
+      toast({
+        title: `Falha em ${syncErrors.length} etapa(s) da sincronização`,
+        description: "Veja os detalhes no topo do modal para corrigir.",
+        variant: "destructive",
+      });
       load();
       return;
     }
