@@ -25,7 +25,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { resolveResendTarget } from "@/lib/paymentFlow";
+import { resolveResendTarget, canEditBatch } from "@/lib/paymentFlow";
+import { useAuth } from "@/contexts/AuthContext";
+import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Pencil } from "lucide-react";
 import {
   formatCurrency,
   TONE_CLASSES,
