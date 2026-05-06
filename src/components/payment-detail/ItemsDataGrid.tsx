@@ -120,6 +120,9 @@ export function ItemsDataGrid({
   storageKey = "itemsDataGrid.default",
   showToolbar = true,
   showKeyboardHint = true,
+  canEdit = false,
+  onEditItem,
+  onDeleteItem,
   className,
 }: ItemsDataGridProps) {
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
