@@ -120,6 +120,13 @@ export function CompanyHistoryPanel({
       if (!itemIds.has(v.item_id)) continue;
       const it = itemMap.get(v.item_id);
       const alerts = (v.alerts ?? []) as string[];
+      const aiHeader = `Versão ${v.version} · status: ${v.ai_status}`
+        + (v.expected_amount != null ? ` · esperado: R$ ${Number(v.expected_amount).toFixed(2)}` : "");
+      const aiBodyText = [
+        aiHeader,
+        ...alerts.map((a) => `• ${a}`),
+        v.calculation_explanation ? v.calculation_explanation : "",
+      ].filter(Boolean).join("\n");
       out.push({
         id: `ai-${v.id}`,
         at: v.created_at,
@@ -128,6 +135,7 @@ export function CompanyHistoryPanel({
         authorName: v.model || "Motor IA",
         itemId: v.item_id,
         itemLabel: itemLabelOf(it),
+        bodyText: aiBodyText,
         body: (
           <div className="space-y-1">
             <div className="text-[11px] text-muted-foreground">
