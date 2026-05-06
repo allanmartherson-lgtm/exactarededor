@@ -179,6 +179,46 @@ const ReferenceTables = () => {
     if (selected) loadItems(selected.id);
   };
 
+  const addManualCodes = async () => {
+    if (!selected) return;
+    // Aceita códigos separados por vírgula, ponto-e-vírgula, espaço ou nova linha. Opcional "código - descrição".
+    const lines = manualText
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      toast({ title: "Informe ao menos um código", variant: "destructive" });
+      return;
+    }
+    const parsed = lines.map((ln) => {
+      const m = ln.match(/^([^\s\-–—|\t]+)[\s\-–—|\t]+(.+)$/);
+      const code = (m ? m[1] : ln).trim();
+      const description = m ? m[2].trim() : null;
+      return { code, description };
+    });
+    const existing = new Set(items.map((i) => i.code));
+    const toInsert = parsed
+      .filter((p) => p.code && !existing.has(p.code))
+      .map((p) => ({
+        reference_table_id: selected.id,
+        code: p.code,
+        description: p.description,
+      }));
+    if (toInsert.length === 0) {
+      toast({ title: "Nada a adicionar", description: "Todos os códigos já estão na tabela." });
+      return;
+    }
+    setManualSaving(true);
+    const { error } = await supabase.from("reference_table_items").insert(toInsert as any);
+    setManualSaving(false);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: `${toInsert.length} código(s) adicionado(s)` });
+    setManualText("");
+    setManualOpen(false);
+    loadItems(selected.id);
+  };
+
+
   // Classifica uma aba como tabela de "portes" (porte→valor) ou "códigos" (id/descrição/porte).
   // Permite tanto 1 arquivo com 2 abas quanto 2 arquivos separados.
   const classifySheet = (rows: any[], sheetName = ""): "ports" | "codes" | "unknown" => {
