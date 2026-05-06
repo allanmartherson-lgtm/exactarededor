@@ -258,6 +258,8 @@ export interface AnalysisResult {
   main_ambiguous?: boolean;
   /** Detalhamento por item de cálculo (quando a regra usa cálculos 1:N). */
   calculation_breakdown?: CalculationBreakdownEntry[];
+  /** Trace de auditoria: regras candidatas avaliadas e motivo de descarte/vitória. */
+  selection_trace?: SelectionTrace;
 }
 
 export interface CalculationBreakdownEntry {
