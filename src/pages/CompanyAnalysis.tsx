@@ -13,7 +13,18 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw, History } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { resolveResendTarget } from "@/lib/paymentFlow";
 import {
   formatCurrency,
@@ -220,31 +231,39 @@ export default function CompanyAnalysis() {
     load();
   };
 
-  const returnToAnalyst = async () => {
+  const cancelBatch = async () => {
     if (!id || !group) return;
     const text = groupDraft.trim();
-    if (!text) return toast.error("Observação obrigatória", { description: "Descreva o motivo da devolução." });
     setBusy(true);
-    const { error } = await supabase
+    // Cancela todos os grupos do lote + o próprio pagamento
+    const { error: gErr } = await supabase
       .from("payment_company_groups")
-      .update({ status: "devolvido_analista" })
-      .eq("id", group.id);
-    if (error) {
+      .update({ status: "cancelado" })
+      .eq("payment_id", id);
+    if (gErr) {
       setBusy(false);
-      return toast.error("Erro ao devolver", { description: error.message });
+      return toast.error("Erro ao cancelar", { description: gErr.message });
+    }
+    const { error: pErr } = await supabase
+      .from("payments")
+      .update({ status: "cancelado" })
+      .eq("id", id);
+    if (pErr) {
+      setBusy(false);
+      return toast.error("Erro ao cancelar pagamento", { description: pErr.message });
     }
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
-      message: `[${group.company_name}] Devolvido ao analista: ${text}`,
+      message: `[${group.company_name}] Lote cancelado pelo analista${text ? `: ${text}` : "."}`,
       status_from: group.status,
-      status_to: "devolvido_analista",
+      status_to: "cancelado",
     });
     setGroupDraft("");
     setBusy(false);
-    toast.success("Devolvido ao analista");
-    load();
+    toast.success("Lote cancelado");
+    navigate(`/pagamentos/${id}`);
   };
 
   if (loading) {
@@ -448,9 +467,32 @@ export default function CompanyAnalysis() {
                 <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
                 {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
               </Button>
-              <Button variant="outline" size="sm" onClick={returnToAnalyst} disabled={busy}>
-                <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
+                    <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
+                      Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
+                      A observação registrada acima (se houver) será anexada ao histórico.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={cancelBatch}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Cancelar lote
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button size="sm" onClick={sendForValidation} disabled={busy}>
                 <Send className="h-4 w-4 mr-2" />
                 {returner ? `Reencaminhar ao ${returner}` : "Enviar para validação"}
