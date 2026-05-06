@@ -340,6 +340,7 @@ export default function CompanyAnalysis() {
                 rulesIndex={rulesIndex}
                 rulesByName={rulesByName}
                 observations={obs}
+                profiles={profiles}
                 storageKey="companyAnalysisPage"
               />
             </CardContent>
