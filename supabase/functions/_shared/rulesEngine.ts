@@ -388,9 +388,6 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     return false;
   }
 
-  // Legado: sem vínculos = aplica a todos.
-  if (cids.length === 0 && docs.length === 0) return true;
-
   // Legado modo empresa.
   if (cids.length > 0) {
     const inCompany = !!(item.company_id && cids.includes(item.company_id));
@@ -400,7 +397,11 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   }
 
   // Legado modo médico avulso.
-  return matchDoctorList(docs);
+  if (docs.length > 0) return matchDoctorList(docs);
+
+  // Sem vínculos de empresa nem médicos: regra de grupo sem alvo NÃO casa
+  // com nada (proteção contra o bug onde "vazio = aplica a todos").
+  return false;
 }
 
 
