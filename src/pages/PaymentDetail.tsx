@@ -266,6 +266,7 @@ const PaymentDetail = () => {
   const reanalyzeGroup = async (g: GroupRow) => {
     if (!id) return;
     setReanalyzingGroupId(g.id);
+    await autoClaim();
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
         body: { payment_id: id, company_name: g.company_name },
