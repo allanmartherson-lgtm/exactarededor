@@ -529,26 +529,97 @@ export interface SelectionOutcome {
   rule: RuleInput | null;
   priority: RuleMatchPriority;
   conflict?: { candidate_rule_ids: string[]; reason: string };
+  trace?: SelectionTrace;
 }
 
-export function selectWinningRule(item: ItemInput, rules: RuleInput[]): SelectionOutcome | null {
+/**
+ * Trace de auditoria do motor: para cada item, registra todas as regras
+ * candidatas avaliadas, em qual nível, e por que cada uma foi descartada
+ * ou venceu. É a base de auditoria — permite responder "por que essa
+ * regra foi escolhida para esse item?" sem reexecutar o motor.
+ */
+export interface SelectionTrace {
+  item_sector: string;
+  is_hemo: boolean;
+  levels: SelectionTraceLevel[];
+  winner_rule_id: string | null;
+  winner_priority: RuleMatchPriority;
+}
+export interface SelectionTraceLevel {
+  level: RuleMatchPriority;
+  bucket_size: number;
+  candidates: SelectionTraceCandidate[];
+  outcome: "winner" | "conflict" | "empty" | "skipped" | "all_filtered";
+}
+export interface SelectionTraceCandidate {
+  rule_id: string;
+  rule_name: string;
+  with_code: boolean;
+  result: "winner" | "tied" | "filtered_specialty" | "skipped";
+  filter_reason?: string;
+}
+
+/**
+ * Filtra a whitelist de especialidade da regra contra a especialidade do
+ * ITEM (não do pagamento). Quando a regra não tem whitelist, aceita qualquer
+ * item. Quando tem mas o item não traz especialidade, a regra é descartada.
+ */
+function ruleAcceptsItemSpecialty(r: RuleInput, item: ItemInput): boolean {
+  if (!ruleHasSpecialty(r)) return true;
+  if (!item.specialty) return false;
+  return matchesItemSpecialty(r, item);
+}
+
+export function selectWinningRule(
+  item: ItemInput,
+  rules: RuleInput[],
+  opts?: { collectTrace?: boolean },
+): SelectionOutcome | null {
   const itemSector = inferItemSector(item);
   const isHemo = itemSector === "hemodinamica";
+  const trace: SelectionTrace | undefined = opts?.collectTrace
+    ? { item_sector: itemSector, is_hemo: isHemo, levels: [], winner_rule_id: null, winner_priority: "sem_regra" }
+    : undefined;
 
-  // Convênio NÃO entra na seleção. A regra é escolhida pelos eixos
-  // (especialidade/código/médico/empresa/grupo/setor); a aceitação por
-  // convênio (whitelist/blacklist) é validada DEPOIS, sobre a vencedora,
-  // em `analyzeItem`. Cada regra é uma unidade autocontida — listas de
-  // outras regras não interferem.
+  // Filtragem por especialidade aplicada por bucket, ANTES da decisão de
+  // prioridade. Regra com whitelist que não bate com o item é descartada
+  // como candidata e registrada no trace.
+  const filterBySpecialty = (bucket: RuleInput[], levelLabel: RuleMatchPriority): RuleInput[] => {
+    const kept: RuleInput[] = [];
+    const dropped: SelectionTraceCandidate[] = [];
+    for (const r of bucket) {
+      if (ruleAcceptsItemSpecialty(r, item)) {
+        kept.push(r);
+      } else {
+        dropped.push({
+          rule_id: r.id,
+          rule_name: r.name,
+          with_code: hasCodeRestriction(r),
+          result: "filtered_specialty",
+          filter_reason: item.specialty
+            ? `whitelist [${(r.specialties ?? []).join(", ")}] não inclui especialidade do item "${item.specialty}"`
+            : `regra exige especialidade [${(r.specialties ?? []).join(", ")}], item sem especialidade`,
+        });
+      }
+    }
+    if (trace && dropped.length > 0) {
+      trace.levels.push({
+        level: levelLabel,
+        bucket_size: bucket.length,
+        candidates: dropped,
+        outcome: kept.length === 0 ? "all_filtered" : "skipped",
+      });
+    }
+    return kept;
+  };
 
-  const doctorRules  = rules.filter((r) => targetsDoctor(r, item));
-  const companyRules = rules.filter((r) => targetsCompany(r, item));
-  const groupRules   = rules.filter((r) => targetsGroup(r, item));
-  const sectorRules  = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector) && itemSector !== "outro");
-  const hemoMaster   = rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica"));
-  const generalMaster = rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0));
+  const doctorRules  = filterBySpecialty(rules.filter((r) => targetsDoctor(r, item)), "medico");
+  const companyRules = filterBySpecialty(rules.filter((r) => targetsCompany(r, item)), "empresa");
+  const groupRules   = filterBySpecialty(rules.filter((r) => targetsGroup(r, item)), "grupo");
+  const sectorRules  = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector) && itemSector !== "outro"), "setor");
+  const hemoMaster   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica")), "setor_hemodinamica_master");
+  const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0)), "setor_master_geral");
 
-  // Cada nível: primeiro tenta "com código", depois "sem código".
   const levels: Array<{
     bucket: RuleInput[];
     withCodePriority: RuleMatchPriority;
@@ -563,12 +634,41 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
     { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
   ];
 
+  const recordLevel = (
+    level: RuleMatchPriority,
+    bucketSize: number,
+    pool: RuleInput[],
+    winnerId: string | null,
+    tied: RuleInput[],
+    outcome: SelectionTraceLevel["outcome"],
+  ) => {
+    if (!trace) return;
+    trace.levels.push({
+      level,
+      bucket_size: bucketSize,
+      candidates: pool.map((r) => ({
+        rule_id: r.id,
+        rule_name: r.name,
+        with_code: hasCodeRestriction(r),
+        result:
+          winnerId === r.id ? "winner" :
+          tied.some((t) => t.id === r.id) ? "tied" : "skipped",
+      })),
+      outcome,
+    });
+  };
+
   for (const lvl of levels) {
     if (lvl.enabled === false) continue;
     const withCode = lvl.bucket.filter((r) => hasCodeRestriction(r) && matchesProcedureCode(r, item));
     if (withCode.length > 0) {
       const { winner, tied } = breakTie(withCode);
-      if (winner) return { rule: winner, priority: lvl.withCodePriority };
+      if (winner) {
+        recordLevel(lvl.withCodePriority, lvl.bucket.length, withCode, winner.id, [], "winner");
+        if (trace) { trace.winner_rule_id = winner.id; trace.winner_priority = lvl.withCodePriority; }
+        return { rule: winner, priority: lvl.withCodePriority, trace };
+      }
+      recordLevel(lvl.withCodePriority, lvl.bucket.length, withCode, null, tied, "conflict");
       return {
         rule: null,
         priority: "conflito",
@@ -576,12 +676,18 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
           candidate_rule_ids: tied.map((r) => r.id),
           reason: `Conflito de regras no nível ${lvl.withCodePriority}: ${tied.length} regras empatadas após desempate por severidade e vigência.`,
         },
+        trace,
       };
     }
     const withoutCode = lvl.bucket.filter((r) => !hasCodeRestriction(r));
     if (withoutCode.length > 0) {
       const { winner, tied } = breakTie(withoutCode);
-      if (winner) return { rule: winner, priority: lvl.withoutCodePriority };
+      if (winner) {
+        recordLevel(lvl.withoutCodePriority, lvl.bucket.length, withoutCode, winner.id, [], "winner");
+        if (trace) { trace.winner_rule_id = winner.id; trace.winner_priority = lvl.withoutCodePriority; }
+        return { rule: winner, priority: lvl.withoutCodePriority, trace };
+      }
+      recordLevel(lvl.withoutCodePriority, lvl.bucket.length, withoutCode, null, tied, "conflict");
       return {
         rule: null,
         priority: "conflito",
@@ -589,9 +695,11 @@ export function selectWinningRule(item: ItemInput, rules: RuleInput[]): Selectio
           candidate_rule_ids: tied.map((r) => r.id),
           reason: `Conflito de regras no nível ${lvl.withoutCodePriority}: ${tied.length} regras empatadas após desempate por severidade e vigência.`,
         },
+        trace,
       };
     }
   }
+  if (trace) return { rule: null, priority: "sem_regra", trace };
   return null;
 }
 
