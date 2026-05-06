@@ -243,6 +243,20 @@ const Rules = () => {
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
   // === Lista de itens de cálculo (1:N com a regra) ===
   const [fCalculations, setFCalculations] = useState<CalcItem[]>([makeEmptyCalc()]);
+  type CalcSyncError = {
+    step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
+    message: string;
+    code?: string | null;
+    details?: string | null;
+    hint?: string | null;
+    rowsAttempted?: number;
+  };
+  const [calcSyncErrors, setCalcSyncErrors] = useState<CalcSyncError[]>([]);
+  const STEP_LABELS: Record<CalcSyncError["step"], string> = {
+    "delete-calculavel": "Remover cálculos antigos (regra calculável)",
+    "insert-calculavel": "Inserir novos cálculos",
+    "delete-informativo": "Limpar cálculos (regra informativa)",
+  };
 
   // Persistência das seções abertas do accordion (lembra entre aberturas do modal)
   const ACCORDION_STORAGE_KEY = "rules.form.accordion.v1";
@@ -403,6 +417,7 @@ const Rules = () => {
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
     setFCalculations([makeEmptyCalc()]);
+    setCalcSyncErrors([]);
   };
 
   const openEdit = async (r: RuleRow) => {
@@ -654,18 +669,20 @@ const Rules = () => {
 
     // === Persiste rule_calculations (1:N) ===
     // Estratégia simples: substitui completamente o conjunto de itens.
-    let calcSyncFailed = false;
+    const syncErrors: CalcSyncError[] = [];
+    setCalcSyncErrors([]);
     if (savedRuleId && fNature === "calculavel") {
       const { error: delErr } = await supabase
         .from("rule_calculations")
         .delete()
         .eq("rule_id", savedRuleId);
       if (delErr) {
-        calcSyncFailed = true;
-        toast({
-          title: "Erro ao sincronizar cálculos",
-          description: `Não foi possível remover os cálculos antigos: ${delErr.message}. A regra foi salva, mas os cálculos podem estar desatualizados.`,
-          variant: "destructive",
+        syncErrors.push({
+          step: "delete-calculavel",
+          message: delErr.message,
+          code: (delErr as any).code ?? null,
+          details: (delErr as any).details ?? null,
+          hint: (delErr as any).hint ?? null,
         });
       } else {
         const rows = fCalculations.map((c, i) => calcToDbPayload(c, savedRuleId!, i));
@@ -674,11 +691,13 @@ const Rules = () => {
             .from("rule_calculations")
             .insert(rows as any);
           if (insErr) {
-            calcSyncFailed = true;
-            toast({
-              title: "Erro ao salvar cálculos",
-              description: `${insErr.message}. Os cálculos antigos foram removidos e os novos não foram inseridos — edite a regra novamente para tentar de novo.`,
-              variant: "destructive",
+            syncErrors.push({
+              step: "insert-calculavel",
+              message: insErr.message,
+              code: (insErr as any).code ?? null,
+              details: (insErr as any).details ?? null,
+              hint: (insErr as any).hint ?? null,
+              rowsAttempted: rows.length,
             });
           } else {
             toast({ title: `${rows.length} cálculo(s) sincronizado(s)` });
@@ -686,23 +705,28 @@ const Rules = () => {
         }
       }
     } else if (savedRuleId && fNature === "informativo") {
-      // Regra informativa: limpa quaisquer cálculos remanescentes.
       const { error: delErr } = await supabase
         .from("rule_calculations")
         .delete()
         .eq("rule_id", savedRuleId);
       if (delErr) {
-        calcSyncFailed = true;
-        toast({
-          title: "Erro ao limpar cálculos",
-          description: `Não foi possível remover cálculos antigos desta regra informativa: ${delErr.message}.`,
-          variant: "destructive",
+        syncErrors.push({
+          step: "delete-informativo",
+          message: delErr.message,
+          code: (delErr as any).code ?? null,
+          details: (delErr as any).details ?? null,
+          hint: (delErr as any).hint ?? null,
         });
       }
     }
 
-    if (calcSyncFailed) {
-      // Mantém o modal aberto para o usuário poder tentar novamente sem perder o estado.
+    if (syncErrors.length > 0) {
+      setCalcSyncErrors(syncErrors);
+      toast({
+        title: `Falha em ${syncErrors.length} etapa(s) da sincronização`,
+        description: "Veja os detalhes no topo do modal para corrigir.",
+        variant: "destructive",
+      });
       load();
       return;
     }
@@ -961,6 +985,36 @@ const Rules = () => {
                 {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
               </DialogHeader>
               <form onSubmit={submitRule} className="space-y-4">
+                {calcSyncErrors.length > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 font-semibold text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
+                      </div>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2" onClick={() => setCalcSyncErrors([])}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-muted-foreground">
+                      A regra foi salva, mas as etapas abaixo falharam. Corrija e clique em salvar novamente.
+                    </div>
+                    <ul className="space-y-2">
+                      {calcSyncErrors.map((err, i) => (
+                        <li key={i} className="rounded border border-destructive/30 bg-background p-2 space-y-1">
+                          <div className="font-semibold">{STEP_LABELS[err.step]}</div>
+                          <div className="font-mono break-all whitespace-pre-wrap text-destructive">{err.message}</div>
+                          {err.code && <div><span className="font-semibold">Código:</span> <span className="font-mono">{err.code}</span></div>}
+                          {err.details && <div><span className="font-semibold">Detalhes:</span> <span className="font-mono break-all whitespace-pre-wrap">{err.details}</span></div>}
+                          {err.hint && <div><span className="font-semibold">Dica:</span> {err.hint}</div>}
+                          {typeof err.rowsAttempted === "number" && (
+                            <div><span className="font-semibold">Linhas tentadas:</span> {err.rowsAttempted}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {/* Resumo dinâmico */}
                 {(() => {
                   const onde =
