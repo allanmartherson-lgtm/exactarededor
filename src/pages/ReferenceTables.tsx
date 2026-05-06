@@ -70,6 +70,9 @@ const ReferenceTables = () => {
   const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualText, setManualText] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
 
   const wizardProfile: ImportProfile | null = selected
     ? {
@@ -175,6 +178,46 @@ const ReferenceTables = () => {
     await supabase.from("reference_table_items").delete().eq("id", id);
     if (selected) loadItems(selected.id);
   };
+
+  const addManualCodes = async () => {
+    if (!selected) return;
+    // Aceita códigos separados por vírgula, ponto-e-vírgula, espaço ou nova linha. Opcional "código - descrição".
+    const lines = manualText
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      toast({ title: "Informe ao menos um código", variant: "destructive" });
+      return;
+    }
+    const parsed = lines.map((ln) => {
+      const m = ln.match(/^([^\s\-–—|\t]+)[\s\-–—|\t]+(.+)$/);
+      const code = (m ? m[1] : ln).trim();
+      const description = m ? m[2].trim() : null;
+      return { code, description };
+    });
+    const existing = new Set(items.map((i) => i.code));
+    const toInsert = parsed
+      .filter((p) => p.code && !existing.has(p.code))
+      .map((p) => ({
+        reference_table_id: selected.id,
+        code: p.code,
+        description: p.description,
+      }));
+    if (toInsert.length === 0) {
+      toast({ title: "Nada a adicionar", description: "Todos os códigos já estão na tabela." });
+      return;
+    }
+    setManualSaving(true);
+    const { error } = await supabase.from("reference_table_items").insert(toInsert as any);
+    setManualSaving(false);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: `${toInsert.length} código(s) adicionado(s)` });
+    setManualText("");
+    setManualOpen(false);
+    loadItems(selected.id);
+  };
+
 
   // Classifica uma aba como tabela de "portes" (porte→valor) ou "códigos" (id/descrição/porte).
   // Permite tanto 1 arquivo com 2 abas quanto 2 arquivos separados.
@@ -393,9 +436,14 @@ const ReferenceTables = () => {
                 <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
               </Button>
               {!isCbhpm && (
-                <Button variant="outline" onClick={() => setWizardOpen(true)}>
-                  <Wand2 className="h-4 w-4 mr-2" /> Importar com assistente
-                </Button>
+                <>
+                  <Button variant="outline" onClick={() => setManualOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar manualmente
+                  </Button>
+                  <Button variant="outline" onClick={() => setWizardOpen(true)}>
+                    <Wand2 className="h-4 w-4 mr-2" /> Importar com assistente
+                  </Button>
+                </>
               )}
               <label>
                 <input
@@ -536,6 +584,30 @@ const ReferenceTables = () => {
             onComplete={() => loadItems(selected.id)}
           />
         )}
+        <Dialog open={manualOpen} onOpenChange={setManualOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar códigos manualmente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Um código por linha (ou separados por vírgula). Opcional: <code>código - descrição</code>.
+              </p>
+              <textarea
+                className="w-full min-h-[160px] rounded-md border border-input bg-background p-2 text-sm font-mono"
+                placeholder={"30729220\n30731119 - Reparação ligamentar"}
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setManualOpen(false)}>Cancelar</Button>
+                <Button onClick={addManualCodes} disabled={manualSaving}>
+                  {manualSaving ? "Salvando..." : "Adicionar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
