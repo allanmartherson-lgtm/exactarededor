@@ -169,6 +169,49 @@ export default function ProcedureSpecialtyMap() {
         <Badge variant="outline" className={STATUS_BADGE.aprovado}>{counts.aprovado} aprovadas</Badge>
         <Badge variant="outline" className={STATUS_BADGE.rejeitado}>{counts.rejeitado} rejeitadas</Badge>
         <div className="flex-1" />
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="default" disabled={filtered.filter((r) => r.status === "sugerido").length === 0}>
+              <CheckCheck className="h-4 w-4 mr-2" />
+              Aprovar todas sugeridas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Aprovar todas as sugestões?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Serão aprovadas {filtered.filter((r) => r.status === "sugerido").length} sugestões {filter ? "(filtro atual)" : "(todas)"}. Você pode editar individualmente depois.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => bulkUpdateSuggested("aprovado")}>Aprovar todas</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" disabled={filtered.filter((r) => r.status === "sugerido").length === 0}>
+              <XCircle className="h-4 w-4 mr-2" />
+              Rejeitar todas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Rejeitar todas as sugestões?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Serão rejeitadas {filtered.filter((r) => r.status === "sugerido").length} sugestões {filter ? "(filtro atual)" : "(todas)"}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => bulkUpdateSuggested("rejeitado")}>Rejeitar todas</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <Button variant="outline" onClick={generate} disabled={running}>
           <Wand2 className="h-4 w-4 mr-2" />
           {running ? "Gerando..." : "Gerar sugestões agora"}
