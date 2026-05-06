@@ -579,6 +579,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           diff_pct: r.diff_pct,
           ai_note: aiJ?.ai_note ?? null,
         },
+        // Detalhamento por item de cálculo (1:N) — quando aplicável.
+        calculation_breakdown: r.calculation_breakdown ?? null,
       };
 
       await supabase.from("payment_items").update({
