@@ -11,6 +11,7 @@ import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { ChevronDown, ChevronRight, Search, X, History, ShieldAlert, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getRoleVisual } from "@/lib/observations";
 
 type Entry = {
   id: string;
