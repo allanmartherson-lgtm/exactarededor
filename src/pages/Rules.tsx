@@ -627,10 +627,12 @@ const Rules = () => {
       document: payload.target_identifier ?? linkedCompany?.document ?? null,
     } : null;
 
+    let savedRuleId: string | null = null;
     if (editingId) {
       const before = rules.find((r) => r.id === editingId) ?? null;
       const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      savedRuleId = editingId;
       await recordAudit({
         entityType: "rule", entityId: editingId, action: "update",
         actorId: user!.id, company: auditCompany,
@@ -641,6 +643,7 @@ const Rules = () => {
       payload.created_by = user!.id;
       const { data: created, error } = await supabase.from("rules").insert(payload).select("id").single();
       if (error || !created) return toast({ title: "Erro", description: error?.message ?? "Falha ao criar", variant: "destructive" });
+      savedRuleId = created.id;
       await recordAudit({
         entityType: "rule", entityId: created.id, action: "create",
         actorId: user!.id, company: auditCompany,
@@ -648,6 +651,23 @@ const Rules = () => {
       });
       toast({ title: "Regra criada" });
     }
+
+    // === Persiste rule_calculations (1:N) ===
+    // Estratégia simples: substitui completamente o conjunto de itens.
+    if (savedRuleId && fNature === "calculavel") {
+      await supabase.from("rule_calculations").delete().eq("rule_id", savedRuleId);
+      const rows = fCalculations.map((c, i) => calcToDbPayload(c, savedRuleId!, i));
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from("rule_calculations").insert(rows as any);
+        if (insErr) {
+          toast({ title: "Aviso", description: `Cálculos não foram salvos: ${insErr.message}`, variant: "destructive" });
+        }
+      }
+    } else if (savedRuleId && fNature === "informativo") {
+      // Regra informativa: limpa quaisquer cálculos remanescentes.
+      await supabase.from("rule_calculations").delete().eq("rule_id", savedRuleId);
+    }
+
     setOpen(false); resetForm(); load();
   };
 
@@ -922,17 +942,21 @@ const Rules = () => {
                       : RULE_SCOPE_LABELS[scope];
                   const calc = fNature === "informativo"
                     ? "Informativa / bloqueio (não calcula)"
-                    : `${RULE_CALCULATION_TYPE_LABELS[fCalculationType]}${fCalculationType === "percentual_sobre_convenio" && fConvenioPct ? ` (${fConvenioPct}%)` : ""}${fCalculationType === "valor_fixo" && fFixedAmount ? ` (R$ ${fFixedAmount})` : ""}`;
+                    : fCalculations.length > 1
+                      ? `${fCalculations.length} cálculos (somados quando casarem)`
+                      : `${RULE_CALCULATION_TYPE_LABELS[fCalculations[0]?.calculation_type ?? "informativo"]}`;
                   const cond: string[] = [];
-                  if (fTimeMode !== "qualquer") cond.push(TIME_MODE_LABELS[fTimeMode]);
-                  if (fElectiveMode !== "qualquer") cond.push(ELECTIVE_MODE_LABELS[fElectiveMode]);
-                  if (fTimeStart || fTimeEnd) cond.push(`${fTimeStart || "—"}–${fTimeEnd || "—"}`);
-                  if (fIncludesHolidays) cond.push("inclui feriados");
+                  const condItems = fCalculations.filter((c) => c.has_conditions);
+                  if (fNature === "calculavel" && condItems.length > 0) {
+                    cond.push(`${condItems.length} cálculo(s) com janela específica`);
+                  } else {
+                    cond.push("qualquer dia/horário/tipo");
+                  }
                   return (
                     <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
                       <div><span className="font-semibold">Onde aplica:</span> {onde}</div>
                       <div><span className="font-semibold">Como calcula:</span> {calc}</div>
-                      <div><span className="font-semibold">Condições:</span> {cond.length ? cond.join(" · ") : "qualquer dia/horário/tipo"}</div>
+                      <div><span className="font-semibold">Condições:</span> {cond.join(" · ")}</div>
                     </div>
                   );
                 })()}
@@ -1328,95 +1352,23 @@ const Rules = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* Condições de aplicação */}
-                  <AccordionItem value="condicoes" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.condicoes > 0 && "text-destructive")}>
-                      <span className="flex items-center">Aplica-se a algum período, dia ou horário específico?
-                        {sectionErrors.condicoes > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.condicoes}</span>}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
-                      <label className="flex items-start gap-2 text-sm">
-                        <Checkbox
-                          checked={fHasConditions}
-                          onCheckedChange={(v) => setFHasConditions(!!v)}
-                          className="mt-0.5"
-                        />
-                        <span>
-                          Sim — esta regra só vale em determinados dias, horários ou tipos de atendimento.
-                          <span className="block text-xs text-muted-foreground">
-                            Deixe desmarcado se a regra se aplica a qualquer período.
-                          </span>
-                        </span>
-                      </label>
-
-                      {fHasConditions && (
-                        <>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <Label>Dias / período</Label>
-                              <Select value={fTimeMode} onValueChange={(v) => setFTimeMode(v as TimeMode)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label>Tipo de atendimento</Label>
-                              <Select value={fElectiveMode} onValueChange={(v) => setFElectiveMode(v as ElectiveMode)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          {fTimeMode === "personalizado" && (
-                            <div className="space-y-1.5">
-                              <Label>Dias da semana</Label>
-                              <div className="flex flex-wrap gap-1.5">
-                                {WEEKDAY_LABELS.map((d) => {
-                                  const checked = fWeekdays.includes(d.v);
-                                  return (
-                                    <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                      onClick={() => setFWeekdays((p) => checked ? p.filter((x) => x !== d.v) : [...p, d.v])}>
-                                      {d.label}
-                                    </Button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                            <div className="space-y-1.5">
-                              <Label>Hora início (opcional)</Label>
-                              <Input type="time" value={fTimeStart} onChange={(e) => setFTimeStart(e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label>Hora fim (opcional)</Label>
-                              <Input type="time" value={fTimeEnd} onChange={(e) => setFTimeEnd(e.target.value)} />
-                            </div>
-                            <label className="flex items-center gap-2 text-sm pb-2">
-                              <Checkbox checked={fIncludesHolidays} onCheckedChange={(v) => setFIncludesHolidays(!!v)} />
-                              Inclui feriados
-                            </label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Se ultrapassar a meia-noite (ex.: 19:00 → 07:00), o sistema interpreta como janela noturna.
-                          </p>
-                        </>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* Cálculo da regra */}
+                  {/* Cálculos da regra (1:N) — substitui as antigas seções
+                      "Condições" e "Cálculo da regra". As condições agora vivem
+                      DENTRO de cada item de cálculo. */}
                   <AccordionItem value="calculo" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.calculo > 0 && "text-destructive")}>
-                      <span className="flex items-center">Cálculo da regra
-                        {sectionErrors.calculo > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.calculo}</span>}
+                      <span className="flex items-center">
+                        Cálculos da regra
+                        {fNature === "calculavel" && fCalculations.length > 1 && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            ({fCalculations.length} itens — somados quando casarem)
+                          </span>
+                        )}
+                        {sectionErrors.calculo > 0 && (
+                          <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">
+                            {sectionErrors.calculo}
+                          </span>
+                        )}
                       </span>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
@@ -1446,261 +1398,51 @@ const Rules = () => {
                         <p className="text-xs text-muted-foreground">
                           {fNature === "informativo"
                             ? "Regra apenas alerta/bloqueia o validador — não calcula valor esperado."
-                            : "Regra calcula um valor esperado pelo motor determinístico."}
+                            : "Você pode adicionar mais de um item de cálculo (bônus, tabela diferenciada, etc.). Cada item pode ter sua própria janela de aplicação (período/dia/horário). Os valores dos itens cujas condições baterem são somados."}
                         </p>
                       </div>
 
                       {fNature === "calculavel" && (
-                      <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3">
-                        <Label>Método de cálculo *</Label>
-                        <Select
-                          value={fCalculationType}
-                          onValueChange={(v) => {
-                            const c = v as RuleCalculationType;
-                            setFCalculationType(c);
-                            setRuleType(deriveRuleType(c));
-                            if (c !== "tabela_diferenciada") setRefTableId("");
-                          }}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {CALCULABLE_METHODS.map((k) => (
-                              <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">{RULE_CALCULATION_TYPE_DESCRIPTIONS[fCalculationType]}</p>
-                        {fCalculationType === "percentual_sobre_convenio" && (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-xs">Percentual sobre o convênio (%)</Label>
-                            <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
-                              value={fConvenioPct} onChange={(e) => setFConvenioPct(e.target.value)} />
-                          </div>
-                        )}
-                        {fCalculationType === "valor_fixo" && (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-xs">Valor fixo (R$)</Label>
-                            <Input type="number" step="0.01" value={fFixedAmount} onChange={(e) => setFFixedAmount(e.target.value)} />
-                          </div>
-                        )}
-                        {fCalculationType === "bonus" && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                            <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
-                              <Input type="number" step="0.01" value={fBonusAmount} onChange={(e) => setFBonusAmount(e.target.value)} />
-                            </div>
-                            <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
-                              <Input type="number" step="0.01" value={fBonusPct} onChange={(e) => setFBonusPct(e.target.value)} />
-                            </div>
-                          </div>
-                        )}
-                        {fCalculationType === "complemento" && (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-xs">Valor alvo (R$) *</Label>
-                            <Input type="number" step="0.01" value={fTargetAmount} onChange={(e) => setFTargetAmount(e.target.value)} />
-                          </div>
-                        )}
-                        {(fCalculationType === "pacote" ||
-                          fCalculationType === "pacote_fechado" ||
-                          fCalculationType === "pacote_com_extras" ||
-                          fCalculationType === "pacote_por_atendimento") && (
-                          <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-[13.5px] font-semibold">Configuração do pacote</h3>
-                              <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
-                                {fPackageSubtype === "fechado" ? "fechado" : "com extras"}
-                              </span>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">Tipo de pacote *</Label>
-                              <Select
-                                value={fPackageSubtype}
-                                onValueChange={(v) => {
-                                  const sub = v as "fechado" | "com_extras";
-                                  setFPackageSubtype(sub);
-                                  if (sub === "fechado") {
-                                    setFPackageVisitsCount(false);
-                                    setFPackageOpinionsCount(false);
-                                    setFPackageAuxIncluded(false);
-                                    setFExtrasCodes("");
-                                  } else {
-                                    setFPackageAuxIncluded(true);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="fechado">Fechado</SelectItem>
-                                  <SelectItem value="com_extras">Com extras</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Valor do pacote (R$) *</Label>
-                                <Input type="number" step="0.01" value={fPackageAmount} onChange={(e) => setFPackageAmount(e.target.value)} />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Código principal do pacote</Label>
-                                <Input placeholder="Ex.: 31005497" value={fPackageMainCode} onChange={(e) => setFPackageMainCode(e.target.value)} />
-                              </div>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">Códigos incluídos no pacote (embutidos, esperado R$ 0)</Label>
-                              <Input placeholder="Ex.: 31002, 31003, 31004"
-                                value={fPackageIncludedCodes} onChange={(e) => setFPackageIncludedCodes(e.target.value)} />
-                            </div>
-                            {fPackageSubtype === "com_extras" && (
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Códigos extras permitidos (pagos à parte conforme regra definida)</Label>
-                                <Input placeholder="Ex.: 31005470" value={fExtrasCodes} onChange={(e) => setFExtrasCodes(e.target.value)} />
-                              </div>
-                            )}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                              <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
-                                <Checkbox checked={fPackageVisitsCount} disabled={fPackageSubtype === "fechado"}
-                                  onCheckedChange={(c) => setFPackageVisitsCount(!!c)} />
-                                <span className="text-xs">Visitas somam ao pacote</span>
-                              </label>
-                              <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
-                                <Checkbox checked={fPackageOpinionsCount} disabled={fPackageSubtype === "fechado"}
-                                  onCheckedChange={(c) => setFPackageOpinionsCount(!!c)} />
-                                <span className="text-xs">Pareceres somam ao pacote</span>
-                              </label>
-                              <label className={cn("flex items-start gap-2", fPackageSubtype === "fechado" ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
-                                <Checkbox checked={fPackageAuxIncluded} disabled={fPackageSubtype === "fechado"}
-                                  onCheckedChange={(c) => setFPackageAuxIncluded(!!c)} />
-                                <span className="text-xs">Auxiliares incluídos no pacote</span>
-                              </label>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                              O motor agrupa os itens pelo mesmo número de atendimento e aplica o pacote uma única vez (no item principal).
-                              {fPackageSubtype === "fechado"
-                                ? " Itens fora do código principal e fora da lista de incluídos geram alerta/reprovação."
-                                : " Visitas, pareceres e auxiliares são contabilizados conforme as flags acima; códigos extras permitidos são reprocessados pela regra aplicável a cada um."}
-                            </p>
-                          </div>
-                        )}
-                        {fCalculationType === "exclusao" && (
-                          <div className="mt-3 space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
-                              <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">
-                                {fAllowsAuthorizedException ? "admite exceção" : "bloqueio rígido"}
-                              </span>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">Motivo da exclusão *</Label>
-                              <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
-                                <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="convenio_particular">Convênio particular</SelectItem>
-                                  <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
-                                  <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
-                                  <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
-                                  <SelectItem value="duplicidade">Duplicidade</SelectItem>
-                                  <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
-                                  <SelectItem value="outro">Outro</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <label className="flex items-start gap-2 cursor-pointer">
-                              <Checkbox
-                                checked={fAllowsAuthorizedException}
-                                onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
-                              />
-                              <span className="text-xs">
-                                Permite exceção autorizada
-                                <span className="block text-[11px] text-muted-foreground">
-                                  Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
-                                  Nesses casos o motor busca uma regra calculável específica; se não houver, marca como alerta para validação manual.
-                                </span>
-                              </span>
-                            </label>
-                            <p className="text-[11px] text-muted-foreground">
-                              Padrão: valor esperado = R$ 0 e item bloqueado.
-                              {fAllowsAuthorizedException
-                                ? " Exceções autorizadas ficam registradas em auditoria."
-                                : " Sem exceção possível — qualquer valor pago é divergência."}
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                        <RuleCalculationsEditor
+                          value={fCalculations}
+                          onChange={setFCalculations}
+                          refTables={refTables}
+                          enabled={true}
+                        />
                       )}
 
-                      {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && (
-                        <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3">
-                          <Label>Tabela de referência *</Label>
-                          <Select value={refTableId || "__none"} onValueChange={(v) => setRefTableId(v === "__none" ? "" : v)}>
-                            <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecionar tabela" : "Cadastre uma tabela"} /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none">Sem vínculo</SelectItem>
-                              {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">A tabela fornece apenas a base de valores; os parâmetros financeiros pertencem à regra.</p>
-                        </div>
-                      )}
-
-                      {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && refTableId && (
+                      {/* Bloco específico da Exclusão (mantém-se vinculado à regra,
+                          não ao item de cálculo, pois é uma decisão global) */}
+                      {fNature === "calculavel" && fCalculations[0]?.calculation_type === "exclusao" && (
                         <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-[13.5px] font-semibold">Parâmetros de cálculo da tabela</h3>
-                            <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground font-semibold">obrigatório</span>
+                          <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Motivo da exclusão *</Label>
+                            <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
+                              <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="convenio_particular">Convênio particular</SelectItem>
+                                <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
+                                <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
+                                <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
+                                <SelectItem value="duplicidade">Duplicidade</SelectItem>
+                                <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
+                                <SelectItem value="outro">Outro</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            A tabela vinculada acima fornece apenas a base de valores. Os parâmetros abaixo pertencem a esta regra e são aplicados pelo motor de cálculo.
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="space-y-1.5"><Label>Multiplicador</Label>
-                              <Input type="number" step="0.01" placeholder="Ex: 1.5" value={fMultiplier} onChange={(e) => setFMultiplier(e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5"><Label>Deflator (%)</Label>
-                              <Input type="number" step="0.01" placeholder="Ex: 5" value={fDeflatorPct} onChange={(e) => setFDeflatorPct(e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5"><Label>% de repasse</Label>
-                              <Input type="number" step="0.01" placeholder="Ex: 70" value={fRepassePct} onChange={(e) => setFRepassePct(e.target.value)} />
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2 pt-1">
-                            <Checkbox id="apply_access_route" checked={fApplyAccessRoute} onCheckedChange={(c) => setFApplyAccessRoute(!!c)} />
-                            <div className="flex-1">
-                              <Label htmlFor="apply_access_route" className="cursor-pointer">Aplicar regra de via de acesso</Label>
-                              <p className="text-xs text-muted-foreground">Aplica fator por via (única=1, mesma=0,5, diferente=0,7) sobre o valor base.</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <Checkbox id="include_aux" checked={fIncludeAux} onCheckedChange={(c) => setFIncludeAux(!!c)} />
-                            <div className="flex-1">
-                              <Label htmlFor="include_aux" className="cursor-pointer">Considerar auxiliares</Label>
-                              <p className="text-xs text-muted-foreground">Soma <code>valor_base × nº_aux × %_aux</code> (CBHPM informa o nº de auxiliares por código).</p>
-                            </div>
-                          </div>
-                          {fIncludeAux && (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div className="space-y-1.5">
-                                <Label>1º auxiliar (%)</Label>
-                                <Input type="number" step="0.01" placeholder="30" value={fAuxFirstPct} onChange={(e) => setFAuxFirstPct(e.target.value)} />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label>2º auxiliar em diante (%)</Label>
-                                <Input type="number" step="0.01" placeholder="20" value={fAuxSecondPct} onChange={(e) => setFAuxSecondPct(e.target.value)} />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label>Instrumentador (%)</Label>
-                                <Input type="number" step="0.01" placeholder="10" value={fInstrumentadorPct} onChange={(e) => setFInstrumentadorPct(e.target.value)} />
-                              </div>
-                              <p className="text-xs text-muted-foreground sm:col-span-3">
-                                O motor aplica o percentual conforme a função do médico no item (Primeiro Auxiliar, Segundo Auxiliar+, Instrumentador).
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {fNature === "calculavel" && fCalculationType === "tabela_diferenciada" && !refTableId && (
-                        <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
-                          <p className="text-xs text-muted-foreground">
-                            Vincule uma <strong>Tabela de referência</strong> acima para definir os <strong>parâmetros de cálculo</strong> desta regra.
-                          </p>
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <Checkbox
+                              checked={fAllowsAuthorizedException}
+                              onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
+                            />
+                            <span className="text-xs">
+                              Permite exceção autorizada
+                              <span className="block text-[11px] text-muted-foreground">
+                                Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
+                              </span>
+                            </span>
+                          </label>
                         </div>
                       )}
                     </AccordionContent>
