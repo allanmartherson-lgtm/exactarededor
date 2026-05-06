@@ -650,11 +650,11 @@ const Dashboard = () => {
         if (p.status === "devolvido_analista" || p.status === "devolvido_validador") c.attDevolvidoAnalista++;
         if (p.status === "aprovado_com_ressalva") {
           c.attRessalvas++;
-          c.mineRessalvas++;
+          if (isMineRow) c.mineRessalvas++;
         }
         if (p.status === "nf_questionada") {
           c.attNFQuestionada++;
-          c.mineInvoicesQuestionadas++;
+          if (isMineRow) c.mineInvoicesQuestionadas++;
         }
         if (p.status === "rejeitado") c.attRejeitados++;
       });
@@ -662,7 +662,8 @@ const Dashboard = () => {
       (invDiv ?? []).forEach((row: any) => {
         c.teamInvoicesDivergentes++;
         c.attNFDivergente++;
-        c.mineInvoicesDivergentes++;
+        const cb = row?.payment?.created_by ?? null;
+        if (uid && cb === uid) c.mineInvoicesDivergentes++;
       });
       void invQuest;
       void uid;
