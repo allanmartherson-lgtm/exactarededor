@@ -29,6 +29,8 @@ import { resolveResendTarget, canEditBatch } from "@/lib/paymentFlow";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Pencil } from "lucide-react";
 import {
   formatCurrency,
@@ -87,6 +89,12 @@ export default function CompanyAnalysis() {
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
+
+  const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
+  const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
+  const [savingItem, setSavingItem] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
+  const [deletingItem, setDeletingItem] = useState(false);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
@@ -384,6 +392,102 @@ export default function CompanyAnalysis() {
     }
   };
 
+  const openEditItem = (it: PaymentItemRow) => {
+    setEditItem(it);
+    setEditDraft({
+      gross_amount: String(it.gross_amount ?? 0),
+      specialty: it.specialty ?? "",
+      doctor_name: it.doctor_name ?? "",
+      description: it.description ?? "",
+    });
+  };
+
+  const saveItem = async () => {
+    if (!editItem || !id || !group) return;
+    const newGross = Number(editDraft.gross_amount.replace(",", "."));
+    if (Number.isNaN(newGross)) {
+      toast.error("Valor inválido");
+      return;
+    }
+    setSavingItem(true);
+    try {
+      const oldGross = Number(editItem.gross_amount ?? 0);
+      const { error } = await supabase
+        .from("payment_items")
+        .update({
+          gross_amount: newGross,
+          specialty: editDraft.specialty || null,
+          doctor_name: editDraft.doctor_name,
+          description: editDraft.description || null,
+          ai_status: "pendente",
+        })
+        .eq("id", editItem.id);
+      if (error) throw error;
+      const delta = newGross - oldGross;
+      if (Math.abs(delta) > 0.001) {
+        await supabase
+          .from("payment_company_groups")
+          .update({ total_amount: Number(group.total_amount ?? 0) + delta })
+          .eq("id", group.id);
+      }
+      await recordObservation({
+        payment_id: id,
+        item_id: editItem.id,
+        author_type: "analista",
+        author_id: user!.id,
+        message: `Item editado pelo analista (valor: ${oldGross} → ${newGross}).`,
+      });
+      try {
+        await supabase.functions.invoke("analyze-payment", {
+          body: { payment_id: id, company_name: group.company_name },
+        });
+      } catch (e) { console.warn("Reanálise pós-edição falhou:", e); }
+      toast.success("Item atualizado");
+      setEditItem(null);
+      load();
+    } catch (e) {
+      toast.error("Falha ao salvar", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const confirmDeleteItem = async () => {
+    if (!deleteItem || !id || !group) return;
+    setDeletingItem(true);
+    try {
+      const gross = Number(deleteItem.gross_amount ?? 0);
+      const { error } = await supabase.from("payment_items").delete().eq("id", deleteItem.id);
+      if (error) throw error;
+      const remaining = items.length - 1;
+      if (remaining <= 0) {
+        await supabase.from("payment_company_groups").delete().eq("id", group.id);
+      } else {
+        await supabase
+          .from("payment_company_groups")
+          .update({
+            items_count: remaining,
+            total_amount: Math.max(0, Number(group.total_amount ?? 0) - gross),
+          })
+          .eq("id", group.id);
+      }
+      await recordObservation({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user!.id,
+        message: `[${group.company_name}] Item excluído pelo analista (${deleteItem.doctor_name} · ${formatCurrency(gross)}).`,
+      });
+      toast.success("Item excluído");
+      setDeleteItem(null);
+      if (remaining <= 0) navigate(`/pagamentos/${id}`);
+      else load();
+    } catch (e) {
+      toast.error("Falha ao excluir", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDeletingItem(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -520,6 +624,9 @@ export default function CompanyAnalysis() {
                 observations={obs}
                 profiles={profiles}
                 storageKey="companyAnalysisPage"
+                canEdit={canEdit}
+                onEditItem={openEditItem}
+                onDeleteItem={(it) => setDeleteItem(it)}
               />
             </CardContent>
           </Card>
@@ -655,6 +762,60 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
+
+      {/* Editar item */}
+      <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar item</DialogTitle>
+            <DialogDescription>
+              Ajuste valores ou metadados desta linha. O item será reanalisado pela IA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs">Médico</Label>
+              <Input value={editDraft.doctor_name} onChange={(e) => setEditDraft((d) => ({ ...d, doctor_name: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Valor (R$)</Label>
+              <Input value={editDraft.gross_amount} onChange={(e) => setEditDraft((d) => ({ ...d, gross_amount: e.target.value }))} inputMode="decimal" />
+            </div>
+            <div>
+              <Label className="text-xs">Especialidade</Label>
+              <Input value={editDraft.specialty} onChange={(e) => setEditDraft((d) => ({ ...d, specialty: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Descrição</Label>
+              <Input value={editDraft.description} onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditItem(null)} disabled={savingItem}>Cancelar</Button>
+            <Button onClick={saveItem} disabled={savingItem}>{savingItem ? "Salvando…" : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir item */}
+      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir este item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteItem && (
+                <>Remove a linha de <strong>{deleteItem.doctor_name}</strong> ({formatCurrency(Number(deleteItem.gross_amount ?? 0))}). Os totais do grupo serão recalculados.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingItem}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem} disabled={deletingItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingItem ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </Dialog>
     </div>
   );
 }

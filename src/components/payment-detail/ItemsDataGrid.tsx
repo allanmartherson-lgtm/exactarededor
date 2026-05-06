@@ -6,14 +6,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertBanner } from "./AlertBanner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import {
   AlertTriangle,
   Columns3,
   FileText,
+  Pencil,
   Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -98,6 +103,10 @@ export type ItemsDataGridProps = {
   showToolbar?: boolean;
   /** Mostra rodapé com dicas de teclado. */
   showKeyboardHint?: boolean;
+  /** Quando true, exibe coluna "Ações" com editar/excluir. */
+  canEdit?: boolean;
+  onEditItem?: (item: PaymentItemRowData) => void;
+  onDeleteItem?: (item: PaymentItemRowData) => void;
   className?: string;
 };
 
@@ -111,6 +120,9 @@ export function ItemsDataGrid({
   storageKey = "itemsDataGrid.default",
   showToolbar = true,
   showKeyboardHint = true,
+  canEdit = false,
+  onEditItem,
+  onDeleteItem,
   className,
 }: ItemsDataGridProps) {
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
@@ -544,6 +556,7 @@ export function ItemsDataGrid({
               {colVis.diferenca && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
+              {canEdit && <col style={{ width: 80 }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
@@ -561,6 +574,7 @@ export function ItemsDataGrid({
                 {colVis.diferenca && <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Diferença</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Status</th>
                 {colVis.observacao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
+                {canEdit && <th className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -596,7 +610,8 @@ export function ItemsDataGrid({
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
-                  (colVis.observacao ? 1 : 0);
+                  (colVis.observacao ? 1 : 0) +
+                  (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
                 return (
                   <RowMain
@@ -620,6 +635,9 @@ export function ItemsDataGrid({
                     obsCount={obsCount}
                     isCompact={isCompact}
                     totalCols={totalCols}
+                    canEdit={canEdit}
+                    onEditItem={onEditItem}
+                    onDeleteItem={onDeleteItem}
                   />
                 );
               })}
@@ -635,7 +653,7 @@ export function ItemsDataGrid({
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
-              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0);
+              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-1.5" : "px-2 py-2";
               return (
                 <tfoot className="sticky bottom-0 z-20">
@@ -705,6 +723,9 @@ function RowMain({
   obsCount,
   isCompact,
   totalCols,
+  canEdit,
+  onEditItem,
+  onDeleteItem,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -725,6 +746,9 @@ function RowMain({
   obsCount: number;
   isCompact: boolean;
   totalCols: number;
+  canEdit?: boolean;
+  onEditItem?: (item: PaymentItemRowData) => void;
+  onDeleteItem?: (item: PaymentItemRowData) => void;
 }) {
   const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
@@ -839,6 +863,37 @@ function RowMain({
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
+          </td>
+        )}
+        {canEdit && (
+          <td
+            className={cn(cellPad, "text-center border-b whitespace-nowrap", baseCellBg)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="inline-flex gap-0.5">
+              {onEditItem && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  title="Editar item"
+                  onClick={() => onEditItem(it)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {onDeleteItem && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  title="Excluir item"
+                  onClick={() => onDeleteItem(it)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </td>
         )}
       </tr>
