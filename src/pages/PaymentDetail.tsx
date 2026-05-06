@@ -675,6 +675,8 @@ const PaymentDetail = () => {
     }
   };
 
+  if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
+
   const isValidador = hasRole("validador") || hasRole("admin");
   const isDiretor = hasRole("diretor") || hasRole("admin");
   const isAnalista = hasRole("analista") || hasRole("admin");
