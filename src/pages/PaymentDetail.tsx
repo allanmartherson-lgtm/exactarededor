@@ -192,6 +192,7 @@ const PaymentDetail = () => {
       return;
     }
     setBusy(true);
+    if (authorType === "analista") await autoClaim();
     const updates: GroupUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
       updates.validated_by = user!.id; updates.validated_at = new Date().toISOString();
