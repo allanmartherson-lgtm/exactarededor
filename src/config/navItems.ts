@@ -102,6 +102,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Regras de Validação", iconName: "ShieldCheck" },
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
+  { label: "Apelidos aprendidos", iconName: "Sparkles" },
   { label: "Médicos", iconName: "Stethoscope" },
   { label: "Mapa Especialidades", iconName: "Stethoscope" },
   { label: "Centros de custo", iconName: "Network" },
