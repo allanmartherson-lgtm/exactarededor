@@ -39,6 +39,8 @@ import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_T
 import {
   ANALYST_DONE_STATUSES,
   canTransition,
+  canEditBatch,
+  canActAsValidatorOrDirector,
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
@@ -77,6 +79,9 @@ const PaymentDetail = () => {
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
+  const [editMetaOpen, setEditMetaOpen] = useState(false);
+  const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
+  const [savingMeta, setSavingMeta] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
@@ -149,6 +154,15 @@ const PaymentDetail = () => {
 
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
+    // Segregação de funções: quem criou o lote não pode validá-lo nem aprová-lo.
+    if ((authorType === "validador" || authorType === "diretor") && !canActAsValidatorOrDirector(payment.created_by, user?.id)) {
+      toast({
+        title: "Ação bloqueada",
+        description: "Quem cria o lote não pode validar nem aprovar. Outro usuário precisa concluir esta etapa.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
     const updates: PaymentUpdate = { status: newStatus };
     if (authorType === "validador" && newStatus === "aguardando_aprovacao") {
@@ -185,9 +199,18 @@ const PaymentDetail = () => {
     messagePrefix: string,
     requireMsg = true,
   ) => {
-    if (!id) return;
+    if (!id || !payment) return;
     const g = groups.find((x) => x.id === groupId);
     if (!g) return;
+    // Segregação de funções: criador não valida nem aprova.
+    if ((authorType === "validador" || authorType === "diretor") && !canActAsValidatorOrDirector(payment.created_by, user?.id)) {
+      toast({
+        title: "Ação bloqueada",
+        description: "Quem cria o lote não pode validar nem aprovar. Outro usuário precisa concluir esta etapa.",
+        variant: "destructive",
+      });
+      return;
+    }
     // Guarda autoritativa: bloqueia transições inválidas no cliente.
     if (!canTransition(authorType, g.status as PaymentStatus, newStatus)) {
       toast({
@@ -534,6 +557,39 @@ const PaymentDetail = () => {
     load();
   };
 
+  const openEditMeta = () => {
+    if (!payment) return;
+    setMetaDraft({
+      reference: payment.reference ?? "",
+      description: payment.description ?? "",
+      payment_due_date: payment.payment_due_date ?? "",
+    });
+    setEditMetaOpen(true);
+  };
+  const saveMeta = async () => {
+    if (!id || !payment) return;
+    setSavingMeta(true);
+    const updates: PaymentUpdate = {
+      reference: metaDraft.reference.trim() || payment.reference,
+      description: metaDraft.description.trim() || null,
+      payment_due_date: metaDraft.payment_due_date || null,
+    };
+    const { error } = await supabase.from("payments").update(updates).eq("id", id);
+    setSavingMeta(false);
+    if (error) {
+      toast({ title: "Falha ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    await recordObservation({
+      payment_id: id, author_type: "analista", author_id: user!.id,
+      message: `Lote editado pelo analista (referência/descrição/vencimento).`,
+      status_from: payment.status, status_to: payment.status,
+    });
+    toast({ title: "Lote atualizado" });
+    setEditMetaOpen(false);
+    load();
+  };
+
   if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
 
   const isValidador = hasRole("validador") || hasRole("admin");
@@ -550,6 +606,16 @@ const PaymentDetail = () => {
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
   const canDelete = (isOwner || isDiretor) && editableStatuses.includes(payment.status as PaymentStatus);
+  const canEditMeta = canEditBatch(payment.status as PaymentStatus, {
+    isOwner,
+    isAnalista,
+    isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
+  });
+  // Quando o usuário corrente é validador ou diretor MAS criou o lote,
+  // mostramos um aviso de segregação de funções no topo.
+  const segregationBlocked = isOwner && (isValidador || isDiretor) && !isAnalista
+    ? false // só validador/diretor sem ser analista — caso raro
+    : isOwner && (isValidador || isDiretor);
 
   const cancelPayment = async () => {
     if (!id) return;
@@ -899,6 +965,17 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-8 space-y-6">
+        {segregationBlocked && (
+          <Card className="shadow-card border-warning/40 bg-warning-soft/40">
+            <CardContent className="p-3 text-xs flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <span>
+                <strong>Segregação de funções:</strong> você criou este lote, então não pode validar nem aprová-lo.
+                Outro validador/diretor precisa concluir esta etapa.
+              </span>
+            </CardContent>
+          </Card>
+        )}
         <Card className="shadow-card">
           <CardContent className="p-4 flex flex-wrap gap-x-6 gap-y-2 items-center text-sm">
             <div className="flex items-center gap-2">
@@ -911,6 +988,38 @@ const PaymentDetail = () => {
             {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
             {payment.cost_center_code && <div><span className="text-muted-foreground">Centro de custos:</span> <span className="font-mono text-xs font-medium">{payment.cost_center_code}</span></div>}
             <div className="ml-auto flex gap-2">
+              {canEditMeta && (
+                <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={busy} onClick={openEditMeta}>
+                      <MessageSquarePlus className="h-4 w-4 mr-1" /> Editar lote
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Editar lote</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Referência</label>
+                        <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Descrição</label>
+                        <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
+                        <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
+                      <Button onClick={saveMeta} disabled={savingMeta}>{savingMeta ? "Salvando…" : "Salvar"}</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
               {canCancel && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
