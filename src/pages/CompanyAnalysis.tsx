@@ -84,6 +84,9 @@ export default function CompanyAnalysis() {
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
   const [groupDraft, setGroupDraft] = useState("");
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
+  const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
+  const [changingCompany, setChangingCompany] = useState(false);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
