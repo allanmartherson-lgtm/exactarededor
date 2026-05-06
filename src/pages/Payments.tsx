@@ -323,8 +323,18 @@ const Payments = () => {
       const lvl = delayLevel(r.status, now - new Date(since).getTime());
       if (lvl === "none") return false;
     }
+    if (divergenceFilter !== "all") {
+      const has = paymentIdsWithDivergence.has(r.id);
+      if (divergenceFilter === "with" && !has) return false;
+      if (divergenceFilter === "without" && has) return false;
+    }
+    if (questionedFilter !== "all") {
+      const has = paymentIdsWithQuestions.has(r.id);
+      if (questionedFilter === "with" && !has) return false;
+      if (questionedFilter === "without" && has) return false;
+    }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
