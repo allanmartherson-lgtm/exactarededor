@@ -856,8 +856,8 @@ function ItemDetailsRow({
           cortado pelo scroll horizontal, usamos sticky + max-width baseado em 100vw.
         */}
         <div
-          className={cn("sticky left-0 px-4 py-4 animate-accordion-down", TEXT_BODY)}
-          style={{ width: "min(100%, calc(100vw - 2rem))", maxWidth: "calc(100vw - 2rem)" }}
+          className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4 animate-accordion-down", TEXT_BODY)}
+          style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
         >
           {/* Resumo do item */}
           <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
@@ -870,8 +870,8 @@ function ItemDetailsRow({
           </div>
 
           <div className={cn("grid gap-3 grid-cols-1 lg:grid-cols-3 items-start", TEXT_BODY)}>
-            {/* Coluna 1: alertas + histórico */}
-            <div className="space-y-2 min-w-0">
+            {/* Coluna 1 (mobile: 1º — alertas + histórico) */}
+            <div className="space-y-2 min-w-0 order-1 lg:order-1">
               {alerts.length > 0 && (
                 <AlertBanner
                   severity={isCritical ? "critico" : "alerta"}
@@ -922,8 +922,8 @@ function ItemDetailsRow({
               </div>
             </div>
 
-            {/* Coluna 2: regra + IA */}
-            <div className="space-y-2 min-w-0">
+            {/* Coluna 2 (mobile: 3º — regra + IA) */}
+            <div className="space-y-2 min-w-0 order-3 lg:order-2">
               {matchedRules.length > 0 ? (
                 <div className={CARD}>
                   <Label>Regra aplicada</Label>
@@ -954,8 +954,8 @@ function ItemDetailsRow({
               )}
             </div>
 
-            {/* Coluna 3: detalhes do cálculo */}
-            <div className="space-y-2 min-w-0">
+            {/* Coluna 3 (mobile: 2º — cálculo, prioridade no mobile pois resume divergência) */}
+            <div className="space-y-2 min-w-0 order-2 lg:order-3">
               {(engine || expected != null || explanation) && (
                 <div className={CARD}>
                   <Label icon={FileText}>Detalhes do cálculo</Label>
