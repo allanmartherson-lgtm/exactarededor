@@ -46,25 +46,38 @@ const Users = () => {
   const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
-  const [editingPhone, setEditingPhone] = useState<{ id: string; email: string; full_name: string | null; phone: string } | null>(null);
-  const [savingPhone, setSavingPhone] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; role_title: string; department: string; birth_date: string } | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
 
-  const savePhone = async () => {
-    if (!editingPhone) return;
-    const digits = editingPhone.phone.replace(/\D/g, "");
-    if (digits && digits.length !== 11) {
-      toast({ title: "Telefone inválido", description: "Use DDD + 9 dígitos (11 números) ou deixe em branco.", variant: "destructive" });
+  const saveUser = async () => {
+    if (!editingUser) return;
+    const parsed = userExtraSchema.safeParse({
+      full_name: editingUser.full_name,
+      email: editingUser.email,
+      phone: editingUser.phone,
+      role_title: editingUser.role_title,
+      department: editingUser.department,
+      birth_date: editingUser.birth_date,
+    });
+    if (!parsed.success) {
+      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
       return;
     }
-    setSavingPhone(true);
-    const { error } = await supabase.from("profiles").update({ phone: digits || null }).eq("id", editingPhone.id);
-    setSavingPhone(false);
+    setSavingUser(true);
+    const { error } = await supabase.from("profiles").update({
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      role_title: parsed.data.role_title,
+      department: parsed.data.department,
+      birth_date: parsed.data.birth_date,
+    }).eq("id", editingUser.id);
+    setSavingUser(false);
     if (error) {
-      toast({ title: "Erro ao salvar telefone", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Telefone atualizado", description: "Usado para WhatsApp do diretor." });
-    setEditingPhone(null);
+    toast({ title: "Usuário atualizado" });
+    setEditingUser(null);
     load();
   };
 
