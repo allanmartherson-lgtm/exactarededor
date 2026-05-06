@@ -658,7 +658,7 @@ const Rules = () => {
       await supabase.from("rule_calculations").delete().eq("rule_id", savedRuleId);
       const rows = fCalculations.map((c, i) => calcToDbPayload(c, savedRuleId!, i));
       if (rows.length > 0) {
-        const { error: insErr } = await supabase.from("rule_calculations").insert(rows);
+        const { error: insErr } = await supabase.from("rule_calculations").insert(rows as any);
         if (insErr) {
           toast({ title: "Aviso", description: `Cálculos não foram salvos: ${insErr.message}`, variant: "destructive" });
         }
