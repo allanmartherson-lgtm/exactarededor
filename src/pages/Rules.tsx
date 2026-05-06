@@ -402,6 +402,7 @@ const Rules = () => {
     setFHasConditions(false);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
+    setFCalculations([makeEmptyCalc()]);
   };
 
   const openEdit = (r: RuleRow) => {
