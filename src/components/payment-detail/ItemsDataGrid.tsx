@@ -556,6 +556,7 @@ export function ItemsDataGrid({
               {colVis.diferenca && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
+              {canEdit && <col style={{ width: 80 }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
@@ -573,6 +574,7 @@ export function ItemsDataGrid({
                 {colVis.diferenca && <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Diferença</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Status</th>
                 {colVis.observacao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Obs.</th>}
+                {canEdit && <th className={cn(headPad, TEXT_LABEL, "text-center border-b bg-muted whitespace-nowrap")}>Ações</th>}
               </tr>
             </thead>
             <tbody>
