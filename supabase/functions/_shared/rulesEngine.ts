@@ -256,6 +256,20 @@ export interface AnalysisResult {
   main_reason?: MainReason | null;
   /** Se o grupo teve empate na escolha do principal (alerta). */
   main_ambiguous?: boolean;
+  /** Detalhamento por item de cálculo (quando a regra usa cálculos 1:N). */
+  calculation_breakdown?: CalculationBreakdownEntry[];
+}
+
+export interface CalculationBreakdownEntry {
+  calc_id?: string | null;
+  label: string;
+  calculation_type: CalculationType;
+  matched: boolean;
+  /** Quando matched=false, motivo curto: 'dia_da_semana'|'horario'|'condicoes'. */
+  skip_reason?: string | null;
+  expected: number | null;
+  explanation: string;
+  alerts: string[];
 }
 
 export type MainReason =
@@ -597,7 +611,7 @@ export function doctorRoleFactor(raw: string | null | undefined): number {
 }
 
 // ---------- calculadores ----------
-interface ExpectedCalc { expected: number | null; explanation: string; alerts: string[]; }
+interface ExpectedCalc { expected: number | null; explanation: string; alerts: string[]; breakdown?: CalculationBreakdownEntry[]; }
 
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
@@ -779,13 +793,13 @@ export interface EngineCtx {
  * vinculadas (período/dia/horário/eletivo). Quando uma condição não está
  * configurada (modo "qualquer"/vazio), ela é considerada satisfeita.
  */
-export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): boolean {
+export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
   // Dia da semana
   const wds = Array.isArray(c.weekdays) ? c.weekdays : [];
   if (wds.length > 0 && item.procedure_date) {
     const d = new Date(item.procedure_date);
     if (!Number.isNaN(d.getTime())) {
-      if (!wds.includes(d.getDay())) return false;
+      if (!wds.includes(d.getDay())) return { ok: false, reason: "dia_da_semana" };
     }
   }
   // Janela horária
@@ -795,13 +809,10 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): boolea
       const hhmm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       const s = c.time_start, e = c.time_end;
       const inside = s <= e ? (hhmm >= s && hhmm <= e) : (hhmm >= s || hhmm <= e);
-      if (!inside) return false;
+      if (!inside) return { ok: false, reason: "horario" };
     }
   }
-  // time_mode/elective_mode: 'qualquer' / vazio = sempre aplica.
-  // Modos específicos (comercial/noturno/etc) já implicam time_start/end ou
-  // weekdays preenchidos pelo cadastro — nada extra a verificar aqui.
-  return true;
+  return { ok: true };
 }
 
 /** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
@@ -844,35 +855,67 @@ export function applyCalculation(
   // ---- NOVO: itens de cálculo (1:N) ----
   const list = Array.isArray(rule.calculations) ? rule.calculations : [];
   if (list.length > 0) {
-    const matched = list.filter((c) => calcItemMatches(c, item));
-    if (matched.length === 0) {
-      return {
-        expected: null,
-        explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições (período/horário/dia) deste item.`,
-        alerts: ["Nenhum item de cálculo da regra se aplica a este item."],
-      };
-    }
+    const breakdown: CalculationBreakdownEntry[] = [];
     let sum = 0;
-    let anyNull = false;
-    const parts: string[] = [];
-    const alerts: string[] = [];
-    for (const c of matched) {
+    let anyMatched = false;
+    let anyNullMatched = false;
+    const aggAlerts: string[] = [];
+    const matchedExplanations: string[] = [];
+
+    for (const c of list) {
+      const label = (c.label && c.label.trim()) || c.calculation_type;
+      const m = calcItemMatches(c, item);
+      if (!m.ok) {
+        breakdown.push({
+          calc_id: c.id ?? null,
+          label,
+          calculation_type: c.calculation_type,
+          matched: false,
+          skip_reason: m.reason,
+          expected: null,
+          explanation: `Não aplicado — condição "${m.reason}" não satisfeita.`,
+          alerts: [],
+        });
+        continue;
+      }
+      anyMatched = true;
       const eff = ruleFromCalcItem(rule, c);
       const r = applyCalculationSingle(eff, item, ctx);
-      if (r.expected == null) { anyNull = true; }
-      else { sum += r.expected; }
-      parts.push(`[${c.label ?? c.calculation_type}] ${r.explanation}`);
-      alerts.push(...r.alerts);
+      const prefixedAlerts = r.alerts.map((a) => `[${label}] ${a}`);
+      breakdown.push({
+        calc_id: c.id ?? null,
+        label,
+        calculation_type: c.calculation_type,
+        matched: true,
+        expected: r.expected,
+        explanation: r.explanation,
+        alerts: prefixedAlerts,
+      });
+      aggAlerts.push(...prefixedAlerts);
+      matchedExplanations.push(`[${label}] ${r.explanation}`);
+      if (r.expected == null) anyNullMatched = true;
+      else sum += r.expected;
     }
-    if (anyNull && sum === 0) {
-      return { expected: null, explanation: parts.join(" + "), alerts };
+
+    if (!anyMatched) {
+      return {
+        expected: null,
+        explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições deste item.`,
+        alerts: ["Nenhum item de cálculo da regra se aplica a este item."],
+        breakdown,
+      };
+    }
+
+    if (anyNullMatched && sum === 0) {
+      return { expected: null, explanation: matchedExplanations.join(" + "), alerts: aggAlerts, breakdown };
     }
     const expected = Number(sum.toFixed(2));
-    const header = matched.length > 1 ? `Soma de ${matched.length} cálculos` : "1 cálculo";
+    const header = matchedExplanations.length > 1 ? `Soma de ${matchedExplanations.length} cálculos` : "1 cálculo";
     return {
       expected,
-      explanation: `${header}: ${parts.join(" + ")} = R$ ${expected.toFixed(2)}${anyNull ? " (alguns cálculos sem valor base)" : ""}`,
-      alerts,
+      explanation: `${header}: ${matchedExplanations.join(" + ")} = R$ ${expected.toFixed(2)}${anyNullMatched ? " (alguns cálculos sem valor base)" : ""}`,
+      alerts: aggAlerts,
+      breakdown,
     };
   }
   // ---- LEGADO: campos diretos na regra ----
@@ -1303,6 +1346,7 @@ export function analyzeItem(
     needs_ai_review: status !== "aprovado",
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
+    ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
   };
 }
 
