@@ -899,7 +899,11 @@ const NewPayment = () => {
                           <Building2 className="h-3 w-3" />
                           {b.matchedCompany?.name ?? b.rawCompanyName}
                         </Badge>
-                        {b.matchedCompany ? (
+                        {b.manualOverride ? (
+                          <Badge variant="secondary" className="gap-1 text-success">
+                            <CheckCircle2 className="h-3 w-3" /> empresa confirmada
+                          </Badge>
+                        ) : b.matchedCompany ? (
                           <Badge variant="secondary" className="gap-1 text-success">
                             <CheckCircle2 className="h-3 w-3" /> match {Math.round(b.matchScore * 100)}%
                           </Badge>
@@ -908,6 +912,32 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> empresa não cadastrada
                           </Badge>
                         )}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />
+                              {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[360px] p-2" align="start">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
+                            </p>
+                            <CompanyCombobox
+                              value={
+                                b.matchedCompany
+                                  ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
+                                  : null
+                              }
+                              onChange={(c) => c && overrideBucketCompany(idx, c)}
+                              placeholder="Buscar empresa por nome ou CNPJ…"
+                            />
+                          </PopoverContent>
+                        </Popover>
                         <span className="text-xs text-muted-foreground">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
