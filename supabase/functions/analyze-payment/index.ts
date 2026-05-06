@@ -751,10 +751,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const summary = (aiJustifications as any).__summary
       || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
 
-    await supabase.from("payments").update({
+    const paymentUpdate: Record<string, unknown> = {
       status: "revisao_analista",
       ai_summary: summary,
-    }).eq("id", payment_id);
+    };
+    // Persiste especialidade dominante do lote (>51%) para rastreabilidade.
+    if (dominantSpecialty) paymentUpdate.specialties = [dominantSpecialty];
+    await supabase.from("payments").update(paymentUpdate).eq("id", payment_id);
 
     const consolidatedDiff = itemDiffSummaries.length
       ? `\nMudanças nesta rodada (${itemDiffSummaries.length} item(ns)):\n` +
