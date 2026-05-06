@@ -627,12 +627,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const matchedRules = r.matched_rule_name ? [r.matched_rule_name] : [];
       const matchedRuleIds = r.matched_rule_id ? [r.matched_rule_id] : [];
 
+      const itRaw = (itemsRaw ?? []).find((x: any) => x.id === r.item_id) as any;
+      const resolvedSpec = itRaw?.__resolved_specialty as { value: string | null; source: string } | undefined;
       const findings = {
         alerts: finalAlerts,
         matched_rules: matchedRules,
         matched_rule_ids: matchedRuleIds,
         expected_amount: r.expected_amount,
         calculation_explanation: r.calculation_explanation,
+        medical_specialty_resolved: resolvedSpec
+          ? { value: resolvedSpec.value, source: resolvedSpec.source }
+          : null,
         // Novos campos do motor (consumidos pela UI na Fase 4):
         engine: {
           calculation_type_used: r.calculation_type_used,
