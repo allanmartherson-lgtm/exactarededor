@@ -389,6 +389,37 @@ const PaymentDetail = () => {
     }
   };
 
+  // Auto-gera + baixa o PDF da validação assim que o pagamento é aprovado.
+  // Dispara apenas quando o diretor/admin atual está vendo a tela e ainda
+  // não há `approval_pdf_path` salvo — evita reemissão a cada visita e
+  // garante que o documento de auditoria seja produzido na hora da decisão.
+  const autoPdfFiredRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!payment) return;
+    if (payment.status !== "aprovado") return;
+    if (payment.approval_pdf_path) return;
+    if (!(hasRole("diretor") || hasRole("admin"))) return;
+    if (autoPdfFiredRef.current === payment.id) return;
+    if (items.length === 0) return; // espera carregar itens p/ não gerar PDF vazio
+    autoPdfFiredRef.current = payment.id;
+    (async () => {
+      try {
+        await generatePdf();
+        toast({
+          title: "PDF da aprovação gerado",
+          description: "Download iniciado e cópia salva no histórico do lote.",
+        });
+      } catch (e) {
+        toast({
+          title: "Falha ao gerar PDF da aprovação",
+          description: e instanceof Error ? e.message : "Tente novamente em Pós-aprovação → Gerar PDF.",
+          variant: "destructive",
+        });
+        autoPdfFiredRef.current = null;
+      }
+    })();
+  }, [payment, items.length, hasRole]);
+
   const sendInvoiceRequest = async () => {
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("send-invoice-request", { body: { payment_id: id } });
