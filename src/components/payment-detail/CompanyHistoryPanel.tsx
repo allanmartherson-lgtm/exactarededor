@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, Sparkles, MessageSquare, Bot, User as UserIcon, UserCheck } from "lucide-react";
+import { History, User as UserIcon, UserCheck } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
@@ -16,7 +16,7 @@ import type {
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
-import { authorRoleLabel } from "@/lib/observations";
+import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
 
 /**
  * Painel unificado de histórico (IA + analistas/validadores/diretores) para
