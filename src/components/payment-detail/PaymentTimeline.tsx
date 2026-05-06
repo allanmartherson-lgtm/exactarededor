@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, TONE_CLASSES } from "@/lib/status";
 import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
+import { authorRoleLabel } from "@/lib/observations";
 
 /**
  * Helper de cor por autor — mantido aqui por ser exclusivo da timeline.
