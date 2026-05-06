@@ -442,6 +442,17 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => setEditingPhone({ id: u.id, email: u.email, full_name: u.full_name, phone: u.phone ?? "" })}
+                      title="Editar telefone (WhatsApp para notificações de aprovação)"
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                      WhatsApp
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
                       title="Envia e-mail com link para o usuário definir uma nova senha"
