@@ -146,24 +146,34 @@ const Users = () => {
     }
   };
   const resetForm = () => {
-    setForm({ email: "", full_name: "", roles: [], send_invite: true });
+    setForm({ email: "", full_name: "", phone: "", role_title: "", department: "", birth_date: "", roles: [], send_invite: true });
+    setAccessRequestId(null);
     setTempPwd(null);
   };
 
   const submit = async () => {
-    if (!form.email.trim()) {
-      toast({ title: "E-mail obrigatório", variant: "destructive" });
+    const parsed = userExtraSchema.safeParse({
+      full_name: form.full_name, email: form.email, phone: form.phone,
+      role_title: form.role_title, department: form.department, birth_date: form.birth_date,
+    });
+    if (!parsed.success) {
+      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: {
-          email: form.email.trim(),
-          full_name: form.full_name.trim(),
+          email: parsed.data.email,
+          full_name: parsed.data.full_name,
+          phone: parsed.data.phone,
+          role_title: parsed.data.role_title,
+          department: parsed.data.department,
+          birth_date: parsed.data.birth_date,
           roles: form.roles,
           send_invite: form.send_invite,
           app_origin: getPasswordRecoveryOrigin(),
+          access_request_id: accessRequestId,
         },
       });
       if (error) throw error;
@@ -178,6 +188,7 @@ const Users = () => {
         resetForm();
       }
       load();
+      loadRequests();
     } catch (e: any) {
       toast({ title: "Erro ao criar usuário", description: e.message, variant: "destructive" });
     } finally {
