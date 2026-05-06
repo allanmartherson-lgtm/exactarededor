@@ -54,7 +54,7 @@ import { cn } from "@/lib/utils";
 export default function CompanyAnalysis() {
   const { id, groupId } = useParams<{ id: string; groupId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
 
   const {
     payment,
