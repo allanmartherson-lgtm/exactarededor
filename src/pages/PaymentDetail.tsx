@@ -516,26 +516,40 @@ const PaymentDetail = () => {
     <Card className="shadow-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            aria-expanded={historyOpen}
+            aria-controls="history-card-content"
+            className="flex items-center gap-2 text-left rounded-md -mx-1 px-1 py-0.5 hover:bg-muted/60 transition-colors"
+          >
+            {historyOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
             <History className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-base">Histórico</CardTitle>
             <span className="text-xs text-muted-foreground">{obs.length} obs · {aiVersions.length} análises da IA</span>
-          </div>
-          <Select value={historyItemFilter} onValueChange={setHistoryItemFilter}>
-            <SelectTrigger className="h-8 w-[280px] text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os registros</SelectItem>
-              <SelectItem value="payment">Apenas o pagamento (sem item)</SelectItem>
-              {items.map((it) => (
-                <SelectItem key={it.id} value={it.id}>
-                  {it.doctor_name}{it.attendance_number ? ` · ${it.attendance_number}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          </button>
+          {historyOpen && (
+            <Select value={historyItemFilter} onValueChange={setHistoryItemFilter}>
+              <SelectTrigger className="h-8 w-[280px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os registros</SelectItem>
+                <SelectItem value="payment">Apenas o pagamento (sem item)</SelectItem>
+                {items.map((it) => (
+                  <SelectItem key={it.id} value={it.id}>
+                    {it.doctor_name}{it.attendance_number ? ` · ${it.attendance_number}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </CardHeader>
-      <CardContent>
+      {historyOpen && (
+      <CardContent id="history-card-content">
         <Tabs defaultValue="timeline">
           <TabsList>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
