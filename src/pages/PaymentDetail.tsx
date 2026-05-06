@@ -716,6 +716,7 @@ const PaymentDetail = () => {
           )}
         </Tabs>
       </CardContent>
+      )}
     </Card>
   );
 
