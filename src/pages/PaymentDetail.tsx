@@ -236,8 +236,7 @@ const PaymentDetail = () => {
     }
     const text = (groupComment[groupId] ?? "").trim();
     setBusy(true);
-    const { error: upErr } = await supabase.from("payment_company_groups")
-      .update({ status: target.nextStatus }).eq("id", groupId);
+    await autoClaim();
     if (upErr) {
       setBusy(false);
       toast({ title: "Falha ao reencaminhar", description: upErr.message, variant: "destructive" });
