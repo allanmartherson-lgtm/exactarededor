@@ -120,6 +120,50 @@ export interface RuleInput {
    * quando explicitamente vinculadas — nada de varredura global.
    */
   exception_table_ids?: string[] | null;
+  /**
+   * Itens de cálculo (1:N). Quando preenchido, o motor itera sobre cada item
+   * que satisfizer as condições (período/dia/horário/etc) e SOMA os resultados.
+   * Quando vazio/ausente, o motor cai no comportamento legado e usa os campos
+   * de cálculo na própria regra.
+   */
+  calculations?: RuleCalculationItem[] | null;
+}
+
+export interface RuleCalculationItem {
+  id?: string;
+  label?: string | null;
+  calculation_type: CalculationType;
+  // ---- condições vinculadas ao cálculo ----
+  time_mode?: string | null;         // 'qualquer' | 'comercial' | 'noturno' | 'fim_de_semana' | 'personalizado' | ...
+  time_start?: string | null;        // 'HH:MM'
+  time_end?: string | null;          // 'HH:MM'
+  weekdays?: number[] | null;        // 0..6 (Dom..Sáb)
+  includes_holidays?: boolean | null;
+  elective_mode?: string | null;     // 'qualquer' | 'eletivo' | 'urgencia'
+  // ---- parâmetros de cálculo (espelham os da regra) ----
+  convenio_percentage?: number | null;
+  fixed_amount?: number | null;
+  package_amount?: number | null;
+  package_main_code?: string | null;
+  package_included_codes?: string[] | null;
+  package_visits_count?: boolean | null;
+  package_opinions_count?: boolean | null;
+  package_auxiliaries_included?: boolean | null;
+  package_subtype?: string | null;
+  extras_codes?: string[] | null;
+  reference_table_id?: string | null;
+  multiplier?: number | null;
+  deflator_pct?: number | null;
+  repasse_pct?: number | null;
+  apply_access_route?: boolean | null;
+  include_auxiliaries?: boolean | null;
+  auxiliary_pct?: number | null;
+  aux_first_pct?: number | null;
+  aux_second_pct?: number | null;
+  instrumentador_pct?: number | null;
+  bonus_amount?: number | null;
+  bonus_pct?: number | null;
+  target_amount?: number | null;
 }
 
 export interface ItemInput {
@@ -730,7 +774,112 @@ export interface EngineCtx {
   exceptionLookup?: ExceptionTableLookup;
 }
 
+/**
+ * Verifica se um item de cálculo se aplica ao item, considerando as condições
+ * vinculadas (período/dia/horário/eletivo). Quando uma condição não está
+ * configurada (modo "qualquer"/vazio), ela é considerada satisfeita.
+ */
+export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): boolean {
+  // Dia da semana
+  const wds = Array.isArray(c.weekdays) ? c.weekdays : [];
+  if (wds.length > 0 && item.procedure_date) {
+    const d = new Date(item.procedure_date);
+    if (!Number.isNaN(d.getTime())) {
+      if (!wds.includes(d.getDay())) return false;
+    }
+  }
+  // Janela horária
+  if (c.time_start && c.time_end && item.procedure_date) {
+    const d = new Date(item.procedure_date);
+    if (!Number.isNaN(d.getTime())) {
+      const hhmm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      const s = c.time_start, e = c.time_end;
+      const inside = s <= e ? (hhmm >= s && hhmm <= e) : (hhmm >= s || hhmm <= e);
+      if (!inside) return false;
+    }
+  }
+  // time_mode/elective_mode: 'qualquer' / vazio = sempre aplica.
+  // Modos específicos (comercial/noturno/etc) já implicam time_start/end ou
+  // weekdays preenchidos pelo cadastro — nada extra a verificar aqui.
+  return true;
+}
+
+/** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
+ *  reutilizar os calculadores legados. */
+function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
+  return {
+    ...rule,
+    calculation_type: c.calculation_type,
+    convenio_percentage: c.convenio_percentage ?? rule.convenio_percentage,
+    fixed_amount: c.fixed_amount ?? rule.fixed_amount,
+    package_amount: c.package_amount ?? rule.package_amount,
+    package_main_code: c.package_main_code ?? rule.package_main_code,
+    package_included_codes: c.package_included_codes ?? rule.package_included_codes,
+    package_visits_count: c.package_visits_count ?? rule.package_visits_count,
+    package_opinions_count: c.package_opinions_count ?? rule.package_opinions_count,
+    package_auxiliaries_included: c.package_auxiliaries_included ?? rule.package_auxiliaries_included,
+    package_subtype: c.package_subtype ?? rule.package_subtype,
+    extras_codes: c.extras_codes ?? rule.extras_codes,
+    reference_table_id: c.reference_table_id ?? rule.reference_table_id,
+    multiplier: c.multiplier ?? rule.multiplier,
+    deflator_pct: c.deflator_pct ?? rule.deflator_pct,
+    repasse_pct: c.repasse_pct ?? rule.repasse_pct,
+    apply_access_route: c.apply_access_route ?? rule.apply_access_route,
+    include_auxiliaries: c.include_auxiliaries ?? rule.include_auxiliaries,
+    auxiliary_pct: c.auxiliary_pct ?? rule.auxiliary_pct,
+    aux_first_pct: c.aux_first_pct ?? rule.aux_first_pct,
+    aux_second_pct: c.aux_second_pct ?? rule.aux_second_pct,
+    instrumentador_pct: c.instrumentador_pct ?? rule.instrumentador_pct,
+    bonus_amount: c.bonus_amount ?? rule.bonus_amount,
+    bonus_pct: c.bonus_pct ?? rule.bonus_pct,
+    target_amount: c.target_amount ?? rule.target_amount,
+  };
+}
+
 export function applyCalculation(
+  rule: RuleInput,
+  item: ItemInput,
+  ctx?: EngineCtx,
+): ExpectedCalc {
+  // ---- NOVO: itens de cálculo (1:N) ----
+  const list = Array.isArray(rule.calculations) ? rule.calculations : [];
+  if (list.length > 0) {
+    const matched = list.filter((c) => calcItemMatches(c, item));
+    if (matched.length === 0) {
+      return {
+        expected: null,
+        explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições (período/horário/dia) deste item.`,
+        alerts: ["Nenhum item de cálculo da regra se aplica a este item."],
+      };
+    }
+    let sum = 0;
+    let anyNull = false;
+    const parts: string[] = [];
+    const alerts: string[] = [];
+    for (const c of matched) {
+      const eff = ruleFromCalcItem(rule, c);
+      const r = applyCalculationSingle(eff, item, ctx);
+      if (r.expected == null) { anyNull = true; }
+      else { sum += r.expected; }
+      parts.push(`[${c.label ?? c.calculation_type}] ${r.explanation}`);
+      alerts.push(...r.alerts);
+    }
+    if (anyNull && sum === 0) {
+      return { expected: null, explanation: parts.join(" + "), alerts };
+    }
+    const expected = Number(sum.toFixed(2));
+    const header = matched.length > 1 ? `Soma de ${matched.length} cálculos` : "1 cálculo";
+    return {
+      expected,
+      explanation: `${header}: ${parts.join(" + ")} = R$ ${expected.toFixed(2)}${anyNull ? " (alguns cálculos sem valor base)" : ""}`,
+      alerts,
+    };
+  }
+  // ---- LEGADO: campos diretos na regra ----
+  return applyCalculationSingle(rule, item, ctx);
+}
+
+function applyCalculationSingle(
   rule: RuleInput,
   item: ItemInput,
   ctx?: EngineCtx,
