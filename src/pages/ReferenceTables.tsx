@@ -70,6 +70,9 @@ const ReferenceTables = () => {
   const [importing, setImporting] = useState(false);
   const [search, setSearch] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualText, setManualText] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
 
   const wizardProfile: ImportProfile | null = selected
     ? {
