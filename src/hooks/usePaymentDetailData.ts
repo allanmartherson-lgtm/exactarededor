@@ -248,6 +248,7 @@ export function usePaymentDetailData(id: string | undefined) {
     groups,
     invoices,
     questions,
+    assignments,
     rulesIndex,
     rulesByName,
     expandedGroups,
