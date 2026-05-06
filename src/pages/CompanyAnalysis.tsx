@@ -90,6 +90,12 @@ export default function CompanyAnalysis() {
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
 
+  const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
+  const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
+  const [savingItem, setSavingItem] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
+  const [deletingItem, setDeletingItem] = useState(false);
+
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
   }, []);
