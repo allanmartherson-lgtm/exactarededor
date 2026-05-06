@@ -265,6 +265,8 @@ export const PaymentTimeline = ({
           </li>
         );
       })}
-    </ol>
+        </ol>
+      )}
+    </div>
   );
 };
