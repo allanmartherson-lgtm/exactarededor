@@ -627,10 +627,12 @@ const Rules = () => {
       document: payload.target_identifier ?? linkedCompany?.document ?? null,
     } : null;
 
+    let savedRuleId: string | null = null;
     if (editingId) {
       const before = rules.find((r) => r.id === editingId) ?? null;
       const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      savedRuleId = editingId;
       await recordAudit({
         entityType: "rule", entityId: editingId, action: "update",
         actorId: user!.id, company: auditCompany,
@@ -641,6 +643,7 @@ const Rules = () => {
       payload.created_by = user!.id;
       const { data: created, error } = await supabase.from("rules").insert(payload).select("id").single();
       if (error || !created) return toast({ title: "Erro", description: error?.message ?? "Falha ao criar", variant: "destructive" });
+      savedRuleId = created.id;
       await recordAudit({
         entityType: "rule", entityId: created.id, action: "create",
         actorId: user!.id, company: auditCompany,
@@ -648,6 +651,23 @@ const Rules = () => {
       });
       toast({ title: "Regra criada" });
     }
+
+    // === Persiste rule_calculations (1:N) ===
+    // Estratégia simples: substitui completamente o conjunto de itens.
+    if (savedRuleId && fNature === "calculavel") {
+      await supabase.from("rule_calculations").delete().eq("rule_id", savedRuleId);
+      const rows = fCalculations.map((c, i) => calcToDbPayload(c, savedRuleId!, i));
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase.from("rule_calculations").insert(rows);
+        if (insErr) {
+          toast({ title: "Aviso", description: `Cálculos não foram salvos: ${insErr.message}`, variant: "destructive" });
+        }
+      }
+    } else if (savedRuleId && fNature === "informativo") {
+      // Regra informativa: limpa quaisquer cálculos remanescentes.
+      await supabase.from("rule_calculations").delete().eq("rule_id", savedRuleId);
+    }
+
     setOpen(false); resetForm(); load();
   };
 
