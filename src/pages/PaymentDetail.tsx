@@ -23,6 +23,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
+import { claimPayment } from "@/lib/assignments";
+import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import type {
   PaymentItemRow as PaymentItemRowType,
