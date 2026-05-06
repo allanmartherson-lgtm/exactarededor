@@ -97,6 +97,34 @@ export const PaymentTimeline = ({
     toast({ title: "Observação atualizada" });
   };
 
+  const FilterBar = (
+    <div className="flex items-center gap-2 mb-3 text-xs">
+      <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="text-muted-foreground">Papel:</span>
+      <Select value={roleFilter} onValueChange={setRoleFilter}>
+        <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos os papéis</SelectItem>
+          {availableRoles.map((r) => {
+            const v = getRoleVisual(r);
+            const RoleIcon = v.Icon;
+            return (
+              <SelectItem key={r} value={r}>
+                <span className="inline-flex items-center gap-2">
+                  <RoleIcon className="h-3.5 w-3.5" />
+                  {authorRoleLabel(r)}
+                </span>
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+      <span className="text-muted-foreground ml-auto tabular-nums">
+        {filtered.length} de {observations.length}
+      </span>
+    </div>
+  );
+
   if (observations.length === 0) {
     return (
       <p className="text-sm text-muted-foreground text-center py-6">
@@ -106,8 +134,15 @@ export const PaymentTimeline = ({
   }
 
   return (
-    <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
-      {observations.map((o) => {
+    <div>
+      {FilterBar}
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Nenhuma observação do papel selecionado.
+        </p>
+      ) : (
+        <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
+          {filtered.map((o) => {
         const canEdit = !!user && o.author_id === user.id;
         const isEditing = editingObsId === o.id;
         // Destaca visualmente questionamentos do recebedor — são críticos.
