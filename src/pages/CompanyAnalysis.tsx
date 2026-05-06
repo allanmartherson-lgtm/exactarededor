@@ -21,35 +21,46 @@ import {
   type PaymentStatus,
 } from "@/lib/status";
 import { effectiveItemAiStatus } from "@/lib/paymentFlow";
-import type {
-  PaymentRow,
-  PaymentItemRow,
-  ObservationRow,
-  GroupRow,
-  AiVersionRow,
-  AiFindings,
-  RuleLite,
+import {
+  usePaymentDetailData,
+  type PaymentItemRow,
+  type ObservationRow,
+  type AiVersionRow,
+  type AiFindings,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
 /**
  * Tela dedicada de análise por empresa dentro de um lote.
- * Foco: ambiente de trabalho — itens essenciais, divergências em destaque,
- * comentários por item e por empresa.
+ * É o ÚNICO ambiente de trabalho da empresa. Compartilha a mesma fonte de
+ * dados do lote (usePaymentDetailData) — assim os números nunca divergem.
  */
 export default function CompanyAnalysis() {
   const { id, groupId } = useParams<{ id: string; groupId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [payment, setPayment] = useState<PaymentRow | null>(null);
-  const [group, setGroup] = useState<GroupRow | null>(null);
-  const [items, setItems] = useState<PaymentItemRow[]>([]);
-  const [obs, setObs] = useState<ObservationRow[]>([]);
+  const {
+    payment,
+    items: allItems,
+    obs,
+    groups,
+    rulesIndex,
+    rulesByName,
+    load,
+  } = usePaymentDetailData(id);
+
+  const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
+
+  const items = useMemo(() => {
+    if (!group) return [] as PaymentItemRow[];
+    const companyName = (group.company_name ?? "").trim().toLowerCase();
+    return allItems.filter(
+      (x) => (x.company_name ?? "Sem empresa").trim().toLowerCase() === companyName,
+    );
+  }, [allItems, group]);
+
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
-  const [rulesIndex, setRulesIndex] = useState<Record<string, RuleLite>>({});
-  const [rulesByName, setRulesByName] = useState<Record<string, RuleLite>>({});
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const [itemDraft, setItemDraft] = useState<Record<string, string>>({});
@@ -60,67 +71,23 @@ export default function CompanyAnalysis() {
     document.title = "Análise da empresa | MedPay Approval";
   }, []);
 
-  const load = async () => {
-    if (!id || !groupId) return;
-    setLoading(true);
-    const [{ data: p }, { data: g }] = await Promise.all([
-      supabase.from("payments").select("*").eq("id", id).single(),
-      supabase.from("payment_company_groups").select("*").eq("id", groupId).single(),
-    ]);
-    setPayment(p ?? null);
-    setGroup(g ?? null);
-    if (g) {
-      const companyName = (g.company_name ?? "").trim().toLowerCase();
-      const [{ data: it }, { data: o }, { data: vs }] = await Promise.all([
-        supabase
-          .from("payment_items")
-          .select("*")
-          .eq("payment_id", id)
-          .order("created_at"),
-        supabase
-          .from("payment_observations")
-          .select("*")
-          .eq("payment_id", id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("ai_analysis_versions")
-          .select("*")
-          .eq("payment_id", id)
-          .order("version", { ascending: false }),
-      ]);
-      const filtered = ((it ?? []) as unknown as PaymentItemRow[]).filter(
-        (x) => (x.company_name ?? "Sem empresa").trim().toLowerCase() === companyName,
-      );
-      setItems(filtered);
-      setObs((o ?? []) as ObservationRow[]);
-      setAiVersions((vs ?? []) as unknown as AiVersionRow[]);
-
-      // Carrega regras citadas pela IA p/ alimentar o ItemsDataGrid
-      const ids = Array.from(new Set(filtered.flatMap((x) => x.ai_findings?.matched_rule_ids ?? []))).filter(Boolean) as string[];
-      const names = Array.from(new Set(filtered.flatMap((x) => x.ai_findings?.matched_rules ?? []))).filter(Boolean) as string[];
-      const [byIdRes, byNameRes] = await Promise.all([
-        ids.length
-          ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("id", ids)
-          : Promise.resolve({ data: [] as RuleLite[] }),
-        names.length
-          ? supabase.from("rules").select("id,name,rule_text,description,calculation_type,exclusion_reason,allows_authorized_exception").in("name", names)
-          : Promise.resolve({ data: [] as RuleLite[] }),
-      ]);
-      const idx: Record<string, RuleLite> = {};
-      (byIdRes.data ?? []).forEach((r) => { idx[(r as RuleLite).id] = r as RuleLite; });
-      (byNameRes.data ?? []).forEach((r) => { idx[(r as RuleLite).id] = r as RuleLite; });
-      const nameIdx: Record<string, RuleLite> = {};
-      Object.values(idx).forEach((r) => { nameIdx[String(r.name).trim().toLowerCase()] = r; });
-      setRulesIndex(idx);
-      setRulesByName(nameIdx);
-    }
-    setLoading(false);
-  };
-
+  // Versões da IA são exclusivas desta tela (aba "Detalhe IA"), busca dedicada.
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, groupId]);
+    if (!id) return;
+    let active = true;
+    supabase
+      .from("ai_analysis_versions")
+      .select("*")
+      .eq("payment_id", id)
+      .order("version", { ascending: false })
+      .then(({ data }) => {
+        if (!active) return;
+        setAiVersions((data ?? []) as unknown as AiVersionRow[]);
+      });
+    return () => { active = false; };
+  }, [id, obs.length]);
+
+  const loading = !payment || !group;
 
   const gStatus = (group?.status ?? "em_analise_ia") as PaymentStatus;
 
