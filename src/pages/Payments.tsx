@@ -112,6 +112,11 @@ const Payments = () => {
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  // Filtros avançados (não dependem de "criado por")
+  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
+  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
+  const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
+  const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
@@ -184,6 +189,28 @@ const Payments = () => {
           setCompanyOverrides(oMap);
         }
       });
+  }, []);
+
+  // Carrega ids de pagamentos com divergência IA vs regra (item alerta/reprovado)
+  // e com NF questionada (status nf_questionada ou invoice_questions abertas).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [{ data: divItems }, { data: questPays }, { data: iq }] = await Promise.all([
+        supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
+        supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
+        supabase.from("invoice_questions").select("payment_id").limit(5000),
+      ]);
+      if (cancelled) return;
+      const div = new Set<string>();
+      (divItems ?? []).forEach((r: any) => r.payment_id && div.add(r.payment_id));
+      const quest = new Set<string>();
+      (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
+      (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
+      setPaymentIdsWithDivergence(div);
+      setPaymentIdsWithQuestions(quest);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
@@ -296,8 +323,18 @@ const Payments = () => {
       const lvl = delayLevel(r.status, now - new Date(since).getTime());
       if (lvl === "none") return false;
     }
+    if (divergenceFilter !== "all") {
+      const has = paymentIdsWithDivergence.has(r.id);
+      if (divergenceFilter === "with" && !has) return false;
+      if (divergenceFilter === "without" && has) return false;
+    }
+    if (questionedFilter !== "all") {
+      const has = paymentIdsWithQuestions.has(r.id);
+      if (questionedFilter === "with" && !has) return false;
+      if (questionedFilter === "without" && has) return false;
+    }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
@@ -499,6 +536,37 @@ const Payments = () => {
               {competenceOptions.map((c) => <SelectItem key={c} value={c}>{formatCompetence(`${c}-01`)}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={ownerGroup} onValueChange={(v) => {
+            const ov = v as OwnerGroup;
+            setOwnerGroup(ov);
+            const next = new URLSearchParams(searchParams);
+            if (ov === "all") next.delete("status"); else next.set("status", ov);
+            setSearchParams(next, { replace: true });
+          }}>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="Papel/fila" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Qualquer fila</SelectItem>
+              <SelectItem value="analista">Com analista</SelectItem>
+              <SelectItem value="validador">Com validador</SelectItem>
+              <SelectItem value="diretor">Com diretor</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={divergenceFilter} onValueChange={(v) => setDivergenceFilter(v as typeof divergenceFilter)}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Divergência" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Divergência: todas</SelectItem>
+              <SelectItem value="with">Com divergência IA×regra</SelectItem>
+              <SelectItem value="without">Sem divergência</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={questionedFilter} onValueChange={(v) => setQuestionedFilter(v as typeof questionedFilter)}>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="NF questionada" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">NF: todas</SelectItem>
+              <SelectItem value="with">NF questionada</SelectItem>
+              <SelectItem value="without">Sem questionamento</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant={delayedOnly ? "default" : "outline"}
             size="sm"
@@ -542,11 +610,12 @@ const Payments = () => {
               </button>
             </Badge>
           )}
-          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine) && (
+          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
             <Button variant="ghost" size="sm" onClick={() => {
               setCompanyFilter(null);
               setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
               setOwnerGroup("all"); setOnlyMine(false);
+              setDivergenceFilter("all"); setQuestionedFilter("all");
               setSearchParams(new URLSearchParams(), { replace: true });
             }}>
               <X className="h-4 w-4 mr-1" /> Limpar
