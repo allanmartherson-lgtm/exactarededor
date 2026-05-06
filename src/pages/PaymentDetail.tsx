@@ -68,6 +68,7 @@ const PaymentDetail = () => {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
