@@ -17,7 +17,9 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
-import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle } from "lucide-react";
+import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
+import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { COMMON_SPECIALTIES } from "@/lib/specialties";
@@ -164,6 +166,8 @@ interface FileBucket {
   rawCompanyName: string;
   matchedCompany: { id: string; name: string } | null;
   matchScore: number;
+  /** true quando o usuário trocou a empresa manualmente (não foi o match automático). */
+  manualOverride?: boolean;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
@@ -351,6 +355,56 @@ const NewPayment = () => {
   };
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
+
+  /**
+   * Troca manual da empresa do arquivo + aprendizado: salva o `rawCompanyName`
+   * (extraído do nome do arquivo) como alias da empresa correta, para que o
+   * próximo match acerte sozinho. Atualiza também as linhas já parseadas.
+   */
+  const overrideBucketCompany = async (idx: number, picked: CompanyOption) => {
+    const b = buckets[idx];
+    if (!b) return;
+    const previousId = b.matchedCompany?.id ?? null;
+    // Atualiza o bucket localmente
+    setBuckets((prev) =>
+      prev.map((x, i) =>
+        i === idx
+          ? {
+              ...x,
+              matchedCompany: { id: picked.id, name: picked.name },
+              matchScore: 1,
+              manualOverride: true,
+              rows: x.rows.map((r) => ({ ...r, company_id: picked.id, company_name: picked.name })),
+            }
+          : x,
+      ),
+    );
+    // Aprendizado: adiciona o nome bruto do arquivo como alias da empresa correta.
+    // Só faz isso quando o usuário trocou de fato a sugestão automática.
+    if (previousId !== picked.id) {
+      try {
+        const rawAlias = b.rawCompanyName?.trim();
+        const current = companies.find((c) => c.id === picked.id);
+        const aliases = new Set([...(current?.aliases ?? [])]);
+        if (rawAlias && !aliases.has(rawAlias)) aliases.add(rawAlias);
+        await supabase.from("companies").update({ aliases: Array.from(aliases) }).eq("id", picked.id);
+        // Atualiza o cache local de companies para refletir o novo alias
+        setCompanies((prev) =>
+          prev.map((c) => (c.id === picked.id ? { ...c, aliases: Array.from(aliases) } : c)),
+        );
+        toast({
+          title: "Empresa atualizada",
+          description: `"${rawAlias}" foi salvo como apelido de ${picked.name}. Próximas importações com esse nome serão reconhecidas automaticamente.`,
+        });
+      } catch (e) {
+        // Falha de aprendizado não bloqueia a troca — apenas avisa.
+        toast({
+          title: "Empresa atualizada (sem aprender apelido)",
+          description: `Troca aplicada, mas não foi possível salvar o apelido: ${String(e)}`,
+        });
+      }
+    }
+  };
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b) => b.rows).map((r) => {
@@ -845,7 +899,11 @@ const NewPayment = () => {
                           <Building2 className="h-3 w-3" />
                           {b.matchedCompany?.name ?? b.rawCompanyName}
                         </Badge>
-                        {b.matchedCompany ? (
+                        {b.manualOverride ? (
+                          <Badge variant="secondary" className="gap-1 text-success">
+                            <CheckCircle2 className="h-3 w-3" /> empresa confirmada
+                          </Badge>
+                        ) : b.matchedCompany ? (
                           <Badge variant="secondary" className="gap-1 text-success">
                             <CheckCircle2 className="h-3 w-3" /> match {Math.round(b.matchScore * 100)}%
                           </Badge>
@@ -854,6 +912,32 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> empresa não cadastrada
                           </Badge>
                         )}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />
+                              {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[360px] p-2" align="start">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
+                            </p>
+                            <CompanyCombobox
+                              value={
+                                b.matchedCompany
+                                  ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
+                                  : null
+                              }
+                              onChange={(c) => c && overrideBucketCompany(idx, c)}
+                              placeholder="Buscar empresa por nome ou CNPJ…"
+                            />
+                          </PopoverContent>
+                        </Popover>
                         <span className="text-xs text-muted-foreground">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
