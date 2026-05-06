@@ -256,6 +256,8 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
 
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
+  // Notificações realtime de fila/devolução para o usuário logado.
+  useQueueNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const { layout } = useNavLayout();
