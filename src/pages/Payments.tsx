@@ -112,6 +112,11 @@ const Payments = () => {
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  // Filtros avançados (não dependem de "criado por")
+  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
+  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
+  const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
+  const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
