@@ -1033,17 +1033,34 @@ const Rules = () => {
               <form onSubmit={submitRule} className="space-y-4">
                 {calcSyncErrors.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2 font-semibold text-destructive">
                         <AlertTriangle className="h-4 w-4" />
                         Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
+                        {calcSyncAttempt > 0 && (
+                          <span className="text-muted-foreground font-normal">· tentativa {calcSyncAttempt}</span>
+                        )}
                       </div>
-                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2" onClick={() => setCalcSyncErrors([])}>
-                        <X className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          onClick={retryCalcSync}
+                          disabled={calcSyncRetrying || !calcSyncRuleId}
+                        >
+                          {calcSyncRetrying
+                            ? `Tentando… (${calcSyncAttempt})`
+                            : `Tentar novamente (próxima: ${calcSyncAttempt + 1})`}
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setCalcSyncErrors([])} disabled={calcSyncRetrying}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="text-muted-foreground">
-                      A regra foi salva, mas as etapas abaixo falharam. Corrija e clique em salvar novamente.
+                      A regra foi salva, mas as etapas abaixo falharam. Use “Tentar novamente” para reexecutar o delete e o insert sem reenviar o formulário.
                     </div>
                     <ul className="space-y-2">
                       {calcSyncErrors.map((err, i) => (
