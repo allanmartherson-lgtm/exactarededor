@@ -130,6 +130,8 @@ const Users = () => {
     loadRequests();
     toast({ title: "Solicitação atualizada" });
   };
+
+  const toggle = async (userId: string, role: AppRole, has: boolean) => {
     if (has) await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
     else await supabase.from("user_roles").insert({ user_id: userId, role });
     load(); toast({ title: "Atualizado" });
