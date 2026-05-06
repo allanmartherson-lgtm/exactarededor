@@ -455,11 +455,19 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setEditingPhone({ id: u.id, email: u.email, full_name: u.full_name, phone: u.phone ?? "" })}
-                      title="Editar telefone (WhatsApp para notificações de aprovação)"
+                      onClick={() => setEditingUser({
+                        id: u.id,
+                        email: u.email,
+                        full_name: u.full_name ?? "",
+                        phone: u.phone ?? "",
+                        role_title: u.role_title ?? "",
+                        department: u.department ?? "",
+                        birth_date: u.birth_date ? String(u.birth_date).slice(0, 10) : "",
+                      })}
+                      title="Editar dados do usuário"
                     >
                       <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                      WhatsApp
+                      Editar
                     </Button>
                   )}
                   {isAdmin && (
