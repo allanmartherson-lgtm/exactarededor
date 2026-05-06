@@ -606,12 +606,15 @@ const Dashboard = () => {
       setAvgTimeByStatus(avg);
 
       const uid = user?.id;
+      // Visão coletiva por perfil: para o analista, "minhas tarefas" é a fila
+      // do papel inteiro — qualquer analista pode assumir qualquer lote em
+      // status do analista. Validador/diretor já funcionavam assim.
       const c: DashboardCounts = { ...initialCounts };
       (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
         if (owner === "analista") {
           c.teamAnalise++;
-          if (uid && p.created_by === uid) c.mineAnalista++;
+          c.mineAnalista++;
         } else if (owner === "validador") {
           c.teamValidacao++;
           c.mineValidador++;
@@ -645,11 +648,11 @@ const Dashboard = () => {
         if (p.status === "devolvido_analista" || p.status === "devolvido_validador") c.attDevolvidoAnalista++;
         if (p.status === "aprovado_com_ressalva") {
           c.attRessalvas++;
-          if (uid && p.created_by === uid) c.mineRessalvas++;
+          c.mineRessalvas++;
         }
         if (p.status === "nf_questionada") {
           c.attNFQuestionada++;
-          if (uid && p.created_by === uid) c.mineInvoicesQuestionadas++;
+          c.mineInvoicesQuestionadas++;
         }
         if (p.status === "rejeitado") c.attRejeitados++;
       });
@@ -657,9 +660,10 @@ const Dashboard = () => {
       (invDiv ?? []).forEach((row: any) => {
         c.teamInvoicesDivergentes++;
         c.attNFDivergente++;
-        if (uid && row.payment?.created_by === uid) c.mineInvoicesDivergentes++;
+        c.mineInvoicesDivergentes++;
       });
       void invQuest;
+      void uid;
 
       setCounts(c);
       setLoading(false);
