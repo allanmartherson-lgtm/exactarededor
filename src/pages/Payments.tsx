@@ -277,9 +277,15 @@ const Payments = () => {
       const allowed = STATUSES_BY_OWNER[ownerGroup];
       if (!allowed.includes(r.status)) return false;
     }
-    if (onlyMine && user?.id) {
-      // "Meus": criado por mim, OU validado por mim. created_by já está na linha.
-      if (r.created_by !== user.id) return false;
+    if (onlyMine) {
+      // Visão coletiva por perfil: "Meus" = lotes na fila do meu papel.
+      // Para analista, isso significa todos os lotes em status do analista
+      // (qualquer analista pode assumir). Validador/diretor idem.
+      const myRoleStatuses: PaymentStatus[] = [];
+      if (roles.includes("analista") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.analista);
+      if (roles.includes("validador") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.validador);
+      if (roles.includes("diretor") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.diretor);
+      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status)) return false;
     }
     if (competenceFilter !== "all") {
       const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
