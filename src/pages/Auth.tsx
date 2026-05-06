@@ -102,26 +102,37 @@ const Auth = () => {
     navigate("/", { replace: true });
   };
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  const [reqForm, setReqForm] = useState({
+    full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
+  });
+  const handleAccessRequest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const parsed = signUpSchema.safeParse({
-      email: data.get("email"),
-      password: data.get("password"),
-      fullName: data.get("fullName"),
-    });
+    const parsed = accessRequestSchema.safeParse(reqForm);
     if (!parsed.success) {
       toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
       return;
     }
     setSubmitting(true);
-    const { error } = await signUp(parsed.data.email, parsed.data.password, parsed.data.fullName);
+    const { error } = await supabase.from("access_requests").insert({
+      full_name: parsed.data.full_name,
+      email: parsed.data.email.toLowerCase(),
+      phone: parsed.data.phone,
+      role_title: parsed.data.role_title,
+      department: parsed.data.department,
+      birth_date: parsed.data.birth_date,
+      message: parsed.data.message || null,
+      requested_roles: ["analista"],
+    });
     setSubmitting(false);
     if (error) {
-      toast({ title: "Não foi possível criar a conta", description: error, variant: "destructive" });
+      const desc = /duplicate|unique/i.test(error.message)
+        ? "Já existe uma solicitação pendente para este e-mail."
+        : error.message;
+      toast({ title: "Não foi possível enviar a solicitação", description: desc, variant: "destructive" });
       return;
     }
-    toast({ title: "Conta criada", description: "Você já pode entrar." });
+    setReqForm({ full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "" });
+    toast({ title: "Solicitação enviada", description: "Um administrador analisará seu pedido. Você receberá um e-mail com o convite após a aprovação." });
   };
 
   return (
