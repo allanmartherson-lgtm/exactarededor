@@ -942,17 +942,21 @@ const Rules = () => {
                       : RULE_SCOPE_LABELS[scope];
                   const calc = fNature === "informativo"
                     ? "Informativa / bloqueio (não calcula)"
-                    : `${RULE_CALCULATION_TYPE_LABELS[fCalculationType]}${fCalculationType === "percentual_sobre_convenio" && fConvenioPct ? ` (${fConvenioPct}%)` : ""}${fCalculationType === "valor_fixo" && fFixedAmount ? ` (R$ ${fFixedAmount})` : ""}`;
+                    : fCalculations.length > 1
+                      ? `${fCalculations.length} cálculos (somados quando casarem)`
+                      : `${RULE_CALCULATION_TYPE_LABELS[fCalculations[0]?.calculation_type ?? "informativo"]}`;
                   const cond: string[] = [];
-                  if (fTimeMode !== "qualquer") cond.push(TIME_MODE_LABELS[fTimeMode]);
-                  if (fElectiveMode !== "qualquer") cond.push(ELECTIVE_MODE_LABELS[fElectiveMode]);
-                  if (fTimeStart || fTimeEnd) cond.push(`${fTimeStart || "—"}–${fTimeEnd || "—"}`);
-                  if (fIncludesHolidays) cond.push("inclui feriados");
+                  const condItems = fCalculations.filter((c) => c.has_conditions);
+                  if (fNature === "calculavel" && condItems.length > 0) {
+                    cond.push(`${condItems.length} cálculo(s) com janela específica`);
+                  } else {
+                    cond.push("qualquer dia/horário/tipo");
+                  }
                   return (
                     <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
                       <div><span className="font-semibold">Onde aplica:</span> {onde}</div>
                       <div><span className="font-semibold">Como calcula:</span> {calc}</div>
-                      <div><span className="font-semibold">Condições:</span> {cond.length ? cond.join(" · ") : "qualquer dia/horário/tipo"}</div>
+                      <div><span className="font-semibold">Condições:</span> {cond.join(" · ")}</div>
                     </div>
                   );
                 })()}
