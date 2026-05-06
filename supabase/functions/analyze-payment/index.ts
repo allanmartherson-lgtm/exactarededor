@@ -261,8 +261,8 @@ serve(async (req) => {
     // Carrega valores (code → amount) de cada reference_table_id usado por regras
     // que calculam por tabela diferenciada/referência. O motor consulta esse
     // lookup; NÃO usamos `procedure_amount` quando a regra tem tabela vinculada.
-    const refTableIds = Array.from(new Set(
-      rules
+    const refTableIds = Array.from(new Set([
+      ...rules
         .filter((r) =>
           r.reference_table_id && (
             r.rule_type === "tabela_diferenciada" ||
@@ -271,7 +271,13 @@ serve(async (req) => {
           ),
         )
         .map((r) => r.reference_table_id as string),
-    ));
+      // Também: reference_table_id usado por itens de cálculo (1:N)
+      ...rules.flatMap((r) =>
+        (Array.isArray((r as any).calculations) ? (r as any).calculations : [])
+          .filter((c: any) => c.reference_table_id)
+          .map((c: any) => c.reference_table_id as string),
+      ),
+    ]));
     const refValues: Record<string, Record<string, number>> = {};
     if (refTableIds.length > 0 && codes.length > 0) {
       const { data: refRows } = await supabase
