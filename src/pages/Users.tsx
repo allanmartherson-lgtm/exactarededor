@@ -632,6 +632,61 @@ const Users = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!historyUser} onOpenChange={(o) => { if (!o) { setHistoryUser(null); setHistoryEntries(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Histórico — {historyUser?.label}</DialogTitle>
+            <DialogDescription>
+              Alterações de dados deste usuário, com autor, data e campos modificados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-3">
+            {historyEntries === null && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+              </div>
+            )}
+            {historyEntries && historyEntries.length === 0 && (
+              <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma alteração registrada.</p>
+            )}
+            {historyEntries?.map((e) => {
+              const isCreate = e.action === "created";
+              const diff = e.diff ?? {};
+              const when = new Date(e.created_at).toLocaleString("pt-BR");
+              const actor = e.actor_id ? (historyActors[e.actor_id] ?? "—") : "Sistema";
+              return (
+                <div key={e.id} className="border rounded-md p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="font-medium">{isCreate ? "Usuário criado" : "Dados atualizados"}</span>
+                    <span className="text-xs text-muted-foreground">{when}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">por {actor}</p>
+                  {isCreate ? (
+                    <p className="text-xs text-muted-foreground">
+                      {diff.email ? `E-mail: ${diff.email}` : null}
+                      {diff.full_name ? ` · Nome: ${diff.full_name}` : null}
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {Object.entries(diff).map(([field, change]: any) => (
+                        <li key={field} className="text-xs">
+                          <span className="font-medium">{FIELD_LABELS[field] ?? field}:</span>{" "}
+                          <span className="text-muted-foreground line-through">{formatHistoryValue(field, change?.from)}</span>
+                          {" → "}
+                          <span>{formatHistoryValue(field, change?.to)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setHistoryUser(null); setHistoryEntries(null); }}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!confirmReset} onOpenChange={(o) => !o && setConfirmReset(null)}>
         <DialogContent>
           <DialogHeader>
