@@ -33,6 +33,14 @@ import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import {
+  RuleCalculationsEditor,
+  makeEmptyCalc,
+  calcFromDb,
+  calcToDbPayload,
+  calcItemErrors,
+  type CalcItem,
+} from "@/components/rules/RuleCalculationsEditor";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
