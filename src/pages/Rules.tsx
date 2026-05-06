@@ -225,6 +225,7 @@ const Rules = () => {
   const [companyDoctors, setCompanyDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [loadingCompanyDoctors, setLoadingCompanyDoctors] = useState(false);
   // janela temporal
+  const [fHasConditions, setFHasConditions] = useState(false);
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
   const [fIncludesHolidays, setFIncludesHolidays] = useState(false);
