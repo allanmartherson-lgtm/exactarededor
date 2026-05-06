@@ -977,6 +977,38 @@ const PaymentDetail = () => {
             {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
             {payment.cost_center_code && <div><span className="text-muted-foreground">Centro de custos:</span> <span className="font-mono text-xs font-medium">{payment.cost_center_code}</span></div>}
             <div className="ml-auto flex gap-2">
+              {canEditMeta && (
+                <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={busy} onClick={openEditMeta}>
+                      <MessageSquarePlus className="h-4 w-4 mr-1" /> Editar lote
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Editar lote</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Referência</label>
+                        <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Descrição</label>
+                        <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
+                        <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
+                      <Button onClick={saveMeta} disabled={savingMeta}>{savingMeta ? "Salvando…" : "Salvar"}</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
               {canCancel && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
