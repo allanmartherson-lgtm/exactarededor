@@ -576,4 +576,7 @@ const Users = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
+};
 export default Users;
