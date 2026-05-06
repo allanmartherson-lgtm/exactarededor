@@ -165,6 +165,8 @@ interface FileBucket {
   rawCompanyName: string;
   matchedCompany: { id: string; name: string } | null;
   matchScore: number;
+  /** true quando o usuário trocou a empresa manualmente (não foi o match automático). */
+  manualOverride?: boolean;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
