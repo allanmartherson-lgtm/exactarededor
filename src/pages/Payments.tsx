@@ -119,6 +119,41 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
+  // Fila de reprocessamento: ids selecionados + estado de execução em lote.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [reprocessing, setReprocessing] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const runReanalysis = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    setReprocessing(true);
+    setReprocessProgress({ done: 0, total: ids.length });
+    let ok = 0; let fail = 0;
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        const { error } = await supabase.functions.invoke("analyze-payment", { body: { payment_id: ids[i] } });
+        if (error) throw error;
+        ok++;
+      } catch (e) {
+        console.error("reanalyze failed", ids[i], e);
+        fail++;
+      }
+      setReprocessProgress({ done: i + 1, total: ids.length });
+    }
+    setReprocessing(false);
+    setReprocessProgress(null);
+    setSelected(new Set());
+    toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
+  };
 
   useEffect(() => {
     document.title = "Pagamentos | MedPay Approval";
