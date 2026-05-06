@@ -723,6 +723,9 @@ function RowMain({
   obsCount,
   isCompact,
   totalCols,
+  canEdit,
+  onEditItem,
+  onDeleteItem,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -743,6 +746,9 @@ function RowMain({
   obsCount: number;
   isCompact: boolean;
   totalCols: number;
+  canEdit?: boolean;
+  onEditItem?: (item: PaymentItemRowData) => void;
+  onDeleteItem?: (item: PaymentItemRowData) => void;
 }) {
   const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
