@@ -142,7 +142,7 @@ const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMiss
 const Rules = () => {
   const { user } = useAuth();
   const [rules, setRules] = useState<RuleRow[]>([]);
-  const [refTables, setRefTables] = useState<{ id: string; name: string }[]>([]);
+  const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
