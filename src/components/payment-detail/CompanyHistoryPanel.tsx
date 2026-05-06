@@ -106,6 +106,7 @@ export function CompanyHistoryPanel({
           : (o.author_type === "sistema" || o.author_type === "ia" ? "Sistema" : "Usuário desconhecido"),
         itemId: o.item_id ?? null,
         itemLabel: itemLabelOf(it),
+        bodyText: o.message ?? "",
         body: (
           <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
             {o.message}
