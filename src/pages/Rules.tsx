@@ -265,7 +265,7 @@ const Rules = () => {
 
   // Erros por seção do formulário (feedback visual + auto-abrir seção com erro)
   const sectionErrors = useMemo(() => {
-    const e: Record<string, number> = { identificacao: 0, aplicacao: 0, condicoes: 0, calculo: 0, codigos: 0 };
+    const e: Record<string, number> = { identificacao: 0, aplicacao: 0, calculo: 0, codigos: 0 };
     if (!fName.trim()) e.identificacao++;
     if (!fRuleText.trim()) e.identificacao++;
     if (fValidFrom && fValidUntil && fValidFrom > fValidUntil) e.identificacao++;
@@ -274,7 +274,6 @@ const Rules = () => {
       if (targetType === "empresa" && fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)) e.aplicacao++;
     }
     if (scope === "grupo") {
-      // Linhas por empresa: nenhuma sem empresa, sem duplicatas.
       const seenCo = new Set<string>();
       let dupCo = false;
       for (const link of fGroupLinks) {
@@ -283,19 +282,17 @@ const Rules = () => {
         seenCo.add(link.company_id);
       }
       if (dupCo) e.aplicacao++;
-      // Precisa de pelo menos linha de empresa OU médicos avulsos.
       if (fGroupLinks.length === 0 && fGroupDoctors.length === 0) e.aplicacao++;
     }
-    if (fTimeStart && fTimeEnd && fTimeStart === fTimeEnd) e.condicoes++;
+    // Erros por item de cálculo (somente quando a regra é Calculável)
     if (fNature === "calculavel") {
-      if (fCalculationType === "percentual_sobre_convenio" && !fConvenioPct) e.calculo++;
-      if (fCalculationType === "valor_fixo" && !fFixedAmount) e.calculo++;
+      for (const c of fCalculations) e.calculo += calcItemErrors(c);
     }
     return e;
   }, [
     fName, fRuleText, fValidFrom, fValidUntil, scope, fTargetIdentifier, fTargetName,
-    targetType, fGroupLinks, fGroupDoctors, companyDoctorsMap, fTimeStart, fTimeEnd,
-    fNature, fCalculationType, fConvenioPct, fFixedAmount,
+    targetType, fGroupLinks, fGroupDoctors, companyDoctorsMap,
+    fNature, fCalculations,
   ]);
 
   // bulk update
