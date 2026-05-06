@@ -82,6 +82,9 @@ const PaymentDetail = () => {
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const reimportInputRef = useRef<HTMLInputElement | null>(null);
+  const [reimporting, setReimporting] = useState(false);
+  const [reimportConfirm, setReimportConfirm] = useState<File | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
