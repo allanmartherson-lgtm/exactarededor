@@ -870,8 +870,8 @@ function ItemDetailsRow({
           </div>
 
           <div className={cn("grid gap-3 grid-cols-1 lg:grid-cols-3 items-start", TEXT_BODY)}>
-            {/* Coluna 1: alertas + histórico */}
-            <div className="space-y-2 min-w-0">
+            {/* Coluna 1 (mobile: 1º — alertas + histórico) */}
+            <div className="space-y-2 min-w-0 order-1 lg:order-1">
               {alerts.length > 0 && (
                 <AlertBanner
                   severity={isCritical ? "critico" : "alerta"}
