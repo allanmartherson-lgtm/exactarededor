@@ -273,7 +273,116 @@ export default function CompanyAnalysis() {
     navigate(`/pagamentos/${id}`);
   };
 
-  if (loading) {
+  /**
+   * Troca a empresa de TODOS os itens deste grupo. Usado quando o match
+   * automático apontou a empresa errada. O sistema:
+   *  1) reatribui os itens (company_id/company_name);
+   *  2) move-os para o grupo da empresa correta — cria o grupo se não existir,
+   *     e remove o grupo antigo se ficar vazio;
+   *  3) registra o nome antigo como ALIAS na empresa nova (aprendizado);
+   *  4) reanalisa a IA para os itens reatribuídos.
+   */
+  const changeGroupCompany = async () => {
+    if (!id || !group || !newCompany || !user) return;
+    if (newCompany.id === group.company_id) {
+      toast.info("Esta já é a empresa do grupo.");
+      return;
+    }
+    setChangingCompany(true);
+    try {
+      const oldName = group.company_name;
+      const itemIds = items.map((it) => it.id);
+
+      // 1) reatribui itens
+      const { error: itErr } = await supabase
+        .from("payment_items")
+        .update({ company_id: newCompany.id, company_name: newCompany.name })
+        .in("id", itemIds);
+      if (itErr) throw itErr;
+
+      // 2) acha/cria grupo destino
+      const { data: existing } = await supabase
+        .from("payment_company_groups")
+        .select("id, items_count, total_amount")
+        .eq("payment_id", id)
+        .eq("company_id", newCompany.id)
+        .maybeSingle();
+
+      const total = items.reduce((s, it) => s + Number(it.gross_amount ?? 0), 0);
+
+      let destGroupId = existing?.id ?? null;
+      if (destGroupId) {
+        await supabase
+          .from("payment_company_groups")
+          .update({
+            items_count: (existing!.items_count ?? 0) + items.length,
+            total_amount: Number(existing!.total_amount ?? 0) + total,
+          })
+          .eq("id", destGroupId);
+      } else {
+        const { data: created, error: cErr } = await supabase
+          .from("payment_company_groups")
+          .insert({
+            payment_id: id,
+            company_id: newCompany.id,
+            company_name: newCompany.name,
+            items_count: items.length,
+            total_amount: total,
+            status: "em_analise_ia",
+          })
+          .select("id")
+          .single();
+        if (cErr) throw cErr;
+        destGroupId = created.id;
+      }
+
+      // 3) remove grupo antigo (ficou vazio)
+      await supabase.from("payment_company_groups").delete().eq("id", group.id);
+
+      // 4) aprendizado de alias
+      const { data: comp } = await supabase
+        .from("companies")
+        .select("aliases")
+        .eq("id", newCompany.id)
+        .single();
+      const aliases = new Set<string>((comp?.aliases ?? []) as string[]);
+      aliases.add(oldName);
+      await supabase
+        .from("companies")
+        .update({ aliases: Array.from(aliases) })
+        .eq("id", newCompany.id);
+
+      await recordObservation({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user.id,
+        message: `[${oldName}] Empresa do grupo alterada para "${newCompany.name}" pelo analista. Apelido aprendido para futuras correspondências.`,
+        status_from: group.status,
+        status_to: group.status,
+      });
+
+      // 5) reanálise da IA para a empresa nova
+      try {
+        await supabase.functions.invoke("analyze-payment", {
+          body: { payment_id: id, company_name: newCompany.name },
+        });
+      } catch (e) {
+        console.warn("Reanálise pós-troca falhou (silencioso):", e);
+      }
+
+      toast.success("Empresa do grupo atualizada");
+      setChangeCompanyOpen(false);
+      setNewCompany(null);
+      // Navega para o grupo destino — o antigo deixou de existir.
+      navigate(`/pagamentos/${id}/empresa/${destGroupId}`);
+    } catch (e) {
+      toast.error("Falha ao trocar empresa", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setChangingCompany(false);
+    }
+  };
     return (
       <div className="space-y-4">
         <PageHeader title="Carregando análise…" />
