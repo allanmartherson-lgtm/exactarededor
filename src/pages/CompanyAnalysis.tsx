@@ -399,6 +399,7 @@ export default function CompanyAnalysis() {
                   key={it.id}
                   it={it}
                   comments={itemComments(it.id)}
+                  profiles={profiles}
                   draft={itemDraft[it.id] ?? ""}
                   onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
                   onAdd={() => addItemComment(it.id)}
