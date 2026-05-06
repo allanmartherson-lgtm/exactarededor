@@ -736,20 +736,16 @@ const Dashboard = () => {
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
 
   const isMine = (p: PaymentRow): boolean => {
-    // Status "extras" que também são tarefa do analista, mas não caem em
-    // ownerRoleFor() porque o fluxo principal já passou (NF questionada,
-    // aprovado com ressalva). Devem aparecer na lista para bater com o badge.
+    // Visão coletiva por perfil: o analista enxerga TODA a fila do papel
+    // (não filtra por created_by). Se um analista falta, qualquer outro
+    // continua de onde parou.
     const ANALYST_EXTRA: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
       "nf_questionada",
       "aprovado_com_ressalva",
     ]);
-    if (isAnalista && ANALYST_EXTRA.has(p.status)) {
-      return !!user?.id && p.created_by === user.id;
-    }
+    if (isAnalista && ANALYST_EXTRA.has(p.status)) return true;
     const owner = ownerRoleFor(p.status);
-    if (owner === "analista") {
-      return !!user?.id && p.created_by === user.id && (isAnalista || roles.includes("admin"));
-    }
+    if (owner === "analista") return isAnalista;
     if (owner === "validador") return isValidador;
     if (owner === "diretor") return isDiretor;
     return false;
