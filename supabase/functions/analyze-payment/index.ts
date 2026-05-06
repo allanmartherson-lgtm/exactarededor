@@ -170,84 +170,62 @@ serve(async (req) => {
     });
     });
 
-    // ---------- 3.2 Tabelas de EXCLUSÃO / EXPURGO (prioridade sobre cálculo) ----------
-    // Se um código aparecer em qualquer tabela ATIVA com purpose='exclusao',
-    // o motor zera o esperado e gera alerta conforme severity da tabela.
-    type ExclHit = { table_name: string; severity: "bloqueio" | "aviso" | "info"; reason: string | null };
-    const exclusionByCode: Record<string, ExclHit> = {};
-    if (codes.length > 0) {
+    // ---------- 3.2 Tabelas de EXCEÇÃO vinculadas às regras (Camada 2) ----------
+    // Princípio: tabelas de referência são entidades dormentes — só atuam
+    // quando uma regra ATIVA as declara em `exception_table_ids`. O motor
+    // recebe um lookup (tableId+code → metadados) e consulta apenas as
+    // tabelas vinculadas à regra vencedora de cada item. Não há varredura
+    // global — tabelas sem vínculo declarado não influenciam o cálculo.
+    const exceptionTableIdsLinked = Array.from(new Set(
+      rules.flatMap((r) => Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []),
+    ));
+    const exceptionTablesById: Record<string, { name: string; purpose: "sem_acordo" | "exclusao"; description: string | null }> = {};
+    const exceptionItemsByTable: Record<string, Record<string, { description: string | null }>> = {};
+    if (exceptionTableIdsLinked.length > 0 && codes.length > 0) {
       const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
-      const { data: exclTablesAll } = await supabase
+      const { data: excTables } = await supabase
         .from("reference_tables")
-        .select("id,name,exclusion_severity,description,valid_from,valid_until")
-        .eq("purpose", "exclusao")
-        .eq("active", true);
-      const exclTables = (exclTablesAll ?? []).filter((t: any) =>
-        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
-      );
-      const exclIds = exclTables.map((t: any) => t.id);
-      if (exclIds.length > 0) {
-        const { data: exclItems } = await supabase
+        .select("id,name,purpose,description,active,valid_from,valid_until")
+        .in("id", exceptionTableIdsLinked)
+        .in("purpose", ["sem_acordo", "exclusao"]);
+      const validIds: string[] = [];
+      for (const t of (excTables ?? []) as any[]) {
+        if (!t.active) continue;
+        if (t.valid_from && t.valid_from > today) continue;
+        if (t.valid_until && t.valid_until < today) continue;
+        exceptionTablesById[t.id] = {
+          name: t.name,
+          purpose: t.purpose,
+          description: t.description ?? null,
+        };
+        validIds.push(t.id);
+      }
+      if (validIds.length > 0) {
+        const { data: excItems } = await supabase
           .from("reference_table_items")
-          .select("code,reference_table_id,description")
-          .in("reference_table_id", exclIds)
+          .select("reference_table_id,code,description")
+          .in("reference_table_id", validIds)
           .in("code", codes);
-        const tableById: Record<string, any> = {};
-        for (const t of exclTables ?? []) tableById[(t as any).id] = t;
-        // Severidade mais forte vence se houver múltiplas tabelas
-        const sevRank: Record<string, number> = { bloqueio: 3, aviso: 2, info: 1 };
-        for (const it of (exclItems ?? []) as any[]) {
-          const t = tableById[it.reference_table_id];
-          if (!t) continue;
-          const hit: ExclHit = {
-            table_name: t.name,
-            severity: t.exclusion_severity ?? "bloqueio",
-            reason: it.description ?? t.description ?? null,
-          };
-          const prev = exclusionByCode[it.code];
-          if (!prev || sevRank[hit.severity] > sevRank[prev.severity]) {
-            exclusionByCode[it.code] = hit;
-          }
+        for (const it of (excItems ?? []) as any[]) {
+          const tid = it.reference_table_id as string;
+          const code = String(it.code ?? "").trim();
+          if (!tid || !code) continue;
+          (exceptionItemsByTable[tid] ||= {})[code] = { description: it.description ?? null };
         }
       }
     }
-
-    // ---------- 3.2.b Tabelas SEM ACORDO (usar valor do convênio) ----------
-    // Códigos nessas tabelas NÃO devem ter regras de cálculo aplicadas.
-    // O esperado = valor pago (procedure_amount/gross_amount). Tem prioridade
-    // sobre regras de cálculo, mas NÃO sobre exclusões.
-    const semAcordoByCode: Record<string, { table_name: string; reason: string | null }> = {};
-    if (codes.length > 0) {
-      const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
-      const { data: saTablesAll } = await supabase
-        .from("reference_tables")
-        .select("id,name,description,valid_from,valid_until")
-        .eq("purpose", "sem_acordo")
-        .eq("active", true);
-      const saTables = (saTablesAll ?? []).filter((t: any) =>
-        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
-      );
-      const saIds = saTables.map((t: any) => t.id);
-      if (saIds.length > 0) {
-        const { data: saItems } = await supabase
-          .from("reference_table_items")
-          .select("code,reference_table_id,description")
-          .in("reference_table_id", saIds)
-          .in("code", codes);
-        const tableById: Record<string, any> = {};
-        for (const t of saTables ?? []) tableById[(t as any).id] = t;
-        for (const it of (saItems ?? []) as any[]) {
-          const t = tableById[it.reference_table_id];
-          if (!t) continue;
-          if (!semAcordoByCode[it.code]) {
-            semAcordoByCode[it.code] = {
-              table_name: t.name,
-              reason: it.description ?? t.description ?? null,
-            };
-          }
-        }
-      }
-    }
+    const exceptionLookup = (tableId: string, code: string) => {
+      const t = exceptionTablesById[tableId];
+      if (!t) return null;
+      const items = exceptionItemsByTable[tableId];
+      const hit = items?.[String(code).trim()];
+      if (!hit) return null;
+      return {
+        table_name: t.name,
+        purpose: t.purpose,
+        reason: hit.description ?? t.description ?? null,
+      };
+    };
 
     // ---------- 3.3 Tabelas de referência vinculadas a regras "tabela_diferenciada" ----------
     // Carrega valores (code → amount) de cada reference_table_id usado por regras
