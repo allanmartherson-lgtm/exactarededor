@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,9 +30,16 @@ export const PageHeader = ({
   stickyOffset = 56,
 }: PageHeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleBack = () => {
-    // Se há histórico nesta sessão, volta. Senão, vai pro fallback.
+    // Permite que a rota anterior force um destino específico via location.state.backTo
+    // (ex.: depois de criar um pagamento, voltar deve ir para /pagamentos, não para o form).
+    const forced = (location.state as { backTo?: string } | null)?.backTo;
+    if (forced) {
+      navigate(forced);
+      return;
+    }
     if (window.history.length > 1) {
       navigate(-1);
     } else {
