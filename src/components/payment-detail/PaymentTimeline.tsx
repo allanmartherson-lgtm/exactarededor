@@ -52,6 +52,20 @@ export const PaymentTimeline = ({
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  // Lista os papéis efetivamente presentes nas observações para evitar
+  // exibir opções vazias no Select.
+  const availableRoles = useMemo(() => {
+    const set = new Set<string>();
+    observations.forEach((o) => o.author_type && set.add(o.author_type));
+    return ROLE_FILTER_OPTIONS.filter((r) => set.has(r));
+  }, [observations]);
+
+  const filtered = useMemo(() => {
+    if (roleFilter === "all") return observations;
+    return observations.filter((o) => o.author_type === roleFilter);
+  }, [observations, roleFilter]);
 
   const startEditObs = (o: ObservationRow) => {
     setEditingObsId(o.id);
