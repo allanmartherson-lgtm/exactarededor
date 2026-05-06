@@ -739,19 +739,12 @@ const Dashboard = () => {
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
 
   const isMine = (p: PaymentRow): boolean => {
-    // Visão coletiva por perfil: o analista enxerga TODA a fila do papel
-    // (não filtra por created_by). Se um analista falta, qualquer outro
-    // continua de onde parou.
-    const ANALYST_EXTRA: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-      "nf_questionada",
-      "aprovado_com_ressalva",
-    ]);
-    if (isAnalista && ANALYST_EXTRA.has(p.status)) return true;
-    const owner = ownerRoleFor(p.status);
-    if (owner === "analista") return isAnalista;
-    if (owner === "validador") return isValidador;
-    if (owner === "diretor") return isDiretor;
-    return false;
+    // Estritamente "meu": só pagamentos onde o usuário logado é o criador
+    // ou o validador. A fila coletiva do papel aparece em "Tarefas em
+    // aberto" (abaixo) e no "Pipeline da equipe".
+    const uid = user?.id;
+    if (!uid) return false;
+    return p.created_by === uid || p.validated_by === uid;
   };
 
   const myPayments = payments.filter(isMine).slice(0, 6);
