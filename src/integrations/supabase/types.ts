@@ -573,6 +573,42 @@ export type Database = {
           },
         ]
       }
+      payment_assignments: {
+        Row: {
+          action: string
+          analyst_id: string
+          created_at: string
+          created_by: string
+          id: string
+          note: string | null
+          payment_id: string
+          previous_analyst_id: string | null
+          source: string
+        }
+        Insert: {
+          action: string
+          analyst_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          note?: string | null
+          payment_id: string
+          previous_analyst_id?: string | null
+          source?: string
+        }
+        Update: {
+          action?: string
+          analyst_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string | null
+          payment_id?: string
+          previous_analyst_id?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       payment_company_groups: {
         Row: {
           approved_at: string | null
