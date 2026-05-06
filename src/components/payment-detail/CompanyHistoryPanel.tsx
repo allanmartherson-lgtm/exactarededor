@@ -272,7 +272,7 @@ export function CompanyHistoryPanel({
                     <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted text-foreground/80">
                       {e.authorType}
                     </span>
-                    {e.authorName && e.authorName !== "—" && (
+                    {e.authorName && (
                       <span className="flex items-center gap-1 text-foreground/80">
                         <UserIcon className="h-3 w-3" />
                         {e.authorName}
