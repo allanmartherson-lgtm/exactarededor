@@ -469,12 +469,20 @@ const Rules = () => {
     } else {
       setFGroupLinks([]);
     }
-    setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
-    setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
+    const tMode = (r.time_mode as TimeMode) ?? "qualquer";
+    const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
+    const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
+    const tEnd = r.time_end ? String(r.time_end).slice(0, 5) : "";
+    const eMode = (r.elective_mode as ElectiveMode) ?? "qualquer";
+    setFTimeMode(tMode);
+    setFWeekdays(wdays);
     setFIncludesHolidays(!!r.includes_holidays);
-    setFTimeStart(r.time_start ? String(r.time_start).slice(0, 5) : "");
-    setFTimeEnd(r.time_end ? String(r.time_end).slice(0, 5) : "");
-    setFElectiveMode((r.elective_mode as ElectiveMode) ?? "qualquer");
+    setFTimeStart(tStart);
+    setFTimeEnd(tEnd);
+    setFElectiveMode(eMode);
+    setFHasConditions(
+      tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer"
+    );
     // Garante que a seção "Identificação" esteja aberta ao editar
     // (contém o bloco Convênio — eixo determinístico do motor de regras).
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
