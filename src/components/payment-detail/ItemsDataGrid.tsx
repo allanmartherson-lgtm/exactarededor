@@ -103,6 +103,10 @@ export type ItemsDataGridProps = {
   showToolbar?: boolean;
   /** Mostra rodapé com dicas de teclado. */
   showKeyboardHint?: boolean;
+  /** Quando true, exibe coluna "Ações" com editar/excluir. */
+  canEdit?: boolean;
+  onEditItem?: (item: PaymentItemRowData) => void;
+  onDeleteItem?: (item: PaymentItemRowData) => void;
   className?: string;
 };
 
