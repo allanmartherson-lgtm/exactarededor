@@ -216,7 +216,7 @@ export function CompanyHistoryPanel({
               {filtered.length}
             </Badge>
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">Item:</span>
             <Select value={filterItem} onValueChange={setFilterItem}>
               <SelectTrigger className="h-8 w-[260px]">
@@ -230,6 +230,27 @@ export function CompanyHistoryPanel({
                     {o.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">Papel:</span>
+            <Select value={filterRole} onValueChange={setFilterRole}>
+              <SelectTrigger className="h-8 w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os papéis</SelectItem>
+                {availableRoles.map((r) => {
+                  const v = getRoleVisual(r);
+                  const RoleIcon = v.Icon;
+                  return (
+                    <SelectItem key={r} value={r}>
+                      <span className="inline-flex items-center gap-2">
+                        <RoleIcon className="h-3.5 w-3.5" />
+                        {authorRoleLabel(r)}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
