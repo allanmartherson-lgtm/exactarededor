@@ -954,8 +954,8 @@ function ItemDetailsRow({
               )}
             </div>
 
-            {/* Coluna 3: detalhes do cálculo */}
-            <div className="space-y-2 min-w-0">
+            {/* Coluna 3 (mobile: 2º — cálculo, prioridade no mobile pois resume divergência) */}
+            <div className="space-y-2 min-w-0 order-2 lg:order-3">
               {(engine || expected != null || explanation) && (
                 <div className={CARD}>
                   <Label icon={FileText}>Detalhes do cálculo</Label>
