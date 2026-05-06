@@ -266,67 +266,14 @@ serve(async (req) => {
     };
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
-    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup });
+    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup, exceptionLookup });
 
-    // ---------- 4.1 Sobrepor resultado para itens em tabela de exclusão ----------
-    for (const r of results) {
-      const it = items.find((i) => i.id === r.item_id);
-      const code = it?.procedure_code ?? "";
-      const hit = code ? exclusionByCode[code] : undefined;
-      if (!hit) continue;
-      const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
-      const status =
-        hit.severity === "bloqueio" ? "reprovado" :
-        hit.severity === "aviso" ? "alerta" : "alerta";
-      r.expected_amount = 0;
-      r.diff_pct = null;
-      r.matched_rule_id = null;
-      r.matched_rule_name = `Exclusão: ${hit.table_name}`;
-      r.matched_priority = "conflito"; // marca como override determinístico
-      r.calculation_type_used = "exclusao";
-      r.calculation_explanation = `Código ${code} consta na tabela de exclusão "${hit.table_name}"${motivo}. Esperado R$ 0.`;
-      r.alerts = [
-        `Código ${code} em tabela de exclusão "${hit.table_name}"${motivo}.`,
-        ...r.alerts.filter((a) => !a.startsWith("Diferença") && !a.startsWith("Divergência")),
-      ];
-      r.status = status as any;
-      r.needs_ai_review = status !== "aprovado";
-    }
+    // CAMADAS 1 e 2 — Gating por-regra (convênio whitelist/blacklist e
+    // tabelas de exceção vinculadas) são aplicadas DENTRO do motor
+    // (`analyzeItem`), sobre a regra vencedora de cada item. Cada regra é
+    // uma unidade autocontida; tabelas só atuam quando vinculadas via
+    // `exception_table_ids`. Não há varredura ou override global.
 
-    // CAMADA 1 — Gating por-regra de convênio (whitelist/blacklist) é
-    // aplicada DENTRO do motor (`analyzeItem`), sobre a regra vencedora de
-    // cada item. Cada regra é uma unidade autocontida; listas de outras
-    // regras não interferem. Aqui não fazemos override global.
-
-
-    // ---------- 4.1.b CAMADA 2 — Tabela "Sem acordo" (gating por código TUSS) ----------
-    // Não aplica regras de cálculo: usa diretamente o valor pago como esperado.
-    // Pula códigos já marcados como exclusão (exclusão tem prioridade) e
-    // itens já bloqueados pela Camada 1.
-    for (const r of results) {
-      const it = items.find((i) => i.id === r.item_id);
-      const code = it?.procedure_code ?? "";
-      if (!code) continue;
-      if (exclusionByCode[code]) continue;
-      // Já bloqueado pela Camada 1
-      if (typeof r.matched_rule_name === "string" && r.matched_rule_name.startsWith("Camada 1 —")) continue;
-      const hit = semAcordoByCode[code];
-      if (!hit) continue;
-      const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
-      const paid = Number(it?.gross_amount ?? 0);
-      r.expected_amount = paid;
-      r.diff_pct = 0;
-      r.matched_rule_id = null;
-      r.matched_rule_name = `Camada 2 — Sem acordo: ${hit.table_name}`;
-      r.matched_priority = "conflito";
-      r.calculation_type_used = "informativo";
-      r.calculation_explanation = `Bloqueado pela Camada 2 (código TUSS ${code} em tabela sem_acordo "${hit.table_name}")${motivo}. Regras de cálculo ignoradas — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`;
-      r.alerts = [
-        `Código ${code} em tabela "Sem acordo" (${hit.table_name})${motivo} — regras diferenciadas não aplicadas.`,
-      ];
-      r.status = "aprovado";
-      r.needs_ai_review = false;
-    }
 
     const resultById: Record<string, AnalysisResult> = {};
     for (const r of results) resultById[r.item_id] = r;
