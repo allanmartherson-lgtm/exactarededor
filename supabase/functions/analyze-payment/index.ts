@@ -581,6 +581,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         },
         // Detalhamento por item de cálculo (1:N) — quando aplicável.
         calculation_breakdown: r.calculation_breakdown ?? null,
+        // Trace de auditoria do motor: candidatas avaliadas e por que cada
+        // uma foi descartada/venceu. Base para responder "por que essa regra?"
+        selection_trace: r.selection_trace ?? null,
       };
 
       await supabase.from("payment_items").update({
