@@ -405,7 +405,7 @@ const Rules = () => {
     setFCalculations([makeEmptyCalc()]);
   };
 
-  const openEdit = (r: RuleRow) => {
+  const openEdit = async (r: RuleRow) => {
     setEditingId(r.id);
     setFName(r.name ?? ""); setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
