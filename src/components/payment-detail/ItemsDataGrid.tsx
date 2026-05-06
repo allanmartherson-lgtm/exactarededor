@@ -472,20 +472,39 @@ export function ItemsDataGrid({
             })}
           </ul>
 
-          {/* DESKTOP/TABLET — tabela densa (>= md) */}
+          {/* DESKTOP/TABLET — tabela densa (>= md). Apenas a coluna Paciente
+              é sticky à esquerda — múltiplas sticky causavam sobreposição
+              de conteúdo no scroll horizontal. As demais colunas truncam
+              normalmente com larguras controladas via colgroup. */}
           <table
             data-density={isCompact ? "compact" : "comfortable"}
-            className={cn("hidden md:table w-max min-w-full border-separate border-spacing-0", tableTextSize)}
+            className={cn("hidden md:table min-w-full border-separate border-spacing-0 table-fixed", tableTextSize)}
           >
+            <colgroup>
+              {colVis.atendimento && <col style={{ width: 96 }} />}
+              <col style={{ width: 200 }} />
+              {colVis.convenio && <col style={{ width: 140 }} />}
+              {colVis.via && <col style={{ width: 140 }} />}
+              <col style={{ width: 96 }} />
+              <col style={{ width: 240 }} />
+              <col style={{ width: 180 }} />
+              {colVis.funcao && <col style={{ width: 120 }} />}
+              {colVis.regra && <col style={{ width: 180 }} />}
+              <col style={{ width: 110 }} />
+              <col style={{ width: 110 }} />
+              {colVis.diferenca && <col style={{ width: 110 }} />}
+              <col style={{ width: 110 }} />
+              {colVis.observacao && <col style={{ width: 70 }} />}
+            </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
                 {colVis.atendimento && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Atend.</th>}
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 min-w-[180px]")}>Paciente</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}>Paciente</th>
                 {colVis.convenio && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Convênio</th>}
                 {colVis.via && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Via</th>}
                 <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>TUSS</th>
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[180px] z-30 min-w-[200px]")}>Procedimento</th>
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[380px] z-30 min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}>Médico</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Procedimento</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Médico</th>
                 {colVis.funcao && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Regra</th>}
                 <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Valor</th>
@@ -634,8 +653,13 @@ function RowMain({
     : "bg-card";
   const stickyHover = !isActive && !isExpanded ? "group-hover:bg-muted" : "";
   const cellPad = isCompact ? "px-1.5 py-0.5" : "px-2 py-2";
-  const stickyCell = cn(cellPad, "truncate border-b sticky z-10", stickyBg, stickyHover);
-  const cell = cn(cellPad, "truncate border-b whitespace-nowrap");
+  const cell = cn(cellPad, "truncate border-b whitespace-nowrap", baseCellBg);
+  const stickyCell = cn(
+    cellPad,
+    "truncate border-b whitespace-nowrap sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))]",
+    stickyBg,
+    stickyHover,
+  );
 
   return (
     <>
@@ -651,46 +675,41 @@ function RowMain({
         )}
       >
         {colVis.atendimento && (
-          <td className={cn(cell, "font-mono text-[10px]", baseCellBg)} title={it.attendance_number ?? ""}>
+          <td className={cn(cell, "font-mono text-[10px]")} title={it.attendance_number ?? ""}>
             {it.attendance_number ?? "—"}
           </td>
         )}
-        <td className={cn(stickyCell, "left-0 min-w-[180px]")} title={paciente}>
+        <td className={stickyCell} title={paciente}>
           <span className="truncate block">{paciente}</span>
         </td>
         {colVis.convenio && (
-          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={typeof convenio === "string" ? convenio : ""}>
+          <td className={cn(cell, "text-muted-foreground")} title={typeof convenio === "string" ? convenio : ""}>
             {convenio}
           </td>
         )}
         {colVis.via && (
-          <td className={cn(cell, baseCellBg)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+          <td className={cell} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono text-[10px]", baseCellBg)}>{it.procedure_code ?? "—"}</td>
-        <td
-          className={cn(stickyCell, "left-[180px] min-w-[200px]")}
-          title={it.procedure_name ?? it.description ?? ""}
-        >
+        <td className={cn(cell, "font-mono text-[10px]")}>{it.procedure_code ?? "—"}</td>
+        <td className={cell} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        <td
-          className={cn(stickyCell, "left-[380px] min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}
-          title={it.doctor_name ?? ""}
-        >
+        <td className={cell} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
-          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+          <td className={cn(cell, "text-muted-foreground")} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
         )}
         {colVis.regra && (
-          <td className={cn(cell, "text-muted-foreground", baseCellBg)} title={ruleName}>{ruleName}</td>
+          <td className={cn(cell, "text-muted-foreground")} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn("px-1.5 py-1 text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+        <td className={cn(cellPad, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
           {formatCurrency(grossN)}
         </td>
         <td
           className={cn(
-            "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b font-medium",
+            cellPad,
+            "text-right tabular-nums whitespace-nowrap border-b font-medium",
             diverges ? "text-warning-foreground" : "text-foreground",
             baseCellBg,
           )}
@@ -700,7 +719,8 @@ function RowMain({
         {colVis.diferenca && (
           <td
             className={cn(
-              "px-1.5 py-1 text-right tabular-nums whitespace-nowrap border-b",
+              cellPad,
+              "text-right tabular-nums whitespace-nowrap border-b",
               diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
               baseCellBg,
             )}
@@ -708,14 +728,14 @@ function RowMain({
             {diff != null ? `${diff > 0 ? "+" : ""}${formatCurrency(diff)}` : "—"}
           </td>
         )}
-        <td className={cn("px-1.5 py-1 border-b", baseCellBg)}>
+        <td className={cn(cellPad, "border-b", baseCellBg)}>
           <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
             {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
             {eff}
           </span>
         </td>
         {colVis.observacao && (
-          <td className={cn("px-1.5 py-1 text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
+          <td className={cn(cellPad, "text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
           </td>
         )}
@@ -809,7 +829,10 @@ function ItemDetailsRow({
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={colSpan} className="p-0 align-top">
-        <div className="px-5 py-4 animate-accordion-down overflow-hidden" style={{ fontSize: "13px", lineHeight: 1.4 }}>
+        <div
+          className="px-5 py-4 animate-accordion-down"
+          style={{ fontSize: "13px", lineHeight: 1.4 }}
+        >
           <div
             className="mb-4 grid gap-x-4 gap-y-3"
             style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
