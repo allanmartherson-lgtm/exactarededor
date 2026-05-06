@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate, TONE_CLASSES } from "@/lib/status";
-import { MessageCircleQuestion, Pencil, Save, X } from "lucide-react";
+import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
 
 /**
