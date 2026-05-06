@@ -461,8 +461,17 @@ const Payments = () => {
         </Link>
       );
     }
+    const isSelected = selected.has(p.id);
     return (
-      <Link key={p.id} to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
+      <div key={p.id} className={cn("flex items-start gap-3 px-6 py-4 hover:bg-muted/40 transition-colors", isSelected && "bg-primary/5")}>
+        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => toggleSelect(p.id)}
+            aria-label={`Selecionar ${p.reference} para reprocessamento`}
+          />
+        </div>
+        <Link to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 flex-1 min-w-0">
         <div className="min-w-0 flex-1 space-y-2">
           <p className="font-medium text-sm truncate">{p.reference}</p>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
@@ -513,7 +522,8 @@ const Payments = () => {
           </p>
         </div>
         <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
-      </Link>
+        </Link>
+      </div>
     );
   };
 
