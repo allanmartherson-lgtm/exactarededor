@@ -826,26 +826,39 @@ function ItemDetailsRow({
     catch { return String(d); }
   };
 
+  // Tipografia unificada: tudo usa text-xs (12px) — mesmo tamanho do AlertBanner.
+  // Labels usam text-[10px] uppercase para hierarquia. Sem inline font-size.
+  const Label = ({ children }: { children: React.ReactNode }) => (
+    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{children}</p>
+  );
+
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={colSpan} className="p-0 align-top">
+        {/*
+          O <td> com colSpan ocupa toda a largura do <table> (que é table-fixed e
+          pode ser maior que a viewport). Para que o painel de detalhes NÃO
+          herde essa largura — e portanto não fique "esticado" e cortado pelo
+          scroll horizontal — usamos position: sticky + left: 0 + max-width
+          baseado em 100vw. Assim o painel acompanha o scroll horizontal e
+          fica sempre dentro da viewport, sem overflow.
+        */}
         <div
-          className="px-5 py-4 animate-accordion-down"
-          style={{ fontSize: "13px", lineHeight: 1.4 }}
+          className="sticky left-0 px-4 py-4 text-xs animate-accordion-down"
+          style={{ width: "min(100%, calc(100vw - 2rem))", maxWidth: "calc(100vw - 2rem)" }}
         >
-          <div
-            className="mb-4 grid gap-x-4 gap-y-3"
-            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
-          >
+          {/* Resumo do item — grid responsivo, valores quebram em qualquer ponto */}
+          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
             {summary.map((s) => (
               <div key={s.label} className="min-w-0">
-                <p className="uppercase tracking-wide text-muted-foreground" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>{s.label}</p>
-                <p style={{ fontSize: "13px", lineHeight: 1.4, overflowWrap: "anywhere", wordBreak: "break-word" }}>{s.value}</p>
+                <Label>{s.label}</Label>
+                <p className="text-xs leading-snug break-words [overflow-wrap:anywhere] mt-0.5">{s.value}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-3 text-xs">
+            {/* Coluna 1: alertas + histórico */}
             <div className="space-y-2 min-w-0">
               {alerts.length > 0 && (
                 <AlertBanner
@@ -863,7 +876,7 @@ function ItemDetailsRow({
                 </AlertBanner>
               )}
               {exceptionMarked && (
-                <div className="rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info">
+                <div className="rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info text-xs">
                   <div className="flex items-center gap-1.5 font-medium">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Exceção autorizada registrada
@@ -878,16 +891,14 @@ function ItemDetailsRow({
                 </div>
               )}
               <div className="rounded-md border bg-background p-3">
-                <p className="uppercase tracking-wide text-muted-foreground mb-1.5" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                  Histórico deste item ({itemObs.length})
-                </p>
+                <Label>Histórico deste item ({itemObs.length})</Label>
                 {itemObs.length === 0 ? (
-                  <p className="text-muted-foreground">Sem comentários ainda.</p>
+                  <p className="text-muted-foreground mt-1.5">Sem comentários ainda.</p>
                 ) : (
-                  <ul className="space-y-2 max-h-56 overflow-y-auto">
+                  <ul className="space-y-2 max-h-56 overflow-y-auto mt-1.5">
                     {itemObs.map((o) => (
                       <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0">
-                        <div className="flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: "11px" }}>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">{o.author_type}</span>
                           <span className="ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
@@ -899,24 +910,25 @@ function ItemDetailsRow({
               </div>
             </div>
 
+            {/* Coluna 2: regra + IA */}
             <div className="space-y-2 min-w-0">
               {matchedRules.length > 0 ? (
                 <div className="rounded-md border bg-background p-3">
-                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Regra aplicada</p>
-                  <p className="font-medium text-primary break-words">{matchedRules[0].name}</p>
+                  <Label>Regra aplicada</Label>
+                  <p className="font-medium text-primary break-words mt-1">{matchedRules[0].name}</p>
                   {matchedRules[0].rule_text && (
                     <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words">{matchedRules[0].rule_text}</p>
                   )}
                   {matchedRules.length > 1 && (
-                    <p className="mt-1 text-muted-foreground italic" style={{ fontSize: "11px" }}>
+                    <p className="mt-1 text-[10px] text-muted-foreground italic">
                       + {matchedRules.length - 1} regra(s) também casaram
                     </p>
                   )}
                 </div>
               ) : matchedNames.length > 0 ? (
                 <div className="rounded-md border bg-background p-3">
-                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>Regra aplicada</p>
-                  <p className="font-medium break-words">{matchedNames[0]}</p>
+                  <Label>Regra aplicada</Label>
+                  <p className="font-medium break-words mt-1">{matchedNames[0]}</p>
                 </div>
               ) : (
                 <div className="rounded-md border bg-background p-3 text-muted-foreground">Nenhuma regra específica casou.</div>
@@ -924,48 +936,46 @@ function ItemDetailsRow({
 
               {aiNote && (
                 <div className="rounded-md border bg-background p-3">
-                  <p className="uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
                     <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
                   </p>
-                  <p className="text-muted-foreground italic whitespace-pre-wrap break-words">{aiNote}</p>
+                  <p className="text-muted-foreground italic whitespace-pre-wrap break-words mt-1">{aiNote}</p>
                 </div>
               )}
             </div>
 
+            {/* Coluna 3: detalhes do cálculo */}
             <div className="space-y-2 min-w-0">
               {(engine || expected != null || explanation) && (
                 <div className="rounded-md border bg-background p-3">
-                  <p className="uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1 mb-1.5">
                     <FileText className="h-3 w-3" /> Detalhes do cálculo
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5 mb-2">
                     {priority && (
-                      <span
-                        className={cn("inline-flex rounded-full border px-1.5 py-0.5", TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]])}
-                        style={{ fontSize: "11px" }}
-                      >
+                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]])}>
                         {RULE_MATCH_PRIORITY_LABELS[priority]}
                       </span>
                     )}
                     {calcTypeLabel && (
-                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5", TONE_CLASSES.muted)} style={{ fontSize: "11px" }}>
+                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES.muted)}>
                         {calcTypeLabel}
                       </span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                     <div className="min-w-0">
-                      <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Valor informado</p>
-                      <p className="tabular-nums font-medium break-words">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
+                      <Label>Valor informado</Label>
+                      <p className="tabular-nums font-medium break-words mt-0.5">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Valor esperado</p>
-                      <p className="tabular-nums font-medium break-words">{expected != null ? formatCurrency(Number(expected)) : "—"}</p>
+                      <Label>Valor esperado</Label>
+                      <p className="tabular-nums font-medium break-words mt-0.5">{expected != null ? formatCurrency(Number(expected)) : "—"}</p>
                     </div>
                     {diff != null && Math.abs(diff) > 0.01 && (
                       <div className="col-span-2 min-w-0">
-                        <p className="text-muted-foreground" style={{ fontSize: "11px" }}>Diferença</p>
-                        <p className={cn("tabular-nums font-medium break-words", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                        <Label>Diferença</Label>
+                        <p className={cn("tabular-nums font-medium break-words mt-0.5", diff < 0 ? "text-warning-foreground" : "text-success")}>
                           {diff > 0 ? "+" : ""}{formatCurrency(diff)}
                           {diffPct != null && (
                             <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
@@ -982,10 +992,8 @@ function ItemDetailsRow({
 
               {diff != null && Math.abs(diff) > 0.01 && expected != null && (
                 <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-3">
-                  <p className="uppercase tracking-wide text-muted-foreground mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                    Sugestão de ajuste
-                  </p>
-                  <p className="break-words">
+                  <Label>Sugestão de ajuste</Label>
+                  <p className="break-words mt-1">
                     Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
                   </p>
                 </div>
