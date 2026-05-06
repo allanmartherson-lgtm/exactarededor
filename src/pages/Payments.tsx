@@ -536,6 +536,37 @@ const Payments = () => {
               {competenceOptions.map((c) => <SelectItem key={c} value={c}>{formatCompetence(`${c}-01`)}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={ownerGroup} onValueChange={(v) => {
+            const ov = v as OwnerGroup;
+            setOwnerGroup(ov);
+            const next = new URLSearchParams(searchParams);
+            if (ov === "all") next.delete("status"); else next.set("status", ov);
+            setSearchParams(next, { replace: true });
+          }}>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="Papel/fila" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Qualquer fila</SelectItem>
+              <SelectItem value="analista">Com analista</SelectItem>
+              <SelectItem value="validador">Com validador</SelectItem>
+              <SelectItem value="diretor">Com diretor</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={divergenceFilter} onValueChange={(v) => setDivergenceFilter(v as typeof divergenceFilter)}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Divergência" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Divergência: todas</SelectItem>
+              <SelectItem value="with">Com divergência IA×regra</SelectItem>
+              <SelectItem value="without">Sem divergência</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={questionedFilter} onValueChange={(v) => setQuestionedFilter(v as typeof questionedFilter)}>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="NF questionada" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">NF: todas</SelectItem>
+              <SelectItem value="with">NF questionada</SelectItem>
+              <SelectItem value="without">Sem questionamento</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant={delayedOnly ? "default" : "outline"}
             size="sm"
