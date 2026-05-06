@@ -113,6 +113,13 @@ export interface RuleInput {
    *     Lista vazia = aplica a todos.
    */
   agreement_match_mode?: "whitelist" | "blacklist" | null;
+  /**
+   * IDs de reference_tables (purpose IN ('sem_acordo','exclusao')) vinculadas
+   * a esta regra. Camada 2: quando o item bate na regra e o código TUSS está
+   * em uma dessas tabelas, o motor pula o cálculo. Tabelas só têm efeito
+   * quando explicitamente vinculadas — nada de varredura global.
+   */
+  exception_table_ids?: string[] | null;
 }
 
 export interface ItemInput {
@@ -708,9 +715,19 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
 
 export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string) => number | null;
 
+/**
+ * Camada 2: dado um id de tabela de exceção (sem_acordo/exclusao) e um código
+ * TUSS, retorna metadados se o código está nessa tabela; null caso contrário.
+ */
+export type ExceptionTableLookup = (
+  referenceTableId: string,
+  procedureCode: string,
+) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
+
 export interface EngineCtx {
   appliedAttendancesByRule: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
+  exceptionLookup?: ExceptionTableLookup;
 }
 
 export function applyCalculation(
@@ -995,7 +1012,49 @@ export function analyzeItem(
       };
     }
 
-    // === Tratamento de "Exclusão / não pagar" como bloqueio com exceção autorizada ===
+    // === Camada 2 — Tabelas de exceção VINCULADAS à regra ===
+    // Princípio: tabelas são entidades dormentes. Só atuam quando a regra
+    // vencedora declara `exception_table_ids` e o código TUSS está em uma
+    // delas. Não há varredura global. Quando bloqueia: aceita o valor pago
+    // como esperado e marca o item como "aprovado" — comportamento esperado,
+    // não erro a auditar (sistema não tem a tabela interna do convênio).
+    {
+      const linkedIds = Array.isArray(winner.exception_table_ids) ? winner.exception_table_ids : [];
+      const code = (item.procedure_code ?? "").trim();
+      if (linkedIds.length > 0 && code && ctx?.exceptionLookup) {
+        let hit: { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null = null;
+        for (const tid of linkedIds) {
+          const h = ctx.exceptionLookup(tid, code);
+          if (h) { hit = h; break; }
+        }
+        if (hit) {
+          const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
+          const purposeLabel = hit.purpose === "sem_acordo" ? "Sem acordo" : "Exclusão";
+          const paid = Number(item.gross_amount ?? 0);
+          return {
+            item_id: item.id,
+            status: "aprovado",
+            expected_amount: paid,
+            diff_pct: 0,
+            matched_rule_id: winner.id,
+            matched_rule_name: `Camada 2 — ${purposeLabel}: ${hit.table_name} (via regra "${winner.name}")`,
+            matched_priority: "sem_regra",
+            calculation_type_used: "informativo",
+            calculation_explanation:
+              `Bloqueado pela Camada 2 — código TUSS ${code} consta na tabela "${hit.table_name}" ` +
+              `(${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo}. ` +
+              `Regra de cálculo ignorada — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`,
+            alerts: [
+              `Código ${code} em tabela "${hit.table_name}" (${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo} — cálculo não aplicado.`,
+            ],
+            needs_ai_review: false,
+            needs_human_review: false,
+          };
+        }
+      }
+    }
+
+
     // Se a regra vencedora é uma exclusão e o analista marcou o item como
     // "exceção autorizada", e a regra permite essa exceção, o motor NÃO aplica
     // a exclusão automática: tenta encontrar a próxima regra calculável
@@ -1096,7 +1155,7 @@ export function analyzePaymentItems(
   items: ItemInput[],
   rules: RuleInput[],
   ctx: PaymentContext,
-  options?: { referenceLookup?: ReferenceTableLookup },
+  options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup },
 ): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
   const ordered = [...items].sort((a, b) => {
@@ -1112,6 +1171,7 @@ export function analyzePaymentItems(
   const state: EngineCtx = {
     appliedAttendancesByRule: new Map<string, Set<string>>(),
     referenceLookup: options?.referenceLookup,
+    exceptionLookup: options?.exceptionLookup,
   };
   const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
   // Reordenar resultados para a ordem original de `items`

@@ -73,7 +73,8 @@ serve(async (req) => {
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,
         exclusion_reason,allows_authorized_exception,
-        agreement_name,agreement_aliases,agreement_match_mode
+        agreement_name,agreement_aliases,agreement_match_mode,
+        exception_table_ids
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
@@ -169,84 +170,62 @@ serve(async (req) => {
     });
     });
 
-    // ---------- 3.2 Tabelas de EXCLUSÃO / EXPURGO (prioridade sobre cálculo) ----------
-    // Se um código aparecer em qualquer tabela ATIVA com purpose='exclusao',
-    // o motor zera o esperado e gera alerta conforme severity da tabela.
-    type ExclHit = { table_name: string; severity: "bloqueio" | "aviso" | "info"; reason: string | null };
-    const exclusionByCode: Record<string, ExclHit> = {};
-    if (codes.length > 0) {
+    // ---------- 3.2 Tabelas de EXCEÇÃO vinculadas às regras (Camada 2) ----------
+    // Princípio: tabelas de referência são entidades dormentes — só atuam
+    // quando uma regra ATIVA as declara em `exception_table_ids`. O motor
+    // recebe um lookup (tableId+code → metadados) e consulta apenas as
+    // tabelas vinculadas à regra vencedora de cada item. Não há varredura
+    // global — tabelas sem vínculo declarado não influenciam o cálculo.
+    const exceptionTableIdsLinked = Array.from(new Set(
+      rules.flatMap((r) => Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []),
+    ));
+    const exceptionTablesById: Record<string, { name: string; purpose: "sem_acordo" | "exclusao"; description: string | null }> = {};
+    const exceptionItemsByTable: Record<string, Record<string, { description: string | null }>> = {};
+    if (exceptionTableIdsLinked.length > 0 && codes.length > 0) {
       const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
-      const { data: exclTablesAll } = await supabase
+      const { data: excTables } = await supabase
         .from("reference_tables")
-        .select("id,name,exclusion_severity,description,valid_from,valid_until")
-        .eq("purpose", "exclusao")
-        .eq("active", true);
-      const exclTables = (exclTablesAll ?? []).filter((t: any) =>
-        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
-      );
-      const exclIds = exclTables.map((t: any) => t.id);
-      if (exclIds.length > 0) {
-        const { data: exclItems } = await supabase
+        .select("id,name,purpose,description,active,valid_from,valid_until")
+        .in("id", exceptionTableIdsLinked)
+        .in("purpose", ["sem_acordo", "exclusao"]);
+      const validIds: string[] = [];
+      for (const t of (excTables ?? []) as any[]) {
+        if (!t.active) continue;
+        if (t.valid_from && t.valid_from > today) continue;
+        if (t.valid_until && t.valid_until < today) continue;
+        exceptionTablesById[t.id] = {
+          name: t.name,
+          purpose: t.purpose,
+          description: t.description ?? null,
+        };
+        validIds.push(t.id);
+      }
+      if (validIds.length > 0) {
+        const { data: excItems } = await supabase
           .from("reference_table_items")
-          .select("code,reference_table_id,description")
-          .in("reference_table_id", exclIds)
+          .select("reference_table_id,code,description")
+          .in("reference_table_id", validIds)
           .in("code", codes);
-        const tableById: Record<string, any> = {};
-        for (const t of exclTables ?? []) tableById[(t as any).id] = t;
-        // Severidade mais forte vence se houver múltiplas tabelas
-        const sevRank: Record<string, number> = { bloqueio: 3, aviso: 2, info: 1 };
-        for (const it of (exclItems ?? []) as any[]) {
-          const t = tableById[it.reference_table_id];
-          if (!t) continue;
-          const hit: ExclHit = {
-            table_name: t.name,
-            severity: t.exclusion_severity ?? "bloqueio",
-            reason: it.description ?? t.description ?? null,
-          };
-          const prev = exclusionByCode[it.code];
-          if (!prev || sevRank[hit.severity] > sevRank[prev.severity]) {
-            exclusionByCode[it.code] = hit;
-          }
+        for (const it of (excItems ?? []) as any[]) {
+          const tid = it.reference_table_id as string;
+          const code = String(it.code ?? "").trim();
+          if (!tid || !code) continue;
+          (exceptionItemsByTable[tid] ||= {})[code] = { description: it.description ?? null };
         }
       }
     }
-
-    // ---------- 3.2.b Tabelas SEM ACORDO (usar valor do convênio) ----------
-    // Códigos nessas tabelas NÃO devem ter regras de cálculo aplicadas.
-    // O esperado = valor pago (procedure_amount/gross_amount). Tem prioridade
-    // sobre regras de cálculo, mas NÃO sobre exclusões.
-    const semAcordoByCode: Record<string, { table_name: string; reason: string | null }> = {};
-    if (codes.length > 0) {
-      const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
-      const { data: saTablesAll } = await supabase
-        .from("reference_tables")
-        .select("id,name,description,valid_from,valid_until")
-        .eq("purpose", "sem_acordo")
-        .eq("active", true);
-      const saTables = (saTablesAll ?? []).filter((t: any) =>
-        (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
-      );
-      const saIds = saTables.map((t: any) => t.id);
-      if (saIds.length > 0) {
-        const { data: saItems } = await supabase
-          .from("reference_table_items")
-          .select("code,reference_table_id,description")
-          .in("reference_table_id", saIds)
-          .in("code", codes);
-        const tableById: Record<string, any> = {};
-        for (const t of saTables ?? []) tableById[(t as any).id] = t;
-        for (const it of (saItems ?? []) as any[]) {
-          const t = tableById[it.reference_table_id];
-          if (!t) continue;
-          if (!semAcordoByCode[it.code]) {
-            semAcordoByCode[it.code] = {
-              table_name: t.name,
-              reason: it.description ?? t.description ?? null,
-            };
-          }
-        }
-      }
-    }
+    const exceptionLookup = (tableId: string, code: string) => {
+      const t = exceptionTablesById[tableId];
+      if (!t) return null;
+      const items = exceptionItemsByTable[tableId];
+      const hit = items?.[String(code).trim()];
+      if (!hit) return null;
+      return {
+        table_name: t.name,
+        purpose: t.purpose,
+        reason: hit.description ?? t.description ?? null,
+      };
+    };
 
     // ---------- 3.3 Tabelas de referência vinculadas a regras "tabela_diferenciada" ----------
     // Carrega valores (code → amount) de cada reference_table_id usado por regras
@@ -287,67 +266,14 @@ serve(async (req) => {
     };
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
-    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup });
+    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup, exceptionLookup });
 
-    // ---------- 4.1 Sobrepor resultado para itens em tabela de exclusão ----------
-    for (const r of results) {
-      const it = items.find((i) => i.id === r.item_id);
-      const code = it?.procedure_code ?? "";
-      const hit = code ? exclusionByCode[code] : undefined;
-      if (!hit) continue;
-      const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
-      const status =
-        hit.severity === "bloqueio" ? "reprovado" :
-        hit.severity === "aviso" ? "alerta" : "alerta";
-      r.expected_amount = 0;
-      r.diff_pct = null;
-      r.matched_rule_id = null;
-      r.matched_rule_name = `Exclusão: ${hit.table_name}`;
-      r.matched_priority = "conflito"; // marca como override determinístico
-      r.calculation_type_used = "exclusao";
-      r.calculation_explanation = `Código ${code} consta na tabela de exclusão "${hit.table_name}"${motivo}. Esperado R$ 0.`;
-      r.alerts = [
-        `Código ${code} em tabela de exclusão "${hit.table_name}"${motivo}.`,
-        ...r.alerts.filter((a) => !a.startsWith("Diferença") && !a.startsWith("Divergência")),
-      ];
-      r.status = status as any;
-      r.needs_ai_review = status !== "aprovado";
-    }
+    // CAMADAS 1 e 2 — Gating por-regra (convênio whitelist/blacklist e
+    // tabelas de exceção vinculadas) são aplicadas DENTRO do motor
+    // (`analyzeItem`), sobre a regra vencedora de cada item. Cada regra é
+    // uma unidade autocontida; tabelas só atuam quando vinculadas via
+    // `exception_table_ids`. Não há varredura ou override global.
 
-    // CAMADA 1 — Gating por-regra de convênio (whitelist/blacklist) é
-    // aplicada DENTRO do motor (`analyzeItem`), sobre a regra vencedora de
-    // cada item. Cada regra é uma unidade autocontida; listas de outras
-    // regras não interferem. Aqui não fazemos override global.
-
-
-    // ---------- 4.1.b CAMADA 2 — Tabela "Sem acordo" (gating por código TUSS) ----------
-    // Não aplica regras de cálculo: usa diretamente o valor pago como esperado.
-    // Pula códigos já marcados como exclusão (exclusão tem prioridade) e
-    // itens já bloqueados pela Camada 1.
-    for (const r of results) {
-      const it = items.find((i) => i.id === r.item_id);
-      const code = it?.procedure_code ?? "";
-      if (!code) continue;
-      if (exclusionByCode[code]) continue;
-      // Já bloqueado pela Camada 1
-      if (typeof r.matched_rule_name === "string" && r.matched_rule_name.startsWith("Camada 1 —")) continue;
-      const hit = semAcordoByCode[code];
-      if (!hit) continue;
-      const motivo = hit.reason ? ` (motivo: ${hit.reason})` : "";
-      const paid = Number(it?.gross_amount ?? 0);
-      r.expected_amount = paid;
-      r.diff_pct = 0;
-      r.matched_rule_id = null;
-      r.matched_rule_name = `Camada 2 — Sem acordo: ${hit.table_name}`;
-      r.matched_priority = "conflito";
-      r.calculation_type_used = "informativo";
-      r.calculation_explanation = `Bloqueado pela Camada 2 (código TUSS ${code} em tabela sem_acordo "${hit.table_name}")${motivo}. Regras de cálculo ignoradas — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`;
-      r.alerts = [
-        `Código ${code} em tabela "Sem acordo" (${hit.table_name})${motivo} — regras diferenciadas não aplicadas.`,
-      ];
-      r.status = "aprovado";
-      r.needs_ai_review = false;
-    }
 
     const resultById: Record<string, AnalysisResult> = {};
     for (const r of results) resultById[r.item_id] = r;
