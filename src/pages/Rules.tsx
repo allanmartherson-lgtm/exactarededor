@@ -417,6 +417,7 @@ const Rules = () => {
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
     setFCalculations([makeEmptyCalc()]);
+    setCalcSyncErrors([]);
   };
 
   const openEdit = async (r: RuleRow) => {
