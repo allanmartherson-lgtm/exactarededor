@@ -685,6 +685,60 @@ const Payments = () => {
             </ToggleGroup>
           </div>
         </div>
+        {/* Barra de seleção em massa para reprocessamento de regras/mapeamentos */}
+        {view === "lista" && sortedList.length > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-4 py-2">
+            <div className="flex items-center gap-3 text-xs">
+              <Checkbox
+                checked={
+                  selected.size > 0 && sortedList.every((p) => selected.has(p.id))
+                    ? true
+                    : selected.size > 0
+                    ? "indeterminate"
+                    : false
+                }
+                onCheckedChange={(v) => {
+                  if (v) setSelected(new Set(sortedList.map((p) => p.id)));
+                  else setSelected(new Set());
+                }}
+                aria-label="Selecionar todos os pagamentos visíveis"
+              />
+              <span className="text-muted-foreground">
+                {selected.size > 0
+                  ? `${selected.size} selecionado${selected.size > 1 ? "s" : ""}`
+                  : "Selecione pagamentos para reprocessar regras/mapeamentos"}
+              </span>
+              {selected.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                >
+                  limpar
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {reprocessProgress && (
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {reprocessProgress.done}/{reprocessProgress.total}
+                </span>
+              )}
+              <Button
+                size="sm"
+                disabled={selected.size === 0 || reprocessing}
+                onClick={runReanalysis}
+              >
+                {reprocessing ? (
+                  <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                {reprocessing ? "Reprocessando..." : "Reanalisar selecionados"}
+              </Button>
+            </div>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <Card className="shadow-card">
             <CardContent className="p-0">
