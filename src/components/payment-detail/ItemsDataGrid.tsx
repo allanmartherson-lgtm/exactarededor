@@ -826,38 +826,44 @@ function ItemDetailsRow({
     catch { return String(d); }
   };
 
-  // Tipografia unificada: tudo usa text-xs (12px) — mesmo tamanho do AlertBanner.
-  // Labels usam text-[10px] uppercase para hierarquia. Sem inline font-size.
-  const Label = ({ children }: { children: React.ReactNode }) => (
-    <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{children}</p>
+  // ============ TIPOGRAFIA UNIFICADA ============
+  // Toda a tela do painel expandido (AlertBanner + cards + conteúdo) usa o mesmo
+  // conjunto de classes. Tamanho de referência = AlertBanner (text-xs / 12px).
+  const TEXT_BODY = "text-xs leading-snug tracking-normal";
+  const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
+  const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
+  // Card base: contém o conteúdo com overflow seguro (nada vaza, nada invade vizinhos).
+  const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]";
+
+  const Label = ({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) => (
+    <p className={cn(TEXT_LABEL, "flex items-center gap-1")}>
+      {Icon && <Icon className="h-3 w-3" />} {children}
+    </p>
   );
 
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={colSpan} className="p-0 align-top">
         {/*
-          O <td> com colSpan ocupa toda a largura do <table> (que é table-fixed e
-          pode ser maior que a viewport). Para que o painel de detalhes NÃO
-          herde essa largura — e portanto não fique "esticado" e cortado pelo
-          scroll horizontal — usamos position: sticky + left: 0 + max-width
-          baseado em 100vw. Assim o painel acompanha o scroll horizontal e
-          fica sempre dentro da viewport, sem overflow.
+          O <td> com colSpan ocupa toda a largura do <table> (table-fixed, pode ser
+          maior que a viewport). Para que o painel não herde essa largura nem seja
+          cortado pelo scroll horizontal, usamos sticky + max-width baseado em 100vw.
         */}
         <div
-          className="sticky left-0 px-4 py-4 text-xs animate-accordion-down"
+          className={cn("sticky left-0 px-4 py-4 animate-accordion-down", TEXT_BODY)}
           style={{ width: "min(100%, calc(100vw - 2rem))", maxWidth: "calc(100vw - 2rem)" }}
         >
-          {/* Resumo do item — grid responsivo, valores quebram em qualquer ponto */}
+          {/* Resumo do item */}
           <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
             {summary.map((s) => (
               <div key={s.label} className="min-w-0">
                 <Label>{s.label}</Label>
-                <p className="text-xs leading-snug break-words [overflow-wrap:anywhere] mt-0.5">{s.value}</p>
+                <p className={cn(TEXT_BODY, "break-words [overflow-wrap:anywhere] mt-0.5")}>{s.value}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid gap-3 grid-cols-1 lg:grid-cols-3 text-xs">
+          <div className={cn("grid gap-3 grid-cols-1 lg:grid-cols-3 items-start", TEXT_BODY)}>
             {/* Coluna 1: alertas + histórico */}
             <div className="space-y-2 min-w-0">
               {alerts.length > 0 && (
@@ -865,7 +871,7 @@ function ItemDetailsRow({
                   severity={isCritical ? "critico" : "alerta"}
                   title={isCritical ? "Item reprovado pela análise" : alerts.length === 1 ? "Alerta" : `${alerts.length} alertas`}
                 >
-                  <ul className="space-y-0.5 list-disc pl-4">
+                  <ul className="space-y-0.5 list-disc pl-4 break-words [overflow-wrap:anywhere]">
                     {alerts.map((a, i) => <li key={i}>{a}</li>)}
                   </ul>
                 </AlertBanner>
@@ -876,33 +882,33 @@ function ItemDetailsRow({
                 </AlertBanner>
               )}
               {exceptionMarked && (
-                <div className="rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info text-xs">
+                <div className={cn("rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]", TEXT_BODY)}>
                   <div className="flex items-center gap-1.5 font-medium">
-                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                     Exceção autorizada registrada
                   </div>
-                  <p className="mt-1 break-words">
+                  <p className="mt-1">
                     Motivo: <strong>{itemAny.exception_reason ?? "—"}</strong> · Autorizador:{" "}
                     <strong>{itemAny.exception_authorizer ?? "—"}</strong>
                   </p>
                   {itemAny.exception_note && (
-                    <p className="mt-1 italic whitespace-pre-wrap break-words">"{itemAny.exception_note}"</p>
+                    <p className="mt-1 italic whitespace-pre-wrap">"{itemAny.exception_note}"</p>
                   )}
                 </div>
               )}
-              <div className="rounded-md border bg-background p-3">
+              <div className={CARD}>
                 <Label>Histórico deste item ({itemObs.length})</Label>
                 {itemObs.length === 0 ? (
                   <p className="text-muted-foreground mt-1.5">Sem comentários ainda.</p>
                 ) : (
-                  <ul className="space-y-2 max-h-56 overflow-y-auto mt-1.5">
+                  <ul className="space-y-2 max-h-56 overflow-y-auto mt-1.5 pr-1">
                     {itemObs.map((o) => (
-                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0">
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0">
+                        <div className={cn("flex items-center gap-1.5", TEXT_META)}>
                           <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">{o.author_type}</span>
                           <span className="ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words">{o.message}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{o.message}</p>
                       </li>
                     ))}
                   </ul>
@@ -913,33 +919,31 @@ function ItemDetailsRow({
             {/* Coluna 2: regra + IA */}
             <div className="space-y-2 min-w-0">
               {matchedRules.length > 0 ? (
-                <div className="rounded-md border bg-background p-3">
+                <div className={CARD}>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium text-primary break-words mt-1">{matchedRules[0].name}</p>
+                  <p className="font-medium text-primary mt-1">{matchedRules[0].name}</p>
                   {matchedRules[0].rule_text && (
-                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words">{matchedRules[0].rule_text}</p>
+                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap">{matchedRules[0].rule_text}</p>
                   )}
                   {matchedRules.length > 1 && (
-                    <p className="mt-1 text-[10px] text-muted-foreground italic">
+                    <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
                     </p>
                   )}
                 </div>
               ) : matchedNames.length > 0 ? (
-                <div className="rounded-md border bg-background p-3">
+                <div className={CARD}>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium break-words mt-1">{matchedNames[0]}</p>
+                  <p className="font-medium mt-1">{matchedNames[0]}</p>
                 </div>
               ) : (
-                <div className="rounded-md border bg-background p-3 text-muted-foreground">Nenhuma regra específica casou.</div>
+                <div className={cn(CARD, "text-muted-foreground")}>Nenhuma regra específica casou.</div>
               )}
 
               {aiNote && (
-                <div className="rounded-md border bg-background p-3">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" /> Explicação sugerida (IA)
-                  </p>
-                  <p className="text-muted-foreground italic whitespace-pre-wrap break-words mt-1">{aiNote}</p>
+                <div className={CARD}>
+                  <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
+                  <p className="text-muted-foreground italic whitespace-pre-wrap mt-1">{aiNote}</p>
                 </div>
               )}
             </div>
@@ -947,18 +951,16 @@ function ItemDetailsRow({
             {/* Coluna 3: detalhes do cálculo */}
             <div className="space-y-2 min-w-0">
               {(engine || expected != null || explanation) && (
-                <div className="rounded-md border bg-background p-3">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1 mb-1.5">
-                    <FileText className="h-3 w-3" /> Detalhes do cálculo
-                  </p>
-                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                <div className={CARD}>
+                  <Label icon={FileText}>Detalhes do cálculo</Label>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5 mb-2">
                     {priority && (
-                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]])}>
+                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5", TEXT_META, TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority]])}>
                         {RULE_MATCH_PRIORITY_LABELS[priority]}
                       </span>
                     )}
                     {calcTypeLabel && (
-                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px]", TONE_CLASSES.muted)}>
+                      <span className={cn("inline-flex rounded-full border px-1.5 py-0.5", TEXT_META, TONE_CLASSES.muted)}>
                         {calcTypeLabel}
                       </span>
                     )}
@@ -966,16 +968,16 @@ function ItemDetailsRow({
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                     <div className="min-w-0">
                       <Label>Valor informado</Label>
-                      <p className="tabular-nums font-medium break-words mt-0.5">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
+                      <p className="tabular-nums font-medium mt-0.5">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
                     </div>
                     <div className="min-w-0">
                       <Label>Valor esperado</Label>
-                      <p className="tabular-nums font-medium break-words mt-0.5">{expected != null ? formatCurrency(Number(expected)) : "—"}</p>
+                      <p className="tabular-nums font-medium mt-0.5">{expected != null ? formatCurrency(Number(expected)) : "—"}</p>
                     </div>
                     {diff != null && Math.abs(diff) > 0.01 && (
                       <div className="col-span-2 min-w-0">
                         <Label>Diferença</Label>
-                        <p className={cn("tabular-nums font-medium break-words mt-0.5", diff < 0 ? "text-warning-foreground" : "text-success")}>
+                        <p className={cn("tabular-nums font-medium mt-0.5", diff < 0 ? "text-warning-foreground" : "text-success")}>
                           {diff > 0 ? "+" : ""}{formatCurrency(diff)}
                           {diffPct != null && (
                             <span className="ml-1">({diffPct > 0 ? "+" : ""}{(diffPct * 100).toFixed(1)}%)</span>
@@ -985,15 +987,15 @@ function ItemDetailsRow({
                     )}
                   </div>
                   {explanation && (
-                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words">{explanation}</p>
+                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap">{explanation}</p>
                   )}
                 </div>
               )}
 
               {diff != null && Math.abs(diff) > 0.01 && expected != null && (
-                <div className="rounded-md border border-warning/30 bg-warning-soft/40 p-3">
+                <div className={cn(CARD, "border-warning/30 bg-warning-soft/40")}>
                   <Label>Sugestão de ajuste</Label>
-                  <p className="break-words mt-1">
+                  <p className="mt-1">
                     Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
                   </p>
                 </div>
