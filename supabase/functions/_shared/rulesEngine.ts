@@ -256,6 +256,20 @@ export interface AnalysisResult {
   main_reason?: MainReason | null;
   /** Se o grupo teve empate na escolha do principal (alerta). */
   main_ambiguous?: boolean;
+  /** Detalhamento por item de cálculo (quando a regra usa cálculos 1:N). */
+  calculation_breakdown?: CalculationBreakdownEntry[];
+}
+
+export interface CalculationBreakdownEntry {
+  calc_id?: string | null;
+  label: string;
+  calculation_type: CalculationType;
+  matched: boolean;
+  /** Quando matched=false, motivo curto: 'dia_da_semana'|'horario'|'condicoes'. */
+  skip_reason?: string | null;
+  expected: number | null;
+  explanation: string;
+  alerts: string[];
 }
 
 export type MainReason =
