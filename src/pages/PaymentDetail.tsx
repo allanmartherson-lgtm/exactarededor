@@ -934,6 +934,14 @@ const PaymentDetail = () => {
           </CardContent>
         </Card>
 
+        <AssignmentCard
+          assignments={assignments}
+          profiles={profiles}
+          currentUserId={user?.id ?? null}
+          canAssume={isAnalista}
+          onAssume={handleManualAssume}
+        />
+
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
             <CardContent className="p-3 flex items-center gap-3 flex-wrap">
