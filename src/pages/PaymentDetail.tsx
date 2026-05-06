@@ -39,6 +39,8 @@ import { formatCurrency, formatDate, formatCompetence, formatDateOnly, PAYMENT_T
 import {
   ANALYST_DONE_STATUSES,
   canTransition,
+  canEditBatch,
+  canActAsValidatorOrDirector,
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
