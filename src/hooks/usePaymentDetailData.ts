@@ -135,6 +135,11 @@ export function usePaymentDetailData(id: string | undefined) {
         .eq("payment_id", id)
         .order("created_at", { ascending: true })
         .abortSignal(ac.signal),
+      (supabase.from as unknown as (t: string) => ReturnType<typeof supabase.from>)("payment_assignments")
+        .select("*")
+        .eq("payment_id", id)
+        .order("created_at", { ascending: false })
+        .abortSignal(ac.signal),
     ]);
     if (myToken !== loadTokenRef.current || ac.signal.aborted) return;
     setPayment(p);
