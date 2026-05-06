@@ -99,7 +99,37 @@ const Users = () => {
     toast({ title: "Solicitação rejeitada" });
   };
 
-  const toggle = async (userId: string, role: AppRole, has: boolean) => {
+  const saveEditedRequest = async () => {
+    if (!editingReq) return;
+    const parsed = userExtraSchema.safeParse({
+      full_name: editingReq.full_name,
+      email: editingReq.email,
+      phone: editingReq.phone ?? "",
+      role_title: editingReq.role_title ?? "",
+      department: editingReq.department ?? "",
+      birth_date: editingReq.birth_date ?? "",
+    });
+    if (!parsed.success) {
+      toast({ title: "Verifique os campos", description: parsed.error.issues[0].message, variant: "destructive" });
+      return;
+    }
+    setSavingReq(true);
+    const { error } = await supabase.from("access_requests").update({
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      role_title: parsed.data.role_title,
+      department: parsed.data.department,
+      birth_date: parsed.data.birth_date,
+    }).eq("id", editingReq.id);
+    setSavingReq(false);
+    if (error) {
+      toast({ title: "Falha ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditingReq(null);
+    loadRequests();
+    toast({ title: "Solicitação atualizada" });
+  };
     if (has) await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
     else await supabase.from("user_roles").insert({ user_id: userId, role });
     load(); toast({ title: "Atualizado" });
