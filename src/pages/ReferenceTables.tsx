@@ -584,6 +584,30 @@ const ReferenceTables = () => {
             onComplete={() => loadItems(selected.id)}
           />
         )}
+        <Dialog open={manualOpen} onOpenChange={setManualOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar códigos manualmente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Um código por linha (ou separados por vírgula). Opcional: <code>código - descrição</code>.
+              </p>
+              <textarea
+                className="w-full min-h-[160px] rounded-md border border-input bg-background p-2 text-sm font-mono"
+                placeholder={"30729220\n30731119 - Reparação ligamentar"}
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setManualOpen(false)}>Cancelar</Button>
+                <Button onClick={addManualCodes} disabled={manualSaving}>
+                  {manualSaving ? "Salvando..." : "Adicionar"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
