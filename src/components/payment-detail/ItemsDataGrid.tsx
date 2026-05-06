@@ -603,6 +603,54 @@ export function ItemsDataGrid({
                 );
               })}
             </tbody>
+            {filtered.length > 0 && (() => {
+              const leadingCols =
+                (colVis.atendimento ? 1 : 0) +
+                1 /* paciente */ +
+                (colVis.convenio ? 1 : 0) +
+                (colVis.via ? 1 : 0) +
+                1 /* tuss */ +
+                1 /* procedimento */ +
+                1 /* medico */ +
+                (colVis.funcao ? 1 : 0) +
+                (colVis.regra ? 1 : 0);
+              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0);
+              const footPad = isCompact ? "px-1.5 py-1.5" : "px-2 py-2";
+              return (
+                <tfoot className="sticky bottom-0 z-20">
+                  <tr>
+                    <td
+                      colSpan={leadingCols}
+                      className={cn(footPad, TEXT_LABEL, "text-right border-t bg-muted/80 backdrop-blur whitespace-nowrap")}
+                    >
+                      Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
+                    </td>
+                    <td className={cn(footPad, "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap")}>
+                      {formatCurrency(totals.valor)}
+                    </td>
+                    <td className={cn(footPad, "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap")}>
+                      {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
+                    </td>
+                    {colVis.diferenca && (
+                      <td
+                        className={cn(
+                          footPad,
+                          "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap",
+                          totals.diferenca != null && Math.abs(totals.diferenca) > 0.01
+                            ? totals.diferenca < 0 ? "text-warning-foreground" : "text-success"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {totals.diferenca != null
+                          ? `${totals.diferenca > 0 ? "+" : ""}${formatCurrency(totals.diferenca)}`
+                          : "—"}
+                      </td>
+                    )}
+                    <td colSpan={trailingCols} className={cn(footPad, "border-t bg-muted/80 backdrop-blur")} />
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         </div>
       </div>
