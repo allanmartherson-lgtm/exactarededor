@@ -572,7 +572,9 @@ function DivergenceCard({
             {comments.slice(0, 3).map((o) => (
               <li key={o.id} className="rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
                 <div className="text-muted-foreground text-[10px] mb-0.5">
-                  {o.author_type} · {new Date(o.created_at).toLocaleString("pt-BR")}
+                  {o.author_type}
+                  {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
+                  {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
                 </div>
                 <div className="whitespace-pre-wrap">{o.message}</div>
               </li>
