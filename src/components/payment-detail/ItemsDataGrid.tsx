@@ -217,17 +217,19 @@ export function ItemsDataGrid({
     });
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
 
-  // Totais da seleção atual (após filtros). Considera quantidade quando presente.
+  // Totais da seleção atual (após filtros).
+  // gross_amount/expected_amount já representam o valor da linha como
+  // mostrado em "Valor"/"Esperado" — somar direto para bater com o
+  // total do lote exibido no header.
   const totals = useMemo(() => {
     let valor = 0;
     let esperado = 0;
     let temEsperado = false;
     for (const it of filtered) {
-      const qty = Number((it as { quantity?: number | null }).quantity ?? 1) || 1;
-      valor += Number(it.gross_amount ?? 0) * qty;
+      valor += Number(it.gross_amount ?? 0);
       const exp = it.ai_findings?.expected_amount;
       if (exp != null) {
-        esperado += Number(exp) * qty;
+        esperado += Number(exp);
         temEsperado = true;
       }
     }
