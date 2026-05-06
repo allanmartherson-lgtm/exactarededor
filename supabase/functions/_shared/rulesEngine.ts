@@ -611,7 +611,7 @@ export function doctorRoleFactor(raw: string | null | undefined): number {
 }
 
 // ---------- calculadores ----------
-interface ExpectedCalc { expected: number | null; explanation: string; alerts: string[]; }
+interface ExpectedCalc { expected: number | null; explanation: string; alerts: string[]; breakdown?: CalculationBreakdownEntry[]; }
 
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
