@@ -44,7 +44,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, Search, Send, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -82,6 +82,9 @@ const PaymentDetail = () => {
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const reimportInputRef = useRef<HTMLInputElement | null>(null);
+  const [reimporting, setReimporting] = useState(false);
+  const [reimportConfirm, setReimportConfirm] = useState<File | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
@@ -590,6 +593,88 @@ const PaymentDetail = () => {
     load();
   };
 
+  // ===== Reimportar base =====
+  // Substitui itens/grupos do lote a partir de um novo arquivo Excel,
+  // mantendo metadados (referência, competência, tipo, etc.). Disponível
+  // apenas enquanto o lote está editável pelo analista (mesma regra do
+  // botão "Editar lote"). Útil quando a planilha original tinha erro de
+  // formato e o analista refez a base.
+  const doReimport = async (file: File) => {
+    if (!id || !payment || !user) return;
+    setReimporting(true);
+    try {
+      const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
+      const { data: companiesData } = await supabase.from("companies").select("id,name,aliases");
+      const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+      const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
+      if (bucket.rows.length === 0) {
+        toast({ title: "Arquivo vazio", description: "Nenhuma linha válida encontrada.", variant: "destructive" });
+        return;
+      }
+      // Upload do novo arquivo
+      const path = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("payment-files").upload(path, file);
+      if (upErr) {
+        toast({ title: "Falha no upload", description: upErr.message, variant: "destructive" });
+        return;
+      }
+      // Limpa itens e grupos existentes
+      const { error: delItemsErr } = await supabase.from("payment_items").delete().eq("payment_id", id);
+      if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+
+      const items = bucket.rows.map((r) => ({
+        payment_id: id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: r.company_name,
+        company_id: r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: r.specialty,
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+      }));
+      const { error: insErr } = await supabase.from("payment_items").insert(items);
+      if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
+
+      const total = bucket.rows.reduce((s, r) => s + r.gross_amount, 0);
+      await supabase.from("payments").update({
+        source_file_path: path,
+        total_amount: total,
+        items_count: bucket.rows.length,
+        status: "em_analise_ia",
+      }).eq("id", id);
+
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Base reimportada pelo analista (${bucket.rows.length} itens, total ${total.toFixed(2)}). Arquivo: ${file.name}.`,
+        status_from: payment.status, status_to: "em_analise_ia",
+      });
+
+      supabase.functions.invoke("analyze-payment", { body: { payment_id: id } });
+      toast({ title: "Base reimportada", description: "Reanalisando itens..." });
+      load();
+    } catch (e) {
+      toast({ title: "Erro ao reimportar", description: String(e), variant: "destructive" });
+    } finally {
+      setReimporting(false);
+      setReimportConfirm(null);
+      if (reimportInputRef.current) reimportInputRef.current.value = "";
+    }
+  };
+
   if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
 
   const isValidador = hasRole("validador") || hasRole("admin");
@@ -1019,6 +1104,47 @@ const PaymentDetail = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
+              )}
+              {canEditMeta && (
+                <>
+                  <input
+                    ref={reimportInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setReimportConfirm(f);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy || reimporting}
+                    onClick={() => reimportInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-1" /> {reimporting ? "Reimportando…" : "Reimportar base"}
+                  </Button>
+                  <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.name}</strong> e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={reimporting}
+                          onClick={() => reimportConfirm && doReimport(reimportConfirm)}
+                        >
+                          {reimporting ? "Reimportando…" : "Confirmar"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
               )}
               {canCancel && (
                 <AlertDialog>
