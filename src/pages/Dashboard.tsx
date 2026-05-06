@@ -960,18 +960,18 @@ const Dashboard = () => {
         )}
       </section>
 
-      {/* TASK LIST */}
+      {/* TASK LIST — minhas */}
       <section aria-labelledby="lista-tarefas-heading">
-        <SectionLabel>Tarefas em aberto</SectionLabel>
+        <SectionLabel>Pagamentos esperando você</SectionLabel>
         <SurfaceCard>
           <SurfaceCardHeader
-            title="Pagamentos esperando você"
+            title="Suas tarefas pendentes"
             icon={FileText}
             iconColor="teal"
             countPill={myPending}
             rightAction={
               <Link
-                to="/pagamentos"
+                to="/pagamentos?owner=me"
                 style={{
                   fontSize: 12,
                   color: "hsl(var(--accent-foreground))",
@@ -1008,6 +1008,65 @@ const Dashboard = () => {
                     key={p.id}
                     p={p}
                     mine
+                    profiles={profiles}
+                    timeMs={sla?.ms}
+                    slaLevel={sla?.level}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </SurfaceCard>
+      </section>
+
+      {/* TAREFAS EM ABERTO — equipe */}
+      <section aria-labelledby="tarefas-equipe-heading">
+        <SectionLabel>Tarefas em aberto (equipe)</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Pagamentos em andamento na equipe"
+            icon={Users}
+            iconColor="purple"
+            countPill={teamOpenTotal}
+            rightAction={
+              <Link
+                to="/pagamentos"
+                style={{
+                  fontSize: 12,
+                  color: "hsl(var(--accent-foreground))",
+                  fontWeight: 500,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                Ver todos <ArrowRight size={13} />
+              </Link>
+            }
+          />
+          {loading ? (
+            <PaymentRowsSkeleton count={3} />
+          ) : teamOpenPayments.length === 0 ? (
+            <div
+              style={{
+                padding: "40px 22px",
+                textAlign: "center",
+                fontSize: 13,
+                color: "hsl(var(--muted-foreground))",
+              }}
+            >
+              Nenhum pagamento em andamento na equipe.
+            </div>
+          ) : (
+            <div>
+              {teamOpenPayments.map((p) => {
+                const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+                return (
+                  <TaskRow
+                    key={p.id}
+                    p={p}
+                    mine={false}
                     profiles={profiles}
                     timeMs={sla?.ms}
                     slaLevel={sla?.level}
