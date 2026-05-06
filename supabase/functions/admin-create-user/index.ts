@@ -38,8 +38,14 @@ serve(async (req) => {
     const body = await req.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     const fullName = String(body.full_name ?? "").trim();
+    const phone = String(body.phone ?? "").trim() || null;
+    const roleTitle = String(body.role_title ?? "").trim() || null;
+    const department = String(body.department ?? "").trim() || null;
+    const birthDateRaw = String(body.birth_date ?? "").trim();
+    const birthDate = /^\d{4}-\d{2}-\d{2}$/.test(birthDateRaw) ? birthDateRaw : null;
     const roles: string[] = Array.isArray(body.roles) ? body.roles : [];
     const sendInvite = body.send_invite !== false; // default true
+    const accessRequestId = body.access_request_id ? String(body.access_request_id) : null;
     const rawOrigin = String(body.app_origin ?? "").trim();
     // Sanitiza origem para evitar open-redirect: aceita apenas ambientes Lovable e localhost.
     const isAllowedOrigin = (o: string) => {
