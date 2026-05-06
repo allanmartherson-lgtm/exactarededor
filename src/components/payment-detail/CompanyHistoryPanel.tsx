@@ -182,10 +182,19 @@ export function CompanyHistoryPanel({
   }, [observations, aiVersions, assignments, itemIds, itemMap, profiles]);
 
   const filtered = useMemo(() => {
-    if (filterItem === "all") return entries;
-    if (filterItem === "geral") return entries.filter((e) => e.itemId === null);
-    return entries.filter((e) => e.itemId === filterItem);
-  }, [entries, filterItem]);
+    let out = entries;
+    if (filterItem === "geral") out = out.filter((e) => e.itemId === null);
+    else if (filterItem !== "all") out = out.filter((e) => e.itemId === filterItem);
+    if (filterRole !== "all") out = out.filter((e) => e.authorType === filterRole);
+    return out;
+  }, [entries, filterItem, filterRole]);
+
+  const availableRoles = useMemo(() => {
+    const order = ["analista", "validador", "diretor", "admin", "sistema", "ia"];
+    const set = new Set<string>();
+    entries.forEach((e) => e.authorType && set.add(e.authorType));
+    return order.filter((r) => set.has(r));
+  }, [entries]);
 
   const itemOptions = useMemo(() => {
     return items
