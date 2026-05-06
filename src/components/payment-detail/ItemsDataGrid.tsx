@@ -472,20 +472,39 @@ export function ItemsDataGrid({
             })}
           </ul>
 
-          {/* DESKTOP/TABLET — tabela densa (>= md) */}
+          {/* DESKTOP/TABLET — tabela densa (>= md). Apenas a coluna Paciente
+              é sticky à esquerda — múltiplas sticky causavam sobreposição
+              de conteúdo no scroll horizontal. As demais colunas truncam
+              normalmente com larguras controladas via colgroup. */}
           <table
             data-density={isCompact ? "compact" : "comfortable"}
-            className={cn("hidden md:table w-max min-w-full border-separate border-spacing-0", tableTextSize)}
+            className={cn("hidden md:table min-w-full border-separate border-spacing-0 table-fixed", tableTextSize)}
           >
+            <colgroup>
+              {colVis.atendimento && <col style={{ width: 96 }} />}
+              <col style={{ width: 200 }} />
+              {colVis.convenio && <col style={{ width: 140 }} />}
+              {colVis.via && <col style={{ width: 140 }} />}
+              <col style={{ width: 96 }} />
+              <col style={{ width: 240 }} />
+              <col style={{ width: 180 }} />
+              {colVis.funcao && <col style={{ width: 120 }} />}
+              {colVis.regra && <col style={{ width: 180 }} />}
+              <col style={{ width: 110 }} />
+              <col style={{ width: 110 }} />
+              {colVis.diferenca && <col style={{ width: 110 }} />}
+              <col style={{ width: 110 }} />
+              {colVis.observacao && <col style={{ width: 70 }} />}
+            </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
                 {colVis.atendimento && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Atend.</th>}
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 min-w-[180px]")}>Paciente</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]")}>Paciente</th>
                 {colVis.convenio && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Convênio</th>}
                 {colVis.via && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Via</th>}
                 <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>TUSS</th>
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[180px] z-30 min-w-[200px]")}>Procedimento</th>
-                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap sticky left-[380px] z-30 min-w-[160px] shadow-[1px_0_0_0_hsl(var(--border))]")}>Médico</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Procedimento</th>
+                <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Médico</th>
                 {colVis.funcao && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th className={cn(headPad, "text-left font-medium border-b bg-muted whitespace-nowrap")}>Regra</th>}
                 <th className={cn(headPad, "text-right font-medium border-b bg-muted whitespace-nowrap")}>Valor</th>
