@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
+import ForceChangePassword from "./pages/ForceChangePassword.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Payments from "./pages/Payments.tsx";
 import NewPayment from "./pages/NewPayment.tsx";
