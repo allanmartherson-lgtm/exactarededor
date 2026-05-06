@@ -38,11 +38,10 @@ serve(async (req) => {
     const body = await req.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     const fullName = String(body.full_name ?? "").trim();
-    const phone = String(body.phone ?? "").trim() || null;
+    const phoneRaw = String(body.phone ?? "").trim();
     const roleTitle = String(body.role_title ?? "").trim() || null;
     const department = String(body.department ?? "").trim() || null;
     const birthDateRaw = String(body.birth_date ?? "").trim();
-    const birthDate = /^\d{4}-\d{2}-\d{2}$/.test(birthDateRaw) ? birthDateRaw : null;
     const roles: string[] = Array.isArray(body.roles) ? body.roles : [];
     const sendInvite = body.send_invite !== false; // default true
     const accessRequestId = body.access_request_id ? String(body.access_request_id) : null;
@@ -61,10 +60,47 @@ serve(async (req) => {
     const appOrigin = isAllowedOrigin(rawOrigin) ? rawOrigin.replace(/\/+$/, "") : "";
     const redirectTo = appOrigin ? `${appOrigin}/auth/reset-password` : undefined;
 
-    if (!email) {
-      return new Response(JSON.stringify({ error: "E-mail obrigatório" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const bad = (msg: string) => new Response(JSON.stringify({ error: msg }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+    if (!email) return bad("E-mail obrigatório");
+
+    // ---- Validação de telefone (BR: DDD válido + 9 + 8 dígitos) ----
+    let phone: string | null = null;
+    if (phoneRaw) {
+      const d = phoneRaw.replace(/\D/g, "");
+      const VALID_DDDS = new Set([
+        11,12,13,14,15,16,17,18,19,21,22,24,27,28,
+        31,32,33,34,35,37,38,41,42,43,44,45,46,47,48,49,
+        51,53,54,55,61,62,63,64,65,66,67,68,69,
+        71,73,74,75,77,79,81,82,83,84,85,86,87,88,89,
+        91,92,93,94,95,96,97,98,99,
+      ]);
+      if (d.length !== 11) return bad("Telefone inválido: use DDD + 9 + 8 dígitos (11 números)");
+      if (!VALID_DDDS.has(Number(d.slice(0, 2)))) return bad(`Telefone inválido: DDD ${d.slice(0,2)} não é válido`);
+      if (d[2] !== "9") return bad("Telefone inválido: celular deve começar com 9 após o DDD");
+      if (/^(\d)\1{10}$/.test(d)) return bad("Telefone inválido: dígitos repetidos");
+      phone = d;
+    }
+
+    // ---- Validação de data de nascimento ----
+    let birthDate: string | null = null;
+    if (birthDateRaw) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDateRaw)) return bad("Data de nascimento inválida (use AAAA-MM-DD)");
+      const [y, m, dd] = birthDateRaw.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, dd));
+      if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== dd) {
+        return bad("Data de nascimento inválida");
+      }
+      const today = new Date();
+      const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+      if (y < 1900) return bad("Data de nascimento anterior a 1900");
+      if (dt.getTime() > todayUTC) return bad("Data de nascimento não pode estar no futuro");
+      const ageYears = (todayUTC - dt.getTime()) / (365.25 * 24 * 3600 * 1000);
+      if (ageYears < 14) return bad("Idade mínima é 14 anos");
+      if (ageYears > 120) return bad("Idade máxima é 120 anos");
+      birthDate = birthDateRaw;
     }
 
     let newUserId: string | null = null;
