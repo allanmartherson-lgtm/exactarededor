@@ -145,8 +145,37 @@ export function CompanyHistoryPanel({
       });
     }
 
+    // Atribuições (assumiu/transferiu) — escopo do lote inteiro, sempre
+    // exibidas (não filtradas por item, pois afetam o lote todo).
+    for (const a of assignments) {
+      const analystName = profiles[a.analyst_id] || "—";
+      const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
+      const isTransfer = a.action === "transferiu";
+      out.push({
+        id: `assign-${a.id}`,
+        at: a.created_at,
+        kind: "assign",
+        authorType: isTransfer ? "transferência" : "atribuição",
+        authorName: analystName,
+        itemId: null,
+        itemLabel: null,
+        body: (
+          <p className="whitespace-pre-wrap">
+            <strong>{analystName}</strong>{" "}
+            {isTransfer ? (
+              <>assumiu o lote {prevName ? <>de <strong>{prevName}</strong></> : null}</>
+            ) : (
+              <>assumiu o lote</>
+            )}
+            {a.source === "auto" ? " (registro automático na 1ª ação)" : ""}
+            {a.note ? ` — ${a.note}` : ""}.
+          </p>
+        ),
+      });
+    }
+
     return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-  }, [observations, aiVersions, itemIds, itemMap, profiles]);
+  }, [observations, aiVersions, assignments, itemIds, itemMap, profiles]);
 
   const filtered = useMemo(() => {
     if (filterItem === "all") return entries;
