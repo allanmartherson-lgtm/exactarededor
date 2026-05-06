@@ -653,7 +653,7 @@ export function ItemsDataGrid({
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
-              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0);
+              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-1.5" : "px-2 py-2";
               return (
                 <tfoot className="sticky bottom-0 z-20">
