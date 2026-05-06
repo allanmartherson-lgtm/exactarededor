@@ -293,7 +293,38 @@ const Users = () => {
           </Dialog>
         ) : undefined}
       />
-      <div className="p-8">
+      <div className="p-8 space-y-6">
+        {isAdmin && requests.length > 0 && (
+          <Card className="shadow-card border-primary/30">
+            <CardContent className="p-0">
+              <div className="px-6 py-3 border-b flex items-center justify-between">
+                <p className="font-medium text-sm">Solicitações de acesso pendentes</p>
+                <Badge variant="secondary">{requests.length}</Badge>
+              </div>
+              <div className="divide-y divide-border">
+                {requests.map((r) => (
+                  <div key={r.id} className="px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
+                    <div className="space-y-1 min-w-0">
+                      <p className="font-medium text-sm">{r.full_name} <span className="text-muted-foreground font-normal">— {r.email}</span></p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPhone(r.phone)} · {r.role_title} · {r.department} · Nasc. {new Date(r.birth_date).toLocaleDateString("pt-BR")}
+                      </p>
+                      {r.message && <p className="text-xs text-muted-foreground italic">"{r.message}"</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button size="sm" onClick={() => openCreateFromRequest(r)}>
+                        <Check className="h-3.5 w-3.5 mr-1.5" /> Aprovar e criar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setRejecting({ id: r.id, reason: "" })}>
+                        <X className="h-3.5 w-3.5 mr-1.5" /> Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <Card className="shadow-card"><CardContent className="p-0">
           <div className="divide-y divide-border">
             {users.map((u) => (
