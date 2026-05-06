@@ -617,6 +617,23 @@ export const PaymentGroupCard = ({
                 />
               ))}
             </tbody>
+            {orderedItems.length > 0 && (() => {
+              const totalValor = orderedItems.reduce((sum, it) => sum + Number(it.gross_amount ?? 0), 0);
+              return (
+                <tfoot className="bg-muted/60 font-medium">
+                  <tr className="border-t border-border">
+                    <td className="px-2.5 py-2 print:hidden" />
+                    <td className="px-2.5 py-2 text-right uppercase tracking-wide text-[10px] text-muted-foreground" colSpan={6}>
+                      Total ({orderedItems.length} {orderedItems.length === 1 ? "item" : "itens"})
+                    </td>
+                    <td className="px-2.5 py-2" />
+                    <td className="px-2.5 py-2 text-right tabular-nums font-semibold">{formatCurrency(totalValor)}</td>
+                    <td className="px-2.5 py-2 hidden sm:table-cell print:table-cell" />
+                    <td className="px-2.5 py-2 print:hidden" />
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
           </div>
         </CardContent>
