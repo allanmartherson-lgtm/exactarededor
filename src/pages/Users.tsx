@@ -131,13 +131,24 @@ const Users = () => {
     setResettingId(u.id);
     try {
       const { data, error } = await supabase.functions.invoke("admin-reset-password", {
-        body: { user_id: u.id, email: u.email },
+        body: { user_id: u.id, email: u.email, app_origin: getPasswordRecoveryOrigin() },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if (!data?.temp_password) throw new Error("Resposta inválida do servidor");
-      setResetResult({ email: data.email ?? u.email, password: data.temp_password });
-      toast({ title: "Senha resetada", description: "Compartilhe a senha temporária. O usuário precisará trocá-la no primeiro acesso." });
+      const emailSent = data?.email_sent !== false;
+      setResetResult({
+        email: data?.email ?? u.email,
+        emailSent,
+        warning: data?.warning ?? null,
+        actionLink: data?.action_link ?? null,
+      });
+      toast({
+        title: emailSent ? "E-mail de redefinição enviado" : "Não foi possível enviar o e-mail",
+        description: emailSent
+          ? `Enviamos um link para ${u.email}. O usuário precisará definir uma nova senha.`
+          : (data?.warning ?? "Use o link manual gerado para compartilhar com o usuário."),
+        variant: emailSent ? undefined : "destructive",
+      });
     } catch (e: any) {
       toast({ title: "Falha ao resetar senha", description: e.message, variant: "destructive" });
     } finally {
