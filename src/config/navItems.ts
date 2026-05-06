@@ -101,6 +101,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
   { label: "Médicos", iconName: "Stethoscope" },
+  { label: "Mapa Especialidades", iconName: "Stethoscope" },
   { label: "Centros de custo", iconName: "Network" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
