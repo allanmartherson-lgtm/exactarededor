@@ -137,6 +137,16 @@ const PaymentDetail = () => {
     }
   };
 
+  const notifyDirectorsIfPending = async (pid: string) => {
+    // Disparo fire-and-forget: a edge function é idempotente por payment_id
+    // e revalida o status atual antes de enviar.
+    try {
+      await supabase.functions.invoke("notify-director-approval", { body: { paymentId: pid } });
+    } catch (err) {
+      console.warn("notify-director-approval falhou (silencioso):", err);
+    }
+  };
+
   const transition = async (newStatus: PaymentStatus, authorType: "validador" | "diretor" | "analista", message: string) => {
     if (!id || !payment) return;
     setBusy(true);
