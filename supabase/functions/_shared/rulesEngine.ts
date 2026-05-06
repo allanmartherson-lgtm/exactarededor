@@ -841,28 +841,25 @@ function calcTabelaDiferenciada(
     `× mult ${mult}`,
   ];
 
-  // 2) via/função (auxiliares têm precedência sobre via simples)
-  let viaAuxApplied = false;
+  // 2) função do médico (auxiliar/instrumentador) e via de acesso são fatores
+  //    INDEPENDENTES — quando ambos os checkboxes estão ativos, multiplicam juntos.
   if (rule.include_auxiliaries) {
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
       const pct = (rule.instrumentador_pct ?? 10) / 100;
       value *= pct;
       parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
-      viaAuxApplied = true;
     } else if (role === "primeiro_aux") {
       const pct = (rule.aux_first_pct ?? 30) / 100;
       value *= pct;
       parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
-      viaAuxApplied = true;
     } else if (role === "demais_aux") {
       const pct = (rule.aux_second_pct ?? 20) / 100;
       value *= pct;
       parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
-      viaAuxApplied = true;
     }
   }
-  if (!viaAuxApplied && rule.apply_access_route) {
+  if (rule.apply_access_route) {
     const f = accessRouteFactor(item.access_route);
     value *= f;
     parts.push(`× via(${(f * 100).toFixed(0)}%)`);
