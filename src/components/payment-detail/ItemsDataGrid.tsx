@@ -682,40 +682,41 @@ function RowMain({
         )}
       >
         {colVis.atendimento && (
-          <td className={cn(cell, "font-mono text-[10px]")} title={it.attendance_number ?? ""}>
+          <td className={cn(cell, "font-mono", TEXT_META)} title={it.attendance_number ?? ""}>
             {it.attendance_number ?? "—"}
           </td>
         )}
-        <td className={stickyCell} title={paciente}>
+        <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
           <span className="truncate block">{paciente}</span>
         </td>
         {colVis.convenio && (
-          <td className={cn(cell, "text-muted-foreground")} title={typeof convenio === "string" ? convenio : ""}>
+          <td className={cn(cell, TEXT_META)} title={typeof convenio === "string" ? convenio : ""}>
             {convenio}
           </td>
         )}
         {colVis.via && (
-          <td className={cell} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
+          <td className={cn(cell, TEXT_BODY)} title={it.access_route ?? ""}>{it.access_route ?? "—"}</td>
         )}
-        <td className={cn(cell, "font-mono text-[10px]")}>{it.procedure_code ?? "—"}</td>
-        <td className={cell} title={it.procedure_name ?? it.description ?? ""}>
+        <td className={cn(cell, "font-mono", TEXT_META)}>{it.procedure_code ?? "—"}</td>
+        <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        <td className={cell} title={it.doctor_name ?? ""}>
+        <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
         {colVis.funcao && (
-          <td className={cn(cell, "text-muted-foreground")} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
+          <td className={cn(cell, TEXT_META)} title={it.doctor_role ?? ""}>{it.doctor_role ?? "—"}</td>
         )}
         {colVis.regra && (
-          <td className={cn(cell, "text-muted-foreground")} title={ruleName}>{ruleName}</td>
+          <td className={cn(cell, TEXT_META)} title={ruleName}>{ruleName}</td>
         )}
-        <td className={cn(cellPad, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
+        <td className={cn(cellPad, TEXT_BODY, "text-right tabular-nums font-medium whitespace-nowrap border-b", baseCellBg)}>
           {formatCurrency(grossN)}
         </td>
         <td
           className={cn(
             cellPad,
+            TEXT_BODY,
             "text-right tabular-nums whitespace-nowrap border-b font-medium",
             diverges ? "text-warning-foreground" : "text-foreground",
             baseCellBg,
@@ -727,6 +728,7 @@ function RowMain({
           <td
             className={cn(
               cellPad,
+              TEXT_BODY,
               "text-right tabular-nums whitespace-nowrap border-b",
               diff != null && diverges ? (diff < 0 ? "text-warning-foreground" : "text-success") : "text-muted-foreground",
               baseCellBg,
@@ -736,13 +738,13 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
-          <span className={cn("inline-flex rounded-full border px-1 py-0.5 text-[9px]", TONE_CLASSES[tone])}>
+          <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
             {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
             {eff}
           </span>
         </td>
         {colVis.observacao && (
-          <td className={cn(cellPad, "text-center text-[10px] text-muted-foreground border-b", baseCellBg)}>
+          <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
             {obsCount > 0 ? obsCount : "—"}
           </td>
         )}
