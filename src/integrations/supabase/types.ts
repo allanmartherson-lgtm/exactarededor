@@ -1165,6 +1165,7 @@ export type Database = {
           description: string | null
           doctors: Json
           elective_mode: string
+          exception_table_ids: string[]
           exclusion_reason: string | null
           extras_codes: string[] | null
           fixed_amount: number | null
@@ -1232,6 +1233,7 @@ export type Database = {
           description?: string | null
           doctors?: Json
           elective_mode?: string
+          exception_table_ids?: string[]
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
@@ -1299,6 +1301,7 @@ export type Database = {
           description?: string | null
           doctors?: Json
           elective_mode?: string
+          exception_table_ids?: string[]
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null

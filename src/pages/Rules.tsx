@@ -142,7 +142,7 @@ const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMiss
 const Rules = () => {
   const { user } = useAuth();
   const [rules, setRules] = useState<RuleRow[]>([]);
-  const [refTables, setRefTables] = useState<{ id: string; name: string }[]>([]);
+  const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -172,6 +172,8 @@ const Rules = () => {
   const [fFixedAmount, setFFixedAmount] = useState<string>("");
   const [fExtrasCodes, setFExtrasCodes] = useState<string>("");
   const [refTableId, setRefTableId] = useState<string>("");
+  // Tabelas de exceção vinculadas (purpose IN sem_acordo, exclusao) — bloqueiam o cálculo da regra.
+  const [fExceptionTableIds, setFExceptionTableIds] = useState<string[]>([]);
   const [codesInput, setCodesInput] = useState<string>("");
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
   const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
@@ -301,7 +303,7 @@ const Rules = () => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
-  const loadRefs = () => supabase.from("reference_tables").select("id,name").order("name").then(({ data }) => setRefTables((data ?? []) as any));
+  const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
   const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
@@ -372,7 +374,7 @@ const Rules = () => {
     setFSeverity("aviso"); setFSector("outro");
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
-    setRuleType("informativo"); setRefTableId(""); setCodesInput("");
+    setRuleType("informativo"); setRefTableId(""); setFExceptionTableIds([]); setCodesInput("");
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
     setPaymentTerm("qualquer"); setAppliesTypes([]);
@@ -406,6 +408,7 @@ const Rules = () => {
     setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
+    setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
     setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
     setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
@@ -527,6 +530,7 @@ const Rules = () => {
       multiplier: effectiveCalc === "tabela_diferenciada" ? num(fMultiplier) : null,
       deflator_pct: effectiveCalc === "tabela_diferenciada" ? num(fDeflatorPct) : null,
       reference_table_id: effectiveCalc === "tabela_diferenciada" ? (refTableId || null) : null,
+      exception_table_ids: fExceptionTableIds,
       include_auxiliaries: effectiveCalc === "tabela_diferenciada" ? fIncludeAux : false,
       auxiliary_pct: effectiveCalc === "tabela_diferenciada" ? num(fAuxPct) : null,
       aux_first_pct: (effectiveCalc === "tabela_diferenciada" && fIncludeAux) ? (num(fAuxFirstPct) ?? 30) : null,
@@ -1642,6 +1646,53 @@ const Rules = () => {
                           </p>
                         </div>
                       )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Tabelas de exceção vinculadas */}
+                  <AccordionItem value="excecoes" className="rounded-md border border-border bg-card px-3">
+                    <AccordionTrigger className="text-sm font-semibold">
+                      Tabelas de exceção vinculadas
+                      {fExceptionTableIds.length > 0 && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">({fExceptionTableIds.length})</span>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3 pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Vincule tabelas do tipo <strong>Códigos sem acordo</strong> ou <strong>Exclusão</strong> que invalidam esta regra.
+                        Quando o item bater nesta regra e o código estiver em uma tabela vinculada, o motor pula o cálculo e aceita o valor pago pelo convênio.
+                        Tabelas só têm efeito quando vinculadas — não há varredura global.
+                      </p>
+                      {(() => {
+                        const eligible = refTables.filter((t) => t.purpose === "sem_acordo" || t.purpose === "exclusao");
+                        if (eligible.length === 0) {
+                          return <p className="text-xs text-muted-foreground italic">Nenhuma tabela com propósito “Códigos sem acordo” ou “Exclusão” cadastrada.</p>;
+                        }
+                        return (
+                          <div className="space-y-1.5">
+                            {eligible.map((t) => {
+                              const checked = fExceptionTableIds.includes(t.id);
+                              const purposeLabel = t.purpose === "sem_acordo" ? "Sem acordo" : "Exclusão";
+                              return (
+                                <label key={t.id} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(v) => {
+                                      setFExceptionTableIds((prev) =>
+                                        v ? Array.from(new Set([...prev, t.id])) : prev.filter((id) => id !== t.id)
+                                      );
+                                    }}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-tight">{t.name}</p>
+                                    <p className="text-xs text-muted-foreground">{purposeLabel}</p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </AccordionContent>
                   </AccordionItem>
 
