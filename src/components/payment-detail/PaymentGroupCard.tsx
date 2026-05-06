@@ -52,6 +52,7 @@ import type {
 } from "@/hooks/usePaymentDetailData";
 import { scoreAttendance, classifyRisk, RISK_LABELS } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
+import { cn } from "@/lib/utils";
 
 function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
   const { id } = useParams<{ id: string }>();
