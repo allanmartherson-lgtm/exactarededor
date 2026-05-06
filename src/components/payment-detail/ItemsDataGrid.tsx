@@ -217,6 +217,28 @@ export function ItemsDataGrid({
     });
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
 
+  // Totais da seleção atual (após filtros). Considera quantidade quando presente.
+  const totals = useMemo(() => {
+    let valor = 0;
+    let esperado = 0;
+    let temEsperado = false;
+    for (const it of filtered) {
+      const qty = Number((it as { quantity?: number | null }).quantity ?? 1) || 1;
+      valor += Number(it.gross_amount ?? 0) * qty;
+      const exp = it.ai_findings?.expected_amount;
+      if (exp != null) {
+        esperado += Number(exp) * qty;
+        temEsperado = true;
+      }
+    }
+    return {
+      count: filtered.length,
+      valor,
+      esperado: temEsperado ? esperado : null,
+      diferenca: temEsperado ? esperado - valor : null,
+    };
+  }, [filtered]);
+
   const needsReviewCount = useMemo(
     () => items.filter((it) => !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review).length,
     [items],
@@ -478,6 +500,21 @@ export function ItemsDataGrid({
               );
             })}
           </ul>
+          {filtered.length > 0 && (
+            <div className="md:hidden flex items-baseline justify-between gap-2 border-t bg-muted/40 px-3 py-2">
+              <span className={cn(TEXT_LABEL)}>Total ({totals.count})</span>
+              <div className="flex items-baseline gap-3">
+                {totals.esperado != null && (
+                  <span className={cn(TEXT_META, "tabular-nums")}>
+                    esp. {formatCurrency(totals.esperado)}
+                  </span>
+                )}
+                <span className="tabular-nums font-semibold text-xs">
+                  {formatCurrency(totals.valor)}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* DESKTOP/TABLET — tabela densa (>= md). Apenas a coluna Paciente
               é sticky à esquerda — múltiplas sticky causavam sobreposição
@@ -581,6 +618,54 @@ export function ItemsDataGrid({
                 );
               })}
             </tbody>
+            {filtered.length > 0 && (() => {
+              const leadingCols =
+                (colVis.atendimento ? 1 : 0) +
+                1 /* paciente */ +
+                (colVis.convenio ? 1 : 0) +
+                (colVis.via ? 1 : 0) +
+                1 /* tuss */ +
+                1 /* procedimento */ +
+                1 /* medico */ +
+                (colVis.funcao ? 1 : 0) +
+                (colVis.regra ? 1 : 0);
+              const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0);
+              const footPad = isCompact ? "px-1.5 py-1.5" : "px-2 py-2";
+              return (
+                <tfoot className="sticky bottom-0 z-20">
+                  <tr>
+                    <td
+                      colSpan={leadingCols}
+                      className={cn(footPad, TEXT_LABEL, "text-right border-t bg-muted/80 backdrop-blur whitespace-nowrap")}
+                    >
+                      Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
+                    </td>
+                    <td className={cn(footPad, "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap")}>
+                      {formatCurrency(totals.valor)}
+                    </td>
+                    <td className={cn(footPad, "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap")}>
+                      {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
+                    </td>
+                    {colVis.diferenca && (
+                      <td
+                        className={cn(
+                          footPad,
+                          "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap",
+                          totals.diferenca != null && Math.abs(totals.diferenca) > 0.01
+                            ? totals.diferenca < 0 ? "text-warning-foreground" : "text-success"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {totals.diferenca != null
+                          ? `${totals.diferenca > 0 ? "+" : ""}${formatCurrency(totals.diferenca)}`
+                          : "—"}
+                      </td>
+                    )}
+                    <td colSpan={trailingCols} className={cn(footPad, "border-t bg-muted/80 backdrop-blur")} />
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         </div>
       </div>
