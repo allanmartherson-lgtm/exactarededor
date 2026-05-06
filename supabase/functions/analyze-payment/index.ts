@@ -165,9 +165,69 @@ serve(async (req) => {
       for (const c of cs ?? []) companyDocs[c.id as string] = (c.document as string | null) ?? null;
     }
 
+    // ---------- 3.15 Resolução de ESPECIALIDADE MÉDICA ----------
+    // O campo `specialty` em payment_items representa especialidade médica
+    // (Urologia, Ortopedia, ...). O `tipo_item` representa o ato (Cirurgia,
+    // Anestesia, ...) e NÃO é usado como especialidade.
+    // Resolvemos a especialidade médica de cada item em runtime via:
+    //   1) procedure_specialty_map (status=aprovado) pelo procedure_code
+    //   2) doctors.specialties (intersect com #1 quando ambos disponíveis)
+    //   3) doctors.specialties[0] quando o médico tem só uma
+    //   4) null → regras com whitelist de especialidade são puladas
+    const specMap: Record<string, string> = {};
+    if (codes.length > 0) {
+      const { data: smRows } = await supabase
+        .from("procedure_specialty_map")
+        .select("procedure_code,medical_specialty,status")
+        .eq("status", "aprovado")
+        .in("procedure_code", codes);
+      for (const r of (smRows ?? []) as any[]) {
+        specMap[String(r.procedure_code)] = String(r.medical_specialty);
+      }
+    }
+
+    // Cache de especialidades por médico (via doctors.full_name normalizado)
+    const doctorNamesNorm = Array.from(new Set(
+      (itemsRaw ?? [])
+        .map((it: any) => String(it.doctor_name ?? "").trim())
+        .filter(Boolean),
+    ));
+    const doctorSpecsByName: Record<string, string[]> = {};
+    if (doctorNamesNorm.length > 0) {
+      const { data: docs } = await supabase
+        .from("doctors")
+        .select("full_name,specialties,active")
+        .in("full_name", doctorNamesNorm);
+      for (const d of (docs ?? []) as any[]) {
+        if (d.active === false) continue;
+        doctorSpecsByName[String(d.full_name)] = Array.isArray(d.specialties) ? d.specialties : [];
+      }
+    }
+
+    const normSpec = (s: string) => s.trim().toLowerCase();
+    const resolveMedicalSpecialty = (it: any): { value: string | null; source: string } => {
+      const code = (it.procedure_code ?? "").toString().trim();
+      const fromMap = code ? specMap[code] ?? null : null;
+      const docList = doctorSpecsByName[String(it.doctor_name ?? "").trim()] ?? [];
+      // 1) mapa + médico → interseção
+      if (fromMap && docList.length > 1) {
+        const inter = docList.find((s) => normSpec(s) === normSpec(fromMap));
+        if (inter) return { value: inter, source: "map+doctor" };
+      }
+      // 2) só mapa
+      if (fromMap) return { value: fromMap, source: "map" };
+      // 3) médico tem só uma especialidade
+      if (docList.length === 1) return { value: docList[0], source: "doctor" };
+      // 4) nada
+      return { value: null, source: "none" };
+    };
+
     const items: ItemInput[] = (itemsRaw ?? []).map((it: any) => {
       const code = (it.procedure_code ?? "").toString().trim();
       const cls = code ? classificationByCode[code] : undefined;
+      const resolved = resolveMedicalSpecialty(it);
+      // Anota fonte para persistir em ai_findings depois
+      (it as any).__resolved_specialty = resolved;
       return ({
       id: it.id,
       doctor_name: it.doctor_name,
@@ -196,7 +256,8 @@ serve(async (req) => {
       tipo_linha: it.tipo_linha ?? null,
       complement_reason: it.complement_reason ?? null,
       agreement_name: it.agreement_text ?? null,
-      specialty: it.specialty ?? null,
+      // Especialidade MÉDICA resolvida (NÃO é o tipo_item).
+      specialty: resolved.value,
     });
     });
 
