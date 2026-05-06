@@ -1113,6 +1113,15 @@ export function analyzeItem(
     ];
   }
 
+  // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
+  // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
+  const qty = Number(item.quantity ?? 1);
+  if (calc.expected != null && Number.isFinite(qty) && qty > 0 && qty !== 1) {
+    const before = calc.expected;
+    calc.expected = Number((before * qty).toFixed(2));
+    calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
+  }
+
   let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
   if (priority === "conflito") status = "alerta";
   if (priority === "sem_regra") status = "alerta";
