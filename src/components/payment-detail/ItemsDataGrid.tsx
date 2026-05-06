@@ -35,6 +35,13 @@ import type {
 import { cn } from "@/lib/utils";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 
+// ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
+// Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
+// Tamanho de referência = AlertBanner (text-xs / 12px).
+export const TEXT_BODY = "text-xs leading-snug tracking-normal";
+export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
+export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
+
 /**
  * Data grid compartilhado de itens de uma empresa dentro de um lote.
  * Usado tanto pelo CompanyAnalysisDialog (modal habitual) quanto pela
