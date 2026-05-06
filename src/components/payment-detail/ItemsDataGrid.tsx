@@ -34,6 +34,7 @@ import type {
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
+import { authorRoleLabel } from "@/lib/observations";
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
 // Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
