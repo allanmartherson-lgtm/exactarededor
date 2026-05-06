@@ -829,7 +829,13 @@ function ItemDetailsRow({
   return (
     <tr className="border-b bg-muted/20">
       <td colSpan={colSpan} className="p-0 align-top">
-        <div className="px-5 py-4 animate-accordion-down overflow-hidden" style={{ fontSize: "13px", lineHeight: 1.4 }}>
+        {/* Wrapper sticky horizontalmente: o painel de detalhes acompanha
+            o scroll horizontal e fica sempre visível, em vez de exigir
+            que o usuário role até a coluna onde a linha "começa". */}
+        <div
+          className="sticky left-0 px-5 py-4 animate-accordion-down"
+          style={{ width: "min(100%, 100vw)", fontSize: "13px", lineHeight: 1.4 }}
+        >
           <div
             className="mb-4 grid gap-x-4 gap-y-3"
             style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
