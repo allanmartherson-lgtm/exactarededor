@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw, History } from "lucide-react";
 import { resolveResendTarget } from "@/lib/paymentFlow";
 import {
   formatCurrency,
@@ -321,6 +322,9 @@ export default function CompanyAnalysis() {
               <Badge variant="secondary" className="ml-2">{divergentes.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="historico">
+            <History className="h-3.5 w-3.5 mr-1" /> Histórico
+          </TabsTrigger>
           <TabsTrigger value="ia">Detalhe IA</TabsTrigger>
         </TabsList>
 
@@ -408,6 +412,16 @@ export default function CompanyAnalysis() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        {/* ABA — Histórico unificado (IA + analistas/validadores/diretores) */}
+        <TabsContent value="historico" className="space-y-3">
+          <CompanyHistoryPanel
+            items={items}
+            observations={obs}
+            aiVersions={aiVersions}
+            profiles={profiles}
+          />
         </TabsContent>
 
         {/* ABA 3 — Detalhe IA */}
