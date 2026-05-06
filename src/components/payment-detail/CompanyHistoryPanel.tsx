@@ -236,7 +236,9 @@ export function CompanyHistoryPanel({
           <ul className="space-y-2">
             {filtered.map((e) => {
               const Icon =
-                e.kind === "ai"
+                e.kind === "assign"
+                  ? UserCheck
+                  : e.kind === "ai"
                   ? Bot
                   : e.authorType === "sistema"
                   ? Sparkles
@@ -244,7 +246,9 @@ export function CompanyHistoryPanel({
                   ? Bot
                   : MessageSquare;
               const tone =
-                e.kind === "ai" || e.authorType === "ia"
+                e.kind === "assign"
+                  ? "border-l-warning"
+                  : e.kind === "ai" || e.authorType === "ia"
                   ? "border-l-info"
                   : e.authorType === "validador"
                   ? "border-l-primary"
