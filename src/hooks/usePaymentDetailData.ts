@@ -42,6 +42,17 @@ export type AiVersionRow = Omit<
 };
 export type GroupRow = Tables["payment_company_groups"]["Row"];
 export type InvoiceRow = Tables["invoices"]["Row"];
+export type AssignmentRow = {
+  id: string;
+  payment_id: string;
+  analyst_id: string;
+  previous_analyst_id: string | null;
+  action: "assumiu" | "transferiu";
+  source: "manual" | "auto";
+  note: string | null;
+  created_by: string;
+  created_at: string;
+};
 export type RuleLite = {
   id: string;
   name: string;
