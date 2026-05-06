@@ -374,7 +374,7 @@ const Users = () => {
                       variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
-                      title="Gera senha temporária e força troca no próximo acesso"
+                      title="Envia e-mail com link para o usuário definir uma nova senha"
                     >
                       {resettingId === u.id
                         ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
