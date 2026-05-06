@@ -128,10 +128,10 @@ const PaymentDetail = () => {
     if (!id || !user) return;
     const res = await claimPayment(id, user.id, "manual");
     if (!res.ok) {
-      toast({ title: "Falha ao assumir lote", description: res.error, variant: "destructive" });
+      toast({ title: "Falha ao assumir lote", description: (res as { error: string }).error, variant: "destructive" });
       return;
     }
-    if (res.created) {
+    if ((res as { created?: boolean }).created) {
       toast({ title: "Lote atribuído a você", description: "Registrado no histórico de atribuições." });
       await load();
     }
