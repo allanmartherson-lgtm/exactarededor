@@ -985,6 +985,36 @@ const Rules = () => {
                 {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
               </DialogHeader>
               <form onSubmit={submitRule} className="space-y-4">
+                {calcSyncErrors.length > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 font-semibold text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
+                      </div>
+                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2" onClick={() => setCalcSyncErrors([])}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-muted-foreground">
+                      A regra foi salva, mas as etapas abaixo falharam. Corrija e clique em salvar novamente.
+                    </div>
+                    <ul className="space-y-2">
+                      {calcSyncErrors.map((err, i) => (
+                        <li key={i} className="rounded border border-destructive/30 bg-background p-2 space-y-1">
+                          <div className="font-semibold">{STEP_LABELS[err.step]}</div>
+                          <div className="font-mono break-all whitespace-pre-wrap text-destructive">{err.message}</div>
+                          {err.code && <div><span className="font-semibold">Código:</span> <span className="font-mono">{err.code}</span></div>}
+                          {err.details && <div><span className="font-semibold">Detalhes:</span> <span className="font-mono break-all whitespace-pre-wrap">{err.details}</span></div>}
+                          {err.hint && <div><span className="font-semibold">Dica:</span> {err.hint}</div>}
+                          {typeof err.rowsAttempted === "number" && (
+                            <div><span className="font-semibold">Linhas tentadas:</span> {err.rowsAttempted}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {/* Resumo dinâmico */}
                 {(() => {
                   const onde =
