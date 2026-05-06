@@ -523,6 +523,17 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => openHistory(u)}
+                      title="Ver histórico de alterações deste usuário"
+                    >
+                      <History className="h-3.5 w-3.5 mr-1.5" />
+                      Histórico
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
                       title="Envia e-mail com link para o usuário definir uma nova senha"
