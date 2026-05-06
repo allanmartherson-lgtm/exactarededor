@@ -1128,6 +1128,43 @@ const Dashboard = () => {
         </SurfaceCard>
       </section>
 
+      {/* PROGRESSO POR LOTE */}
+      <section aria-labelledby="progresso-lotes-heading">
+        <SectionLabel>Progresso por lote</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Onde cada lote está no fluxo"
+            icon={ListChecks}
+            iconColor="purple"
+            rightAction={
+              <Link
+                to="/pagamentos"
+                style={{ fontSize: 12, color: "hsl(var(--accent-foreground))", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                Ver todos <ArrowRight size={13} />
+              </Link>
+            }
+          />
+          {loading ? (
+            <div style={{ padding: 22 }}>
+              <Skeleton className="h-4 w-2/3 mb-3" />
+              <Skeleton className="h-4 w-1/2 mb-3" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : payments.length === 0 ? (
+            <div style={{ padding: "40px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+              Nenhum lote recente.
+            </div>
+          ) : (
+            <div>
+              {payments.slice(0, 8).map((p) => (
+                <BatchProgressRow key={p.id} p={p} />
+              ))}
+            </div>
+          )}
+        </SurfaceCard>
+      </section>
+
       {/* BOTTOM ROW */}
       <section>
         <SectionLabel>Visão geral</SectionLabel>
