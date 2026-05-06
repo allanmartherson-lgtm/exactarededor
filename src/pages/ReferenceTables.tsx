@@ -436,9 +436,14 @@ const ReferenceTables = () => {
                 <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
               </Button>
               {!isCbhpm && (
-                <Button variant="outline" onClick={() => setWizardOpen(true)}>
-                  <Wand2 className="h-4 w-4 mr-2" /> Importar com assistente
-                </Button>
+                <>
+                  <Button variant="outline" onClick={() => setManualOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar manualmente
+                  </Button>
+                  <Button variant="outline" onClick={() => setWizardOpen(true)}>
+                    <Wand2 className="h-4 w-4 mr-2" /> Importar com assistente
+                  </Button>
+                </>
               )}
               <label>
                 <input
