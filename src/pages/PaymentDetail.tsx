@@ -1105,6 +1105,47 @@ const PaymentDetail = () => {
                   </DialogContent>
                 </Dialog>
               )}
+              {canEditMeta && (
+                <>
+                  <input
+                    ref={reimportInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setReimportConfirm(f);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy || reimporting}
+                    onClick={() => reimportInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-1" /> {reimporting ? "Reimportando…" : "Reimportar base"}
+                  </Button>
+                  <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.name}</strong> e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          disabled={reimporting}
+                          onClick={() => reimportConfirm && doReimport(reimportConfirm)}
+                        >
+                          {reimporting ? "Reimportando…" : "Confirmar"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
               {canCancel && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
