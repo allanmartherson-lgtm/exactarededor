@@ -225,6 +225,7 @@ const Rules = () => {
   const [companyDoctors, setCompanyDoctors] = useState<{ name: string; crm?: string }[]>([]);
   const [loadingCompanyDoctors, setLoadingCompanyDoctors] = useState(false);
   // janela temporal
+  const [fHasConditions, setFHasConditions] = useState(false);
   const [fTimeMode, setFTimeMode] = useState<TimeMode>("qualquer");
   const [fWeekdays, setFWeekdays] = useState<number[]>([]);
   const [fIncludesHolidays, setFIncludesHolidays] = useState(false);
@@ -390,6 +391,7 @@ const Rules = () => {
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
+    setFHasConditions(false);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
   };
@@ -467,12 +469,20 @@ const Rules = () => {
     } else {
       setFGroupLinks([]);
     }
-    setFTimeMode((r.time_mode as TimeMode) ?? "qualquer");
-    setFWeekdays(Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : []);
+    const tMode = (r.time_mode as TimeMode) ?? "qualquer";
+    const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
+    const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
+    const tEnd = r.time_end ? String(r.time_end).slice(0, 5) : "";
+    const eMode = (r.elective_mode as ElectiveMode) ?? "qualquer";
+    setFTimeMode(tMode);
+    setFWeekdays(wdays);
     setFIncludesHolidays(!!r.includes_holidays);
-    setFTimeStart(r.time_start ? String(r.time_start).slice(0, 5) : "");
-    setFTimeEnd(r.time_end ? String(r.time_end).slice(0, 5) : "");
-    setFElectiveMode((r.elective_mode as ElectiveMode) ?? "qualquer");
+    setFTimeStart(tStart);
+    setFTimeEnd(tEnd);
+    setFElectiveMode(eMode);
+    setFHasConditions(
+      tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer"
+    );
     // Garante que a seção "Identificação" esteja aberta ao editar
     // (contém o bloco Convênio — eixo determinístico do motor de regras).
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
@@ -554,12 +564,12 @@ const Rules = () => {
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
       group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
       group_doctors: scope === "grupo" ? fGroupDoctors : [],
-      time_mode: fTimeMode,
-      weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
-      includes_holidays: fIncludesHolidays,
-      time_start: fTimeStart || null,
-      time_end: fTimeEnd || null,
-      elective_mode: fElectiveMode,
+      time_mode: fHasConditions ? fTimeMode : "qualquer",
+      weekdays: fHasConditions && fTimeMode === "personalizado" ? fWeekdays : [],
+      includes_holidays: fHasConditions ? fIncludesHolidays : false,
+      time_start: fHasConditions ? (fTimeStart || null) : null,
+      time_end: fHasConditions ? (fTimeEnd || null) : null,
+      elective_mode: fHasConditions ? fElectiveMode : "qualquer",
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
@@ -1292,66 +1302,84 @@ const Rules = () => {
                   {/* Condições de aplicação */}
                   <AccordionItem value="condicoes" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.condicoes > 0 && "text-destructive")}>
-                      <span className="flex items-center">Condições de aplicação
+                      <span className="flex items-center">Aplica-se a algum período, dia ou horário específico?
                         {sectionErrors.condicoes > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.condicoes}</span>}
                       </span>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label>Dias / período</Label>
-                          <Select value={fTimeMode} onValueChange={(v) => setFTimeMode(v as TimeMode)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Tipo de atendimento</Label>
-                          <Select value={fElectiveMode} onValueChange={(v) => setFElectiveMode(v as ElectiveMode)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                      <label className="flex items-start gap-2 text-sm">
+                        <Checkbox
+                          checked={fHasConditions}
+                          onCheckedChange={(v) => setFHasConditions(!!v)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          Sim — esta regra só vale em determinados dias, horários ou tipos de atendimento.
+                          <span className="block text-xs text-muted-foreground">
+                            Deixe desmarcado se a regra se aplica a qualquer período.
+                          </span>
+                        </span>
+                      </label>
 
-                      {fTimeMode === "personalizado" && (
-                        <div className="space-y-1.5">
-                          <Label>Dias da semana</Label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {WEEKDAY_LABELS.map((d) => {
-                              const checked = fWeekdays.includes(d.v);
-                              return (
-                                <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                  onClick={() => setFWeekdays((p) => checked ? p.filter((x) => x !== d.v) : [...p, d.v])}>
-                                  {d.label}
-                                </Button>
-                              );
-                            })}
+                      {fHasConditions && (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label>Dias / período</Label>
+                              <Select value={fTimeMode} onValueChange={(v) => setFTimeMode(v as TimeMode)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Tipo de atendimento</Label>
+                              <Select value={fElectiveMode} onValueChange={(v) => setFElectiveMode(v as ElectiveMode)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                        </div>
-                      )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                        <div className="space-y-1.5">
-                          <Label>Hora início (opcional)</Label>
-                          <Input type="time" value={fTimeStart} onChange={(e) => setFTimeStart(e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Hora fim (opcional)</Label>
-                          <Input type="time" value={fTimeEnd} onChange={(e) => setFTimeEnd(e.target.value)} />
-                        </div>
-                        <label className="flex items-center gap-2 text-sm pb-2">
-                          <Checkbox checked={fIncludesHolidays} onCheckedChange={(v) => setFIncludesHolidays(!!v)} />
-                          Inclui feriados
-                        </label>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Se ultrapassar a meia-noite (ex.: 19:00 → 07:00), o sistema interpreta como janela noturna.
-                      </p>
+                          {fTimeMode === "personalizado" && (
+                            <div className="space-y-1.5">
+                              <Label>Dias da semana</Label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {WEEKDAY_LABELS.map((d) => {
+                                  const checked = fWeekdays.includes(d.v);
+                                  return (
+                                    <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
+                                      onClick={() => setFWeekdays((p) => checked ? p.filter((x) => x !== d.v) : [...p, d.v])}>
+                                      {d.label}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                            <div className="space-y-1.5">
+                              <Label>Hora início (opcional)</Label>
+                              <Input type="time" value={fTimeStart} onChange={(e) => setFTimeStart(e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Hora fim (opcional)</Label>
+                              <Input type="time" value={fTimeEnd} onChange={(e) => setFTimeEnd(e.target.value)} />
+                            </div>
+                            <label className="flex items-center gap-2 text-sm pb-2">
+                              <Checkbox checked={fIncludesHolidays} onCheckedChange={(v) => setFIncludesHolidays(!!v)} />
+                              Inclui feriados
+                            </label>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Se ultrapassar a meia-noite (ex.: 19:00 → 07:00), o sistema interpreta como janela noturna.
+                          </p>
+                        </>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
 
