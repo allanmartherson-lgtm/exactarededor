@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
@@ -33,6 +33,9 @@ const Users = () => {
   });
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
+  const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
 
   const copyText = async (text: string, successTitle = "Copiado") => {
@@ -82,6 +85,24 @@ const Users = () => {
     }
   };
 
+  const resetPassword = async (u: { id: string; email: string }) => {
+    setResettingId(u.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+        body: { user_id: u.id, email: u.email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.temp_password) throw new Error("Resposta inválida do servidor");
+      setResetResult({ email: data.email ?? u.email, password: data.temp_password });
+      toast({ title: "Senha resetada", description: "Compartilhe a senha temporária. O usuário precisará trocá-la no primeiro acesso." });
+    } catch (e: any) {
+      toast({ title: "Falha ao resetar senha", description: e.message, variant: "destructive" });
+    } finally {
+      setResettingId(null);
+      setConfirmReset(null);
+    }
+  };
   const resetForm = () => {
     setForm({ email: "", full_name: "", roles: [], send_invite: true });
     setTempPwd(null);
@@ -219,6 +240,20 @@ const Users = () => {
                       Reenviar convite
                     </Button>
                   )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
+                      disabled={resettingId === u.id}
+                      title="Gera senha temporária e força troca no próximo acesso"
+                    >
+                      {resettingId === u.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
+                      Resetar senha
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -252,6 +287,54 @@ const Users = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!confirmReset} onOpenChange={(o) => !o && setConfirmReset(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resetar senha de {confirmReset?.full_name || confirmReset?.email}?</DialogTitle>
+            <DialogDescription>
+              Será gerada uma senha temporária e o usuário será obrigado a trocá-la no primeiro acesso.
+              A senha atual deixará de funcionar imediatamente. Esta ação não afeta logins via Google/SSO.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReset(null)} disabled={resettingId !== null}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmReset && resetPassword({ id: confirmReset.id, email: confirmReset.email })}
+              disabled={resettingId !== null}
+            >
+              {resettingId !== null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
+              Resetar senha
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!resetResult} onOpenChange={(o) => !o && setResetResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Senha temporária gerada</DialogTitle>
+            <DialogDescription>
+              Compartilhe com {resetResult?.email} por um canal seguro. O usuário precisará trocá-la no primeiro acesso.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Input readOnly value={resetResult?.password ?? ""} className="font-mono" />
+              <Button size="icon" variant="outline" onClick={() => resetResult && copyText(resetResult.password, "Senha copiada")}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Esta senha não será mostrada novamente. Se perder, gere uma nova clicando em "Resetar senha".
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetResult(null)}>Concluir</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

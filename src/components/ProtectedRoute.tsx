@@ -23,6 +23,12 @@ export const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
+  // Força troca de senha temporária no primeiro acesso (reset feito por admin)
+  const mustReset = (user.user_metadata as Record<string, unknown> | undefined)?.must_reset_password === true;
+  if (mustReset && location.pathname !== "/trocar-senha") {
+    return <Navigate to="/trocar-senha" replace />;
+  }
+
   if (roles && !roles.some((r) => userRoles.includes(r))) {
     return <Navigate to="/" replace />;
   }
