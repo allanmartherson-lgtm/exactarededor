@@ -105,6 +105,7 @@ export function usePaymentDetailData(id: string | undefined) {
       { data: gs },
       { data: inv },
       { data: qs },
+      { data: as },
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
       supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").abortSignal(ac.signal),
