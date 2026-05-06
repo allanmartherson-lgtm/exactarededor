@@ -359,28 +359,15 @@ export default function CompanyAnalysis() {
         {/* ABA 1 — Análise */}
         <TabsContent value="analise" className="space-y-3">
           <Card className="shadow-card">
-            <CardHeader className="pb-2 flex-row items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">Itens</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {showAllInAnalysis
-                    ? `Exibindo ${items.length} itens.`
-                    : `Exibindo ${itemsForAnalysis.length} itens com observação. Itens sem problema estão ocultos.`}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowAllInAnalysis((v) => !v)}
-                className="shrink-0"
-              >
-                <Filter className="h-3.5 w-3.5 mr-1" />
-                {showAllInAnalysis ? "Ocultar itens limpos" : "Mostrar todos"}
-              </Button>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Itens</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
+              </p>
             </CardHeader>
             <CardContent className="p-0">
               <ItemsDataGrid
-                items={itemsForAnalysis}
+                items={items}
                 groupStatus={gStatus}
                 rulesIndex={rulesIndex}
                 rulesByName={rulesByName}
