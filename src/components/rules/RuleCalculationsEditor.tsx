@@ -1,0 +1,558 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import {
+  RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
+  type RuleCalculationType,
+} from "@/lib/status";
+
+/* ============================================================
+ * Tipos compartilhados — espelho 1:1 da tabela rule_calculations
+ * ============================================================ */
+export type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
+export type ElectiveMode = "qualquer" | "eletiva" | "urgencia";
+
+export type CalcItem = {
+  /** id na DB quando carregado do banco; novos itens não têm id. */
+  id?: string;
+  label?: string | null;
+
+  // método
+  calculation_type: RuleCalculationType;
+
+  // parâmetros financeiros (todos opcionais — dependem do método)
+  fixed_amount: string;
+  target_amount: string;
+  multiplier: string;
+  deflator_pct: string;
+  bonus_amount: string;
+  bonus_pct: string;
+  reference_table_id: string;
+  repasse_pct: string;
+  convenio_percentage: string;
+  auxiliary_pct: string;
+  aux_first_pct: string;
+  aux_second_pct: string;
+  instrumentador_pct: string;
+  include_auxiliaries: boolean;
+  package_amount: string;
+  package_subtype: "fechado" | "com_extras";
+  package_main_code: string;
+  package_included_codes: string; // entrada livre, parseada na hora de salvar
+  package_auxiliaries_included: boolean;
+  package_opinions_count: boolean;
+  package_visits_count: boolean;
+  extras_codes: string; // entrada livre
+  apply_access_route: boolean;
+
+  // condições (vinculadas a ESTE cálculo)
+  has_conditions: boolean;
+  time_mode: TimeMode;
+  weekdays: number[];
+  time_start: string;
+  time_end: string;
+  includes_holidays: boolean;
+  elective_mode: ElectiveMode;
+};
+
+/** Construtor de item vazio (default sensato). */
+export function makeEmptyCalc(): CalcItem {
+  return {
+    calculation_type: "informativo",
+    fixed_amount: "", target_amount: "", multiplier: "", deflator_pct: "",
+    bonus_amount: "", bonus_pct: "", reference_table_id: "", repasse_pct: "",
+    convenio_percentage: "", auxiliary_pct: "",
+    aux_first_pct: "30", aux_second_pct: "20", instrumentador_pct: "10",
+    include_auxiliaries: false,
+    package_amount: "", package_subtype: "fechado", package_main_code: "",
+    package_included_codes: "", package_auxiliaries_included: true,
+    package_opinions_count: false, package_visits_count: false,
+    extras_codes: "", apply_access_route: false,
+    has_conditions: false, time_mode: "qualquer", weekdays: [],
+    time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
+  };
+}
+
+const TIME_MODE_LABELS: Record<TimeMode, string> = {
+  qualquer: "Qualquer dia/horário (livre)",
+  comercial: "Horário comercial (seg–sex 07–19h)",
+  fora_comercial: "Fora do horário comercial",
+  fim_de_semana: "Fim de semana (sáb/dom)",
+  feriado: "Apenas feriados",
+  personalizado: "Personalizado (escolher dias/horas)",
+};
+const ELECTIVE_MODE_LABELS: Record<ElectiveMode, string> = {
+  qualquer: "Qualquer (eletiva ou urgência)",
+  eletiva: "Apenas eletivas",
+  urgencia: "Apenas urgência/emergência",
+};
+const WEEKDAY_LABELS = [
+  { v: 0, label: "Dom" }, { v: 1, label: "Seg" }, { v: 2, label: "Ter" },
+  { v: 3, label: "Qua" }, { v: 4, label: "Qui" }, { v: 5, label: "Sex" }, { v: 6, label: "Sáb" },
+];
+
+const CALCULABLE_METHODS: RuleCalculationType[] = [
+  "percentual_sobre_convenio", "regra_vias", "pacote",
+  "valor_fixo", "tabela_diferenciada", "bonus", "complemento", "exclusao",
+];
+
+type RefTable = { id: string; name: string; purpose?: string };
+
+export type RuleCalculationsEditorProps = {
+  value: CalcItem[];
+  onChange: (next: CalcItem[]) => void;
+  refTables: RefTable[];
+  /** Quando "informativa/bloqueio", o editor fica oculto (regra não calcula). */
+  enabled: boolean;
+};
+
+/**
+ * Editor de uma LISTA de itens de cálculo (1:N). Cada item carrega seu próprio
+ * bloco de "Aplica-se a algum período, dia ou horário específico?" porque a
+ * janela temporal pertence ao cálculo, não à regra.
+ */
+export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: RuleCalculationsEditorProps) {
+  const update = (i: number, patch: Partial<CalcItem>) => {
+    const next = value.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i: number) => {
+    if (value.length === 1) {
+      // mantém pelo menos um item; faz reset.
+      onChange([makeEmptyCalc()]);
+      return;
+    }
+    onChange(value.filter((_, idx) => idx !== i));
+  };
+  const add = () => onChange([...value, makeEmptyCalc()]);
+
+  if (!enabled) {
+    return (
+      <p className="text-xs text-muted-foreground italic">
+        Regra informativa/bloqueio — não calcula valor esperado.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {value.map((c, i) => (
+        <CalcCard
+          key={c.id ?? `new-${i}`}
+          index={i}
+          total={value.length}
+          item={c}
+          refTables={refTables}
+          onChange={(patch) => update(i, patch)}
+          onRemove={() => remove(i)}
+        />
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
+        <Plus className="h-4 w-4 mr-1" /> Adicionar cálculo
+      </Button>
+      {value.length > 1 && (
+        <p className="text-[11px] text-muted-foreground">
+          Quando há mais de um cálculo, o motor avalia cada um independentemente
+          e <strong>soma</strong> os valores dos cálculos cujas condições baterem.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+ *  Card de UM cálculo (método + parâmetros + condições)
+ * ============================================================ */
+function CalcCard({
+  index, total, item, refTables, onChange, onRemove,
+}: {
+  index: number; total: number; item: CalcItem; refTables: RefTable[];
+  onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const c = item;
+  const isPacote = c.calculation_type === "pacote"
+    || c.calculation_type === "pacote_fechado"
+    || c.calculation_type === "pacote_com_extras"
+    || c.calculation_type === "pacote_por_atendimento";
+  const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
+
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </Button>
+        <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+          Cálculo #{index + 1}
+        </span>
+        <Input
+          placeholder="Rótulo opcional (ex.: Bônus fim de semana)"
+          value={c.label ?? ""}
+          onChange={(e) => onChange({ label: e.target.value })}
+          className="h-7 text-xs flex-1"
+        />
+        <span className="ml-auto text-[10.5px] text-muted-foreground">
+          {RULE_CALCULATION_TYPE_LABELS[c.calculation_type]}
+        </span>
+        <Button
+          type="button" variant="ghost" size="sm"
+          className={cn("h-7 px-2 text-destructive", total === 1 && "opacity-60")}
+          onClick={onRemove}
+          title={total === 1 ? "Limpar este cálculo" : "Remover cálculo"}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {open && (
+        <>
+          {/* === MÉTODO + PARÂMETROS === */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Método de cálculo *</Label>
+            <Select
+              value={c.calculation_type}
+              onValueChange={(v) => onChange({ calculation_type: v as RuleCalculationType, reference_table_id: v === "tabela_diferenciada" ? c.reference_table_id : "" })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CALCULABLE_METHODS.map((k) => (
+                  <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{RULE_CALCULATION_TYPE_DESCRIPTIONS[c.calculation_type]}</p>
+          </div>
+
+          {c.calculation_type === "percentual_sobre_convenio" && (
+            <div className="space-y-1">
+              <Label className="text-xs">Percentual sobre o convênio (%)</Label>
+              <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
+                value={c.convenio_percentage} onChange={(e) => onChange({ convenio_percentage: e.target.value })} />
+            </div>
+          )}
+          {c.calculation_type === "valor_fixo" && (
+            <div className="space-y-1">
+              <Label className="text-xs">Valor fixo (R$)</Label>
+              <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
+            </div>
+          )}
+          {c.calculation_type === "bonus" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
+                <Input type="number" step="0.01" value={c.bonus_amount} onChange={(e) => onChange({ bonus_amount: e.target.value })} />
+              </div>
+              <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
+                <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
+              </div>
+            </div>
+          )}
+          {c.calculation_type === "complemento" && (
+            <div className="space-y-1">
+              <Label className="text-xs">Valor alvo (R$) *</Label>
+              <Input type="number" step="0.01" value={c.target_amount} onChange={(e) => onChange({ target_amount: e.target.value })} />
+            </div>
+          )}
+
+          {isPacote && (
+            <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo de pacote *</Label>
+                <Select value={c.package_subtype} onValueChange={(v) => onChange({ package_subtype: v as "fechado" | "com_extras" })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fechado">Fechado</SelectItem>
+                    <SelectItem value="com_extras">Com extras</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Valor do pacote (R$) *</Label>
+                  <Input type="number" step="0.01" value={c.package_amount} onChange={(e) => onChange({ package_amount: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Código principal do pacote</Label>
+                  <Input placeholder="Ex.: 31005497" value={c.package_main_code} onChange={(e) => onChange({ package_main_code: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Códigos incluídos no pacote</Label>
+                <Input placeholder="Ex.: 31002, 31003" value={c.package_included_codes} onChange={(e) => onChange({ package_included_codes: e.target.value })} />
+              </div>
+              {isPacoteComExtras && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Códigos extras permitidos</Label>
+                  <Input placeholder="Ex.: 31005470" value={c.extras_codes} onChange={(e) => onChange({ extras_codes: e.target.value })} />
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <label className={cn("flex items-start gap-2", !isPacoteComExtras && "opacity-50")}>
+                  <Checkbox checked={c.package_visits_count} disabled={!isPacoteComExtras}
+                    onCheckedChange={(v) => onChange({ package_visits_count: !!v })} />
+                  <span className="text-xs">Visitas somam ao pacote</span>
+                </label>
+                <label className={cn("flex items-start gap-2", !isPacoteComExtras && "opacity-50")}>
+                  <Checkbox checked={c.package_opinions_count} disabled={!isPacoteComExtras}
+                    onCheckedChange={(v) => onChange({ package_opinions_count: !!v })} />
+                  <span className="text-xs">Pareceres somam ao pacote</span>
+                </label>
+                <label className={cn("flex items-start gap-2", !isPacoteComExtras && "opacity-50")}>
+                  <Checkbox checked={c.package_auxiliaries_included} disabled={!isPacoteComExtras}
+                    onCheckedChange={(v) => onChange({ package_auxiliaries_included: !!v })} />
+                  <span className="text-xs">Auxiliares incluídos no pacote</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {c.calculation_type === "tabela_diferenciada" && (
+            <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tabela de referência *</Label>
+                <Select
+                  value={c.reference_table_id || "__none"}
+                  onValueChange={(v) => onChange({ reference_table_id: v === "__none" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder={refTables.length ? "Selecionar tabela" : "Cadastre uma tabela"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Sem vínculo</SelectItem>
+                    {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {c.reference_table_id && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5"><Label className="text-xs">Multiplicador</Label>
+                      <Input type="number" step="0.01" value={c.multiplier} onChange={(e) => onChange({ multiplier: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5"><Label className="text-xs">Deflator (%)</Label>
+                      <Input type="number" step="0.01" value={c.deflator_pct} onChange={(e) => onChange({ deflator_pct: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5"><Label className="text-xs">% de repasse</Label>
+                      <Input type="number" step="0.01" value={c.repasse_pct} onChange={(e) => onChange({ repasse_pct: e.target.value })} />
+                    </div>
+                  </div>
+                  <label className="flex items-start gap-2">
+                    <Checkbox checked={c.apply_access_route} onCheckedChange={(v) => onChange({ apply_access_route: !!v })} />
+                    <span className="text-xs">Aplicar regra de via de acesso</span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <Checkbox checked={c.include_auxiliaries} onCheckedChange={(v) => onChange({ include_auxiliaries: !!v })} />
+                    <span className="text-xs">Considerar auxiliares</span>
+                  </label>
+                  {c.include_auxiliaries && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1.5"><Label className="text-xs">1º auxiliar (%)</Label>
+                        <Input type="number" step="0.01" value={c.aux_first_pct} onChange={(e) => onChange({ aux_first_pct: e.target.value })} />
+                      </div>
+                      <div className="space-y-1.5"><Label className="text-xs">2º auxiliar+ (%)</Label>
+                        <Input type="number" step="0.01" value={c.aux_second_pct} onChange={(e) => onChange({ aux_second_pct: e.target.value })} />
+                      </div>
+                      <div className="space-y-1.5"><Label className="text-xs">Instrumentador (%)</Label>
+                        <Input type="number" step="0.01" value={c.instrumentador_pct} onChange={(e) => onChange({ instrumentador_pct: e.target.value })} />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
+          <div className="rounded-md border border-border bg-card p-3 space-y-3">
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                checked={c.has_conditions}
+                onCheckedChange={(v) => onChange({ has_conditions: !!v })}
+                className="mt-0.5"
+              />
+              <span>
+                Aplica-se a algum período, dia ou horário específico?
+                <span className="block text-xs text-muted-foreground">
+                  Marque para restringir este cálculo a determinadas janelas. Desmarcado = vale sempre.
+                </span>
+              </span>
+            </label>
+
+            {c.has_conditions && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Dias / período</Label>
+                    <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tipo de atendimento</Label>
+                    <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {c.time_mode === "personalizado" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Dias da semana</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEKDAY_LABELS.map((d) => {
+                        const checked = c.weekdays.includes(d.v);
+                        return (
+                          <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
+                            onClick={() => onChange({ weekdays: checked ? c.weekdays.filter((x) => x !== d.v) : [...c.weekdays, d.v] })}>
+                            {d.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Hora início (opcional)</Label>
+                    <Input type="time" value={c.time_start} onChange={(e) => onChange({ time_start: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Hora fim (opcional)</Label>
+                    <Input type="time" value={c.time_end} onChange={(e) => onChange({ time_end: e.target.value })} />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm pb-2">
+                    <Checkbox checked={c.includes_holidays} onCheckedChange={(v) => onChange({ includes_holidays: !!v })} />
+                    Inclui feriados
+                  </label>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+ *  Helpers de mapeamento DB ↔ formulário
+ * ============================================================ */
+
+/** Converte uma linha do banco (rule_calculations) em CalcItem do formulário. */
+export function calcFromDb(r: any): CalcItem {
+  const tMode = (r.time_mode ?? "qualquer") as TimeMode;
+  const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
+  const tEnd = r.time_end ? String(r.time_end).slice(0, 5) : "";
+  const eMode = (r.elective_mode ?? "qualquer") as ElectiveMode;
+  const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
+  return {
+    id: r.id,
+    label: r.label ?? null,
+    calculation_type: (r.calculation_type ?? "informativo") as RuleCalculationType,
+    fixed_amount: r.fixed_amount != null ? String(r.fixed_amount) : "",
+    target_amount: r.target_amount != null ? String(r.target_amount) : "",
+    multiplier: r.multiplier != null ? String(r.multiplier) : "",
+    deflator_pct: r.deflator_pct != null ? String(r.deflator_pct) : "",
+    bonus_amount: r.bonus_amount != null ? String(r.bonus_amount) : "",
+    bonus_pct: r.bonus_pct != null ? String(r.bonus_pct) : "",
+    reference_table_id: r.reference_table_id ?? "",
+    repasse_pct: r.repasse_pct != null ? String(r.repasse_pct) : "",
+    convenio_percentage: r.convenio_percentage != null ? String(r.convenio_percentage) : "",
+    auxiliary_pct: r.auxiliary_pct != null ? String(r.auxiliary_pct) : "",
+    aux_first_pct: r.aux_first_pct != null ? String(r.aux_first_pct) : "30",
+    aux_second_pct: r.aux_second_pct != null ? String(r.aux_second_pct) : "20",
+    instrumentador_pct: r.instrumentador_pct != null ? String(r.instrumentador_pct) : "10",
+    include_auxiliaries: !!r.include_auxiliaries,
+    package_amount: r.package_amount != null ? String(r.package_amount) : "",
+    package_subtype: (r.package_subtype === "com_extras" ? "com_extras" : "fechado") as "fechado" | "com_extras",
+    package_main_code: r.package_main_code ?? "",
+    package_included_codes: Array.isArray(r.package_included_codes) ? r.package_included_codes.join(", ") : "",
+    package_auxiliaries_included: r.package_auxiliaries_included !== false,
+    package_opinions_count: !!r.package_opinions_count,
+    package_visits_count: !!r.package_visits_count,
+    extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
+    apply_access_route: !!r.apply_access_route,
+    has_conditions: tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer",
+    time_mode: tMode,
+    weekdays: wdays,
+    time_start: tStart,
+    time_end: tEnd,
+    includes_holidays: !!r.includes_holidays,
+    elective_mode: eMode,
+  };
+}
+
+const numOrNull = (v: string): number | null => {
+  if (!v) return null;
+  const n = Number(String(v).replace(",", "."));
+  return isFinite(n) ? n : null;
+};
+const splitCodes = (s: string): string[] =>
+  s.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
+
+/** Converte um CalcItem em payload pronto para inserir/atualizar em rule_calculations. */
+export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number): Record<string, any> {
+  const isPacote = c.calculation_type === "pacote"
+    || c.calculation_type === "pacote_fechado"
+    || c.calculation_type === "pacote_com_extras"
+    || c.calculation_type === "pacote_por_atendimento";
+  const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
+  const isTabela = c.calculation_type === "tabela_diferenciada";
+  return {
+    rule_id: ruleId,
+    sort_order: sortOrder,
+    label: c.label?.trim() || null,
+    calculation_type: c.calculation_type,
+    fixed_amount: c.calculation_type === "valor_fixo" ? numOrNull(c.fixed_amount) : null,
+    target_amount: c.calculation_type === "complemento" ? numOrNull(c.target_amount) : null,
+    multiplier: isTabela ? numOrNull(c.multiplier) : null,
+    deflator_pct: isTabela ? numOrNull(c.deflator_pct) : null,
+    bonus_amount: c.calculation_type === "bonus" ? numOrNull(c.bonus_amount) : null,
+    bonus_pct: c.calculation_type === "bonus" ? numOrNull(c.bonus_pct) : null,
+    reference_table_id: isTabela ? (c.reference_table_id || null) : null,
+    repasse_pct: isTabela ? numOrNull(c.repasse_pct) : null,
+    convenio_percentage: c.calculation_type === "percentual_sobre_convenio" ? numOrNull(c.convenio_percentage) : null,
+    auxiliary_pct: isTabela ? numOrNull(c.auxiliary_pct) : null,
+    aux_first_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_first_pct) ?? 30) : null,
+    aux_second_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_second_pct) ?? 20) : null,
+    instrumentador_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.instrumentador_pct) ?? 10) : null,
+    include_auxiliaries: isTabela ? c.include_auxiliaries : false,
+    package_amount: isPacote ? numOrNull(c.package_amount) : null,
+    package_subtype: isPacote ? c.package_subtype : null,
+    package_main_code: isPacote ? (c.package_main_code.trim() || null) : null,
+    package_included_codes: isPacote ? splitCodes(c.package_included_codes) : null,
+    package_auxiliaries_included: isPacoteComExtras ? c.package_auxiliaries_included : false,
+    package_opinions_count: isPacoteComExtras ? c.package_opinions_count : false,
+    package_visits_count: isPacoteComExtras ? c.package_visits_count : false,
+    extras_codes: isPacoteComExtras ? splitCodes(c.extras_codes) : null,
+    apply_access_route: isTabela ? c.apply_access_route : false,
+    time_mode: c.has_conditions ? c.time_mode : "qualquer",
+    weekdays: c.has_conditions && c.time_mode === "personalizado" ? c.weekdays : [],
+    time_start: c.has_conditions ? (c.time_start || null) : null,
+    time_end: c.has_conditions ? (c.time_end || null) : null,
+    includes_holidays: c.has_conditions ? c.includes_holidays : false,
+    elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
+  };
+}
+
+/** Erros por item para feedback visual no formulário (apenas validações fortes). */
+export function calcItemErrors(c: CalcItem): number {
+  let n = 0;
+  if (c.calculation_type === "percentual_sobre_convenio" && !c.convenio_percentage) n++;
+  if (c.calculation_type === "valor_fixo" && !c.fixed_amount) n++;
+  if (c.calculation_type === "complemento" && !c.target_amount) n++;
+  if (c.calculation_type === "tabela_diferenciada" && !c.reference_table_id) n++;
+  if ((c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
+    || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento") && !c.package_amount) n++;
+  if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) n++;
+  return n;
+}
