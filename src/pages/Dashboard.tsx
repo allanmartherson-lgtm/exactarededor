@@ -606,21 +606,23 @@ const Dashboard = () => {
       setAvgTimeByStatus(avg);
 
       const uid = user?.id;
-      // Visão coletiva por perfil: para o analista, "minhas tarefas" é a fila
-      // do papel inteiro — qualquer analista pode assumir qualquer lote em
-      // status do analista. Validador/diretor já funcionavam assim.
+      // Separação estrita: "minhas" = pagamentos efetivamente atribuídos ao
+      // usuário logado (created_by/validated_by). A fila coletiva do papel
+      // aparece em "Tarefas em aberto" e no Pipeline da equipe.
       const c: DashboardCounts = { ...initialCounts };
       (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
+        const isMineRow =
+          !!uid && (p.created_by === uid || p.validated_by === uid);
         if (owner === "analista") {
           c.teamAnalise++;
-          c.mineAnalista++;
+          if (isMineRow) c.mineAnalista++;
         } else if (owner === "validador") {
           c.teamValidacao++;
-          c.mineValidador++;
+          if (isMineRow) c.mineValidador++;
         } else if (owner === "diretor") {
           c.teamAprovacao++;
-          c.mineDiretor++;
+          if (isMineRow) c.mineDiretor++;
         }
 
         switch (p.status) {
