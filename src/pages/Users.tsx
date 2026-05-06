@@ -240,6 +240,20 @@ const Users = () => {
                       Reenviar convite
                     </Button>
                   )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
+                      disabled={resettingId === u.id}
+                      title="Gera senha temporária e força troca no próximo acesso"
+                    >
+                      {resettingId === u.id
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <KeyRound className="h-3.5 w-3.5 mr-1.5" />}
+                      Resetar senha
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
