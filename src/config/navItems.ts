@@ -98,7 +98,6 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
   { label: "Tabelas de referência", iconName: "Table" },
-  { label: "Classificação de procedimentos", iconName: "Tags" },
   { label: "Empresas", iconName: "Building2" },
   { label: "Médicos", iconName: "Stethoscope" },
   { label: "Centros de custo", iconName: "Network" },
