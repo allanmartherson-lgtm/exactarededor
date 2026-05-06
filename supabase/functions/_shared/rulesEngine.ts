@@ -120,6 +120,50 @@ export interface RuleInput {
    * quando explicitamente vinculadas — nada de varredura global.
    */
   exception_table_ids?: string[] | null;
+  /**
+   * Itens de cálculo (1:N). Quando preenchido, o motor itera sobre cada item
+   * que satisfizer as condições (período/dia/horário/etc) e SOMA os resultados.
+   * Quando vazio/ausente, o motor cai no comportamento legado e usa os campos
+   * de cálculo na própria regra.
+   */
+  calculations?: RuleCalculationItem[] | null;
+}
+
+export interface RuleCalculationItem {
+  id?: string;
+  label?: string | null;
+  calculation_type: CalculationType;
+  // ---- condições vinculadas ao cálculo ----
+  time_mode?: string | null;         // 'qualquer' | 'comercial' | 'noturno' | 'fim_de_semana' | 'personalizado' | ...
+  time_start?: string | null;        // 'HH:MM'
+  time_end?: string | null;          // 'HH:MM'
+  weekdays?: number[] | null;        // 0..6 (Dom..Sáb)
+  includes_holidays?: boolean | null;
+  elective_mode?: string | null;     // 'qualquer' | 'eletivo' | 'urgencia'
+  // ---- parâmetros de cálculo (espelham os da regra) ----
+  convenio_percentage?: number | null;
+  fixed_amount?: number | null;
+  package_amount?: number | null;
+  package_main_code?: string | null;
+  package_included_codes?: string[] | null;
+  package_visits_count?: boolean | null;
+  package_opinions_count?: boolean | null;
+  package_auxiliaries_included?: boolean | null;
+  package_subtype?: string | null;
+  extras_codes?: string[] | null;
+  reference_table_id?: string | null;
+  multiplier?: number | null;
+  deflator_pct?: number | null;
+  repasse_pct?: number | null;
+  apply_access_route?: boolean | null;
+  include_auxiliaries?: boolean | null;
+  auxiliary_pct?: number | null;
+  aux_first_pct?: number | null;
+  aux_second_pct?: number | null;
+  instrumentador_pct?: number | null;
+  bonus_amount?: number | null;
+  bonus_pct?: number | null;
+  target_amount?: number | null;
 }
 
 export interface ItemInput {
