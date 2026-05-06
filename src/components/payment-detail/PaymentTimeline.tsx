@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/status";
-import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
+import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X, Filter } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
 import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
+
+const ROLE_FILTER_OPTIONS = ["analista", "validador", "diretor", "admin", "sistema", "ia"] as const;
 
 export type PaymentTimelineProps = {
   /** Observações já filtradas pelo histórico (item/payment/all). */
