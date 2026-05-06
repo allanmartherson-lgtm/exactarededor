@@ -615,6 +615,7 @@ export function ItemsDataGrid({
                     rulesIndex={rulesIndex}
                     rulesByName={rulesByName}
                     observations={observations}
+                    profiles={profiles}
                     obsCount={obsCount}
                     isCompact={isCompact}
                     totalCols={totalCols}
