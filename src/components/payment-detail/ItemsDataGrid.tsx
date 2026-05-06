@@ -836,11 +836,8 @@ function ItemDetailsRow({
   };
 
   // ============ TIPOGRAFIA UNIFICADA ============
-  // Toda a tela do painel expandido (AlertBanner + cards + conteúdo) usa o mesmo
-  // conjunto de classes. Tamanho de referência = AlertBanner (text-xs / 12px).
-  const TEXT_BODY = "text-xs leading-snug tracking-normal";
-  const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
-  const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
+  // Reusa o set tipográfico exportado no topo do arquivo (TEXT_BODY/TEXT_LABEL/TEXT_META)
+  // para manter o painel expandido idêntico ao restante da tela (headers + cells + AlertBanner).
   // Card base: contém o conteúdo com overflow seguro (nada vaza, nada invade vizinhos).
   const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]";
 
