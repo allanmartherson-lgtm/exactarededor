@@ -41,7 +41,7 @@ const Users = () => {
   const [tempPwd, setTempPwd] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
-  const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
+  const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
 
@@ -131,13 +131,24 @@ const Users = () => {
     setResettingId(u.id);
     try {
       const { data, error } = await supabase.functions.invoke("admin-reset-password", {
-        body: { user_id: u.id, email: u.email },
+        body: { user_id: u.id, email: u.email, app_origin: getPasswordRecoveryOrigin() },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if (!data?.temp_password) throw new Error("Resposta inválida do servidor");
-      setResetResult({ email: data.email ?? u.email, password: data.temp_password });
-      toast({ title: "Senha resetada", description: "Compartilhe a senha temporária. O usuário precisará trocá-la no primeiro acesso." });
+      const emailSent = data?.email_sent !== false;
+      setResetResult({
+        email: data?.email ?? u.email,
+        emailSent,
+        warning: data?.warning ?? null,
+        actionLink: data?.action_link ?? null,
+      });
+      toast({
+        title: emailSent ? "E-mail de redefinição enviado" : "Não foi possível enviar o e-mail",
+        description: emailSent
+          ? `Enviamos um link para ${u.email}. O usuário precisará definir uma nova senha.`
+          : (data?.warning ?? "Use o link manual gerado para compartilhar com o usuário."),
+        variant: emailSent ? undefined : "destructive",
+      });
     } catch (e: any) {
       toast({ title: "Falha ao resetar senha", description: e.message, variant: "destructive" });
     } finally {
@@ -363,7 +374,7 @@ const Users = () => {
                       variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
-                      title="Gera senha temporária e força troca no próximo acesso"
+                      title="Envia e-mail com link para o usuário definir uma nova senha"
                     >
                       {resettingId === u.id
                         ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -411,8 +422,8 @@ const Users = () => {
           <DialogHeader>
             <DialogTitle>Resetar senha de {confirmReset?.full_name || confirmReset?.email}?</DialogTitle>
             <DialogDescription>
-              Será gerada uma senha temporária e o usuário será obrigado a trocá-la no primeiro acesso.
-              A senha atual deixará de funcionar imediatamente. Esta ação não afeta logins via Google/SSO.
+              Enviaremos um e-mail para o usuário com um link de redefinição. Ele será obrigado a definir uma nova senha no próximo acesso.
+              Esta ação não afeta logins via Google/SSO.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -425,7 +436,7 @@ const Users = () => {
               disabled={resettingId !== null}
             >
               {resettingId !== null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
-              Resetar senha
+              Enviar e-mail de redefinição
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -433,22 +444,26 @@ const Users = () => {
       <Dialog open={!!resetResult} onOpenChange={(o) => !o && setResetResult(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Senha temporária gerada</DialogTitle>
+            <DialogTitle>{resetResult?.emailSent ? "E-mail de redefinição enviado" : "Não foi possível enviar o e-mail"}</DialogTitle>
             <DialogDescription>
-              Compartilhe com {resetResult?.email} por um canal seguro. O usuário precisará trocá-la no primeiro acesso.
+              {resetResult?.emailSent
+                ? <>Enviamos um link para <strong>{resetResult?.email}</strong>. O usuário deverá abrir o e-mail e definir uma nova senha.</>
+                : (resetResult?.warning ?? "Use o link manual abaixo para compartilhar com o usuário por um canal seguro.")}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Input readOnly value={resetResult?.password ?? ""} className="font-mono" />
-              <Button size="icon" variant="outline" onClick={() => resetResult && copyText(resetResult.password, "Senha copiada")}>
-                <Copy className="h-4 w-4" />
-              </Button>
+          {resetResult?.actionLink && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Link de redefinição manual (válido por tempo limitado). Use somente se o e-mail não chegar.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={resetResult.actionLink} className="font-mono text-xs" />
+                <Button size="icon" variant="outline" onClick={() => resetResult.actionLink && copyText(resetResult.actionLink, "Link copiado")}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Esta senha não será mostrada novamente. Se perder, gere uma nova clicando em "Resetar senha".
-            </p>
-          </div>
+          )}
           <DialogFooter>
             <Button onClick={() => setResetResult(null)}>Concluir</Button>
           </DialogFooter>

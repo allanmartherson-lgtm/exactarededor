@@ -6,17 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Gera senha temporária forte e legível: 4 letras + 4 dígitos + símbolo + maiúscula
-const generateTempPassword = () => {
-  const letters = "abcdefghijkmnopqrstuvwxyz"; // sem 'l'
-  const digits = "23456789"; // sem 0/1
-  const sym = "!@#$%&*";
-  const pick = (s: string, n: number) =>
-    Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join("");
-  // Ex.: Mpay-abcd-2345!
-  const block = `${pick(letters, 4)}-${pick(digits, 4)}`;
-  const upper = letters[Math.floor(Math.random() * letters.length)].toUpperCase();
-  return `Mpay${upper}-${block}${sym[Math.floor(Math.random() * sym.length)]}`;
+const isAllowedOrigin = (o: string) => {
+  try {
+    const u = new URL(o);
+    if (u.protocol !== "https:" && !(u.hostname === "localhost" || u.hostname === "127.0.0.1")) return false;
+    return /(^|\.)lovable\.(app|dev)$/.test(u.hostname)
+      || /(^|\.)lovableproject\.com$/.test(u.hostname)
+      || u.hostname === "localhost"
+      || u.hostname === "127.0.0.1";
+  } catch { return false; }
 };
 
 serve(async (req) => {
@@ -50,18 +48,19 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const targetUserId = String(body.user_id ?? "").trim();
-    const targetEmail = String(body.email ?? "").trim().toLowerCase();
+    let targetEmail = String(body.email ?? "").trim().toLowerCase();
+    const rawOrigin = String(body.app_origin ?? "").trim();
+    const appOrigin = isAllowedOrigin(rawOrigin) ? rawOrigin.replace(/\/+$/, "") : "";
+    const redirectTo = appOrigin ? `${appOrigin}/auth/reset-password` : undefined;
+
     if (!targetUserId && !targetEmail) {
       return new Response(JSON.stringify({ error: "Informe user_id ou email" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Resolve user id
     let resolvedId = targetUserId;
-    let resolvedEmail = targetEmail;
     if (!resolvedId) {
-      // procura via listUsers (até 200)
       const { data: list, error: lerr } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
       if (lerr) throw lerr;
       const found = list.users.find((u) => u.email?.toLowerCase() === targetEmail);
@@ -71,43 +70,69 @@ serve(async (req) => {
         });
       }
       resolvedId = found.id;
-      resolvedEmail = found.email ?? targetEmail;
-    } else if (!resolvedEmail) {
+      targetEmail = found.email ?? targetEmail;
+    } else if (!targetEmail) {
       const { data: u } = await admin.auth.admin.getUserById(resolvedId);
-      resolvedEmail = u.user?.email ?? "";
+      targetEmail = u.user?.email ?? "";
     }
 
-    // Bloqueia auto-reset (admin não pode resetar a própria senha por aqui)
     if (resolvedId === userData.user.id) {
-      return new Response(JSON.stringify({ error: "Use “Esqueci minha senha” para resetar a sua própria senha." }), {
+      return new Response(JSON.stringify({ error: "Use \"Esqueci minha senha\" para resetar a sua própria senha." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const tempPassword = generateTempPassword();
-
-    // Recupera metadata atual para preservar full_name etc.
+    // Marca o usuário para troca obrigatória no próximo acesso (preserva metadata).
     const { data: existing } = await admin.auth.admin.getUserById(resolvedId);
     const prevMeta = (existing.user?.user_metadata ?? {}) as Record<string, unknown>;
-
-    const { error: updErr } = await admin.auth.admin.updateUserById(resolvedId, {
-      password: tempPassword,
-      email_confirm: true,
+    await admin.auth.admin.updateUserById(resolvedId, {
       user_metadata: {
         ...prevMeta,
         must_reset_password: true,
-        password_reset_at: new Date().toISOString(),
-        password_reset_by: userData.user.id,
+        password_reset_requested_at: new Date().toISOString(),
+        password_reset_requested_by: userData.user.id,
       },
     });
-    if (updErr) throw updErr;
+
+    // Dispara e-mail oficial de redefinição. Se cair em rate-limit (429),
+    // seguimos adiante e devolvemos um link manual para o admin compartilhar.
+    let emailSent = true;
+    let emailWarning: string | null = null;
+    try {
+      const mailer = createClient(SUPABASE_URL, ANON);
+      const { error: resetErr } = await mailer.auth.resetPasswordForEmail(targetEmail, { redirectTo });
+      if (resetErr) throw resetErr;
+    } catch (mailErr: any) {
+      const status = mailErr?.status ?? 0;
+      if (status === 429) {
+        emailSent = false;
+        emailWarning = "Limite de envio atingido. Use o link manual abaixo para compartilhar com o usuário.";
+      } else {
+        throw mailErr;
+      }
+    }
+
+    // Link manual de contingência (mesma rota/parâmetros que o e-mail oficial).
+    const { data: gen, error: genErr } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email: targetEmail,
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    if (genErr) throw genErr;
+
+    const tokenHash = gen?.properties?.hashed_token ?? null;
+    const appLink = redirectTo && tokenHash
+      ? `${redirectTo}?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`
+      : (gen?.properties?.action_link ?? null);
 
     return new Response(
       JSON.stringify({
         success: true,
         user_id: resolvedId,
-        email: resolvedEmail,
-        temp_password: tempPassword,
+        email: targetEmail,
+        email_sent: emailSent,
+        warning: emailWarning,
+        action_link: appLink,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
