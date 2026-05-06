@@ -252,6 +252,9 @@ const Rules = () => {
     rowsAttempted?: number;
   };
   const [calcSyncErrors, setCalcSyncErrors] = useState<CalcSyncError[]>([]);
+  const [calcSyncRuleId, setCalcSyncRuleId] = useState<string | null>(null);
+  const [calcSyncAttempt, setCalcSyncAttempt] = useState(0);
+  const [calcSyncRetrying, setCalcSyncRetrying] = useState(false);
   const STEP_LABELS: Record<CalcSyncError["step"], string> = {
     "delete-calculavel": "Remover cálculos antigos (regra calculável)",
     "insert-calculavel": "Inserir novos cálculos",
