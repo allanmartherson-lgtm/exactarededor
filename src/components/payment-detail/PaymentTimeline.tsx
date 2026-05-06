@@ -4,20 +4,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate, TONE_CLASSES } from "@/lib/status";
+import { formatDate } from "@/lib/status";
 import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
-import { authorRoleLabel } from "@/lib/observations";
-
-/**
- * Helper de cor por autor — mantido aqui por ser exclusivo da timeline.
- * Se outro lugar precisar do mesmo mapeamento, mover para `lib/status.ts`.
- */
-const authorBadgeClass = (t: string) =>
-  t === "ia" ? TONE_CLASSES.info
-    : t === "validador" ? TONE_CLASSES.warning
-    : t === "diretor" ? TONE_CLASSES.success
-    : TONE_CLASSES.muted;
+import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
 
 export type PaymentTimelineProps = {
   /** Observações já filtradas pelo histórico (item/payment/all). */
