@@ -225,6 +225,57 @@ export function CompanyHistoryPanel({
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }, [items]);
 
+  /**
+   * Exporta o histórico atualmente filtrado para PDF (paisagem A4).
+   * Inclui autor (nome + papel), data/hora, item relacionado e o conteúdo
+   * em texto puro — útil para anexar em auditorias / atas.
+   */
+  const exportPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    doc.setFontSize(14);
+    doc.text("Histórico do pagamento", 40, 40);
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    const filterDesc = [
+      filterItem === "all" ? "Todos os itens" : filterItem === "geral" ? "Comentários gerais" : `Item: ${itemOptions.find((o) => o.id === filterItem)?.label ?? filterItem}`,
+      filterRole === "all" ? "Todos os papéis" : `Papel: ${authorRoleLabel(filterRole)}`,
+    ].join(" · ");
+    doc.text(`Gerado em ${generatedAt} · ${filterDesc} · ${filtered.length} registro(s)`, 40, 56);
+    doc.setTextColor(0);
+
+    autoTable(doc, {
+      startY: 72,
+      head: [["Data/Hora", "Autor", "Papel", "Item", "Mensagem"]],
+      body: filtered.map((e) => [
+        fmtDate(e.at),
+        e.authorName,
+        authorRoleLabel(e.authorType),
+        e.itemLabel ?? "—",
+        e.bodyText || "—",
+      ]),
+      styles: { fontSize: 8, cellPadding: 4, valign: "top", overflow: "linebreak" },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 110 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 130 },
+        4: { cellWidth: "auto" },
+      },
+      didDrawPage: (data) => {
+        const str = `Página ${doc.getNumberOfPages()}`;
+        doc.setFontSize(8);
+        doc.setTextColor(140);
+        doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 12);
+        doc.setTextColor(0);
+      },
+    });
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    doc.save(`historico-${stamp}.pdf`);
+  };
+
   return (
     <Card className="shadow-card">
       <CardHeader className="pb-2">
