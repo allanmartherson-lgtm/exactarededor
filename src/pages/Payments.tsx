@@ -610,11 +610,12 @@ const Payments = () => {
               </button>
             </Badge>
           )}
-          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine) && (
+          {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
             <Button variant="ghost" size="sm" onClick={() => {
               setCompanyFilter(null);
               setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
               setOwnerGroup("all"); setOnlyMine(false);
+              setDivergenceFilter("all"); setQuestionedFilter("all");
               setSearchParams(new URLSearchParams(), { replace: true });
             }}>
               <X className="h-4 w-4 mr-1" /> Limpar
