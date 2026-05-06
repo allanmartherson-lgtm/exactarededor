@@ -564,12 +564,12 @@ const Rules = () => {
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
       group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
       group_doctors: scope === "grupo" ? fGroupDoctors : [],
-      time_mode: fTimeMode,
-      weekdays: fTimeMode === "personalizado" ? fWeekdays : [],
-      includes_holidays: fIncludesHolidays,
-      time_start: fTimeStart || null,
-      time_end: fTimeEnd || null,
-      elective_mode: fElectiveMode,
+      time_mode: fHasConditions ? fTimeMode : "qualquer",
+      weekdays: fHasConditions && fTimeMode === "personalizado" ? fWeekdays : [],
+      includes_holidays: fHasConditions ? fIncludesHolidays : false,
+      time_start: fHasConditions ? (fTimeStart || null) : null,
+      time_end: fHasConditions ? (fTimeEnd || null) : null,
+      elective_mode: fHasConditions ? fElectiveMode : "qualquer",
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
