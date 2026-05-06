@@ -89,6 +89,8 @@ export type ItemsDataGridProps = {
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations?: ObservationRow[];
+  /** Mapa author_id → nome completo (rastreabilidade no histórico). */
+  profiles?: Record<string, string>;
   /** Chave de persistência das preferências de coluna/densidade. */
   storageKey?: string;
   /** Mostra a toolbar de filtros + colunas + densidade. */
