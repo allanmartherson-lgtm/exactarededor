@@ -67,6 +67,7 @@ export function CompanyHistoryPanel({
   items,
   observations,
   aiVersions,
+  assignments = [],
   profiles,
 }: CompanyHistoryPanelProps) {
   const itemIds = useMemo(() => new Set(items.map((i) => i.id)), [items]);
