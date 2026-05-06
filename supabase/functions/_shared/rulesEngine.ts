@@ -1171,6 +1171,7 @@ export function analyzePaymentItems(
   const state: EngineCtx = {
     appliedAttendancesByRule: new Map<string, Set<string>>(),
     referenceLookup: options?.referenceLookup,
+    exceptionLookup: options?.exceptionLookup,
   };
   const resultsOrdered = ordered.map((it) => analyzeItem(it, filtered, state));
   // Reordenar resultados para a ordem original de `items`
