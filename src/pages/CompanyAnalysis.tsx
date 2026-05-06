@@ -482,6 +482,7 @@ function Stat({
 function DivergenceCard({
   it,
   comments,
+  profiles,
   draft,
   onDraftChange,
   onAdd,
@@ -489,6 +490,7 @@ function DivergenceCard({
 }: {
   it: PaymentItemRow;
   comments: ObservationRow[];
+  profiles: Record<string, string>;
   draft: string;
   onDraftChange: (v: string) => void;
   onAdd: () => void;
