@@ -46,6 +46,28 @@ const Users = () => {
   const [resetResult, setResetResult] = useState<{ email: string; emailSent: boolean; warning: string | null; actionLink: string | null } | null>(null);
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
+  const [editingPhone, setEditingPhone] = useState<{ id: string; email: string; full_name: string | null; phone: string } | null>(null);
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  const savePhone = async () => {
+    if (!editingPhone) return;
+    const digits = editingPhone.phone.replace(/\D/g, "");
+    if (digits && digits.length !== 11) {
+      toast({ title: "Telefone inválido", description: "Use DDD + 9 dígitos (11 números) ou deixe em branco.", variant: "destructive" });
+      return;
+    }
+    setSavingPhone(true);
+    const { error } = await supabase.from("profiles").update({ phone: digits || null }).eq("id", editingPhone.id);
+    setSavingPhone(false);
+    if (error) {
+      toast({ title: "Erro ao salvar telefone", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Telefone atualizado", description: "Usado para WhatsApp do diretor." });
+    setEditingPhone(null);
+    load();
+  };
+
 
   const copyText = async (text: string, successTitle = "Copiado") => {
     try {
@@ -420,6 +442,17 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => setEditingPhone({ id: u.id, email: u.email, full_name: u.full_name, phone: u.phone ?? "" })}
+                      title="Editar telefone (WhatsApp para notificações de aprovação)"
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                      WhatsApp
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
                       title="Envia e-mail com link para o usuário definir uma nova senha"
@@ -463,6 +496,33 @@ const Users = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editingPhone} onOpenChange={(o) => !o && setEditingPhone(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Telefone (WhatsApp) — {editingPhone?.full_name || editingPhone?.email}</DialogTitle>
+            <DialogDescription>
+              Usado para enviar a notificação automática quando um pagamento entra em "aguardando aprovação".
+              Formato: DDD + 9 dígitos (ex.: 11987654321). Deixe em branco para remover.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="edit-phone">Telefone</Label>
+            <Input
+              id="edit-phone"
+              value={formatPhone(editingPhone?.phone ?? "")}
+              onChange={(e) => setEditingPhone(editingPhone ? { ...editingPhone, phone: e.target.value.replace(/\D/g, "").slice(0, 11) } : null)}
+              placeholder="(11) 98765-4321"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPhone(null)} disabled={savingPhone}>Cancelar</Button>
+            <Button onClick={savePhone} disabled={savingPhone}>
+              {savingPhone && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={!!confirmReset} onOpenChange={(o) => !o && setConfirmReset(null)}>

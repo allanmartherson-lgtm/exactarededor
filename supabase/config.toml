@@ -1,1 +1,4 @@
 project_id = "bexwvmnwsbltrspmwusp"
+
+[functions.notify-director-approval]
+verify_jwt = false

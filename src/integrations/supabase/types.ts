@@ -720,6 +720,30 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_director_notifications: {
+        Row: {
+          email_results: Json
+          id: string
+          notified_at: string
+          payment_id: string
+          whatsapp_results: Json
+        }
+        Insert: {
+          email_results?: Json
+          id?: string
+          notified_at?: string
+          payment_id: string
+          whatsapp_results?: Json
+        }
+        Update: {
+          email_results?: Json
+          id?: string
+          notified_at?: string
+          payment_id?: string
+          whatsapp_results?: Json
+        }
+        Relationships: []
+      }
       payment_items: {
         Row: {
           access_route: string | null
