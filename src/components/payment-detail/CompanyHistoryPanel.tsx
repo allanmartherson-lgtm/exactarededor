@@ -50,6 +50,8 @@ type Entry = {
   itemId: string | null;
   itemLabel: string | null;
   body: React.ReactNode;
+  /** Versão somente texto do body — usada na exportação em PDF. */
+  bodyText: string;
 };
 
 function fmtDate(iso: string) {
