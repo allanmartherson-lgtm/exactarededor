@@ -304,6 +304,7 @@ const PaymentDetail = () => {
     }
     setBusy(true);
     await autoClaim();
+    for (const g of targets) {
       const { error: upErr } = await supabase.from("payment_company_groups")
         .update({ status: "aguardando_validacao" }).eq("id", g.id);
       if (upErr) {
