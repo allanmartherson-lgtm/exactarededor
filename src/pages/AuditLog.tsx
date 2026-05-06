@@ -262,16 +262,24 @@ const AuditLog = () => {
                             <span className="font-medium text-sm truncate">{entityLabel}</span>
                           </div>
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              {actor.isSystem ? (
-                                <Badge variant="outline" className="font-normal">IA / Sistema</Badge>
-                              ) : (
-                                <>
-                                  <span className="text-foreground">{actor.label}</span>
-                                  {actor.role && (
-                                    <Badge variant="outline" className="font-normal">{ROLE_LABELS[actor.role]}</Badge>
-                                  )}
-                                </>
+                            <span className="flex items-center gap-1.5">
+                              {(() => {
+                                const v = getRoleVisual(actor.isSystem ? "ia" : actor.role);
+                                const RoleIcon = v.Icon;
+                                return (
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide text-[10px] font-semibold",
+                                      v.badgeClass,
+                                    )}
+                                  >
+                                    <RoleIcon className="h-3 w-3" />
+                                    {actor.isSystem ? "IA / Sistema" : (actor.role ? ROLE_LABELS[actor.role] : "—")}
+                                  </span>
+                                );
+                              })()}
+                              {!actor.isSystem && (
+                                <span className="text-foreground">{actor.label}</span>
                               )}
                             </span>
                             {e.company_name && (
