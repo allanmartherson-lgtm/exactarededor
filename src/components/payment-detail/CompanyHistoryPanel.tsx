@@ -169,6 +169,11 @@ export function CompanyHistoryPanel({
       const analystName = profiles[a.analyst_id] || "—";
       const prevName = a.previous_analyst_id ? (profiles[a.previous_analyst_id] || "—") : null;
       const isTransfer = a.action === "transferiu";
+      const assignText = `${analystName} ${
+        isTransfer
+          ? `assumiu o lote${prevName ? ` de ${prevName}` : ""}`
+          : "assumiu o lote"
+      }${a.source === "auto" ? " (registro automático na 1ª ação)" : ""}${a.note ? ` — ${a.note}` : ""}.`;
       out.push({
         id: `assign-${a.id}`,
         at: a.created_at,
@@ -177,6 +182,7 @@ export function CompanyHistoryPanel({
         authorName: analystName,
         itemId: null,
         itemLabel: null,
+        bodyText: assignText,
         body: (
           <p className="whitespace-pre-wrap">
             <strong>{analystName}</strong>{" "}
