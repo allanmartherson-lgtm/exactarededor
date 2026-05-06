@@ -1052,30 +1052,31 @@ const PaymentDetail = () => {
               if (sq && !groupNameMatches && matchedItems.length === 0) return null;
               if (isErrorOnly && visibleByErrorOnly.length === 0) return null;
               return (
-                <PaymentGroupCard
-                  key={g.id}
-                  g={g}
-                  groupItems={groupItemsAll}
-                  searchActive={!!sq}
-                  obs={obs}
-                  invoices={invoices}
-                  isExpanded={expandedGroups.has(g.id)}
-                  onToggleExpanded={() =>
-                    setExpandedGroups((prev) => {
-                      const n = new Set(prev);
-                      n.has(g.id) ? n.delete(g.id) : n.add(g.id);
-                      return n;
-                    })
-                  }
-                  isAiOpen={groupAiOpen.has(g.id)}
-                  onToggleAiOpen={() =>
-                    setGroupAiOpen((prev) => {
-                      const n = new Set(prev);
-                      n.has(g.id) ? n.delete(g.id) : n.add(g.id);
-                      return n;
-                    })
-                  }
-                />
+                <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20">
+                  <PaymentGroupCard
+                    g={g}
+                    groupItems={groupItemsAll}
+                    searchActive={!!sq}
+                    obs={obs}
+                    invoices={invoices}
+                    isExpanded={expandedGroups.has(g.id)}
+                    onToggleExpanded={() =>
+                      setExpandedGroups((prev) => {
+                        const n = new Set(prev);
+                        n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                        return n;
+                      })
+                    }
+                    isAiOpen={groupAiOpen.has(g.id)}
+                    onToggleAiOpen={() =>
+                      setGroupAiOpen((prev) => {
+                        const n = new Set(prev);
+                        n.has(g.id) ? n.delete(g.id) : n.add(g.id);
+                        return n;
+                      })
+                    }
+                  />
+                </div>
               );
               });
             })()}
