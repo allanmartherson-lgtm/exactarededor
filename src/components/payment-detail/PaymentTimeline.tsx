@@ -4,20 +4,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate, TONE_CLASSES } from "@/lib/status";
+import { formatDate } from "@/lib/status";
 import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
-import { authorRoleLabel } from "@/lib/observations";
-
-/**
- * Helper de cor por autor — mantido aqui por ser exclusivo da timeline.
- * Se outro lugar precisar do mesmo mapeamento, mover para `lib/status.ts`.
- */
-const authorBadgeClass = (t: string) =>
-  t === "ia" ? TONE_CLASSES.info
-    : t === "validador" ? TONE_CLASSES.warning
-    : t === "diretor" ? TONE_CLASSES.success
-    : TONE_CLASSES.muted;
+import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
 
 export type PaymentTimelineProps = {
   /** Observações já filtradas pelo histórico (item/payment/all). */
@@ -123,6 +113,8 @@ export const PaymentTimeline = ({
         if (!relatedInvoiceId && isQuestion && invoices.length === 1) {
           relatedInvoiceId = invoices[0].id;
         }
+        const visual = getRoleVisual(o.author_type);
+        const RoleIcon = visual.Icon;
         return (
           <li
             key={o.id}
@@ -132,7 +124,7 @@ export const PaymentTimeline = ({
           >
             <span
               className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${
-                isQuestion ? "bg-warning" : "bg-primary"
+                isQuestion ? "bg-warning" : visual.dotClass
               }`}
             />
             <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
@@ -142,10 +134,9 @@ export const PaymentTimeline = ({
                 </span>
               )}
               <span
-                className={`inline-flex rounded-full border px-2 py-0.5 uppercase tracking-wide ${authorBadgeClass(
-                  o.author_type,
-                )}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide ${visual.badgeClass}`}
               >
+                <RoleIcon className="h-3 w-3" />
                 {authorRoleLabel(o.author_type)}
               </span>
               <span
@@ -158,9 +149,6 @@ export const PaymentTimeline = ({
                   : o.author_type === "sistema" || o.author_type === "ia"
                     ? "Sistema"
                     : "Usuário desconhecido"}
-                <span className="text-muted-foreground font-normal">
-                  ({authorRoleLabel(o.author_type)})
-                </span>
               </span>
               {o.item_id && (
                 <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>

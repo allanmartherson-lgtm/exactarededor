@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, Sparkles, MessageSquare, Bot, User as UserIcon, UserCheck } from "lucide-react";
+import { History, User as UserIcon, UserCheck } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
@@ -16,7 +16,7 @@ import type {
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
-import { authorRoleLabel } from "@/lib/observations";
+import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
 
 /**
  * Painel unificado de histórico (IA + analistas/validadores/diretores) para
@@ -238,48 +238,38 @@ export function CompanyHistoryPanel({
         ) : (
           <ul className="space-y-2">
             {filtered.map((e) => {
-              const Icon =
-                e.kind === "assign"
-                  ? UserCheck
-                  : e.kind === "ai"
-                  ? Bot
-                  : e.authorType === "sistema"
-                  ? Sparkles
-                  : e.authorType === "ia"
-                  ? Bot
-                  : MessageSquare;
-              const tone =
-                e.kind === "assign"
-                  ? "border-l-warning"
-                  : e.kind === "ai" || e.authorType === "ia"
-                  ? "border-l-info"
-                  : e.authorType === "validador"
-                  ? "border-l-primary"
-                  : e.authorType === "diretor"
-                  ? "border-l-accent"
-                  : e.authorType === "sistema"
-                  ? "border-l-muted-foreground"
-                  : "border-l-success";
+              // Atribuição manual mantém ícone próprio (UserCheck);
+              // demais entradas usam a identidade visual unificada por papel.
+              const visual = getRoleVisual(
+                e.kind === "ai" ? "ia" : e.authorType,
+              );
+              const Icon = e.kind === "assign" ? UserCheck : visual.Icon;
+              const borderClass =
+                e.kind === "assign" ? "border-l-warning" : visual.borderClass;
               return (
                 <li
                   key={e.id}
                   className={cn(
                     "rounded-md border bg-muted/20 px-3 py-2 text-xs border-l-4",
-                    tone,
+                    borderClass,
                   )}
                 >
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted text-foreground/80">
-                      {e.kind === "assign" ? e.authorType : authorRoleLabel(e.authorType)}
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide",
+                        e.kind === "assign"
+                          ? "bg-warning-soft text-warning-foreground border-warning/40"
+                          : visual.badgeClass,
+                      )}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
                     </span>
                     {e.authorName && (
                       <span className="flex items-center gap-1 text-foreground/80">
                         <UserIcon className="h-3 w-3" />
                         {e.authorName}
-                        {e.kind !== "assign" && (
-                          <span className="opacity-70">({authorRoleLabel(e.authorType)})</span>
-                        )}
                       </span>
                     )}
                     <span className="ml-auto tabular-nums">{fmtDate(e.at)}</span>

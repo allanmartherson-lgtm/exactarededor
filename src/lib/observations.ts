@@ -1,24 +1,88 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { PaymentStatus } from "@/lib/status";
+import {
+  Bot, Sparkles, ShieldCheck, UserCog, ClipboardList, User as UserIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 type ObservationRow = Database["public"]["Tables"]["payment_observations"]["Row"];
 export type ObservationAuthorType = ObservationRow["author_type"];
 
 /**
  * Rótulo legível do papel do autor de uma observação/registro de histórico.
- * Centralizado para garantir consistência visual em todas as telas que
- * exibem o autor (timeline, histórico do item, histórico unificado).
  */
 export function authorRoleLabel(t: string | null | undefined): string {
   switch (t) {
     case "analista": return "Analista";
     case "validador": return "Validador";
     case "diretor": return "Diretor";
+    case "admin": return "Administrador";
     case "sistema": return "Sistema";
     case "ia": return "IA";
     default: return t ? t.charAt(0).toUpperCase() + t.slice(1) : "—";
   }
+}
+
+/**
+ * Identidade visual unificada por papel — usada em TODAS as telas de
+ * histórico/timeline/auditoria para que o leitor reconheça rapidamente
+ * "quem fez o quê" só pela cor + ícone. Tokens semânticos do design system.
+ */
+export type RoleVisual = {
+  label: string;
+  Icon: LucideIcon;
+  /** Classe para badge (bg + texto + borda). */
+  badgeClass: string;
+  /** Classe de borda lateral esquerda — para cards/itens da timeline. */
+  borderClass: string;
+  /** Cor sólida para bullets/dots. */
+  dotClass: string;
+};
+
+const ROLE_VISUALS: Record<string, RoleVisual> = {
+  ia: {
+    label: "IA", Icon: Bot,
+    badgeClass: "bg-info-soft text-info border-info/30",
+    borderClass: "border-l-info", dotClass: "bg-info",
+  },
+  sistema: {
+    label: "Sistema", Icon: Sparkles,
+    badgeClass: "bg-muted text-muted-foreground border-border",
+    borderClass: "border-l-muted-foreground", dotClass: "bg-muted-foreground",
+  },
+  analista: {
+    label: "Analista", Icon: ClipboardList,
+    badgeClass: "bg-success-soft text-success border-success/30",
+    borderClass: "border-l-success", dotClass: "bg-success",
+  },
+  validador: {
+    label: "Validador", Icon: ShieldCheck,
+    badgeClass: "bg-primary-soft text-primary border-primary/30",
+    borderClass: "border-l-primary", dotClass: "bg-primary",
+  },
+  diretor: {
+    label: "Diretor", Icon: UserCog,
+    badgeClass: "bg-warning-soft text-warning-foreground border-warning/40",
+    borderClass: "border-l-warning", dotClass: "bg-warning",
+  },
+  admin: {
+    label: "Administrador", Icon: UserCog,
+    badgeClass: "bg-warning-soft text-warning-foreground border-warning/40",
+    borderClass: "border-l-warning", dotClass: "bg-warning",
+  },
+};
+
+const ROLE_FALLBACK: RoleVisual = {
+  label: "—", Icon: UserIcon,
+  badgeClass: "bg-muted text-muted-foreground border-border",
+  borderClass: "border-l-border", dotClass: "bg-muted-foreground",
+};
+
+/** Identidade visual (cor + ícone + label) por papel. */
+export function getRoleVisual(role: string | null | undefined): RoleVisual {
+  if (!role) return ROLE_FALLBACK;
+  return ROLE_VISUALS[role] ?? ROLE_FALLBACK;
 }
 
 export type RecordObservationInput = {
