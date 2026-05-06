@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/status";
-import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X } from "lucide-react";
+import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X, Filter } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
 import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
+
+const ROLE_FILTER_OPTIONS = ["analista", "validador", "diretor", "admin", "sistema", "ia"] as const;
 
 export type PaymentTimelineProps = {
   /** Observações já filtradas pelo histórico (item/payment/all). */
@@ -49,6 +52,20 @@ export const PaymentTimeline = ({
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  // Lista os papéis efetivamente presentes nas observações para evitar
+  // exibir opções vazias no Select.
+  const availableRoles = useMemo(() => {
+    const set = new Set<string>();
+    observations.forEach((o) => o.author_type && set.add(o.author_type));
+    return ROLE_FILTER_OPTIONS.filter((r) => set.has(r));
+  }, [observations]);
+
+  const filtered = useMemo(() => {
+    if (roleFilter === "all") return observations;
+    return observations.filter((o) => o.author_type === roleFilter);
+  }, [observations, roleFilter]);
 
   const startEditObs = (o: ObservationRow) => {
     setEditingObsId(o.id);
@@ -80,6 +97,34 @@ export const PaymentTimeline = ({
     toast({ title: "Observação atualizada" });
   };
 
+  const FilterBar = (
+    <div className="flex items-center gap-2 mb-3 text-xs">
+      <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="text-muted-foreground">Papel:</span>
+      <Select value={roleFilter} onValueChange={setRoleFilter}>
+        <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos os papéis</SelectItem>
+          {availableRoles.map((r) => {
+            const v = getRoleVisual(r);
+            const RoleIcon = v.Icon;
+            return (
+              <SelectItem key={r} value={r}>
+                <span className="inline-flex items-center gap-2">
+                  <RoleIcon className="h-3.5 w-3.5" />
+                  {authorRoleLabel(r)}
+                </span>
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+      <span className="text-muted-foreground ml-auto tabular-nums">
+        {filtered.length} de {observations.length}
+      </span>
+    </div>
+  );
+
   if (observations.length === 0) {
     return (
       <p className="text-sm text-muted-foreground text-center py-6">
@@ -89,8 +134,15 @@ export const PaymentTimeline = ({
   }
 
   return (
-    <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
-      {observations.map((o) => {
+    <div>
+      {FilterBar}
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Nenhuma observação do papel selecionado.
+        </p>
+      ) : (
+        <ol className="relative border-l border-border pl-4 space-y-3 max-h-[600px] overflow-y-auto">
+          {filtered.map((o) => {
         const canEdit = !!user && o.author_id === user.id;
         const isEditing = editingObsId === o.id;
         // Destaca visualmente questionamentos do recebedor — são críticos.
@@ -213,6 +265,8 @@ export const PaymentTimeline = ({
           </li>
         );
       })}
-    </ol>
+        </ol>
+      )}
+    </div>
   );
 };
