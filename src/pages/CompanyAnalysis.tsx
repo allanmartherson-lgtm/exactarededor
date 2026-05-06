@@ -459,9 +459,32 @@ export default function CompanyAnalysis() {
                 <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
                 {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
               </Button>
-              <Button variant="outline" size="sm" onClick={returnToAnalyst} disabled={busy}>
-                <RotateCcw className="h-4 w-4 mr-2" /> Devolver para analista
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
+                    <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
+                      Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
+                      A observação registrada acima (se houver) será anexada ao histórico.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={cancelBatch}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Cancelar lote
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button size="sm" onClick={sendForValidation} disabled={busy}>
                 <Send className="h-4 w-4 mr-2" />
                 {returner ? `Reencaminhar ao ${returner}` : "Enviar para validação"}
