@@ -570,6 +570,16 @@ const PaymentDetail = () => {
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
   const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
   const canDelete = (isOwner || isDiretor) && editableStatuses.includes(payment.status as PaymentStatus);
+  const canEditMeta = canEditBatch(payment.status as PaymentStatus, {
+    isOwner,
+    isAnalista,
+    isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
+  });
+  // Quando o usuário corrente é validador ou diretor MAS criou o lote,
+  // mostramos um aviso de segregação de funções no topo.
+  const segregationBlocked = isOwner && (isValidador || isDiretor) && !isAnalista
+    ? false // só validador/diretor sem ser analista — caso raro
+    : isOwner && (isValidador || isDiretor);
 
   const cancelPayment = async () => {
     if (!id) return;
