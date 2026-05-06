@@ -79,6 +79,7 @@ export function CompanyHistoryPanel({
   }, [items]);
 
   const [filterItem, setFilterItem] = useState<string>("all");
+  const [filterRole, setFilterRole] = useState<string>("all");
 
   const entries = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
