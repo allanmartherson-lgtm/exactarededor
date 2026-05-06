@@ -243,6 +243,20 @@ const Rules = () => {
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
   // === Lista de itens de cálculo (1:N com a regra) ===
   const [fCalculations, setFCalculations] = useState<CalcItem[]>([makeEmptyCalc()]);
+  type CalcSyncError = {
+    step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
+    message: string;
+    code?: string | null;
+    details?: string | null;
+    hint?: string | null;
+    rowsAttempted?: number;
+  };
+  const [calcSyncErrors, setCalcSyncErrors] = useState<CalcSyncError[]>([]);
+  const STEP_LABELS: Record<CalcSyncError["step"], string> = {
+    "delete-calculavel": "Remover cálculos antigos (regra calculável)",
+    "insert-calculavel": "Inserir novos cálculos",
+    "delete-informativo": "Limpar cálculos (regra informativa)",
+  };
 
   // Persistência das seções abertas do accordion (lembra entre aberturas do modal)
   const ACCORDION_STORAGE_KEY = "rules.form.accordion.v1";
