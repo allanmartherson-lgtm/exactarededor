@@ -780,6 +780,7 @@ export type Database = {
           quantity: number | null
           raw_data: Json | null
           specialty: string | null
+          tipo_item: string | null
           tipo_linha: string | null
         }
         Insert: {
@@ -817,6 +818,7 @@ export type Database = {
           quantity?: number | null
           raw_data?: Json | null
           specialty?: string | null
+          tipo_item?: string | null
           tipo_linha?: string | null
         }
         Update: {
@@ -854,6 +856,7 @@ export type Database = {
           quantity?: number | null
           raw_data?: Json | null
           specialty?: string | null
+          tipo_item?: string | null
           tipo_linha?: string | null
         }
         Relationships: [
@@ -1073,6 +1076,45 @@ export type Database = {
           id?: string
           observation?: string | null
           sector_classified?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      procedure_specialty_map: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          confidence_pct: number | null
+          created_at: string
+          description: string | null
+          medical_specialty: string
+          procedure_code: string
+          sample_size: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          description?: string | null
+          medical_specialty: string
+          procedure_code: string
+          sample_size?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          confidence_pct?: number | null
+          created_at?: string
+          description?: string | null
+          medical_specialty?: string
+          procedure_code?: string
+          sample_size?: number | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
