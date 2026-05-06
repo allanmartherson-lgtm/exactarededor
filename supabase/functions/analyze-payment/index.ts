@@ -73,7 +73,8 @@ serve(async (req) => {
         rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,
         exclusion_reason,allows_authorized_exception,
-        agreement_name,agreement_aliases,agreement_match_mode
+        agreement_name,agreement_aliases,agreement_match_mode,
+        exception_table_ids
       `)
       .eq("active", true);
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
