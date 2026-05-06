@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
+import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, RotateCcw, History } from "lucide-react";
 import { resolveResendTarget } from "@/lib/paymentFlow";
 import {
   formatCurrency,
