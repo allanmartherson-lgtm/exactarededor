@@ -422,8 +422,8 @@ const Users = () => {
           <DialogHeader>
             <DialogTitle>Resetar senha de {confirmReset?.full_name || confirmReset?.email}?</DialogTitle>
             <DialogDescription>
-              Será gerada uma senha temporária e o usuário será obrigado a trocá-la no primeiro acesso.
-              A senha atual deixará de funcionar imediatamente. Esta ação não afeta logins via Google/SSO.
+              Enviaremos um e-mail para o usuário com um link de redefinição. Ele será obrigado a definir uma nova senha no próximo acesso.
+              Esta ação não afeta logins via Google/SSO.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
