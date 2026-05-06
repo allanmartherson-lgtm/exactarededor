@@ -19,6 +19,7 @@ import Users from "./pages/Users.tsx";
 import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
 import Companies from "./pages/Companies.tsx";
+import CompanyAliases from "./pages/CompanyAliases.tsx";
 import Doctors from "./pages/Doctors.tsx";
 import ProcedureSpecialtyMap from "./pages/ProcedureSpecialtyMap.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
