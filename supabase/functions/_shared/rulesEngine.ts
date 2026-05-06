@@ -715,9 +715,19 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
 
 export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string) => number | null;
 
+/**
+ * Camada 2: dado um id de tabela de exceção (sem_acordo/exclusao) e um código
+ * TUSS, retorna metadados se o código está nessa tabela; null caso contrário.
+ */
+export type ExceptionTableLookup = (
+  referenceTableId: string,
+  procedureCode: string,
+) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
+
 export interface EngineCtx {
   appliedAttendancesByRule: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
+  exceptionLookup?: ExceptionTableLookup;
 }
 
 export function applyCalculation(
