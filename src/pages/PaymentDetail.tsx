@@ -557,6 +557,39 @@ const PaymentDetail = () => {
     load();
   };
 
+  const openEditMeta = () => {
+    if (!payment) return;
+    setMetaDraft({
+      reference: payment.reference ?? "",
+      description: payment.description ?? "",
+      payment_due_date: payment.payment_due_date ?? "",
+    });
+    setEditMetaOpen(true);
+  };
+  const saveMeta = async () => {
+    if (!id || !payment) return;
+    setSavingMeta(true);
+    const updates: PaymentUpdate = {
+      reference: metaDraft.reference.trim() || payment.reference,
+      description: metaDraft.description.trim() || null,
+      payment_due_date: metaDraft.payment_due_date || null,
+    };
+    const { error } = await supabase.from("payments").update(updates).eq("id", id);
+    setSavingMeta(false);
+    if (error) {
+      toast({ title: "Falha ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    await recordObservation({
+      payment_id: id, author_type: "analista", author_id: user!.id,
+      message: `Lote editado pelo analista (referência/descrição/vencimento).`,
+      status_from: payment.status, status_to: payment.status,
+    });
+    toast({ title: "Lote atualizado" });
+    setEditMetaOpen(false);
+    load();
+  };
+
   if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
 
   const isValidador = hasRole("validador") || hasRole("admin");
