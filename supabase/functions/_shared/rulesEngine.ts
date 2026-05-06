@@ -1346,6 +1346,7 @@ export function analyzeItem(
     needs_ai_review: status !== "aprovado",
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
+    ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
   };
 }
 
