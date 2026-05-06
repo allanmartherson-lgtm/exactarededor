@@ -52,6 +52,7 @@ import type {
 } from "@/hooks/usePaymentDetailData";
 import { scoreAttendance, classifyRisk, RISK_LABELS } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
+import { cn } from "@/lib/utils";
 
 function DedicatedAnalysisLink({ groupId }: { groupId: string }) {
   const { id } = useParams<{ id: string }>();
@@ -374,6 +375,29 @@ export const PaymentGroupCard = ({
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {groupExpandedEffective && (groupRisk === "alto" || groupRisk === "critico") && (
+        <div
+          className={cn(
+            "border-t flex items-center gap-2 px-4 py-2 text-xs",
+            groupRisk === "critico"
+              ? "border-destructive/30 bg-destructive-soft text-destructive"
+              : "border-warning/30 bg-warning-soft text-warning-foreground",
+          )}
+          role={groupRisk === "critico" ? "alert" : "status"}
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <p className="leading-snug">
+            <span className="font-semibold">
+              {groupRisk === "critico" ? "Ação obrigatória:" : "Priorize a revisão:"}
+            </span>{" "}
+            {groupRisk === "critico"
+              ? "há reprovações ou bloqueios neste grupo — analise antes de aprovar para pagamento."
+              : "vários sinais somados elevaram o risco — confira os itens marcados antes de seguir."}
+            {groupMaxScore > 0 && <span className="opacity-80"> Score: {groupMaxScore}.</span>}
+          </p>
         </div>
       )}
 
