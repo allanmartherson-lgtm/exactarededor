@@ -855,35 +855,67 @@ export function applyCalculation(
   // ---- NOVO: itens de cálculo (1:N) ----
   const list = Array.isArray(rule.calculations) ? rule.calculations : [];
   if (list.length > 0) {
-    const matched = list.filter((c) => calcItemMatches(c, item));
-    if (matched.length === 0) {
-      return {
-        expected: null,
-        explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições (período/horário/dia) deste item.`,
-        alerts: ["Nenhum item de cálculo da regra se aplica a este item."],
-      };
-    }
+    const breakdown: CalculationBreakdownEntry[] = [];
     let sum = 0;
-    let anyNull = false;
-    const parts: string[] = [];
-    const alerts: string[] = [];
-    for (const c of matched) {
+    let anyMatched = false;
+    let anyNullMatched = false;
+    const aggAlerts: string[] = [];
+    const matchedExplanations: string[] = [];
+
+    for (const c of list) {
+      const label = (c.label && c.label.trim()) || c.calculation_type;
+      const m = calcItemMatches(c, item);
+      if (!m.ok) {
+        breakdown.push({
+          calc_id: c.id ?? null,
+          label,
+          calculation_type: c.calculation_type,
+          matched: false,
+          skip_reason: m.reason,
+          expected: null,
+          explanation: `Não aplicado — condição "${m.reason}" não satisfeita.`,
+          alerts: [],
+        });
+        continue;
+      }
+      anyMatched = true;
       const eff = ruleFromCalcItem(rule, c);
       const r = applyCalculationSingle(eff, item, ctx);
-      if (r.expected == null) { anyNull = true; }
-      else { sum += r.expected; }
-      parts.push(`[${c.label ?? c.calculation_type}] ${r.explanation}`);
-      alerts.push(...r.alerts);
+      const prefixedAlerts = r.alerts.map((a) => `[${label}] ${a}`);
+      breakdown.push({
+        calc_id: c.id ?? null,
+        label,
+        calculation_type: c.calculation_type,
+        matched: true,
+        expected: r.expected,
+        explanation: r.explanation,
+        alerts: prefixedAlerts,
+      });
+      aggAlerts.push(...prefixedAlerts);
+      matchedExplanations.push(`[${label}] ${r.explanation}`);
+      if (r.expected == null) anyNullMatched = true;
+      else sum += r.expected;
     }
-    if (anyNull && sum === 0) {
-      return { expected: null, explanation: parts.join(" + "), alerts };
+
+    if (!anyMatched) {
+      return {
+        expected: null,
+        explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições deste item.`,
+        alerts: ["Nenhum item de cálculo da regra se aplica a este item."],
+        breakdown,
+      };
+    }
+
+    if (anyNullMatched && sum === 0) {
+      return { expected: null, explanation: matchedExplanations.join(" + "), alerts: aggAlerts, breakdown };
     }
     const expected = Number(sum.toFixed(2));
-    const header = matched.length > 1 ? `Soma de ${matched.length} cálculos` : "1 cálculo";
+    const header = matchedExplanations.length > 1 ? `Soma de ${matchedExplanations.length} cálculos` : "1 cálculo";
     return {
       expected,
-      explanation: `${header}: ${parts.join(" + ")} = R$ ${expected.toFixed(2)}${anyNull ? " (alguns cálculos sem valor base)" : ""}`,
-      alerts,
+      explanation: `${header}: ${matchedExplanations.join(" + ")} = R$ ${expected.toFixed(2)}${anyNullMatched ? " (alguns cálculos sem valor base)" : ""}`,
+      alerts: aggAlerts,
+      breakdown,
     };
   }
   // ---- LEGADO: campos diretos na regra ----
