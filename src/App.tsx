@@ -16,6 +16,7 @@ import ValidationRules from "./pages/ValidationRules.tsx";
 import ReferenceTables from "./pages/ReferenceTables.tsx";
 
 import Users from "./pages/Users.tsx";
+import ValidatorGroups from "./pages/ValidatorGroups.tsx";
 import Invoices from "./pages/Invoices.tsx";
 import InvoicePortal from "./pages/InvoicePortal.tsx";
 import Companies from "./pages/Companies.tsx";
@@ -74,6 +75,7 @@ const App = () => (
               <Route path="/centros-de-custo" element={<CostCenters />} />
               <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
+              <Route path="/grupos-validadores" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidatorGroups /></ProtectedRoute>} />
               <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
               <Route path="/wcag-audit" element={<WcagAudit />} />
               <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
