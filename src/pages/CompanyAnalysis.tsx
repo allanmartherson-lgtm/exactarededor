@@ -47,6 +47,7 @@ import {
   type AiFindings,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { SendForValidationPopover } from "@/components/SendForValidationPopover";
 
 /**
  * Tela dedicada de análise por empresa dentro de um lote.
