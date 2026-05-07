@@ -78,6 +78,7 @@ const App = () => (
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
               <Route path="/grupos-validadores" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidatorGroups /></ProtectedRoute>} />
               <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
+              <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
               <Route path="/wcag-audit" element={<WcagAudit />} />
               <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
               <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
