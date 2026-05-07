@@ -614,10 +614,14 @@ const Dashboard = () => {
       // usuário logado (created_by/validated_by). A fila coletiva do papel
       // aparece em "Tarefas em aberto" e no Pipeline da equipe.
       const c: DashboardCounts = { ...initialCounts };
-      (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
+      (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
         const isMineRow =
-          !!uid && (p.created_by === uid || p.validated_by === uid);
+          !!uid && (
+            p.created_by === uid ||
+            p.validated_by === uid ||
+            (p.status === "aguardando_validacao" && myValidatorPayments.has(p.id))
+          );
         if (owner === "analista") {
           c.teamAnalise++;
           if (isMineRow) c.mineAnalista++;
