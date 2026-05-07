@@ -725,6 +725,10 @@ const PaymentDetail = () => {
     isAnalista,
     isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
   });
+  const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
+  const canAssumeNow = canAssumeBatch(payment.status as PaymentStatus, {
+    isAnalista, isValidador, isDiretor, isOwner,
+  });
   // Quando o usuário corrente é validador ou diretor MAS criou o lote,
   // mostramos um aviso de segregação de funções no topo.
   const segregationBlocked = isOwner && (isValidador || isDiretor) && !isAnalista
