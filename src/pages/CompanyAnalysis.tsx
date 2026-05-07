@@ -602,10 +602,16 @@ export default function CompanyAnalysis() {
 
   const isOwner = payment.created_by === user?.id;
   const isAnalista = hasRole("analista") || hasRole("admin");
+  const isAdmin = hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
-  const canActAnalista = (gStatus === "revisao_analista" || gStatus === "devolvido_analista") && isAnalistaRole;
+  // Governança: analista só atua se for o dono do lote (ou admin).
+  // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
+  const canActAnalista =
+    (gStatus === "revisao_analista" || gStatus === "devolvido_analista") &&
+    isAnalistaRole &&
+    (isOwner || isAdmin);
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
