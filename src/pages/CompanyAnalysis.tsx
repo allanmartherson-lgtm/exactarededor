@@ -581,6 +581,7 @@ export default function CompanyAnalysis() {
     load();
   };
 
+  if (loading) {
     return (
       <div className="space-y-4">
         <PageHeader title="Carregando análise…" />
