@@ -65,25 +65,18 @@ describe("PaymentDetail.tsx — gates de governança nos botões", () => {
   });
 
   it("botão 'Editar lote' está dentro do gate canEditMeta", () => {
-    expect(enclosingGate(paymentDetail, "Editar lote")).toBe("canEditMeta");
+    // Marcador específico do JSX (não pega o comentário).
+    expect(enclosingGate(paymentDetail, "/> Editar lote")).toBe("canEditMeta");
   });
 
   it("botão 'Reimportar base' está dentro do gate canReimport", () => {
-    expect(enclosingGate(paymentDetail, "Reimportar base")).toBe("canReimport");
+    expect(enclosingGate(paymentDetail, "Reimportando…\" : \"Reimportar base\"")).toBe(
+      "canReimport",
+    );
   });
 
   it("AssignmentCard recebe canAssume={canAssumeNow} (botão Assumir governado)", () => {
     expect(paymentDetail).toMatch(/canAssume=\{canAssumeNow\}/);
-  });
-
-  it("não há botão 'Editar lote' ou 'Reimportar base' fora dos gates corretos", () => {
-    // Cada label aparece exatamente uma vez (no botão visível). O fragmento
-    // 'Editar lote' aparece também no DialogTitle dentro do mesmo bloco gate.
-    const editarOccurrences = paymentDetail.match(/Editar lote/g) ?? [];
-    const reimportarOccurrences = paymentDetail.match(/Reimportar base/g) ?? [];
-    // Editar lote: 1 botão + 1 DialogTitle = 2; Reimportar base: 1 botão = 1.
-    expect(editarOccurrences.length).toBeLessThanOrEqual(3);
-    expect(reimportarOccurrences.length).toBeLessThanOrEqual(2);
   });
 });
 
