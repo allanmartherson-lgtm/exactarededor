@@ -573,6 +573,19 @@ const Payments = () => {
                 <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
               </Badge>
             )}
+            {assignment && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "gap-1 font-normal",
+                  assignment.mine
+                    ? "bg-primary/10 text-primary border-primary/30"
+                    : "text-muted-foreground",
+                )}
+              >
+                <UserCheck className="h-3 w-3" /> {assignment.label}
+              </Badge>
+            )}
             <Badge
               variant="outline"
               className={cn(
