@@ -44,20 +44,57 @@ export const ANALYST_EDITABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Pay
   "em_analise_ia",
   "revisao_analista",
   "devolvido_analista",
+  "devolvido_validador",
+]);
+
+/** Status em que reimportar a base ainda é seguro (antes de qualquer validador olhar). */
+export const REIMPORT_ALLOWED_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  "rascunho",
+  "em_analise_ia",
+  "revisao_analista",
 ]);
 
 /**
- * Pode editar conteúdo do lote (metadados, itens, empresa do grupo)?
- * - Analista criador edita enquanto o lote está com ele.
- * - Admin/diretor editam para correção administrativa em qualquer status
- *   (responsabilidade deles registrar a observação).
+ * Pode editar metadados do lote?
+ * Regra de governança financeira: o conteúdo CONGELA assim que sai para
+ * validação/aprovação. Admin/diretor que precisarem corrigir devem PRIMEIRO
+ * devolver ao analista (gera trilha) — não há mais override silencioso.
  */
 export const canEditBatch = (
   status: PaymentStatus,
   opts: { isOwner: boolean; isAnalista: boolean; isAdminOrDiretor: boolean },
 ): boolean => {
+  if (!ANALYST_EDITABLE_STATUSES.has(status)) return false;
   if (opts.isAdminOrDiretor) return true;
-  if (opts.isAnalista && opts.isOwner && ANALYST_EDITABLE_STATUSES.has(status)) return true;
+  return Boolean(opts.isAnalista && opts.isOwner);
+};
+
+/**
+ * Pode reimportar a base (substitui itens)?
+ * Mais restrito que `canEditBatch`: só o analista dono e antes de qualquer
+ * validador ter olhado. Admin/diretor NÃO reimportam — destrutivo demais.
+ */
+export const canReimportBatch = (
+  status: PaymentStatus,
+  opts: { isOwner: boolean; isAnalista: boolean },
+): boolean =>
+  Boolean(opts.isAnalista && opts.isOwner && REIMPORT_ALLOWED_STATUSES.has(status));
+
+/**
+ * Pode "assumir" o lote? Exige papel compatível com o status atual + não ser
+ * o criador (segregação). Evita que analistas/validadores apareçam como
+ * responsáveis em fases que não são deles.
+ */
+export const canAssumeBatch = (
+  status: PaymentStatus,
+  opts: { isAnalista: boolean; isValidador: boolean; isDiretor: boolean; isOwner: boolean },
+): boolean => {
+  if (opts.isOwner) return false; // segregação
+  if (ANALYST_OWNED_STATUSES.has(status) || status === "em_analise_ia" || status === "rascunho") {
+    return opts.isAnalista;
+  }
+  if (status === "aguardando_validacao" || status === "devolvido_validador") return opts.isValidador;
+  if (status === "aguardando_aprovacao") return opts.isDiretor;
   return false;
 };
 
