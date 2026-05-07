@@ -27,8 +27,7 @@ import {
 } from "@/lib/status";
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign } from "lucide-react";
 import * as XLSX from "xlsx";
-import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { DoctorsEditor } from "@/components/MultiSelectChips";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
