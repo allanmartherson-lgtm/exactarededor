@@ -55,7 +55,7 @@ const Logo = () => (
       <ShieldCheck className="h-4 w-4 text-primary-foreground" />
     </div>
     <div className="min-w-0 leading-tight">
-      <p className="font-bold text-[13px] text-foreground leading-none">MedPay</p>
+      <p className="font-medium text-[13px] text-foreground leading-none">MedPay</p>
       <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5 leading-none">
         Approval Flow
       </p>
