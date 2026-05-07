@@ -45,6 +45,7 @@ import {
   type ActorRole,
 } from "@/lib/paymentFlow";
 import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { SendForValidationPopover } from "@/components/SendForValidationPopover";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -1354,9 +1355,12 @@ const PaymentDetail = () => {
                     </p>
                   )}
                 </div>
-                <Button onClick={() => sendForValidation()} disabled={busy || blocked}>
-                  <Send className="h-4 w-4 mr-2" /> Enviar todas para validação
-                </Button>
+                <SendForValidationPopover
+                  label="Enviar todas para validação"
+                  disabled={busy || blocked}
+                  helperText={`${groupsReadyToSend.length} empresa(s) serão enviadas. A escolha vale para todas.`}
+                  onConfirm={(a) => sendForValidation(undefined, a)}
+                />
               </CardContent>
             </Card>
             );
