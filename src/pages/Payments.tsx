@@ -119,6 +119,14 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
+  // Atribuição de validador por pagamento (apenas grupos em aguardando_validacao).
+  // chip exibido no card + filtro da fila do validador.
+  type AssignmentInfo = {
+    mine: boolean;        // ao menos um grupo é meu (direto ou via grupo)
+    general: boolean;     // ao menos um grupo é fila geral (sem atribuição)
+    label: string;        // texto curto para o chip
+  };
+  const [assignmentByPayment, setAssignmentByPayment] = useState<Record<string, AssignmentInfo>>({});
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
@@ -250,6 +258,61 @@ const Payments = () => {
     return () => { cancelled = true; };
   }, []);
 
+  // Carrega atribuições de validador (grupos em aguardando_validacao) e os
+  // grupos de validador a que o usuário pertence — usado para filtrar a fila
+  // "Com validador" e exibir o chip "Atribuído a você/seu grupo".
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const myId = user?.id ?? null;
+      const myGroupsP = myId
+        ? supabase.from("validator_group_members").select("group_id").eq("user_id", myId)
+        : Promise.resolve({ data: [] as any[] } as any);
+      const [{ data: pcg }, { data: myGroups }, { data: groupNames }] = await Promise.all([
+        supabase
+          .from("payment_company_groups")
+          .select("payment_id,assigned_validator_id,assigned_validator_group_id")
+          .eq("status", "aguardando_validacao")
+          .limit(5000),
+        myGroupsP,
+        supabase.from("validator_groups").select("id,name"),
+      ]);
+      if (cancelled) return;
+      const mySet = new Set<string>(((myGroups ?? []) as any[]).map((r) => r.group_id));
+      const gnameMap = new Map<string, string>(
+        ((groupNames ?? []) as any[]).map((g) => [g.id, g.name as string]),
+      );
+      const map: Record<string, AssignmentInfo> = {};
+      ((pcg ?? []) as any[]).forEach((r) => {
+        const pid = r.payment_id as string;
+        const cur = map[pid] ?? { mine: false, general: false, label: "" };
+        if (!r.assigned_validator_id && !r.assigned_validator_group_id) {
+          cur.general = true;
+          if (!cur.label) cur.label = "Fila geral";
+        } else if (myId && r.assigned_validator_id === myId) {
+          cur.mine = true;
+          cur.label = "Atribuído a você";
+        } else if (r.assigned_validator_group_id && mySet.has(r.assigned_validator_group_id)) {
+          cur.mine = true;
+          if (!cur.label || cur.label === "Fila geral") {
+            const gn = gnameMap.get(r.assigned_validator_group_id);
+            cur.label = gn ? `Grupo: ${gn}` : "Seu grupo";
+          }
+        } else if (r.assigned_validator_group_id) {
+          if (!cur.label) {
+            const gn = gnameMap.get(r.assigned_validator_group_id);
+            cur.label = gn ? `Grupo: ${gn}` : "Atribuído a grupo";
+          }
+        } else {
+          if (!cur.label) cur.label = "Atribuído a validador";
+        }
+        map[pid] = cur;
+      });
+      setAssignmentByPayment(map);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
   useEffect(() => {
     let cancelled = false;
@@ -341,6 +404,15 @@ const Payments = () => {
       const allowed = STATUSES_BY_OWNER[ownerGroup];
       if (!allowed.includes(r.status)) return false;
     }
+    // Fila do validador: cada validador só enxerga lotes atribuídos a ele,
+    // a um grupo do qual é membro, ou na fila geral. Admin/diretor passam.
+    const isPureValidador =
+      roles.includes("validador") && !roles.includes("admin") && !roles.includes("diretor");
+    if (isPureValidador && r.status === "aguardando_validacao") {
+      const a = assignmentByPayment[r.id];
+      // Sem info carregada ainda → não filtra (evita "sumir" durante load).
+      if (a && !(a.mine || a.general)) return false;
+    }
     if (onlyMine) {
       // Visão coletiva por perfil: "Meus" = lotes na fila do meu papel.
       // Para analista, isso significa todos os lotes em status do analista
@@ -371,7 +443,7 @@ const Payments = () => {
       if (questionedFilter === "without" && has) return false;
     }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, assignmentByPayment]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
@@ -431,6 +503,7 @@ const Payments = () => {
       slaLvl === "vencido" ? "critico" : slaLvl === "preventivo" ? "leve" : lvl;
     const companies = companiesPerPayment[p.id] ?? 0;
     const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
+    const assignment = p.status === "aguardando_validacao" ? assignmentByPayment[p.id] : undefined;
     if (compact) {
       return (
         <Link
@@ -442,6 +515,16 @@ const Payments = () => {
           )}
         >
           <p className="font-medium text-xs truncate">{p.reference}</p>
+          {assignment && (
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium w-fit",
+              assignment.mine
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground",
+            )}>
+              <UserCheck className="h-2.5 w-2.5" /> {assignment.label}
+            </span>
+          )}
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="truncate">{analystName}</span>
             <span className="tabular-nums">{formatCurrency(p.total_amount)}</span>
@@ -486,6 +569,19 @@ const Payments = () => {
             {companies > 0 && (
               <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
                 <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
+              </Badge>
+            )}
+            {assignment && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "gap-1 font-normal",
+                  assignment.mine
+                    ? "bg-primary/10 text-primary border-primary/30"
+                    : "text-muted-foreground",
+                )}
+              >
+                <UserCheck className="h-3 w-3" /> {assignment.label}
               </Badge>
             )}
             <Badge
