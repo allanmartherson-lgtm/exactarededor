@@ -801,6 +801,24 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       status_to: "revisao_analista",
     });
 
+    // Auditoria por lote: confirma explicitamente que `specialty` foi ignorada
+    // na seleção de regras de TODOS os itens deste lote. Fica no histórico
+    // (payment_observations) e pode ser auditado depois.
+    const itemsWithSpecialty = (itemsRaw ?? []).filter((x: any) => {
+      const v = x?.__resolved_specialty?.value ?? x?.specialty;
+      return v != null && String(v).trim() !== "";
+    }).length;
+    await supabase.from("payment_observations").insert({
+      payment_id,
+      author_type: "sistema",
+      message:
+        `Auditoria do motor: especialidade médica IGNORADA na seleção de regras ` +
+        `(regra de projeto). ${results.length} item(ns) avaliado(s); ` +
+        `${itemsWithSpecialty} com especialidade resolvida (apenas para relatório/filtro). ` +
+        `Eixos efetivamente usados: setor, código TUSS, médico, empresa, grupo, convênio, via de acesso, função, data. ` +
+        `Detalhe por item em ai_findings.decision_fields.`,
+    });
+
     // ---------- 10. Grupos por empresa ----------
     const groupsMap = new Map<string, { company_id: string | null; company_name: string; items: ItemInput[] }>();
     for (const it of items) {
