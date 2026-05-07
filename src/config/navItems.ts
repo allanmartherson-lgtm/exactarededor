@@ -15,6 +15,7 @@ import {
   BadgeDollarSign,
   Stethoscope,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
