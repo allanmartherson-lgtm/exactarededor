@@ -784,7 +784,7 @@ export default function CompanyAnalysis() {
                 <SendForValidationPopover
                   size="sm"
                   disabled={busy}
-                  onConfirm={(a) => sendForValidation(a)}
+                  onConfirm={async (a) => { await sendForValidation(a); }}
                 />
               )}
             </div>
