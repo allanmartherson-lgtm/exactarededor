@@ -557,7 +557,7 @@ export default function CompanyAnalysis() {
     }
     const { error } = await supabase
       .from("payment_company_groups")
-      .update(updates)
+      .update(updates as never)
       .eq("id", group.id);
     if (error) {
       setBusy(false);
