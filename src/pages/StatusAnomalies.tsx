@@ -99,6 +99,55 @@ const StatusAnomalies = () => {
   }, [rows, filter]);
 
   const openCount = rows.filter((r) => !r.resolved_at).length;
+  const [recomputing, setRecomputing] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const recompute = async (a: Anomaly, opts: { autoResolve?: boolean } = {}) => {
+    setRecomputing((p) => new Set(p).add(a.id));
+    const { error } = await supabase.rpc("recompute_payment_status_from_groups", {
+      _payment_id: a.payment_id,
+    });
+    setRecomputing((p) => { const n = new Set(p); n.delete(a.id); return n; });
+    if (error) {
+      toast.error("Falha ao recalcular status", { description: error.message });
+      return false;
+    }
+    if (opts.autoResolve && user) {
+      await supabase.from("status_anomalies").update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.id,
+        resolution_note: "Status recalculado a partir dos grupos (recompute manual).",
+      }).eq("id", a.id);
+      setRows((prev) => prev.map((r) =>
+        r.id === a.id ? { ...r, resolved_at: new Date().toISOString(), resolved_by: user.id, resolution_note: "Status recalculado a partir dos grupos (recompute manual)." } : r,
+      ));
+    }
+    toast.success("Status recalculado com sucesso");
+    return true;
+  };
+
+  const recomputeAllOpen = async () => {
+    const open = rows.filter((r) => !r.resolved_at);
+    if (open.length === 0) return;
+    setBulkBusy(true);
+    let ok = 0; let fail = 0;
+    const uniquePayments = Array.from(new Set(open.map((r) => r.payment_id)));
+    for (const pid of uniquePayments) {
+      const { error } = await supabase.rpc("recompute_payment_status_from_groups", { _payment_id: pid });
+      if (error) fail++; else ok++;
+    }
+    if (user) {
+      const ids = open.map((r) => r.id);
+      await supabase.from("status_anomalies").update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.id,
+        resolution_note: "Status recalculado em lote a partir dos grupos.",
+      }).in("id", ids);
+    }
+    setBulkBusy(false);
+    toast.success(`Recompute concluído: ${ok} ok, ${fail} falhas`);
+    load();
+  };
 
   const resolve = async (a: Anomaly) => {
     if (!user) return;
