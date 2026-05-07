@@ -764,12 +764,16 @@ const Dashboard = () => {
   }, [isDiretor]);
 
   const isMine = (p: PaymentRow): boolean => {
-    // Estritamente "meu": só pagamentos onde o usuário logado é o criador
-    // ou o validador. A fila coletiva do papel aparece em "Tarefas em
-    // aberto" (abaixo) e no "Pipeline da equipe".
+    // "Meu" =
+    //  - criador (analista) OU
+    //  - validador que efetivamente concluiu (validated_by) OU
+    //  - validador com lote em aguardando_validacao atribuído a ele,
+    //    ao seu grupo, ou na fila geral (myValidatorPayments).
     const uid = user?.id;
     if (!uid) return false;
-    return p.created_by === uid || p.validated_by === uid;
+    if (p.created_by === uid || p.validated_by === uid) return true;
+    if (p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) return true;
+    return false;
   };
 
   const myPayments = payments.filter(isMine).slice(0, 6);
