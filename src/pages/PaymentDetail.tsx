@@ -1549,6 +1549,65 @@ const PaymentDetail = () => {
             </Card>
           )}
 
+          {/* Lançamento contábil/ERP — analista marca por empresa após NF conciliada. */}
+          {isAnalista && groups.some((g) => g.status === "nf_conciliada") && (
+            <Card className="shadow-card border-primary/30">
+              <CardHeader>
+                <CardTitle className="text-base">Lançamento contábil</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Marque cada empresa como lançada após registrar no ERP/contábil. Data e usuário ficam no histórico.
+                </p>
+                {groups
+                  .filter((g) => g.status === "nf_conciliada")
+                  .map((g) => (
+                    <div
+                      key={g.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{g.company_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (!id || !user) return;
+                          setBusy(true);
+                          const { error } = await supabase
+                            .from("payment_company_groups")
+                            .update({ status: "lancado" })
+                            .eq("id", g.id);
+                          if (error) {
+                            toast({ title: "Falha ao marcar como lançado", description: error.message, variant: "destructive" });
+                            setBusy(false);
+                            return;
+                          }
+                          await recordObservation({
+                            payment_id: id,
+                            author_type: "analista",
+                            author_id: user.id,
+                            message: `[${g.company_name}] Lançado no contábil/ERP por ${user.email ?? user.id}.`,
+                            status_from: "nf_conciliada",
+                            status_to: "lancado",
+                          });
+                          toast({ title: "Marcado como lançado", description: g.company_name });
+                          await load();
+                          setBusy(false);
+                        }}
+                      >
+                        Marcar como lançado
+                      </Button>
+                    </div>
+                  ))}
+              </CardContent>
+            </Card>
+          )}
+
         {renderHistoryCard()}
       </div>
 
