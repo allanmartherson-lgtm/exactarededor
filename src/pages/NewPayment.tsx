@@ -306,8 +306,9 @@ const NewPayment = () => {
     const rows: ParsedRow[] = json.map((row) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       const repasse = toNumber(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
-      const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce"]));
+      const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
       const grossFromAny = repasse || toNumber(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"])) || procVal;
+      const procedureAmountFinal = procVal || grossFromAny || null;
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
