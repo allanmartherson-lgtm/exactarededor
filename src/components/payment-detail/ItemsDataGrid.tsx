@@ -229,7 +229,9 @@ export function ItemsDataGrid({
         .join(" ")
         .toLowerCase()
         .includes(term);
-    });
+    }).sort((a, b) =>
+      getPatient(a).localeCompare(getPatient(b), "pt-BR", { sensitivity: "base" })
+    );
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
 
   // Totais da seleção atual (após filtros).
