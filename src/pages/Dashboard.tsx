@@ -796,16 +796,24 @@ const Dashboard = () => {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [isDiretor]);
 
+  // "Pendente para mim" = papel atual do lote bate com um papel que o
+  // usuário exerce E ele tem vínculo legítimo com o lote.
+  // - Analista: lote em status de analista E criado por ele.
+  // - Validador: lote em aguardando_validacao atribuído a ele/grupo/fila geral.
+  // - Diretor: lote em aguardando_aprovacao (qualquer diretor age).
+  // Status pós-aprovação (aprovado, pedido_nf_*, nf_*, lancado, pago) e
+  // terminais (rejeitado, cancelado) NUNCA aparecem como pendência aqui,
+  // mesmo que o usuário tenha criado/validado/aprovado o lote.
+  const ANALISTA_PENDING: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+    "em_analise_ia", "revisao_analista", "devolvido_analista", "devolvido_validador", "nf_questionada",
+  ]);
   const isMine = (p: PaymentRow): boolean => {
-    // "Meu" =
-    //  - criador (analista) OU
-    //  - validador que efetivamente concluiu (validated_by) OU
-    //  - validador com lote em aguardando_validacao atribuído a ele,
-    //    ao seu grupo, ou na fila geral (myValidatorPayments).
     const uid = user?.id;
     if (!uid) return false;
-    if (p.created_by === uid || p.validated_by === uid) return true;
-    if (p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) return true;
+    const owner = ownerRoleFor(p.status);
+    if (owner === "analista" && isAnalista && ANALISTA_PENDING.has(p.status) && p.created_by === uid) return true;
+    if (owner === "validador" && isValidador && p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) return true;
+    if (owner === "diretor" && isDiretor && p.status === "aguardando_aprovacao") return true;
     return false;
   };
 
