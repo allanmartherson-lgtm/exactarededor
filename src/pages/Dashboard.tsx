@@ -614,13 +614,18 @@ const Dashboard = () => {
       // usuário logado (created_by/validated_by). A fila coletiva do papel
       // aparece em "Tarefas em aberto" e no Pipeline da equipe.
       const c: DashboardCounts = { ...initialCounts };
+      const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+        "em_analise_ia", "revisao_analista", "devolvido_analista", "devolvido_validador", "nf_questionada",
+      ]);
       (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
+        // "Minha pendência" só conta enquanto o lote AINDA está na alçada do
+        // papel do usuário. Após aprovado/pago/etc, sai das pendências.
         const isMineRow =
           !!uid && (
-            p.created_by === uid ||
-            p.validated_by === uid ||
-            (p.status === "aguardando_validacao" && myValidatorPayments.has(p.id))
+            (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
+            (owner === "validador" && p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) ||
+            (owner === "diretor" && p.status === "aguardando_aprovacao")
           );
         if (owner === "analista") {
           c.teamAnalise++;
