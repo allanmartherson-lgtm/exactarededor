@@ -191,6 +191,16 @@ const StatusAnomalies = () => {
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" onClick={load}>Recarregar</Button>
+          <Button
+            variant="default"
+            size="sm"
+            disabled={bulkBusy || openCount === 0}
+            onClick={recomputeAllOpen}
+            className="gap-1"
+          >
+            <RefreshCw className={cn("h-4 w-4", bulkBusy && "animate-spin")} />
+            Forçar recompute em todas ({openCount})
+          </Button>
         </div>
 
         {loading ? (
