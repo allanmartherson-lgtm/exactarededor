@@ -462,16 +462,8 @@ export function ruleAcceptsItemAgreement(r: RuleInput, item: ItemInput): boolean
   return targetsAgreement(r, item);
 }
 
-function ruleHasSpecialty(r: RuleInput): boolean {
-  return Array.isArray(r.specialties) && r.specialties.length > 0;
-}
-
-function matchesItemSpecialty(r: RuleInput, item: ItemInput): boolean {
-  const its = normName(item.specialty);
-  if (!its) return false;
-  const list = (r.specialties ?? []).map(normName);
-  return list.includes(its);
-}
+// Especialidade do item é metadado de relatório/filtro — não é eixo do motor.
+// As funções abaixo foram removidas intencionalmente (ver `ruleAcceptsItemSpecialty`).
 
 // ---------- pré-filtro ----------
 // Observação: especialidade NÃO é filtrada aqui — o `payments.specialties` é
