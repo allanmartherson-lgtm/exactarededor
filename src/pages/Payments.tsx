@@ -517,6 +517,16 @@ const Payments = () => {
           )}
         >
           <p className="font-medium text-xs truncate">{p.reference}</p>
+          {assignment && (
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium w-fit",
+              assignment.mine
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground",
+            )}>
+              <UserCheck className="h-2.5 w-2.5" /> {assignment.label}
+            </span>
+          )}
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="truncate">{analystName}</span>
             <span className="tabular-nums">{formatCurrency(p.total_amount)}</span>
