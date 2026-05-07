@@ -306,7 +306,7 @@ export const AppLayout = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="h-9 w-9 rounded-full bg-accent text-accent-foreground text-[12px] font-semibold flex items-center justify-center hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-[12px] font-medium flex items-center justify-center hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Menu do usuário"
                   >
                     {initials}
