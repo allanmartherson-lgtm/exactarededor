@@ -1011,7 +1011,7 @@ function ItemDetailsRow({
           style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
         >
           {/* Resumo do item */}
-          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8">
             {summary.map((s) => (
               <div key={s.label} className="min-w-0">
                 <Label>{s.label}</Label>
