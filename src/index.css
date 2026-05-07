@@ -734,9 +734,9 @@ All colors MUST be HSL.
 
   /* Stat number grande — única exceção autorizada acima de 18px */
   .stat-number {
-    font-size: 30px;
-    font-weight: 300;
-    line-height: 1.1;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.15;
     letter-spacing: -0.01em;
   }
 
