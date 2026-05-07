@@ -223,8 +223,12 @@ export const parsePaymentFile = async (
   const rows: ParsedRow[] = json.map((row) => {
     const role = toStr(pick(row, ["funcao","função","papel"]));
     const repasse = toNumber(pick(row, ["vl repasse","valor repasse","vlrepasse","repasse","vl. repasse"]));
-    const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce"]));
+    const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce","valor convenio","valor convênio","vl convenio","vl. convenio"]));
     const grossFromAny = repasse || toNumber(pick(row, ["valor bruto","valor","vlrbruto","bruto"])) || procVal;
+    // Fallback: quando a planilha não traz coluna separada de "valor convênio/procedimento",
+    // usamos o próprio valor de repasse como base do convênio. Em bases assim,
+    // repasse == convênio == valor pago, e o motor consegue casar a regra de % do convênio.
+    const procedureAmountFinal = procVal || grossFromAny || null;
 
     const base = {
       doctor_name: toStr(pick(row, ["medico","médico","nome","prestador","fornecedor"])) ?? "",
