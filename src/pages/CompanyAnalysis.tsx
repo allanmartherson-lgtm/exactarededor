@@ -548,12 +548,16 @@ export default function CompanyAnalysis() {
     );
   }
 
-  const canAct = gStatus === "revisao_analista" || gStatus === "devolvido_analista";
-  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
   const isOwner = payment.created_by === user?.id;
   const isAnalista = hasRole("analista") || hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
+  const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
+  const canActAnalista = (gStatus === "revisao_analista" || gStatus === "devolvido_analista") && isAnalistaRole;
+  const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
+  const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
+  const canAct = canActAnalista || canActValidador || canActDiretor;
+  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
 
   return (
     <div className="space-y-4 pb-32">
