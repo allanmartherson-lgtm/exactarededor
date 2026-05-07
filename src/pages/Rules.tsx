@@ -27,8 +27,7 @@ import {
 } from "@/lib/status";
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign } from "lucide-react";
 import * as XLSX from "xlsx";
-import { MultiSelectChips, DoctorsEditor } from "@/components/MultiSelectChips";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+import { DoctorsEditor } from "@/components/MultiSelectChips";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
@@ -1164,10 +1163,13 @@ const Rules = () => {
                         </div>
                         <p className="text-xs text-muted-foreground">Vazio = aplica a todos os setores.</p>
                       </div>
-                      <div className="space-y-1.5"><Label>Especialidade(s) médica(s)</Label>
-                        <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
-                        <p className="text-xs text-muted-foreground">Especialidade do médico (Urologia, Ortopedia, ...) — não confundir com tipo de ato (Cirurgia, Anestesia). Vazio = qualquer especialidade.</p>
-                      </div>
+                      {/*
+                        Especialidade médica é metadado de relatório/busca/filtro
+                        e NÃO faz parte dos eixos do motor. Campo removido do
+                        formulário para evitar configuração incorreta. O dado
+                        permanece em `rules.specialties` para histórico, mas o
+                        motor ignora.
+                      */}
                       <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                         <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
                         <p className="text-xs text-muted-foreground">
@@ -1795,9 +1797,7 @@ const Rules = () => {
                                 ) : (
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                                 )}
-                                {Array.isArray(r.specialties) && r.specialties.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">🩺 {r.specialties.join(" · ")}</span>
-                                )}
+                                {/* Especialidade não é eixo do motor — não exibimos como badge de regra. */}
                                 {(r.valid_from || r.valid_until) && (
                                   <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
                                     Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}

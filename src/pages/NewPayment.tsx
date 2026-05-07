@@ -21,8 +21,8 @@ import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2,
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
-import { MultiSelectChips } from "@/components/MultiSelectChips";
-import { COMMON_SPECIALTIES } from "@/lib/specialties";
+// MultiSelectChips/COMMON_SPECIALTIES removidos: especialidade não é mais
+// configurável a nível de lote (apenas relatório/filtro).
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -846,18 +846,13 @@ const NewPayment = () => {
                   </Alert>
                 )}
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Especialidade(s)</Label>
-                <div className="flex items-center gap-2">
-                  <Switch id="auto-sp" checked={autoSpecialties} onCheckedChange={setAutoSpecialties} />
-                  <Label htmlFor="auto-sp" className="text-xs font-normal text-muted-foreground cursor-pointer">
-                    Detectar automaticamente pela base (recomendado)
-                  </Label>
-                </div>
-                {!autoSpecialties && (
-                  <MultiSelectChips values={pSpecialties} onChange={setPSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
-                )}
-              </div>
+              {/*
+                Especialidade médica é apenas metadado de relatório/busca/filtro
+                — não influencia o motor nem a análise. O campo de seleção a
+                nível de lote foi removido para evitar configuração que sugira
+                impacto em cálculo. A especialidade do item continua sendo
+                lida da própria base e usada em filtros/exportações.
+              */}
             </div>
             <div className="space-y-2">
               <Label htmlFor="desc">Descrição</Label>
