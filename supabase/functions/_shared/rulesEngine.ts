@@ -562,14 +562,15 @@ export interface SelectionTraceCandidate {
 }
 
 /**
- * Filtra a whitelist de especialidade da regra contra a especialidade do
- * ITEM (não do pagamento). Quando a regra não tem whitelist, aceita qualquer
- * item. Quando tem mas o item não traz especialidade, a regra é descartada.
+ * REGRA DE PROJETO: especialidade médica é apenas relatório/busca/filtro,
+ * NUNCA impacta o cálculo, status ou seleção de regra. Por isso este
+ * "filtro" é intencionalmente um no-op — mantemos a função e a chave
+ * `filtered_specialty` no tipo `SelectionTraceCandidate` apenas para
+ * compatibilidade com traces históricos. Não use `r.specialties` para
+ * decidir aplicabilidade no motor.
  */
-function ruleAcceptsItemSpecialty(r: RuleInput, item: ItemInput): boolean {
-  if (!ruleHasSpecialty(r)) return true;
-  if (!item.specialty) return false;
-  return matchesItemSpecialty(r, item);
+function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
+  return true;
 }
 
 export function selectWinningRule(
@@ -583,37 +584,10 @@ export function selectWinningRule(
     ? { item_sector: itemSector, is_hemo: isHemo, levels: [], winner_rule_id: null, winner_priority: "sem_regra" }
     : undefined;
 
-  // Filtragem por especialidade aplicada por bucket, ANTES da decisão de
-  // prioridade. Regra com whitelist que não bate com o item é descartada
-  // como candidata e registrada no trace.
-  const filterBySpecialty = (bucket: RuleInput[], levelLabel: RuleMatchPriority): RuleInput[] => {
-    const kept: RuleInput[] = [];
-    const dropped: SelectionTraceCandidate[] = [];
-    for (const r of bucket) {
-      if (ruleAcceptsItemSpecialty(r, item)) {
-        kept.push(r);
-      } else {
-        dropped.push({
-          rule_id: r.id,
-          rule_name: r.name,
-          with_code: hasCodeRestriction(r),
-          result: "filtered_specialty",
-          filter_reason: item.specialty
-            ? `whitelist [${(r.specialties ?? []).join(", ")}] não inclui especialidade do item "${item.specialty}"`
-            : `regra exige especialidade [${(r.specialties ?? []).join(", ")}], item sem especialidade`,
-        });
-      }
-    }
-    if (trace && dropped.length > 0) {
-      trace.levels.push({
-        level: levelLabel,
-        bucket_size: bucket.length,
-        candidates: dropped,
-        outcome: kept.length === 0 ? "all_filtered" : "skipped",
-      });
-    }
-    return kept;
-  };
+  // Especialidade NÃO filtra mais regras (campo é só relatório). Mantemos
+  // a função wrapper para preservar a forma do código e facilitar
+  // comparação com versões anteriores.
+  const filterBySpecialty = (bucket: RuleInput[], _levelLabel: RuleMatchPriority): RuleInput[] => bucket;
 
   const doctorRules  = filterBySpecialty(rules.filter((r) => targetsDoctor(r, item)), "medico");
   const companyRules = filterBySpecialty(rules.filter((r) => targetsCompany(r, item)), "empresa");
