@@ -273,6 +273,16 @@ const StatusAnomalies = () => {
                         rows={2}
                         className="text-xs"
                       />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={recomputing.has(a.id)}
+                        onClick={() => recompute(a, { autoResolve: true })}
+                        className="gap-1"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", recomputing.has(a.id) && "animate-spin")} />
+                        Forçar recompute
+                      </Button>
                       <Button size="sm" onClick={() => resolve(a)}>
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar resolvida
                       </Button>
