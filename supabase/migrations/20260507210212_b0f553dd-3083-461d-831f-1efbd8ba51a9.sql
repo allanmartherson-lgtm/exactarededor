@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.recompute_payment_status_from_groups(uuid) TO authenticated;

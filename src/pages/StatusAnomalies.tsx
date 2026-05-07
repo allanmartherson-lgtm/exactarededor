@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
 import { PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -99,6 +99,55 @@ const StatusAnomalies = () => {
   }, [rows, filter]);
 
   const openCount = rows.filter((r) => !r.resolved_at).length;
+  const [recomputing, setRecomputing] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const recompute = async (a: Anomaly, opts: { autoResolve?: boolean } = {}) => {
+    setRecomputing((p) => new Set(p).add(a.id));
+    const { error } = await supabase.rpc("recompute_payment_status_from_groups", {
+      _payment_id: a.payment_id,
+    });
+    setRecomputing((p) => { const n = new Set(p); n.delete(a.id); return n; });
+    if (error) {
+      toast.error("Falha ao recalcular status", { description: error.message });
+      return false;
+    }
+    if (opts.autoResolve && user) {
+      await supabase.from("status_anomalies").update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.id,
+        resolution_note: "Status recalculado a partir dos grupos (recompute manual).",
+      }).eq("id", a.id);
+      setRows((prev) => prev.map((r) =>
+        r.id === a.id ? { ...r, resolved_at: new Date().toISOString(), resolved_by: user.id, resolution_note: "Status recalculado a partir dos grupos (recompute manual)." } : r,
+      ));
+    }
+    toast.success("Status recalculado com sucesso");
+    return true;
+  };
+
+  const recomputeAllOpen = async () => {
+    const open = rows.filter((r) => !r.resolved_at);
+    if (open.length === 0) return;
+    setBulkBusy(true);
+    let ok = 0; let fail = 0;
+    const uniquePayments = Array.from(new Set(open.map((r) => r.payment_id)));
+    for (const pid of uniquePayments) {
+      const { error } = await supabase.rpc("recompute_payment_status_from_groups", { _payment_id: pid });
+      if (error) fail++; else ok++;
+    }
+    if (user) {
+      const ids = open.map((r) => r.id);
+      await supabase.from("status_anomalies").update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.id,
+        resolution_note: "Status recalculado em lote a partir dos grupos.",
+      }).in("id", ids);
+    }
+    setBulkBusy(false);
+    toast.success(`Recompute concluído: ${ok} ok, ${fail} falhas`);
+    load();
+  };
 
   const resolve = async (a: Anomaly) => {
     if (!user) return;
@@ -142,6 +191,16 @@ const StatusAnomalies = () => {
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" onClick={load}>Recarregar</Button>
+          <Button
+            variant="default"
+            size="sm"
+            disabled={bulkBusy || openCount === 0}
+            onClick={recomputeAllOpen}
+            className="gap-1"
+          >
+            <RefreshCw className={cn("h-4 w-4", bulkBusy && "animate-spin")} />
+            Forçar recompute em todas ({openCount})
+          </Button>
         </div>
 
         {loading ? (
@@ -214,6 +273,16 @@ const StatusAnomalies = () => {
                         rows={2}
                         className="text-xs"
                       />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={recomputing.has(a.id)}
+                        onClick={() => recompute(a, { autoResolve: true })}
+                        className="gap-1"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", recomputing.has(a.id) && "animate-spin")} />
+                        Forçar recompute
+                      </Button>
                       <Button size="sm" onClick={() => resolve(a)}>
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar resolvida
                       </Button>
