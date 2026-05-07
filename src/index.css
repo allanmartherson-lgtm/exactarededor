@@ -267,7 +267,7 @@ All colors MUST be HSL.
    */
   table thead th {
     font-size: 10px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     color: hsl(var(--text-tertiary)) !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
@@ -708,7 +708,7 @@ All colors MUST be HSL.
   .badge,
   .pill {
     font-size: 10px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     letter-spacing: 0.02em;
   }
 
