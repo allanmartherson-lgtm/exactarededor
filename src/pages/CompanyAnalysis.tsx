@@ -674,20 +674,31 @@ export default function CompanyAnalysis() {
               </p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <Stat label="Itens" value={String(group.items_count ?? items.length)} />
-            <Stat label="Valor total" value={formatCurrency(Number(group.total_amount ?? 0))} mono />
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Stat
+              label="Itens"
+              value={String(group.items_count ?? items.length)}
+              tone="info"
+              icon={<FileText className="h-4 w-4" />}
+            />
+            <Stat
+              label="Valor total"
+              value={formatCurrency(Number(group.total_amount ?? 0))}
+              mono
+              tone="success"
+              icon={<Wallet className="h-4 w-4" />}
+            />
             <Stat
               label="Alertas"
               value={String(counts.alertasTotal)}
               tone={counts.alertasTotal > 0 ? "warning" : "muted"}
-              icon={<AlertTriangle className="h-3.5 w-3.5" />}
+              icon={<AlertTriangle className="h-4 w-4" />}
             />
             <Stat
               label="Críticos"
               value={String(counts.criticosTotal)}
               tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
-              icon={<ShieldAlert className="h-3.5 w-3.5" />}
+              icon={<ShieldAlert className="h-4 w-4" />}
             />
           </div>
         </CardContent>
