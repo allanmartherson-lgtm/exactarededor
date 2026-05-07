@@ -166,12 +166,12 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring border-b-2",
                 groupActive
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "text-primary border-primary font-medium"
+                  : "text-muted-foreground border-transparent hover:text-foreground",
               )}
-              style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
+              style={{ padding: "6px 4px", marginRight: 14, fontSize: 13 }}
             >
               <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
               <span>{item.label}</span>
