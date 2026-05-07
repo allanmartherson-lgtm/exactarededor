@@ -127,7 +127,6 @@ const Payments = () => {
     label: string;        // texto curto para o chip
   };
   const [assignmentByPayment, setAssignmentByPayment] = useState<Record<string, AssignmentInfo>>({});
-  const [myValidatorGroupIds, setMyValidatorGroupIds] = useState<Set<string>>(new Set());
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
