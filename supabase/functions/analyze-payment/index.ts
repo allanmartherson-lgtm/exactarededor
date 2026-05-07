@@ -849,17 +849,22 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const total = g.items.reduce((s, x) => s + Number(x.gross_amount), 0);
       const { data: existing } = await supabase
         .from("payment_company_groups")
-        .select("id")
+        .select("id,status")
         .eq("payment_id", payment_id)
         .ilike("company_name", g.company_name)
         .maybeSingle();
       if (existing) {
-        await supabase.from("payment_company_groups").update({
-          status: "revisao_analista",
+        // Mesma regra do payments: só rebaixa para revisao_analista se o
+        // grupo ainda estiver com o analista. Não rouba de validador/diretor.
+        const groupUpd: Record<string, unknown> = {
           items_count: g.items.length,
           total_amount: total,
           company_id: g.company_id,
-        }).eq("id", existing.id);
+        };
+        if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
+          groupUpd.status = "revisao_analista";
+        }
+        await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
         await supabase.from("payment_company_groups").insert({
           payment_id,
