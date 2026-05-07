@@ -58,45 +58,45 @@ All colors MUST be HSL.
     --radius: 0.625rem;
 
     /* Gradients & shadows */
-    --gradient-brand: linear-gradient(135deg, hsl(173 83% 33%), hsl(173 82% 45%));
-    --gradient-soft: linear-gradient(135deg, hsl(171 50% 94%), hsl(204 24% 97%));
-    --shadow-soft: 0 1px 2px 0 hsl(211 62% 13% / 0.04), 0 1px 3px 0 hsl(211 62% 13% / 0.06);
-    --shadow-card: 0 4px 12px -2px hsl(211 62% 13% / 0.06), 0 2px 4px -2px hsl(211 62% 13% / 0.04);
-    --shadow-elevated: 0 12px 30px -8px hsl(173 83% 33% / 0.18);
+    --gradient-brand: linear-gradient(135deg, hsl(224 76% 40%), hsl(224 76% 48%));
+    --gradient-soft: linear-gradient(135deg, hsl(214 95% 96%), hsl(210 20% 98%));
+    --shadow-soft: 0 1px 2px 0 hsl(224 36% 16% / 0.04), 0 1px 3px 0 hsl(224 36% 16% / 0.05);
+    --shadow-card: 0 1px 3px 0 hsl(224 36% 16% / 0.06), 0 1px 2px -1px hsl(224 36% 16% / 0.04);
+    --shadow-elevated: 0 8px 24px -8px hsl(224 76% 40% / 0.18);
 
     /* Bubble token pairs (icon backgrounds) — used by dashboard */
     --bubble-purple-bg: 250 90% 96%;
     --bubble-purple-fg: 250 60% 50%;
-    --bubble-yellow-bg: 48 100% 92%;
-    --bubble-yellow-fg: 32 90% 42%;
-    --bubble-red-bg: 0 86% 95%;
-    --bubble-red-fg: 0 74% 50%;
-    --bubble-blue-bg: 213 100% 94%;
-    --bubble-blue-fg: 217 91% 50%;
-    --bubble-green-bg: 145 67% 92%;
-    --bubble-green-fg: 152 72% 32%;
-    --bubble-teal-bg: 171 50% 92%;
-    --bubble-teal-fg: 173 84% 26%;
+    --bubble-yellow-bg: 48 96% 89%;
+    --bubble-yellow-fg: 26 84% 35%;
+    --bubble-red-bg: 0 93% 94%;
+    --bubble-red-fg: 0 73% 41%;
+    --bubble-blue-bg: 204 100% 94%;
+    --bubble-blue-fg: 201 96% 32%;
+    --bubble-green-bg: 150 60% 92%;
+    --bubble-green-fg: 152 60% 32%;
+    --bubble-teal-bg: 214 95% 93%;
+    --bubble-teal-fg: 224 76% 40%;
 
-    /* Table-specific surfaces (kept in sync with bg-hover / border-light spec) */
-    --table-row-hover: 204 24% 94%;     /* #edf2f5 */
-    --table-border-light: 207 28% 94%;  /* #eaf0f5 */
+    /* Table-specific surfaces */
+    --table-row-hover: 220 14% 96%;     /* #F3F4F6 */
+    --table-border-light: 215 24% 93%;  /* #E3E8EE-ish */
 
-    --hover-surface: 204 24% 94%;       /* #edf2f5 */
-    --shadow-hover: 0 4px 20px hsl(173 83% 33% / 0.08);
+    --hover-surface: 220 14% 96%;
+    --shadow-hover: 0 2px 8px hsl(224 36% 16% / 0.06);
 
     /* Sidebar — light */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 213 25% 32%;
-    --sidebar-muted-foreground: 209 19% 58%;
-    --sidebar-primary: 173 83% 33%;
+    --sidebar-foreground: 218 13% 47%;
+    --sidebar-muted-foreground: 218 14% 59%;
+    --sidebar-primary: 224 76% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 204 19% 95%;
-    --sidebar-hover-foreground: 211 62% 13%;
-    --sidebar-accent: 171 50% 94%;
-    --sidebar-accent-foreground: 173 84% 26%;
-    --sidebar-border: 207 24% 94%;
-    --sidebar-ring: 173 83% 33%;
+    --sidebar-hover: 220 14% 96%;
+    --sidebar-hover-foreground: 224 36% 16%;
+    --sidebar-accent: 214 95% 93%;
+    --sidebar-accent-foreground: 224 76% 40%;
+    --sidebar-border: 215 24% 93%;
+    --sidebar-ring: 224 76% 40%;
   }
 
   .dark {
