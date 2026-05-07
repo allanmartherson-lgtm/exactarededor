@@ -40,6 +40,8 @@ import {
   ANALYST_DONE_STATUSES,
   canTransition,
   canEditBatch,
+  canReimportBatch,
+  canAssumeBatch,
   canActAsValidatorOrDirector,
   resolveResendTarget,
   type ActorRole,
