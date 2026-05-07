@@ -1003,22 +1003,54 @@ function Stat({
   label: string;
   value: string;
   mono?: boolean;
-  tone?: "muted" | "warning" | "destructive";
+  tone?: "muted" | "info" | "success" | "warning" | "destructive";
   icon?: React.ReactNode;
 }) {
-  const toneClass =
-    tone === "destructive"
-      ? "text-destructive"
-      : tone === "warning"
-      ? "text-warning-foreground"
-      : "text-foreground";
+  // Cada tom tem: chip do ícone (fundo soft + texto da cor) e barra lateral.
+  // Mantém fundo branco do card pra preservar a estética financeira sóbria,
+  // mas usa o acento de cor pra deixar cada KPI visualmente distinto.
+  const tones: Record<typeof tone, { chip: string; bar: string; value: string }> = {
+    muted: {
+      chip: "bg-muted text-muted-foreground",
+      bar: "bg-border",
+      value: "text-foreground",
+    },
+    info: {
+      chip: "bg-info-soft text-info",
+      bar: "bg-info",
+      value: "text-foreground",
+    },
+    success: {
+      chip: "bg-success-soft text-success",
+      bar: "bg-success",
+      value: "text-foreground",
+    },
+    warning: {
+      chip: "bg-warning-soft text-warning-foreground",
+      bar: "bg-warning",
+      value: "text-warning-foreground",
+    },
+    destructive: {
+      chip: "bg-destructive/10 text-destructive",
+      bar: "bg-destructive",
+      value: "text-destructive",
+    },
+  };
+  const t = tones[tone];
   return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2">
-      <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-        {icon}
-        {label}
+    <div className="relative overflow-hidden rounded-lg border bg-card shadow-soft">
+      <span aria-hidden className={cn("absolute left-0 top-0 h-full w-1", t.bar)} />
+      <div className="flex items-start gap-3 px-3 py-3 pl-4">
+        {icon && (
+          <div className={cn("flex h-9 w-9 items-center justify-center rounded-md flex-shrink-0", t.chip)}>
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className={cn("mt-1 text-xl font-semibold leading-tight", mono && "tabular-nums", t.value)}>{value}</div>
+        </div>
       </div>
-      <div className={cn("text-base font-semibold mt-0.5", mono && "tabular-nums", toneClass)}>{value}</div>
     </div>
   );
 }
