@@ -504,6 +504,9 @@ const Dashboard = () => {
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
+  // IDs de pagamentos em aguardando_validacao que pertencem à fila do
+  // validador logado (atribuído diretamente, ao seu grupo, ou fila geral).
+  const [myValidatorPayments, setMyValidatorPayments] = useState<Set<string>>(new Set());
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
