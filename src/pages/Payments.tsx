@@ -406,6 +406,15 @@ const Payments = () => {
       const allowed = STATUSES_BY_OWNER[ownerGroup];
       if (!allowed.includes(r.status)) return false;
     }
+    // Fila do validador: cada validador só enxerga lotes atribuídos a ele,
+    // a um grupo do qual é membro, ou na fila geral. Admin/diretor passam.
+    const isPureValidador =
+      roles.includes("validador") && !roles.includes("admin") && !roles.includes("diretor");
+    if (isPureValidador && r.status === "aguardando_validacao") {
+      const a = assignmentByPayment[r.id];
+      // Sem info carregada ainda → não filtra (evita "sumir" durante load).
+      if (a && !(a.mine || a.general)) return false;
+    }
     if (onlyMine) {
       // Visão coletiva por perfil: "Meus" = lotes na fila do meu papel.
       // Para analista, isso significa todos os lotes em status do analista
