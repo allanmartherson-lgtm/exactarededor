@@ -25,6 +25,7 @@ import Doctors from "./pages/Doctors.tsx";
 import ProcedureSpecialtyMap from "./pages/ProcedureSpecialtyMap.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
+import StatusAnomalies from "./pages/StatusAnomalies.tsx";
 import SlaSettings from "./pages/SlaSettings.tsx";
 import WcagAudit from "./pages/WcagAudit.tsx";
 import Kpis from "./pages/Kpis.tsx";
