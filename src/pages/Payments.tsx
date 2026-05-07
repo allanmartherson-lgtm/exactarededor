@@ -279,7 +279,6 @@ const Payments = () => {
       ]);
       if (cancelled) return;
       const mySet = new Set<string>(((myGroups ?? []) as any[]).map((r) => r.group_id));
-      setMyValidatorGroupIds(mySet);
       const gnameMap = new Map<string, string>(
         ((groupNames ?? []) as any[]).map((g) => [g.id, g.name as string]),
       );
