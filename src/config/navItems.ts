@@ -87,6 +87,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       { to: "/grupos-validadores", label: "Grupos de validadores", icon: Users, iconName: "Users", roles: ["diretor", "admin"] },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin"] },
+      { to: "/anomalias-status", label: "Anomalias de status", icon: AlertTriangle, iconName: "AlertTriangle", roles: ["diretor", "admin"] },
     ],
   },
 ];
