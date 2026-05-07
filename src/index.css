@@ -106,10 +106,10 @@ All colors MUST be HSL.
     --card-foreground: 213 27% 93%;
     --popover: 220 26% 12%;
     --popover-foreground: 213 27% 93%;
-    --primary: 173 82% 39%;             /* #12b5a3 */
-    --primary-foreground: 215 28% 7%;
-    --primary-soft: 172 56% 11%;        /* accent-light dark */
-    --primary-glow: 168 76% 64%;
+    --primary: 224 76% 58%;             /* navy-light for dark */
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 224 60% 18%;
+    --primary-glow: 224 80% 70%;
     --secondary: 225 36% 16%;           /* border-light #1a2236 */
     --secondary-foreground: 213 27% 93%;
     --muted: 224 29% 15%;               /* bg-hover #1c2333 */
