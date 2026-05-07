@@ -1221,7 +1221,7 @@ const PaymentDetail = () => {
           assignments={assignments}
           profiles={profiles}
           currentUserId={user?.id ?? null}
-          canAssume={isAnalista}
+          canAssume={canAssumeNow}
           onAssume={handleManualAssume}
         />
 
