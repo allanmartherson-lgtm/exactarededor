@@ -1703,6 +1703,54 @@ export type Database = {
         }
         Relationships: []
       }
+      status_anomalies: {
+        Row: {
+          context: Json
+          created_at: string
+          id: string
+          kind: string
+          payment_id: string
+          reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status_from: Database["public"]["Enums"]["payment_status"] | null
+          status_to: Database["public"]["Enums"]["payment_status"] | null
+          triggered_by: string | null
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          id?: string
+          kind: string
+          payment_id: string
+          reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status_from?: Database["public"]["Enums"]["payment_status"] | null
+          status_to?: Database["public"]["Enums"]["payment_status"] | null
+          triggered_by?: string | null
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          payment_id?: string
+          reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status_from?: Database["public"]["Enums"]["payment_status"] | null
+          status_to?: Database["public"]["Enums"]["payment_status"] | null
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1873,10 +1921,29 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      is_valid_status_transition: {
+        Args: {
+          _from: Database["public"]["Enums"]["payment_status"]
+          _to: Database["public"]["Enums"]["payment_status"]
+        }
+        Returns: boolean
+      }
       only_digits: { Args: { txt: string }; Returns: string }
       recompute_payment_status_from_groups: {
         Args: { _payment_id: string }
         Returns: undefined
+      }
+      record_status_anomaly: {
+        Args: {
+          _context?: Json
+          _kind: string
+          _payment_id: string
+          _reason: string
+          _severity?: string
+          _status_from: Database["public"]["Enums"]["payment_status"]
+          _status_to: Database["public"]["Enums"]["payment_status"]
+        }
+        Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
     }

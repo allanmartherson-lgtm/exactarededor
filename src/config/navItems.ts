@@ -15,6 +15,7 @@ import {
   BadgeDollarSign,
   Stethoscope,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -86,6 +87,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
       { to: "/grupos-validadores", label: "Grupos de validadores", icon: Users, iconName: "Users", roles: ["diretor", "admin"] },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin"] },
+      { to: "/anomalias-status", label: "Anomalias de status", icon: AlertTriangle, iconName: "AlertTriangle", roles: ["diretor", "admin"] },
     ],
   },
 ];
@@ -111,6 +113,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Usuários", iconName: "Users" },
   { label: "Grupos de validadores", iconName: "Users" },
   { label: "Auditoria", iconName: "History" },
+  { label: "Anomalias de status", iconName: "AlertTriangle" },
 ];
 
 export const isGroup = (n: NavItem): n is NavGroup => "children" in n;

@@ -503,6 +503,7 @@ const Dashboard = () => {
   // Tempo médio agregado por status (gargalos)
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
+  const [anomaliesOpen, setAnomaliesOpen] = useState(0);
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
@@ -738,6 +739,27 @@ const Dashboard = () => {
   const isValidador = roles.includes("validador") || roles.includes("admin");
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
 
+  // Anomalias de status (admin/diretor): contagem em aberto + realtime.
+  useEffect(() => {
+    if (!isDiretor) return;
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("status_anomalies")
+        .select("id", { count: "exact", head: true })
+        .is("resolved_at", null);
+      if (!cancelled) setAnomaliesOpen(count ?? 0);
+    };
+    fetchCount();
+    const ch = supabase
+      .channel("dash_anomalies")
+      .on("postgres_changes", { event: "*", schema: "public", table: "status_anomalies" }, () => {
+        fetchCount();
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [isDiretor]);
+
   const isMine = (p: PaymentRow): boolean => {
     // Estritamente "meu": só pagamentos onde o usuário logado é o criador
     // ou o validador. A fila coletiva do papel aparece em "Tarefas em
@@ -856,6 +878,20 @@ const Dashboard = () => {
           </p>
         </div>
       </div>
+      {/* ANOMALIAS DE STATUS (admin/diretor) */}
+      {isDiretor && anomaliesOpen > 0 && (
+        <Link
+          to="/anomalias-status"
+          className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span className="font-semibold">{anomaliesOpen}</span>
+            anomalia{anomaliesOpen > 1 ? "s" : ""} de status pendente{anomaliesOpen > 1 ? "s" : ""} — clique para revisar.
+          </div>
+          <span className="text-xs text-destructive/80">Abrir →</span>
+        </Link>
+      )}
+
 
       {/* ATENÇÃO IMEDIATA */}
       {!loading && (slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (

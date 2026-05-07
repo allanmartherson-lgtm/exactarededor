@@ -25,6 +25,7 @@ import Doctors from "./pages/Doctors.tsx";
 import ProcedureSpecialtyMap from "./pages/ProcedureSpecialtyMap.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
+import StatusAnomalies from "./pages/StatusAnomalies.tsx";
 import SlaSettings from "./pages/SlaSettings.tsx";
 import WcagAudit from "./pages/WcagAudit.tsx";
 import Kpis from "./pages/Kpis.tsx";
@@ -77,6 +78,7 @@ const App = () => (
               <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
               <Route path="/grupos-validadores" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidatorGroups /></ProtectedRoute>} />
               <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
+              <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
               <Route path="/wcag-audit" element={<WcagAudit />} />
               <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
               <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
