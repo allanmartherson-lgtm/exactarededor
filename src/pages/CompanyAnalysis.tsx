@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
