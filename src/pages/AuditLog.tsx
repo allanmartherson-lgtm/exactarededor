@@ -36,6 +36,8 @@ const ENTITY_LABELS: Record<string, string> = {
 const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
   update: "Alteração",
+  status_anomaly: "Anomalia de status",
+  validation_assigned: "Envio para validação",
 };
 
 const fmtDate = (iso: string) =>
