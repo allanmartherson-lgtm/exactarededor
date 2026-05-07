@@ -113,6 +113,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Usuários", iconName: "Users" },
   { label: "Grupos de validadores", iconName: "Users" },
   { label: "Auditoria", iconName: "History" },
+  { label: "Anomalias de status", iconName: "AlertTriangle" },
 ];
 
 export const isGroup = (n: NavItem): n is NavGroup => "children" in n;
