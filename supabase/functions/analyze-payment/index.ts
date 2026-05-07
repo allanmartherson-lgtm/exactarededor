@@ -779,11 +779,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const summary = (aiJustifications as any).__summary
       || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
 
-    // IMPORTANTE: só rebaixar status para "revisao_analista" se o pagamento
-    // ainda estiver em estado pertencente ao analista (rascunho/em_analise_ia/
-    // revisao_analista/devolvido_analista). Caso contrário, o lote já foi
-    // enviado adiante (validador/diretor) e a reanálise NÃO pode "roubá-lo"
-    // de volta — apenas atualiza o resumo da IA.
+    // IMPORTANTE: NÃO escrevemos `payments.status` aqui. O status do pagamento
+    // é derivado dos statuses dos `payment_company_groups` pelo trigger
+    // `recompute_payment_status_from_groups`. Tentar setar manualmente cria
+    // condição de corrida: se a reanálise rodar logo depois do analista enviar
+    // para validação, podemos sobrescrever `aguardando_validacao` com
+    // `revisao_analista` e o lote "some" da fila do validador.
+    // A reanálise apenas atualiza ai_summary/specialties; mudanças em grupos
+    // (ver bloco 10) disparam o trigger que recalcula o status quando devido.
     const ANALYST_OWNED_FOR_REWRITE = new Set([
       "rascunho",
       "em_analise_ia",
@@ -797,9 +800,6 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       .maybeSingle();
     const curStatus = (curPay?.status ?? "") as string;
     const paymentUpdate: Record<string, unknown> = { ai_summary: summary };
-    if (ANALYST_OWNED_FOR_REWRITE.has(curStatus)) {
-      paymentUpdate.status = "revisao_analista";
-    }
     // Persiste especialidade dominante do lote (>51%) para rastreabilidade.
     if (dominantSpecialty) paymentUpdate.specialties = [dominantSpecialty];
     await supabase.from("payments").update(paymentUpdate).eq("id", payment_id);
