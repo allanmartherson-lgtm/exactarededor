@@ -47,6 +47,7 @@ import {
   type AiFindings,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { SendForValidationPopover } from "@/components/SendForValidationPopover";
 
 /**
  * Tela dedicada de análise por empresa dentro de um lote.
@@ -215,28 +216,48 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const sendForValidation = async () => {
+  const sendForValidation = async (
+    assignment?: { validator_id: string | null; validator_group_id: string | null },
+  ) => {
     if (!id || !group) return;
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
     const target = resolveResendTarget(obs, group.company_name);
     const next = target?.nextStatus ?? "aguardando_validacao";
+    const a = assignment ?? { validator_id: null, validator_group_id: null };
+    // Atribuição só faz sentido quando vai para validação. Se for reencaminhamento
+    // direto a outro ator, mantém o que já estava.
+    const updatePayload: {
+      status: typeof next;
+      assigned_validator_id?: string | null;
+      assigned_validator_group_id?: string | null;
+    } = { status: next };
+    if (next === "aguardando_validacao") {
+      updatePayload.assigned_validator_id = a.validator_id;
+      updatePayload.assigned_validator_group_id = a.validator_group_id;
+    }
     const { error } = await supabase
       .from("payment_company_groups")
-      .update({ status: next })
+      .update(updatePayload)
       .eq("id", group.id);
     if (error) {
       setBusy(false);
       return toast.error("Erro ao enviar", { description: error.message });
     }
     const text = groupDraft.trim();
+    const assignSuffix =
+      next === "aguardando_validacao" && a.validator_id
+        ? " (atribuído a validador específico)"
+        : next === "aguardando_validacao" && a.validator_group_id
+          ? " (atribuído a grupo de validadores)"
+          : "";
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
       message: target
         ? `[${group.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`
-        : `[${group.company_name}] Enviado para validação pelo analista${text ? `: ${text}` : ""}.`,
+        : `[${group.company_name}] Enviado para validação pelo analista${assignSuffix}${text ? `: ${text}` : ""}.`,
       status_from: group.status,
       status_to: next,
     });
@@ -754,10 +775,18 @@ export default function CompanyAnalysis() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button size="sm" onClick={sendForValidation} disabled={busy}>
-                <Send className="h-4 w-4 mr-2" />
-                {returner ? `Reencaminhar ao ${returner}` : "Enviar para validação"}
-              </Button>
+              {returner ? (
+                <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Reencaminhar ao {returner}
+                </Button>
+              ) : (
+                <SendForValidationPopover
+                  size="sm"
+                  disabled={busy}
+                  onConfirm={async (a) => { await sendForValidation(a); }}
+                />
+              )}
             </div>
           </div>
         </div>

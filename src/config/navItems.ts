@@ -84,6 +84,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["diretor", "admin"],
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
+      { to: "/grupos-validadores", label: "Grupos de validadores", icon: Users, iconName: "Users", roles: ["diretor", "admin"] },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin"] },
     ],
   },
@@ -108,6 +109,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Centros de custo", iconName: "Network" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
+  { label: "Grupos de validadores", iconName: "Users" },
   { label: "Auditoria", iconName: "History" },
 ];
 
