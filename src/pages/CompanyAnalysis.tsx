@@ -153,7 +153,15 @@ export default function CompanyAnalysis() {
   );
   const itemComments = (itemId: string) => obs.filter((o) => o.item_id === itemId);
 
-  const myAuthorType: "analista" | "validador" | "diretor" = "analista";
+  const isValidador = hasRole("validador") || hasRole("admin");
+  const isDiretor = hasRole("diretor") || hasRole("admin");
+  const isAnalistaRole = hasRole("analista") || hasRole("admin");
+  const myAuthorType: "analista" | "validador" | "diretor" =
+    gStatus === "aguardando_validacao" && isValidador ? "validador"
+    : gStatus === "aguardando_aprovacao" && isDiretor ? "diretor"
+    : isDiretor ? "diretor"
+    : isValidador ? "validador"
+    : "analista";
 
   const addItemComment = async (itemId: string) => {
     const text = (itemDraft[itemId] ?? "").trim();
