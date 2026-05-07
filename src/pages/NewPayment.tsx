@@ -306,8 +306,9 @@ const NewPayment = () => {
     const rows: ParsedRow[] = json.map((row) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       const repasse = toNumber(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
-      const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce"]));
+      const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
       const grossFromAny = repasse || toNumber(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"])) || procVal;
+      const procedureAmountFinal = procVal || grossFromAny || null;
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
@@ -324,7 +325,7 @@ const NewPayment = () => {
         doctor_role: role,
         agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo"])),
         specialty: toStr(pick(row, ["especialidade", "especialid", "especialidade médica", "especialidade medica"])) || null,
-        procedure_amount: procVal || null,
+        procedure_amount: procedureAmountFinal,
         quantity: toNumber(pick(row, ["qtd", "quantidade"])) || null,
         procedure_date: excelDateToISO(pick(row, ["data"])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
