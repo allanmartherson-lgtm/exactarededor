@@ -376,6 +376,17 @@ const PaymentDetail = () => {
       if (!obsRes.ok) {
         toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
       }
+      // Notifica destinatários (validador específico, grupo, ou fila geral)
+      // e registra na auditoria. Fire-and-forget — falha não bloqueia o envio.
+      supabase.functions.invoke("notify-validator-assignment", {
+        body: {
+          payment_id: id,
+          group_id: g.id,
+          validator_id: a.validator_id,
+          validator_group_id: a.validator_group_id,
+          sender_id: user!.id,
+        },
+      }).catch((e) => console.warn("notify-validator-assignment failed", g.id, e));
     }
     await load();
     setBusy(false);

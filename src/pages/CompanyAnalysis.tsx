@@ -262,6 +262,18 @@ export default function CompanyAnalysis() {
       status_to: next,
     });
     setGroupDraft("");
+    // Notifica destinatários + auditoria (apenas quando vai para validação).
+    if (next === "aguardando_validacao") {
+      supabase.functions.invoke("notify-validator-assignment", {
+        body: {
+          payment_id: id,
+          group_id: group.id,
+          validator_id: a.validator_id,
+          validator_group_id: a.validator_group_id,
+          sender_id: user!.id,
+        },
+      }).catch((e) => console.warn("notify-validator-assignment failed", group.id, e));
+    }
     setBusy(false);
     toast.success(target ? `Reencaminhado ao ${target.role}` : "Enviado para validação");
     load();
