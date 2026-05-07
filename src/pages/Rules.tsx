@@ -1164,10 +1164,13 @@ const Rules = () => {
                         </div>
                         <p className="text-xs text-muted-foreground">Vazio = aplica a todos os setores.</p>
                       </div>
-                      <div className="space-y-1.5"><Label>Especialidade(s) médica(s)</Label>
-                        <MultiSelectChips values={fSpecialties} onChange={setFSpecialties} options={COMMON_SPECIALTIES} placeholder="Selecionar especialidades…" />
-                        <p className="text-xs text-muted-foreground">Especialidade do médico (Urologia, Ortopedia, ...) — não confundir com tipo de ato (Cirurgia, Anestesia). Vazio = qualquer especialidade.</p>
-                      </div>
+                      {/*
+                        Especialidade médica é metadado de relatório/busca/filtro
+                        e NÃO faz parte dos eixos do motor. Campo removido do
+                        formulário para evitar configuração incorreta. O dado
+                        permanece em `rules.specialties` para histórico, mas o
+                        motor ignora.
+                      */}
                       <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                         <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
                         <p className="text-xs text-muted-foreground">
