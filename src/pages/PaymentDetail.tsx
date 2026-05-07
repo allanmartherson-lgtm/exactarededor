@@ -40,6 +40,8 @@ import {
   ANALYST_DONE_STATUSES,
   canTransition,
   canEditBatch,
+  canReimportBatch,
+  canAssumeBatch,
   canActAsValidatorOrDirector,
   resolveResendTarget,
   type ActorRole,
@@ -723,6 +725,10 @@ const PaymentDetail = () => {
     isAnalista,
     isAdminOrDiretor: hasRole("admin") || hasRole("diretor"),
   });
+  const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
+  const canAssumeNow = canAssumeBatch(payment.status as PaymentStatus, {
+    isAnalista, isValidador, isDiretor, isOwner,
+  });
   // Quando o usuário corrente é validador ou diretor MAS criou o lote,
   // mostramos um aviso de segregação de funções no topo.
   const segregationBlocked = isOwner && (isValidador || isDiretor) && !isAnalista
@@ -1132,7 +1138,7 @@ const PaymentDetail = () => {
                   </DialogContent>
                 </Dialog>
               )}
-              {canEditMeta && (
+              {canReimport && (
                 <>
                   <input
                     ref={reimportInputRef}
@@ -1215,7 +1221,7 @@ const PaymentDetail = () => {
           assignments={assignments}
           profiles={profiles}
           currentUserId={user?.id ?? null}
-          canAssume={isAnalista}
+          canAssume={canAssumeNow}
           onAssume={handleManualAssume}
         />
 
