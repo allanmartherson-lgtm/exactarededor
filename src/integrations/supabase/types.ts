@@ -1977,6 +1977,7 @@ export type Database = {
         | "revisao_analista"
         | "aprovado_com_ressalva"
         | "nf_questionada"
+        | "lancado"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind:
         | "simples"
@@ -2181,6 +2182,7 @@ export const Constants = {
         "revisao_analista",
         "aprovado_com_ressalva",
         "nf_questionada",
+        "lancado",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: [
