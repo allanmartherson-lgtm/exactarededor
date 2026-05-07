@@ -779,10 +779,27 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const summary = (aiJustifications as any).__summary
       || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
 
-    const paymentUpdate: Record<string, unknown> = {
-      status: "revisao_analista",
-      ai_summary: summary,
-    };
+    // IMPORTANTE: só rebaixar status para "revisao_analista" se o pagamento
+    // ainda estiver em estado pertencente ao analista (rascunho/em_analise_ia/
+    // revisao_analista/devolvido_analista). Caso contrário, o lote já foi
+    // enviado adiante (validador/diretor) e a reanálise NÃO pode "roubá-lo"
+    // de volta — apenas atualiza o resumo da IA.
+    const ANALYST_OWNED_FOR_REWRITE = new Set([
+      "rascunho",
+      "em_analise_ia",
+      "revisao_analista",
+      "devolvido_analista",
+    ]);
+    const { data: curPay } = await supabase
+      .from("payments")
+      .select("status")
+      .eq("id", payment_id)
+      .maybeSingle();
+    const curStatus = (curPay?.status ?? "") as string;
+    const paymentUpdate: Record<string, unknown> = { ai_summary: summary };
+    if (ANALYST_OWNED_FOR_REWRITE.has(curStatus)) {
+      paymentUpdate.status = "revisao_analista";
+    }
     // Persiste especialidade dominante do lote (>51%) para rastreabilidade.
     if (dominantSpecialty) paymentUpdate.specialties = [dominantSpecialty];
     await supabase.from("payments").update(paymentUpdate).eq("id", payment_id);
@@ -793,12 +810,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         (itemDiffSummaries.length > 8 ? `\n…e mais ${itemDiffSummaries.length - 8} item(ns).` : "")
       : "";
 
+    // Só registra como transição em_analise_ia → revisao_analista quando o
+    // pagamento estava efetivamente com o analista. Caso contrário, registra
+    // como reanálise informativa, sem mexer nos status_from/status_to (para
+    // não poluir o histórico nem fazer parecer que o lote voltou ao analista).
+    const obsTransition = ANALYST_OWNED_FOR_REWRITE.has(curStatus);
     await supabase.from("payment_observations").insert({
       payment_id,
       author_type: "ia",
       message: `${summary} (${alerts} alertas, ${blocks} reprovações)${consolidatedDiff}`,
-      status_from: "em_analise_ia",
-      status_to: "revisao_analista",
+      status_from: obsTransition ? "em_analise_ia" : null,
+      status_to: obsTransition ? "revisao_analista" : null,
     });
 
     // Auditoria por lote: confirma explicitamente que `specialty` foi ignorada
@@ -832,17 +854,22 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const total = g.items.reduce((s, x) => s + Number(x.gross_amount), 0);
       const { data: existing } = await supabase
         .from("payment_company_groups")
-        .select("id")
+        .select("id,status")
         .eq("payment_id", payment_id)
         .ilike("company_name", g.company_name)
         .maybeSingle();
       if (existing) {
-        await supabase.from("payment_company_groups").update({
-          status: "revisao_analista",
+        // Mesma regra do payments: só rebaixa para revisao_analista se o
+        // grupo ainda estiver com o analista. Não rouba de validador/diretor.
+        const groupUpd: Record<string, unknown> = {
           items_count: g.items.length,
           total_amount: total,
           company_id: g.company_id,
-        }).eq("id", existing.id);
+        };
+        if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
+          groupUpd.status = "revisao_analista";
+        }
+        await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
         await supabase.from("payment_company_groups").insert({
           payment_id,
