@@ -919,7 +919,7 @@ const NewPayment = () => {
                               {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[360px] p-2" align="start">
+                          <PopoverContent className="w-[min(360px,calc(100vw-2rem))] p-2" align="end" collisionPadding={16}>
                             <p className="text-xs text-muted-foreground mb-2">
                               Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
                             </p>
