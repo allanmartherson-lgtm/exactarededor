@@ -657,6 +657,32 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
       const itRaw = (itemsRaw ?? []).find((x: any) => x.id === r.item_id) as any;
       const resolvedSpec = itRaw?.__resolved_specialty as { value: string | null; source: string } | undefined;
+      // Auditoria explícita dos campos considerados na decisão da regra.
+      // `specialty.used = false` documenta a regra de projeto: especialidade
+      // médica é metadado de relatório/filtro e NÃO entra no motor de seleção.
+      const decisionFields = {
+        used: {
+          sector: it?.classification_sector ?? null,
+          procedure_code: it?.procedure_code ?? null,
+          doctor_document: it?.doctor_document ?? null,
+          doctor_name: it?.doctor_name ?? null,
+          company_id: it?.company_id ?? null,
+          company_document: it?.company_document ?? null,
+          agreement_name: it?.agreement_name ?? null,
+          access_route: it?.access_route ?? null,
+          doctor_role: it?.doctor_role ?? null,
+          procedure_date: it?.procedure_date ?? null,
+        },
+        ignored: {
+          specialty: {
+            used: false,
+            value: resolvedSpec?.value ?? it?.specialty ?? null,
+            reason: "Especialidade é metadado de relatório/filtro e nunca entra na seleção de regra (regra de projeto).",
+          },
+          patient_name: { used: false, reason: "Apenas informacional." },
+          procedure_name: { used: false, reason: "Apenas informacional; matching é por procedure_code." },
+        },
+      };
       const findings = {
         alerts: finalAlerts,
         matched_rules: matchedRules,
@@ -678,6 +704,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Trace de auditoria do motor: candidatas avaliadas e por que cada
         // uma foi descartada/venceu. Base para responder "por que essa regra?"
         selection_trace: r.selection_trace ?? null,
+        // Auditoria dos campos considerados (e dos ignorados — specialty etc.)
+        decision_fields: decisionFields,
       };
 
       await supabase.from("payment_items").update({
