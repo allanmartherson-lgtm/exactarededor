@@ -425,11 +425,48 @@ const PaymentDetail = () => {
     doc.text(`Referência: ${payment.reference}`, 14, 28);
     doc.text(`Status: ${payment.status}`, 14, 34);
     doc.text(`Total: ${formatCurrency(payment.total_amount)}`, 14, 40);
-    const aprovador = payment.approved_by ? (profiles[payment.approved_by] ?? "—") : "—";
-    doc.text(`Aprovado por: ${aprovador} em ${formatDate(payment.approved_at)}`, 14, 46);
+
+    // Aprovador / data: prioriza payment.approved_*; se ausente (aprovação por
+    // grupo agregada por trigger), deriva do grupo aprovado mais recente.
+    const approvedGroups = groups.filter((g) => g.approved_at && g.approved_by);
+    const latestApprovedGroup = approvedGroups
+      .slice()
+      .sort((a, b) => (a.approved_at! < b.approved_at! ? 1 : -1))[0];
+    const approverId = payment.approved_by ?? latestApprovedGroup?.approved_by ?? null;
+    const approverAt = payment.approved_at ?? latestApprovedGroup?.approved_at ?? null;
+    const aprovador = approverId ? (profiles[approverId] ?? "—") : "—";
+    const aprovadoEm = approverAt ? formatDate(approverAt) : "—";
+    doc.text(`Aprovado por: ${aprovador}  ·  em: ${aprovadoEm}`, 14, 46);
+
+    // Totais por empresa — visão executiva antes do detalhamento.
+    let cursorYTop = 54;
+    if (groups.length > 0) {
+      doc.setFontSize(12);
+      doc.text(`Totais por empresa (${groups.length})`, 14, cursorYTop);
+      autoTable(doc, {
+        startY: cursorYTop + 4,
+        head: [["Empresa", "Itens", "Status", "Total"]],
+        body: groups.map((g) => [
+          g.company_name,
+          String(g.items_count ?? 0),
+          g.status,
+          formatCurrency(g.total_amount ?? 0),
+        ]),
+        foot: [[
+          "Total geral",
+          String(groups.reduce((s, g) => s + (g.items_count ?? 0), 0)),
+          "",
+          formatCurrency(payment.total_amount),
+        ]],
+        styles: { fontSize: 9 },
+        footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },
+      });
+      type DocWithLastTable2 = jsPDF & { lastAutoTable?: { finalY?: number } };
+      cursorYTop = ((doc as DocWithLastTable2).lastAutoTable?.finalY ?? cursorYTop) + 8;
+    }
 
     autoTable(doc, {
-      startY: 54,
+      startY: cursorYTop,
       head: [["Médico", "Doc", "Descrição", "Valor", "IA"]],
       body: items.map((i) => [i.doctor_name, i.doctor_document ?? "", i.description ?? "", formatCurrency(i.gross_amount), i.ai_status]),
       styles: { fontSize: 8 },
