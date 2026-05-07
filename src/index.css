@@ -626,22 +626,22 @@ All colors MUST be HSL.
   /* Hierarquia de títulos */
   h1 {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.3;
   }
   h2 {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.3;
   }
   h3 {
     font-size: 13.5px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.35;
   }
   h4, h5, h6 {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.4;
   }
 
