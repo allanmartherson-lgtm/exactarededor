@@ -821,47 +821,98 @@ export default function CompanyAnalysis() {
               className="md:flex-1 text-xs"
             />
             <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
-              <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
-                <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
-                {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
-                    <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+              {canActAnalista && (
+                <>
+                  <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
+                    <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
+                    {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
-                      Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
-                      A observação registrada acima (se houver) será anexada ao histórico.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Voltar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={cancelBatch}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Cancelar lote
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              {returner ? (
-                <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                  <Send className="h-4 w-4 mr-2" />
-                  Reencaminhar ao {returner}
-                </Button>
-              ) : (
-                <SendForValidationPopover
-                  size="sm"
-                  disabled={busy}
-                  onConfirm={async (a) => { await sendForValidation(a); }}
-                />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
+                        <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
+                          Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
+                          A observação registrada acima (se houver) será anexada ao histórico.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={cancelBatch}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Cancelar lote
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  {returner ? (
+                    <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Reencaminhar ao {returner}
+                    </Button>
+                  ) : (
+                    <SendForValidationPopover
+                      size="sm"
+                      disabled={busy}
+                      onConfirm={async (a) => { await sendForValidation(a); }}
+                    />
+                  )}
+                </>
+              )}
+              {canActValidador && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("devolvido_analista", "validador", "Devolvido ao analista pelo validador", true)}
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" /> Devolver ao analista
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("aguardando_aprovacao", "validador", "Validado e enviado para aprovação", false)}
+                  >
+                    <ShieldCheck className="h-4 w-4 mr-2" /> Validar e enviar para aprovação
+                  </Button>
+                </>
+              )}
+              {canActDiretor && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("devolvido_analista", "diretor", "Devolvido ao analista pelo diretor", true)}
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" /> Devolver ao analista
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => transitionGroupStatus("rejeitado", "diretor", "Rejeitado pelo diretor", true)}
+                  >
+                    <ThumbsDown className="h-4 w-4 mr-2" /> Rejeitar
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("aprovado", "diretor", "Aprovado pelo diretor", false)}
+                  >
+                    <ThumbsUp className="h-4 w-4 mr-2" /> Aprovar
+                  </Button>
+                </>
               )}
             </div>
           </div>
