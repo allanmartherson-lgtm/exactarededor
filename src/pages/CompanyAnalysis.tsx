@@ -774,10 +774,18 @@ export default function CompanyAnalysis() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button size="sm" onClick={sendForValidation} disabled={busy}>
-                <Send className="h-4 w-4 mr-2" />
-                {returner ? `Reencaminhar ao ${returner}` : "Enviar para validação"}
-              </Button>
+              {returner ? (
+                <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Reencaminhar ao {returner}
+                </Button>
+              ) : (
+                <SendForValidationPopover
+                  size="sm"
+                  disabled={busy}
+                  onConfirm={(a) => sendForValidation(a)}
+                />
+              )}
             </div>
           </div>
         </div>
