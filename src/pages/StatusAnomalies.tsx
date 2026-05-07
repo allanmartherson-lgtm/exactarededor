@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
 import { PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
