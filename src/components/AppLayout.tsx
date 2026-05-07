@@ -55,7 +55,7 @@ const Logo = () => (
       <ShieldCheck className="h-4 w-4 text-primary-foreground" />
     </div>
     <div className="min-w-0 leading-tight">
-      <p className="font-bold text-[13px] text-foreground leading-none">MedPay</p>
+      <p className="font-medium text-[13px] text-foreground leading-none">MedPay</p>
       <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5 leading-none">
         Approval Flow
       </p>
@@ -139,13 +139,13 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring border-b-2",
                   isActive
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    ? "text-primary border-primary font-medium"
+                    : "text-muted-foreground border-transparent hover:text-foreground",
                 )
               }
-              style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
+              style={{ padding: "6px 4px", marginRight: 14, fontSize: 13 }}
             >
               <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
               <span>{item.label}</span>
@@ -166,12 +166,12 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring border-b-2",
                 groupActive
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "text-primary border-primary font-medium"
+                  : "text-muted-foreground border-transparent hover:text-foreground",
               )}
-              style={{ padding: "6px 11px", borderRadius: 6, fontSize: 13 }}
+              style={{ padding: "6px 4px", marginRight: 14, fontSize: 13 }}
             >
               <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
               <span>{item.label}</span>
@@ -306,7 +306,7 @@ export const AppLayout = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="h-9 w-9 rounded-full bg-accent text-accent-foreground text-[12px] font-semibold flex items-center justify-center hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-[12px] font-medium flex items-center justify-center hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Menu do usuário"
                   >
                     {initials}
