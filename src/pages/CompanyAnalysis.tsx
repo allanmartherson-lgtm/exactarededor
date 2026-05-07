@@ -226,7 +226,11 @@ export default function CompanyAnalysis() {
     const a = assignment ?? { validator_id: null, validator_group_id: null };
     // Atribuição só faz sentido quando vai para validação. Se for reencaminhamento
     // direto a outro ator, mantém o que já estava.
-    const updatePayload: Record<string, unknown> = { status: next };
+    const updatePayload: {
+      status: typeof next;
+      assigned_validator_id?: string | null;
+      assigned_validator_group_id?: string | null;
+    } = { status: next };
     if (next === "aguardando_validacao") {
       updatePayload.assigned_validator_id = a.validator_id;
       updatePayload.assigned_validator_group_id = a.validator_group_id;
