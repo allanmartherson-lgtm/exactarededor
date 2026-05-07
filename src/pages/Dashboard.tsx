@@ -739,6 +739,27 @@ const Dashboard = () => {
   const isValidador = roles.includes("validador") || roles.includes("admin");
   const isDiretor = roles.includes("diretor") || roles.includes("admin");
 
+  // Anomalias de status (admin/diretor): contagem em aberto + realtime.
+  useEffect(() => {
+    if (!isDiretor) return;
+    let cancelled = false;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from("status_anomalies")
+        .select("id", { count: "exact", head: true })
+        .is("resolved_at", null);
+      if (!cancelled) setAnomaliesOpen(count ?? 0);
+    };
+    fetchCount();
+    const ch = supabase
+      .channel("dash_anomalies")
+      .on("postgres_changes", { event: "*", schema: "public", table: "status_anomalies" }, () => {
+        fetchCount();
+      })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [isDiretor]);
+
   const isMine = (p: PaymentRow): boolean => {
     // Estritamente "meu": só pagamentos onde o usuário logado é o criador
     // ou o validador. A fila coletiva do papel aparece em "Tarefas em
