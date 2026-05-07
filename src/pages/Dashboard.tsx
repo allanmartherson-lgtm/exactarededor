@@ -504,6 +504,9 @@ const Dashboard = () => {
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
+  // IDs de pagamentos em aguardando_validacao que pertencem à fila do
+  // validador logado (atribuído diretamente, ao seu grupo, ou fila geral).
+  const [myValidatorPayments, setMyValidatorPayments] = useState<Set<string>>(new Set());
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
@@ -611,10 +614,14 @@ const Dashboard = () => {
       // usuário logado (created_by/validated_by). A fila coletiva do papel
       // aparece em "Tarefas em aberto" e no Pipeline da equipe.
       const c: DashboardCounts = { ...initialCounts };
-      (all ?? []).forEach((p: { status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
+      (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
         const isMineRow =
-          !!uid && (p.created_by === uid || p.validated_by === uid);
+          !!uid && (
+            p.created_by === uid ||
+            p.validated_by === uid ||
+            (p.status === "aguardando_validacao" && myValidatorPayments.has(p.id))
+          );
         if (owner === "analista") {
           c.teamAnalise++;
           if (isMineRow) c.mineAnalista++;
@@ -673,6 +680,35 @@ const Dashboard = () => {
       setLoading(false);
     };
     load();
+  }, [user?.id, myValidatorPayments]);
+
+  // Carrega quais lotes em aguardando_validacao pertencem à fila do validador
+  // logado: atribuído diretamente, ao seu grupo, ou na fila geral.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const uid = user?.id;
+      if (!uid) { setMyValidatorPayments(new Set()); return; }
+      const [{ data: pcg }, { data: myGroups }] = await Promise.all([
+        supabase
+          .from("payment_company_groups")
+          .select("payment_id,assigned_validator_id,assigned_validator_group_id")
+          .eq("status", "aguardando_validacao")
+          .limit(5000),
+        supabase.from("validator_group_members").select("group_id").eq("user_id", uid),
+      ]);
+      if (cancelled) return;
+      const myGroupIds = new Set<string>(((myGroups ?? []) as any[]).map((r) => r.group_id));
+      const mine = new Set<string>();
+      ((pcg ?? []) as any[]).forEach((r) => {
+        const direct = r.assigned_validator_id === uid;
+        const viaGroup = r.assigned_validator_group_id && myGroupIds.has(r.assigned_validator_group_id);
+        const general = !r.assigned_validator_id && !r.assigned_validator_group_id;
+        if (direct || viaGroup || general) mine.add(r.payment_id);
+      });
+      setMyValidatorPayments(mine);
+    })();
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   const pipeCounts = useMemo(() => {
@@ -761,12 +797,16 @@ const Dashboard = () => {
   }, [isDiretor]);
 
   const isMine = (p: PaymentRow): boolean => {
-    // Estritamente "meu": só pagamentos onde o usuário logado é o criador
-    // ou o validador. A fila coletiva do papel aparece em "Tarefas em
-    // aberto" (abaixo) e no "Pipeline da equipe".
+    // "Meu" =
+    //  - criador (analista) OU
+    //  - validador que efetivamente concluiu (validated_by) OU
+    //  - validador com lote em aguardando_validacao atribuído a ele,
+    //    ao seu grupo, ou na fila geral (myValidatorPayments).
     const uid = user?.id;
     if (!uid) return false;
-    return p.created_by === uid || p.validated_by === uid;
+    if (p.created_by === uid || p.validated_by === uid) return true;
+    if (p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) return true;
+    return false;
   };
 
   const myPayments = payments.filter(isMine).slice(0, 6);
