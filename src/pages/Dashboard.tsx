@@ -878,6 +878,20 @@ const Dashboard = () => {
           </p>
         </div>
       </div>
+      {/* ANOMALIAS DE STATUS (admin/diretor) */}
+      {isDiretor && anomaliesOpen > 0 && (
+        <Link
+          to="/anomalias-status"
+          className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span className="font-semibold">{anomaliesOpen}</span>
+            anomalia{anomaliesOpen > 1 ? "s" : ""} de status pendente{anomaliesOpen > 1 ? "s" : ""} — clique para revisar.
+          </div>
+          <span className="text-xs text-destructive/80">Abrir →</span>
+        </Link>
+      )}
+
 
       {/* ATENÇÃO IMEDIATA */}
       {!loading && (slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (
