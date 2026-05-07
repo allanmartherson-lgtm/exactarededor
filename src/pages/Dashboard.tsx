@@ -503,6 +503,7 @@ const Dashboard = () => {
   // Tempo médio agregado por status (gargalos)
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
+  const [anomaliesOpen, setAnomaliesOpen] = useState(0);
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
