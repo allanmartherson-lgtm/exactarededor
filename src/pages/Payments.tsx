@@ -505,6 +505,7 @@ const Payments = () => {
       slaLvl === "vencido" ? "critico" : slaLvl === "preventivo" ? "leve" : lvl;
     const companies = companiesPerPayment[p.id] ?? 0;
     const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
+    const assignment = p.status === "aguardando_validacao" ? assignmentByPayment[p.id] : undefined;
     if (compact) {
       return (
         <Link
