@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { resolveResendTarget, canEditBatch } from "@/lib/paymentFlow";
+import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector } from "@/lib/paymentFlow";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -145,15 +145,21 @@ export default function CompanyAnalysis() {
     [items],
   );
 
-
-
   const groupComments = useMemo(
     () => obs.filter((o) => !o.item_id),
     [obs],
   );
   const itemComments = (itemId: string) => obs.filter((o) => o.item_id === itemId);
 
-  const myAuthorType: "analista" | "validador" | "diretor" = "analista";
+  const isValidador = hasRole("validador") || hasRole("admin");
+  const isDiretor = hasRole("diretor") || hasRole("admin");
+  const isAnalistaRole = hasRole("analista") || hasRole("admin");
+  const myAuthorType: "analista" | "validador" | "diretor" =
+    gStatus === "aguardando_validacao" && isValidador ? "validador"
+    : gStatus === "aguardando_aprovacao" && isDiretor ? "diretor"
+    : isDiretor ? "diretor"
+    : isValidador ? "validador"
+    : "analista";
 
   const addItemComment = async (itemId: string) => {
     const text = (itemDraft[itemId] ?? "").trim();
@@ -521,6 +527,60 @@ export default function CompanyAnalysis() {
     }
   };
 
+  // Transições de fluxo do validador/diretor para esta empresa.
+  const transitionGroupStatus = async (
+    nextStatus: PaymentStatus,
+    authorType: "validador" | "diretor",
+    actionLabel: string,
+    requireMsg: boolean,
+  ) => {
+    if (!id || !group) return;
+    const text = groupDraft.trim();
+    if (requireMsg && !text) {
+      toast.error("Adicione um motivo", { description: "Justifique a devolução ou rejeição no campo de observação." });
+      return;
+    }
+    setBusy(true);
+    const updates: Record<string, unknown> = { status: nextStatus };
+    if (authorType === "validador" && nextStatus === "aguardando_aprovacao") {
+      updates.validated_by = user!.id;
+      updates.validated_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && nextStatus === "aprovado") {
+      updates.approved_by = user!.id;
+      updates.approved_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && nextStatus === "rejeitado") {
+      updates.rejected_by = user!.id;
+      updates.rejected_at = new Date().toISOString();
+      updates.rejection_reason = text || null;
+    }
+    const { error } = await supabase
+      .from("payment_company_groups")
+      .update(updates as never)
+      .eq("id", group.id);
+    if (error) {
+      setBusy(false);
+      return toast.error("Falha ao atualizar", { description: error.message });
+    }
+    await recordObservation({
+      payment_id: id,
+      author_type: authorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] ${actionLabel}${text ? `: ${text}` : "."}`,
+      status_from: group.status,
+      status_to: nextStatus,
+    });
+    if (nextStatus === "aguardando_aprovacao") {
+      supabase.functions.invoke("notify-director-approval", { body: { paymentId: id } })
+        .catch((e) => console.warn("notify-director-approval failed", e));
+    }
+    setGroupDraft("");
+    setBusy(false);
+    toast.success(actionLabel);
+    load();
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -540,12 +600,16 @@ export default function CompanyAnalysis() {
     );
   }
 
-  const canAct = gStatus === "revisao_analista" || gStatus === "devolvido_analista";
-  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
   const isOwner = payment.created_by === user?.id;
   const isAnalista = hasRole("analista") || hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
+  const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
+  const canActAnalista = (gStatus === "revisao_analista" || gStatus === "devolvido_analista") && isAnalistaRole;
+  const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
+  const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
+  const canAct = canActAnalista || canActValidador || canActDiretor;
+  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
 
   return (
     <div className="space-y-4 pb-32">
@@ -757,47 +821,98 @@ export default function CompanyAnalysis() {
               className="md:flex-1 text-xs"
             />
             <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
-              <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
-                <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
-                {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
-                    <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+              {canActAnalista && (
+                <>
+                  <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
+                    <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
+                    {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
-                      Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
-                      A observação registrada acima (se houver) será anexada ao histórico.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Voltar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={cancelBatch}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Cancelar lote
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              {returner ? (
-                <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                  <Send className="h-4 w-4 mr-2" />
-                  Reencaminhar ao {returner}
-                </Button>
-              ) : (
-                <SendForValidationPopover
-                  size="sm"
-                  disabled={busy}
-                  onConfirm={async (a) => { await sendForValidation(a); }}
-                />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
+                        <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
+                          Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
+                          A observação registrada acima (se houver) será anexada ao histórico.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={cancelBatch}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Cancelar lote
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  {returner ? (
+                    <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Reencaminhar ao {returner}
+                    </Button>
+                  ) : (
+                    <SendForValidationPopover
+                      size="sm"
+                      disabled={busy}
+                      onConfirm={async (a) => { await sendForValidation(a); }}
+                    />
+                  )}
+                </>
+              )}
+              {canActValidador && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("devolvido_analista", "validador", "Devolvido ao analista pelo validador", true)}
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" /> Devolver ao analista
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("aguardando_aprovacao", "validador", "Validado e enviado para aprovação", false)}
+                  >
+                    <ShieldCheck className="h-4 w-4 mr-2" /> Validar e enviar para aprovação
+                  </Button>
+                </>
+              )}
+              {canActDiretor && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("devolvido_analista", "diretor", "Devolvido ao analista pelo diretor", true)}
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" /> Devolver ao analista
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => transitionGroupStatus("rejeitado", "diretor", "Rejeitado pelo diretor", true)}
+                  >
+                    <ThumbsDown className="h-4 w-4 mr-2" /> Rejeitar
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => transitionGroupStatus("aprovado", "diretor", "Aprovado pelo diretor", false)}
+                  >
+                    <ThumbsUp className="h-4 w-4 mr-2" /> Aprovar
+                  </Button>
+                </>
               )}
             </div>
           </div>
