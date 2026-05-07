@@ -529,7 +529,60 @@ export default function CompanyAnalysis() {
     }
   };
 
-  if (loading) {
+  // Transições de fluxo do validador/diretor para esta empresa.
+  const transitionGroupStatus = async (
+    nextStatus: PaymentStatus,
+    authorType: "validador" | "diretor",
+    actionLabel: string,
+    requireMsg: boolean,
+  ) => {
+    if (!id || !group) return;
+    const text = groupDraft.trim();
+    if (requireMsg && !text) {
+      toast.error("Adicione um motivo", { description: "Justifique a devolução ou rejeição no campo de observação." });
+      return;
+    }
+    setBusy(true);
+    const updates: Record<string, unknown> = { status: nextStatus };
+    if (authorType === "validador" && nextStatus === "aguardando_aprovacao") {
+      updates.validated_by = user!.id;
+      updates.validated_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && nextStatus === "aprovado") {
+      updates.approved_by = user!.id;
+      updates.approved_at = new Date().toISOString();
+    }
+    if (authorType === "diretor" && nextStatus === "rejeitado") {
+      updates.rejected_by = user!.id;
+      updates.rejected_at = new Date().toISOString();
+      updates.rejection_reason = text || null;
+    }
+    const { error } = await supabase
+      .from("payment_company_groups")
+      .update(updates)
+      .eq("id", group.id);
+    if (error) {
+      setBusy(false);
+      return toast.error("Falha ao atualizar", { description: error.message });
+    }
+    await recordObservation({
+      payment_id: id,
+      author_type: authorType,
+      author_id: user!.id,
+      message: `[${group.company_name}] ${actionLabel}${text ? `: ${text}` : "."}`,
+      status_from: group.status,
+      status_to: nextStatus,
+    });
+    if (nextStatus === "aguardando_aprovacao") {
+      supabase.functions.invoke("notify-director-approval", { body: { paymentId: id } })
+        .catch((e) => console.warn("notify-director-approval failed", e));
+    }
+    setGroupDraft("");
+    setBusy(false);
+    toast.success(actionLabel);
+    load();
+  };
+
     return (
       <div className="space-y-4">
         <PageHeader title="Carregando análise…" />
