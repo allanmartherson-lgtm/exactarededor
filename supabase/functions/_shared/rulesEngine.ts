@@ -1093,15 +1093,12 @@ function calcTabelaDiferenciada(
     base = v;
     baseSource = ` (tabela ref., código ${code})`;
   } else {
-    base = item.procedure_amount;
-    baseLabel = "procedure_amount";
-    if (base == null) {
-      return {
-        expected: null,
-        explanation: "Tabela diferenciada — valor base ausente (sem tabela vinculada e sem procedure_amount).",
-        alerts: ["Tabela diferenciada sem tabela de referência vinculada e sem valor base no item."],
-      };
-    }
+    // Sem tabela vinculada: a regra de tabela diferenciada exige tabela.
+    return {
+      expected: null,
+      explanation: "Tabela diferenciada — regra sem tabela de referência vinculada. A tabela é obrigatória neste tipo de cálculo.",
+      alerts: ["Regra de tabela diferenciada sem tabela de referência vinculada — configure a tabela na regra."],
+    };
   }
 
   const mult = rule.multiplier ?? 1;
