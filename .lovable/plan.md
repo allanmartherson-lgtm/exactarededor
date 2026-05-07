@@ -1,54 +1,57 @@
-## Objetivo
+## Bug do validador — RESOLVIDO
 
-Permitir alterar o lote enquanto está com o analista (status "em análise pela IA", "revisão analista" ou "devolvido analista"). Depois que vai para validação/aprovação, fica bloqueado. E garantir que quem cria o lote não pode validar nem aprovar.
+**Causa raiz:** a edge `analyze-payment` sempre forçava `payments.status` e `payment_company_groups.status` de volta para `revisao_analista`, mesmo quando o lote já tinha sido enviado para validação. Quando a reanálise rodava em background (ex.: após o analista clicar "Enviar para validação"), o lote era "roubado" da fila do validador segundos depois.
 
-## Regras (resumo)
+**Fix aplicado (já deployado):** a edge agora só rebaixa o status para `revisao_analista` se o pagamento/grupo ainda estiver em estado pertencente ao analista (`rascunho`, `em_analise_ia`, `revisao_analista`, `devolvido_analista`). Se já estiver com validador/diretor, apenas atualiza o `ai_summary` e os achados — não mexe no status.
 
-**Status "editáveis pelo analista"** (chamamos `analystEditableStatuses`):
-- `em_analise_ia`, `revisao_analista`, `devolvido_analista`, `rascunho`
+Isso resolve o caso do `Pagamento Teste 2`. Para reabrir manualmente os 4 lotes que ficaram presos em `revisao_analista` por causa do bug, posso aplicar uma correção de dados em seguida (basta o ok).
 
-**Quem pode editar nesse estado:** o analista criador do lote (e admin/diretor para correções administrativas).
+---
 
-**Segregação de funções:** validador/diretor que também é o `created_by` do lote NÃO pode validar nem aprovar este lote (mesmo tendo o papel). Mostra aviso no rodapé explicando.
+## Feature: roteamento de validador no envio
 
-## Mudanças
+### Modelo de dados
+- Nova tabela **`validator_groups`** (id, name, description, active, created_by/at, updated_at)
+- Nova tabela **`validator_group_members`** (group_id, user_id) — many-to-many com `profiles`
+- Em **`payment_company_groups`**, adicionar:
+  - `assigned_validator_id uuid` (validador específico, opcional)
+  - `assigned_validator_group_id uuid` (grupo de validadores, opcional)
+  - exclusivos entre si; ambos nulos = fila geral (default)
 
-### 1. `src/lib/paymentFlow.ts`
-Exportar conjunto `ANALYST_EDITABLE_STATUSES` e helper `canEditBatch(role, status, isOwner)` — single source of truth.
+Mesma estrutura para futura expansão de aprovadores fica preparada (mas sem implementar agora — escolha do usuário).
 
-### 2. `src/pages/PaymentDetail.tsx` (header / metadados do lote)
-- Habilitar edição inline dos campos do lote: `reference`, `description`, `competence_months`, `payment_type`, `payment_due_date`, `cost_center_code` quando `canEditBatch(...)` for true.
-- Botão "Reimportar base" (substitui itens) visível só nesses status — abre o `ImportWizard` reaproveitando o `payment_id`.
-- Esconder/bloquear "Validar" para o usuário se ele for o `created_by` (mesmo sendo validador).
-- Esconder/bloquear "Aprovar" para o usuário se ele for o `created_by` (mesmo sendo diretor).
-- Mostrar banner de aviso: "Você criou este lote — outro validador/diretor precisa concluir."
+### Regras de visibilidade (RLS)
+A política `pcg_view_workflow` continua liberando para qualquer validador ver, mas a UI filtra a fila por:
+- assigned_validator_id = meu user_id, OU
+- assigned_validator_group_id ∈ (grupos onde sou membro), OU
+- ambos nulos (fila geral)
 
-### 3. `src/pages/CompanyAnalysis.tsx` (tela atual do print)
-- Adicionar botão "Editar empresa do grupo" (abre dialog com `CompanyCombobox`) quando editável — corrige match de empresa de TODOS os itens do grupo de uma vez.
-- Linhas do `ItemsDataGrid` ganham menu "…" com:
-  - Editar item (valor bruto, especialidade, médico, empresa, centro de custo)
-  - Excluir item
-  Disponíveis apenas se `canEditBatch` for true.
-- Após qualquer edição: recomputar `total_amount`/`items_count` do grupo e disparar reanálise da IA automaticamente para os itens afetados.
-- Bloquear "Enviar para validação" se grupo está vazio depois de exclusões.
+Admin/diretor continuam vendo tudo. RLS reforça que só o destinatário/grupo pode mudar status (`update` extra check).
 
-### 4. RLS / banco
-Os policies atuais já permitem update por `analista`/`admin`/`diretor` sem checar status. Para travar de verdade no servidor:
-- Migration: ajustar policy `payments_update_workflow` e `items_manage_workflow` para exigir
-  `status IN ('rascunho','em_analise_ia','revisao_analista','devolvido_analista')` quando o ator for analista. Admin/diretor mantêm update irrestrito (já podem corrigir).
-- Migration: policy nova que impede `validated_by = created_by` e `approved_by = created_by` (CHECK via trigger BEFORE UPDATE em `payment_company_groups` e `payments`).
+### UI
+1. **Tela "Configurações → Grupos de validadores"** (admin/diretor): CRUD simples — nome, descrição, escolher membros entre os usuários com role `validador`.
+2. **Modal "Enviar para validação"** (analista, em `PaymentDetail`): hoje envia direto. Passa a abrir um pequeno popover com 3 opções:
+   - Fila geral (default — comportamento atual)
+   - Validador específico (combobox de usuários `validador`)
+   - Grupo de validadores (combobox de grupos ativos)
+   - Aplica a escolha por empresa (ou para todas as empresas do lote, com toggle "aplicar a todas").
+3. **Páginas `Payments.tsx` e `Dashboard.tsx`**: filtro da fila de validador inclui `assigned_validator_id = me OR group ∈ meus OR ambos nulos`. Mostra um chip discreto "Atribuído a você" / "Grupo X" quando aplicável.
 
-### 5. UI auxiliar
-- Em todas as tabelas/listas (Payments.tsx) onde já aparece "Validar"/"Aprovar", desabilitar a ação quando `row.created_by === user.id` com tooltip "Você criou este lote".
+### Edge functions
+- Nenhuma mudança lógica; só passar os campos novos no insert/update do grupo.
 
-## Não muda
-- Fluxo de status / transições (`paymentFlow.ts` TRANSITIONS) permanece igual.
-- Validador/diretor seguem podendo devolver para o analista — quando volta, o lote fica editável de novo automaticamente (já está em `devolvido_analista`).
+### Retrocompatibilidade
+- Pagamentos antigos: `assigned_*` ficam nulos → fila geral (não muda nada).
+- Default no envio: fila geral (conforme escolhido).
 
-## Detalhes técnicos
+### Aprovadores
+Fora desse escopo (só validador agora), mas a modelagem já fica genérica o suficiente para reuso.
 
-- Reanálise automática ao editar item: chamar a edge function `analyze-payment` com flag `only_item_ids` (já existe ou adicionar parâmetro).
-- Edição de empresa do grupo: `UPDATE payment_items SET company_id, company_name WHERE id IN (...)` + recriar/atualizar `payment_company_groups` (mover itens entre grupos se a empresa nova já existir como grupo, ou criar grupo novo).
-- Aprendizado de alias: igual ao já implementado em `NewPayment.tsx` — quando trocar empresa, append no `companies.aliases` da nova empresa o nome antigo.
+---
 
-Confirmar plano antes de implementar?
+### Ordem de execução
+1. Migração (tabelas + colunas + RLS).
+2. Tela de gestão de grupos.
+3. Modal de envio com escolha.
+4. Filtros de fila no Dashboard / Payments.
+5. Indicador visual nos cards.
