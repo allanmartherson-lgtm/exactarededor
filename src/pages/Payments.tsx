@@ -119,6 +119,15 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
+  // Atribuição de validador por pagamento (apenas grupos em aguardando_validacao).
+  // chip exibido no card + filtro da fila do validador.
+  type AssignmentInfo = {
+    mine: boolean;        // ao menos um grupo é meu (direto ou via grupo)
+    general: boolean;     // ao menos um grupo é fila geral (sem atribuição)
+    label: string;        // texto curto para o chip
+  };
+  const [assignmentByPayment, setAssignmentByPayment] = useState<Record<string, AssignmentInfo>>({});
+  const [myValidatorGroupIds, setMyValidatorGroupIds] = useState<Set<string>>(new Set());
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
