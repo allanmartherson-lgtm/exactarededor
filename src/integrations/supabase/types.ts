@@ -667,6 +667,8 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          assigned_validator_group_id: string | null
+          assigned_validator_id: string | null
           company_id: string | null
           company_name: string
           created_at: string
@@ -685,6 +687,8 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          assigned_validator_group_id?: string | null
+          assigned_validator_id?: string | null
           company_id?: string | null
           company_name: string
           created_at?: string
@@ -703,6 +707,8 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          assigned_validator_group_id?: string | null
+          assigned_validator_id?: string | null
           company_id?: string | null
           company_name?: string
           created_at?: string
@@ -718,7 +724,15 @@ export type Database = {
           validated_at?: string | null
           validated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_company_groups_assigned_validator_group_id_fkey"
+            columns: ["assigned_validator_group_id"]
+            isOneToOne: false
+            referencedRelation: "validator_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_director_notifications: {
         Row: {
@@ -1784,6 +1798,65 @@ export type Database = {
           },
         ]
       }
+      validator_group_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validator_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "validator_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validator_groups: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1794,6 +1867,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_in_validator_group: {
+        Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
       only_digits: { Args: { txt: string }; Returns: string }
