@@ -1798,9 +1798,7 @@ const Rules = () => {
                                 ) : (
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                                 )}
-                                {Array.isArray(r.specialties) && r.specialties.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">🩺 {r.specialties.join(" · ")}</span>
-                                )}
+                                {/* Especialidade não é eixo do motor — não exibimos como badge de regra. */}
                                 {(r.valid_from || r.valid_until) && (
                                   <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
                                     Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
