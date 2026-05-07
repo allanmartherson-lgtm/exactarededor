@@ -146,7 +146,7 @@ export default function CompanyAnalysis() {
   );
 
 
-
+  if (loading) {
   const groupComments = useMemo(
     () => obs.filter((o) => !o.item_id),
     [obs],
