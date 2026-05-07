@@ -20,6 +20,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   nf_questionada: "NF questionada",
   nf_recebida: "NF recebida",
   nf_conciliada: "NF conciliada",
+  lancado: "Lançado",
   nf_divergente: "NF divergente",
   pago: "Pago",
   rejeitado: "Rejeitado",
