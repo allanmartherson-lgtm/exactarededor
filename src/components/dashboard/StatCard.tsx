@@ -9,6 +9,14 @@ const toneBg: Record<StatCardTone, string> = {
   success: "bg-success-soft text-success",
 };
 
+// Barra lateral de acento — cria hierarquia visual sem encher o card de cor.
+// Aspecto "Stripe-like": fundo branco, acento sutil, distinção imediata.
+const toneAccent: Record<StatCardTone, string> = {
+  info: "border-l-4 border-l-info",
+  warning: "border-l-4 border-l-warning",
+  success: "border-l-4 border-l-success",
+};
+
 export interface StatCardProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -22,9 +30,9 @@ export interface StatCardProps {
 
 /**
  * StatCard — variante de domínio do StatTile usada no Dashboard.
- * Aplica o ícone com tom (info/warning/success) e converte `mine`
- * no selo "Sua vez". Toda padronização de altura/tipografia/foco
- * vem do StatTile, garantindo alinhamento idêntico em qualquer tela.
+ * Aplica o ícone com tom (info/warning/success), barra lateral de acento
+ * para distinguir cada KPI sem cansar visualmente, e converte `mine`
+ * no selo "Sua vez". Padronização base vem do StatTile.
  */
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
   const iconNode = (
@@ -52,6 +60,7 @@ export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: Sta
       badge={badge}
       highlighted={mine}
       to={to}
+      className={toneAccent[tone]}
       ariaLabel={[label, `valor ${value}`, mine ? "sua vez" : hint].filter(Boolean).join(", ")}
     />
   );

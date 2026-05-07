@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -674,20 +674,31 @@ export default function CompanyAnalysis() {
               </p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <Stat label="Itens" value={String(group.items_count ?? items.length)} />
-            <Stat label="Valor total" value={formatCurrency(Number(group.total_amount ?? 0))} mono />
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Stat
+              label="Itens"
+              value={String(group.items_count ?? items.length)}
+              tone="info"
+              icon={<FileText className="h-4 w-4" />}
+            />
+            <Stat
+              label="Valor total"
+              value={formatCurrency(Number(group.total_amount ?? 0))}
+              mono
+              tone="success"
+              icon={<Wallet className="h-4 w-4" />}
+            />
             <Stat
               label="Alertas"
               value={String(counts.alertasTotal)}
               tone={counts.alertasTotal > 0 ? "warning" : "muted"}
-              icon={<AlertTriangle className="h-3.5 w-3.5" />}
+              icon={<AlertTriangle className="h-4 w-4" />}
             />
             <Stat
               label="Críticos"
               value={String(counts.criticosTotal)}
               tone={counts.criticosTotal > 0 ? "destructive" : "muted"}
-              icon={<ShieldAlert className="h-3.5 w-3.5" />}
+              icon={<ShieldAlert className="h-4 w-4" />}
             />
           </div>
         </CardContent>
@@ -992,22 +1003,54 @@ function Stat({
   label: string;
   value: string;
   mono?: boolean;
-  tone?: "muted" | "warning" | "destructive";
+  tone?: "muted" | "info" | "success" | "warning" | "destructive";
   icon?: React.ReactNode;
 }) {
-  const toneClass =
-    tone === "destructive"
-      ? "text-destructive"
-      : tone === "warning"
-      ? "text-warning-foreground"
-      : "text-foreground";
+  // Cada tom tem: chip do ícone (fundo soft + texto da cor) e barra lateral.
+  // Mantém fundo branco do card pra preservar a estética financeira sóbria,
+  // mas usa o acento de cor pra deixar cada KPI visualmente distinto.
+  const tones: Record<typeof tone, { chip: string; bar: string; value: string }> = {
+    muted: {
+      chip: "bg-muted text-muted-foreground",
+      bar: "bg-border",
+      value: "text-foreground",
+    },
+    info: {
+      chip: "bg-info-soft text-info",
+      bar: "bg-info",
+      value: "text-foreground",
+    },
+    success: {
+      chip: "bg-success-soft text-success",
+      bar: "bg-success",
+      value: "text-foreground",
+    },
+    warning: {
+      chip: "bg-warning-soft text-warning-foreground",
+      bar: "bg-warning",
+      value: "text-warning-foreground",
+    },
+    destructive: {
+      chip: "bg-destructive/10 text-destructive",
+      bar: "bg-destructive",
+      value: "text-destructive",
+    },
+  };
+  const t = tones[tone];
   return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2">
-      <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-        {icon}
-        {label}
+    <div className="relative overflow-hidden rounded-lg border bg-card shadow-soft">
+      <span aria-hidden className={cn("absolute left-0 top-0 h-full w-1", t.bar)} />
+      <div className="flex items-start gap-3 px-3 py-3 pl-4">
+        {icon && (
+          <div className={cn("flex h-9 w-9 items-center justify-center rounded-md flex-shrink-0", t.chip)}>
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className={cn("mt-1 text-xl font-semibold leading-tight", mono && "tabular-nums", t.value)}>{value}</div>
+        </div>
       </div>
-      <div className={cn("text-base font-semibold mt-0.5", mono && "tabular-nums", toneClass)}>{value}</div>
     </div>
   );
 }
