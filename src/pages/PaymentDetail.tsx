@@ -1139,6 +1139,9 @@ const PaymentDetail = () => {
                 </Dialog>
               )}
               {canReimport && (
+                <>
+                  <input
+                    ref={reimportInputRef}
                     type="file"
                     accept=".xlsx,.xls"
                     className="hidden"
