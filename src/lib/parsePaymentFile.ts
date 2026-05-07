@@ -245,7 +245,7 @@ export const parsePaymentFile = async (
       doctor_role: role,
       agreement_text: toStr(pick(row, ["convenio","convênio","acordo"])),
       specialty: toStr(pick(row, ["especialidade","especialid","especialidade médica","especialidade medica"])) || null,
-      procedure_amount: procVal || null,
+      procedure_amount: procedureAmountFinal,
       quantity: toNumber(pick(row, ["qtd","quantidade"])) || null,
       procedure_date: excelDateToISO(pick(row, ["data"])),
       patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
