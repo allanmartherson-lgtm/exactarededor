@@ -1113,9 +1113,23 @@ const PaymentDetail = () => {
         description={payment.description ?? `${items.length} itens · ${formatCurrency(payment.total_amount)}`}
         sticky
         actions={
-          <>
+          <div className="flex items-center gap-2">
+            {obs.some((o: any) => o.is_question) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={cn(
+                  "border-info/40 bg-info-soft text-info hover:bg-info-soft/80",
+                  obs.some((o: any) => o.is_question && !o.resolved_at) && "animate-pulse"
+                )}
+                onClick={() => setIsQuestionsPanelOpen(true)}
+              >
+                <MessageCircleQuestion className="h-4 w-4 mr-1.5" />
+                Questionamentos ({obs.filter((o: any) => o.is_question && !o.resolved_at).length})
+              </Button>
+            )}
             <StatusBadge status={payment.status} />
-          </>
+          </div>
         }
       />
       <div className="p-8 space-y-6">
@@ -1665,6 +1679,19 @@ const PaymentDetail = () => {
 
         {renderHistoryCard()}
       </div>
+
+      <PaymentInternalQuestionsPanel
+        isOpen={isQuestionsPanelOpen}
+        onClose={() => setIsQuestionsPanelOpen(false)}
+        observations={obs}
+        items={items}
+        invoices={invoices}
+        profiles={profiles}
+        itemLabel={itemLabel}
+        onChanged={load}
+        onOpenQuestionInvoice={setOpenQuestionInvoiceId}
+        paymentReference={payment.reference}
+      />
 
       {/* Sheet pra responder ao recebedor — alimentado pelo banner do topo. */}
       <Sheet open={!!openQuestionInvoiceId} onOpenChange={(v) => !v && setOpenQuestionInvoiceId(null)}>
