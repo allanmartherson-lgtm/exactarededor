@@ -51,7 +51,7 @@ interface Body {
 }
 
 /** Resolve papéis-alvo a partir do papel de quem perguntou + status do lote. */
-function defaultRecipientsForCreated(
+export function defaultRecipientsForCreated(
   askerRole: Role | null | undefined,
   paymentStatus: string | null,
 ): Role[] {
