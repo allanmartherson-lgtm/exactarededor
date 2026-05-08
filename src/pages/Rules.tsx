@@ -373,7 +373,7 @@ const Rules = () => {
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
         : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
-      ["Status", r.enabled ? "Ativa" : "Inativa"]
+      ["Status", r.active !== false ? "Ativa" : "Inativa"]
     ];
 
     autoTable(doc, {
@@ -1997,7 +1997,8 @@ const Rules = () => {
                           <div key={r.id} className="px-6 py-4 flex items-start gap-3">
                             <Checkbox className="mt-1" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
                             <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
+                                <span className="font-semibold text-foreground">{r.name}</span>
                                 <p className="font-medium text-sm">{r.name}</p>
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
                                 <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
@@ -2120,9 +2121,9 @@ const Rules = () => {
           </DialogHeader>
           <div className="space-y-4">
             {drafts.map((d, i) => (
-              <Card key={i} className={`p-4 ${d.enabled ? "" : "opacity-50"}`}>
+              <Card key={i} className={`p-4 ${d.active ? "" : "opacity-50"}`}>
                 <div className="flex items-start gap-3 mb-3">
-                  <Checkbox checked={d.enabled} onCheckedChange={(v) => updateDraft(i, { enabled: !!v })} className="mt-1" />
+                  <Checkbox checked={d.active} onCheckedChange={(v) => updateDraft(i, { active: !!v })} className="mt-1" />
                   <Input value={d.name} onChange={(e) => updateDraft(i, { name: e.target.value })} placeholder="Nome" className="font-medium" />
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-3">
