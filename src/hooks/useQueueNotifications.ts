@@ -135,6 +135,22 @@ export function useQueueNotifications() {
       }
     };
 
+    const handleQuestionResolved = async (paymentId: string) => {
+      // Busca a referência do lote para o toast
+      const { data: p } = await supabase
+        .from("payments")
+        .select("reference")
+        .eq("id", paymentId)
+        .maybeSingle();
+
+      const label = p?.reference ? `Lote ${p.reference}` : "Lote";
+      fire(`question-resolved:${paymentId}`, {
+        title: "Questionamento resolvido",
+        description: `${label} agora pode seguir o fluxo.`,
+        kind: "success",
+        paymentId,
+      });
+
     const channel = supabase
       .channel(`queue-notifications:${user.id}`)
       .on(
@@ -175,7 +191,19 @@ export function useQueueNotifications() {
           handleStatusChange(n.status, null, n.payment_id, `Empresa ${n.company_name}`, `group:${n.id}:new`);
         },
       )
-      .subscribe();
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "payment_observations" },
+          (payload) => {
+            const n = payload.new as any;
+            const o = payload.old as any;
+            // Se foi marcada como resolvida agora
+            if (n.is_question && n.resolved_at && (!o || !o.resolved_at)) {
+              handleQuestionResolved(n.payment_id);
+            }
+          }
+        )
+        .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
