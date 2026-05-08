@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/status";
-import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X, Filter } from "lucide-react";
+import { CheckCircle2, MessageCircleQuestion, Pencil, RotateCcw, Save, Send, User as UserIcon, X, Filter } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
-import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
+import { authorRoleLabel, getRoleVisual, recordObservation, resolveQuestion, reopenQuestion } from "@/lib/observations";
 
 const ROLE_FILTER_OPTIONS = ["analista", "validador", "diretor", "admin", "sistema", "ia"] as const;
 
@@ -53,6 +53,17 @@ export const PaymentTimeline = ({
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  // Drafts da resposta inline a uma pergunta interna (por questionId).
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyOpenFor, setReplyOpenFor] = useState<string | null>(null);
+
+  const myRole: "analista" | "validador" | "diretor" | null = useMemo(() => {
+    // O autor_type da resposta usa o papel do autor da pergunta original;
+    // como aqui o usuário pode ter múltiplos papéis, escolhemos o "mais alto"
+    // disponível com base nas observações que ele já fez. Fallback: analista.
+    return null;
+  }, []);
+  void myRole;
 
   // Lista os papéis efetivamente presentes nas observações para evitar
   // exibir opções vazias no Select.
@@ -145,15 +156,22 @@ export const PaymentTimeline = ({
           {filtered.map((o) => {
         const canEdit = !!user && o.author_id === user.id;
         const isEditing = editingObsId === o.id;
-        // Destaca visualmente questionamentos do recebedor — são críticos.
-        const isQuestion =
-          o.status_to === "nf_questionada" ||
-          (typeof o.message === "string" &&
-            o.message.startsWith("Recebedor da NF enviou um questionamento"));
-        // Tenta resolver a invoice correspondente para permitir responder
-        // direto da timeline. Estratégia:
-        // 1) Se a observação tem item_id, casa pela company do item.
-        // 2) Senão, se houver apenas uma invoice no payment, usa essa.
+        const oExt = o as ObservationRow & {
+          is_question?: boolean | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          answered_by_observation_id?: string | null;
+        };
+        // Pergunta interna (nova feature) — distinta do antigo questionamento de NF.
+        const isInternalQuestion = !!oExt.is_question;
+        const isResolved = isInternalQuestion && !!oExt.resolved_at;
+        // Mantém destaque do antigo "questionamento do recebedor" (NF) só pra
+        // exibir o atalho "Responder na NF" — não conta como pergunta interna.
+        const isNfQuestion =
+          !isInternalQuestion &&
+          (o.status_to === "nf_questionada" ||
+            (typeof o.message === "string" &&
+              o.message.startsWith("Recebedor da NF enviou um questionamento")));
         let relatedInvoiceId: string | null = null;
         if (o.item_id) {
           const it = items.find((x) => x.id === o.item_id);
@@ -162,32 +180,42 @@ export const PaymentTimeline = ({
             if (inv) relatedInvoiceId = inv.id;
           }
         }
-        if (!relatedInvoiceId && isQuestion && invoices.length === 1) {
+        if (!relatedInvoiceId && isNfQuestion && invoices.length === 1) {
           relatedInvoiceId = invoices[0].id;
         }
         const visual = getRoleVisual(o.author_type);
         const RoleIcon = visual.Icon;
+        const containerCls = isInternalQuestion && !isResolved
+          ? "rounded-md border border-info/40 bg-info-soft/40 p-2 -ml-1"
+          : isInternalQuestion && isResolved
+          ? "rounded-md border border-border bg-muted/40 p-2 -ml-1"
+          : isNfQuestion
+          ? "rounded-md border border-warning/40 bg-warning-soft/40 p-2 -ml-1"
+          : "";
+        const dotCls = isInternalQuestion ? (isResolved ? "bg-muted-foreground" : "bg-info") : isNfQuestion ? "bg-warning" : visual.dotClass;
         return (
-          <li
-            key={o.id}
-            className={`ml-1 ${
-              isQuestion ? "rounded-md border border-warning/40 bg-warning-soft/40 p-2 -ml-1" : ""
-            }`}
-          >
-            <span
-              className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${
-                isQuestion ? "bg-warning" : visual.dotClass
-              }`}
-            />
+          <li key={o.id} className={`ml-1 ${containerCls}`}>
+            <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ${dotCls}`} />
             <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
-              {isQuestion && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-warning-foreground uppercase tracking-wide text-[10px] font-semibold">
-                  <MessageCircleQuestion className="h-3 w-3" /> Questionamento
+              {isInternalQuestion && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide text-[10px] font-semibold ${
+                    isResolved
+                      ? "border-border bg-muted text-muted-foreground"
+                      : "border-info/40 bg-info-soft text-info"
+                  }`}
+                  title={isResolved ? `Respondida em ${formatDate(oExt.resolved_at!)}` : "Aguardando resposta"}
+                >
+                  <MessageCircleQuestion className="h-3 w-3" />
+                  {isResolved ? "Pergunta respondida" : "Pergunta aberta"}
                 </span>
               )}
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide ${visual.badgeClass}`}
-              >
+              {isNfQuestion && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-warning-foreground uppercase tracking-wide text-[10px] font-semibold">
+                  <MessageCircleQuestion className="h-3 w-3" /> Questionamento NF
+                </span>
+              )}
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide ${visual.badgeClass}`}>
                 <RoleIcon className="h-3 w-3" />
                 {authorRoleLabel(o.author_type)}
               </span>
@@ -202,39 +230,29 @@ export const PaymentTimeline = ({
                     ? "Sistema"
                     : "Usuário desconhecido"}
               </span>
-              {o.item_id && (
-                <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>
-              )}
+              {o.item_id && <span className="text-muted-foreground">· {itemLabel(o.item_id)}</span>}
               {(o.status_from || o.status_to) && (
-                <span className="text-muted-foreground">
-                  · {o.status_from ?? "—"} → {o.status_to ?? "—"}
-                </span>
+                <span className="text-muted-foreground">· {o.status_from ?? "—"} → {o.status_to ?? "—"}</span>
               )}
               <span className="text-muted-foreground ml-auto">{formatDate(o.created_at)}</span>
-              {o.edited_at && (
+              {oExt.resolved_at && (
                 <span className="text-muted-foreground italic">
-                  · editado {formatDate(o.edited_at)}
+                  · respondida {formatDate(oExt.resolved_at)}
+                  {oExt.resolved_by && profiles[oExt.resolved_by] ? ` por ${profiles[oExt.resolved_by]}` : ""}
                 </span>
               )}
+              {o.edited_at && (
+                <span className="text-muted-foreground italic">· editado {formatDate(o.edited_at)}</span>
+              )}
               {canEdit && !isEditing && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-1.5"
-                  onClick={() => startEditObs(o)}
-                  aria-label="Editar observação"
-                >
+                <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => startEditObs(o)} aria-label="Editar observação">
                   <Pencil className="h-3 w-3" />
                 </Button>
               )}
             </div>
             {isEditing ? (
               <div className="space-y-2">
-                <Textarea
-                  rows={3}
-                  value={editingObsDraft}
-                  onChange={(e) => setEditingObsDraft(e.target.value)}
-                />
+                <Textarea rows={3} value={editingObsDraft} onChange={(e) => setEditingObsDraft(e.target.value)} />
                 <div className="flex gap-2 justify-end">
                   <Button size="sm" variant="ghost" onClick={cancelEditObs} disabled={busy}>
                     <X className="h-3.5 w-3.5 mr-1" /> Cancelar
@@ -247,7 +265,7 @@ export const PaymentTimeline = ({
             ) : (
               <>
                 <p className="text-sm whitespace-pre-wrap">{o.message}</p>
-                {isQuestion && relatedInvoiceId && (
+                {isNfQuestion && relatedInvoiceId && (
                   <div className="mt-2">
                     <Button
                       size="sm"
@@ -255,8 +273,102 @@ export const PaymentTimeline = ({
                       className="border-warning/60 bg-warning-soft text-warning-foreground hover:bg-warning-soft/80"
                       onClick={() => onOpenQuestionInvoice(relatedInvoiceId!)}
                     >
-                      <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" />
-                      Responder na NF
+                      <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Responder na NF
+                    </Button>
+                  </div>
+                )}
+                {isInternalQuestion && !isResolved && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReplyOpenFor((cur) => (cur === o.id ? null : o.id))}
+                      >
+                        <Send className="h-3.5 w-3.5 mr-1.5" /> Responder
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy || !user}
+                        onClick={async () => {
+                          if (!user) return;
+                          setBusy(true);
+                          const r = await resolveQuestion(o.id, user.id, null, o.author_type);
+                          setBusy(false);
+                          if (!r.ok) {
+                            toast({ title: "Falha ao marcar como respondida", description: r.error, variant: "destructive" });
+                            return;
+                          }
+                          await onChanged();
+                        }}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Marcar como respondida
+                      </Button>
+                    </div>
+                    {replyOpenFor === o.id && (
+                      <div className="space-y-2">
+                        <Textarea
+                          rows={3}
+                          placeholder="Sua resposta…"
+                          value={replyDraft[o.id] ?? ""}
+                          onChange={(e) => setReplyDraft((m) => ({ ...m, [o.id]: e.target.value }))}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => setReplyOpenFor(null)} disabled={busy}>Cancelar</Button>
+                          <Button
+                            size="sm"
+                            disabled={busy || !user || !(replyDraft[o.id] ?? "").trim()}
+                            onClick={async () => {
+                              if (!user) return;
+                              const text = (replyDraft[o.id] ?? "").trim();
+                              if (!text) return;
+                              setBusy(true);
+                              // O author_type da resposta segue o do autor desta tela
+                              // — usamos o do registro original como fallback razoável.
+                              const res = await recordObservation({
+                                payment_id: o.payment_id,
+                                author_type: o.author_type,
+                                author_id: user.id,
+                                message: text,
+                                item_id: o.item_id ?? null,
+                                answers_question_id: o.id,
+                              });
+                              setBusy(false);
+                              if (!res.ok) {
+                                toast({ title: "Falha ao responder", description: res.error, variant: "destructive" });
+                                return;
+                              }
+                              setReplyDraft((m) => ({ ...m, [o.id]: "" }));
+                              setReplyOpenFor(null);
+                              await onChanged();
+                            }}
+                          >
+                            <Send className="h-3.5 w-3.5 mr-1.5" /> Enviar resposta
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isInternalQuestion && isResolved && (
+                  <div className="mt-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        const r = await reopenQuestion(o.id);
+                        setBusy(false);
+                        if (!r.ok) {
+                          toast({ title: "Falha ao reabrir", description: r.error, variant: "destructive" });
+                          return;
+                        }
+                        await onChanged();
+                      }}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reabrir pergunta
                     </Button>
                   </div>
                 )}

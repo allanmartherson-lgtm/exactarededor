@@ -136,6 +136,9 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
+  // Contagem de perguntas internas abertas por lote (badge nas listagens).
+  const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
+  const [openQuestionOnly, setOpenQuestionOnly] = useState(false);
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
@@ -250,10 +253,11 @@ const Payments = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [{ data: divItems }, { data: questPays }, { data: iq }] = await Promise.all([
+      const [{ data: divItems }, { data: questPays }, { data: iq }, { data: openQs }] = await Promise.all([
         supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
         supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
         supabase.from("invoice_questions").select("payment_id").limit(5000),
+        supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(5000),
       ]);
       if (cancelled) return;
       const div = new Set<string>();
@@ -261,6 +265,12 @@ const Payments = () => {
       const quest = new Set<string>();
       (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
       (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
+      const counts: Record<string, number> = {};
+      (openQs ?? []).forEach((r: any) => {
+        if (!r.payment_id) return;
+        counts[r.payment_id] = (counts[r.payment_id] ?? 0) + 1;
+      });
+      setOpenQuestionCount(counts);
       setPaymentIdsWithDivergence(div);
       setPaymentIdsWithQuestions(quest);
     })();
@@ -400,8 +410,9 @@ const Payments = () => {
       if (questionedFilter === "with" && !has) return false;
       if (questionedFilter === "without" && has) return false;
     }
+    if (openQuestionOnly && !(openQuestionCount[r.id] > 0)) return false;
     return true;
-  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
+  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
