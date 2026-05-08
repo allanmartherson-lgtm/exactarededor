@@ -47,7 +47,7 @@ import {
   type AiFindings,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
-import { SendForValidationPopover } from "@/components/SendForValidationPopover";
+
 
 /**
  * Tela dedicada de análise por empresa dentro de um lote.
@@ -222,60 +222,38 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const sendForValidation = async (
-    assignment?: { validator_id: string | null; validator_group_id: string | null },
-  ) => {
+  const sendForValidation = async () => {
     if (!id || !group) return;
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
     const target = resolveResendTarget(obs, group.company_name);
     const next = target?.nextStatus ?? "aguardando_validacao";
-    const a = assignment ?? { validator_id: null, validator_group_id: null };
-    // Atribuição só faz sentido quando vai para validação. Se for reencaminhamento
-    // direto a outro ator, mantém o que já estava.
-    const updatePayload: {
-      status: typeof next;
-      assigned_validator_id?: string | null;
-      assigned_validator_group_id?: string | null;
-    } = { status: next };
-    if (next === "aguardando_validacao") {
-      updatePayload.assigned_validator_id = a.validator_id;
-      updatePayload.assigned_validator_group_id = a.validator_group_id;
-    }
     const { error } = await supabase
       .from("payment_company_groups")
-      .update(updatePayload)
+      .update({ status: next })
       .eq("id", group.id);
     if (error) {
       setBusy(false);
       return toast.error("Erro ao enviar", { description: error.message });
     }
     const text = groupDraft.trim();
-    const assignSuffix =
-      next === "aguardando_validacao" && a.validator_id
-        ? " (atribuído a validador específico)"
-        : next === "aguardando_validacao" && a.validator_group_id
-          ? " (atribuído a grupo de validadores)"
-          : "";
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
       message: target
         ? `[${group.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`
-        : `[${group.company_name}] Enviado para validação pelo analista${assignSuffix}${text ? `: ${text}` : ""}.`,
+        : `[${group.company_name}] Enviado para validação pelo analista${text ? `: ${text}` : ""}.`,
       status_from: group.status,
       status_to: next,
     });
     setGroupDraft("");
-    // Notifica destinatários + auditoria (apenas quando vai para validação).
+    // Notifica todos os validadores (fila coletiva) + auditoria, somente quando vai para validação.
     if (next === "aguardando_validacao") {
       supabase.functions.invoke("notify-validator-assignment", {
         body: {
           payment_id: id,
           group_id: group.id,
-          validator_id: a.validator_id,
-          validator_group_id: a.validator_group_id,
           sender_id: user!.id,
         },
       }).catch((e) => console.warn("notify-validator-assignment failed", group.id, e));
@@ -876,11 +854,10 @@ export default function CompanyAnalysis() {
                       Reencaminhar ao {returner}
                     </Button>
                   ) : (
-                    <SendForValidationPopover
-                      size="sm"
-                      disabled={busy}
-                      onConfirm={async (a) => { await sendForValidation(a); }}
-                    />
+                    <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar para validação
+                    </Button>
                   )}
                 </>
               )}

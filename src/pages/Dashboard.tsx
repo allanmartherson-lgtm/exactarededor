@@ -502,9 +502,6 @@ const Dashboard = () => {
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
-  // IDs de pagamentos em aguardando_validacao que pertencem à fila do
-  // validador logado (atribuído diretamente, ao seu grupo, ou fila geral).
-  const [myValidatorPayments, setMyValidatorPayments] = useState<Set<string>>(new Set());
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
@@ -622,7 +619,7 @@ const Dashboard = () => {
         const isMineRow =
           !!uid && (
             (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-            (owner === "validador" && p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) ||
+            (owner === "validador" && p.status === "aguardando_validacao") ||
             (owner === "diretor" && p.status === "aguardando_aprovacao")
           );
         if (owner === "analista") {
@@ -683,35 +680,6 @@ const Dashboard = () => {
       setLoading(false);
     };
     load();
-  }, [user?.id, myValidatorPayments]);
-
-  // Carrega quais lotes em aguardando_validacao pertencem à fila do validador
-  // logado: atribuído diretamente, ao seu grupo, ou na fila geral.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const uid = user?.id;
-      if (!uid) { setMyValidatorPayments(new Set()); return; }
-      const [{ data: pcg }, { data: myGroups }] = await Promise.all([
-        supabase
-          .from("payment_company_groups")
-          .select("payment_id,assigned_validator_id,assigned_validator_group_id")
-          .eq("status", "aguardando_validacao")
-          .limit(5000),
-        supabase.from("validator_group_members").select("group_id").eq("user_id", uid),
-      ]);
-      if (cancelled) return;
-      const myGroupIds = new Set<string>(((myGroups ?? []) as any[]).map((r) => r.group_id));
-      const mine = new Set<string>();
-      ((pcg ?? []) as any[]).forEach((r) => {
-        const direct = r.assigned_validator_id === uid;
-        const viaGroup = r.assigned_validator_group_id && myGroupIds.has(r.assigned_validator_group_id);
-        const general = !r.assigned_validator_id && !r.assigned_validator_group_id;
-        if (direct || viaGroup || general) mine.add(r.payment_id);
-      });
-      setMyValidatorPayments(mine);
-    })();
-    return () => { cancelled = true; };
   }, [user?.id]);
 
   const pipeCounts = useMemo(() => {
@@ -815,7 +783,7 @@ const Dashboard = () => {
     if (!uid) return false;
     const owner = ownerRoleFor(p.status);
     if (owner === "analista" && isAnalista && ANALISTA_PENDING.has(p.status) && p.created_by === uid) return true;
-    if (owner === "validador" && isValidador && p.status === "aguardando_validacao" && myValidatorPayments.has(p.id)) return true;
+    if (owner === "validador" && isValidador && p.status === "aguardando_validacao") return true;
     if (owner === "diretor" && isDiretor && p.status === "aguardando_aprovacao") return true;
     return false;
   };
