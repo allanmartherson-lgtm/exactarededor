@@ -696,7 +696,7 @@ const Dashboard = () => {
      */
     const ACTION_QUEUE: Record<Exclude<typeof pipelineOwner, "all">, Set<PaymentStatus>> = {
       // "Análise" agrega em_analise_ia + revisao_analista; "Divergente" = nf_questionada
-      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "nf_questionada"]),
+      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "nf_questionada", "aprovado_em_revisao"]),
       // "Validação" = aguardando_validacao
       validador: new Set<PaymentStatus>(["aguardando_validacao"]),
       // "Aprovação" = aguardando_aprovacao
