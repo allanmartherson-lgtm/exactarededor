@@ -1962,22 +1962,21 @@ export type Database = {
       payment_status:
         | "rascunho"
         | "em_analise_ia"
+        | "revisao_analista"
         | "aguardando_validacao"
         | "devolvido_analista"
         | "aguardando_aprovacao"
-        | "devolvido_validador"
         | "aprovado"
+        | "aprovado_com_ressalva"
         | "pedido_nf_enviado"
         | "nf_recebida"
-        | "nf_conciliada"
+        | "nf_questionada"
         | "nf_divergente"
+        | "nf_conciliada"
+        | "lancado"
         | "pago"
         | "rejeitado"
         | "cancelado"
-        | "revisao_analista"
-        | "aprovado_com_ressalva"
-        | "nf_questionada"
-        | "lancado"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind:
         | "simples"
@@ -2167,22 +2166,21 @@ export const Constants = {
       payment_status: [
         "rascunho",
         "em_analise_ia",
+        "revisao_analista",
         "aguardando_validacao",
         "devolvido_analista",
         "aguardando_aprovacao",
-        "devolvido_validador",
         "aprovado",
+        "aprovado_com_ressalva",
         "pedido_nf_enviado",
         "nf_recebida",
-        "nf_conciliada",
+        "nf_questionada",
         "nf_divergente",
+        "nf_conciliada",
+        "lancado",
         "pago",
         "rejeitado",
         "cancelado",
-        "revisao_analista",
-        "aprovado_com_ressalva",
-        "nf_questionada",
-        "lancado",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: [
