@@ -472,6 +472,28 @@ const Rules = () => {
             styles: { fontSize: 9, cellPadding: 2 },
             columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
         });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Médicos vinculados
+    if (Array.isArray(r.doctors) && r.doctors.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Médicos Vinculados (${r.doctors.length})`, 14, currentY);
+        currentY += 5;
+
+        const docInfo = [["Nome do Médico", "CRM"]];
+        r.doctors.forEach((d: any) => docInfo.push([d.name, d.crm || "—"]));
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [docInfo[0]],
+            body: docInfo.slice(1),
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            margin: { left: 14 }
+        });
     }
 
     doc.save(`Regra_${(r.name || "Export").replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
