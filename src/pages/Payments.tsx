@@ -516,7 +516,22 @@ const Payments = () => {
         </div>
         <Link to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 flex-1 min-w-0">
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="font-medium text-sm truncate">{p.reference}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="font-medium text-sm truncate">{p.reference}</p>
+            {openQuestionCount[p.id] > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border border-info/30 bg-info-soft px-2 py-0.5 text-[10px] font-semibold text-info"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MessageCircleQuestion className="h-3 w-3" /> {openQuestionCount[p.id]}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{openQuestionCount[p.id]} questionamento{openQuestionCount[p.id] > 1 ? "s" : ""} aguardando resposta</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
               <User className="h-3 w-3" /> {analystName}
