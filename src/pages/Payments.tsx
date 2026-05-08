@@ -449,9 +449,9 @@ const Payments = () => {
   // Ordem das colunas do kanban (segue fluxo lógico)
   const KANBAN_ORDER: PaymentStatus[] = [
     "rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao",
-    "devolvido_analista", "aguardando_aprovacao",
+    "devolvido_analista", "aguardando_aprovacao", "aprovado_em_revisao",
     "aprovado", "aprovado_com_ressalva", "pedido_nf_enviado", "nf_questionada",
-    "nf_recebida", "nf_conciliada", "nf_divergente", "pago", "rejeitado", "cancelado",
+    "nf_recebida", "nf_conciliada", "nf_divergente", "lancado", "pago", "arquivado", "rejeitado", "cancelado",
   ];
 
   const kanbanGroups = useMemo(() => {
