@@ -45,6 +45,7 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   nf_recebida: "info",
   nf_conciliada: "success",
   lancado: "primary",
+  arquivado: "muted",
   nf_divergente: "destructive",
   pago: "success",
   rejeitado: "destructive",
