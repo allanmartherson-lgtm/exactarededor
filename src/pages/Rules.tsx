@@ -73,7 +73,7 @@ const WEEKDAY_LABELS: { v: number; label: string }[] = [
 
 type RuleRow = any;
 type DraftRule = {
-  enabled: boolean;
+  active: boolean;
   name: string; description: string; rule_text: string;
   severity: RuleSeverity; scope: RuleScope; sector: RuleSector;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
@@ -516,7 +516,7 @@ const Rules = () => {
         r.name,
         RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope,
         (r.severity || "info").toUpperCase(),
-        r.enabled ? "Sim" : "Não"
+        r.active !== false ? "Sim" : "Não"
     ]);
 
     autoTable(doc, {
@@ -593,8 +593,10 @@ const Rules = () => {
 
 
 
+  const [fActive, setFActive] = useState(true);
   const resetForm = () => {
     setEditingId(null);
+    setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
     setFSeverity("aviso"); setFSector("outro");
     setScope("master"); setTargetType("medico");
@@ -627,6 +629,7 @@ const Rules = () => {
 
   const openEdit = async (r: RuleRow) => {
     setEditingId(r.id);
+    setFActive(r.active !== false);
     setFName(r.name ?? ""); setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
@@ -762,6 +765,7 @@ const Rules = () => {
     const isPacoteComExtras = isPacote && head.package_subtype === "com_extras";
     const isTabela = effectiveCalc === "tabela_diferenciada";
     const payload: any = {
+      active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
       severity: fSeverity, scope, sector: fSector,
       target_type: isEspecifica ? targetType : null,
@@ -1009,7 +1013,7 @@ const Rules = () => {
       const { data, error } = await supabase.functions.invoke("convert-rules", { body });
       if (error || !data?.rules) return toast({ title: "Erro", description: error?.message ?? data?.error ?? "Falha", variant: "destructive" });
       const ds: DraftRule[] = data.rules.map((r: any) => ({
-        enabled: true,
+        active: true,
         name: r.name ?? "", description: r.description ?? "", rule_text: r.rule_text ?? "",
         severity: r.severity ?? "aviso", scope: r.scope ?? "master", sector: r.sector ?? "outro",
         target_type: r.target_type ?? null, target_identifier: r.target_identifier ?? null, target_name: r.target_name ?? null,
@@ -1038,7 +1042,7 @@ const Rules = () => {
   const updateDraft = (i: number, patch: Partial<DraftRule>) => setDrafts((ds) => ds.map((d, idx) => idx === i ? { ...d, ...patch } : d));
 
   const saveDrafts = async () => {
-    const sel = drafts.filter((d) => d.enabled);
+    const sel = drafts.filter((d) => d.active);
     if (sel.length === 0) return toast({ title: "Nenhuma regra selecionada", variant: "destructive" });
     // Bloqueia drafts de empresa sem CNPJ válido — mesma regra do form manual.
     const invalid = sel.filter((d) => d.scope === "especifica" && d.target_type === "empresa" && !isValidCNPJ(d.target_identifier ?? ""));
@@ -1050,6 +1054,7 @@ const Rules = () => {
       });
     }
     const toInsert = sel.map((d) => ({
+      active: d.active,
       name: d.name, description: d.description || null, rule_text: d.rule_text,
       severity: d.severity, scope: d.scope, sector: d.sector,
       target_type: d.scope === "especifica" ? d.target_type : null,
@@ -1327,6 +1332,11 @@ const Rules = () => {
                       </span>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-3 pt-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Checkbox id="rule-active" checked={fActive} onCheckedChange={(v) => setFActive(!!v)} />
+                        <Label htmlFor="rule-active" className="cursor-pointer font-semibold">Regra Ativa</Label>
+                        <span className="text-xs text-muted-foreground">(Inativa = motor ignora esta regra)</span>
+                      </div>
                       <div className="space-y-1.5"><Label>Nome *</Label>
                         <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
                       </div>
@@ -2106,7 +2116,7 @@ const Rules = () => {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Revisar regras extraídas pela IA</DialogTitle>
-            <DialogDescription>Confira, edite e selecione quais salvar. {drafts.filter(d => d.enabled).length} de {drafts.length} marcadas.</DialogDescription>
+            <DialogDescription>Confira, edite e selecione quais salvar. {drafts.filter(d => d.active).length} de {drafts.length} marcadas.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {drafts.map((d, i) => (
@@ -2285,7 +2295,7 @@ const Rules = () => {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancelar</Button>
-            <Button onClick={saveDrafts}>Salvar {drafts.filter(d => d.enabled).length} regra(s)</Button>
+            <Button onClick={saveDrafts}>Salvar {drafts.filter(d => d.active).length} regra(s)</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
