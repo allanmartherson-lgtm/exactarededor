@@ -993,6 +993,16 @@ const Dashboard = () => {
                   to="/pagamentos?status=aguardando_aprovacao"
                 />
               )}
+              {isDiretor && (
+                <BigStatCard
+                  icon={FileText}
+                  color="blue"
+                  label="Aprovados — aguardando revisão do analista"
+                  value={counts.diretorAprovadoEmRevisao}
+                  hint="acompanhamento (somente leitura)"
+                  to="/pagamentos?status=aprovado_em_revisao"
+                />
+              )}
             </div>
             {isAnalista && (counts.mineRessalvas + counts.mineInvoicesQuestionadas + counts.mineInvoicesDivergentes > 0 || true) && (
               <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
