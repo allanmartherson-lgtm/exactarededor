@@ -1153,6 +1153,7 @@ const Dashboard = () => {
                     profiles={profiles}
                     timeMs={sla?.ms}
                     slaLevel={sla?.level}
+                    qCount={openQuestionCount[p.id]}
                   />
                 );
               })}
