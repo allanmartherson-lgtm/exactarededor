@@ -553,6 +553,10 @@ export default function CompanyAnalysis() {
       supabase.functions.invoke("notify-director-approval", { body: { paymentId: id } })
         .catch((e) => console.warn("notify-director-approval failed", e));
     }
+    if (nextStatus === "aprovado_em_revisao") {
+      supabase.functions.invoke("notify-analyst-review", { body: { paymentId: id } })
+        .catch((e) => console.warn("notify-analyst-review failed", e));
+    }
     setGroupDraft("");
     setBusy(false);
     toast.success(actionLabel);
