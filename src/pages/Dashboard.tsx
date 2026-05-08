@@ -1309,7 +1309,7 @@ const Dashboard = () => {
           ) : (
             <div>
               {payments.slice(0, 8).map((p) => (
-                <BatchProgressRow key={p.id} p={p} />
+                <BatchProgressRow key={p.id} p={p} qCount={openQuestionCount[p.id]} />
               ))}
             </div>
           )}
