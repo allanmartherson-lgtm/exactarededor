@@ -507,6 +507,7 @@ const Dashboard = () => {
   // Tempo médio agregado por status (gargalos)
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
   const [loading, setLoading] = useState(true);
+  const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
   const {
     owner: pipelineOwner,
@@ -521,7 +522,7 @@ const Dashboard = () => {
     document.title = "Dashboard | MedPay Approval";
     const load = async () => {
       setLoading(true);
-      const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }] = await Promise.all([
+      const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
         supabase
           .from("payments")
           .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
@@ -534,6 +535,7 @@ const Dashboard = () => {
           .select("id, payment:payments!inner(created_by)")
           .eq("status", "divergente"),
         Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
+        supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(2000),
       ]);
       setPayments((data ?? []) as PaymentRow[]);
       setAllPayments(
@@ -548,6 +550,12 @@ const Dashboard = () => {
       );
       const pmap: Record<string, string> = {};
       (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
+
+      const qcounts: Record<string, number> = {};
+      (openQs ?? []).forEach((r: any) => {
+        if (r.payment_id) qcounts[r.payment_id] = (qcounts[r.payment_id] ?? 0) + 1;
+      });
+      setOpenQuestionCount(qcounts);
       setProfiles(pmap);
 
       // Carrega histórico de status, SLA settings, empresas e overrides — em paralelo
@@ -1085,6 +1093,7 @@ const Dashboard = () => {
                     profiles={profiles}
                     timeMs={sla?.ms}
                     slaLevel={sla?.level}
+                    qCount={openQuestionCount[p.id]}
                   />
                 );
               })}
@@ -1144,6 +1153,7 @@ const Dashboard = () => {
                     profiles={profiles}
                     timeMs={sla?.ms}
                     slaLevel={sla?.level}
+                    qCount={openQuestionCount[p.id]}
                   />
                 );
               })}
@@ -1299,7 +1309,7 @@ const Dashboard = () => {
           ) : (
             <div>
               {payments.slice(0, 8).map((p) => (
-                <BatchProgressRow key={p.id} p={p} />
+                <BatchProgressRow key={p.id} p={p} qCount={openQuestionCount[p.id]} />
               ))}
             </div>
           )}
@@ -1404,7 +1414,7 @@ const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: 
   }
 };
 
-const BatchProgressRow = ({ p }: { p: PaymentRow }) => {
+const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number }) => {
   const stages = computeStages(p.status);
   const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
   return (
@@ -1419,7 +1429,32 @@ const BatchProgressRow = ({ p }: { p: PaymentRow }) => {
       className="task-row"
     >
       <div className="min-w-0" style={{ flex: "0 0 auto", maxWidth: 260 }}>
-        <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
+        <div className="flex items-center gap-2">
+          <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
+          {qCount > 0 && (
+            <span
+              title={`${qCount} questionamento(s) aguardando resposta`}
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                background: "hsl(var(--warning-soft))",
+                color: "hsl(var(--warning-foreground))",
+                border: "1px solid hsl(var(--warning) / 0.4)",
+                borderRadius: 20,
+                padding: "2px 6px",
+                lineHeight: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                flexShrink: 0,
+              }}
+            >
+              <AlertTriangle size={9} /> Questionamento
+            </span>
+          )}
+        </div>
         <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
           {p.items_count} itens · {formatCurrency(p.total_amount)}
         </p>
@@ -1463,12 +1498,14 @@ const TaskRow = ({
   profiles,
   timeMs,
   slaLevel,
+  qCount = 0,
 }: {
   p: PaymentRow;
   mine: boolean;
   profiles: Record<string, string>;
   timeMs?: number;
   slaLevel?: SlaLevel;
+  qCount?: number;
 }) => {
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
@@ -1516,9 +1553,32 @@ const TaskRow = ({
               Com {ownerLabel[owner]}
             </span>
           ) : null}
-          <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
-            {p.reference}
-          </p>
+          {qCount > 0 && (
+            <span
+              title={`${qCount} questionamento(s) aguardando resposta`}
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                background: "hsl(var(--warning-soft))",
+                color: "hsl(var(--warning-foreground))",
+                border: "1px solid hsl(var(--warning) / 0.4)",
+                borderRadius: 20,
+                padding: "3px 8px",
+                lineHeight: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <AlertTriangle size={11} /> Questionamento ({qCount})
+            </span>
+          )}
+        
+        <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+          {p.reference}
+        </p>
           {slaTone && (
             <span
               style={{
