@@ -1114,6 +1114,24 @@ function ItemDetailsRow({
                   <p className="text-muted-foreground italic whitespace-pre-wrap mt-1">{aiNote}</p>
                 </div>
               )}
+
+              {it.ai_findings?.selection_trace && (
+                <div className={CARD}>
+                  <Label icon={FileText}>Trace do Motor (Debug)</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full h-7 text-[10px]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
+                      alert("Trace completo enviado para o Console do Navegador (F12)");
+                    }}
+                  >
+                    Ver trace completo (Console)
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Coluna 3 (mobile: 2º — cálculo, prioridade no mobile pois resume divergência) */}
