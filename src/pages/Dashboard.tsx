@@ -550,6 +550,12 @@ const Dashboard = () => {
       );
       const pmap: Record<string, string> = {};
       (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
+
+      const qcounts: Record<string, number> = {};
+      (openQs ?? []).forEach((r: any) => {
+        if (r.payment_id) qcounts[r.payment_id] = (qcounts[r.payment_id] ?? 0) + 1;
+      });
+      setOpenQuestionCount(qcounts);
       setProfiles(pmap);
 
       // Carrega histórico de status, SLA settings, empresas e overrides — em paralelo
