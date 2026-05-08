@@ -664,6 +664,14 @@ const Payments = () => {
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
           </Button>
+          <Button
+            variant={openQuestionOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setOpenQuestionOnly((v) => !v)}
+            title="Mostrar apenas lotes com perguntas internas aguardando resposta"
+          >
+            <MessageCircleQuestion className="h-4 w-4 mr-1" /> Com questionamento aberto
+          </Button>
           {ownerGroup !== "all" && (
             <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
               <UserCheck className="h-3.5 w-3.5" /> {OWNER_LABELS[ownerGroup]}
