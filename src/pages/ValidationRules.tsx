@@ -493,6 +493,7 @@ export default function ValidationRules() {
         description="Validações 100% determinísticas. Não interferem no cálculo do valor esperado."
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
             <Button variant="outline" onClick={() => { setGroupForm({ name: "", description: "", specialties: [], active: true }); setGroupOpen(true); }}>
               Novo grupo assistencial
             </Button>
