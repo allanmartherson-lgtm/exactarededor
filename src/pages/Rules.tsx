@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +27,7 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DoctorsEditor } from "@/components/MultiSelectChips";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
@@ -331,6 +333,204 @@ const Rules = () => {
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
   const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
+
+  const exportRuleToPDF = (r: RuleRow) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Configurações básicas
+    doc.setFont("helvetica");
+    
+    // Cabeçalho
+    doc.setFillColor(245, 245, 245);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text("MedPay - Detalhamento de Regra", 14, 25);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`ID: ${r.id}`, 14, 34);
+    doc.text(`Exportado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 34, { align: 'right' });
+    
+    let currentY = 55;
+    
+    // Título da Regra
+    doc.setFontSize(16);
+    doc.setTextColor(30, 30, 30);
+    doc.setFont("helvetica", "bold");
+    doc.text(r.name || "Sem nome", 14, currentY);
+    currentY += 10;
+    
+    // Informações Básicas (Tabela)
+    const basicInfo = [
+      ["Campo", "Valor"],
+      ["Gravidade", (r.severity || "info").toUpperCase()],
+      ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type ?? "Informativo"],
+      ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
+      ["Setor / Item", Array.isArray(r.sectors) && r.sectors.length > 0 
+        ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
+        : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
+      ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
+      ["Status", r.enabled ? "Ativa" : "Inativa"]
+    ];
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [basicInfo[0]],
+      body: basicInfo.slice(1),
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
+    });
+    
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+    
+    // Descrição e Texto
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(41, 128, 185);
+    doc.text("Descrição da Regra", 14, currentY);
+    currentY += 6;
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
+    const splitDesc = doc.splitTextToSize(r.description || "Nenhuma descrição fornecida.", pageWidth - 28);
+    doc.text(splitDesc, 14, currentY);
+    currentY += (splitDesc.length * 5) + 10;
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(41, 128, 185);
+    doc.text("Texto Operacional / Lógica", 14, currentY);
+    currentY += 6;
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
+    const splitText = doc.splitTextToSize(r.rule_text || "Sem texto operacional definido.", pageWidth - 28);
+    doc.text(splitText, 14, currentY);
+    currentY += (splitText.length * 5) + 15;
+
+    // Configurações de Pagamento e Cálculo
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(41, 128, 185);
+    doc.text("Configurações de Pagamento", 14, currentY);
+    currentY += 5;
+
+    const payInfo = [
+      ["Configuração", "Valor"],
+      ["Prazo de Pagamento", PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm] ?? "Qualquer"],
+      ["Tipos Aplicáveis", Array.isArray(r.applies_payment_types) && r.applies_payment_types.length > 0
+        ? r.applies_payment_types.map((t: any) => PAYMENT_TYPE_LABELS[t as PaymentType]).join(", ")
+        : "Qualquer"],
+      ["Natureza", r.calculation_type === 'informativo' ? "Informativa" : "Calculável"],
+      ["Tipo de Cálculo", RULE_CALCULATION_TYPE_LABELS[r.calculation_type as RuleCalculationType] ?? r.calculation_type ?? "N/A"]
+    ];
+
+    if (r.fixed_amount) payInfo.push(["Valor Fixo", formatCurrency(r.fixed_amount)]);
+    if (r.convenio_percentage) payInfo.push(["% sobre Convênio", `${r.convenio_percentage}%`]);
+    if (r.package_amount) payInfo.push(["Valor do Pacote", formatCurrency(r.package_amount)]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [payInfo[0]],
+      body: payInfo.slice(1),
+      theme: 'grid',
+      headStyles: { fillColor: [52, 73, 94] },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Vinculação / Alvos
+    if (r.scope === 'especifica' || r.scope === 'grupo') {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(41, 128, 185);
+        doc.text("Alvos e Vinculações", 14, currentY);
+        currentY += 5;
+
+        const targetInfo = [["Tipo de Alvo", "Identificação / Nome"]];
+        if (r.scope === 'especifica') {
+            targetInfo.push([r.target_type === 'medico' ? 'Médico Único' : 'Empresa Única', `${r.target_identifier || ""} ${r.target_name || ""}`]);
+        } else if (r.scope === 'grupo') {
+            // Simplificado para o PDF
+            targetInfo.push(["Grupo de Empresas/Médicos", "Regra aplicada a grupo configurado"]);
+        }
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [targetInfo[0]],
+            body: targetInfo.slice(1),
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 2 },
+            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Médicos vinculados
+    if (Array.isArray(r.doctors) && r.doctors.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(41, 128, 185);
+        doc.text(`Médicos Vinculados (${r.doctors.length})`, 14, currentY);
+        currentY += 5;
+
+        const docInfo = [["Nome do Médico", "CRM"]];
+        r.doctors.forEach((d: any) => docInfo.push([d.name, d.crm || "—"]));
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [docInfo[0]],
+            body: docInfo.slice(1),
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            margin: { left: 14 }
+        });
+    }
+
+    doc.save(`Regra_${(r.name || "Export").replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+    toast({ title: "PDF Gerado", description: "O arquivo foi baixado com sucesso." });
+  };
+
+  const exportAllToPDF = () => {
+    if (filtered.length === 0) return toast({ title: "Aviso", description: "Nenhuma regra para exportar." });
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFontSize(18);
+    doc.text("Relatório Geral de Regras de Negócio", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Total de regras: ${filtered.length}`, 14, 28);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    
+    const tableData = filtered.map(r => [
+        r.name,
+        RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope,
+        (r.severity || "info").toUpperCase(),
+        r.enabled ? "Sim" : "Não"
+    ]);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [["Nome da Regra", "Escopo", "Gravidade", "Ativa"]],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [44, 62, 80] },
+      styles: { fontSize: 8 }
+    });
+
+    doc.save("Relatorio_Geral_Regras.pdf");
+    toast({ title: "Relatório Gerado", description: "O relatório geral foi baixado com sucesso." });
+  };
 
   // Carrega médicos para cada empresa de link (cache no map).
   useEffect(() => {
@@ -993,6 +1193,7 @@ const Rules = () => {
     <>
       <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
         actions={<>
+          <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>
             <DialogContent>
@@ -1833,6 +2034,7 @@ const Rules = () => {
                             </div>
                             <div className="flex flex-col gap-1">
                               <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           </div>

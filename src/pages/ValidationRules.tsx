@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType } from "@/lib/status";
@@ -219,6 +221,101 @@ export default function ValidationRules() {
     load();
   };
 
+  const exportRuleToPDF = (r: ValidationRule) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Regra de Validação Determinística", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`ID: ${r.id}`, 14, 28);
+    doc.text(`Exportado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    
+    let currentY = 40;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(r.name, 14, currentY);
+    currentY += 8;
+    
+    const basicInfo = [
+      ["Campo", "Valor"],
+      ["Tipo (Kind)", KIND_LABELS[r.kind as Kind] ?? r.kind],
+      ["Gravidade", SEVERITY_LABELS[r.severity as Severity] ?? r.severity],
+      ["Ação", ACTION_LABELS[r.action as Action] ?? r.action],
+      ["Status", r.active ? "Ativa" : "Inativa"],
+      ["Escopo", r.scope_global ? "Global" : "Específico"]
+    ];
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [basicInfo[0]],
+      body: basicInfo.slice(1),
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185] }
+    });
+    
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Descrição", 14, currentY);
+    currentY += 6;
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const splitDesc = doc.splitTextToSize(r.description || "Sem descrição.", pageWidth - 28);
+    doc.text(splitDesc, 14, currentY);
+    currentY += (splitDesc.length * 5) + 15;
+
+    // Params
+    if (r.params) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Parâmetros Técnicos", 14, currentY);
+        currentY += 6;
+        
+        const params = Object.entries(r.params as Record<string, any>).map(([k, v]) => [k, String(v)]);
+        autoTable(doc, {
+            startY: currentY,
+            head: [["Parâmetro", "Valor"]],
+            body: params,
+            theme: 'grid'
+        });
+    }
+
+    doc.save(`Validacao_${r.name.replace(/\s+/g, '_')}.pdf`);
+    toast.success("PDF da regra de validação gerado.");
+  };
+
+  const exportAllToPDF = () => {
+    if (rules.length === 0) return toast.error("Sem regras para exportar.");
+    
+    const doc = new jsPDF();
+    const tableData = rules.map(r => [
+        r.name,
+        KIND_LABELS[r.kind as Kind] ?? r.kind,
+        SEVERITY_LABELS[r.severity as Severity] ?? r.severity,
+        r.active ? "Sim" : "Não"
+    ]);
+
+    doc.setFontSize(18);
+    doc.text("Relatório de Regras de Validação", 14, 20);
+
+    autoTable(doc, {
+      startY: 30,
+      head: [["Nome", "Tipo", "Gravidade", "Ativa"]],
+      body: tableData,
+      theme: 'grid'
+    });
+
+    doc.save("Relatorio_Validacoes.pdf");
+    toast.success("Relatório de validações gerado.");
+  };
+
   const saveGroup = async () => {
     if (!groupForm.name.trim()) { toast.error("Informe o nome do grupo"); return; }
     const payload = { name: groupForm.name.trim(), description: groupForm.description.trim() || null, specialties: groupForm.specialties, active: groupForm.active };
@@ -396,6 +493,7 @@ export default function ValidationRules() {
         description="Validações 100% determinísticas. Não interferem no cálculo do valor esperado."
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
             <Button variant="outline" onClick={() => { setGroupForm({ name: "", description: "", specialties: [], active: true }); setGroupOpen(true); }}>
               Novo grupo assistencial
             </Button>
@@ -431,8 +529,9 @@ export default function ValidationRules() {
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => remove(r.id)}><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
           ))
