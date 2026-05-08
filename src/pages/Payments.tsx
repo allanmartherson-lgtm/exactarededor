@@ -532,10 +532,10 @@ const Payments = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
-                    className="inline-flex items-center gap-1 rounded-full border border-info/30 bg-info-soft px-2 py-0.5 text-[10px] font-semibold text-info"
+                    className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-foreground"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MessageCircleQuestion className="h-3 w-3" /> {openQuestionCount[p.id]}
+                    <AlertTriangle className="h-3 w-3" /> Questionamento ({openQuestionCount[p.id]})
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{openQuestionCount[p.id]} questionamento{openQuestionCount[p.id] > 1 ? "s" : ""} aguardando resposta</TooltipContent>
