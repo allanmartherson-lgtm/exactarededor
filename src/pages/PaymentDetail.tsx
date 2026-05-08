@@ -846,8 +846,10 @@ const PaymentDetail = () => {
     if (!text) return;
     setBusy(true);
     if (myAuthorType === "analista") await autoClaim();
+    const isQuestion = !!itemCommentIsQuestion[itemId];
     const obsRes = await recordObservation({
       payment_id: id!, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
+      is_question: isQuestion,
     });
     setBusy(false);
     if (!obsRes.ok) {
@@ -855,6 +857,7 @@ const PaymentDetail = () => {
       return;
     }
     setItemCommentDraft((m) => ({ ...m, [itemId]: "" }));
+    setItemCommentIsQuestion((m) => ({ ...m, [itemId]: false }));
     load();
   };
 
