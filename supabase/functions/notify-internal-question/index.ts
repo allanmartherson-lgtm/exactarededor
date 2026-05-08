@@ -58,7 +58,7 @@ export function defaultRecipientsForCreated(
   if (askerRole === "validador") return ["analista"];
   if (askerRole === "diretor" || askerRole === "admin") return ["analista", "validador"];
   // analista (ou desconhecido): roteia pelo estado do lote.
-  if (paymentStatus === "aguardando_aprovacao") return ["diretor"];
+  if (paymentStatus === "aguardando_aprovacao" || paymentStatus === "aprovado_em_revisao") return ["diretor"];
   return ["validador"];
 }
 

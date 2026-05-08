@@ -101,6 +101,7 @@ const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
     case "em_analise_ia":
     case "revisao_analista":
     case "devolvido_analista":
+    case "aprovado_em_revisao":
       return "analista";
     case "aguardando_validacao":
       return "validador";
@@ -171,6 +172,7 @@ const PAYMENT_STATUS_SHORT: Partial<Record<PaymentStatus, string>> = {
   aguardando_validacao: "Validação",
   devolvido_analista: "Devolvido p/ analista",
   aguardando_aprovacao: "Aprovação diretoria",
+  aprovado_em_revisao: "Em revisão p/ analista",
   aprovado: "Aprovado",
   pedido_nf_enviado: "NF solicitada",
   nf_recebida: "NF recebida",
@@ -643,6 +645,7 @@ const Dashboard = () => {
           case "aguardando_aprovacao":
             c.pipeAprovacao++; break;
           case "aprovado":
+          case "aprovado_em_revisao":
             c.pipeAguardandoEnvio++; break;
           case "pedido_nf_enviado":
             c.pipeNFSolicitada++; break;
@@ -693,7 +696,7 @@ const Dashboard = () => {
      */
     const ACTION_QUEUE: Record<Exclude<typeof pipelineOwner, "all">, Set<PaymentStatus>> = {
       // "Análise" agrega em_analise_ia + revisao_analista; "Divergente" = nf_questionada
-      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "nf_questionada"]),
+      analista: new Set<PaymentStatus>(["em_analise_ia", "revisao_analista", "nf_questionada", "aprovado_em_revisao"]),
       // "Validação" = aguardando_validacao
       validador: new Set<PaymentStatus>(["aguardando_validacao"]),
       // "Aprovação" = aguardando_aprovacao
@@ -720,6 +723,7 @@ const Dashboard = () => {
         case "aguardando_aprovacao":
           c.pipeAprovacao++; break;
         case "aprovado":
+        case "aprovado_em_revisao":
           c.pipeAguardandoEnvio++; break;
         case "pedido_nf_enviado":
           c.pipeNFSolicitada++; break;

@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   formatCurrency,
   TONE_CLASSES,
@@ -90,6 +91,7 @@ export default function CompanyAnalysis() {
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
+  const [isQuestion, setIsQuestion] = useState(false);
 
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
@@ -187,10 +189,12 @@ export default function CompanyAnalysis() {
       author_type: myAuthorType,
       author_id: user!.id,
       message: `[${group.company_name}] ${text}`,
+      is_question: isQuestion,
     });
     setBusy(false);
     if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
     setGroupDraft("");
+    setIsQuestion(false);
     load();
   };
 
@@ -508,7 +512,7 @@ export default function CompanyAnalysis() {
   // Transições de fluxo do validador/diretor para esta empresa.
   const transitionGroupStatus = async (
     nextStatus: PaymentStatus,
-    authorType: "validador" | "diretor",
+    authorType: "validador" | "diretor" | "analista",
     actionLabel: string,
     requireMsg: boolean,
   ) => {
@@ -553,6 +557,10 @@ export default function CompanyAnalysis() {
       supabase.functions.invoke("notify-director-approval", { body: { paymentId: id } })
         .catch((e) => console.warn("notify-director-approval failed", e));
     }
+    if (nextStatus === "aprovado_em_revisao") {
+      supabase.functions.invoke("notify-analyst-review", { body: { paymentId: id } })
+        .catch((e) => console.warn("notify-analyst-review failed", e));
+    }
     setGroupDraft("");
     setBusy(false);
     toast.success(actionLabel);
@@ -587,7 +595,7 @@ export default function CompanyAnalysis() {
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
-    (gStatus === "revisao_analista" || gStatus === "devolvido_analista") &&
+    (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao") &&
     isAnalistaRole &&
     (isOwner || isAdmin);
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
@@ -738,7 +746,17 @@ export default function CompanyAnalysis() {
                 onChange={(e) => setGroupDraft(e.target.value)}
                 rows={3}
               />
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="is-question"
+                    checked={isQuestion}
+                    onCheckedChange={(v) => setIsQuestion(!!v)}
+                  />
+                  <Label htmlFor="is-question" className="text-xs font-normal cursor-pointer select-none">
+                    É um questionamento ao diretor (aguarda resposta)
+                  </Label>
+                </div>
                 <Button size="sm" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
                   Adicionar comentário
                 </Button>
@@ -808,55 +826,81 @@ export default function CompanyAnalysis() {
       {canAct && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
           <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row md:items-start gap-2">
-            <Textarea
-              rows={2}
-              value={groupDraft}
-              onChange={(e) => setGroupDraft(e.target.value)}
-              placeholder="Observação para esta empresa (obrigatória para devolver)..."
-              className="md:flex-1 text-xs"
-            />
+            <div className="flex flex-col md:flex-1 gap-2">
+              <Textarea
+                rows={2}
+                value={groupDraft}
+                onChange={(e) => setGroupDraft(e.target.value)}
+                placeholder="Observação para esta empresa (obrigatória para devolver)..."
+                className="w-full text-xs"
+              />
+              <div className="flex items-center gap-2 px-1">
+                <Checkbox
+                  id="footer-is-question"
+                  checked={isQuestion}
+                  onCheckedChange={(v) => setIsQuestion(!!v)}
+                />
+                <Label htmlFor="footer-is-question" className="text-[11px] font-normal cursor-pointer select-none">
+                  Marcar como questionamento ao diretor
+                </Label>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
               {canActAnalista && (
                 <>
-                  <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
-                    <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
-                    {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
-                        <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+                  {(gStatus === "revisao_analista" || gStatus === "devolvido_analista") && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={reanalyzeGroup} disabled={busy || reanalyzing}>
+                        <RefreshCcw className={cn("h-4 w-4 mr-2", reanalyzing && "animate-spin")} />
+                        {reanalyzing ? "Reaplicando..." : "Reaplicar regras"}
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
-                          Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
-                          A observação registrada acima (se houver) será anexada ao histórico.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Voltar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={cancelBatch}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Cancelar lote
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  {returner ? (
-                    <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Reencaminhar ao {returner}
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar para validação
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" disabled={busy} className="text-destructive hover:text-destructive">
+                            <XCircle className="h-4 w-4 mr-2" /> Cancelar lote
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação marca todos os grupos do lote como cancelados e encerra o fluxo de aprovação.
+                              Use quando o pagamento não deve ser processado (ex.: base enviada por engano).
+                              A observação registrada acima (se houver) será anexada ao histórico.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Voltar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={cancelBatch}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Cancelar lote
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      {returner ? (
+                        <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                          <Send className="h-4 w-4 mr-2" />
+                          Reencaminhar ao {returner}
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
+                          <Send className="h-4 w-4 mr-2" />
+                          Enviar para validação
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  {gStatus === "aprovado_em_revisao" && (
+                    <Button
+                      size="sm"
+                      onClick={() => transitionGroupStatus("pedido_nf_enviado", "analista", "Pedido de nota enviado pelo analista", false)}
+                      disabled={busy}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Enviar pedido de nota
                     </Button>
                   )}
                 </>
@@ -902,7 +946,7 @@ export default function CompanyAnalysis() {
                   <Button
                     size="sm"
                     disabled={busy}
-                    onClick={() => transitionGroupStatus("aprovado", "diretor", "Aprovado pelo diretor", false)}
+                    onClick={() => transitionGroupStatus("aprovado_em_revisao", "diretor", "Aprovado pelo diretor", false)}
                   >
                     <ThumbsUp className="h-4 w-4 mr-2" /> Aprovar
                   </Button>

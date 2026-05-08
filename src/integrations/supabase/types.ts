@@ -1908,6 +1908,7 @@ export type Database = {
         | "aguardando_validacao"
         | "devolvido_analista"
         | "aguardando_aprovacao"
+        | "aprovado_em_revisao"
         | "aprovado"
         | "aprovado_com_ressalva"
         | "pedido_nf_enviado"
@@ -2112,6 +2113,7 @@ export const Constants = {
         "aguardando_validacao",
         "devolvido_analista",
         "aguardando_aprovacao",
+        "aprovado_em_revisao",
         "aprovado",
         "aprovado_com_ressalva",
         "pedido_nf_enviado",

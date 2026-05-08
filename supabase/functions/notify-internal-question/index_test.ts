@@ -46,8 +46,9 @@ Deno.test("Cenário 2 — Diretor pergunta → notifica analista + validador", (
   assertEquals(defaultRecipientsForCreated("admin", "aguardando_validacao"), ["analista", "validador"]);
 });
 
-Deno.test("Cenário 3a — Analista pergunta com lote em aguardando_aprovacao → diretor", () => {
+Deno.test("Cenário 3a — Analista pergunta com lote em aprovação (aguardando_aprovacao ou aprovado_em_revisao) → diretor", () => {
   assertEquals(defaultRecipientsForCreated("analista", "aguardando_aprovacao"), ["diretor"]);
+  assertEquals(defaultRecipientsForCreated("analista", "aprovado_em_revisao"), ["diretor"]);
 });
 
 Deno.test("Cenário 3b — Analista pergunta com lote em aguardando_validacao → validador", () => {
