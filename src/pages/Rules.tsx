@@ -373,7 +373,12 @@ const Rules = () => {
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
         : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
-      ["Status", r.active !== false ? "Ativa" : "Inativa"]
+      ["Status", (() => {
+        const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
+        if (r.active === false) return "Inativa (Manual)";
+        if (isDateInactive) return "Inativa (Expirada)";
+        return "Ativa";
+      })()]
     ];
 
     autoTable(doc, {
