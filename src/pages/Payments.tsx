@@ -334,7 +334,19 @@ const Payments = () => {
 
   const now = Date.now();
 
+  // Total de arquivados (terminais) — independente dos demais filtros, usado
+  // pelo toggle e mensagem de observabilidade ("X lotes arquivados").
+  const archivedCount = useMemo(
+    () => rows.filter((r) => TERMINAL_STATUSES.has(r.status)).length,
+    [rows],
+  );
+  const activeCount = rows.length - archivedCount;
+
   const filtered = useMemo(() => rows.filter((r) => {
+    // Arquivamento: por default escondemos lotes em estado terminal das
+    // listagens de trabalho. Toggle "Ver arquivados" inverte o filtro.
+    const isTerminal = TERMINAL_STATUSES.has(r.status);
+    if (archivedView ? !isTerminal : isTerminal) return false;
     const term = q.trim().toLowerCase();
     if (term) {
       const refMatches = r.reference.toLowerCase().includes(term);
