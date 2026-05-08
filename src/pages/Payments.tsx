@@ -700,6 +700,21 @@ const Payments = () => {
             </Button>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant={archivedView ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                const next = !archivedView;
+                setArchivedView(next);
+                const sp = new URLSearchParams(searchParams);
+                if (next) sp.set("archived", "1"); else sp.delete("archived");
+                setSearchParams(sp, { replace: true });
+              }}
+              title={archivedView ? "Voltar para pagamentos ativos" : "Ver pagamentos arquivados (terminais)"}
+            >
+              {archivedView ? <Inbox className="h-4 w-4 mr-1" /> : <Archive className="h-4 w-4 mr-1" />}
+              {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
+            </Button>
             {view === "lista" && (
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
                 <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
