@@ -372,6 +372,7 @@ const Rules = () => {
       ["Setor / Item", Array.isArray(r.sectors) && r.sectors.length > 0 
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
         : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
+      ["Especialidades", Array.isArray(r.specialties) && r.specialties.length > 0 ? r.specialties.join(", ") : "Todas"],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
       ["Status", (() => {
         const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
