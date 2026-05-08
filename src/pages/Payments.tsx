@@ -124,6 +124,10 @@ const Payments = () => {
   }, [searchParams.toString()]);
   const [view, setView] = useState<"lista" | "kanban">("lista");
   const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
+  // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
+  // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
+  // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
+  const [archivedView, setArchivedView] = useState<boolean>(searchParams.get("archived") === "1");
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
