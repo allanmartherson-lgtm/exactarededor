@@ -23,12 +23,10 @@ type PaymentRow = {
  * todo analista logado escuta os mesmos eventos:
  *
  *  - Lote/empresa entrou na fila do analista
- *      (status novo ∈ {revisao_analista, devolvido_analista, devolvido_validador,
+ *      (status novo ∈ {revisao_analista, devolvido_analista,
  *       em_analise_ia → revisao_analista})
- *  - Lote/empresa foi devolvido pelo validador (devolvido_analista) — destaque
- *    porque exige correção
- *  - Lote/empresa foi devolvido pelo diretor (devolvido_validador OU
- *    devolvido_analista) — destaque máximo
+ *  - Lote/empresa foi devolvido pelo validador OU pelo diretor
+ *    (sempre devolvido_analista) — destaque porque exige correção
  *
  * Também notifica validadores (entrada em aguardando_validacao) e diretores
  * (entrada em aguardando_aprovacao) para fechar o ciclo do fluxo.
@@ -94,16 +92,6 @@ export function useQueueNotifications() {
         });
         return;
       }
-      if (isValidador && newStatus === "devolvido_validador") {
-        fire(baseKey + ":dev-validador", {
-          title: "Lote devolvido pelo diretor",
-          description: `${label} voltou para o validador.`,
-          kind: "warning",
-          paymentId,
-        });
-        return;
-      }
-
       // Entrou na fila do analista
       if (isAnalista && newStatus === "revisao_analista" && oldStatus !== "revisao_analista") {
         fire(baseKey + ":fila-analista", {

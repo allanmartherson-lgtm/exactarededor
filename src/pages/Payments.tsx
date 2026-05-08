@@ -59,7 +59,7 @@ type OwnerGroup = "all" | "analista" | "validador" | "diretor";
 
 const STATUSES_BY_OWNER: Record<Exclude<OwnerGroup, "all">, PaymentStatus[]> = {
   analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"],
-  validador: ["aguardando_validacao", "devolvido_validador"],
+  validador: ["aguardando_validacao"],
   diretor: ["aguardando_aprovacao"],
 };
 
@@ -479,7 +479,7 @@ const Payments = () => {
   // Ordem das colunas do kanban (segue fluxo lógico)
   const KANBAN_ORDER: PaymentStatus[] = [
     "rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao",
-    "devolvido_analista", "aguardando_aprovacao", "devolvido_validador",
+    "devolvido_analista", "aguardando_aprovacao",
     "aprovado", "aprovado_com_ressalva", "pedido_nf_enviado", "nf_questionada",
     "nf_recebida", "nf_conciliada", "nf_divergente", "pago", "rejeitado", "cancelado",
   ];
