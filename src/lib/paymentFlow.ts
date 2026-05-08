@@ -28,10 +28,11 @@ export const ANALYST_DONE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Payment
 ]);
 
 /** Estados em que o grupo está com o analista (precisa de ação dele). */
-export const ANALYST_OWNED_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-  "revisao_analista",
-  "devolvido_analista",
-]);
+ export const ANALYST_OWNED_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+   "revisao_analista",
+   "devolvido_analista",
+   "aprovado_em_revisao",
+ ]);
 
 /**
  * Estados em que o lote ainda pode ser editado pelo analista.
