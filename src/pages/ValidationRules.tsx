@@ -250,6 +250,18 @@ export default function ValidationRules() {
       ["Escopo", r.scope_global ? "Global" : "Específico"]
     ];
 
+    if (!r.scope_global) {
+        if (Array.isArray(r.sectors) && r.sectors.length > 0) {
+            basicInfo.push(["Setores Aplicáveis", r.sectors.join(", ")]);
+        }
+        if (Array.isArray(r.payment_types) && r.payment_types.length > 0) {
+            basicInfo.push(["Tipos de Pagamento", r.payment_types.join(", ")]);
+        }
+        if (Array.isArray(r.company_ids) && r.company_ids.length > 0) {
+            basicInfo.push(["Empresas Vinculadas", `${r.company_ids.length} empresa(s)`]);
+        }
+    }
+
     autoTable(doc, {
       startY: currentY,
       head: [basicInfo[0]],

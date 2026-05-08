@@ -366,12 +366,14 @@ const Rules = () => {
     // Informações Básicas (Tabela)
     const basicInfo = [
       ["Campo", "Valor"],
+      ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
       ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type ?? "Informativo"],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
       ["Setor / Item", Array.isArray(r.sectors) && r.sectors.length > 0 
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
         : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
+      ["Especialidades", Array.isArray(r.specialties) && r.specialties.length > 0 ? r.specialties.join(", ") : "Todas"],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
       ["Status", (() => {
         const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
@@ -380,6 +382,26 @@ const Rules = () => {
         return "Ativa";
       })()]
     ];
+
+    if (r.agreement_aliases && r.agreement_aliases.length > 0) {
+      basicInfo.push(["Apelidos Convênio", r.agreement_aliases.join(", ")]);
+    }
+
+    if (r.time_mode && r.time_mode !== 'qualquer') {
+        const mode = r.time_mode === 'comercial' ? 'Horário Comercial' : r.time_mode === 'plantao' ? 'Horário Plantão' : 'Personalizado';
+        let val = mode;
+        if (r.time_start && r.time_end) val += ` (${r.time_start} - ${r.time_end})`;
+        basicInfo.push(["Janela Temporal", val]);
+        
+        if (r.weekdays && r.weekdays.length > 0) {
+            const days = r.weekdays.map((d: number) => WEEKDAY_LABELS.find(l => l.v === d)?.label).join(", ");
+            basicInfo.push(["Dias da Semana", days]);
+        }
+    }
+
+    if (r.elective_mode && r.elective_mode !== 'qualquer') {
+        basicInfo.push(["Tipo de Atendimento", ELECTIVE_MODE_LABELS[r.elective_mode as ElectiveMode] ?? r.elective_mode]);
+    }
 
     autoTable(doc, {
       startY: currentY,
@@ -440,6 +462,35 @@ const Rules = () => {
     if (r.fixed_amount) payInfo.push(["Valor Fixo", formatCurrency(r.fixed_amount)]);
     if (r.convenio_percentage) payInfo.push(["% sobre Convênio", `${r.convenio_percentage}%`]);
     if (r.package_amount) payInfo.push(["Valor do Pacote", formatCurrency(r.package_amount)]);
+    if (r.multiplier) payInfo.push(["Multiplicador", `× ${r.multiplier}`]);
+    if (r.deflator_pct) payInfo.push(["Deflator (%)", `− ${r.deflator_pct}%`]);
+    if (r.bonus_amount) payInfo.push(["Bônus Fixo", formatCurrency(r.bonus_amount)]);
+    if (r.bonus_pct) payInfo.push(["Bônus (%)", `${r.bonus_pct}%`]);
+    if (r.target_amount) payInfo.push(["Valor Alvo", formatCurrency(r.target_amount)]);
+    if (Array.isArray(r.extras_codes) && r.extras_codes.length > 0) payInfo.push(["Códigos Extras", r.extras_codes.join(", ")]);
+    
+    if (r.include_auxiliaries) {
+        let auxVal = "Sim";
+        const parts = [];
+        if (r.auxiliary_pct) parts.push(`Global: ${r.auxiliary_pct}%`);
+        if (r.aux_first_pct) parts.push(`1º Aux: ${r.aux_first_pct}%`);
+        if (r.aux_second_pct) parts.push(`2º Aux: ${r.aux_second_pct}%`);
+        if (parts.length > 0) auxVal += ` (${parts.join(", ")})`;
+        payInfo.push(["Inclui Auxiliares", auxVal]);
+    }
+    if (r.instrumentador_pct) payInfo.push(["Instrumentador", `${r.instrumentador_pct}%`]);
+
+    if (r.calculation_type === 'pacote') {
+        if (r.package_main_code) payInfo.push(["Código Principal (Pacote)", r.package_main_code]);
+        if (Array.isArray(r.package_included_codes) && r.package_included_codes.length > 0) {
+            payInfo.push(["Códigos Incluídos", r.package_included_codes.join(", ")]);
+        }
+    }
+
+    if (r.calculation_type === 'exclusao' && r.exclusion_reason) {
+        payInfo.push(["Motivo de Exclusão", r.exclusion_reason]);
+        payInfo.push(["Permite Exceção Autorizada", r.allows_authorized_exception ? "Sim" : "Não"]);
+    }
 
     autoTable(doc, {
       startY: currentY,
@@ -502,6 +553,47 @@ const Rules = () => {
         currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
+    // Tabelas e Códigos Vinculados
+    const hasRefTable = !!r.reference_table_id;
+    const hasExceptions = Array.isArray(r.exception_table_ids) && r.exception_table_ids.length > 0;
+    const hasCodes = Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0;
+
+    if (hasRefTable || hasExceptions || hasCodes) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(41, 128, 185);
+        doc.text("Tabelas e Códigos Vinculados", 14, currentY);
+        currentY += 5;
+
+        const tableLinks = [["Tipo de Vínculo", "Identificação / Nome"]];
+        
+        if (hasRefTable) {
+            const ref = refTables.find((t: any) => t.id === r.reference_table_id);
+            tableLinks.push(["Tabela de Referência", ref?.name || r.reference_table_id || "Não identificada"]);
+        }
+
+        if (hasExceptions) {
+            r.exception_table_ids.forEach((id: string) => {
+                const ref = refTables.find((t: any) => t.id === id);
+                tableLinks.push(["Tabela de Exceção / Vínculo", ref?.name || id]);
+            });
+        }
+
+        if (hasCodes) {
+            tableLinks.push(["Códigos Específicos", r.procedure_codes.join(", ")]);
+        }
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [tableLinks[0]],
+            body: tableLinks.slice(1),
+            theme: 'grid',
+            styles: { fontSize: 9 },
+            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+    }
+
     // Médicos vinculados
     if (Array.isArray(r.doctors) && r.doctors.length > 0) {
         doc.setFontSize(12);
@@ -541,6 +633,7 @@ const Rules = () => {
     
     const tableData = filtered.map(r => [
         r.name,
+        r.agreement_name || "Todos",
         RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope,
         (r.severity || "info").toUpperCase(),
         r.active !== false ? "Sim" : "Não"
@@ -548,7 +641,7 @@ const Rules = () => {
 
     autoTable(doc, {
       startY: 35,
-      head: [["Nome da Regra", "Escopo", "Gravidade", "Ativa"]],
+      head: [["Nome da Regra", "Convênio", "Escopo", "Gravidade", "Ativa"]],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [44, 62, 80] },
