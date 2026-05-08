@@ -37,7 +37,19 @@ interface Row {
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
 
-const TERMINAL_STATUSES: PaymentStatus[] = ["aprovado", "pago", "rejeitado", "cancelado", "nf_conciliada"];
+/**
+ * Status que NÃO consomem SLA, mesmo não sendo terminais.
+ * Inclui terminais (lancado/pago/rejeitado/cancelado) + nf_conciliada
+ * (aguarda apenas o analista marcar como lançado, sem prazo apertado).
+ *
+ * Conceitos separados de TERMINAL_STATUSES:
+ *  - TERMINAL: arquivar / esconder das filas ativas.
+ *  - SLA_EXEMPT: não calcular nível de atraso.
+ */
+const SLA_EXEMPT_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  ...TERMINAL_STATUSES,
+  "nf_conciliada",
+]);
 
 const formatDuration = (ms: number) => {
   const mins = Math.floor(ms / 60000);
@@ -49,7 +61,7 @@ const formatDuration = (ms: number) => {
 };
 
 const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "critico" => {
-  if (TERMINAL_STATUSES.includes(status)) return "none";
+  if (SLA_EXEMPT_STATUSES.has(status)) return "none";
   const days = ms / 86400000;
   if (days >= 7) return "critico";
   if (days >= 3) return "leve";
