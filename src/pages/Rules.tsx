@@ -443,7 +443,7 @@ const Rules = () => {
       theme: 'grid',
       headStyles: { fillColor: [52, 73, 94] },
       styles: { fontSize: 9 },
-      columnStyles: { 0: { fontStyle: 'bold', width: 50 } }
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
@@ -470,7 +470,7 @@ const Rules = () => {
             body: targetInfo.slice(1),
             theme: 'plain',
             styles: { fontSize: 9, cellPadding: 2 },
-            columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
+            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
         });
     }
 
