@@ -1997,9 +1997,11 @@ const Rules = () => {
                           <div key={r.id} className="px-6 py-4 flex items-start gap-3">
                             <Checkbox className="mt-1" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
                             <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
                                 {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
                                 <span className="font-semibold text-foreground">{r.name}</span>
-                                <p className="font-medium text-sm">{r.name}</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
                                 <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
                                 {Array.isArray(r.sectors) && r.sectors.length > 0 ? (
