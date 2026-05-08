@@ -90,6 +90,7 @@ export default function CompanyAnalysis() {
   const [changeCompanyOpen, setChangeCompanyOpen] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
+  const [isQuestion, setIsQuestion] = useState(false);
 
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
