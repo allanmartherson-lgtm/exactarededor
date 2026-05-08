@@ -1,10 +1,6 @@
-// Notifica o validador (específico) ou os membros do grupo de validadores
-// quando um analista envia o lote/empresa para validação. Também registra
-// no audit_log quem recebeu, qual empresa, qual lote e quando.
-//
-// Idempotência: por (payment_id, group_id, recipient_id, action) — usa
-// o próprio audit_log como guarda (procura entrada com mesmo entity_id +
-// action='validation_assigned' nas últimas 24h).
+// Notifica todos os validadores ativos quando o analista envia um lote/empresa
+// para validação. A validação é fila coletiva — qualquer validador pode assumir.
+// Também registra no audit_log e cria uma observação no histórico do pagamento.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -35,9 +31,6 @@ interface Body {
   payment_id: string;
   /** Id do payment_company_groups envolvido. Se omitido, registra apenas auditoria a nível de pagamento. */
   group_id?: string | null;
-  /** Atribuição escolhida no envio. */
-  validator_id?: string | null;
-  validator_group_id?: string | null;
   /** Quem fez o envio (analista). */
   sender_id?: string | null;
 }
@@ -83,35 +76,12 @@ Deno.serve(async (req) => {
       companyId = g?.company_id ?? null;
     }
 
-    // Identifica destinatários (validadores)
-    let recipientIds: string[] = [];
-    let routingLabel = "Fila geral";
-    let routingTarget: string | null = null;
-
-    if (body.validator_id) {
-      recipientIds = [body.validator_id];
-      routingLabel = "Validador específico";
-    } else if (body.validator_group_id) {
-      const { data: members } = await supabase
-        .from("validator_group_members")
-        .select("user_id")
-        .eq("group_id", body.validator_group_id);
-      recipientIds = (members ?? []).map((m) => m.user_id);
-      const { data: grp } = await supabase
-        .from("validator_groups")
-        .select("name")
-        .eq("id", body.validator_group_id)
-        .maybeSingle();
-      routingLabel = "Grupo de validadores";
-      routingTarget = grp?.name ?? null;
-    } else {
-      // Fila geral → notifica todos os validadores ativos
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "validador");
-      recipientIds = Array.from(new Set((roles ?? []).map((r) => r.user_id)));
-    }
+    // Destinatários: todos os validadores ativos (fila coletiva).
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "validador");
+    const recipientIds = Array.from(new Set((roles ?? []).map((r) => r.user_id)));
 
     let recipients: { id: string; full_name: string | null; email: string }[] = [];
     if (recipientIds.length) {
@@ -151,15 +121,15 @@ Deno.serve(async (req) => {
       const lines = [
         `${greeting}, ${name}.`,
         ``,
-        `Um lote foi enviado para sua validação no MedPay${
+        `Um lote foi enviado para validação no MedPay${
           companyName ? ` — empresa ${companyName}` : ""
         }.`,
         `• Lote: ${payment.reference}`,
         `• Itens: ${payment.items_count}`,
-        `• Roteamento: ${routingLabel}${routingTarget ? ` (${routingTarget})` : ""}`,
         senderName ? `• Enviado por: ${senderName}` : null,
         `• Data/hora: ${fmtBR(sentAt)}`,
         ``,
+        `Qualquer validador pode assumir.`,
         `Acessar: ${link}`,
       ].filter(Boolean) as string[];
       const text = lines.join("\n");
@@ -189,16 +159,6 @@ Deno.serve(async (req) => {
 
     // Registra na auditoria
     const diff = {
-      routing: {
-        mode: body.validator_id
-          ? "user"
-          : body.validator_group_id
-            ? "group"
-            : "general",
-        validator_id: body.validator_id ?? null,
-        validator_group_id: body.validator_group_id ?? null,
-        validator_group_name: routingTarget,
-      },
       payment: {
         reference: payment.reference,
         items_count: payment.items_count,
@@ -229,14 +189,10 @@ Deno.serve(async (req) => {
     });
 
     // Também registra como observação no histórico do pagamento (visível na UI)
-    const recipientList = recipients.length
-      ? recipients.map((r) => r.full_name ?? r.email).join(", ")
-      : "(nenhum destinatário direto)";
+    const okCount = emailResults.filter((x: any) => x.ok).length;
     const obsMsg =
-      `Notificação de envio: ${routingLabel}` +
-      (routingTarget ? ` "${routingTarget}"` : "") +
-      `. Destinatários: ${recipientList}. ` +
-      `${emailResults.filter((x: any) => x.ok).length}/${emailResults.length} email(s) enviados com sucesso. ` +
+      `Notificação de envio para validação (fila coletiva). ` +
+      `${okCount}/${emailResults.length} email(s) enviados aos validadores. ` +
       `Em ${fmtBR(sentAt)}.`;
 
     await supabase.from("payment_observations").insert({
