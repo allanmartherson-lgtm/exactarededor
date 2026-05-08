@@ -95,6 +95,7 @@ const PaymentDetail = () => {
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
+  const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
