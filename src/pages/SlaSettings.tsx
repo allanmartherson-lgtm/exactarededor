@@ -14,7 +14,7 @@ import { Save, Plus } from "lucide-react";
 const RELEVANT_STATUSES: PaymentStatus[] = [
   "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista",
   "aguardando_aprovacao", "aprovado_em_revisao", "pedido_nf_enviado", "nf_recebida",
-  "nf_divergente", "pago",
+  "nf_divergente", "lancado", "pago", "arquivado",
 ];
 
 const SEVERITY_OPTIONS: { value: SlaSeverity; label: string }[] = [
