@@ -468,6 +468,29 @@ const Rules = () => {
     if (r.bonus_pct) payInfo.push(["Bônus (%)", `${r.bonus_pct}%`]);
     if (r.target_amount) payInfo.push(["Valor Alvo", formatCurrency(r.target_amount)]);
     if (Array.isArray(r.extras_codes) && r.extras_codes.length > 0) payInfo.push(["Códigos Extras", r.extras_codes.join(", ")]);
+    
+    if (r.include_auxiliaries) {
+        let auxVal = "Sim";
+        const parts = [];
+        if (r.auxiliary_pct) parts.push(`Global: ${r.auxiliary_pct}%`);
+        if (r.aux_first_pct) parts.push(`1º Aux: ${r.aux_first_pct}%`);
+        if (r.aux_second_pct) parts.push(`2º Aux: ${r.aux_second_pct}%`);
+        if (parts.length > 0) auxVal += ` (${parts.join(", ")})`;
+        payInfo.push(["Inclui Auxiliares", auxVal]);
+    }
+    if (r.instrumentador_pct) payInfo.push(["Instrumentador", `${r.instrumentador_pct}%`]);
+
+    if (r.calculation_type === 'pacote') {
+        if (r.package_main_code) payInfo.push(["Código Principal (Pacote)", r.package_main_code]);
+        if (Array.isArray(r.package_included_codes) && r.package_included_codes.length > 0) {
+            payInfo.push(["Códigos Incluídos", r.package_included_codes.join(", ")]);
+        }
+    }
+
+    if (r.calculation_type === 'exclusao' && r.exclusion_reason) {
+        payInfo.push(["Motivo de Exclusão", r.exclusion_reason]);
+        payInfo.push(["Permite Exceção Autorizada", r.allows_authorized_exception ? "Sim" : "Não"]);
+    }
 
     autoTable(doc, {
       startY: currentY,
