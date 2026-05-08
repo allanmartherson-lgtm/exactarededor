@@ -1427,7 +1427,32 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
       className="task-row"
     >
       <div className="min-w-0" style={{ flex: "0 0 auto", maxWidth: 260 }}>
-        <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
+        <div className="flex items-center gap-2">
+          <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
+          {qCount > 0 && (
+            <span
+              title={`${qCount} questionamento(s) aguardando resposta`}
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                background: "hsl(var(--warning-soft))",
+                color: "hsl(var(--warning-foreground))",
+                border: "1px solid hsl(var(--warning) / 0.4)",
+                borderRadius: 20,
+                padding: "2px 6px",
+                lineHeight: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                flexShrink: 0,
+              }}
+            >
+              <AlertTriangle size={9} /> Questionamento
+            </span>
+          )}
+        </div>
         <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
           {p.items_count} itens · {formatCurrency(p.total_amount)}
         </p>
