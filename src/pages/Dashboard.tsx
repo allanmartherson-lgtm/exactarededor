@@ -672,6 +672,7 @@ const Dashboard = () => {
           if (isMineRow) c.mineInvoicesQuestionadas++;
         }
         if (p.status === "rejeitado") c.attRejeitados++;
+        if (p.status === "aprovado_em_revisao") c.diretorAprovadoEmRevisao++;
       });
 
       (invDiv ?? []).forEach((row: any) => {
