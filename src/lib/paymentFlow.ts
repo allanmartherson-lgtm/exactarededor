@@ -122,8 +122,7 @@ export const canActAsValidatorOrDirector = (
  *    formal depois — opcional).
  */
 export const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-  "lancado",
-  "pago",
+  "arquivado",
   "rejeitado",
   "cancelado",
 ]);
