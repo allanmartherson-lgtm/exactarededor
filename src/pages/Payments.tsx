@@ -484,7 +484,17 @@ const Payments = () => {
             finalLvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
           )}
         >
-          <p className="font-medium text-xs truncate">{p.reference}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-medium text-xs truncate">{p.reference}</p>
+            {openQuestionCount[p.id] > 0 && (
+              <span
+                title={`${openQuestionCount[p.id]} questionamento(s) aguardando resposta`}
+                className="inline-flex items-center gap-0.5 rounded-full border border-info/30 bg-info-soft px-1.5 py-0 text-[9px] font-semibold text-info shrink-0"
+              >
+                <MessageCircleQuestion className="h-2.5 w-2.5" />{openQuestionCount[p.id]}
+              </span>
+            )}
+          </div>
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="truncate">{analystName}</span>
             <span className="tabular-nums">{formatCurrency(p.total_amount)}</span>
