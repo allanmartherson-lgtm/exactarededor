@@ -633,6 +633,7 @@ const Rules = () => {
     
     const tableData = filtered.map(r => [
         r.name,
+        r.agreement_name || "Todos",
         RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope,
         (r.severity || "info").toUpperCase(),
         r.active !== false ? "Sim" : "Não"
@@ -640,7 +641,7 @@ const Rules = () => {
 
     autoTable(doc, {
       startY: 35,
-      head: [["Nome da Regra", "Escopo", "Gravidade", "Ativa"]],
+      head: [["Nome da Regra", "Convênio", "Escopo", "Gravidade", "Ativa"]],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [44, 62, 80] },
