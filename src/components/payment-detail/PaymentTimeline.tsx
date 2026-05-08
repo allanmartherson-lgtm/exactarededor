@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/status";
-import { MessageCircleQuestion, Pencil, Save, User as UserIcon, X, Filter } from "lucide-react";
+import { CheckCircle2, MessageCircleQuestion, Pencil, RotateCcw, Save, Send, User as UserIcon, X, Filter } from "lucide-react";
 import type { ObservationRow, PaymentItemRow, InvoiceRow } from "@/hooks/usePaymentDetailData";
-import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
+import { authorRoleLabel, getRoleVisual, recordObservation, resolveQuestion, reopenQuestion } from "@/lib/observations";
 
 const ROLE_FILTER_OPTIONS = ["analista", "validador", "diretor", "admin", "sistema", "ia"] as const;
 
