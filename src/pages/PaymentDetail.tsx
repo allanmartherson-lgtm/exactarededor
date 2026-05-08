@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
+import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { scoreAttendance } from "@/lib/riskScore";
@@ -94,6 +96,7 @@ const PaymentDetail = () => {
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
+  const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
@@ -1110,9 +1113,23 @@ const PaymentDetail = () => {
         description={payment.description ?? `${items.length} itens · ${formatCurrency(payment.total_amount)}`}
         sticky
         actions={
-          <>
+          <div className="flex items-center gap-2">
+            {obs.some((o: any) => o.is_question) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={cn(
+                  "border-info/40 bg-info-soft text-info hover:bg-info-soft/80",
+                  obs.some((o: any) => o.is_question && !o.resolved_at) && "animate-pulse"
+                )}
+                onClick={() => setIsQuestionsPanelOpen(true)}
+              >
+                <MessageCircleQuestion className="h-4 w-4 mr-1.5" />
+                Questionamentos ({obs.filter((o: any) => o.is_question && !o.resolved_at).length})
+              </Button>
+            )}
             <StatusBadge status={payment.status} />
-          </>
+          </div>
         }
       />
       <div className="p-8 space-y-6">
@@ -1662,6 +1679,19 @@ const PaymentDetail = () => {
 
         {renderHistoryCard()}
       </div>
+
+      <PaymentInternalQuestionsPanel
+        isOpen={isQuestionsPanelOpen}
+        onClose={() => setIsQuestionsPanelOpen(false)}
+        observations={obs}
+        items={items}
+        invoices={invoices}
+        profiles={profiles}
+        itemLabel={itemLabel}
+        onChanged={load}
+        onOpenQuestionInvoice={setOpenQuestionInvoiceId}
+        paymentReference={payment.reference}
+      />
 
       {/* Sheet pra responder ao recebedor — alimentado pelo banner do topo. */}
       <Sheet open={!!openQuestionInvoiceId} onOpenChange={(v) => !v && setOpenQuestionInvoiceId(null)}>
