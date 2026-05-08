@@ -1,3 +1,10 @@
+/**
+ * ESTE TESTE É RÍGIDO POR DESIGN.
+ * Se você adicionar/remover/reordenar item no menu (NAV_ITEMS),
+ * atualize EXPECTED_TOPBAR_TOP_LEVEL, EXPECTED_GROUP_CHILDREN e o
+ * array final do "flattened topbar" juntos. É proposital travar isso
+ * aqui pra capturar mudanças não-intencionais no menu.
+ */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -5,11 +12,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock contexts BEFORE importing AppLayout.
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: { email: "admin@example.com" },
-    roles: ["admin", "diretor", "validador", "analista"],
-    signOut: vi.fn().mockResolvedValue(undefined),
-  }),
+  useAuth: () => {
+    const roles = ["admin", "diretor", "validador", "analista"];
+    return {
+      user: { email: "admin@example.com" },
+      roles,
+      hasRole: (r: string) => roles.includes(r),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+  },
 }));
 
 vi.mock("@/contexts/NavLayoutContext", () => ({
@@ -40,8 +51,18 @@ const EXPECTED_TOPBAR_TOP_LEVEL = [
  */
 const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
   Financeiro: ["Pagamentos", "Notas Fiscais", "KPIs"],
-  Configurações: ["Regras", "Tabelas de referência", "Empresas", "Centros de custo"],
-  Acesso: ["Usuários", "Auditoria"],
+  Configurações: [
+    "Regras de Pagamento",
+    "Regras de Validação",
+    "Tabelas de referência",
+    "Empresas",
+    "Apelidos aprendidos",
+    "Médicos",
+    "Mapa Especialidades",
+    "Centros de custo",
+    "Prazos e SLA",
+  ],
+  Acesso: ["Usuários", "Auditoria", "Anomalias de status"],
 };
 
 function renderLayout() {
@@ -109,13 +130,19 @@ describe("AppLayout topbar navigation", () => {
       "Pagamentos",
       "Notas Fiscais",
       "KPIs",
-      "Regras",
+      "Regras de Pagamento",
+      "Regras de Validação",
       "Tabelas de referência",
       "Empresas",
+      "Apelidos aprendidos",
+      "Médicos",
+      "Mapa Especialidades",
       "Centros de custo",
+      "Prazos e SLA",
       "Usuários",
       "Auditoria",
+      "Anomalias de status",
     ]);
-    expect(collected).toHaveLength(10);
+    expect(collected).toHaveLength(16);
   });
 });
