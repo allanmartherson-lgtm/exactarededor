@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
+import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import { toast } from "sonner";
 
 interface Row {
