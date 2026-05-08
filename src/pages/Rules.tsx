@@ -502,6 +502,47 @@ const Rules = () => {
         currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
+    // Tabelas e Códigos Vinculados
+    const hasRefTable = !!r.reference_table_id;
+    const hasExceptions = Array.isArray(r.exception_table_ids) && r.exception_table_ids.length > 0;
+    const hasCodes = Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0;
+
+    if (hasRefTable || hasExceptions || hasCodes) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(41, 128, 185);
+        doc.text("Tabelas e Códigos Vinculados", 14, currentY);
+        currentY += 5;
+
+        const tableLinks = [["Tipo de Vínculo", "Identificação / Nome"]];
+        
+        if (hasRefTable) {
+            const ref = refTables.find((t: any) => t.id === r.reference_table_id);
+            tableLinks.push(["Tabela de Referência", ref?.name || r.reference_table_id || "Não identificada"]);
+        }
+
+        if (hasExceptions) {
+            r.exception_table_ids.forEach((id: string) => {
+                const ref = refTables.find((t: any) => t.id === id);
+                tableLinks.push(["Tabela de Exceção / Vínculo", ref?.name || id]);
+            });
+        }
+
+        if (hasCodes) {
+            tableLinks.push(["Códigos Específicos", r.procedure_codes.join(", ")]);
+        }
+
+        autoTable(doc, {
+            startY: currentY,
+            head: [tableLinks[0]],
+            body: tableLinks.slice(1),
+            theme: 'grid',
+            styles: { fontSize: 9 },
+            columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+    }
+
     // Médicos vinculados
     if (Array.isArray(r.doctors) && r.doctors.length > 0) {
         doc.setFontSize(12);
