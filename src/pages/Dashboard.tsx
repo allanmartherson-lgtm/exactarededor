@@ -1471,12 +1471,14 @@ const TaskRow = ({
   profiles,
   timeMs,
   slaLevel,
+  qCount = 0,
 }: {
   p: PaymentRow;
   mine: boolean;
   profiles: Record<string, string>;
   timeMs?: number;
   slaLevel?: SlaLevel;
+  qCount?: number;
 }) => {
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
