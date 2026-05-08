@@ -123,13 +123,19 @@ describe("AppLayout topbar navigation", () => {
       "Pagamentos",
       "Notas Fiscais",
       "KPIs",
-      "Regras",
+      "Regras de Pagamento",
+      "Regras de Validação",
       "Tabelas de referência",
       "Empresas",
+      "Apelidos aprendidos",
+      "Médicos",
+      "Mapa Especialidades",
       "Centros de custo",
+      "Prazos e SLA",
       "Usuários",
       "Auditoria",
+      "Anomalias de status",
     ]);
-    expect(collected).toHaveLength(10);
+    expect(collected).toHaveLength(16);
   });
 });
