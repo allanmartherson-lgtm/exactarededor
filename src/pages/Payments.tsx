@@ -136,6 +136,9 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
+  // Contagem de perguntas internas abertas por lote (badge nas listagens).
+  const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
+  const [openQuestionOnly, setOpenQuestionOnly] = useState(false);
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
