@@ -102,7 +102,6 @@ const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
     case "devolvido_analista":
       return "analista";
     case "aguardando_validacao":
-    case "devolvido_validador":
       return "validador";
     case "aguardando_aprovacao":
       return "diretor";
@@ -169,7 +168,6 @@ const PAYMENT_STATUS_SHORT: Partial<Record<PaymentStatus, string>> = {
   em_analise_ia: "Análise IA",
   revisao_analista: "Revisão analista",
   aguardando_validacao: "Validação",
-  devolvido_validador: "Devolvido p/ validador",
   devolvido_analista: "Devolvido p/ analista",
   aguardando_aprovacao: "Aprovação diretoria",
   aprovado: "Aprovado",
@@ -615,7 +613,7 @@ const Dashboard = () => {
       // aparece em "Tarefas em aberto" e no Pipeline da equipe.
       const c: DashboardCounts = { ...initialCounts };
       const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-        "em_analise_ia", "revisao_analista", "devolvido_analista", "devolvido_validador", "nf_questionada",
+        "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
       ]);
       (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
@@ -660,7 +658,7 @@ const Dashboard = () => {
             c.pipeDivergente++; break;
         }
 
-        if (p.status === "devolvido_analista" || p.status === "devolvido_validador") c.attDevolvidoAnalista++;
+        if (p.status === "devolvido_analista") c.attDevolvidoAnalista++;
         if (p.status === "aprovado_com_ressalva") {
           c.attRessalvas++;
           if (isMineRow) c.mineRessalvas++;
@@ -810,7 +808,7 @@ const Dashboard = () => {
   // terminais (rejeitado, cancelado) NUNCA aparecem como pendência aqui,
   // mesmo que o usuário tenha criado/validado/aprovado o lote.
   const ANALISTA_PENDING: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-    "em_analise_ia", "revisao_analista", "devolvido_analista", "devolvido_validador", "nf_questionada",
+    "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
   ]);
   const isMine = (p: PaymentRow): boolean => {
     const uid = user?.id;
@@ -827,7 +825,7 @@ const Dashboard = () => {
   // Fila coletiva (qualquer pagamento em status acionável, do time todo)
   const ACTIONABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
     "em_analise_ia", "revisao_analista", "aguardando_validacao",
-    "aguardando_aprovacao", "devolvido_analista", "devolvido_validador",
+    "aguardando_aprovacao", "devolvido_analista",
     "nf_questionada", "aprovado_com_ressalva",
   ]);
   const teamOpenPayments = payments
@@ -1386,8 +1384,6 @@ const computeStages = (status: PaymentStatus): Record<BatchStage, StageState> =>
       s.ia.state = "returned"; s.validacao.state = "todo"; break;
     case "aguardando_validacao":
       s.ia.state = "done"; s.validacao.state = "current"; break;
-    case "devolvido_validador":
-      s.ia.state = "done"; s.validacao.state = "returned"; s.aprovacao.state = "todo"; break;
     case "aguardando_aprovacao":
       s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "current"; break;
     case "aprovado":

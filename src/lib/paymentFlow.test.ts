@@ -14,7 +14,6 @@ const ALL_STATUSES: PaymentStatus[] = [
   "aguardando_validacao",
   "devolvido_analista",
   "aguardando_aprovacao",
-  "devolvido_validador",
   "aprovado",
   "pedido_nf_enviado",
   "nf_recebida",
@@ -112,7 +111,6 @@ describe("canReimportBatch", () => {
       "cancelado",
       "rejeitado",
       "devolvido_analista",
-      "devolvido_validador",
     ];
     for (const s of blocked) {
       expect(canReimportBatch(s, { isOwner: true, isAnalista: true })).toBe(false);
@@ -143,8 +141,8 @@ describe("canAssumeBatch — segregação", () => {
     }
   });
 
-  it("aguardando_validacao / devolvido_validador: só validador não-dono assume", () => {
-    for (const s of ["aguardando_validacao", "devolvido_validador"] as PaymentStatus[]) {
+  it("aguardando_validacao: só validador não-dono assume", () => {
+    for (const s of ["aguardando_validacao"] as PaymentStatus[]) {
       expect(canAssumeBatch(s, { isAnalista: false, isValidador: true, isDiretor: false, isOwner: false })).toBe(true);
       expect(canAssumeBatch(s, { isAnalista: true, isValidador: false, isDiretor: false, isOwner: false })).toBe(false);
       expect(canAssumeBatch(s, { isAnalista: false, isValidador: false, isDiretor: true, isOwner: false })).toBe(false);

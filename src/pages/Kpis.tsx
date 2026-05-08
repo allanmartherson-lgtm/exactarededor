@@ -120,7 +120,7 @@ const Kpis = () => {
     // Devoluções (status_to devolvido_*)
     const ids = new Set(myPayments.map((p) => p.id));
     const devolucoes = obs.filter(
-      (o) => ids.has(o.payment_id) && (o.status_to === "devolvido_analista" || o.status_to === "devolvido_validador")
+      (o) => ids.has(o.payment_id) && o.status_to === "devolvido_analista"
     ).length;
     const taxaDevolucao = pct(devolucoes, total);
 
@@ -233,7 +233,7 @@ const StageBreakdown = ({ payments }: { payments: PaymentLite[] }) => {
     { label: "NF recebida", statuses: ["nf_recebida"], tone: "bg-info" },
     { label: "NF conciliada", statuses: ["nf_conciliada"], tone: "bg-success" },
     { label: "Pago", statuses: ["pago"], tone: "bg-success" },
-    { label: "Devolvido / questionado", statuses: ["devolvido_analista", "devolvido_validador", "nf_questionada", "aprovado_com_ressalva"], tone: "bg-destructive" },
+    { label: "Devolvido / questionado", statuses: ["devolvido_analista", "nf_questionada", "aprovado_com_ressalva"], tone: "bg-destructive" },
     { label: "Rejeitado", statuses: ["rejeitado"], tone: "bg-muted" },
   ];
   const total = payments.length || 1;

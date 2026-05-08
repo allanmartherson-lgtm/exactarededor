@@ -44,7 +44,6 @@ export const ANALYST_EDITABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Pay
   "em_analise_ia",
   "revisao_analista",
   "devolvido_analista",
-  "devolvido_validador",
 ]);
 
 /** Status em que reimportar a base ainda é seguro (antes de qualquer validador olhar). */
@@ -93,7 +92,7 @@ export const canAssumeBatch = (
   if (ANALYST_OWNED_STATUSES.has(status) || status === "em_analise_ia" || status === "rascunho") {
     return opts.isAnalista;
   }
-  if (status === "aguardando_validacao" || status === "devolvido_validador") return opts.isValidador;
+  if (status === "aguardando_validacao") return opts.isValidador;
   if (status === "aguardando_aprovacao") return opts.isDiretor;
   return false;
 };
