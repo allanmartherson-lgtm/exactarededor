@@ -128,6 +128,7 @@ export async function recordObservation(
     item_id: input.item_id ?? null,
     status_from: input.status_from ?? null,
     status_to: input.status_to ?? null,
+    is_question: !!input.is_question,
   };
 
   const { data, error } = await supabase
@@ -139,5 +140,82 @@ export async function recordObservation(
   if (error || !data) {
     return { ok: false, error: error?.message ?? "Falha ao salvar observação.", data: null };
   }
+
+  // Se esta observação é a RESPOSTA a uma pergunta existente, marca a pergunta
+  // como resolvida e linka via answered_by_observation_id.
+  if (input.answers_question_id) {
+    await resolveQuestion(input.answers_question_id, input.author_id, data.id, input.author_type);
+  }
+
+  // Se esta observação É uma pergunta, dispara notificação interna roteada
+  // pelo papel de quem perguntou (best-effort; falha de notificação não derruba).
+  if (payload.is_question) {
+    try {
+      await supabase.functions.invoke("notify-internal-question", {
+        body: {
+          event: "created",
+          payment_id: input.payment_id,
+          question_observation_id: data.id,
+          asker_role: input.author_type,
+        },
+      });
+    } catch (e) {
+      console.warn("notify-internal-question(created) failed", e);
+    }
+  }
+
   return { ok: true, data: data as ObservationRow, error: "" };
+}
+
+/**
+ * Marca uma pergunta como resolvida e dispara notificação ao autor original.
+ * Idempotente: se já estiver resolvida, retorna ok.
+ */
+export async function resolveQuestion(
+  questionId: string,
+  responderId: string,
+  answerObservationId?: string | null,
+  responderRole?: ObservationAuthorType | null,
+): Promise<{ ok: boolean; error: string }> {
+  const { data: existing } = await supabase
+    .from("payment_observations")
+    .select("id, payment_id, resolved_at")
+    .eq("id", questionId)
+    .maybeSingle();
+  if (!existing) return { ok: false, error: "Pergunta não encontrada" };
+  if (existing.resolved_at) return { ok: true, error: "" };
+
+  const { error } = await supabase
+    .from("payment_observations")
+    .update({
+      resolved_at: new Date().toISOString(),
+      resolved_by: responderId,
+      answered_by_observation_id: answerObservationId ?? null,
+    })
+    .eq("id", questionId);
+  if (error) return { ok: false, error: error.message };
+
+  try {
+    await supabase.functions.invoke("notify-internal-question", {
+      body: {
+        event: "resolved",
+        payment_id: existing.payment_id,
+        question_observation_id: questionId,
+        responder_id: responderId,
+        asker_role: responderRole ?? null,
+      },
+    });
+  } catch (e) {
+    console.warn("notify-internal-question(resolved) failed", e);
+  }
+  return { ok: true, error: "" };
+}
+
+/** Reabre uma pergunta previamente respondida. Sem notificação. */
+export async function reopenQuestion(questionId: string): Promise<{ ok: boolean; error: string }> {
+  const { error } = await supabase
+    .from("payment_observations")
+    .update({ resolved_at: null, resolved_by: null, answered_by_observation_id: null })
+    .eq("id", questionId);
+  return { ok: !error, error: error?.message ?? "" };
 }
