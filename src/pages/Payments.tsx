@@ -837,7 +837,7 @@ const Payments = () => {
             <div className="flex items-center gap-2 text-primary">
               <Archive className="h-3.5 w-3.5" />
               <span>
-                Mostrando <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} (lançado, pago, rejeitado, cancelado).
+                Mostrando <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} (arquivado, rejeitado, cancelado).
               </span>
             </div>
             <button
