@@ -373,7 +373,12 @@ const Rules = () => {
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
         : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
-      ["Status", r.active !== false ? "Ativa" : "Inativa"]
+      ["Status", (() => {
+        const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
+        if (r.active === false) return "Inativa (Manual)";
+        if (isDateInactive) return "Inativa (Expirada)";
+        return "Ativa";
+      })()]
     ];
 
     autoTable(doc, {
@@ -458,10 +463,32 @@ const Rules = () => {
 
         const targetInfo = [["Tipo de Alvo", "Identificação / Nome"]];
         if (r.scope === 'especifica') {
-            targetInfo.push([r.target_type === 'medico' ? 'Médico Único' : 'Empresa Única', `${r.target_identifier || ""} ${r.target_name || ""}`]);
+            const targetLabel = r.target_type === 'medico' ? 'Médico Específico' : 'Empresa Específica';
+            const targetVal = `${r.target_identifier || ""} ${r.target_name || ""}`.trim() || "Não identificado";
+            targetInfo.push([targetLabel, targetVal]);
         } else if (r.scope === 'grupo') {
-            // Simplificado para o PDF
-            targetInfo.push(["Grupo de Empresas/Médicos", "Regra aplicada a grupo configurado"]);
+            const links = Array.isArray(r.group_company_links) ? r.group_company_links : [];
+            const coIds = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
+            const gDocs = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+            
+            if (links.length > 0) {
+                links.forEach((l: any, idx: number) => {
+                    const co = companies.find(c => c.id === l.company_id);
+                    const coName = co ? co.name : (l.company_id || "Empresa");
+                    const docs = Array.isArray(l.doctors) && l.doctors.length > 0 
+                        ? l.doctors.map((d: any) => d.name).join(", ") 
+                        : "Todos os médicos";
+                    targetInfo.push([`Vínculo ${idx + 1}`, `${coName} | Médicos: ${docs}`]);
+                });
+            } else if (coIds.length > 0) {
+                coIds.forEach((id: string, idx: number) => {
+                    const co = companies.find(c => c.id === id);
+                    const docs = gDocs.length > 0 ? gDocs.map((d: any) => d.name).join(", ") : "Todos";
+                    targetInfo.push([`Empresa ${idx + 1}`, `${co ? co.name : id} | Médicos: ${docs}`]);
+                });
+            } else {
+                targetInfo.push(["Grupo", "Nenhuma vinculação configurada"]);
+            }
         }
 
         autoTable(doc, {
@@ -1998,7 +2025,8 @@ const Rules = () => {
                             <Checkbox className="mt-1" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2 mb-1">
-                                {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
+                                 {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
+                                 {r.valid_until && new Date(r.valid_until) < new Date() && <span className="text-[10px] font-bold uppercase bg-warning/10 text-warning-foreground px-1.5 py-0.5 rounded border border-warning/20">Expirada</span>}
                                 <span className="font-semibold text-foreground">{r.name}</span>
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -2012,8 +2040,13 @@ const Rules = () => {
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                                 )}
                                 {/* Especialidade não é eixo do motor — não exibimos como badge de regra. */}
-                                {(r.valid_from || r.valid_until) && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                                 {(r.valid_from || r.valid_until) && (
+                                  <span className={cn(
+                                    "text-xs rounded-full border px-2 py-0.5",
+                                    r.valid_until && new Date(r.valid_until) < new Date() 
+                                      ? "border-warning/50 bg-warning/5 text-warning-foreground" 
+                                      : "border-border bg-muted/60"
+                                  )}>
                                     Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
                                   </span>
                                 )}
