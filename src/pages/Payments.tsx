@@ -785,6 +785,51 @@ const Payments = () => {
             </div>
           </div>
         )}
+        {/* Observabilidade: sinaliza claramente o modo arquivados ou se há
+            arquivados escondidos no modo ativos (evita "sumiu meu lote!"). */}
+        {archivedView ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
+            <div className="flex items-center gap-2 text-primary">
+              <Archive className="h-3.5 w-3.5" />
+              <span>
+                Mostrando <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} (lançado, pago, rejeitado, cancelado).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setArchivedView(false);
+                const sp = new URLSearchParams(searchParams);
+                sp.delete("archived");
+                setSearchParams(sp, { replace: true });
+              }}
+              className="text-primary font-medium hover:underline underline-offset-2"
+            >
+              Voltar para ativos
+            </button>
+          </div>
+        ) : archivedCount > 0 ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Archive className="h-3.5 w-3.5" />
+              <span>
+                <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} fora desta lista · {activeCount} ativo{activeCount === 1 ? "" : "s"}.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setArchivedView(true);
+                const sp = new URLSearchParams(searchParams);
+                sp.set("archived", "1");
+                setSearchParams(sp, { replace: true });
+              }}
+              className="font-medium hover:text-foreground hover:underline underline-offset-2"
+            >
+              Ver arquivados
+            </button>
+          </div>
+        ) : null}
         {filtered.length === 0 ? (
           <Card className="shadow-card">
             <CardContent className="p-0">
