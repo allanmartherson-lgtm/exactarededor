@@ -125,7 +125,8 @@ const Kpis = () => {
     const taxaDevolucao = pct(devolucoes, total);
 
     // Pagamentos no estado final
-    const pagos = myPayments.filter((p) => p.status === "pago").length;
+    // Pagamentos no estado final (pago + arquivado contam como concluídos).
+    const pagos = myPayments.filter((p) => p.status === "pago" || p.status === "arquivado").length;
     const rejeitados = myPayments.filter((p) => p.status === "rejeitado").length;
     const taxaConclusao = pct(pagos, total);
 

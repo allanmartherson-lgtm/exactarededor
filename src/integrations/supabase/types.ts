@@ -1917,6 +1917,7 @@ export type Database = {
         | "nf_divergente"
         | "nf_conciliada"
         | "lancado"
+        | "arquivado"
         | "pago"
         | "rejeitado"
         | "cancelado"
@@ -2122,6 +2123,7 @@ export const Constants = {
         "nf_divergente",
         "nf_conciliada",
         "lancado",
+        "arquivado",
         "pago",
         "rejeitado",
         "cancelado",

@@ -72,7 +72,7 @@ const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "criti
 type OwnerGroup = "all" | "analista" | "validador" | "diretor";
 
 const STATUSES_BY_OWNER: Record<Exclude<OwnerGroup, "all">, PaymentStatus[]> = {
-  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aprovado_em_revisao"],
+  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aprovado_em_revisao", "lancado"],
   validador: ["aguardando_validacao"],
   diretor: ["aguardando_aprovacao"],
 };
@@ -449,9 +449,9 @@ const Payments = () => {
   // Ordem das colunas do kanban (segue fluxo lógico)
   const KANBAN_ORDER: PaymentStatus[] = [
     "rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao",
-    "devolvido_analista", "aguardando_aprovacao",
+    "devolvido_analista", "aguardando_aprovacao", "aprovado_em_revisao",
     "aprovado", "aprovado_com_ressalva", "pedido_nf_enviado", "nf_questionada",
-    "nf_recebida", "nf_conciliada", "nf_divergente", "pago", "rejeitado", "cancelado",
+    "nf_recebida", "nf_conciliada", "nf_divergente", "lancado", "pago", "arquivado", "rejeitado", "cancelado",
   ];
 
   const kanbanGroups = useMemo(() => {
@@ -837,7 +837,7 @@ const Payments = () => {
             <div className="flex items-center gap-2 text-primary">
               <Archive className="h-3.5 w-3.5" />
               <span>
-                Mostrando <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} (lançado, pago, rejeitado, cancelado).
+                Mostrando <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} (arquivado, rejeitado, cancelado).
               </span>
             </div>
             <button

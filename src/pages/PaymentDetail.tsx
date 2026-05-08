@@ -1606,6 +1606,60 @@ const PaymentDetail = () => {
             </Card>
           )}
 
+          {/* Gap 4: Confirmar e arquivar — irreversível. Só analista, em grupos lancados. */}
+          {isAnalista && groups.some((g) => g.status === "lancado") && (
+            <Card className="shadow-card border-muted">
+              <CardHeader>
+                <CardTitle className="text-base">Confirmar e arquivar</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Após confirmar, o lote (ou empresa) sai das filas ativas e fica somente leitura. Ação irreversível.
+                </p>
+                {groups.filter((g) => g.status === "lancado").map((g) => (
+                  <div key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{g.company_name}</p>
+                      <p className="text-xs text-muted-foreground">{g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (!id || !user) return;
+                        if (!window.confirm(`Arquivar "${g.company_name}"? Esta ação é irreversível.`)) return;
+                        setBusy(true);
+                        const { error } = await supabase
+                          .from("payment_company_groups")
+                          .update({ status: "arquivado" })
+                          .eq("id", g.id);
+                        if (error) {
+                          toast({ title: "Falha ao arquivar", description: error.message, variant: "destructive" });
+                          setBusy(false);
+                          return;
+                        }
+                        await recordObservation({
+                          payment_id: id,
+                          author_type: "analista",
+                          author_id: user.id,
+                          message: `[${g.company_name}] Confirmado e arquivado por ${user.email ?? user.id}.`,
+                          status_from: "lancado",
+                          status_to: "arquivado",
+                        });
+                        toast({ title: "Arquivado", description: g.company_name });
+                        await load();
+                        setBusy(false);
+                      }}
+                    >
+                      Confirmar e arquivar
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
         {renderHistoryCard()}
       </div>
 
