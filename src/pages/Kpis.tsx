@@ -229,7 +229,7 @@ const StageBreakdown = ({ payments }: { payments: PaymentLite[] }) => {
     { label: "Análise IA", statuses: ["em_analise_ia", "revisao_analista"], tone: "bg-info" },
     { label: "Validação", statuses: ["aguardando_validacao"], tone: "bg-warning" },
     { label: "Aprovação", statuses: ["aguardando_aprovacao"], tone: "bg-warning" },
-    { label: "NF solicitada", statuses: ["aprovado", "pedido_nf_enviado"], tone: "bg-info" },
+    { label: "NF solicitada", statuses: ["aprovado", "pedido_nf_enviado", "aprovado_em_revisao"], tone: "bg-info" },
     { label: "NF recebida", statuses: ["nf_recebida"], tone: "bg-info" },
     { label: "NF conciliada", statuses: ["nf_conciliada"], tone: "bg-success" },
     { label: "Pago", statuses: ["pago"], tone: "bg-success" },
