@@ -522,7 +522,7 @@ const Dashboard = () => {
     document.title = "Dashboard | MedPay Approval";
     const load = async () => {
       setLoading(true);
-      const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }] = await Promise.all([
+      const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
         supabase
           .from("payments")
           .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
@@ -535,6 +535,7 @@ const Dashboard = () => {
           .select("id, payment:payments!inner(created_by)")
           .eq("status", "divergente"),
         Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
+        supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(2000),
       ]);
       setPayments((data ?? []) as PaymentRow[]);
       setAllPayments(
