@@ -2040,8 +2040,13 @@ const Rules = () => {
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                                 )}
                                 {/* Especialidade não é eixo do motor — não exibimos como badge de regra. */}
-                                {(r.valid_from || r.valid_until) && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
+                                 {(r.valid_from || r.valid_until) && (
+                                  <span className={cn(
+                                    "text-xs rounded-full border px-2 py-0.5",
+                                    r.valid_until && new Date(r.valid_until) < new Date() 
+                                      ? "border-warning/50 bg-warning/5 text-warning-foreground" 
+                                      : "border-border bg-muted/60"
+                                  )}>
                                     Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
                                   </span>
                                 )}
