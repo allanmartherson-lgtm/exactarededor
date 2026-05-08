@@ -478,6 +478,38 @@ const Rules = () => {
     toast({ title: "PDF Gerado", description: "O arquivo foi baixado com sucesso." });
   };
 
+  const exportAllToPDF = () => {
+    if (filtered.length === 0) return toast({ title: "Aviso", description: "Nenhuma regra para exportar.", variant: "warning" });
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFontSize(18);
+    doc.text("Relatório Geral de Regras de Negócio", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Total de regras: ${filtered.length}`, 14, 28);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    
+    const tableData = filtered.map(r => [
+        r.name,
+        RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope,
+        (r.severity || "info").toUpperCase(),
+        r.enabled ? "Sim" : "Não"
+    ]);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [["Nome da Regra", "Escopo", "Gravidade", "Ativa"]],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [44, 62, 80] },
+      styles: { fontSize: 8 }
+    });
+
+    doc.save("Relatorio_Geral_Regras.pdf");
+    toast({ title: "Relatório Gerado", description: "O relatório geral foi baixado com sucesso." });
+  };
+
   // Carrega médicos para cada empresa de link (cache no map).
   useEffect(() => {
     if (scope !== "grupo") return;
