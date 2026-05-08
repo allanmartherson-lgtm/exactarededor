@@ -13,6 +13,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   aguardando_validacao: "Aguardando validação",
   devolvido_analista: "Devolvido ao analista",
   aguardando_aprovacao: "Aguardando aprovação",
+  aprovado_em_revisao: "Aprovado (em revisão)",
   aprovado: "Aprovado",
   aprovado_com_ressalva: "Aprovado com ressalva",
   pedido_nf_enviado: "Pedido de NF enviado",
