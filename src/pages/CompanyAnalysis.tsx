@@ -566,7 +566,7 @@ export default function CompanyAnalysis() {
         body: { 
           paymentId: id, 
           eventType: "returned",
-          actorName: user?.full_name || user?.email,
+          actorName: user?.user_metadata?.full_name || user?.email,
           reason: text 
         } 
       }).catch((e) => console.warn("notify-analyst-event failed", e));
