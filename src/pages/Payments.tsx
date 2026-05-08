@@ -112,8 +112,8 @@ const Payments = () => {
 
   // Sincroniza filtros simples vindos de outras telas (ex: Dashboard)
   useEffect(() => {
-    const d = searchParams.get("delayed") === "1";
-    setDelayedOnly(d);
+    setDelayedOnly(searchParams.get("delayed") === "1");
+    setOpenQuestionOnly(searchParams.get("open_questions") === "1");
     const st = searchParams.get("status");
     if (st === "analista" || st === "validador" || st === "diretor") {
       setOwnerGroup(st);
@@ -121,8 +121,8 @@ const Payments = () => {
       setStatusFilter(st);
     }
     setOnlyMine(searchParams.get("owner") === "me");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()]);
+  }, [searchParams]);
+
   const [view, setView] = useState<"lista" | "kanban">("lista");
   const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
@@ -139,7 +139,7 @@ const Payments = () => {
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
-  const [openQuestionOnly, setOpenQuestionOnly] = useState(false);
+  const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
@@ -303,7 +303,7 @@ const Payments = () => {
     const handle = setTimeout(async () => {
       const like = `%${term}%`;
       // .or() em payment_items + busca em payments (pra cobrir CC e specialties).
-      const [itemsRes, paysRes] = await Promise.all([
+      const [itemsRes, paysRes, obsRes] = await Promise.all([
         supabase
           .from("payment_items")
           .select("payment_id")
@@ -322,18 +322,33 @@ const Payments = () => {
         supabase
           .from("payments")
           .select("id")
-          .or(`cost_center_code.ilike.${like},specialties.cs.{${term}},sectors.cs.{${term}}`)
+          .or(`cost_center_code.ilike.${like},specialties.cs.{${term}},sectors.cs.{${term}},reference.ilike.${like}`)
+          .limit(500),
+        supabase
+          .from("payment_observations")
+          .select("payment_id")
+          .ilike("message", like)
+          .eq("is_question", true)
+          .is("resolved_at", null)
           .limit(500),
       ]);
       if (cancelled) return;
       const ids = new Set<string>();
       (itemsRes.data ?? []).forEach((r: any) => r.payment_id && ids.add(r.payment_id));
       (paysRes.data ?? []).forEach((r: any) => r.id && ids.add(r.id));
+      (obsRes.data ?? []).forEach((r: any) => r.payment_id && ids.add(r.payment_id));
+
+      // Se o termo for especificamente "questionamento" ou "pergunta", incluímos todos que têm perguntas abertas
+      const lowerTerm = term.toLowerCase();
+      if (lowerTerm.includes("question") || lowerTerm.includes("pergunta")) {
+        Object.keys(openQuestionCount).forEach(pid => ids.add(pid));
+      }
+
       setPaymentIdsForQuery(ids);
       setSearching(false);
     }, 250);
     return () => { cancelled = true; clearTimeout(handle); };
-  }, [q]);
+  }, [q, openQuestionCount]);
 
   const competenceOptions = useMemo(() => {
     const set = new Set<string>();
@@ -692,7 +707,13 @@ const Payments = () => {
           <Button
             variant={openQuestionOnly ? "default" : "outline"}
             size="sm"
-            onClick={() => setOpenQuestionOnly((v) => !v)}
+            onClick={() => {
+              const next = !openQuestionOnly;
+              setOpenQuestionOnly(next);
+              const sp = new URLSearchParams(searchParams);
+              if (next) sp.set("open_questions", "1"); else sp.delete("open_questions");
+              setSearchParams(sp, { replace: true });
+            }}
             title="Mostrar apenas lotes com perguntas internas aguardando resposta"
           >
             <MessageCircleQuestion className="h-4 w-4 mr-1" /> Com questionamento aberto
