@@ -882,6 +882,19 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
+    // Notifica o analista que a IA concluiu (Evento 2)
+    if (obsTransition) {
+      console.log(`Triggering notify-analyst-event (ia_concluded) for payment ${payment_id}`);
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ paymentId: payment_id, eventType: "ia_concluded" }),
+      }).catch(e => console.error("Failed to notify analyst (ia_concluded):", e));
+    }
+
     return new Response(
       JSON.stringify({ ok: true, alerts, blocks, total: results.length, ai_used: itemsToReview.length > 0 }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },

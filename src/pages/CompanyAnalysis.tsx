@@ -561,6 +561,16 @@ export default function CompanyAnalysis() {
       supabase.functions.invoke("notify-analyst-review", { body: { paymentId: id } })
         .catch((e) => console.warn("notify-analyst-review failed", e));
     }
+    if (nextStatus === "devolvido_analista") {
+      supabase.functions.invoke("notify-analyst-event", { 
+        body: { 
+          paymentId: id, 
+          eventType: "returned",
+          actorName: user?.user_metadata?.full_name || user?.email,
+          reason: text 
+        } 
+      }).catch((e) => console.warn("notify-analyst-event failed", e));
+    }
     setGroupDraft("");
     setBusy(false);
     toast.success(actionLabel);
