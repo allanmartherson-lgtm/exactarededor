@@ -1171,6 +1171,7 @@ const Rules = () => {
     <>
       <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
         actions={<>
+          <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>
             <DialogContent>
