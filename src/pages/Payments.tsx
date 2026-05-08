@@ -119,14 +119,6 @@ const Payments = () => {
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
   const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
   const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
-  // Atribuição de validador por pagamento (apenas grupos em aguardando_validacao).
-  // chip exibido no card + filtro da fila do validador.
-  type AssignmentInfo = {
-    mine: boolean;        // ao menos um grupo é meu (direto ou via grupo)
-    general: boolean;     // ao menos um grupo é fila geral (sem atribuição)
-    label: string;        // texto curto para o chip
-  };
-  const [assignmentByPayment, setAssignmentByPayment] = useState<Record<string, AssignmentInfo>>({});
   // Fila de reprocessamento: ids selecionados + estado de execução em lote.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
@@ -257,61 +249,6 @@ const Payments = () => {
     })();
     return () => { cancelled = true; };
   }, []);
-
-  // Carrega atribuições de validador (grupos em aguardando_validacao) e os
-  // grupos de validador a que o usuário pertence — usado para filtrar a fila
-  // "Com validador" e exibir o chip "Atribuído a você/seu grupo".
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const myId = user?.id ?? null;
-      const myGroupsP = myId
-        ? supabase.from("validator_group_members").select("group_id").eq("user_id", myId)
-        : Promise.resolve({ data: [] as any[] } as any);
-      const [{ data: pcg }, { data: myGroups }, { data: groupNames }] = await Promise.all([
-        supabase
-          .from("payment_company_groups")
-          .select("payment_id,assigned_validator_id,assigned_validator_group_id")
-          .eq("status", "aguardando_validacao")
-          .limit(5000),
-        myGroupsP,
-        supabase.from("validator_groups").select("id,name"),
-      ]);
-      if (cancelled) return;
-      const mySet = new Set<string>(((myGroups ?? []) as any[]).map((r) => r.group_id));
-      const gnameMap = new Map<string, string>(
-        ((groupNames ?? []) as any[]).map((g) => [g.id, g.name as string]),
-      );
-      const map: Record<string, AssignmentInfo> = {};
-      ((pcg ?? []) as any[]).forEach((r) => {
-        const pid = r.payment_id as string;
-        const cur = map[pid] ?? { mine: false, general: false, label: "" };
-        if (!r.assigned_validator_id && !r.assigned_validator_group_id) {
-          cur.general = true;
-          if (!cur.label) cur.label = "Fila geral";
-        } else if (myId && r.assigned_validator_id === myId) {
-          cur.mine = true;
-          cur.label = "Atribuído a você";
-        } else if (r.assigned_validator_group_id && mySet.has(r.assigned_validator_group_id)) {
-          cur.mine = true;
-          if (!cur.label || cur.label === "Fila geral") {
-            const gn = gnameMap.get(r.assigned_validator_group_id);
-            cur.label = gn ? `Grupo: ${gn}` : "Seu grupo";
-          }
-        } else if (r.assigned_validator_group_id) {
-          if (!cur.label) {
-            const gn = gnameMap.get(r.assigned_validator_group_id);
-            cur.label = gn ? `Grupo: ${gn}` : "Atribuído a grupo";
-          }
-        } else {
-          if (!cur.label) cur.label = "Atribuído a validador";
-        }
-        map[pid] = cur;
-      });
-      setAssignmentByPayment(map);
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id]);
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
   useEffect(() => {
