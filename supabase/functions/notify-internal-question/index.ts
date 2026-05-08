@@ -6,7 +6,9 @@
 //   validador   -> analista do lote
 //   diretor     -> analista + validador (notificação dupla)
 //
-// Para "respondida": notifica o autor original da pergunta.
+// Para "respondida":
+//   Se houver outras perguntas abertas: silencia (notifica apenas uma vez por ciclo).
+//   Se for a última pergunta: notifica o diretor responsável (todos os diretores).
 //
 // Suporta payload com `recipient_roles: string[]` (override explícito).
 
@@ -18,8 +20,10 @@ const corsHeaders = {
 };
 
 const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
+const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
+const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const EMAIL_FROM = "MedPay <onboarding@resend.dev>";
 
 const greetingForBrazil = (now = new Date()) => {
@@ -32,6 +36,7 @@ const firstName = (full?: string | null) =>
   (full ?? "").trim().split(/\s+/)[0] || "Olá";
 const fmtBR = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
 
 type Role = "analista" | "validador" | "diretor" | "admin";
 type EventKind = "created" | "resolved";
@@ -101,15 +106,46 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Se for resolução, verifica se restam outras perguntas abertas no lote
+    let isLastInCycle = false;
+    if (body.event === "resolved") {
+      const { count } = await supabase
+        .from("payment_observations")
+        .select("*", { count: "exact", head: true })
+        .eq("payment_id", body.payment_id)
+        .eq("is_question", true)
+        .is("resolved_at", null);
+      
+      isLastInCycle = (count === 0);
+      
+      // Regra: notificação dispara apenas quando o ÚLTIMO questionamento é respondido
+      if (!isLastInCycle) {
+        return new Response(
+          JSON.stringify({ ok: true, skipped: true, reason: "not_last_in_cycle" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // Determina destinatários (lista de userIds).
     let recipientIds: string[] = [];
     let actorName: string | null = null;
 
     if (body.event === "resolved") {
-      // Notifica o autor original da pergunta (1 pessoa).
-      if (question.author_id && question.author_id !== body.responder_id) {
-        recipientIds = [question.author_id];
-      }
+      // Quando o ciclo acaba, notificamos os diretores responsáveis (todos do papel 'diretor')
+      const { data: directorRoles } = await supabase
+        .from("user_roles").select("user_id").eq("role", "diretor");
+      
+      const directorIds = (directorRoles ?? []).map(r => r.user_id);
+      
+      // Notifica também o autor original da última pergunta resolvida (se não for diretor)
+      const otherRecipients = question.author_id && !directorIds.includes(question.author_id)
+        ? [question.author_id]
+        : [];
+      
+      recipientIds = Array.from(new Set([...directorIds, ...otherRecipients]))
+        .filter(id => id !== body.responder_id);
+
       if (body.responder_id) {
         const { data: r } = await supabase.from("profiles")
           .select("full_name, email").eq("id", body.responder_id).maybeSingle();
@@ -130,10 +166,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    let recipients: { id: string; full_name: string | null; email: string }[] = [];
+    let recipients: { id: string; full_name: string | null; email: string; phone: string | null }[] = [];
     if (recipientIds.length) {
       const { data: profs } = await supabase
-        .from("profiles").select("id, full_name, email").in("id", recipientIds);
+        .from("profiles").select("id, full_name, email, phone").in("id", recipientIds);
       recipients = (profs ?? []) as typeof recipients;
     }
 
@@ -143,50 +179,87 @@ Deno.serve(async (req) => {
     const isCreated = body.event === "created";
     const subject = isCreated
       ? `Nova pergunta no lote ${payment.reference}`
-      : `Pergunta respondida no lote ${payment.reference}`;
+      : `Questionamento respondido no lote ${payment.reference}`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
     const emailResults: unknown[] = [];
+    const whatsappResults: unknown[] = [];
 
     for (const r of recipients) {
-      if (!r.email || !LOVABLE_API_KEY || !RESEND_API_KEY) {
-        emailResults.push({ recipient_id: r.id, ok: false, skipped: "missing_email_or_keys" });
-        continue;
-      }
-      const lines = [
-        `${greeting}, ${firstName(r.full_name)}.`,
-        ``,
-        isCreated
-          ? `Há uma nova pergunta no lote ${payment.reference}.`
-          : `Sua pergunta no lote ${payment.reference} foi respondida.`,
-        isCreated && body.asker_role === "diretor"
-          ? `Observação: Esta pergunta foi feita pela diretoria. O lote continua aguardando aprovação e a resposta pode ser dada pelo analista ou pelo validador.`
-          : isCreated
-          ? `Há uma nova pergunta aguardando resposta.`
-          : null,
-        actorName ? `• ${isCreated ? "Perguntado por" : "Respondido por"}: ${actorName}` : null,
-        `• Mensagem: ${(question.message ?? "").slice(0, 240)}`,
-        `• Em: ${fmtBR(sentAt)}`,
-        ``,
-        `Acessar: ${link}`,
-      ].filter(Boolean) as string[];
+      const name = firstName(r.full_name);
+      const lines = isCreated
+        ? [
+            `${greeting}, ${name}.`,
+            ``,
+            `Há uma nova pergunta no lote ${payment.reference}.`,
+            body.asker_role === "diretor"
+              ? `Observação: Esta pergunta foi feita pela diretoria. O lote continua aguardando aprovação e a resposta pode ser dada pelo analista ou pelo validador.`
+              : `Há uma nova pergunta aguardando resposta.`,
+            actorName ? `• Perguntado por: ${actorName}` : null,
+            `• Mensagem: ${(question.message ?? "").slice(0, 240)}`,
+            `• Em: ${fmtBR(sentAt)}`,
+            ``,
+            `Acessar: ${link}`,
+          ].filter(Boolean) as string[]
+        : [
+            `${greeting}, ${name}.`,
+            ``,
+            `O questionamento no lote ${payment.reference} foi respondido e o lote aguarda sua decisão de aprovação.`,
+            actorName ? `• Respondido por: ${actorName}` : null,
+            `• Última mensagem: ${(question.message ?? "").slice(0, 240)}`,
+            `• Em: ${fmtBR(sentAt)}`,
+            ``,
+            `Acessar: ${link}`,
+          ].filter(Boolean) as string[];
+
       const text = lines.join("\n");
       const html = `<p>${text.replace(/\n/g, "<br/>")}</p>`;
-      try {
-        const resp = await fetch(`${RESEND_GATEWAY}/emails`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "X-Connection-Api-Key": RESEND_API_KEY,
-          },
-          body: JSON.stringify({ from: EMAIL_FROM, to: [r.email], subject, html, text }),
-        });
-        const j = await resp.json().catch(() => ({}));
-        emailResults.push({ recipient_id: r.id, ok: resp.ok, status: resp.status, response: j });
-      } catch (e) {
-        emailResults.push({ recipient_id: r.id, ok: false, error: String(e) });
+
+      // Envia Email
+      if (r.email && LOVABLE_API_KEY && RESEND_API_KEY) {
+        try {
+          const resp = await fetch(`${RESEND_GATEWAY}/emails`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+              "X-Connection-Api-Key": RESEND_API_KEY,
+            },
+            body: JSON.stringify({ from: EMAIL_FROM, to: [r.email], subject, html, text }),
+          });
+          const j = await resp.json().catch(() => ({}));
+          emailResults.push({ recipient_id: r.id, ok: resp.ok, status: resp.status, response: j });
+        } catch (e) {
+          emailResults.push({ recipient_id: r.id, ok: false, error: String(e) });
+        }
+      }
+
+      // Envia WhatsApp (apenas se for diretor ou for o encerramento do ciclo)
+      const phoneDigits = onlyDigits(r.phone ?? "");
+      if (phoneDigits && LOVABLE_API_KEY && TWILIO_API_KEY) {
+        try {
+          const e164 = phoneDigits.length === 11 ? `+55${phoneDigits}` : `+${phoneDigits}`;
+          const params = new URLSearchParams({
+            To: `whatsapp:${e164}`,
+            From: TWILIO_FROM,
+            Body: text,
+          });
+          const resp = await fetch(`${TWILIO_GATEWAY}/Messages.json`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+              "X-Connection-Api-Key": TWILIO_API_KEY,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: params.toString(),
+          });
+          const j = await resp.json().catch(() => ({}));
+          whatsappResults.push({ recipient_id: r.id, ok: resp.ok, status: resp.status, response: j });
+        } catch (e) {
+          whatsappResults.push({ recipient_id: r.id, ok: false, error: String(e) });
+        }
       }
     }
 
@@ -200,6 +273,7 @@ Deno.serve(async (req) => {
         question_id: question.id,
         asker_role: body.asker_role ?? question.author_type ?? null,
         recipients: recipients.map((r) => ({ id: r.id, email: r.email })),
+        is_last_in_cycle: isLastInCycle,
         sent_at: sentAt,
       },
     });
@@ -209,6 +283,7 @@ Deno.serve(async (req) => {
         ok: true,
         recipients: recipients.length,
         email_results: emailResults,
+        whatsapp_results: whatsappResults,
         sent_at: sentAt,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
