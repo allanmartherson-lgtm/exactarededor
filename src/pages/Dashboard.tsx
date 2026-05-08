@@ -723,6 +723,7 @@ const Dashboard = () => {
         case "aguardando_aprovacao":
           c.pipeAprovacao++; break;
         case "aprovado":
+        case "aprovado_em_revisao":
           c.pipeAguardandoEnvio++; break;
         case "pedido_nf_enviado":
           c.pipeNFSolicitada++; break;
