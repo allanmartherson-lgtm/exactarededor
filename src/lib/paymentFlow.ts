@@ -136,23 +136,21 @@ export const isTerminalStatus = (s: PaymentStatus): boolean => TERMINAL_STATUSES
  * Toda mudança de status do grupo PRECISA passar por aqui.
  */
 const TRANSITIONS: Record<ActorRole, Partial<Record<PaymentStatus, PaymentStatus[]>>> = {
-  analista: {
-    revisao_analista: ["aguardando_validacao"],
-    // Reencaminhamento direto (a quem devolveu) é tratado em `resolveResendTarget`,
-    // mas mantemos o envio "padrão" como fallback.
-    devolvido_analista: ["aguardando_validacao", "aguardando_aprovacao"],
-  },
-  validador: {
-    aguardando_validacao: ["aguardando_aprovacao", "devolvido_analista"],
-  },
-  diretor: {
-    aguardando_aprovacao: [
-      "aprovado",
-      // Devolução SEMPRE ao analista (regra do negócio). Nunca ao validador.
-      "devolvido_analista",
-      "rejeitado",
-    ],
-  },
+   analista: {
+     revisao_analista: ["aguardando_validacao"],
+     devolvido_analista: ["aguardando_validacao", "aguardando_aprovacao"],
+     aprovado_em_revisao: ["pedido_nf_enviado"],
+   },
+   validador: {
+     aguardando_validacao: ["aguardando_aprovacao", "devolvido_analista"],
+   },
+   diretor: {
+     aguardando_aprovacao: [
+       "aprovado_em_revisao",
+       "devolvido_analista",
+       "rejeitado",
+     ],
+   },
 };
 
 export const canTransition = (
