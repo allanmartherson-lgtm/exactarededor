@@ -489,9 +489,9 @@ const Payments = () => {
             {openQuestionCount[p.id] > 0 && (
               <span
                 title={`${openQuestionCount[p.id]} questionamento(s) aguardando resposta`}
-                className="inline-flex items-center gap-0.5 rounded-full border border-info/30 bg-info-soft px-1.5 py-0 text-[9px] font-semibold text-info shrink-0"
+                className="inline-flex items-center gap-0.5 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0 text-[9px] font-semibold text-warning-foreground shrink-0"
               >
-                <MessageCircleQuestion className="h-2.5 w-2.5" />{openQuestionCount[p.id]}
+                <AlertTriangle className="h-2 w-2" /> Questionamento
               </span>
             )}
           </div>
