@@ -172,6 +172,7 @@ const PAYMENT_STATUS_SHORT: Partial<Record<PaymentStatus, string>> = {
   aguardando_validacao: "Validação",
   devolvido_analista: "Devolvido p/ analista",
   aguardando_aprovacao: "Aprovação diretoria",
+  aprovado_em_revisao: "Em revisão p/ analista",
   aprovado: "Aprovado",
   pedido_nf_enviado: "NF solicitada",
   nf_recebida: "NF recebida",
