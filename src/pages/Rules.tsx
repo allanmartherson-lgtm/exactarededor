@@ -479,7 +479,7 @@ const Rules = () => {
   };
 
   const exportAllToPDF = () => {
-    if (filtered.length === 0) return toast({ title: "Aviso", description: "Nenhuma regra para exportar.", variant: "warning" });
+    if (filtered.length === 0) return toast({ title: "Aviso", description: "Nenhuma regra para exportar." });
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
