@@ -107,13 +107,28 @@ export const canActAsValidatorOrDirector = (
   currentUserId: string | null | undefined,
 ): boolean => Boolean(createdBy && currentUserId && createdBy !== currentUserId);
 
-/** Estado terminal? (não há mais transições úteis) */
+/**
+ * Estado terminal: lote saiu do fluxo operacional ativo. Não há mais
+ * transições úteis (apenas consulta histórica/auditoria). Fonte ÚNICA
+ * de verdade — Dashboard, Payments, KPIs e qualquer filtro de "arquivado"
+ * devem importar daqui.
+ *
+ * Observações:
+ *  - `aprovado` NÃO é terminal: ele segue para o fluxo de NF.
+ *  - `nf_conciliada` NÃO é terminal: aguarda o analista marcar como `lancado`.
+ *  - `lancado` é terminal: do ponto de vista do MedPay, o pagamento
+ *    foi efetivado no ERP/financeiro (mesmo que ainda venha o `pago`
+ *    formal depois — opcional).
+ */
 export const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-  "aprovado",
+  "lancado",
   "pago",
   "rejeitado",
   "cancelado",
 ]);
+
+/** Conveniência: predicado para `Array.filter`/condicionais. */
+export const isTerminalStatus = (s: PaymentStatus): boolean => TERMINAL_STATUSES.has(s);
 
 /**
  * Mapa autoritativo de transições válidas, por papel.

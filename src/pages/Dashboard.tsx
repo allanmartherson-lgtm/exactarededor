@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
+import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import {
   ArrowRight,
   FileText,
@@ -804,10 +805,10 @@ const Dashboard = () => {
 
   // ============================================================
   // CÁLCULO DE SLA + URGÊNCIA
+  // Usa a definição canônica de TERMINAL_STATUSES (paymentFlow.ts).
+  // Lotes terminais (lancado/pago/rejeitado/cancelado) não têm SLA.
+  // `aprovado` NÃO é terminal — segue para fluxo de NF e tem SLA próprio.
   // ============================================================
-  const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-    "aprovado", "pago", "rejeitado", "cancelado", "nf_conciliada",
-  ]);
 
   const slaForPayment = (p: { id: string; status: PaymentStatus; created_at: string }): { level: SlaLevel; ms: number } | null => {
     if (TERMINAL_STATUSES.has(p.status)) return null;

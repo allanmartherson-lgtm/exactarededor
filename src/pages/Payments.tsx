@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
+import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import { toast } from "sonner";
 
 interface Row {
@@ -36,7 +37,19 @@ interface Row {
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
 
-const TERMINAL_STATUSES: PaymentStatus[] = ["aprovado", "pago", "rejeitado", "cancelado", "nf_conciliada"];
+/**
+ * Status que NÃO consomem SLA, mesmo não sendo terminais.
+ * Inclui terminais (lancado/pago/rejeitado/cancelado) + nf_conciliada
+ * (aguarda apenas o analista marcar como lançado, sem prazo apertado).
+ *
+ * Conceitos separados de TERMINAL_STATUSES:
+ *  - TERMINAL: arquivar / esconder das filas ativas.
+ *  - SLA_EXEMPT: não calcular nível de atraso.
+ */
+const SLA_EXEMPT_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  ...TERMINAL_STATUSES,
+  "nf_conciliada",
+]);
 
 const formatDuration = (ms: number) => {
   const mins = Math.floor(ms / 60000);
@@ -48,7 +61,7 @@ const formatDuration = (ms: number) => {
 };
 
 const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "critico" => {
-  if (TERMINAL_STATUSES.includes(status)) return "none";
+  if (SLA_EXEMPT_STATUSES.has(status)) return "none";
   const days = ms / 86400000;
   if (days >= 7) return "critico";
   if (days >= 3) return "leve";
@@ -111,6 +124,10 @@ const Payments = () => {
   }, [searchParams.toString()]);
   const [view, setView] = useState<"lista" | "kanban">("lista");
   const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
+  // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
+  // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
+  // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
+  const [archivedView, setArchivedView] = useState<boolean>(searchParams.get("archived") === "1");
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
@@ -317,7 +334,19 @@ const Payments = () => {
 
   const now = Date.now();
 
+  // Total de arquivados (terminais) — independente dos demais filtros, usado
+  // pelo toggle e mensagem de observabilidade ("X lotes arquivados").
+  const archivedCount = useMemo(
+    () => rows.filter((r) => TERMINAL_STATUSES.has(r.status)).length,
+    [rows],
+  );
+  const activeCount = rows.length - archivedCount;
+
   const filtered = useMemo(() => rows.filter((r) => {
+    // Arquivamento: por default escondemos lotes em estado terminal das
+    // listagens de trabalho. Toggle "Ver arquivados" inverte o filtro.
+    const isTerminal = TERMINAL_STATUSES.has(r.status);
+    if (archivedView ? !isTerminal : isTerminal) return false;
     const term = q.trim().toLowerCase();
     if (term) {
       const refMatches = r.reference.toLowerCase().includes(term);
@@ -372,7 +401,7 @@ const Payments = () => {
       if (questionedFilter === "without" && has) return false;
     }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
+  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
@@ -671,6 +700,21 @@ const Payments = () => {
             </Button>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant={archivedView ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                const next = !archivedView;
+                setArchivedView(next);
+                const sp = new URLSearchParams(searchParams);
+                if (next) sp.set("archived", "1"); else sp.delete("archived");
+                setSearchParams(sp, { replace: true });
+              }}
+              title={archivedView ? "Voltar para pagamentos ativos" : "Ver pagamentos arquivados (terminais)"}
+            >
+              {archivedView ? <Inbox className="h-4 w-4 mr-1" /> : <Archive className="h-4 w-4 mr-1" />}
+              {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
+            </Button>
             {view === "lista" && (
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
                 <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
@@ -741,6 +785,51 @@ const Payments = () => {
             </div>
           </div>
         )}
+        {/* Observabilidade: sinaliza claramente o modo arquivados ou se há
+            arquivados escondidos no modo ativos (evita "sumiu meu lote!"). */}
+        {archivedView ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-4 py-2 text-xs">
+            <div className="flex items-center gap-2 text-primary">
+              <Archive className="h-3.5 w-3.5" />
+              <span>
+                Mostrando <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} (lançado, pago, rejeitado, cancelado).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setArchivedView(false);
+                const sp = new URLSearchParams(searchParams);
+                sp.delete("archived");
+                setSearchParams(sp, { replace: true });
+              }}
+              className="text-primary font-medium hover:underline underline-offset-2"
+            >
+              Voltar para ativos
+            </button>
+          </div>
+        ) : archivedCount > 0 ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Archive className="h-3.5 w-3.5" />
+              <span>
+                <strong>{archivedCount}</strong> lote{archivedCount === 1 ? "" : "s"} arquivado{archivedCount === 1 ? "" : "s"} fora desta lista · {activeCount} ativo{activeCount === 1 ? "" : "s"}.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setArchivedView(true);
+                const sp = new URLSearchParams(searchParams);
+                sp.set("archived", "1");
+                setSearchParams(sp, { replace: true });
+              }}
+              className="font-medium hover:text-foreground hover:underline underline-offset-2"
+            >
+              Ver arquivados
+            </button>
+          </div>
+        ) : null}
         {filtered.length === 0 ? (
           <Card className="shadow-card">
             <CardContent className="p-0">
