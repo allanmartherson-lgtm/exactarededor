@@ -94,8 +94,7 @@ Deno.serve(async (req) => {
         break;
       case "nf_received":
         subject = `Nota Fiscal recebida - Lote ${reference}`;
-        // Para NF recebida, tentamos pegar o nome da empresa se disponível no payload ou via query
-        bodyText = `${greeting}, ${name}.\n\nA nota fiscal do lote ${reference} foi recebida e aguarda sua ação.\n\nAcessar: ${link}`;
+        bodyText = `${greeting}, ${name}.\n\nA nota fiscal da empresa ${actorName || "clínica/empresa"} (Lote ${reference}) foi recebida e aguarda sua ação.\n\nAcessar: ${link}`;
         break;
     }
 
