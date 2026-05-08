@@ -139,6 +139,7 @@ const TRANSITIONS: Record<ActorRole, Partial<Record<PaymentStatus, PaymentStatus
      revisao_analista: ["aguardando_validacao"],
      devolvido_analista: ["aguardando_validacao", "aguardando_aprovacao"],
      aprovado_em_revisao: ["pedido_nf_enviado"],
+     lancado: ["arquivado"],
    },
    validador: {
      aguardando_validacao: ["aguardando_aprovacao", "devolvido_analista"],
