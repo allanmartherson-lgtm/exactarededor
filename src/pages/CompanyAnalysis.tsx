@@ -916,7 +916,7 @@ export default function CompanyAnalysis() {
                   <Button
                     size="sm"
                     disabled={busy}
-                    onClick={() => transitionGroupStatus("aprovado", "diretor", "Aprovado pelo diretor", false)}
+                    onClick={() => transitionGroupStatus("aprovado_em_revisao", "diretor", "Aprovado pelo diretor", false)}
                   >
                     <ThumbsUp className="h-4 w-4 mr-2" /> Aprovar
                   </Button>
