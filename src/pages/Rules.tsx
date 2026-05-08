@@ -366,6 +366,7 @@ const Rules = () => {
     // Informações Básicas (Tabela)
     const basicInfo = [
       ["Campo", "Valor"],
+      ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
       ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type ?? "Informativo"],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
@@ -381,6 +382,26 @@ const Rules = () => {
         return "Ativa";
       })()]
     ];
+
+    if (r.agreement_aliases && r.agreement_aliases.length > 0) {
+      basicInfo.push(["Apelidos Convênio", r.agreement_aliases.join(", ")]);
+    }
+
+    if (r.time_mode && r.time_mode !== 'qualquer') {
+        const mode = r.time_mode === 'comercial' ? 'Horário Comercial' : r.time_mode === 'plantao' ? 'Horário Plantão' : 'Personalizado';
+        let val = mode;
+        if (r.time_start && r.time_end) val += ` (${r.time_start} - ${r.time_end})`;
+        basicInfo.push(["Janela Temporal", val]);
+        
+        if (r.weekdays && r.weekdays.length > 0) {
+            const days = r.weekdays.map((d: number) => WEEKDAY_LABELS.find(l => l.v === d)?.label).join(", ");
+            basicInfo.push(["Dias da Semana", days]);
+        }
+    }
+
+    if (r.elective_mode && r.elective_mode !== 'qualquer') {
+        basicInfo.push(["Tipo de Atendimento", ELECTIVE_MODE_LABELS[r.elective_mode as ElectiveMode] ?? r.elective_mode]);
+    }
 
     autoTable(doc, {
       startY: currentY,
