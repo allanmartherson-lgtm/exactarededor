@@ -508,7 +508,7 @@ export default function CompanyAnalysis() {
   // Transições de fluxo do validador/diretor para esta empresa.
   const transitionGroupStatus = async (
     nextStatus: PaymentStatus,
-    authorType: "validador" | "diretor",
+    authorType: "validador" | "diretor" | "analista",
     actionLabel: string,
     requireMsg: boolean,
   ) => {
