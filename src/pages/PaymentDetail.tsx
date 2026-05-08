@@ -47,7 +47,7 @@ import {
   type ActorRole,
 } from "@/lib/paymentFlow";
 import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
-import { SendForValidationPopover } from "@/components/SendForValidationPopover";
+import { Send } from "lucide-react";
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
@@ -337,12 +337,9 @@ const PaymentDetail = () => {
     }
   };
 
-  // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista)
-  // Aceita atribuição opcional: validador específico, grupo de validadores, ou nada (fila geral).
-  const sendForValidation = async (
-    onlyGroupId?: string,
-    assignment?: { validator_id: string | null; validator_group_id: string | null },
-  ) => {
+  // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista).
+  // A validação é fila coletiva: qualquer validador pode assumir.
+  const sendForValidation = async (onlyGroupId?: string) => {
     if (!id) return;
     const targets = (onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups)
       .filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
@@ -352,19 +349,9 @@ const PaymentDetail = () => {
     }
     setBusy(true);
     await autoClaim();
-    const a = assignment ?? { validator_id: null, validator_group_id: null };
-    const assignSuffix = a.validator_id
-      ? " (atribuído a validador específico)"
-      : a.validator_group_id
-        ? " (atribuído a grupo de validadores)"
-        : "";
     for (const g of targets) {
       const { error: upErr } = await supabase.from("payment_company_groups")
-        .update({
-          status: "aguardando_validacao",
-          assigned_validator_id: a.validator_id,
-          assigned_validator_group_id: a.validator_group_id,
-        })
+        .update({ status: "aguardando_validacao" })
         .eq("id", g.id);
       if (upErr) {
         toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
@@ -372,20 +359,17 @@ const PaymentDetail = () => {
       }
       const obsRes = await recordObservation({
         payment_id: id, author_type: "analista", author_id: user!.id,
-        message: `[${g.company_name}] Enviado para validação pelo analista${assignSuffix}.`,
+        message: `[${g.company_name}] Enviado para validação pelo analista.`,
         status_from: g.status, status_to: "aguardando_validacao",
       });
       if (!obsRes.ok) {
         toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
       }
-      // Notifica destinatários (validador específico, grupo, ou fila geral)
-      // e registra na auditoria. Fire-and-forget — falha não bloqueia o envio.
+      // Notifica todos os validadores (fila coletiva) + auditoria. Fire-and-forget.
       supabase.functions.invoke("notify-validator-assignment", {
         body: {
           payment_id: id,
           group_id: g.id,
-          validator_id: a.validator_id,
-          validator_group_id: a.validator_group_id,
           sender_id: user!.id,
         },
       }).catch((e) => console.warn("notify-validator-assignment failed", g.id, e));
