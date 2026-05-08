@@ -341,15 +341,7 @@ const Payments = () => {
       const allowed = STATUSES_BY_OWNER[ownerGroup];
       if (!allowed.includes(r.status)) return false;
     }
-    // Fila do validador: cada validador só enxerga lotes atribuídos a ele,
-    // a um grupo do qual é membro, ou na fila geral. Admin/diretor passam.
-    const isPureValidador =
-      roles.includes("validador") && !roles.includes("admin") && !roles.includes("diretor");
-    if (isPureValidador && r.status === "aguardando_validacao") {
-      const a = assignmentByPayment[r.id];
-      // Sem info carregada ainda → não filtra (evita "sumir" durante load).
-      if (a && !(a.mine || a.general)) return false;
-    }
+    // Validação é fila coletiva: qualquer validador vê todos os lotes em aguardando_validacao.
     if (onlyMine) {
       // Visão coletiva por perfil: "Meus" = lotes na fila do meu papel.
       // Para analista, isso significa todos os lotes em status do analista
@@ -380,7 +372,7 @@ const Payments = () => {
       if (questionedFilter === "without" && has) return false;
     }
     return true;
-  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, assignmentByPayment]);
+  }), [rows, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions]);
   const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
@@ -440,7 +432,7 @@ const Payments = () => {
       slaLvl === "vencido" ? "critico" : slaLvl === "preventivo" ? "leve" : lvl;
     const companies = companiesPerPayment[p.id] ?? 0;
     const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
-    const assignment = p.status === "aguardando_validacao" ? assignmentByPayment[p.id] : undefined;
+    
     if (compact) {
       return (
         <Link
