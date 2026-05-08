@@ -158,8 +158,13 @@ Deno.serve(async (req) => {
         `${greeting}, ${firstName(r.full_name)}.`,
         ``,
         isCreated
-          ? `Há uma nova pergunta aguardando resposta no lote ${payment.reference}.`
+          ? `Há uma nova pergunta no lote ${payment.reference}.`
           : `Sua pergunta no lote ${payment.reference} foi respondida.`,
+        isCreated && body.asker_role === "diretor"
+          ? `Observação: Esta pergunta foi feita pela diretoria. O lote continua aguardando aprovação e a resposta pode ser dada pelo analista ou pelo validador.`
+          : isCreated
+          ? `Há uma nova pergunta aguardando resposta.`
+          : null,
         actorName ? `• ${isCreated ? "Perguntado por" : "Respondido por"}: ${actorName}` : null,
         `• Mensagem: ${(question.message ?? "").slice(0, 240)}`,
         `• Em: ${fmtBR(sentAt)}`,

@@ -1,57 +1,30 @@
-## Bug do validador — RESOLVIDO
+## Goals
+Implement Gap 2 (dual notification for director questions) and Gap 3 (visual indicator for open questions).
 
-**Causa raiz:** a edge `analyze-payment` sempre forçava `payments.status` e `payment_company_groups.status` de volta para `revisao_analista`, mesmo quando o lote já tinha sido enviado para validação. Quando a reanálise rodava em background (ex.: após o analista clicar "Enviar para validação"), o lote era "roubado" da fila do validador segundos depois.
+## Implementation Plan
 
-**Fix aplicado (já deployado):** a edge agora só rebaixa o status para `revisao_analista` se o pagamento/grupo ainda estiver em estado pertencente ao analista (`rascunho`, `em_analise_ia`, `revisao_analista`, `devolvido_analista`). Se já estiver com validador/diretor, apenas atualiza o `ai_summary` e os achados — não mexe no status.
+### 1. Edge Function (Gap 2)
+Update `supabase/functions/notify-internal-question/index.ts`:
+- Modify the email message for "created" events to clearly state that the batch continues in the same status and that either the analyst or validator can respond.
+- Ensure the routing for `diretor` already includes both `analista` and `validador` (it seems it does, but I'll double check the role labels).
 
-Isso resolve o caso do `Pagamento Teste 2`. Para reabrir manualmente os 4 lotes que ficaram presos em `revisao_analista` por causa do bug, posso aplicar uma correção de dados em seguida (basta o ok).
+### 2. Payments Page (Gap 3)
+Update `src/pages/Payments.tsx`:
+- Enhance the visual indicator for open questions.
+- Replace the current blue `MessageCircleQuestion` badge with a more visible amber/yellow badge with a "⚠ Questionamento" label as requested.
+- Update both the compact (kanban) and standard (list) views.
 
----
+### 3. Dashboard Page (Gap 3)
+Update `src/pages/Dashboard.tsx`:
+- Implement fetching of open question counts per payment (similar to `Payments.tsx`).
+- Add the same amber/yellow "⚠ Questionamento" badge to the payment rows in the pipeline/task lists.
+- Ensure the badge is visible to all profiles.
 
-## Feature: roteamento de validador no envio
+### 4. Verification
+- Verify that the notification logic works by reading the code.
+- Verify that the visual indicators appear correctly in the preview.
 
-### Modelo de dados
-- Nova tabela **`validator_groups`** (id, name, description, active, created_by/at, updated_at)
-- Nova tabela **`validator_group_members`** (group_id, user_id) — many-to-many com `profiles`
-- Em **`payment_company_groups`**, adicionar:
-  - `assigned_validator_id uuid` (validador específico, opcional)
-  - `assigned_validator_group_id uuid` (grupo de validadores, opcional)
-  - exclusivos entre si; ambos nulos = fila geral (default)
-
-Mesma estrutura para futura expansão de aprovadores fica preparada (mas sem implementar agora — escolha do usuário).
-
-### Regras de visibilidade (RLS)
-A política `pcg_view_workflow` continua liberando para qualquer validador ver, mas a UI filtra a fila por:
-- assigned_validator_id = meu user_id, OU
-- assigned_validator_group_id ∈ (grupos onde sou membro), OU
-- ambos nulos (fila geral)
-
-Admin/diretor continuam vendo tudo. RLS reforça que só o destinatário/grupo pode mudar status (`update` extra check).
-
-### UI
-1. **Tela "Configurações → Grupos de validadores"** (admin/diretor): CRUD simples — nome, descrição, escolher membros entre os usuários com role `validador`.
-2. **Modal "Enviar para validação"** (analista, em `PaymentDetail`): hoje envia direto. Passa a abrir um pequeno popover com 3 opções:
-   - Fila geral (default — comportamento atual)
-   - Validador específico (combobox de usuários `validador`)
-   - Grupo de validadores (combobox de grupos ativos)
-   - Aplica a escolha por empresa (ou para todas as empresas do lote, com toggle "aplicar a todas").
-3. **Páginas `Payments.tsx` e `Dashboard.tsx`**: filtro da fila de validador inclui `assigned_validator_id = me OR group ∈ meus OR ambos nulos`. Mostra um chip discreto "Atribuído a você" / "Grupo X" quando aplicável.
-
-### Edge functions
-- Nenhuma mudança lógica; só passar os campos novos no insert/update do grupo.
-
-### Retrocompatibilidade
-- Pagamentos antigos: `assigned_*` ficam nulos → fila geral (não muda nada).
-- Default no envio: fila geral (conforme escolhido).
-
-### Aprovadores
-Fora desse escopo (só validador agora), mas a modelagem já fica genérica o suficiente para reuso.
-
----
-
-### Ordem de execução
-1. Migração (tabelas + colunas + RLS).
-2. Tela de gestão de grupos.
-3. Modal de envio com escolha.
-4. Filtros de fila no Dashboard / Payments.
-5. Indicador visual nos cards.
+## Technical Details
+- **Open Question Definition**: `is_question = true AND resolved_at IS NULL` in `payment_observations`.
+- **Badge Styling**: Use amber/yellow colors (e.g., `bg-amber-100 text-amber-800 border-amber-200` or similar using existing theme variables).
+- **Notification Routing**: Asker `diretor` -> Recipients `['analista', 'validador']`.
