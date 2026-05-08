@@ -143,6 +143,8 @@ interface DashboardCounts {
   attNFQuestionada: number;
   attNFDivergente: number;
   attRejeitados: number;
+  /** Acompanhamento do diretor: lotes já aprovados aguardando revisão final do analista. Somente leitura. */
+  diretorAprovadoEmRevisao: number;
 }
 
 const initialCounts: DashboardCounts = {
@@ -154,6 +156,7 @@ const initialCounts: DashboardCounts = {
   pipeDivergente: 0,
   attDevolvidoAnalista: 0, attRessalvas: 0, attNFQuestionada: 0,
   attNFDivergente: 0, attRejeitados: 0,
+  diretorAprovadoEmRevisao: 0,
 };
 
 // ===== util: formato compacto de duração =====
