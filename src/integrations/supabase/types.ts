@@ -878,42 +878,61 @@ export type Database = {
       }
       payment_observations: {
         Row: {
+          answered_by_observation_id: string | null
           author_id: string | null
           author_type: Database["public"]["Enums"]["observation_author"]
           created_at: string
           edited_at: string | null
           id: string
+          is_question: boolean
           item_id: string | null
           message: string
           payment_id: string
+          resolved_at: string | null
+          resolved_by: string | null
           status_from: Database["public"]["Enums"]["payment_status"] | null
           status_to: Database["public"]["Enums"]["payment_status"] | null
         }
         Insert: {
+          answered_by_observation_id?: string | null
           author_id?: string | null
           author_type: Database["public"]["Enums"]["observation_author"]
           created_at?: string
           edited_at?: string | null
           id?: string
+          is_question?: boolean
           item_id?: string | null
           message: string
           payment_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           status_from?: Database["public"]["Enums"]["payment_status"] | null
           status_to?: Database["public"]["Enums"]["payment_status"] | null
         }
         Update: {
+          answered_by_observation_id?: string | null
           author_id?: string | null
           author_type?: Database["public"]["Enums"]["observation_author"]
           created_at?: string
           edited_at?: string | null
           id?: string
+          is_question?: boolean
           item_id?: string | null
           message?: string
           payment_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
           status_from?: Database["public"]["Enums"]["payment_status"] | null
           status_to?: Database["public"]["Enums"]["payment_status"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_observations_answered_by_observation_id_fkey"
+            columns: ["answered_by_observation_id"]
+            isOneToOne: false
+            referencedRelation: "payment_observations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_observations_item_id_fkey"
             columns: ["item_id"]
