@@ -136,12 +136,17 @@ export function useQueueNotifications() {
     };
 
     const handleQuestionResolved = async (paymentId: string) => {
-      // Busca a referência do lote para o toast
-      const { data: p } = await supabase
-        .from("payments")
-        .select("reference")
-        .eq("id", paymentId)
-        .maybeSingle();
+      // Busca a referência do lote e verifica se ainda existem outras perguntas abertas
+      const [payResp, questResp] = await Promise.all([
+        supabase.from("payments").select("reference").eq("id", paymentId).maybeSingle(),
+        supabase.from("payment_observations").select("id", { count: "exact", head: true })
+          .eq("payment_id", paymentId).eq("is_question", true).is("resolved_at", null)
+      ]);
+
+      // Só notifica se for a última do ciclo (nenhuma pergunta aberta sobrando)
+      if (questResp.count !== 0) return;
+
+      const p = payResp.data;
 
       const label = p?.reference ? `Lote ${p.reference}` : "Lote";
       fire(`question-resolved:${paymentId}`, {
