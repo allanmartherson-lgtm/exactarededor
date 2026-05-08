@@ -441,6 +441,12 @@ const Rules = () => {
     if (r.fixed_amount) payInfo.push(["Valor Fixo", formatCurrency(r.fixed_amount)]);
     if (r.convenio_percentage) payInfo.push(["% sobre Convênio", `${r.convenio_percentage}%`]);
     if (r.package_amount) payInfo.push(["Valor do Pacote", formatCurrency(r.package_amount)]);
+    if (r.multiplier) payInfo.push(["Multiplicador", `× ${r.multiplier}`]);
+    if (r.deflator_pct) payInfo.push(["Deflator (%)", `− ${r.deflator_pct}%`]);
+    if (r.bonus_amount) payInfo.push(["Bônus Fixo", formatCurrency(r.bonus_amount)]);
+    if (r.bonus_pct) payInfo.push(["Bônus (%)", `${r.bonus_pct}%`]);
+    if (r.target_amount) payInfo.push(["Valor Alvo", formatCurrency(r.target_amount)]);
+    if (Array.isArray(r.extras_codes) && r.extras_codes.length > 0) payInfo.push(["Códigos Extras", r.extras_codes.join(", ")]);
 
     autoTable(doc, {
       startY: currentY,
