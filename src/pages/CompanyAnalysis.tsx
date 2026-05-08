@@ -826,13 +826,25 @@ export default function CompanyAnalysis() {
       {canAct && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur px-4 py-3 shadow-[0_-4px_12px_-8px_rgba(0,0,0,0.2)]">
           <div className="mx-auto max-w-[1400px] flex flex-col md:flex-row md:items-start gap-2">
-            <Textarea
-              rows={2}
-              value={groupDraft}
-              onChange={(e) => setGroupDraft(e.target.value)}
-              placeholder="Observação para esta empresa (obrigatória para devolver)..."
-              className="md:flex-1 text-xs"
-            />
+            <div className="flex flex-col md:flex-1 gap-2">
+              <Textarea
+                rows={2}
+                value={groupDraft}
+                onChange={(e) => setGroupDraft(e.target.value)}
+                placeholder="Observação para esta empresa (obrigatória para devolver)..."
+                className="w-full text-xs"
+              />
+              <div className="flex items-center gap-2 px-1">
+                <Checkbox
+                  id="footer-is-question"
+                  checked={isQuestion}
+                  onCheckedChange={(v) => setIsQuestion(!!v)}
+                />
+                <Label htmlFor="footer-is-question" className="text-[11px] font-normal cursor-pointer select-none">
+                  Marcar como questionamento ao diretor
+                </Label>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2 md:justify-end shrink-0">
               {canActAnalista && (
                 <>
