@@ -5,11 +5,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock contexts BEFORE importing AppLayout.
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: { email: "admin@example.com" },
-    roles: ["admin", "diretor", "validador", "analista"],
-    signOut: vi.fn().mockResolvedValue(undefined),
-  }),
+  useAuth: () => {
+    const roles = ["admin", "diretor", "validador", "analista"];
+    return {
+      user: { email: "admin@example.com" },
+      roles,
+      hasRole: (r: string) => roles.includes(r),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+  },
 }));
 
 vi.mock("@/contexts/NavLayoutContext", () => ({
