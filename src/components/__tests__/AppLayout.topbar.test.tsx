@@ -1,3 +1,10 @@
+/**
+ * ESTE TESTE É RÍGIDO POR DESIGN.
+ * Se você adicionar/remover/reordenar item no menu (NAV_ITEMS),
+ * atualize EXPECTED_TOPBAR_TOP_LEVEL, EXPECTED_GROUP_CHILDREN e o
+ * array final do "flattened topbar" juntos. É proposital travar isso
+ * aqui pra capturar mudanças não-intencionais no menu.
+ */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
