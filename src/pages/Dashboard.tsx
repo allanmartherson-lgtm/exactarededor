@@ -1575,7 +1575,7 @@ const TaskRow = ({
               <AlertTriangle size={11} /> Questionamento ({qCount})
             </span>
           )}
-        </div>
+        
         <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
           {p.reference}
         </p>
