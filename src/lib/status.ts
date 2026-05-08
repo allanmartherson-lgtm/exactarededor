@@ -36,6 +36,7 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   aguardando_validacao: "warning",
   devolvido_analista: "destructive",
   aguardando_aprovacao: "warning",
+  aprovado_em_revisao: "primary",
   aprovado: "success",
   aprovado_com_ressalva: "warning",
   pedido_nf_enviado: "info",
