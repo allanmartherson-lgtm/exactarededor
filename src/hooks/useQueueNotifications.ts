@@ -102,6 +102,16 @@ export function useQueueNotifications() {
         });
         return;
       }
+      // Lançado pelo financeiro → analista precisa confirmar e arquivar (Gap 4)
+      if (isAnalista && newStatus === "lancado" && oldStatus !== "lancado") {
+        fire(baseKey + ":fila-arquivar", {
+          title: "Lote pronto para arquivamento",
+          description: `${label} lançado no financeiro — confirme para arquivar.`,
+          kind: "info",
+          paymentId,
+        });
+        return;
+      }
 
       // Entrou na fila do validador
       if (isValidador && newStatus === "aguardando_validacao" && oldStatus !== "aguardando_validacao") {
