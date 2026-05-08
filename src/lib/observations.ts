@@ -93,6 +93,10 @@ export type RecordObservationInput = {
   item_id?: string | null;
   status_from?: PaymentStatus | null;
   status_to?: PaymentStatus | null;
+  /** Marca como pergunta — fica como "questionamento aberto" até ser respondida. */
+  is_question?: boolean;
+  /** Quando esta observação é a RESPOSTA a uma pergunta, informa a pergunta-alvo. */
+  answers_question_id?: string | null;
 };
 
 export type RecordObservationResult = {
