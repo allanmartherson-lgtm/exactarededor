@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
+import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import {
   ArrowRight,
   FileText,
