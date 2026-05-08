@@ -150,6 +150,7 @@ export function useQueueNotifications() {
         kind: "success",
         paymentId,
       });
+    };
 
     const channel = supabase
       .channel(`queue-notifications:${user.id}`)
