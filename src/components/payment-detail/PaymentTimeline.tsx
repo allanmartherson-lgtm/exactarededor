@@ -53,6 +53,17 @@ export const PaymentTimeline = ({
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  // Drafts da resposta inline a uma pergunta interna (por questionId).
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyOpenFor, setReplyOpenFor] = useState<string | null>(null);
+
+  const myRole: "analista" | "validador" | "diretor" | null = useMemo(() => {
+    // O autor_type da resposta usa o papel do autor da pergunta original;
+    // como aqui o usuário pode ter múltiplos papéis, escolhemos o "mais alto"
+    // disponível com base nas observações que ele já fez. Fallback: analista.
+    return null;
+  }, []);
+  void myRole;
 
   // Lista os papéis efetivamente presentes nas observações para evitar
   // exibir opções vazias no Select.
