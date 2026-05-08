@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
 
     const { data: payment } = await supabase
       .from("payments")
-      .select("id, reference, status")
+      .select("id, reference, status, created_by, validated_by")
       .eq("id", body.payment_id)
       .maybeSingle();
     if (!payment) {
@@ -138,12 +138,13 @@ Deno.serve(async (req) => {
       
       const directorIds = (directorRoles ?? []).map(r => r.user_id);
       
-      // Notifica também o autor original da última pergunta resolvida (se não for diretor)
-      const otherRecipients = question.author_id && !directorIds.includes(question.author_id)
-        ? [question.author_id]
-        : [];
+      // Notifica também o autor original da última pergunta resolvida
+      const authorId = question.author_id ? [question.author_id] : [];
       
-      recipientIds = Array.from(new Set([...directorIds, ...otherRecipients]))
+      // Adiciona Analista (created_by) e Validador (validated_by) do lote
+      const flowParticipants = [payment.created_by, payment.validated_by].filter(Boolean) as string[];
+      
+      recipientIds = Array.from(new Set([...directorIds, ...authorId, ...flowParticipants]))
         .filter(id => id !== body.responder_id);
 
       if (body.responder_id) {
@@ -206,9 +207,9 @@ Deno.serve(async (req) => {
         : [
             `${greeting}, ${name}.`,
             ``,
-            `O questionamento no lote ${payment.reference} foi respondido e o lote aguarda sua decisão de aprovação.`,
-            actorName ? `• Respondido por: ${actorName}` : null,
-            `• Última mensagem: ${(question.message ?? "").slice(0, 240)}`,
+            `O questionamento no lote ${payment.reference} foi resolvido e o fluxo agora pode prosseguir.`,
+            actorName ? `• Resolvido por: ${actorName}` : null,
+            `• Mensagem: ${(question.message ?? "").slice(0, 240)}`,
             `• Em: ${fmtBR(sentAt)}`,
             ``,
             `Acessar: ${link}`,
