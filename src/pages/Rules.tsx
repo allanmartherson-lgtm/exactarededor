@@ -465,8 +465,28 @@ const Rules = () => {
         if (r.scope === 'especifica') {
             targetInfo.push([r.target_type === 'medico' ? 'Médico Único' : 'Empresa Única', `${r.target_identifier || ""} ${r.target_name || ""}`]);
         } else if (r.scope === 'grupo') {
-            // Simplificado para o PDF
-            targetInfo.push(["Grupo de Empresas/Médicos", "Regra aplicada a grupo configurado"]);
+            const links = Array.isArray(r.group_company_links) ? r.group_company_links : [];
+            const coIds = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
+            const gDocs = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+            
+            if (links.length > 0) {
+                links.forEach((l: any, idx: number) => {
+                    const co = companies.find(c => c.id === l.company_id);
+                    const coName = co ? co.name : (l.company_id || "Empresa");
+                    const docs = Array.isArray(l.doctors) && l.doctors.length > 0 
+                        ? l.doctors.map((d: any) => d.name).join(", ") 
+                        : "Todos os médicos";
+                    targetInfo.push([`Vínculo ${idx + 1}`, `${coName} | Médicos: ${docs}`]);
+                });
+            } else if (coIds.length > 0) {
+                coIds.forEach((id: string, idx: number) => {
+                    const co = companies.find(c => c.id === id);
+                    const docs = gDocs.length > 0 ? gDocs.map((d: any) => d.name).join(", ") : "Todos";
+                    targetInfo.push([`Empresa ${idx + 1}`, `${co ? co.name : id} | Médicos: ${docs}`]);
+                });
+            } else {
+                targetInfo.push(["Grupo", "Nenhuma vinculação configurada"]);
+            }
         }
 
         autoTable(doc, {
