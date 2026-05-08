@@ -188,10 +188,12 @@ export default function CompanyAnalysis() {
       author_type: myAuthorType,
       author_id: user!.id,
       message: `[${group.company_name}] ${text}`,
+      is_question: isQuestion,
     });
     setBusy(false);
     if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
     setGroupDraft("");
+    setIsQuestion(false);
     load();
   };
 
