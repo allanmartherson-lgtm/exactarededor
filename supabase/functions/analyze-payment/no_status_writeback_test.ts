@@ -66,33 +66,7 @@ Deno.test("analyze-payment: comentário documenta o invariante para futuros mant
 });
 
 Deno.test(
-  "SendForValidationPopover: confirma com assignment válido (specific|group|null)",
-  async () => {
-    const uiPath = new URL(
-      "../../../src/components/SendForValidationPopover.tsx",
-      import.meta.url,
-    );
-    const ui = await Deno.readTextFile(uiPath);
-
-    // Os 3 modos precisam existir como SelectItem.
-    assertStringIncludes(ui, 'value="general"');
-    assertStringIncludes(ui, 'value="user"');
-    assertStringIncludes(ui, 'value="group"');
-
-    // O assignment montado precisa zerar o campo não escolhido (XOR).
-    assertStringIncludes(
-      ui,
-      'validator_id: mode === "user" ? selectedUser : null',
-    );
-    assertStringIncludes(
-      ui,
-      'validator_group_id: mode === "group" ? selectedGroup : null',
-    );
-  },
-);
-
-Deno.test(
-  "PaymentDetail: sendForValidation grava status=aguardando_validacao + assignment",
+  "PaymentDetail: sendForValidation grava status=aguardando_validacao (fila coletiva)",
   async () => {
     const path = new URL(
       "../../../src/pages/PaymentDetail.tsx",
@@ -100,9 +74,18 @@ Deno.test(
     );
     const src = await Deno.readTextFile(path);
 
-    // Update precisa setar exatamente esses 3 campos juntos.
+    // Update precisa setar status=aguardando_validacao.
     assertStringIncludes(src, 'status: "aguardando_validacao"');
-    assertStringIncludes(src, "assigned_validator_id: a.validator_id");
-    assertStringIncludes(src, "assigned_validator_group_id: a.validator_group_id");
+    // Não pode mais existir atribuição individual de validador.
+    assertEquals(
+      /assigned_validator_id/.test(src),
+      false,
+      "PaymentDetail não pode mais referenciar assigned_validator_id (fila coletiva).",
+    );
+    assertEquals(
+      /assigned_validator_group_id/.test(src),
+      false,
+      "PaymentDetail não pode mais referenciar assigned_validator_group_id (fila coletiva).",
+    );
   },
 );
