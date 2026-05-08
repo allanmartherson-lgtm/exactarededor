@@ -463,7 +463,9 @@ const Rules = () => {
 
         const targetInfo = [["Tipo de Alvo", "Identificação / Nome"]];
         if (r.scope === 'especifica') {
-            targetInfo.push([r.target_type === 'medico' ? 'Médico Único' : 'Empresa Única', `${r.target_identifier || ""} ${r.target_name || ""}`]);
+            const targetLabel = r.target_type === 'medico' ? 'Médico Específico' : 'Empresa Específica';
+            const targetVal = `${r.target_identifier || ""} ${r.target_name || ""}`.trim() || "Não identificado";
+            targetInfo.push([targetLabel, targetVal]);
         } else if (r.scope === 'grupo') {
             const links = Array.isArray(r.group_company_links) ? r.group_company_links : [];
             const coIds = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
