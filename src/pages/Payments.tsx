@@ -8,7 +8,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -483,7 +484,17 @@ const Payments = () => {
             finalLvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
           )}
         >
-          <p className="font-medium text-xs truncate">{p.reference}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-medium text-xs truncate">{p.reference}</p>
+            {openQuestionCount[p.id] > 0 && (
+              <span
+                title={`${openQuestionCount[p.id]} questionamento(s) aguardando resposta`}
+                className="inline-flex items-center gap-0.5 rounded-full border border-info/30 bg-info-soft px-1.5 py-0 text-[9px] font-semibold text-info shrink-0"
+              >
+                <MessageCircleQuestion className="h-2.5 w-2.5" />{openQuestionCount[p.id]}
+              </span>
+            )}
+          </div>
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="truncate">{analystName}</span>
             <span className="tabular-nums">{formatCurrency(p.total_amount)}</span>
@@ -515,7 +526,22 @@ const Payments = () => {
         </div>
         <Link to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 flex-1 min-w-0">
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="font-medium text-sm truncate">{p.reference}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="font-medium text-sm truncate">{p.reference}</p>
+            {openQuestionCount[p.id] > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border border-info/30 bg-info-soft px-2 py-0.5 text-[10px] font-semibold text-info"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MessageCircleQuestion className="h-3 w-3" /> {openQuestionCount[p.id]}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{openQuestionCount[p.id]} questionamento{openQuestionCount[p.id] > 1 ? "s" : ""} aguardando resposta</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
               <User className="h-3 w-3" /> {analystName}
@@ -662,6 +688,14 @@ const Payments = () => {
             onClick={() => setDelayedOnly((v) => !v)}
           >
             <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
+          </Button>
+          <Button
+            variant={openQuestionOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setOpenQuestionOnly((v) => !v)}
+            title="Mostrar apenas lotes com perguntas internas aguardando resposta"
+          >
+            <MessageCircleQuestion className="h-4 w-4 mr-1" /> Com questionamento aberto
           </Button>
           {ownerGroup !== "all" && (
             <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
