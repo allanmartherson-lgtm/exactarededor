@@ -1,3 +1,9 @@
+/**
+ * ESTE TESTE É RÍGIDO POR DESIGN.
+ * Se você adicionar/remover/reordenar item no menu (NAV_ITEMS),
+ * atualize EXPECTED_ORDER e o toHaveLength(...) juntos.
+ * É proposital travar isso aqui pra capturar mudanças não-intencionais no menu.
+ */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -5,11 +11,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock contexts before importing AppLayout
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: { email: "admin@example.com" },
-    roles: ["admin", "diretor", "validador", "analista"],
-    signOut: vi.fn().mockResolvedValue(undefined),
-  }),
+  useAuth: () => {
+    const roles = ["admin", "diretor", "validador", "analista"];
+    return {
+      user: { email: "admin@example.com" },
+      roles,
+      hasRole: (r: string) => roles.includes(r),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+  },
 }));
 
 vi.mock("@/contexts/NavLayoutContext", () => ({
@@ -27,13 +37,21 @@ const EXPECTED_ORDER = [
   "Pagamentos",
   "Notas Fiscais",
   "KPIs",
-  "Regras",
+  "Regras de Pagamento",
+  "Regras de Validação",
   "Tabelas de referência",
   "Empresas",
+  "Apelidos aprendidos",
+  "Médicos",
+  "Mapa Especialidades",
   "Centros de custo",
+  "Prazos e SLA",
   "Usuários",
   "Auditoria",
+  "Anomalias de status",
 ];
+
+const EXPECTED_COUNT = 16;
 
 function renderLayout() {
   return render(
@@ -50,14 +68,14 @@ function renderLayout() {
 }
 
 describe("AppLayout sidebar navigation", () => {
-  it("renders exactly 10 nav items in the fixed order for admin", () => {
+  it("renders exactly 16 nav items in the fixed order for admin", () => {
     renderLayout();
     const sidebar = screen.getByLabelText(/navegação lateral/i);
     const nav = sidebar.querySelector("nav") as HTMLElement;
     const links = within(nav).getAllByRole("link");
     const labels = links.map((l) => l.textContent?.trim());
     expect(labels).toEqual(EXPECTED_ORDER);
-    expect(labels).toHaveLength(10);
+    expect(labels).toHaveLength(EXPECTED_COUNT);
   });
 
   it("preserves the fixed order without omissions", () => {

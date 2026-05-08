@@ -1,14 +1,24 @@
+/**
+ * ESTE TESTE É RÍGIDO POR DESIGN.
+ * Se você adicionar/remover/reordenar item no menu (NAV_ITEMS),
+ * atualize EXPECTED juntos.
+ * É proposital travar isso aqui pra capturar mudanças não-intencionais no menu.
+ */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: { email: "admin@example.com" },
-    roles: ["admin", "diretor", "validador", "analista"],
-    signOut: vi.fn().mockResolvedValue(undefined),
-  }),
+  useAuth: () => {
+    const roles = ["admin", "diretor", "validador", "analista"];
+    return {
+      user: { email: "admin@example.com" },
+      roles,
+      hasRole: (r: string) => roles.includes(r),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+  },
 }));
 vi.mock("@/contexts/NavLayoutContext", () => ({
   useNavLayout: () => ({ layout: "side", toggleLayout: vi.fn(), setLayout: vi.fn() }),
@@ -24,12 +34,18 @@ const EXPECTED = [
   "Pagamentos",
   "Notas Fiscais",
   "KPIs",
-  "Regras",
+  "Regras de Pagamento",
+  "Regras de Validação",
   "Tabelas de referência",
   "Empresas",
+  "Apelidos aprendidos",
+  "Médicos",
+  "Mapa Especialidades",
   "Centros de custo",
+  "Prazos e SLA",
   "Usuários",
   "Auditoria",
+  "Anomalias de status",
 ];
 
 function renderLayout() {
