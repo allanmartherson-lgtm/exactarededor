@@ -433,6 +433,20 @@ serve(async (req) => {
       });
     } else {
       await supabase.from("payments").update({ status: "nf_recebida" }).eq("id", invoice.payment_id);
+      
+      // Notifica o analista que a NF foi recebida (Evento 3)
+      console.log(`Triggering notify-analyst-event (nf_received) for payment ${invoice.payment_id}`);
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ 
+          paymentId: invoice.payment_id, 
+          eventType: "nf_received" 
+        }),
+      }).catch(e => console.error("Failed to notify analyst (nf_received):", e));
     }
 
     return new Response(
