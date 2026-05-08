@@ -72,7 +72,7 @@ const delayLevel = (status: PaymentStatus, ms: number): "none" | "leve" | "criti
 type OwnerGroup = "all" | "analista" | "validador" | "diretor";
 
 const STATUSES_BY_OWNER: Record<Exclude<OwnerGroup, "all">, PaymentStatus[]> = {
-  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aprovado_em_revisao"],
+  analista: ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aprovado_em_revisao", "lancado"],
   validador: ["aguardando_validacao"],
   diretor: ["aguardando_aprovacao"],
 };
