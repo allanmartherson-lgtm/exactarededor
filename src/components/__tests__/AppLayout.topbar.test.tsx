@@ -44,8 +44,18 @@ const EXPECTED_TOPBAR_TOP_LEVEL = [
  */
 const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
   Financeiro: ["Pagamentos", "Notas Fiscais", "KPIs"],
-  Configurações: ["Regras", "Tabelas de referência", "Empresas", "Centros de custo"],
-  Acesso: ["Usuários", "Auditoria"],
+  Configurações: [
+    "Regras de Pagamento",
+    "Regras de Validação",
+    "Tabelas de referência",
+    "Empresas",
+    "Apelidos aprendidos",
+    "Médicos",
+    "Mapa Especialidades",
+    "Centros de custo",
+    "Prazos e SLA",
+  ],
+  Acesso: ["Usuários", "Auditoria", "Anomalias de status"],
 };
 
 function renderLayout() {
