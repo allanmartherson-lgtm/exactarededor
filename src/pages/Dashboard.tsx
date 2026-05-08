@@ -1553,9 +1553,32 @@ const TaskRow = ({
               Com {ownerLabel[owner]}
             </span>
           ) : null}
-          <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
-            {p.reference}
-          </p>
+          {qCount > 0 && (
+            <span
+              title={`${qCount} questionamento(s) aguardando resposta`}
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                background: "hsl(var(--warning-soft))",
+                color: "hsl(var(--warning-foreground))",
+                border: "1px solid hsl(var(--warning) / 0.4)",
+                borderRadius: 20,
+                padding: "3px 8px",
+                lineHeight: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <AlertTriangle size={11} /> Questionamento ({qCount})
+            </span>
+          )}
+        </div>
+        <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+          {p.reference}
+        </p>
           {slaTone && (
             <span
               style={{
