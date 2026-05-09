@@ -656,7 +656,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
   });
 }
 
-function validateRows(mapped: any[], fields: ImportFieldDef[]) {
+function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
   const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
   const uniqueKeys = fields.filter((f) => f.uniqueKey).map((f) => f.key);
   const seen = new Set<string>();
