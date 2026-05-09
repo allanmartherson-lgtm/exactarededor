@@ -417,9 +417,13 @@ export default function Doctors() {
         </div>
 
         <Card className="overflow-hidden">
-          <CardHeader><CardTitle className="text-base">{filtered.length} médico(s)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {filtered.length} médico(s) {filtered.length > displayItems.length && `(mostrando primeiros ${displayItems.length})`}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">
-            {filtered.length === 0 ? (
+            {displayItems.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhum médico encontrado.</p>
             ) : (
               <div className="w-full overflow-x-auto">
@@ -435,7 +439,7 @@ export default function Doctors() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((d) => {
+                  {displayItems.map((d) => {
                     const cids = linksByDoctor.get(d.id) ?? [];
                     return (
                       <tr key={d.id}>
