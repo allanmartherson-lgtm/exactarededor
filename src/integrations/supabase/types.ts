@@ -887,6 +887,7 @@ export type Database = {
           is_question: boolean
           item_id: string | null
           message: string
+          observation_type: Database["public"]["Enums"]["observation_type"]
           payment_id: string
           resolved_at: string | null
           resolved_by: string | null
@@ -903,6 +904,7 @@ export type Database = {
           is_question?: boolean
           item_id?: string | null
           message: string
+          observation_type?: Database["public"]["Enums"]["observation_type"]
           payment_id: string
           resolved_at?: string | null
           resolved_by?: string | null
@@ -919,6 +921,7 @@ export type Database = {
           is_question?: boolean
           item_id?: string | null
           message?: string
+          observation_type?: Database["public"]["Enums"]["observation_type"]
           payment_id?: string
           resolved_at?: string | null
           resolved_by?: string | null
@@ -1899,6 +1902,10 @@ export type Database = {
         | "validador"
         | "diretor"
         | "sistema"
+      observation_type:
+        | "informativo"
+        | "impacta_aprovacao"
+        | "justificativa_override"
       payment_analysis_mode: "padrao" | "empresa_prioritaria" | "isolado"
       payment_kind: "atual" | "pendencia" | "misto"
       payment_status:
@@ -2105,6 +2112,11 @@ export const Constants = {
       invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
       item_ai_status: ["pendente", "aprovado", "alerta", "reprovado"],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
+      observation_type: [
+        "informativo",
+        "impacta_aprovacao",
+        "justificativa_override",
+      ],
       payment_analysis_mode: ["padrao", "empresa_prioritaria", "isolado"],
       payment_kind: ["atual", "pendencia", "misto"],
       payment_status: [

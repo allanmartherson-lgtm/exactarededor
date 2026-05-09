@@ -806,7 +806,18 @@ function RowMain({
           </td>
         )}
         <td className={cn(stickyCell, TEXT_BODY)} title={paciente}>
-          <span className="truncate block">{paciente}</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {observations.some(o => o.item_id === it.id && o.observation_type === "justificativa_override") && (
+              <Badge 
+                variant="outline" 
+                className="h-4 px-1 bg-success/10 text-success border-success/30 shrink-0" 
+                title="Este item possui justificativa de aprovação manual"
+              >
+                <Pencil className="h-2.5 w-2.5" />
+              </Badge>
+            )}
+            <span className="truncate block">{paciente}</span>
+          </div>
         </td>
         {colVis.convenio && (
           <td className={cn(cell, TEXT_META)} title={typeof convenio === "string" ? convenio : ""}>

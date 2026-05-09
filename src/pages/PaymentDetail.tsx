@@ -25,7 +25,7 @@ import { scoreAttendance } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { recordObservation } from "@/lib/observations";
+import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
@@ -49,7 +49,61 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil } from "lucide-react";
+
+const ObservationTypeSelector = ({
+  value,
+  onChange,
+  disabled
+}: {
+  value: ObservationType;
+  onChange: (v: ObservationType) => void;
+  disabled?: boolean;
+}) => {
+  return (
+    <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+      <Button
+        variant={value === "informativo" ? "default" : "ghost"}
+        size="sm"
+        className="h-7 px-2 text-[11px] gap-1.5"
+        onClick={() => onChange("informativo")}
+        disabled={disabled}
+        type="button"
+      >
+        <Info className="h-3 w-3" />
+        Informativo
+      </Button>
+      <Button
+        variant={value === "impacta_aprovacao" ? "default" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-7 px-2 text-[11px] gap-1.5",
+          value === "impacta_aprovacao" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+        )}
+        onClick={() => onChange("impacta_aprovacao")}
+        disabled={disabled}
+        type="button"
+      >
+        <ShieldAlert className="h-3 w-3" />
+        Impacta aprovação
+      </Button>
+      <Button
+        variant={value === "justificativa_override" ? "default" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-7 px-2 text-[11px] gap-1.5",
+          value === "justificativa_override" ? "bg-success hover:bg-success/90 text-white" : "text-success hover:text-success/90 hover:bg-success/10"
+        )}
+        onClick={() => onChange("justificativa_override")}
+        disabled={disabled}
+        type="button"
+      >
+        <Pencil className="h-3 w-3" />
+        Justificativa
+      </Button>
+    </div>
+  );
+};
 
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
@@ -80,12 +134,15 @@ const PaymentDetail = () => {
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [obsType, setObsType] = useState<ObservationType>("informativo");
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [itemCommentIsQuestion, setItemCommentIsQuestion] = useState<Record<string, boolean>>({});
+  const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
+  const [groupCommentType, setGroupCommentType] = useState<Record<string, ObservationType>>({});
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
   const [savingMeta, setSavingMeta] = useState(false);
@@ -878,8 +935,13 @@ const PaymentDetail = () => {
     if (myAuthorType === "analista") await autoClaim();
     const isQuestion = !!itemCommentIsQuestion[itemId];
     const obsRes = await recordObservation({
-      payment_id: id!, item_id: itemId, author_type: myAuthorType, author_id: user!.id, message: text,
+      payment_id: id!,
+      item_id: itemId,
+      author_type: myAuthorType,
+      author_id: user!.id,
+      message: text,
       is_question: isQuestion,
+      observation_type: itemCommentType[itemId] ?? "informativo",
     });
     setBusy(false);
     if (!obsRes.ok) {
@@ -1110,17 +1172,24 @@ const PaymentDetail = () => {
                       onChange={(e) => setItemCommentDraft((m) => ({ ...m, [it.id]: e.target.value }))}
                       placeholder="Sua observação sobre este item..."
                     />
-                    <div className="flex items-center justify-between gap-3 mt-2">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                        <Checkbox
-                          checked={!!itemCommentIsQuestion[it.id]}
-                          onCheckedChange={(v) => setItemCommentIsQuestion((m) => ({ ...m, [it.id]: !!v }))}
-                        />
-                        Esta observação é uma pergunta (aguarda resposta)
-                      </label>
-                      <Button size="sm" disabled={busy || !(itemCommentDraft[it.id] ?? "").trim()} onClick={() => addItemComment(it.id)}>
-                        <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> {itemCommentIsQuestion[it.id] ? "Enviar pergunta" : "Salvar observação"}
-                      </Button>
+                    <div className="mt-2 space-y-2">
+                      <ObservationTypeSelector
+                        value={itemCommentType[it.id] ?? "informativo"}
+                        onChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
+                        disabled={busy}
+                      />
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                          <Checkbox
+                            checked={!!itemCommentIsQuestion[it.id]}
+                            onCheckedChange={(v) => setItemCommentIsQuestion((m) => ({ ...m, [it.id]: !!v }))}
+                          />
+                          Esta observação é uma pergunta
+                        </label>
+                        <Button size="sm" disabled={busy || !(itemCommentDraft[it.id] ?? "").trim()} onClick={() => addItemComment(it.id)}>
+                          <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> {itemCommentIsQuestion[it.id] ? "Pergunta" : "Salvar"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

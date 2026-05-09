@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, User as UserIcon, UserCheck, FileDown } from "lucide-react";
+import { History, User as UserIcon, UserCheck, FileDown, Info, ShieldAlert, Pencil } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
@@ -45,6 +45,7 @@ type Entry = {
   id: string;
   at: string;
   kind: "obs" | "ai" | "assign";
+  type?: string;
   authorType: string;
   authorName: string;
   itemId: string | null;
@@ -85,6 +86,7 @@ export function CompanyHistoryPanel({
 
   const [filterItem, setFilterItem] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
 
   const entries = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
@@ -100,6 +102,7 @@ export function CompanyHistoryPanel({
         id: `obs-${o.id}`,
         at: o.created_at,
         kind: "obs",
+        type: o.observation_type,
         authorType: o.author_type,
         authorName: o.author_id
           ? (profiles[o.author_id] ?? `Usuário ${o.author_id.slice(0, 8)}`)
@@ -206,8 +209,11 @@ export function CompanyHistoryPanel({
     if (filterItem === "geral") out = out.filter((e) => e.itemId === null);
     else if (filterItem !== "all") out = out.filter((e) => e.itemId === filterItem);
     if (filterRole !== "all") out = out.filter((e) => e.authorType === filterRole);
+    if (filterType !== "all") {
+      out = out.filter((e) => e.kind === "obs" && e.type === filterType);
+    }
     return out;
-  }, [entries, filterItem, filterRole]);
+  }, [entries, filterItem, filterRole, filterType]);
 
   const availableRoles = useMemo(() => {
     const order = ["analista", "validador", "diretor", "admin", "sistema", "ia"];
@@ -324,6 +330,18 @@ export function CompanyHistoryPanel({
                 })}
               </SelectContent>
             </Select>
+            <span className="text-xs text-muted-foreground">Tipo:</span>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-8 w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="informativo">Informativo</SelectItem>
+                <SelectItem value="impacta_aprovacao">Impacta aprovação</SelectItem>
+                <SelectItem value="justificativa_override">Justificativa</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               size="sm"
               variant="outline"
@@ -379,6 +397,24 @@ export function CompanyHistoryPanel({
                       <Icon className="h-3 w-3" />
                       {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
                     </span>
+                    {e.kind === "obs" && e.type && e.type !== "informativo" && (
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
+                          e.type === "impacta_aprovacao"
+                            ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                            : "border-success/50 text-success-foreground bg-success/10"
+                        )}
+                      >
+                        {e.type === "impacta_aprovacao" ? (
+                          <ShieldAlert className="h-2.5 w-2.5 mr-1" />
+                        ) : (
+                          <Pencil className="h-2.5 w-2.5 mr-1" />
+                        )}
+                        {e.type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa"}
+                      </Badge>
+                    )}
                     {e.authorName && (
                       <span className="flex items-center gap-1 text-foreground/80">
                         <UserIcon className="h-3 w-3" />

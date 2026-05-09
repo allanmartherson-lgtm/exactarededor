@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { recordObservation } from "@/lib/observations";
+import { recordObservation, type ObservationType } from "@/lib/observations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +31,7 @@ import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobo
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil } from "lucide-react";
+// Pencil already imported below
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   formatCurrency,
@@ -49,12 +49,123 @@ import {
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
 
+import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 
-/**
- * Tela dedicada de análise por empresa dentro de um lote.
- * É o ÚNICO ambiente de trabalho da empresa. Compartilha a mesma fonte de
- * dados do lote (usePaymentDetailData) — assim os números nunca divergem.
- */
+const HighlightBanner = ({
+  observations,
+  profiles
+}: {
+  observations: ObservationRow[];
+  profiles: Record<string, string>;
+}) => {
+  const highlights = useMemo(() => {
+    return observations.filter(o => 
+      o.observation_type === "impacta_aprovacao" || 
+      o.observation_type === "justificativa_override"
+    );
+  }, [observations]);
+
+  if (highlights.length === 0) return null;
+
+  return (
+    <div className="space-y-2 mb-4">
+      {highlights.map((h) => (
+        <div 
+          key={h.id} 
+          className={cn(
+            "flex items-start gap-3 p-3 rounded-lg border shadow-sm animate-in fade-in slide-in-from-top-2 duration-300",
+            h.observation_type === "impacta_aprovacao" 
+              ? "bg-amber-50 border-amber-200" 
+              : "bg-success-soft border-success/30"
+          )}
+        >
+          <div className="mt-0.5">
+            {h.observation_type === "impacta_aprovacao" ? (
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+            ) : (
+              <Pencil className="h-4 w-4 text-success" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px] uppercase tracking-wider font-bold h-5 px-1.5",
+                  h.observation_type === "impacta_aprovacao"
+                    ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                    : "border-success/50 text-success-foreground bg-success/10"
+                )}
+              >
+                {h.observation_type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa de Override"}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {profiles[h.author_id!] || "Sistema"} · {new Date(h.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-foreground leading-relaxed">
+              {h.message}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ObservationTypeSelector = ({
+  value,
+  onChange,
+  disabled
+}: {
+  value: ObservationType;
+  onChange: (v: ObservationType) => void;
+  disabled?: boolean;
+}) => {
+  return (
+    <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+      <Button
+        variant={value === "informativo" ? "default" : "ghost"}
+        size="sm"
+        className="h-7 px-2 text-[11px] gap-1.5"
+        onClick={() => onChange("informativo")}
+        disabled={disabled}
+        type="button"
+      >
+        <Info className="h-3 w-3" />
+        Informativo
+      </Button>
+      <Button
+        variant={value === "impacta_aprovacao" ? "default" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-7 px-2 text-[11px] gap-1.5",
+          value === "impacta_aprovacao" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+        )}
+        onClick={() => onChange("impacta_aprovacao")}
+        disabled={disabled}
+        type="button"
+      >
+        <ShieldAlert className="h-3 w-3" />
+        Impacta aprovação
+      </Button>
+      <Button
+        variant={value === "justificativa_override" ? "default" : "ghost"}
+        size="sm"
+        className={cn(
+          "h-7 px-2 text-[11px] gap-1.5",
+          value === "justificativa_override" ? "bg-success hover:bg-success/90 text-white" : "text-success hover:text-success/90 hover:bg-success/10"
+        )}
+        onClick={() => onChange("justificativa_override")}
+        disabled={disabled}
+        type="button"
+      >
+        <Pencil className="h-3 w-3" />
+        Justificativa
+      </Button>
+    </div>
+  );
+};
 export default function CompanyAnalysis() {
   const { id, groupId } = useParams<{ id: string; groupId: string }>();
   const navigate = useNavigate();
@@ -92,6 +203,8 @@ export default function CompanyAnalysis() {
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
   const [isQuestion, setIsQuestion] = useState(false);
+  const [groupCommentType, setGroupCommentType] = useState<ObservationType>("informativo");
+  const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
 
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
@@ -176,6 +289,7 @@ export default function CompanyAnalysis() {
       author_type: myAuthorType,
       author_id: user!.id,
       message: text,
+      observation_type: itemCommentType[itemId] ?? "informativo",
     });
     setBusy(false);
     if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
@@ -193,11 +307,13 @@ export default function CompanyAnalysis() {
       author_id: user!.id,
       message: `[${group.company_name}] ${text}`,
       is_question: isQuestion,
+      observation_type: groupCommentType,
     });
     setBusy(false);
     if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
     setGroupDraft("");
     setIsQuestion(false);
+    setGroupCommentType("informativo");
     load();
   };
 
@@ -841,6 +957,7 @@ export default function CompanyAnalysis() {
 
         {/* ABA 1 — Análise */}
         <TabsContent value="analise" className="space-y-3">
+          <HighlightBanner observations={obs} profiles={profiles} />
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Itens</CardTitle>
@@ -879,20 +996,27 @@ export default function CompanyAnalysis() {
                 onChange={(e) => setGroupDraft(e.target.value)}
                 rows={3}
               />
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="is-question"
-                    checked={isQuestion}
-                    onCheckedChange={(v) => setIsQuestion(!!v)}
-                  />
-                  <Label htmlFor="is-question" className="text-xs font-normal cursor-pointer select-none">
-                    É um questionamento ao diretor (aguarda resposta)
-                  </Label>
+              <div className="flex flex-col gap-3">
+                <ObservationTypeSelector
+                  value={groupCommentType}
+                  onChange={setGroupCommentType}
+                  disabled={busy}
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="is-question"
+                      checked={isQuestion}
+                      onCheckedChange={(v) => setIsQuestion(!!v)}
+                    />
+                    <Label htmlFor="is-question" className="text-xs font-normal cursor-pointer select-none">
+                      É um questionamento ao diretor (aguarda resposta)
+                    </Label>
+                  </div>
+                  <Button size="sm" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
+                    Adicionar comentário
+                  </Button>
                 </div>
-                <Button size="sm" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
-                  Adicionar comentário
-                </Button>
               </div>
               {groupComments.length > 0 && (
                 <ul className="mt-2 space-y-2">
@@ -930,6 +1054,8 @@ export default function CompanyAnalysis() {
                   profiles={profiles}
                   draft={itemDraft[it.id] ?? ""}
                   onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
+                  type={itemCommentType[it.id] ?? "informativo"}
+                  onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
                   onAdd={() => addItemComment(it.id)}
                   busy={busy}
                 />
@@ -1217,6 +1343,8 @@ function DivergenceCard({
   profiles,
   draft,
   onDraftChange,
+  type,
+  onTypeChange,
   onAdd,
   busy,
 }: {
@@ -1225,6 +1353,8 @@ function DivergenceCard({
   profiles: Record<string, string>;
   draft: string;
   onDraftChange: (v: string) => void;
+  type: ObservationType;
+  onTypeChange: (v: ObservationType) => void;
   onAdd: () => void;
   busy: boolean;
 }) {
@@ -1314,17 +1444,24 @@ function DivergenceCard({
           </ul>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Textarea
-            placeholder="Comentar este item…"
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            rows={2}
-            className="flex-1"
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Textarea
+              placeholder="Comentar este item…"
+              value={draft}
+              onChange={(e) => onDraftChange(e.target.value)}
+              rows={2}
+              className="flex-1"
+            />
+            <Button size="sm" onClick={onAdd} disabled={busy || !draft.trim()} className="self-end">
+              Comentar
+            </Button>
+          </div>
+          <ObservationTypeSelector
+            value={type}
+            onChange={onTypeChange}
+            disabled={busy}
           />
-          <Button size="sm" onClick={onAdd} disabled={busy || !draft.trim()} className="self-end">
-            Comentar
-          </Button>
         </div>
       </CardContent>
     </Card>
