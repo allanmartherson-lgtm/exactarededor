@@ -121,3 +121,12 @@ export const RISK_BADGE_CLASS: Record<RiskLevel, string> = {
   medio: "bg-muted text-muted-foreground border-border",
   baixo: "bg-muted/50 text-muted-foreground border-border/60",
 };
+
+/**
+ * Interface para os dados financeiros de risco.
+ */
+export interface RiskFinancialData {
+  valorEmRisco: number;
+  percentualRisco: number;
+}
+

@@ -8,7 +8,10 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown } from "lucide-react";
+import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { calculateFinancialRisk } from "@/lib/riskScore";
+import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -500,7 +503,22 @@ const Payments = () => {
           )}
         >
           <div className="flex items-center gap-1.5 min-w-0">
-            <p className="font-medium text-xs truncate">{p.reference}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-xs truncate">{p.reference}</p>
+              {(() => {
+                const { items } = usePaymentDetailData(p.id);
+                const risk = calculateFinancialRisk(items);
+                return risk.score > 0 && (
+                  <RiskBadge 
+                    level={risk.level} 
+                    score={risk.score} 
+                    financialData={risk}
+                    showLabel={false}
+                    className="scale-75 origin-left"
+                  />
+                );
+              })()}
+            </div>
             {openQuestionCount[p.id] > 0 && (
               <span
                 title={`${openQuestionCount[p.id]} questionamento(s) aguardando resposta`}
@@ -543,6 +561,18 @@ const Payments = () => {
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 min-w-0">
             <p className="font-medium text-sm truncate">{p.reference}</p>
+            {(() => {
+              const { items } = usePaymentDetailData(p.id);
+              const risk = calculateFinancialRisk(items);
+              return risk.score > 0 && (
+                <RiskBadge 
+                  level={risk.level} 
+                  score={risk.score} 
+                  financialData={risk}
+                  className="scale-90 origin-left"
+                />
+              );
+            })()}
             {openQuestionCount[p.id] > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>

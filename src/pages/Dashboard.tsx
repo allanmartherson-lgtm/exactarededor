@@ -30,8 +30,12 @@ import {
   Flame,
   Timer,
   AlertTriangle,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
+import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { calculateFinancialRisk } from "@/lib/riskScore";
+import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
@@ -1415,6 +1419,8 @@ const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: 
 };
 
 const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number }) => {
+  const { items } = usePaymentDetailData(p.id);
+  const risk = calculateFinancialRisk(items);
   const stages = computeStages(p.status);
   const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
   return (
@@ -1428,9 +1434,18 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
       }}
       className="task-row"
     >
-      <div className="min-w-0" style={{ flex: "0 0 auto", maxWidth: 260 }}>
+      <div className="min-w-0 flex flex-col gap-1" style={{ flex: "0 0 auto", maxWidth: 260 }}>
         <div className="flex items-center gap-2">
           <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
+          {risk.score > 0 && (
+            <RiskBadge 
+              level={risk.level} 
+              score={risk.score} 
+              financialData={risk}
+              showLabel={false}
+              className="scale-90"
+            />
+          )}
           {qCount > 0 && (
             <span
               title={`${qCount} questionamento(s) aguardando resposta`}
@@ -1507,6 +1522,8 @@ const TaskRow = ({
   slaLevel?: SlaLevel;
   qCount?: number;
 }) => {
+  const { items } = usePaymentDetailData(p.id);
+  const risk = calculateFinancialRisk(items);
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
   const slaTone =
@@ -1576,9 +1593,20 @@ const TaskRow = ({
             </span>
           )}
         
-        <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
-          {p.reference}
-        </p>
+        <div className="flex items-center gap-2">
+          <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+            {p.reference}
+          </p>
+          {risk.score > 0 && (
+            <RiskBadge 
+              level={risk.level} 
+              score={risk.score} 
+              financialData={risk}
+              showLabel={false}
+              className="scale-90"
+            />
+          )}
+        </div>
           {slaTone && (
             <span
               style={{

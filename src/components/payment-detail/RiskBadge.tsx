@@ -4,7 +4,9 @@ import {
   RISK_EMOJI,
   RISK_LABELS,
   type RiskLevel,
+  type RiskFinancialData,
 } from "@/lib/riskScore";
+import { formatCurrency } from "@/lib/status";
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +43,7 @@ export function RiskBadge({
   className,
   title,
   reasons,
+  financialData,
 }: {
   level: RiskLevel;
   score?: number;
@@ -48,6 +51,7 @@ export function RiskBadge({
   className?: string;
   title?: string;
   reasons?: string[];
+  financialData?: RiskFinancialData;
 }) {
   const badge = (
     <div className="flex items-center gap-1">
@@ -60,9 +64,14 @@ export function RiskBadge({
       >
         <span aria-hidden>{RISK_EMOJI[level]}</span>
         {showLabel && <span>{RISK_LABELS[level]}</span>}
-        {score != null && <span className="opacity-70">· {score}</span>}
+      {score != null && <span className="opacity-70">· {score}</span>}
       </span>
       <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help" />
+      {financialData && financialData.valorEmRisco > 0 && (
+        <div className="text-[10px] text-muted-foreground whitespace-nowrap opacity-80 mt-0.5">
+          Valor em risco: <span className="font-semibold text-foreground">{formatCurrency(financialData.valorEmRisco)}</span> ({financialData.percentualRisco.toFixed(1)}% do total)
+        </div>
+      )}
     </div>
   );
 
