@@ -38,8 +38,10 @@ export function usePaymentRisk(paymentId: string | undefined): RiskBreakdown | n
   useEffect(() => {
     if (!paymentId) return;
 
-    const channel = supabase
-      .channel(`payment-risk:${paymentId}`)
+    const channelId = `payment-risk-${paymentId}`;
+    const channel = supabase.channel(channelId);
+
+    channel
       .on(
         "postgres_changes",
         {
