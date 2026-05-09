@@ -78,7 +78,10 @@ export function RiskBadge({
             </p>
             <p className="text-xs leading-snug opacity-90">{RISK_DESCRIPTION[level]}</p>
             <div className="text-[10px] opacity-70 leading-tight pt-1 border-t border-border/40">
-              <p>Score = soma de pesos das validações (reprovações, alertas, outliers, complementos elevados).</p>
+              <p>
+                Score baseado no impacto financeiro real da empresa no lote. Combina o percentual do valor com problemas (reprovados e alertas) com o volume total. 
+                Crítico = requer atenção imediata antes de aprovar. Baixo = pode avançar.
+              </p>
               <p className="mt-1">
                 Faixas: Baixo {RISK_THRESHOLDS.baixo} · Médio {RISK_THRESHOLDS.medio} ·{" "}
                 Alto {RISK_THRESHOLDS.alto} · Crítico {RISK_THRESHOLDS.critico}
