@@ -30,8 +30,12 @@ import {
   Flame,
   Timer,
   AlertTriangle,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
+import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
+import { calculateFinancialRisk } from "@/lib/riskScore";
+import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
