@@ -1341,6 +1341,8 @@ function DivergenceCard({
   profiles,
   draft,
   onDraftChange,
+  type,
+  onTypeChange,
   onAdd,
   busy,
 }: {
