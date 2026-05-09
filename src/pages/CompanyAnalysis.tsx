@@ -111,6 +111,8 @@ const HighlightBanner = ({
       ))}
     </div>
   );
+};
+
 const ObservationTypeSelector = ({
   value,
   onChange,
