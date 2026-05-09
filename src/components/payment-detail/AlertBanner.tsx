@@ -56,7 +56,7 @@ export function AlertBanner({
   return (
     <div
       className={cn(
-        "rounded-md border flex gap-2",
+        "rounded-md border flex gap-2 overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word]",
         compact ? "p-2 text-xs" : "p-2.5 text-xs",
         SEVERITY_CLASSES[severity],
         className,
