@@ -49,7 +49,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
 
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
