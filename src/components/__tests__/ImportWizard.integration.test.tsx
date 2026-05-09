@@ -104,12 +104,22 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
     const sampleText = samplePre.textContent || "";
     const sampleData = JSON.parse(sampleText);
 
-    expect(sampleData).toHaveLength(4);
+    expect(sampleData).toHaveLength(4); // L5 has "abc" which is invalid, so it might be filtered or kept with null
     
-    // Check conversions
+    // Actually, validateRows will push it to valid but with value null, 
+    // UNLESS it's required and null is considered missing.
+    // In ImportWizard: missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" ...)
+    // So "abc" -> null -> missing -> error.
+    
+    // Check conversions for valid ones
     expect(sampleData[0].value).toBe(5687.4);
     expect(sampleData[1].value).toBe(5687.4);
     expect(sampleData[2].value).toBe(5687.4);
     expect(sampleData[3].value).toBe(5687);
+
+    // Check that Doc 5 is in errors
+    expect(screen.getByText(/Linhas com erro \(1\)/)).toBeDefined();
+    expect(screen.getByText(/L6 — Campos obrigatórios ausentes: value/)).toBeDefined();
+
   });
 });
