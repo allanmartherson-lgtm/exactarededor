@@ -335,10 +335,20 @@ const NewPayment = () => {
 
     const rows: ParsedRow[] = json.map((row) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
-      const repasse = toNumber(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
-      const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
-      const grossFromAny = repasse || toNumber(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"])) || procVal;
+      
+      const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
+      const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
+      const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"]));
+      const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade"]));
+      const r_perc = normalizeNumericValue(pick(row, ["percentual", "porcentagem", "%"]));
+
+      const repasse = r_repasse.value;
+      const procVal = r_procVal.value;
+      const grossFromAny = repasse || r_gross.value || procVal;
       const procedureAmountFinal = procVal || grossFromAny || null;
+      const quantity = r_qty.value || null;
+      
+      const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid || (pick(row, ["percentual", "porcentagem", "%"]) !== undefined && r_perc.invalid);
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
@@ -346,6 +356,7 @@ const NewPayment = () => {
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
+        valor_invalido,
         company_name: score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null),
         company_id: score >= 0.9 ? (company?.id ?? null) : null,
         attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
@@ -356,7 +367,7 @@ const NewPayment = () => {
         agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo"])),
         specialty: toStr(pick(row, ["especialidade", "especialid", "especialidade médica", "especialidade medica"])) || null,
         procedure_amount: procedureAmountFinal,
-        quantity: toNumber(pick(row, ["qtd", "quantidade"])) || null,
+        quantity: quantity,
         procedure_date: excelDateToISO(pick(row, ["data"])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         raw_data: row,
