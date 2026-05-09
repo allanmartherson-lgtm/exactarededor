@@ -888,7 +888,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (cur) cur.items.push(it);
       else groupsMap.set(key, { company_id: it.company_id, company_name: name, items: [it] });
     }
-    for (const g of groupsMap.values()) {
+    await Promise.all(Array.from(groupsMap.values()).map(async (g) => {
       const total = g.items.reduce((s, x) => s + Number(x.gross_amount), 0);
       const { data: existing } = await supabase
         .from("payment_company_groups")
@@ -897,8 +897,6 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         .ilike("company_name", g.company_name)
         .maybeSingle();
       if (existing) {
-        // Mesma regra do payments: só rebaixa para revisao_analista se o
-        // grupo ainda estiver com o analista. Não rouba de validador/diretor.
         const groupUpd: Record<string, unknown> = {
           items_count: g.items.length,
           total_amount: total,
@@ -918,7 +916,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           total_amount: total,
         });
       }
-    }
+    }));
 
     // Notifica o analista que a IA concluiu (Evento 2)
     if (obsTransition) {
