@@ -177,32 +177,37 @@ interface FileBucket {
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
 
-const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
+const normalizeNumericValue = (v: unknown): { value: number; invalid: boolean } => {
+  if (v == null || v === "") return { value: 0, invalid: false };
+  if (typeof v === "number") {
+    const invalid = isNaN(v) || v < 0;
+    return { value: isNaN(v) ? 0 : v, invalid };
+  }
+  
+  let s = String(v).replace(/[R$\s]/g, "");
+  if (!s) return { value: 0, invalid: false };
 
-const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
-  // 1) Exact normalized match (header-based lookup, ordem das colunas é irrelevante)
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) {
-      if (norm(rk) === nk) return row[rk];
+  const hasComma = s.includes(",");
+  const hasPoint = s.includes(".");
+
+  if (hasComma && hasPoint) {
+    // Caso 2: vírgula e ponto -> ponto milhar, vírgula decimal
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    // Caso 3: apenas vírgula -> decimal
+    s = s.replace(",", ".");
+  } else if (hasPoint) {
+    // Caso 4: apenas ponto -> verificar se milhar (3 dígitos) ou decimal
+    const parts = s.split(".");
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.length === 3) {
+      s = s.replace(/\./g, "");
     }
   }
-  // 2) Fallback: substring match (mantém compat com headers ligeiramente diferentes)
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) {
-      if (norm(rk).includes(nk)) return row[rk];
-    }
-  }
-  return undefined;
-};
 
-const toNumber = (v: unknown): number => {
-  if (v == null || v === "") return 0;
-  if (typeof v === "number") return v;
-  const s = String(v).replace(/[R$\s]/g, "").replace(/\.(?=\d{3}(?:[,.]|$))/g, "").replace(",", ".");
-  const n = Number(s);
-  return isNaN(n) ? 0 : n;
+  const n = parseFloat(s);
+  const invalid = isNaN(n) || n < 0;
+  return { value: isNaN(n) ? 0 : n, invalid };
 };
 
 const toStr = (v: unknown): string | null => {
