@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ImportWizard, type ImportProfile } from "../ImportWizard";
 import * as XLSX from "xlsx";
@@ -13,13 +13,10 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 // Mock XLSX
-vi.mock("xlsx", async (importOriginal) => {
-  const actual = await importOriginal<typeof XLSX>();
+vi.mock("xlsx", async () => {
   return {
-    ...actual,
     read: vi.fn(),
     utils: {
-      ...actual.utils,
       sheet_to_json: vi.fn(),
     },
   };
@@ -34,6 +31,15 @@ const mockProfile: ImportProfile = {
 };
 
 describe("ImportWizard Integration - Numeric Normalization", () => {
+  beforeAll(() => {
+    // Ensure File.prototype.arrayBuffer exists in jsdom
+    if (!File.prototype.arrayBuffer) {
+      File.prototype.arrayBuffer = async function() {
+        return new ArrayBuffer(0);
+      };
+    }
+  });
+
   it("should correctly normalize numeric values during the import process", async () => {
     const mockRows = [
       { "Nome": "Doc 1", "Valor": "5687,4" },
@@ -65,18 +71,17 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
     const input = document.querySelector('input[type="file"]');
     
     if (!input) throw new Error("File input not found");
-
     
     fireEvent.change(input, { target: { files: [file] } });
 
     // 2. Mapping Step (Preview)
-    // Wait for the preview table to appear
+    // The title should change to "Importar Médicos · 2. Mapeamento"
     await waitFor(() => {
-      expect(screen.getByText("Mapeamento de colunas")).toBeDefined();
-    });
+      expect(screen.queryByText(/2\. Mapeamento/)).not.toBeNull();
+    }, { timeout: 3000 });
 
     // Verify mapping is suggested or set it manually
-    // The suggestMapping should work because labels match
+    expect(screen.getByText("Mapeamento de colunas")).toBeDefined();
     
     // Click "Validar e revisar"
     const validateBtn = screen.getByText("Validar e revisar");
@@ -84,12 +89,16 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
 
     // 3. Validation Step
     await waitFor(() => {
-      expect(screen.getByText("Amostra do que será importado")).toBeDefined();
+      expect(screen.queryByText(/3\. Validação/)).not.toBeNull();
     });
 
+    expect(screen.getByText("Amostra do que será importado")).toBeDefined();
+
     // Check the sample data
-    // The sample is rendered in a <pre> tag
-    const samplePre = screen.getByText(/\[/); // Starts with [ for JSON array
+    const samplePre = screen.getByText((content, element) => {
+      return element?.tagName.toLowerCase() === 'pre' && content.includes('"value": 5687.4');
+    });
+    
     const sampleText = samplePre.textContent || "";
     const sampleData = JSON.parse(sampleText);
 
