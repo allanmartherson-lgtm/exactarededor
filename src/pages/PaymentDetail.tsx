@@ -1172,17 +1172,24 @@ const PaymentDetail = () => {
                       onChange={(e) => setItemCommentDraft((m) => ({ ...m, [it.id]: e.target.value }))}
                       placeholder="Sua observação sobre este item..."
                     />
-                    <div className="flex items-center justify-between gap-3 mt-2">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                        <Checkbox
-                          checked={!!itemCommentIsQuestion[it.id]}
-                          onCheckedChange={(v) => setItemCommentIsQuestion((m) => ({ ...m, [it.id]: !!v }))}
-                        />
-                        Esta observação é uma pergunta (aguarda resposta)
-                      </label>
-                      <Button size="sm" disabled={busy || !(itemCommentDraft[it.id] ?? "").trim()} onClick={() => addItemComment(it.id)}>
-                        <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> {itemCommentIsQuestion[it.id] ? "Enviar pergunta" : "Salvar observação"}
-                      </Button>
+                    <div className="mt-2 space-y-2">
+                      <ObservationTypeSelector
+                        value={itemCommentType[it.id] ?? "informativo"}
+                        onChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
+                        disabled={busy}
+                      />
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                          <Checkbox
+                            checked={!!itemCommentIsQuestion[it.id]}
+                            onCheckedChange={(v) => setItemCommentIsQuestion((m) => ({ ...m, [it.id]: !!v }))}
+                          />
+                          Esta observação é uma pergunta
+                        </label>
+                        <Button size="sm" disabled={busy || !(itemCommentDraft[it.id] ?? "").trim()} onClick={() => addItemComment(it.id)}>
+                          <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> {itemCommentIsQuestion[it.id] ? "Pergunta" : "Salvar"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
