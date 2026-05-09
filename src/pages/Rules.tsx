@@ -1700,15 +1700,17 @@ const Rules = () => {
                                         <div className="space-y-1">
                                           <Label className="text-xs">Empresa/PJ</Label>
                                           <CompanyCombobox
-                                            value={co ? { id: co.id, name: co.name, document: co.document ?? null } : null}
-                                            onChange={(c) => {
-                                              if (!c) return;
-                                              if (usedIds.has(c.id) && c.id !== link.company_id) {
-                                                toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
-                                                return;
-                                              }
-                                              updateLink({ company_id: c.id, doctors: [] });
-                                            }}
+                                             value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
+                                             onChange={(c) => {
+                                               if (!c) return;
+                                               if (usedIds.has(c.id) && c.id !== link.company_id) {
+                                                 toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
+                                                 return;
+                                               }
+                                               // Garante que a empresa selecionada apareça no cache local mesmo se não veio na primeira página
+                                               setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
+                                               updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null } as any);
+                                             }}
                                             placeholder="Selecionar empresa…"
                                             className="w-full"
                                           />
