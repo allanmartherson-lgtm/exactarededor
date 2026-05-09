@@ -156,13 +156,17 @@ const Companies = () => {
 
   const importFile = async (f: File) => {
     setImporting(true);
+    setImportProgress(0);
+    setImportResults({ total: 0, success: 0, updated: 0, errors: [], show: false });
+    
     try {
       const buf = await f.arrayBuffer();
       const wb = XLSX.read(buf);
-      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
       const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
-      const parsed = json.map((row) => {
+      const parsedRows = json.map((row) => {
         const name = toStr(pick(row, ["nome", "razao social", "razão social", "empresa"]));
         const documentRaw = toStr(pick(row, ["cnpj", "cpf", "documento", "doc"])) || null;
         const aliasRaw = toStr(pick(row, ["apelidos", "alias", "variacoes", "variações", "nomes alternativos"]));
@@ -175,17 +179,26 @@ const Companies = () => {
         return { name, documentRaw, aliases, invoice_emails, notes };
       }).filter((r) => r.name);
 
-      if (!parsed.length) {
-        toast({ title: "Nenhuma linha válida encontrada", description: "Verifique se a coluna 'nome' está preenchida.", variant: "destructive" });
+      if (!parsedRows.length) {
+        toast({ 
+          title: "Nenhuma linha válida encontrada", 
+          description: "Verifique se a coluna 'nome' está preenchida.", 
+          variant: "destructive" 
+        });
+        setImporting(false);
         return;
       }
 
-      // Validação de CNPJ por linha (não bloqueia o lote — pula linhas inválidas e relata)
-      const skipped: string[] = [];
-      const valid = parsed.filter((r) => {
+      setImportResults(prev => ({ ...prev, total: parsedRows.length, show: true }));
+
+      // Validação de CNPJ por linha
+      const validRows = parsedRows.filter((r) => {
         const d = onlyDigits(r.documentRaw ?? "");
         if (d && !isValidCNPJ(d)) {
-          skipped.push(`${r.name} (${r.documentRaw})`);
+          setImportResults(prev => ({ 
+            ...prev, 
+            errors: [...prev.errors, `${r.name}: CNPJ inválido (${r.documentRaw})`] 
+          }));
           return false;
         }
         return true;
@@ -197,68 +210,88 @@ const Companies = () => {
         notes: r.notes,
       }));
 
-      if (!valid.length) {
-        toast({
-          title: "Importação bloqueada",
-          description: `Nenhuma linha com CNPJ válido. ${skipped.length} ignorada(s).`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Upsert manual: prioriza match por CNPJ; se não houver, casa por nome.
-      // Garantimos que a deduplicação considere toda a base (> 1000 empresas)
-      const { data: existing } = await supabase.from("companies").select("id,name,document").limit(5000);
+      // Carregar dados existentes para deduplicação (limitado a 5000)
+      const { data: existing } = await supabase.from("companies").select("id, name, document").limit(5000);
       const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
       const byCnpj = new Map<string, string>();
       for (const c of (existing ?? []) as any[]) {
         const d = onlyDigits(c.document ?? "");
         if (d.length === 14) byCnpj.set(d, c.id);
       }
-      // Deduplica o próprio lote por CNPJ
-      const seenCnpj = new Set<string>();
-      const dupExamples: string[] = [];
-      let dupInBatch = 0;
-      let inserted = 0, updated = 0, failed = 0;
-      for (const row of valid) {
-        const d = onlyDigits(row.document ?? "");
-        if (d) {
-          if (seenCnpj.has(d)) {
-            dupInBatch++;
-            if (dupExamples.length < 3) dupExamples.push(`${row.name} (${formatCNPJ(d)})`);
-            continue;
+
+      // Processamento em lotes (50 por vez)
+      const BATCH_SIZE = 50;
+      let insertedCount = 0;
+      let updatedCount = 0;
+      const seenCnpjInBatch = new Set<string>();
+
+      for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+        const batch = validRows.slice(i, i + BATCH_SIZE);
+        
+        // No loop individual por enquanto para lidar com lógica de update vs insert por item
+        // mas em uma operação assíncrona paralela controlada
+        const promises = batch.map(async (row) => {
+          const d = onlyDigits(row.document ?? "");
+          
+          if (d) {
+            if (seenCnpjInBatch.has(d)) {
+              return { success: false, error: `${row.name}: CNPJ duplicado na planilha (${formatCNPJ(d)})` };
+            }
+            seenCnpjInBatch.add(d);
           }
-          seenCnpj.add(d);
-        }
-        const id = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
-        const { error } = id
-          ? await supabase.from("companies").update(row).eq("id", id)
-          : await supabase.from("companies").insert(row);
-        if (error) {
-          if ((error as any).code === "23505") {
-            dupInBatch++;
-            if (dupExamples.length < 3 && d) dupExamples.push(`${row.name} (${formatCNPJ(d)})`);
+
+          const existingId = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
+          
+          const payload = {
+            name: row.name,
+            document: row.document,
+            aliases: row.aliases,
+            invoice_emails: row.invoice_emails,
+            notes: row.notes
+          };
+
+          const { error } = existingId
+            ? await supabase.from("companies").update(payload).eq("id", existingId)
+            : await supabase.from("companies").insert(payload);
+
+          if (error) {
+            return { 
+              success: false, 
+              error: `${row.name}: ${(error as any).code === "23505" ? "CNPJ já cadastrado" : error.message}` 
+            };
           }
-          else failed++;
-        }
-        else if (id) updated++;
-        else inserted++;
+
+          return { success: true, isUpdate: !!existingId };
+        });
+
+        const results = await Promise.all(promises);
+        
+        results.forEach(res => {
+          if (res.success) {
+            if (res.isUpdate) updatedCount++;
+            else insertedCount++;
+          } else if (res.error) {
+            setImportResults(prev => ({ ...prev, errors: [...prev.errors, res.error!] }));
+          }
+        });
+
+        const progress = Math.min(100, Math.round(((i + batch.length) / validRows.length) * 100));
+        setImportProgress(progress);
+        setImportResults(prev => ({ ...prev, success: insertedCount, updated: updatedCount }));
       }
 
       toast({
-        title: "Importação concluída",
-        description:
-          `${inserted} criada(s), ${updated} atualizada(s)` +
-          (failed ? `, ${failed} com erro` : "") +
-          (dupInBatch
-            ? `. ${dupInBatch} linha(s) ignorada(s) por CNPJ duplicado` +
-              (dupExamples.length ? ` (ex.: ${dupExamples.join("; ")}${dupInBatch > dupExamples.length ? "…" : ""})` : "")
-            : "") +
-          (skipped.length ? `. ${skipped.length} ignorada(s) por CNPJ inválido.` : ""),
+        title: "Importação finalizada",
+        description: `${insertedCount} criados, ${updatedCount} atualizados.`
       });
       load();
     } catch (e) {
-      toast({ title: "Erro ao importar", description: String(e), variant: "destructive" });
+      console.error("Erro na importação:", e);
+      toast({ 
+        title: "Erro ao importar", 
+        description: "Ocorreu um erro ao processar o arquivo.", 
+        variant: "destructive" 
+      });
     } finally {
       setImporting(false);
     }
