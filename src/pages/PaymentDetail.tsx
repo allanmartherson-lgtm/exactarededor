@@ -170,7 +170,6 @@ const PaymentDetail = () => {
   // os grupos forem carregados. Mantém continuidade de contexto entre lote
   // e análise dedicada (ex.: usuário clica "Voltar ao lote" e cai exatamente
   // onde estava).
-  const location = useLocation();
   useEffect(() => {
     const hash = location.hash;
     if (!hash || !hash.startsWith("#group-")) return;
