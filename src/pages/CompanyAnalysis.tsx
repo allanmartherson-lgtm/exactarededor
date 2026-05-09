@@ -357,6 +357,7 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
+    await autoClaim();
     const target = resolveResendTarget(obs, group.company_name);
     const next = target?.nextStatus ?? "aguardando_validacao";
     const { error } = await supabase
