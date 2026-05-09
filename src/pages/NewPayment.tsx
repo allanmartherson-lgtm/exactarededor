@@ -177,6 +177,26 @@ interface FileBucket {
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
 
+const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
+
+const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
+  // 1) Exact normalized match (header-based lookup, ordem das colunas é irrelevante)
+  for (const k of keys) {
+    const nk = norm(k);
+    for (const rk of Object.keys(row)) {
+      if (norm(rk) === nk) return row[rk];
+    }
+  }
+  // 2) Fallback: substring match (mantém compat com headers ligeiramente diferentes)
+  for (const k of keys) {
+    const nk = norm(k);
+    for (const rk of Object.keys(row)) {
+      if (norm(rk).includes(nk)) return row[rk];
+    }
+  }
+  return undefined;
+};
+
 const normalizeNumericValue = (v: unknown): { value: number; invalid: boolean } => {
   if (v == null || v === "") return { value: 0, invalid: false };
   if (typeof v === "number") {
