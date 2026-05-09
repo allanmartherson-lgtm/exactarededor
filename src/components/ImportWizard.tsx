@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X } from "lucide-react";
+import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X, Loader2 } from "lucide-react";
 import { normalizeNumericValue } from "@/lib/utils";
 
 export type ImportFieldDef = {
@@ -62,6 +63,7 @@ interface Props {
 export function ImportWizard({ open, onOpenChange, title, profile, onComplete }: Props) {
   const [step, setStep] = useState<Step>("upload");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [rowsBySheet, setRowsBySheet] = useState<Record<string, any[]>>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
@@ -163,23 +165,49 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     }
 
     setBusy(true);
+    setProgress(0);
     try {
       const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
-      const totals: CommitResult = { total: allRows.length, inserted: 0, updated: 0, created: 0, removed_before_replace: 0, skipped: 0, validation_errors: validation?.summary.errors ?? 0, duplicates: validation?.summary.duplicates ?? 0, insert_errors: [] };
+      const totals: CommitResult = { 
+        total: allRows.length, 
+        inserted: 0, 
+        updated: 0, 
+        created: 0, 
+        removed_before_replace: 0, 
+        skipped: 0, 
+        validation_errors: validation?.summary.errors ?? 0, 
+        duplicates: validation?.summary.duplicates ?? 0, 
+        insert_errors: [] 
+      };
+      
       const CHUNK = 100;
-      for (let i = 0; i < records.length; i += CHUNK) {
-        const data = await callFn({
-          mode: "commit",
-          records: records.slice(i, i + CHUNK),
-          totalRows: records.slice(i, i + CHUNK).length,
-          replaceBefore: i === 0,
-          profile: { ...profile, importMode },
-        });
-        totals.inserted += data.inserted ?? 0;
-        totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
-        totals.created = (totals.created ?? 0) + (data.created ?? 0);
-        totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
-        totals.insert_errors.push(...(data.insert_errors ?? []));
+      const totalToImport = records.length;
+      
+      for (let i = 0; i < totalToImport; i += CHUNK) {
+        const chunk = records.slice(i, i + CHUNK);
+        try {
+          const data = await callFn({
+            mode: "commit",
+            records: chunk,
+            totalRows: chunk.length,
+            replaceBefore: i === 0,
+            profile: { ...profile, importMode },
+          });
+          
+          totals.inserted += data.inserted ?? 0;
+          totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
+          totals.created = (totals.created ?? 0) + (data.created ?? 0);
+          totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
+          totals.insert_errors.push(...(data.insert_errors ?? []));
+        } catch (chunkErr: any) {
+          console.error(`Error in chunk ${i/CHUNK + 1}:`, chunkErr);
+          totals.insert_errors.push({ 
+            chunk: Math.floor(i / CHUNK) + 1, 
+            reason: chunkErr.message || "Erro de conexão no lote" 
+          });
+        }
+        
+        setProgress(Math.round(((i + chunk.length) / totalToImport) * 100));
       }
       totals.skipped = totals.validation_errors + totals.duplicates + Math.max(0, records.length - totals.inserted);
       const data = totals;
@@ -409,7 +437,20 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
-            <DialogFooter className="gap-2">
+            {busy && (
+              <div className="space-y-2 py-4 border-t border-border mt-4">
+                <div className="flex justify-between text-xs font-medium">
+                  <span>Processando importação...</span>
+                  <span>{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-2" />
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Por favor, não feche esta janela até a conclusão.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 pt-4">
               <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
                 Cancelar
               </Button>
@@ -420,7 +461,14 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                 onClick={runCommit}
                 disabled={busy || validation.summary.valid === 0 || (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR")}
               >
-                Confirmar importação ({validation.summary.valid})
+                {busy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Importando...
+                  </>
+                ) : (
+                  `Confirmar importação (${validation.summary.valid})`
+                )}
               </Button>
             </DialogFooter>
           </div>
@@ -538,7 +586,7 @@ function buildImportPayload(
   entity: ImportProfile["entity"],
 ) {
   const mapped = applyMapping(rows, mapping, fields);
-  const { valid, errors, dups } = validateRows(mapped, fields);
+  const { valid, errors, dups } = validateRows(mapped, fields, entity);
   const fixed = fixedContext ?? {};
   const records = valid.map((r) => {
     const rec: Record<string, any> = { ...r, ...fixed };
@@ -608,7 +656,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
   });
 }
 
-function validateRows(mapped: any[], fields: ImportFieldDef[]) {
+function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
   const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
   const uniqueKeys = fields.filter((f) => f.uniqueKey).map((f) => f.key);
   const seen = new Set<string>();
@@ -616,15 +664,39 @@ function validateRows(mapped: any[], fields: ImportFieldDef[]) {
   const dups: { row: number; key: string }[] = [];
   const valid: any[] = [];
   mapped.forEach((r, i) => {
+    const rowNum = i + 2;
     const missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" || (Array.isArray(r[k]) && r[k].length === 0));
     if (missing.length) {
-      errors.push({ row: i + 2, reason: `Campos obrigatórios ausentes: ${missing.join(", ")}` });
+      const labels = missing.map(k => fields.find(f => f.key === k)?.label || k);
+      errors.push({ row: rowNum, reason: `Campos obrigatórios ausentes: ${labels.join(", ")}` });
       return;
     }
+
+    // Validação de e-mail se presente e não for vazio
+    if (r.email && typeof r.email === 'string' && r.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(r.email)) {
+        errors.push({ row: rowNum, reason: `E-mail inválido: ${r.email}` });
+        return;
+      }
+    }
+
+    // Validação específica para médicos
+    if (entity === "doctors") {
+      if (r.crm && !/^\d+$/.test(String(r.crm).replace(/[\s.-]/g, ''))) {
+        errors.push({ row: rowNum, reason: `CRM deve conter apenas números: ${r.crm}` });
+        return;
+      }
+      if (r.crm_uf && !/^[A-Z]{2}$/i.test(String(r.crm_uf).trim())) {
+        errors.push({ row: rowNum, reason: `UF inválida: ${r.crm_uf}` });
+        return;
+      }
+    }
+
     if (uniqueKeys.length) {
-      const k = uniqueKeys.map((u) => String(r[u]).toLowerCase()).join("||");
+      const k = uniqueKeys.map((u) => String(r[u] ?? "").toLowerCase().trim()).join("||");
       if (seen.has(k)) {
-        dups.push({ row: i + 2, key: k });
+        dups.push({ row: rowNum, key: k });
         return;
       }
       seen.add(k);
