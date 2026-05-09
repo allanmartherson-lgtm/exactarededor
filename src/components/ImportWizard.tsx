@@ -165,23 +165,41 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     }
 
     setBusy(true);
+    setProgress(0);
     try {
       const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
-      const totals: CommitResult = { total: allRows.length, inserted: 0, updated: 0, created: 0, removed_before_replace: 0, skipped: 0, validation_errors: validation?.summary.errors ?? 0, duplicates: validation?.summary.duplicates ?? 0, insert_errors: [] };
+      const totals: CommitResult = { 
+        total: allRows.length, 
+        inserted: 0, 
+        updated: 0, 
+        created: 0, 
+        removed_before_replace: 0, 
+        skipped: 0, 
+        validation_errors: validation?.summary.errors ?? 0, 
+        duplicates: validation?.summary.duplicates ?? 0, 
+        insert_errors: [] 
+      };
+      
       const CHUNK = 100;
-      for (let i = 0; i < records.length; i += CHUNK) {
+      const totalToImport = records.length;
+      
+      for (let i = 0; i < totalToImport; i += CHUNK) {
+        const chunk = records.slice(i, i + CHUNK);
         const data = await callFn({
           mode: "commit",
-          records: records.slice(i, i + CHUNK),
-          totalRows: records.slice(i, i + CHUNK).length,
+          records: chunk,
+          totalRows: chunk.length,
           replaceBefore: i === 0,
           profile: { ...profile, importMode },
         });
+        
         totals.inserted += data.inserted ?? 0;
         totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
         totals.created = (totals.created ?? 0) + (data.created ?? 0);
         totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
         totals.insert_errors.push(...(data.insert_errors ?? []));
+        
+        setProgress(Math.round(((i + chunk.length) / totalToImport) * 100));
       }
       totals.skipped = totals.validation_errors + totals.duplicates + Math.max(0, records.length - totals.inserted);
       const data = totals;
