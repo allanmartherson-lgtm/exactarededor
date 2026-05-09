@@ -80,6 +80,19 @@ export function RiskBadge({
                 Alto {RISK_THRESHOLDS.alto} · Crítico {RISK_THRESHOLDS.critico}
               </p>
               {title && <p className="mt-1 italic">{title}</p>}
+              {reasons && reasons.length > 0 && (
+                <div className="mt-2 pt-1 border-t border-border/40">
+                  <p className="font-semibold mb-1 text-[10px]">Detalhamento do Score:</p>
+                  <ul className="space-y-0.5">
+                    {reasons.map((r, i) => (
+                      <li key={i} className="flex gap-1">
+                        <span className="opacity-50">•</span>
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </TooltipContent>
