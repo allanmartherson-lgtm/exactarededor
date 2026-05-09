@@ -429,7 +429,20 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
-            <DialogFooter className="gap-2">
+            {busy && (
+              <div className="space-y-2 py-4 border-t border-border mt-4">
+                <div className="flex justify-between text-xs font-medium">
+                  <span>Processando importação...</span>
+                  <span>{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-2" />
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Por favor, não feche esta janela até a conclusão.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 pt-4">
               <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
                 Cancelar
               </Button>
@@ -440,7 +453,14 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                 onClick={runCommit}
                 disabled={busy || validation.summary.valid === 0 || (importMode === "replace" && replaceConfirm.trim().toUpperCase() !== "SUBSTITUIR")}
               >
-                Confirmar importação ({validation.summary.valid})
+                {busy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Importando...
+                  </>
+                ) : (
+                  `Confirmar importação (${validation.summary.valid})`
+                )}
               </Button>
             </DialogFooter>
           </div>
