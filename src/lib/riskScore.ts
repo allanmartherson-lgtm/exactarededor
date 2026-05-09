@@ -1,117 +1,104 @@
 import type { PaymentItemRow as PaymentItemRowData } from "@/hooks/usePaymentDetailData";
 
 /**
- * Sistema de priorização por risco.
- *
- * - Cada validação tem um peso padrão (crítico/alerta/leve).
- * - O score do atendimento soma pesos das validações + sinais adicionais
- *   (outlier, exceção autorizada, complemento elevado).
- * - O score apenas prioriza — NUNCA decide aprovação.
+ * Sistema de priorização por risco baseado em impacto financeiro real.
+ * 
+ * Formula:
+ * score_base = (%_valor_reprovado * 70) + (%_valor_alerta * 30)
+ * bonus_volume = log10(valor_total / 1000) * 5 (máx +15)
+ * score_final = score_base + bonus_volume
  */
 
 export type RiskLevel = "critico" | "alto" | "medio" | "baixo";
-
-export const RISK_WEIGHTS = {
-  critico: 50,   // bloqueio / reprovação
-  alerta: 20,    // alerta forte
-  leve: 8,       // alerta leve / informativo com ação
-  outlier: 25,   // valor fora da curva
-  complemento_alto: 15,
-  excecao_autorizada: 10,
-} as const;
-
-const OUTLIER_RX = /(outlier|fora da curva|acima da m[eé]dia|acima do percentil|múltiplo da m[eé]dia)/i;
-const COMPL_ALTO_RX = /(complemento elevado|complemento.*acima)/i;
-const ALERT_FORTE_RX = /(bloqueio|cr[ií]tico|reprovad|n[aã]o pagar|exclus[aã]o|inv[aá]lido|obrigat[oó]rio|divergente)/i;
-const ALERT_LEVE_RX = /(opcional|recomend|sugest|conferir|verificar|informativo)/i;
-
-const classifyAlert = (text: string): keyof typeof RISK_WEIGHTS => {
-  if (OUTLIER_RX.test(text)) return "outlier";
-  if (COMPL_ALTO_RX.test(text)) return "complemento_alto";
-  if (ALERT_FORTE_RX.test(text)) return "alerta";
-  if (ALERT_LEVE_RX.test(text)) return "leve";
-  return "alerta";
-};
 
 export type RiskBreakdown = {
   score: number;
   level: RiskLevel;
   reasons: string[];
+  valorEmRisco: number;
+  percentualRisco: number;
 };
 
 export const classifyRisk = (score: number): RiskLevel => {
-  if (score >= 100) return "critico";
-  if (score >= 60) return "alto";
-  if (score >= 30) return "medio";
+  if (score >= 60) return "critico";
+  if (score >= 35) return "alto";
+  if (score >= 15) return "medio";
   return "baixo";
 };
 
-/** Calcula score de um item individual. */
-export function scoreItem(it: PaymentItemRowData): RiskBreakdown {
-  const reasons: string[] = [];
-  let score = 0;
-
-  const status = it.ai_status;
-  if (status === "reprovado") {
-    score += RISK_WEIGHTS.critico;
-    reasons.push(`Reprovado (+${RISK_WEIGHTS.critico})`);
-  } else if (status === "alerta") {
-    score += RISK_WEIGHTS.alerta;
-    reasons.push(`Alerta IA (+${RISK_WEIGHTS.alerta})`);
-  }
-
-  const alerts = it.ai_findings?.alerts ?? [];
-  for (const a of alerts) {
-    const k = classifyAlert(a);
-    score += RISK_WEIGHTS[k];
-    reasons.push(`${a.slice(0, 60)} (+${RISK_WEIGHTS[k]})`);
-  }
-
-  // Outlier: diferença significativa do esperado pelo motor
-  const diffPct = it.ai_findings?.engine?.diff_pct as number | null | undefined;
-  if (diffPct != null && Math.abs(diffPct) > 0.5) {
-    score += RISK_WEIGHTS.outlier;
-    reasons.push(`Valor ${(diffPct * 100).toFixed(0)}% vs esperado (+${RISK_WEIGHTS.outlier})`);
-  }
-
-  const itAny = it as unknown as { authorized_exception?: boolean | null };
-  if (itAny.authorized_exception) {
-    score += RISK_WEIGHTS.excecao_autorizada;
-    reasons.push(`Exceção autorizada (+${RISK_WEIGHTS.excecao_autorizada})`);
-  }
-
-  return { score, level: classifyRisk(score), reasons };
-}
-
-/** Score agregado por atendimento (mesmo attendance_number). */
-export function scoreAttendance(items: PaymentItemRowData[]): RiskBreakdown {
-  const reasons: string[] = [];
-  let score = 0;
-  let base = 0;
-  let compl = 0;
+/** 
+ * Calcula o score baseado no impacto financeiro.
+ * Pode ser usado para um item, um atendimento ou uma empresa inteira.
+ */
+export function calculateFinancialRisk(items: PaymentItemRowData[]): RiskBreakdown {
+  let valorReprovado = 0;
+  let valorAlerta = 0;
+  let valorTotal = 0;
 
   for (const it of items) {
-    const s = scoreItem(it);
-    score += s.score;
+    const val = Number(it.gross_amount ?? 0);
+    // Glosas/descontos não entram no valor total para cálculo de risco (são negativos ou redutores)
+    if (it.tipo_linha === "glosa_desconto") continue;
     
-    if (s.reasons.length > 0) {
-      const itemDesc = it.procedure_name || it.description || it.procedure_code || "Item";
-      const itemPrefix = items.length > 1 ? `${itemDesc}: ` : "";
-      reasons.push(...s.reasons.map(r => `${itemPrefix}${r}`));
+    valorTotal += val;
+
+    // "Aprovado (manual)" não temos coluna, mas se o status atual for aprovado,
+    // ele não cai em reprovado nem alerta.
+    // Exceção autorizada manualmente não conta.
+    if (it.authorized_exception) continue;
+
+    if (it.ai_status === "reprovado") {
+      valorReprovado += val;
+    } else if (it.ai_status === "alerta") {
+      valorAlerta += val;
     }
-
-    const tl = (it as any).tipo_linha as string | null;
-    const v = Number(it.gross_amount ?? 0);
-    if (tl === "complemento_bonus") compl += v;
-    else if (tl !== "glosa_desconto") base += v;
   }
 
-  if (base > 0 && compl / base > 0.3) {
-    score += RISK_WEIGHTS.complemento_alto;
-    reasons.push(`Complemento ${((compl / base) * 100).toFixed(0)}% do base (+${RISK_WEIGHTS.complemento_alto})`);
+  const pctReprovado = valorTotal > 0 ? valorReprovado / valorTotal : 0;
+  const pctAlerta = valorTotal > 0 ? valorAlerta / valorTotal : 0;
+
+  const scoreBase = (pctReprovado * 70) + (pctAlerta * 30);
+  
+  // Bonus volume: penalidade suave para empresas de alto volume
+  // log10(1.000/1.000)=0, log10(10.000/1.000)=5, log10(100.000/1.000)=10, max +15
+  let bonusVolume = 0;
+  if (valorTotal > 1000) {
+    bonusVolume = Math.log10(valorTotal / 1000) * 5;
+  }
+  bonusVolume = Math.max(0, Math.min(15, bonusVolume));
+
+  const scoreFinal = Math.round(scoreBase + bonusVolume);
+  const valorEmRisco = valorReprovado + valorAlerta;
+  const percentualRisco = valorTotal > 0 ? (valorEmRisco / valorTotal) * 100 : 0;
+
+  const reasons: string[] = [];
+  if (pctReprovado > 0) {
+    reasons.push(`Reprovado: ${Math.round(pctReprovado * 100)}% do valor (+${Math.round(pctReprovado * 70)})`);
+  }
+  if (pctAlerta > 0) {
+    reasons.push(`Alerta: ${Math.round(pctAlerta * 100)}% do valor (+${Math.round(pctAlerta * 30)})`);
+  }
+  if (bonusVolume > 0) {
+    reasons.push(`Volume: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotal)} (+${Math.round(bonusVolume)})`);
   }
 
-  return { score, level: classifyRisk(score), reasons };
+  return {
+    score: scoreFinal,
+    level: classifyRisk(scoreFinal),
+    reasons,
+    valorEmRisco,
+    percentualRisco
+  };
+}
+
+/** Mantido para compatibilidade, agora usando a lógica financeira */
+export function scoreItem(it: PaymentItemRowData): RiskBreakdown {
+  return calculateFinancialRisk([it]);
+}
+
+/** Mantido para compatibilidade, agora usando a lógica financeira */
+export function scoreAttendance(items: PaymentItemRowData[]): RiskBreakdown {
+  return calculateFinancialRisk(items);
 }
 
 export const RISK_LABELS: Record<RiskLevel, string> = {
@@ -128,11 +115,6 @@ export const RISK_EMOJI: Record<RiskLevel, string> = {
   baixo: "🟢",
 };
 
-/**
- * Classes visuais por nível.
- * Apenas "crítico" tem destaque forte; demais seguem padrão suave
- * para não competir com o conteúdo principal (valor, status, ação).
- */
 export const RISK_BADGE_CLASS: Record<RiskLevel, string> = {
   critico: "bg-destructive-soft text-destructive border-destructive/40 ring-1 ring-destructive/20 font-semibold",
   alto: "bg-warning-soft text-warning-foreground border-warning/30",

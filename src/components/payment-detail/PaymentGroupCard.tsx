@@ -28,7 +28,7 @@ import type {
   ObservationRow,
   PaymentItemRow as PaymentItemRowData,
 } from "@/hooks/usePaymentDetailData";
-import { scoreAttendance, classifyRisk, scoreItem } from "@/lib/riskScore";
+import { scoreAttendance, classifyRisk, scoreItem, calculateFinancialRisk } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
 import { cn } from "@/lib/utils";
 
@@ -117,12 +117,10 @@ export const PaymentGroupCard = ({
   for (const [att, arr] of attendanceMap) {
     attendanceScores.set(att, scoreAttendance(arr));
   }
-  const groupMaxScore = Math.max(
-    0,
-    ...Array.from(attendanceScores.values()).map((s) => s.score),
-  );
-  const groupMaxBreakdown = Array.from(attendanceScores.values()).find((s) => s.score === groupMaxScore);
-  const groupRisk = classifyRisk(groupMaxScore);
+  const groupFinancialRisk = calculateFinancialRisk(groupItems);
+  const groupMaxScore = groupFinancialRisk.score;
+  const groupRisk = groupFinancialRisk.level;
+  const groupMaxBreakdown = groupFinancialRisk;
 
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
@@ -177,16 +175,23 @@ export const PaymentGroupCard = ({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex items-center gap-1.5">
+            {groupMaxScore > 0 && (
+              <RiskBadge 
+                level={groupRisk} 
+                score={groupMaxScore} 
+                title={`Score de impacto financeiro: ${groupMaxScore}`} 
+                reasons={groupMaxBreakdown?.reasons}
+              />
+            )}
+            <StatusBadge status={gStatus} />
+          </div>
           {groupMaxScore > 0 && (
-            <RiskBadge 
-              level={groupRisk} 
-              score={groupMaxScore} 
-              title={`Maior score de atendimento: ${groupMaxScore}`} 
-              reasons={groupMaxBreakdown?.reasons}
-            />
+            <div className="text-[10px] text-muted-foreground whitespace-nowrap opacity-80">
+              Valor em risco: <span className="font-semibold text-foreground">{formatCurrency(groupMaxBreakdown.valorEmRisco)}</span> ({groupMaxBreakdown.percentualRisco.toFixed(1)}% do total)
+            </div>
           )}
-          <StatusBadge status={gStatus} />
         </div>
       </button>
 

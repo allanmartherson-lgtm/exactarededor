@@ -11,19 +11,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 
 const RISK_THRESHOLDS: Record<RiskLevel, string> = {
-  baixo: "0–29",
-  medio: "30–59",
-  alto: "60–99",
-  critico: "≥ 100",
+  baixo: "< 15",
+  medio: "15–34",
+  alto: "35–59",
+  critico: "≥ 60",
 };
 
 const RISK_DESCRIPTION: Record<RiskLevel, string> = {
-  baixo: "Sem indícios relevantes — pode seguir fluxo padrão.",
-  medio: "Tem alertas leves — vale uma conferência rápida.",
-  alto: "Vários sinais somados — priorize a revisão deste grupo.",
-  critico: "Reprovação ou bloqueio detectado — exige análise antes de pagar.",
+  baixo: "Impacto financeiro baixo ou nulo — pode seguir fluxo padrão.",
+  medio: "Impacto moderado ou alertas sem reprovação significativa.",
+  alto: "Problemas reais mas manejáveis — requer atenção.",
+  critico: "Alto percentual de valor em risco e volume relevante — atenção imediata.",
 };
 
 /**
@@ -49,17 +50,20 @@ export function RiskBadge({
   reasons?: string[];
 }) {
   const badge = (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
-        RISK_BADGE_CLASS[level],
-        className,
-      )}
-    >
-      <span aria-hidden>{RISK_EMOJI[level]}</span>
-      {showLabel && <span>{RISK_LABELS[level]}</span>}
-      {score != null && <span className="opacity-70">· {score}</span>}
-    </span>
+    <div className="flex items-center gap-1">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
+          RISK_BADGE_CLASS[level],
+          className,
+        )}
+      >
+        <span aria-hidden>{RISK_EMOJI[level]}</span>
+        {showLabel && <span>{RISK_LABELS[level]}</span>}
+        {score != null && <span className="opacity-70">· {score}</span>}
+      </span>
+      <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help" />
+    </div>
   );
 
   return (
@@ -74,7 +78,10 @@ export function RiskBadge({
             </p>
             <p className="text-xs leading-snug opacity-90">{RISK_DESCRIPTION[level]}</p>
             <div className="text-[10px] opacity-70 leading-tight pt-1 border-t border-border/40">
-              <p>Score = soma de pesos das validações (reprovações, alertas, outliers, complementos elevados).</p>
+              <p>
+                Score baseado no impacto financeiro real da empresa no lote. Combina o percentual do valor com problemas (reprovados e alertas) com o volume total. 
+                Crítico = requer atenção imediata antes de aprovar. Baixo = pode avançar.
+              </p>
               <p className="mt-1">
                 Faixas: Baixo {RISK_THRESHOLDS.baixo} · Médio {RISK_THRESHOLDS.medio} ·{" "}
                 Alto {RISK_THRESHOLDS.alto} · Crítico {RISK_THRESHOLDS.critico}
