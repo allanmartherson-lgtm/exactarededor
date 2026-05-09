@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail } from "lucide-react";
+import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { CompanySlaSection } from "@/components/CompanySlaSection";
@@ -44,6 +45,14 @@ const Companies = () => {
   const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState<{
+    total: number;
+    success: number;
+    updated: number;
+    errors: string[];
+    show: boolean;
+  }>({ total: 0, success: 0, updated: 0, errors: [], show: false });
 
   useEffect(() => { document.title = "Empresas | MedPay"; load(); }, []);
 
@@ -147,13 +156,17 @@ const Companies = () => {
 
   const importFile = async (f: File) => {
     setImporting(true);
+    setImportProgress(0);
+    setImportResults({ total: 0, success: 0, updated: 0, errors: [], show: false });
+    
     try {
       const buf = await f.arrayBuffer();
       const wb = XLSX.read(buf);
-      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
       const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
-      const parsed = json.map((row) => {
+      const parsedRows = json.map((row) => {
         const name = toStr(pick(row, ["nome", "razao social", "razão social", "empresa"]));
         const documentRaw = toStr(pick(row, ["cnpj", "cpf", "documento", "doc"])) || null;
         const aliasRaw = toStr(pick(row, ["apelidos", "alias", "variacoes", "variações", "nomes alternativos"]));
@@ -166,17 +179,26 @@ const Companies = () => {
         return { name, documentRaw, aliases, invoice_emails, notes };
       }).filter((r) => r.name);
 
-      if (!parsed.length) {
-        toast({ title: "Nenhuma linha válida encontrada", description: "Verifique se a coluna 'nome' está preenchida.", variant: "destructive" });
+      if (!parsedRows.length) {
+        toast({ 
+          title: "Nenhuma linha válida encontrada", 
+          description: "Verifique se a coluna 'nome' está preenchida.", 
+          variant: "destructive" 
+        });
+        setImporting(false);
         return;
       }
 
-      // Validação de CNPJ por linha (não bloqueia o lote — pula linhas inválidas e relata)
-      const skipped: string[] = [];
-      const valid = parsed.filter((r) => {
+      setImportResults(prev => ({ ...prev, total: parsedRows.length, show: true }));
+
+      // Validação de CNPJ por linha
+      const validRows = parsedRows.filter((r) => {
         const d = onlyDigits(r.documentRaw ?? "");
         if (d && !isValidCNPJ(d)) {
-          skipped.push(`${r.name} (${r.documentRaw})`);
+          setImportResults(prev => ({ 
+            ...prev, 
+            errors: [...prev.errors, `${r.name}: CNPJ inválido (${r.documentRaw})`] 
+          }));
           return false;
         }
         return true;
@@ -188,68 +210,88 @@ const Companies = () => {
         notes: r.notes,
       }));
 
-      if (!valid.length) {
-        toast({
-          title: "Importação bloqueada",
-          description: `Nenhuma linha com CNPJ válido. ${skipped.length} ignorada(s).`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Upsert manual: prioriza match por CNPJ; se não houver, casa por nome.
-      // Garantimos que a deduplicação considere toda a base (> 1000 empresas)
-      const { data: existing } = await supabase.from("companies").select("id,name,document").limit(5000);
+      // Carregar dados existentes para deduplicação (limitado a 5000)
+      const { data: existing } = await supabase.from("companies").select("id, name, document").limit(5000);
       const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
       const byCnpj = new Map<string, string>();
       for (const c of (existing ?? []) as any[]) {
         const d = onlyDigits(c.document ?? "");
         if (d.length === 14) byCnpj.set(d, c.id);
       }
-      // Deduplica o próprio lote por CNPJ
-      const seenCnpj = new Set<string>();
-      const dupExamples: string[] = [];
-      let dupInBatch = 0;
-      let inserted = 0, updated = 0, failed = 0;
-      for (const row of valid) {
-        const d = onlyDigits(row.document ?? "");
-        if (d) {
-          if (seenCnpj.has(d)) {
-            dupInBatch++;
-            if (dupExamples.length < 3) dupExamples.push(`${row.name} (${formatCNPJ(d)})`);
-            continue;
+
+      // Processamento em lotes (50 por vez)
+      const BATCH_SIZE = 50;
+      let insertedCount = 0;
+      let updatedCount = 0;
+      const seenCnpjInBatch = new Set<string>();
+
+      for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+        const batch = validRows.slice(i, i + BATCH_SIZE);
+        
+        // No loop individual por enquanto para lidar com lógica de update vs insert por item
+        // mas em uma operação assíncrona paralela controlada
+        const promises = batch.map(async (row) => {
+          const d = onlyDigits(row.document ?? "");
+          
+          if (d) {
+            if (seenCnpjInBatch.has(d)) {
+              return { success: false, error: `${row.name}: CNPJ duplicado na planilha (${formatCNPJ(d)})` };
+            }
+            seenCnpjInBatch.add(d);
           }
-          seenCnpj.add(d);
-        }
-        const id = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
-        const { error } = id
-          ? await supabase.from("companies").update(row).eq("id", id)
-          : await supabase.from("companies").insert(row);
-        if (error) {
-          if ((error as any).code === "23505") {
-            dupInBatch++;
-            if (dupExamples.length < 3 && d) dupExamples.push(`${row.name} (${formatCNPJ(d)})`);
+
+          const existingId = (d && byCnpj.get(d)) || byName.get(row.name.toLowerCase());
+          
+          const payload = {
+            name: row.name,
+            document: row.document,
+            aliases: row.aliases,
+            invoice_emails: row.invoice_emails,
+            notes: row.notes
+          };
+
+          const { error } = existingId
+            ? await supabase.from("companies").update(payload).eq("id", existingId)
+            : await supabase.from("companies").insert(payload);
+
+          if (error) {
+            return { 
+              success: false, 
+              error: `${row.name}: ${(error as any).code === "23505" ? "CNPJ já cadastrado" : error.message}` 
+            };
           }
-          else failed++;
-        }
-        else if (id) updated++;
-        else inserted++;
+
+          return { success: true, isUpdate: !!existingId };
+        });
+
+        const results = await Promise.all(promises);
+        
+        results.forEach(res => {
+          if (res.success) {
+            if (res.isUpdate) updatedCount++;
+            else insertedCount++;
+          } else if (res.error) {
+            setImportResults(prev => ({ ...prev, errors: [...prev.errors, res.error!] }));
+          }
+        });
+
+        const progress = Math.min(100, Math.round(((i + batch.length) / validRows.length) * 100));
+        setImportProgress(progress);
+        setImportResults(prev => ({ ...prev, success: insertedCount, updated: updatedCount }));
       }
 
       toast({
-        title: "Importação concluída",
-        description:
-          `${inserted} criada(s), ${updated} atualizada(s)` +
-          (failed ? `, ${failed} com erro` : "") +
-          (dupInBatch
-            ? `. ${dupInBatch} linha(s) ignorada(s) por CNPJ duplicado` +
-              (dupExamples.length ? ` (ex.: ${dupExamples.join("; ")}${dupInBatch > dupExamples.length ? "…" : ""})` : "")
-            : "") +
-          (skipped.length ? `. ${skipped.length} ignorada(s) por CNPJ inválido.` : ""),
+        title: "Importação finalizada",
+        description: `${insertedCount} criados, ${updatedCount} atualizados.`
       });
       load();
     } catch (e) {
-      toast({ title: "Erro ao importar", description: String(e), variant: "destructive" });
+      console.error("Erro na importação:", e);
+      toast({ 
+        title: "Erro ao importar", 
+        description: "Ocorreu um erro ao processar o arquivo.", 
+        variant: "destructive" 
+      });
     } finally {
       setImporting(false);
     }
@@ -491,7 +533,89 @@ const Companies = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ImportResultsDialog 
+        open={importResults.show} 
+        results={importResults}
+        progress={importProgress}
+        importing={importing}
+        onOpenChange={(v) => !importing && setImportResults(prev => ({ ...prev, show: v }))}
+      />
     </>
+  );
+};
+
+const ImportResultsDialog = ({ open, results, progress, importing, onOpenChange }: { 
+  open: boolean, 
+  results: any, 
+  progress: number, 
+  importing: boolean,
+  onOpenChange: (open: boolean) => void 
+}) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {importing ? "Importando..." : "Resultado da Importação"}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          {importing && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span>Processando linhas...</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-muted rounded-lg">
+              <div className="text-2xl font-bold">{results.success}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Novos</div>
+            </div>
+            <div className="text-center p-3 bg-muted rounded-lg">
+              <div className="text-2xl font-bold">{results.updated}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Atualizados</div>
+            </div>
+            <div className="text-center p-3 bg-muted rounded-lg border-destructive/20 border">
+              <div className="text-2xl font-bold text-destructive">{results.errors.length}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Erros/Pulos</div>
+            </div>
+          </div>
+
+          {results.errors.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Detalhes dos erros:</Label>
+              <div className="max-h-[200px] overflow-y-auto rounded-md border bg-muted/30 p-2 space-y-1">
+                {results.errors.map((err: string, i: number) => (
+                  <div key={i} className="text-xs flex gap-2 text-destructive">
+                    <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                    <span>{err}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!importing && (
+            <div className="bg-emerald-50 text-emerald-700 p-3 rounded-md flex gap-2 text-sm border border-emerald-100">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>Importação de {results.total} linhas concluída com sucesso.</p>
+            </div>
+          )}
+        </div>
+
+        {!importing && (
+          <DialogFooter>
+            <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 
