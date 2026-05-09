@@ -533,6 +533,14 @@ const Companies = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ImportResultsDialog 
+        open={importResults.show} 
+        results={importResults}
+        progress={importProgress}
+        importing={importing}
+        onOpenChange={(v) => !importing && setImportResults(prev => ({ ...prev, show: v }))}
+      />
     </>
   );
 };
