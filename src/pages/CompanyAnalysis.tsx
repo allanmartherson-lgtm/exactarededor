@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
+import { claimPayment } from "@/lib/assignments";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -318,8 +319,15 @@ export default function CompanyAnalysis() {
   };
 
   // Ações de fluxo (paridade com o popup de análise por empresa).
+  const autoClaim = async () => {
+    if (!id || !user) return;
+    if (!(hasRole("analista") || hasRole("admin"))) return;
+    await claimPayment(id, user.id, "auto");
+  };
+
   const reanalyzeGroup = async () => {
     if (!id || !group) return;
+    await autoClaim();
     setReanalyzing(true);
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
@@ -349,6 +357,7 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
+    await autoClaim();
     const target = resolveResendTarget(obs, group.company_name);
     const next = target?.nextStatus ?? "aguardando_validacao";
     const { error } = await supabase
@@ -800,8 +809,7 @@ export default function CompanyAnalysis() {
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
     (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao") &&
-    isAnalistaRole &&
-    (isOwner || isAdmin);
+    isAnalistaRole;
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
