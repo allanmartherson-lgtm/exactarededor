@@ -1435,7 +1435,7 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
       <div className="min-w-0 flex flex-col gap-1" style={{ flex: "0 0 auto", maxWidth: 260 }}>
         <div className="flex items-center gap-2">
           <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
-          {risk.score > 0 && (
+          {risk && risk.score > 0 && (
             <RiskBadge 
               level={risk.level} 
               score={risk.score} 
