@@ -99,13 +99,13 @@ const HighlightBanner = ({
               <Badge 
                 variant="outline" 
                 className={cn(
-                  "text-[10px] uppercase tracking-wider font-bold h-5 px-1.5",
+                  "text-[11px] uppercase tracking-tight font-black h-5 px-1.5",
                   h.observation_type === "impacta_aprovacao"
-                    ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                    ? "border-amber-600 text-amber-800 bg-amber-200"
                     : "border-success/50 text-success-foreground bg-success/10"
                 )}
               >
-                {h.observation_type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa de Override"}
+                {h.observation_type === "impacta_aprovacao" ? "⚠️ IMPACTA APROVAÇÃO" : "Justificativa de Override"}
               </Badge>
               <span className="text-[10px] text-muted-foreground font-medium">
                 {profiles[h.author_id!] || "Sistema"} · {new Date(h.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
