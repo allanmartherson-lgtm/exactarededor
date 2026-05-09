@@ -1593,9 +1593,20 @@ const TaskRow = ({
             </span>
           )}
         
-        <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
-          {p.reference}
-        </p>
+        <div className="flex items-center gap-2">
+          <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+            {p.reference}
+          </p>
+          {risk.score > 0 && (
+            <RiskBadge 
+              level={risk.level} 
+              score={risk.score} 
+              financialData={risk}
+              showLabel={false}
+              className="scale-90"
+            />
+          )}
+        </div>
           {slaTone && (
             <span
               style={{
