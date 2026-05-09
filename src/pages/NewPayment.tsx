@@ -34,6 +34,7 @@ interface ParsedRow {
   doctor_email: string;
   description: string;
   gross_amount: number;
+  valor_invalido?: boolean;
   // novos
   company_name: string | null;
   company_id: string | null;
