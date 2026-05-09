@@ -234,11 +234,10 @@ const Companies = () => {
         notes: r.notes,
       }));
 
-      // Carregar dados existentes para deduplicação (limitado a 5000)
-      const { data: existing } = await supabase.from("companies").select("id, name, document").limit(5000);
-      const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
+      const existing = await fetchAllCompanies("id, name, document");
+      const byName = new Map(existing.map((c: any) => [c.name.toLowerCase(), c.id]));
       const byCnpj = new Map<string, string>();
-      for (const c of (existing ?? []) as any[]) {
+      for (const c of existing as any[]) {
         const d = onlyDigits(c.document ?? "");
         if (d.length === 14) byCnpj.set(d, c.id);
       }
