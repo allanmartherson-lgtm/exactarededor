@@ -1593,20 +1593,7 @@ const PaymentDetail = () => {
                   (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
                 );
                 if (!cached) groupItemsCache.set(g.id, all);
-                const byAtt = new Map<string, typeof all>();
-                for (const it of all) {
-                  const att = (it.attendance_number ?? "").trim();
-                  if (!att) continue;
-                  const a = byAtt.get(att) ?? [];
-                  a.push(it);
-                  byAtt.set(att, a);
-                }
-                let max = 0;
-                for (const arr of byAtt.values()) {
-                  const s = scoreAttendance(arr).score;
-                  if (s > max) max = s;
-                }
-                return max;
+                return calculateFinancialRisk(all).score;
               };
               const sortedGroups = [...visibleGroups].sort(
                 (a, b) => groupMaxScore(b) - groupMaxScore(a),
