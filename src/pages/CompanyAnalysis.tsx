@@ -318,6 +318,12 @@ export default function CompanyAnalysis() {
   };
 
   // Ações de fluxo (paridade com o popup de análise por empresa).
+  const autoClaim = async () => {
+    if (!id || !user) return;
+    if (!(hasRole("analista") || hasRole("admin"))) return;
+    await claimPayment(id, user.id, "auto");
+  };
+
   const reanalyzeGroup = async () => {
     if (!id || !group) return;
     setReanalyzing(true);
