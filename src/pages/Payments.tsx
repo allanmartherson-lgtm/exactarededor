@@ -85,6 +85,22 @@ const OWNER_LABELS: Record<Exclude<OwnerGroup, "all">, string> = {
   diretor: "Com diretor",
 };
 
+/** Componente isolado para calcular e exibir o badge de risco em uma linha de listagem.
+ *  Mantido como subcomponente para que cada linha tenha seu próprio hook (Rules of Hooks). */
+const PaymentRiskBadgeInline = ({ paymentId, compact = false }: { paymentId: string; compact?: boolean }) => {
+  const risk = usePaymentRisk(paymentId);
+  if (!risk || risk.score <= 0) return null;
+  return (
+    <RiskBadge
+      level={risk.level}
+      score={risk.score}
+      financialData={risk}
+      showLabel={!compact}
+      className={compact ? "scale-75 origin-left" : "scale-90 origin-left"}
+    />
+  );
+};
+
 const Payments = () => {
   const { roles, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
