@@ -681,6 +681,18 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
       }
     }
 
+    // Validação específica para médicos
+    if (entity === "doctors") {
+      if (r.crm && !/^\d+$/.test(String(r.crm).replace(/[\s.-]/g, ''))) {
+        errors.push({ row: rowNum, reason: `CRM deve conter apenas números: ${r.crm}` });
+        return;
+      }
+      if (r.crm_uf && !/^[A-Z]{2}$/i.test(String(r.crm_uf).trim())) {
+        errors.push({ row: rowNum, reason: `UF inválida: ${r.crm_uf}` });
+        return;
+      }
+    }
+
     if (uniqueKeys.length) {
       const k = uniqueKeys.map((u) => String(r[u] ?? "").toLowerCase().trim()).join("||");
       if (seen.has(k)) {
