@@ -21,8 +21,7 @@ import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2,
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
-// MultiSelectChips/COMMON_SPECIALTIES removidos: especialidade não é mais
-// configurável a nível de lote (apenas relatório/filtro).
+import { normalizeNumericValue } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
