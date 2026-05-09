@@ -45,6 +45,14 @@ const Companies = () => {
   const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState<{
+    total: number;
+    success: number;
+    updated: number;
+    errors: string[];
+    show: boolean;
+  }>({ total: 0, success: 0, updated: 0, errors: [], show: false });
 
   useEffect(() => { document.title = "Empresas | MedPay"; load(); }, []);
 
