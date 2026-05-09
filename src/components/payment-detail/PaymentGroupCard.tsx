@@ -28,7 +28,7 @@ import type {
   ObservationRow,
   PaymentItemRow as PaymentItemRowData,
 } from "@/hooks/usePaymentDetailData";
-import { scoreAttendance, classifyRisk } from "@/lib/riskScore";
+import { scoreAttendance, classifyRisk, scoreItem } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
 import { cn } from "@/lib/utils";
 
