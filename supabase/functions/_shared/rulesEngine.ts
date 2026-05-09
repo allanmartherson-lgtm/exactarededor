@@ -1374,16 +1374,18 @@ export function analyzeItem(
       ];
     }
   } else {
-    // Sem regra específica → fallback determinístico (default por setor:
-    // hemodinâmica = 88%, demais = 100%). Esse é o COMPORTAMENTO ESPERADO,
-    // não uma exceção: se o valor pago bater com o default, o item é
-    // aprovado normalmente. O alerta só aparece se houver divergência real
-    // (tratada por classifyDiff abaixo). A rastreabilidade fica no
-    // calculation_explanation e no calculation_type_used.
-    const def = calcDefault(item);
-    calc = def;
-    priority = "default_setor";
-    calculation_type_used = def.calculation_type_used;
+    // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
+    // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
+    // entra como "sem_regra" para revisão humana — analista precisa cadastrar
+    // a regra adequada em Configurações > Regras de Repasse.
+    const sector = inferItemSector(item);
+    calc = {
+      expected: null,
+      explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
+      alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
+    };
+    priority = "sem_regra";
+    calculation_type_used = "informativo";
   }
 
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
