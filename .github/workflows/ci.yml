@@ -25,8 +25,12 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Typecheck
+        run: bun run typecheck
+
       - name: Build
         run: bun run build
+
 
   # Job 2: Testes de Governança (obrigatórios — bloqueiam merge)
   governance-tests:
