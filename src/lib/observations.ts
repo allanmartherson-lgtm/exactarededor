@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 type ObservationRow = Database["public"]["Tables"]["payment_observations"]["Row"];
+export type ObservationType = Database["public"]["Tables"]["payment_observations"]["Row"]["observation_type"];
 export type ObservationAuthorType = ObservationRow["author_type"];
 
 /**
@@ -97,6 +98,8 @@ export type RecordObservationInput = {
   is_question?: boolean;
   /** Quando esta observação é a RESPOSTA a uma pergunta, informa a pergunta-alvo. */
   answers_question_id?: string | null;
+  /** Classificação da observação para destaque e filtros. */
+  observation_type?: ObservationType;
 };
 
 export type RecordObservationResult = {
@@ -129,6 +132,7 @@ export async function recordObservation(
     status_from: input.status_from ?? null,
     status_to: input.status_to ?? null,
     is_question: !!input.is_question,
+    observation_type: input.observation_type ?? "informativo",
   };
 
   const { data, error } = await supabase
