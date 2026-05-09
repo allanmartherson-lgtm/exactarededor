@@ -957,6 +957,7 @@ export default function CompanyAnalysis() {
 
         {/* ABA 1 — Análise */}
         <TabsContent value="analise" className="space-y-3">
+          <HighlightBanner observations={obs} profiles={profiles} />
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Itens</CardTitle>
@@ -995,20 +996,27 @@ export default function CompanyAnalysis() {
                 onChange={(e) => setGroupDraft(e.target.value)}
                 rows={3}
               />
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="is-question"
-                    checked={isQuestion}
-                    onCheckedChange={(v) => setIsQuestion(!!v)}
-                  />
-                  <Label htmlFor="is-question" className="text-xs font-normal cursor-pointer select-none">
-                    É um questionamento ao diretor (aguarda resposta)
-                  </Label>
+              <div className="flex flex-col gap-3">
+                <ObservationTypeSelector
+                  value={groupCommentType}
+                  onChange={setGroupCommentType}
+                  disabled={busy}
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="is-question"
+                      checked={isQuestion}
+                      onCheckedChange={(v) => setIsQuestion(!!v)}
+                    />
+                    <Label htmlFor="is-question" className="text-xs font-normal cursor-pointer select-none">
+                      É um questionamento ao diretor (aguarda resposta)
+                    </Label>
+                  </div>
+                  <Button size="sm" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
+                    Adicionar comentário
+                  </Button>
                 </div>
-                <Button size="sm" onClick={addGroupComment} disabled={busy || !groupDraft.trim()}>
-                  Adicionar comentário
-                </Button>
               </div>
               {groupComments.length > 0 && (
                 <ul className="mt-2 space-y-2">
