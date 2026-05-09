@@ -1076,7 +1076,7 @@ function ItemDetailsRow({
                           )}
                           <span className="ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{o.message}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{o.message}</p>
                       </li>
                     ))}
                   </ul>
