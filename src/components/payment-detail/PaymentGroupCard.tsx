@@ -342,7 +342,12 @@ export const PaymentGroupCard = ({
                 return (
                   <li key={row.att} className="font-mono flex items-center gap-1.5 flex-wrap">
                     {sc && sc.score > 0 && (
-                      <RiskBadge level={sc.level} score={sc.score} showLabel={false} />
+                      <RiskBadge 
+                        level={sc.level} 
+                        score={sc.score} 
+                        showLabel={false} 
+                        reasons={sc.reasons}
+                      />
                     )}
                     <span>
                       Atend. #{row.att}: base {formatCurrency(row.base)}
