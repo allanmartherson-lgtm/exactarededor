@@ -186,14 +186,9 @@ export const PaymentGroupCard = ({
               financialData={groupMaxBreakdown}
             />
             )}
-            <StatusBadge status={gStatus} />
-          </div>
-          {groupMaxScore > 0 && (
-            <div className="text-[10px] text-muted-foreground whitespace-nowrap opacity-80">
-              Valor em risco: <span className="font-semibold text-foreground">{formatCurrency(groupMaxBreakdown.valorEmRisco)}</span> ({groupMaxBreakdown.percentualRisco.toFixed(1)}% do total)
-            </div>
-          )}
+          <StatusBadge status={gStatus} />
         </div>
+      </div>
       </button>
 
       {groupExpandedEffective && nfDivergent && (
