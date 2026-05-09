@@ -83,7 +83,7 @@ const HighlightBanner = ({
           className={cn(
             "flex items-start gap-3 p-3 rounded-lg border shadow-sm animate-in fade-in slide-in-from-top-2 duration-300",
             h.observation_type === "impacta_aprovacao" 
-              ? "bg-amber-50 border-amber-200" 
+              ? "bg-amber-100 border-amber-400 ring-2 ring-amber-500/20" 
               : "bg-success-soft border-success/30"
           )}
         >
