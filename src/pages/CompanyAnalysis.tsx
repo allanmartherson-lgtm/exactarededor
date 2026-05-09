@@ -252,10 +252,11 @@ export default function CompanyAnalysis() {
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
       const bucket: ItemAiStatus = eff === "seguido" ? "aprovado" : (eff as ItemAiStatus);
       c[bucket] = (c[bucket] ?? 0) + 1;
+      
       const alerts = (it.ai_findings?.alerts ?? []) as string[];
       if (alerts.length > 0) {
-        if (it.ai_status === "reprovado") c.criticosTotal += alerts.length;
-        else c.alertasTotal += alerts.length;
+        if (it.ai_status === "reprovado") c.criticosTotal += 1;
+        else c.alertasTotal += 1;
       }
     }
     return c;
