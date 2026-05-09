@@ -1054,6 +1054,8 @@ export default function CompanyAnalysis() {
                   profiles={profiles}
                   draft={itemDraft[it.id] ?? ""}
                   onDraftChange={(v) => setItemDraft((m) => ({ ...m, [it.id]: v }))}
+                  type={itemCommentType[it.id] ?? "informativo"}
+                  onTypeChange={(v) => setItemCommentType((m) => ({ ...m, [it.id]: v }))}
                   onAdd={() => addItemComment(it.id)}
                   busy={busy}
                 />
