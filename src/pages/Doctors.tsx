@@ -29,9 +29,8 @@ const DOCTORS_IMPORT_PROFILE: ImportProfile = {
     { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },
     { key: "phone", label: "Telefone", aliases: ["telefone", "celular", "fone"] },
     { key: "specialties", label: "Especialidades", type: "array", aliases: ["especialidade", "especialidades"] },
+    { key: "active", label: "Ativo", type: "boolean", aliases: ["ativo", "status"], defaultValue: true },
     { key: "companies_raw", label: "Empresa(s)/PJ", type: "array", aliases: ["empresa", "empresas", "pj", "pjs", "clinica", "clínica"] },
-    { key: "notes", label: "Observações", aliases: ["obs", "observacao", "observação", "observacoes", "observações"] },
-    { key: "active", label: "Ativo", type: "boolean", aliases: ["ativo", "status"] },
   ],
 };
 
@@ -234,6 +233,14 @@ export default function Doctors() {
     });
   }, [items, search, filterCompany, linksByDoctor]);
 
+  // Se houver busca, mostramos apenas os filtrados. 
+  // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
+  // mas garantimos que as ações de edição estejam sempre disponíveis.
+  const displayItems = useMemo(() => {
+    if (search.trim() || filterCompany) return filtered;
+    return filtered.slice(0, 100);
+  }, [filtered, search, filterCompany]);
+
   const filteredCompaniesForDialog = useMemo(() => {
     const q = norm(companySearch);
     if (!q) return companies;
@@ -410,9 +417,13 @@ export default function Doctors() {
         </div>
 
         <Card className="overflow-hidden">
-          <CardHeader><CardTitle className="text-base">{filtered.length} médico(s)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {filtered.length} médico(s) {filtered.length > displayItems.length && `(mostrando primeiros ${displayItems.length})`}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">
-            {filtered.length === 0 ? (
+            {displayItems.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhum médico encontrado.</p>
             ) : (
               <div className="w-full overflow-x-auto">
@@ -428,7 +439,7 @@ export default function Doctors() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((d) => {
+                  {displayItems.map((d) => {
                     const cids = linksByDoctor.get(d.id) ?? [];
                     return (
                       <tr key={d.id}>
