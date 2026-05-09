@@ -92,6 +92,8 @@ export default function CompanyAnalysis() {
   const [newCompany, setNewCompany] = useState<CompanyOption | null>(null);
   const [changingCompany, setChangingCompany] = useState(false);
   const [isQuestion, setIsQuestion] = useState(false);
+  const [groupCommentType, setGroupCommentType] = useState<ObservationType>("informativo");
+  const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
 
   const [editItem, setEditItem] = useState<PaymentItemRow | null>(null);
   const [editDraft, setEditDraft] = useState<{ gross_amount: string; specialty: string; doctor_name: string; description: string }>({ gross_amount: "", specialty: "", doctor_name: "", description: "" });
@@ -176,6 +178,7 @@ export default function CompanyAnalysis() {
       author_type: myAuthorType,
       author_id: user!.id,
       message: text,
+      observation_type: itemCommentType[itemId] ?? "informativo",
     });
     setBusy(false);
     if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
@@ -193,11 +196,13 @@ export default function CompanyAnalysis() {
       author_id: user!.id,
       message: `[${group.company_name}] ${text}`,
       is_question: isQuestion,
+      observation_type: groupCommentType,
     });
     setBusy(false);
     if (!r.ok) return toast.error("Erro ao salvar", { description: r.error });
     setGroupDraft("");
     setIsQuestion(false);
+    setGroupCommentType("informativo");
     load();
   };
 
