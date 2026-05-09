@@ -597,7 +597,12 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
       } else if (f.type === "array") {
         const s = String(raw ?? "").trim();
         out[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
-      } else out[f.key] = raw == null ? null : String(raw).trim();
+      } else out[f.key] = raw == null ? (f.defaultValue ?? null) : String(raw).trim();
+      
+      // Caso especial para boolean: se for nulo mas tiver default, usa o default
+      if (f.type === "boolean" && raw == null && f.defaultValue !== undefined) {
+        out[f.key] = f.defaultValue;
+      }
     }
     return out;
   });
