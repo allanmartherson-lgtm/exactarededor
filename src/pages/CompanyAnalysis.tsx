@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
+import { claimPayment } from "@/lib/assignments";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
