@@ -298,7 +298,7 @@ export default function CompanyAnalysis() {
         startY: (doc as any).lastAutoTable.finalY + 20,
         head: [["Atend.", "Paciente", "Conv.", "TUSS", "Proc.", "Médico", "Inf.", "Esp.", "Dif.", "Status"]],
         body: tableData,
-        styles: { fontSize: 8, cellPadding: 2 },
+        styles: { fontSize: 8, cellPadding: 3 },
         headStyles: { fillColor: [41, 128, 185] },
         margin: { left: 14, right: 14 }
       });
