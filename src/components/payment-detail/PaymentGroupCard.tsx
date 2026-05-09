@@ -121,6 +121,7 @@ export const PaymentGroupCard = ({
     0,
     ...Array.from(attendanceScores.values()).map((s) => s.score),
   );
+  const groupMaxBreakdown = Array.from(attendanceScores.values()).find((s) => s.score === groupMaxScore);
   const groupRisk = classifyRisk(groupMaxScore);
 
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
