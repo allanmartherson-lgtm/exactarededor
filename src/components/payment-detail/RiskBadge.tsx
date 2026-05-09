@@ -43,6 +43,7 @@ export function RiskBadge({
   className,
   title,
   reasons,
+  financialData,
 }: {
   level: RiskLevel;
   score?: number;
@@ -50,6 +51,7 @@ export function RiskBadge({
   className?: string;
   title?: string;
   reasons?: string[];
+  financialData?: RiskFinancialData;
 }) {
   const badge = (
     <div className="flex items-center gap-1">
