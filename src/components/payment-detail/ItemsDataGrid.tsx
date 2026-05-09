@@ -992,7 +992,7 @@ function ItemDetailsRow({
   // Reusa o set tipográfico exportado no topo do arquivo (TEXT_BODY/TEXT_LABEL/TEXT_META)
   // para manter o painel expandido idêntico ao restante da tela (headers + cells + AlertBanner).
   // Card base: contém o conteúdo com overflow seguro (nada vaza, nada invade vizinhos).
-  const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]";
+  const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word]";
 
   const Label = ({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) => (
     <p className={cn(TEXT_LABEL, "flex items-center gap-1")}>
