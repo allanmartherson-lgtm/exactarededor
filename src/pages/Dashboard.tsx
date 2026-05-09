@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   usePipelinePreferences,
@@ -541,214 +541,225 @@ const Dashboard = () => {
     setDensity: setPipelineDensity,
   } = usePipelinePreferences();
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
+      supabase
+        .from("payments")
+        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase.from("profiles").select("id,full_name,email"),
+      supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at"),
+      supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "divergente"),
+      Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
+      supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(2000),
+    ]);
+    setPayments((data ?? []) as PaymentRow[]);
+    setAllPayments(
+      (all ?? []) as Array<{
+        id: string;
+        status: PaymentStatus;
+        created_by: string | null;
+        validated_by: string | null;
+        created_at: string;
+        updated_at?: string | null;
+      }>,
+    );
+    const pmap: Record<string, string> = {};
+    (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
+
+    const qcounts: Record<string, number> = {};
+    (openQs ?? []).forEach((r: any) => {
+      if (r.payment_id) qcounts[r.payment_id] = (qcounts[r.payment_id] ?? 0) + 1;
+    });
+    setOpenQuestionCount(qcounts);
+    setProfiles(pmap);
+
+    // Carrega histórico de status, SLA settings, empresas e overrides — em paralelo
+    const allIds = ((all ?? []) as Array<{ id: string }>).map((p) => p.id).filter(Boolean);
+    const [{ data: hist }, { data: slas }, { data: groups }] = await Promise.all([
+      allIds.length
+        ? supabase
+            .from("payment_status_history")
+            .select("payment_id,status_to,changed_at")
+            .in("payment_id", allIds)
+            .order("changed_at", { ascending: false })
+        : Promise.resolve({ data: [] as any[] } as any),
+      supabase.from("sla_settings").select("*").eq("active", true),
+      allIds.length
+        ? supabase.from("payment_company_groups").select("payment_id,company_id").in("payment_id", allIds)
+        : Promise.resolve({ data: [] as any[] } as any),
+    ]);
+    const seen: Record<string, string> = {};
+    const seenWithStatus: Record<string, { status: PaymentStatus; changed_at: string }> = {};
+    // Tempos médios entre transições por status (gargalos)
+    const byPayment: Record<string, Array<{ status_to: PaymentStatus; changed_at: string }>> = {};
+    (hist ?? []).forEach((h: any) => {
+      if (!seen[h.payment_id]) {
+        seen[h.payment_id] = h.changed_at;
+        seenWithStatus[h.payment_id] = { status: h.status_to as PaymentStatus, changed_at: h.changed_at };
+      }
+      (byPayment[h.payment_id] = byPayment[h.payment_id] ?? []).push({ status_to: h.status_to, changed_at: h.changed_at });
+    });
+    setStatusEnteredAt(seen);
+    setAllStatusEnteredAt(seenWithStatus);
+    const sMap: Record<string, SlaSetting> = {};
+    (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
+    setSlaSettings(sMap);
+    const cByP: Record<string, string | null> = {};
+    (groups ?? []).forEach((g: any) => { if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id; });
+    setCompanyByPayment(cByP);
+    const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
+    if (compIds.length) {
+      const { data: ovs } = await supabase.from("company_sla_overrides").select("*").in("company_id", compIds);
+      const oMap: Record<string, CompanySlaOverride> = {};
+      (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
+      setCompanyOverrides(oMap);
+    }
+    // Tempo médio em cada status (concluído → próximo) — usa intervalos do histórico
+    const accum: Record<string, { sum: number; count: number }> = {};
+    Object.values(byPayment).forEach((entries) => {
+      // entries vêm desc; reordena asc
+      const asc = [...entries].sort((a, b) => +new Date(a.changed_at) - +new Date(b.changed_at));
+      for (let i = 0; i < asc.length - 1; i++) {
+        const s = asc[i].status_to;
+        const dt = +new Date(asc[i + 1].changed_at) - +new Date(asc[i].changed_at);
+        if (dt > 0 && s) {
+          accum[s] = accum[s] ?? { sum: 0, count: 0 };
+          accum[s].sum += dt;
+          accum[s].count += 1;
+        }
+      }
+    });
+    const avg: Record<string, { avgMs: number; count: number }> = {};
+    Object.entries(accum).forEach(([s, v]) => { avg[s] = { avgMs: v.sum / v.count, count: v.count }; });
+    setAvgTimeByStatus(avg);
+
+    const uid = user?.id;
+    // Separação estrita: "minhas" = pagamentos efetivamente atribuídos ao
+    // usuário logado (created_by/validated_by). A fila coletiva do papel
+    // aparece em "Tarefas em aberto" e no Pipeline da equipe.
+    const c: DashboardCounts = { ...initialCounts };
+    const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+      "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
+    ]);
+
+    // Mapeia empresas por pagamento para contagem distinta nos cards de ação
+    const paymentCompaniesMap: Record<string, string[]> = {};
+    (groups ?? []).forEach((g: any) => {
+      if (g.payment_id && g.company_id) {
+        (paymentCompaniesMap[g.payment_id] = paymentCompaniesMap[g.payment_id] ?? []).push(g.company_id);
+      }
+    });
+
+    const mineAnalistaCompaniesSet = new Set<string>();
+    const mineValidadorCompaniesSet = new Set<string>();
+    const mineDiretorCompaniesSet = new Set<string>();
+
+    (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
+      const owner = ownerRoleFor(p.status);
+      // "Minha pendência" só conta enquanto o lote AINDA está na alçada do
+      // papel do usuário. Após aprovado/pago/etc, sai das pendências.
+      const isMineRow =
+        !!uid && (
+          (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
+          (owner === "validador" && p.status === "aguardando_validacao") ||
+          (owner === "diretor" && p.status === "aguardando_aprovacao")
+        );
+
+      if (isMineRow) {
+        const companies = paymentCompaniesMap[p.id] ?? [];
+        if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
+          companies.forEach(id => mineAnalistaCompaniesSet.add(id));
+        } else if (owner === "validador" && p.status === "aguardando_validacao") {
+          companies.forEach(id => mineValidadorCompaniesSet.add(id));
+        } else if (owner === "diretor" && p.status === "aguardando_aprovacao") {
+          companies.forEach(id => mineDiretorCompaniesSet.add(id));
+        }
+      }
+
+      if (owner === "analista") {
+        c.teamAnalise++;
+        if (isMineRow) c.mineAnalista++;
+      } else if (owner === "validador") {
+        c.teamValidacao++;
+        if (isMineRow) c.mineValidador++;
+      } else if (owner === "diretor") {
+        c.teamAprovacao++;
+        if (isMineRow) c.mineDiretor++;
+      }
+
+      switch (p.status) {
+        case "em_analise_ia":
+        case "revisao_analista":
+          c.pipeAnaliseIA++; break;
+        case "aguardando_validacao":
+          c.pipeValidacao++; break;
+        case "aguardando_aprovacao":
+          c.pipeAprovacao++; break;
+        case "aprovado":
+        case "aprovado_em_revisao":
+          c.pipeAguardandoEnvio++; break;
+        case "pedido_nf_enviado":
+          c.pipeNFSolicitada++; break;
+        case "nf_recebida":
+          c.pipeNFRecebida++; break;
+        case "nf_conciliada":
+          c.pipeNFConciliada++; break;
+        case "pago":
+          c.pipePago++; break;
+        case "nf_questionada":
+          c.pipeDivergente++; break;
+      }
+
+      if (p.status === "devolvido_analista") c.attDevolvidoAnalista++;
+      if (p.status === "aprovado_com_ressalva") {
+        c.attRessalvas++;
+        if (isMineRow) c.mineRessalvas++;
+      }
+      if (p.status === "nf_questionada") {
+        c.attNFQuestionada++;
+        if (isMineRow) c.mineInvoicesQuestionadas++;
+      }
+      if (p.status === "rejeitado") c.attRejeitados++;
+      if (p.status === "aprovado_em_revisao") c.diretorAprovadoEmRevisao++;
+    });
+
+    c.mineAnalistaCompanies = mineAnalistaCompaniesSet.size;
+    c.mineValidadorCompanies = mineValidadorCompaniesSet.size;
+    c.mineDiretorCompanies = mineDiretorCompaniesSet.size;
+
+    (invDiv ?? []).forEach((row: any) => {
+      c.teamInvoicesDivergentes++;
+      c.attNFDivergente++;
+      const cb = row?.payment?.created_by ?? null;
+      if (uid && cb === uid) c.mineInvoicesDivergentes++;
+    });
+    void invQuest;
+    void uid;
+
+    setCounts(c);
+    setLoading(false);
+  }, [user?.id, initialCounts]);
+
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
-    const load = async () => {
-      setLoading(true);
-      const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
-          .order("created_at", { ascending: false })
-          .limit(20),
-        supabase.from("profiles").select("id,full_name,email"),
-        supabase.from("payments").select("id,status,created_by,validated_by,created_at,updated_at"),
-        supabase
-          .from("invoices")
-          .select("id, payment:payments!inner(created_by)")
-          .eq("status", "divergente"),
-        Promise.resolve({ data: [] as Array<{ payment: { created_by: string | null } | null }> }),
-        supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(2000),
-      ]);
-      setPayments((data ?? []) as PaymentRow[]);
-      setAllPayments(
-        (all ?? []) as Array<{
-          id: string;
-          status: PaymentStatus;
-          created_by: string | null;
-          validated_by: string | null;
-          created_at: string;
-          updated_at?: string | null;
-        }>,
-      );
-      const pmap: Record<string, string> = {};
-      (pr ?? []).forEach((x: any) => { pmap[x.id] = x.full_name || x.email; });
-
-      const qcounts: Record<string, number> = {};
-      (openQs ?? []).forEach((r: any) => {
-        if (r.payment_id) qcounts[r.payment_id] = (qcounts[r.payment_id] ?? 0) + 1;
-      });
-      setOpenQuestionCount(qcounts);
-      setProfiles(pmap);
-
-      // Carrega histórico de status, SLA settings, empresas e overrides — em paralelo
-      const allIds = ((all ?? []) as Array<{ id: string }>).map((p) => p.id).filter(Boolean);
-      const [{ data: hist }, { data: slas }, { data: groups }] = await Promise.all([
-        allIds.length
-          ? supabase
-              .from("payment_status_history")
-              .select("payment_id,status_to,changed_at")
-              .in("payment_id", allIds)
-              .order("changed_at", { ascending: false })
-          : Promise.resolve({ data: [] as any[] } as any),
-        supabase.from("sla_settings").select("*").eq("active", true),
-        allIds.length
-          ? supabase.from("payment_company_groups").select("payment_id,company_id").in("payment_id", allIds)
-          : Promise.resolve({ data: [] as any[] } as any),
-      ]);
-      const seen: Record<string, string> = {};
-      const seenWithStatus: Record<string, { status: PaymentStatus; changed_at: string }> = {};
-      // Tempos médios entre transições por status (gargalos)
-      const byPayment: Record<string, Array<{ status_to: PaymentStatus; changed_at: string }>> = {};
-      (hist ?? []).forEach((h: any) => {
-        if (!seen[h.payment_id]) {
-          seen[h.payment_id] = h.changed_at;
-          seenWithStatus[h.payment_id] = { status: h.status_to as PaymentStatus, changed_at: h.changed_at };
-        }
-        (byPayment[h.payment_id] = byPayment[h.payment_id] ?? []).push({ status_to: h.status_to, changed_at: h.changed_at });
-      });
-      setStatusEnteredAt(seen);
-      setAllStatusEnteredAt(seenWithStatus);
-      const sMap: Record<string, SlaSetting> = {};
-      (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
-      setSlaSettings(sMap);
-      const cByP: Record<string, string | null> = {};
-      (groups ?? []).forEach((g: any) => { if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id; });
-      setCompanyByPayment(cByP);
-      const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
-      if (compIds.length) {
-        const { data: ovs } = await supabase.from("company_sla_overrides").select("*").in("company_id", compIds);
-        const oMap: Record<string, CompanySlaOverride> = {};
-        (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
-        setCompanyOverrides(oMap);
-      }
-      // Tempo médio em cada status (concluído → próximo) — usa intervalos do histórico
-      const accum: Record<string, { sum: number; count: number }> = {};
-      Object.values(byPayment).forEach((entries) => {
-        // entries vêm desc; reordena asc
-        const asc = [...entries].sort((a, b) => +new Date(a.changed_at) - +new Date(b.changed_at));
-        for (let i = 0; i < asc.length - 1; i++) {
-          const s = asc[i].status_to;
-          const dt = +new Date(asc[i + 1].changed_at) - +new Date(asc[i].changed_at);
-          if (dt > 0 && s) {
-            accum[s] = accum[s] ?? { sum: 0, count: 0 };
-            accum[s].sum += dt;
-            accum[s].count += 1;
-          }
-        }
-      });
-      const avg: Record<string, { avgMs: number; count: number }> = {};
-      Object.entries(accum).forEach(([s, v]) => { avg[s] = { avgMs: v.sum / v.count, count: v.count }; });
-      setAvgTimeByStatus(avg);
-
-      const uid = user?.id;
-      // Separação estrita: "minhas" = pagamentos efetivamente atribuídos ao
-      // usuário logado (created_by/validated_by). A fila coletiva do papel
-      // aparece em "Tarefas em aberto" e no Pipeline da equipe.
-      const c: DashboardCounts = { ...initialCounts };
-      const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-        "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
-      ]);
-
-      // Mapeia empresas por pagamento para contagem distinta nos cards de ação
-      const paymentCompaniesMap: Record<string, string[]> = {};
-      (groups ?? []).forEach((g: any) => {
-        if (g.payment_id && g.company_id) {
-          (paymentCompaniesMap[g.payment_id] = paymentCompaniesMap[g.payment_id] ?? []).push(g.company_id);
-        }
-      });
-
-      const mineAnalistaCompaniesSet = new Set<string>();
-      const mineValidadorCompaniesSet = new Set<string>();
-      const mineDiretorCompaniesSet = new Set<string>();
-
-      (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
-        const owner = ownerRoleFor(p.status);
-        // "Minha pendência" só conta enquanto o lote AINDA está na alçada do
-        // papel do usuário. Após aprovado/pago/etc, sai das pendências.
-        const isMineRow =
-          !!uid && (
-            (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-            (owner === "validador" && p.status === "aguardando_validacao") ||
-            (owner === "diretor" && p.status === "aguardando_aprovacao")
-          );
-
-        if (isMineRow) {
-          const companies = paymentCompaniesMap[p.id] ?? [];
-          if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
-            companies.forEach(id => mineAnalistaCompaniesSet.add(id));
-          } else if (owner === "validador" && p.status === "aguardando_validacao") {
-            companies.forEach(id => mineValidadorCompaniesSet.add(id));
-          } else if (owner === "diretor" && p.status === "aguardando_aprovacao") {
-            companies.forEach(id => mineDiretorCompaniesSet.add(id));
-          }
-        }
-
-        if (owner === "analista") {
-          c.teamAnalise++;
-          if (isMineRow) c.mineAnalista++;
-        } else if (owner === "validador") {
-          c.teamValidacao++;
-          if (isMineRow) c.mineValidador++;
-        } else if (owner === "diretor") {
-          c.teamAprovacao++;
-          if (isMineRow) c.mineDiretor++;
-        }
-
-        switch (p.status) {
-          case "em_analise_ia":
-          case "revisao_analista":
-            c.pipeAnaliseIA++; break;
-          case "aguardando_validacao":
-            c.pipeValidacao++; break;
-          case "aguardando_aprovacao":
-            c.pipeAprovacao++; break;
-          case "aprovado":
-          case "aprovado_em_revisao":
-            c.pipeAguardandoEnvio++; break;
-          case "pedido_nf_enviado":
-            c.pipeNFSolicitada++; break;
-          case "nf_recebida":
-            c.pipeNFRecebida++; break;
-          case "nf_conciliada":
-            c.pipeNFConciliada++; break;
-          case "pago":
-            c.pipePago++; break;
-          case "nf_questionada":
-            c.pipeDivergente++; break;
-        }
-
-        if (p.status === "devolvido_analista") c.attDevolvidoAnalista++;
-        if (p.status === "aprovado_com_ressalva") {
-          c.attRessalvas++;
-          if (isMineRow) c.mineRessalvas++;
-        }
-        if (p.status === "nf_questionada") {
-          c.attNFQuestionada++;
-          if (isMineRow) c.mineInvoicesQuestionadas++;
-        }
-        if (p.status === "rejeitado") c.attRejeitados++;
-        if (p.status === "aprovado_em_revisao") c.diretorAprovadoEmRevisao++;
-      });
-
-      c.mineAnalistaCompanies = mineAnalistaCompaniesSet.size;
-      c.mineValidadorCompanies = mineValidadorCompaniesSet.size;
-      c.mineDiretorCompanies = mineDiretorCompaniesSet.size;
-
-      (invDiv ?? []).forEach((row: any) => {
-        c.teamInvoicesDivergentes++;
-        c.attNFDivergente++;
-        const cb = row?.payment?.created_by ?? null;
-        if (uid && cb === uid) c.mineInvoicesDivergentes++;
-      });
-      void invQuest;
-      void uid;
-
-      setCounts(c);
-      setLoading(false);
-    };
     load();
-  }, [user?.id]);
+  }, [load]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { load(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [load]);
 
   const pipeCounts = useMemo(() => {
     const days = PIPELINE_WINDOW_DAYS[pipelineWindow];

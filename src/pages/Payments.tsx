@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -194,107 +194,118 @@ const Payments = () => {
     toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
   };
 
-  useEffect(() => {
-    document.title = "Pagamentos | MedPay Approval";
-    supabase
+  const load = useCallback(async () => {
+    const { data } = await supabase
       .from("payments")
       .select("id,reference,status,total_amount,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind")
-      .order("created_at", { ascending: false })
-      .then(async ({ data }) => {
-        const list = (data ?? []) as Row[];
-        setRows(list);
-        const ids = list.map((r) => r.id);
-        const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
-        // Profiles dos analistas
-        if (userIds.length) {
-          const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", userIds);
-          const map: Record<string, string> = {};
-          (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name || p.email || "—"; });
-          setAnalysts(map);
-        }
-        if (ids.length) {
-          // Empresas distintas por lote
-          const { data: groups } = await supabase
-            .from("payment_company_groups")
-            .select("payment_id,company_name")
-            .in("payment_id", ids);
-          const cmap: Record<string, Set<string>> = {};
-          (groups ?? []).forEach((g: any) => {
-            cmap[g.payment_id] = cmap[g.payment_id] ?? new Set();
-            cmap[g.payment_id].add(g.company_name || "");
-          });
-          const counts: Record<string, number> = {};
-          Object.entries(cmap).forEach(([k, v]) => { counts[k] = v.size; });
-          setCompaniesPerPayment(counts);
-
-          // Histórico: pega entrada mais recente por pagamento
-          const { data: hist } = await supabase
-            .from("payment_status_history")
-            .select("payment_id,status_to,changed_at")
-            .in("payment_id", ids)
-            .order("changed_at", { ascending: false });
-          const seen: Record<string, string> = {};
-          (hist ?? []).forEach((h: any) => {
-            if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at;
-          });
-          setStatusEnteredAt(seen);
-
-          // Empresa principal por pagamento (1ª se múltiplas)
-          const cByP: Record<string, string | null> = {};
-          (groups ?? []).forEach((g: any) => { if (!cByP[g.payment_id]) cByP[g.payment_id] = null; });
-          const { data: groupsWithIds } = await supabase
-            .from("payment_company_groups").select("payment_id,company_id").in("payment_id", ids);
-          (groupsWithIds ?? []).forEach((g: any) => {
-            if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
-          });
-          setCompanyByPayment(cByP);
-
-          // Carrega SLAs e overrides relevantes em paralelo
-          const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
-          const [{ data: slas }, { data: ovs }] = await Promise.all([
-            supabase.from("sla_settings").select("*").eq("active", true),
-            compIds.length
-              ? supabase.from("company_sla_overrides").select("*").in("company_id", compIds)
-              : Promise.resolve({ data: [] as any[] } as any),
-          ]);
-          const sMap: Record<string, SlaSetting> = {};
-          (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
-          setSlaSettings(sMap);
-          const oMap: Record<string, CompanySlaOverride> = {};
-          (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
-          setCompanyOverrides(oMap);
-        }
+      .order("created_at", { ascending: false });
+    
+    const list = (data ?? []) as Row[];
+    setRows(list);
+    const ids = list.map((r) => r.id);
+    const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
+    // Profiles dos analistas
+    if (userIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", userIds);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name || p.email || "—"; });
+      setAnalysts(map);
+    }
+    if (ids.length) {
+      // Empresas distintas por lote
+      const { data: groups } = await supabase
+        .from("payment_company_groups")
+        .select("payment_id,company_name")
+        .in("payment_id", ids);
+      const cmap: Record<string, Set<string>> = {};
+      (groups ?? []).forEach((g: any) => {
+        cmap[g.payment_id] = cmap[g.payment_id] ?? new Set();
+        cmap[g.payment_id].add(g.company_name || "");
       });
-  }, []);
-
-  // Carrega ids de pagamentos com divergência IA vs regra (item alerta/reprovado)
-  // e com NF questionada (status nf_questionada ou invoice_questions abertas).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [{ data: divItems }, { data: questPays }, { data: iq }, { data: openQs }] = await Promise.all([
-        supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
-        supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
-        supabase.from("invoice_questions").select("payment_id").limit(5000),
-        supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(5000),
-      ]);
-      if (cancelled) return;
-      const div = new Set<string>();
-      (divItems ?? []).forEach((r: any) => r.payment_id && div.add(r.payment_id));
-      const quest = new Set<string>();
-      (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
-      (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
       const counts: Record<string, number> = {};
-      (openQs ?? []).forEach((r: any) => {
-        if (!r.payment_id) return;
-        counts[r.payment_id] = (counts[r.payment_id] ?? 0) + 1;
+      Object.entries(cmap).forEach(([k, v]) => { counts[k] = v.size; });
+      setCompaniesPerPayment(counts);
+
+      // Histórico: pega entrada mais recente por pagamento
+      const { data: hist } = await supabase
+        .from("payment_status_history")
+        .select("payment_id,status_to,changed_at")
+        .in("payment_id", ids)
+        .order("changed_at", { ascending: false });
+      const seen: Record<string, string> = {};
+      (hist ?? []).forEach((h: any) => {
+        if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at;
       });
-      setOpenQuestionCount(counts);
-      setPaymentIdsWithDivergence(div);
-      setPaymentIdsWithQuestions(quest);
-    })();
-    return () => { cancelled = true; };
+      setStatusEnteredAt(seen);
+
+      // Empresa principal por pagamento (1ª se múltiplas)
+      const cByP: Record<string, string | null> = {};
+      (groups ?? []).forEach((g: any) => { if (!cByP[g.payment_id]) cByP[g.payment_id] = null; });
+      const { data: groupsWithIds } = await supabase
+        .from("payment_company_groups").select("payment_id,company_id").in("payment_id", ids);
+      (groupsWithIds ?? []).forEach((g: any) => {
+        if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
+      });
+      setCompanyByPayment(cByP);
+
+      // Carrega SLAs e overrides relevantes em paralelo
+      const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
+      const [{ data: slas }, { data: ovs }] = await Promise.all([
+        supabase.from("sla_settings").select("*").eq("active", true),
+        compIds.length
+          ? supabase.from("company_sla_overrides").select("*").in("company_id", compIds)
+          : Promise.resolve({ data: [] as any[] } as any),
+      ]);
+      const sMap: Record<string, SlaSetting> = {};
+      (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
+      setSlaSettings(sMap);
+      const oMap: Record<string, CompanySlaOverride> = {};
+      (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
+      setCompanyOverrides(oMap);
+    }
   }, []);
+
+  const loadAncillaryData = useCallback(async () => {
+    const [{ data: divItems }, { data: questPays }, { data: iq }, { data: openQs }] = await Promise.all([
+      supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
+      supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
+      supabase.from("invoice_questions").select("payment_id").limit(5000),
+      supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(5000),
+    ]);
+    const div = new Set<string>();
+    (divItems ?? []).forEach((r: any) => r.payment_id && div.add(r.payment_id));
+    const quest = new Set<string>();
+    (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
+    (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
+    const counts: Record<string, number> = {};
+    (openQs ?? []).forEach((r: any) => {
+      if (!r.payment_id) return;
+      counts[r.payment_id] = (counts[r.payment_id] ?? 0) + 1;
+    });
+    setOpenQuestionCount(counts);
+    setPaymentIdsWithDivergence(div);
+    setPaymentIdsWithQuestions(quest);
+  }, []);
+
+  useEffect(() => {
+    document.title = "Pagamentos | MedPay Approval";
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    loadAncillaryData();
+  }, [loadAncillaryData]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("payments-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); loadAncillaryData(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { loadAncillaryData(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => { loadAncillaryData(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [load, loadAncillaryData]);
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
   useEffect(() => {
