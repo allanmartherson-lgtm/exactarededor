@@ -561,6 +561,18 @@ const Payments = () => {
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 min-w-0">
             <p className="font-medium text-sm truncate">{p.reference}</p>
+            {(() => {
+              const { items } = usePaymentDetailData(p.id);
+              const risk = calculateFinancialRisk(items);
+              return risk.score > 0 && (
+                <RiskBadge 
+                  level={risk.level} 
+                  score={risk.score} 
+                  financialData={risk}
+                  className="scale-90 origin-left"
+                />
+              );
+            })()}
             {openQuestionCount[p.id] > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
