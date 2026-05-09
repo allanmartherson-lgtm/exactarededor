@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Upload, AlertTriangle, CheckCircle2, ArrowLeft, X } from "lucide-react";
+import { normalizeNumericValue } from "@/lib/utils";
 
 export type ImportFieldDef = {
   key: string;
@@ -578,32 +579,8 @@ function suggestMapping(headers: string[], fields: ImportFieldDef[]) {
 }
 
 const parseNumber = (v: any): number | null => {
-  if (v == null || v === "") return null;
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  
-  let s = String(v).trim().replace(/[R$\s]/g, "");
-  if (!s) return null;
-
-  const hasComma = s.includes(",");
-  const hasPoint = s.includes(".");
-
-  if (hasComma && hasPoint) {
-    // Caso 2: vírgula e ponto -> ponto milhar, vírgula decimal
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma) {
-    // Caso 3: apenas vírgula -> decimal
-    s = s.replace(",", ".");
-  } else if (hasPoint) {
-    // Caso 4: apenas ponto -> verificar se milhar (3 dígitos) ou decimal
-    const parts = s.split(".");
-    const lastPart = parts[parts.length - 1];
-    if (lastPart.length === 3) {
-      s = s.replace(/\./g, "");
-    }
-  }
-
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : null;
+  const result = normalizeNumericValue(v);
+  return result.invalid ? null : result.value;
 };
 
 function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[]) {
