@@ -63,6 +63,7 @@ interface Props {
 export function ImportWizard({ open, onOpenChange, title, profile, onComplete }: Props) {
   const [step, setStep] = useState<Step>("upload");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [rowsBySheet, setRowsBySheet] = useState<Record<string, any[]>>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
