@@ -279,6 +279,14 @@ export const PaymentGroupCard = ({
                       />
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                          {iBreakdown.score > 0 && (
+                            <RiskBadge 
+                              level={iBreakdown.level} 
+                              score={iBreakdown.score} 
+                              showLabel={false} 
+                              reasons={iBreakdown.reasons}
+                            />
+                          )}
                           {item.attendance_number && (
                             <span className="font-mono">Atend. #{item.attendance_number}</span>
                           )}
