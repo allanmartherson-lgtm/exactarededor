@@ -21,7 +21,7 @@ import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
-import { scoreAttendance } from "@/lib/riskScore";
+import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
