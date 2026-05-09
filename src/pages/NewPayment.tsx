@@ -976,6 +976,7 @@ const NewPayment = () => {
                               Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
                             </p>
                             <CompanyCombobox
+                              className="w-full"
                               value={
                                 b.matchedCompany
                                   ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
