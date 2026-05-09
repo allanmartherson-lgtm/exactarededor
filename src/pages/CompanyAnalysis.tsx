@@ -177,6 +177,138 @@ const ObservationTypeSelector = ({
   );
 };
 export default function CompanyAnalysis() {
+  const handleExport = async (format: "pdf" | "excel") => {
+    if (!group || !payment) return;
+    
+    const timestamp = new Date().toISOString().split('T')[0];
+    const fileName = `${group.company_name} - ${payment.reference} - ${timestamp}`;
+    
+    // Impacta aprovação
+    const criticalObs = obs.filter(o => o.observation_type === "impacta_aprovacao");
+    const riskData = {
+      score: (calculateFinancialRisk ? calculateFinancialRisk(items).score : 0),
+      valorEmRisco: (calculateFinancialRisk ? calculateFinancialRisk(items).valorEmRisco : 0),
+      percentualRisco: (calculateFinancialRisk ? calculateFinancialRisk(items).percentualRisco : 0)
+    };
+
+    if (format === "excel") {
+      const { utils, writeFile } = await import("xlsx");
+      
+      // Aba Itens
+      const itemRows = items.map(it => ({
+        "Atendimento": it.attendance_number || "-",
+        "Paciente": (it.raw_data as any)?.["Paciente"] || it.patient_name || "-",
+        "Convênio": it.agreement_text || "-",
+        "TUSS": it.procedure_code || "-",
+        "Procedimento": it.procedure_name || "-",
+        "Médico": it.doctor_name || "-",
+        "Valor Informado": it.gross_amount,
+        "Valor Esperado": it.ai_findings?.expected_amount || 0,
+        "Diferença": (Number(it.gross_amount) - Number(it.ai_findings?.expected_amount || 0)),
+        "Status": it.ai_status
+      }));
+      
+      const wb = utils.book_new();
+      const wsItems = utils.json_to_sheet(itemRows);
+      utils.book_append_sheet(wb, wsItems, "Itens");
+      
+      // Aba Observações Críticas
+      if (criticalObs.length > 0) {
+        const obsRows = criticalObs.map(o => ({
+          "Autor": profiles[o.author_id!] || "Sistema",
+          "Data": new Date(o.created_at).toLocaleString("pt-BR"),
+          "Mensagem": o.message
+        }));
+        const wsObs = utils.json_to_sheet(obsRows);
+        utils.book_append_sheet(wb, wsObs, "Observações Críticas");
+      }
+      
+      writeFile(wb, `${fileName}.xlsx`);
+    } else {
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+      
+      const doc = new jsPDF();
+      
+      // Cabeçalho
+      doc.setFontSize(18);
+      doc.text("Análise de Pagamento", 14, 20);
+      doc.setFontSize(12);
+      doc.text(`Empresa: ${group.company_name}`, 14, 30);
+      doc.text(`Lote: ${payment.reference}`, 14, 37);
+      
+      // Resumo
+      doc.setFontSize(14);
+      doc.text("Resumo Executivo", 14, 50);
+      doc.setFontSize(10);
+      const summary = [
+        ["Total de Itens", String(items.length)],
+        ["Valor Total", formatCurrency(Number(group.total_amount))],
+        ["Alertas (itens)", String(counts.alertasTotal)],
+        ["Críticos (itens)", String(counts.criticosTotal)],
+        ["Score de Risco", String(riskData.score)],
+        ["Valor em Risco", formatCurrency(riskData.valorEmRisco)],
+        ["% em Risco", `${riskData.percentualRisco.toFixed(1)}%`]
+      ];
+      
+      autoTable(doc, {
+        startY: 55,
+        head: [["Métrica", "Valor"]],
+        body: summary,
+        theme: "striped",
+        headStyles: { fillColor: [100, 100, 100] }
+      });
+      
+      // Tabela de Itens
+      doc.setFontSize(14);
+      doc.text("Detalhamento de Itens", 14, (doc as any).lastAutoTable.finalY + 15);
+      
+      const tableData = items.map(it => [
+        it.attendance_number || "-",
+        (it.raw_data as any)?.["Paciente"] || it.patient_name || "-",
+        it.agreement_text || "-",
+        it.procedure_code || "-",
+        it.procedure_name || "-",
+        it.doctor_name || "-",
+        formatCurrency(Number(it.gross_amount)),
+        formatCurrency(Number(it.ai_findings?.expected_amount || 0)),
+        formatCurrency(Number(it.gross_amount) - Number(it.ai_findings?.expected_amount || 0)),
+        it.ai_status || "-"
+      ]);
+      
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [["Atend.", "Paciente", "Conv.", "TUSS", "Proc.", "Médico", "Inf.", "Esp.", "Dif.", "Status"]],
+        body: tableData,
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      
+      // Observações Críticas
+      if (criticalObs.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text("Observações Críticas (Impacta Aprovação)", 14, 20);
+        
+        const obsData = criticalObs.map(o => [
+          profiles[o.author_id!] || "Sistema",
+          new Date(o.created_at).toLocaleString("pt-BR"),
+          o.message
+        ]);
+        
+        autoTable(doc, {
+          startY: 25,
+          head: [["Autor", "Data", "Observação"]],
+          body: obsData,
+          headStyles: { fillColor: [192, 57, 43] },
+          columnStyles: { 2: { cellWidth: 100 } }
+        });
+      }
+      
+      doc.save(`${fileName}.pdf`);
+    }
+  };
+
   const { id, groupId } = useParams<{ id: string; groupId: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
