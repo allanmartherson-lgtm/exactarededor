@@ -93,7 +93,13 @@ export function scoreAttendance(items: PaymentItemRowData[]): RiskBreakdown {
   for (const it of items) {
     const s = scoreItem(it);
     score += s.score;
-    reasons.push(...s.reasons);
+    
+    if (s.reasons.length > 0) {
+      const itemDesc = it.procedure_name || it.description || it.procedure_code || "Item";
+      const itemPrefix = items.length > 1 ? `${itemDesc}: ` : "";
+      reasons.push(...s.reasons.map(r => `${itemPrefix}${r}`));
+    }
+
     const tl = (it as any).tipo_linha as string | null;
     const v = Number(it.gross_amount ?? 0);
     if (tl === "complemento_bonus") compl += v;

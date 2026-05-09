@@ -28,7 +28,7 @@ import type {
   ObservationRow,
   PaymentItemRow as PaymentItemRowData,
 } from "@/hooks/usePaymentDetailData";
-import { scoreAttendance, classifyRisk } from "@/lib/riskScore";
+import { scoreAttendance, classifyRisk, scoreItem } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
 import { cn } from "@/lib/utils";
 
@@ -121,6 +121,7 @@ export const PaymentGroupCard = ({
     0,
     ...Array.from(attendanceScores.values()).map((s) => s.score),
   );
+  const groupMaxBreakdown = Array.from(attendanceScores.values()).find((s) => s.score === groupMaxScore);
   const groupRisk = classifyRisk(groupMaxScore);
 
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
@@ -178,7 +179,12 @@ export const PaymentGroupCard = ({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {groupMaxScore > 0 && (
-            <RiskBadge level={groupRisk} score={groupMaxScore} title={`Maior score de atendimento: ${groupMaxScore}`} />
+            <RiskBadge 
+              level={groupRisk} 
+              score={groupMaxScore} 
+              title={`Maior score de atendimento: ${groupMaxScore}`} 
+              reasons={groupMaxBreakdown?.reasons}
+            />
           )}
           <StatusBadge status={gStatus} />
         </div>
@@ -258,6 +264,7 @@ export const PaymentGroupCard = ({
                   : "muted";
                 const raw = (item.raw_data ?? {}) as Record<string, unknown>;
                 const paciente = (raw["Paciente"] ?? raw["paciente"] ?? null) as string | null;
+                const iBreakdown = scoreItem(item);
                 return (
                   <li key={item.id} className="px-4 py-2 text-xs">
                     <div className="flex items-start gap-2">
@@ -272,6 +279,14 @@ export const PaymentGroupCard = ({
                       />
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                          {iBreakdown.score > 0 && (
+                            <RiskBadge 
+                              level={iBreakdown.level} 
+                              score={iBreakdown.score} 
+                              showLabel={false} 
+                              reasons={iBreakdown.reasons}
+                            />
+                          )}
                           {item.attendance_number && (
                             <span className="font-mono">Atend. #{item.attendance_number}</span>
                           )}
@@ -336,7 +351,12 @@ export const PaymentGroupCard = ({
                 return (
                   <li key={row.att} className="font-mono flex items-center gap-1.5 flex-wrap">
                     {sc && sc.score > 0 && (
-                      <RiskBadge level={sc.level} score={sc.score} showLabel={false} />
+                      <RiskBadge 
+                        level={sc.level} 
+                        score={sc.score} 
+                        showLabel={false} 
+                        reasons={sc.reasons}
+                      />
                     )}
                     <span>
                       Atend. #{row.att}: base {formatCurrency(row.base)}
