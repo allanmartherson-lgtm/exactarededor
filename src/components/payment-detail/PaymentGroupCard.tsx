@@ -117,12 +117,10 @@ export const PaymentGroupCard = ({
   for (const [att, arr] of attendanceMap) {
     attendanceScores.set(att, scoreAttendance(arr));
   }
-  const groupMaxScore = Math.max(
-    0,
-    ...Array.from(attendanceScores.values()).map((s) => s.score),
-  );
-  const groupMaxBreakdown = Array.from(attendanceScores.values()).find((s) => s.score === groupMaxScore);
-  const groupRisk = classifyRisk(groupMaxScore);
+  const groupFinancialRisk = calculateFinancialRisk(groupItems);
+  const groupMaxScore = groupFinancialRisk.score;
+  const groupRisk = groupFinancialRisk.level;
+  const groupMaxBreakdown = groupFinancialRisk;
 
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
