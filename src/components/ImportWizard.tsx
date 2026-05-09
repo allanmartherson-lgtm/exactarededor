@@ -586,7 +586,7 @@ function buildImportPayload(
   entity: ImportProfile["entity"],
 ) {
   const mapped = applyMapping(rows, mapping, fields);
-  const { valid, errors, dups } = validateRows(mapped, fields);
+  const { valid, errors, dups } = validateRows(mapped, fields, entity);
   const fixed = fixedContext ?? {};
   const records = valid.map((r) => {
     const rec: Record<string, any> = { ...r, ...fixed };
