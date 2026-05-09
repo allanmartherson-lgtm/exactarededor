@@ -245,7 +245,7 @@ export default function CompanyAnalysis() {
       const { default: jsPDF } = await import("jspdf");
       const { default: autoTable } = await import("jspdf-autotable");
       
-      const doc = new jsPDF();
+      const doc = new jsPDF({ orientation: "landscape" });
       
       // Cabeçalho
       doc.setFontSize(18);
@@ -273,7 +273,8 @@ export default function CompanyAnalysis() {
         head: [["Métrica", "Valor"]],
         body: summary,
         theme: "striped",
-        headStyles: { fillColor: [100, 100, 100] }
+        headStyles: { fillColor: [100, 100, 100] },
+        margin: { left: 14, right: 14 }
       });
       
       // Tabela de Itens
@@ -297,8 +298,9 @@ export default function CompanyAnalysis() {
         startY: (doc as any).lastAutoTable.finalY + 20,
         head: [["Atend.", "Paciente", "Conv.", "TUSS", "Proc.", "Médico", "Inf.", "Esp.", "Dif.", "Status"]],
         body: tableData,
-        styles: { fontSize: 7 },
-        headStyles: { fillColor: [41, 128, 185] }
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [41, 128, 185] },
+        margin: { left: 14, right: 14 }
       });
       
       // Observações Críticas
@@ -318,7 +320,8 @@ export default function CompanyAnalysis() {
           head: [["Autor", "Data", "Observação"]],
           body: obsData,
           headStyles: { fillColor: [192, 57, 43] },
-          columnStyles: { 2: { cellWidth: 100 } }
+          margin: { left: 14, right: 14 },
+          columnStyles: { 2: { cellWidth: "auto" } }
         });
       }
       
