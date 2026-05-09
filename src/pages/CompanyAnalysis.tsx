@@ -1349,6 +1349,8 @@ function DivergenceCard({
   profiles: Record<string, string>;
   draft: string;
   onDraftChange: (v: string) => void;
+  type: ObservationType;
+  onTypeChange: (v: ObservationType) => void;
   onAdd: () => void;
   busy: boolean;
 }) {
@@ -1438,17 +1440,24 @@ function DivergenceCard({
           </ul>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Textarea
-            placeholder="Comentar este item…"
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            rows={2}
-            className="flex-1"
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Textarea
+              placeholder="Comentar este item…"
+              value={draft}
+              onChange={(e) => onDraftChange(e.target.value)}
+              rows={2}
+              className="flex-1"
+            />
+            <Button size="sm" onClick={onAdd} disabled={busy || !draft.trim()} className="self-end">
+              Comentar
+            </Button>
+          </div>
+          <ObservationTypeSelector
+            value={type}
+            onChange={onTypeChange}
+            disabled={busy}
           />
-          <Button size="sm" onClick={onAdd} disabled={busy || !draft.trim()} className="self-end">
-            Comentar
-          </Button>
         </div>
       </CardContent>
     </Card>
