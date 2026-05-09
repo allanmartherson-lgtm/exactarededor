@@ -51,7 +51,67 @@ import { cn } from "@/lib/utils";
 
 import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 
-const ObservationTypeSelector = ({
+const HighlightBanner = ({
+  observations,
+  profiles
+}: {
+  observations: ObservationRow[];
+  profiles: Record<string, string>;
+}) => {
+  const highlights = useMemo(() => {
+    return observations.filter(o => 
+      o.observation_type === "impacta_aprovacao" || 
+      o.observation_type === "justificativa_override"
+    );
+  }, [observations]);
+
+  if (highlights.length === 0) return null;
+
+  return (
+    <div className="space-y-2 mb-4">
+      {highlights.map((h) => (
+        <div 
+          key={h.id} 
+          className={cn(
+            "flex items-start gap-3 p-3 rounded-lg border shadow-sm animate-in fade-in slide-in-from-top-2 duration-300",
+            h.observation_type === "impacta_aprovacao" 
+              ? "bg-amber-50 border-amber-200" 
+              : "bg-success-soft border-success/30"
+          )}
+        >
+          <div className="mt-0.5">
+            {h.observation_type === "impacta_aprovacao" ? (
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+            ) : (
+              <Pencil className="h-4 w-4 text-success" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px] uppercase tracking-wider font-bold h-5 px-1.5",
+                  h.observation_type === "impacta_aprovacao"
+                    ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                    : "border-success/50 text-success-foreground bg-success/10"
+                )}
+              >
+                {h.observation_type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa de Override"}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {profiles[h.author_id!] || "Sistema"} · {new Date(h.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-foreground leading-relaxed">
+              {h.message}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
   value,
   onChange,
   disabled
