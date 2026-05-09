@@ -1419,6 +1419,8 @@ const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: 
 };
 
 const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number }) => {
+  const { items } = usePaymentDetailData(p.id);
+  const risk = calculateFinancialRisk(items);
   const stages = computeStages(p.status);
   const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
   return (
