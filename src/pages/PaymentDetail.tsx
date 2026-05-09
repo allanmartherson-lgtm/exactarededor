@@ -718,7 +718,7 @@ const PaymentDetail = () => {
     setReimporting(true);
     try {
       const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
-      const { data: companiesData } = await supabase.from("companies").select("id,name,aliases");
+      const { data: companiesData } = await supabase.from("companies").select("id,name,aliases").limit(5000);
       const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
       const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
       if (bucket.rows.length === 0) {

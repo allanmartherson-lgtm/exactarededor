@@ -98,10 +98,11 @@ export default function Doctors() {
   }, []);
 
   const load = async () => {
+    // Médicos e empresas podem passar de 1000 registros, então aumentamos o limite.
     const [d, c, l] = await Promise.all([
-      supabase.from("doctors").select("*").order("full_name"),
-      supabase.from("companies").select("id,name,document").order("name"),
-      supabase.from("doctor_companies").select("doctor_id,company_id"),
+      supabase.from("doctors").select("*").order("full_name").limit(10000),
+      supabase.from("companies").select("id,name,document").order("name").limit(5000),
+      supabase.from("doctor_companies").select("doctor_id,company_id").limit(20000),
     ]);
     setItems((d.data ?? []) as Doctor[]);
     setCompanies((c.data ?? []) as Company[]);

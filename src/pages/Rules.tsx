@@ -331,7 +331,7 @@ const Rules = () => {
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
-  const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").then(({ data }) => setCompanies((data ?? []) as any));
+  const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").limit(5000).then(({ data }) => setCompanies((data ?? []) as any));
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
   const exportRuleToPDF = (r: RuleRow) => {
