@@ -656,15 +656,27 @@ function validateRows(mapped: any[], fields: ImportFieldDef[]) {
   const dups: { row: number; key: string }[] = [];
   const valid: any[] = [];
   mapped.forEach((r, i) => {
+    const rowNum = i + 2;
     const missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" || (Array.isArray(r[k]) && r[k].length === 0));
     if (missing.length) {
-      errors.push({ row: i + 2, reason: `Campos obrigatórios ausentes: ${missing.join(", ")}` });
+      const labels = missing.map(k => fields.find(f => f.key === k)?.label || k);
+      errors.push({ row: rowNum, reason: `Campos obrigatórios ausentes: ${labels.join(", ")}` });
       return;
     }
+
+    // Validação de e-mail se presente e não for vazio
+    if (r.email && typeof r.email === 'string' && r.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(r.email)) {
+        errors.push({ row: rowNum, reason: `E-mail inválido: ${r.email}` });
+        return;
+      }
+    }
+
     if (uniqueKeys.length) {
-      const k = uniqueKeys.map((u) => String(r[u]).toLowerCase()).join("||");
+      const k = uniqueKeys.map((u) => String(r[u] ?? "").toLowerCase().trim()).join("||");
       if (seen.has(k)) {
-        dups.push({ row: i + 2, key: k });
+        dups.push({ row: rowNum, key: k });
         return;
       }
       seen.add(k);
