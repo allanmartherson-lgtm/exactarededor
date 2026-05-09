@@ -546,6 +546,16 @@ const NewPayment = () => {
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
+    const unconfirmed = buckets.filter((b) => !b.manualOverride && b.matchScore < 0.9);
+    if (unconfirmed.length > 0) {
+      toast({
+        title: "Confirmação de empresa pendente",
+        description: `Existem ${unconfirmed.length} arquivo(s) com empresa não confirmada (match < 90%). Por favor, confirme ou selecione a empresa correta.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (preValidation.critical > 0) {
       toast({
         title: `Pré-validação: ${preValidation.critical} erro(s) crítico(s)`,
