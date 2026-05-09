@@ -312,7 +312,7 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
       {companiesCount !== undefined && companiesCount > 0 && (
         <div style={{ marginTop: 2, marginBottom: -4 }}>
           <span
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground"
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground"
             style={{ 
               background: "hsl(var(--muted))", 
               color: "hsl(var(--muted-foreground))",
