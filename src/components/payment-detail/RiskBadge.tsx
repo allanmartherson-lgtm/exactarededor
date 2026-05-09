@@ -50,17 +50,20 @@ export function RiskBadge({
   reasons?: string[];
 }) {
   const badge = (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
-        RISK_BADGE_CLASS[level],
-        className,
-      )}
-    >
-      <span aria-hidden>{RISK_EMOJI[level]}</span>
-      {showLabel && <span>{RISK_LABELS[level]}</span>}
-      {score != null && <span className="opacity-70">· {score}</span>}
-    </span>
+    <div className="flex items-center gap-1">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
+          RISK_BADGE_CLASS[level],
+          className,
+        )}
+      >
+        <span aria-hidden>{RISK_EMOJI[level]}</span>
+        {showLabel && <span>{RISK_LABELS[level]}</span>}
+        {score != null && <span className="opacity-70">· {score}</span>}
+      </span>
+      <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help" />
+    </div>
   );
 
   return (
