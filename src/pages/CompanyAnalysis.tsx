@@ -800,8 +800,7 @@ export default function CompanyAnalysis() {
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
   const canActAnalista =
     (gStatus === "revisao_analista" || gStatus === "devolvido_analista" || gStatus === "aprovado_em_revisao") &&
-    isAnalistaRole &&
-    (isOwner || isAdmin);
+    isAnalistaRole;
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
