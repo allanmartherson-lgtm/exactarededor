@@ -992,7 +992,7 @@ function ItemDetailsRow({
   // Reusa o set tipográfico exportado no topo do arquivo (TEXT_BODY/TEXT_LABEL/TEXT_META)
   // para manter o painel expandido idêntico ao restante da tela (headers + cells + AlertBanner).
   // Card base: contém o conteúdo com overflow seguro (nada vaza, nada invade vizinhos).
-  const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]";
+  const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word]";
 
   const Label = ({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) => (
     <p className={cn(TEXT_LABEL, "flex items-center gap-1")}>
@@ -1013,11 +1013,11 @@ function ItemDetailsRow({
           style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
         >
           {/* Resumo do item */}
-          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8">
+          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8 min-w-0">
             {summary.map((s) => (
-              <div key={s.label} className="min-w-0">
+              <div key={s.label} className="min-w-0 overflow-hidden">
                 <Label>{s.label}</Label>
-                <p className={cn(TEXT_BODY, "break-words [overflow-wrap:anywhere] mt-0.5")}>{s.value}</p>
+                <p className={cn(TEXT_BODY, "break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full mt-0.5")}>{s.value}</p>
               </div>
             ))}
           </div>
@@ -1076,7 +1076,7 @@ function ItemDetailsRow({
                           )}
                           <span className="ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{o.message}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{o.message}</p>
                       </li>
                     ))}
                   </ul>
@@ -1089,9 +1089,9 @@ function ItemDetailsRow({
               {matchedRules.length > 0 ? (
                 <div className={CARD}>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium text-primary mt-1">{matchedRules[0].name}</p>
+                  <p className="font-medium text-primary mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].name}</p>
                   {matchedRules[0].rule_text && (
-                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap">{matchedRules[0].rule_text}</p>
+                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].rule_text}</p>
                   )}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
@@ -1102,7 +1102,7 @@ function ItemDetailsRow({
               ) : matchedNames.length > 0 ? (
                 <div className={CARD}>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium mt-1">{matchedNames[0]}</p>
+                  <p className="font-medium mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedNames[0]}</p>
                 </div>
               ) : (
                 <div className={cn(CARD, "text-muted-foreground")}>Nenhuma regra específica casou.</div>
@@ -1111,7 +1111,7 @@ function ItemDetailsRow({
               {aiNote && (
                 <div className={CARD}>
                   <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
-                  <p className="text-muted-foreground italic whitespace-pre-wrap mt-1">{aiNote}</p>
+                  <p className="text-muted-foreground italic whitespace-pre-wrap mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{aiNote}</p>
                 </div>
               )}
 
@@ -1173,7 +1173,7 @@ function ItemDetailsRow({
                     )}
                   </div>
                   {explanation && (
-                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap">{explanation}</p>
+                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{explanation}</p>
                   )}
                 </div>
               )}
