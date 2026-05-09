@@ -1173,7 +1173,7 @@ function ItemDetailsRow({
                     )}
                   </div>
                   {explanation && (
-                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap">{explanation}</p>
+                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{explanation}</p>
                   )}
                 </div>
               )}
