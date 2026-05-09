@@ -586,7 +586,7 @@ export function selectWinningRule(
   const groupRules   = filterBySpecialty(rules.filter((r) => targetsGroup(r, item)), "grupo");
   const sectorRules  = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector)), "setor");
   const hemoMaster   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica")), "setor_hemodinamica_master");
-  const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0 || ruleSectors(r).includes(itemSector))), "setor_master_geral");
+  const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0 || ruleSectors(r).includes(itemSector) || (hasCodeRestriction(r) && matchesProcedureCode(r, item)))), "setor_master_geral");
 
   const levels: Array<{
     bucket: RuleInput[];
