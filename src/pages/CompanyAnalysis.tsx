@@ -178,6 +178,22 @@ const ObservationTypeSelector = ({
   );
 };
 export default function CompanyAnalysis() {
+  const { id, groupId } = useParams<{ id: string; groupId: string }>();
+  const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
+
+  const {
+    payment,
+    items: allItems,
+    obs,
+    groups,
+    rulesIndex,
+    rulesByName,
+    profiles,
+    assignments,
+    load,
+  } = usePaymentDetailData(id);
+
   const handleExport = async (format: "pdf" | "excel") => {
     if (!group || !payment) return;
     
@@ -309,22 +325,6 @@ export default function CompanyAnalysis() {
       doc.save(`${fileName}.pdf`);
     }
   };
-
-  const { id, groupId } = useParams<{ id: string; groupId: string }>();
-  const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
-
-  const {
-    payment,
-    items: allItems,
-    obs,
-    groups,
-    rulesIndex,
-    rulesByName,
-    profiles,
-    assignments,
-    load,
-  } = usePaymentDetailData(id);
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
 
