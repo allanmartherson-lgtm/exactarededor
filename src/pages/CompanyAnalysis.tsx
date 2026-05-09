@@ -416,6 +416,80 @@ export default function CompanyAnalysis() {
     }
   };
 
+  const doReimport = async (file: File) => {
+    if (!id || !payment || !user) return;
+    setReimporting(true);
+    try {
+      const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
+      const { data: companiesData } = await supabase.from("companies").select("id,name,aliases");
+      const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+      const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
+      if (bucket.rows.length === 0) {
+        toast.error("Arquivo vazio", { description: "Nenhuma linha válida encontrada." });
+        return;
+      }
+      
+      const path = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("payment-files").upload(path, file);
+      if (upErr) throw upErr;
+
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+
+      const newItems = bucket.rows.map((r) => ({
+        payment_id: id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: r.company_name,
+        company_id: r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: r.specialty,
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+      }));
+      const { error: insErr } = await supabase.from("payment_items").insert(newItems);
+      if (insErr) throw insErr;
+
+      const total = bucket.rows.reduce((s, r) => s + r.gross_amount, 0);
+      await supabase.from("payments").update({
+        source_file_path: path,
+        total_amount: total,
+        items_count: bucket.rows.length,
+        status: "em_analise_ia",
+      }).eq("id", id);
+
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Base reimportada pelo analista (${bucket.rows.length} itens, total ${total.toFixed(2)}). Arquivo: ${file.name}.`,
+        status_from: payment.status, status_to: "em_analise_ia",
+      });
+
+      supabase.functions.invoke("analyze-payment", { body: { payment_id: id } });
+      toast.success("Base reimportada", { description: "Reanalisando itens..." });
+      
+      // Como o grupo antigo sumiu, voltamos para a página do lote
+      navigate(`/pagamentos/${id}`);
+    } catch (e) {
+      toast.error("Erro ao reimportar", { description: String(e) });
+    } finally {
+      setReimporting(false);
+      setReimportConfirm(null);
+      if (reimportInputRef.current) reimportInputRef.current.value = "";
+    }
+  };
+
   const openEditItem = (it: PaymentItemRow) => {
     setEditItem(it);
     setEditDraft({
