@@ -327,6 +327,7 @@ export default function CompanyAnalysis() {
 
   const reanalyzeGroup = async () => {
     if (!id || !group) return;
+    await autoClaim();
     setReanalyzing(true);
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
