@@ -39,12 +39,14 @@ export function RiskBadge({
   showLabel = true,
   className,
   title,
+  reasons,
 }: {
   level: RiskLevel;
   score?: number;
   showLabel?: boolean;
   className?: string;
   title?: string;
+  reasons?: string[];
 }) {
   const badge = (
     <span
