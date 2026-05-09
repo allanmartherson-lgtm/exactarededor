@@ -1522,6 +1522,8 @@ const TaskRow = ({
   slaLevel?: SlaLevel;
   qCount?: number;
 }) => {
+  const { items } = usePaymentDetailData(p.id);
+  const risk = calculateFinancialRisk(items);
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
   const slaTone =
