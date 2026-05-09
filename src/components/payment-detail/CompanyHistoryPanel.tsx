@@ -209,8 +209,11 @@ export function CompanyHistoryPanel({
     if (filterItem === "geral") out = out.filter((e) => e.itemId === null);
     else if (filterItem !== "all") out = out.filter((e) => e.itemId === filterItem);
     if (filterRole !== "all") out = out.filter((e) => e.authorType === filterRole);
+    if (filterType !== "all") {
+      out = out.filter((e) => e.kind === "obs" && e.type === filterType);
+    }
     return out;
-  }, [entries, filterItem, filterRole]);
+  }, [entries, filterItem, filterRole, filterType]);
 
   const availableRoles = useMemo(() => {
     const order = ["analista", "validador", "diretor", "admin", "sistema", "ia"];
