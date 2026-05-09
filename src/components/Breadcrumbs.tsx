@@ -1,12 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
-import { NAV_ITEMS, isGroup, type NavItem, type NavLeaf, type NavGroup } from "@/config/navItems";
+import { NAV_ITEMS, isGroup, type NavLeaf, type NavGroup } from "@/config/navItems";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-/**
- * Extra label fallbacks for routes that exist in the router but are not
- * present as leaves in NAV_ITEMS (detail / nested pages). Routing is NOT
- * changed — this only affects the breadcrumb labels.
- */
 const EXTRA_LABELS: Record<string, string> = {
   "/pagamentos/novo": "Nova base",
   "/pagamentos": "Pagamentos",
@@ -14,8 +11,6 @@ const EXTRA_LABELS: Record<string, string> = {
   "/diagnostico": "Diagnóstico",
   "/wcag-audit": "Auditoria WCAG",
 };
-
-type Crumb = { label: string; to?: string };
 
 function findLeafByPath(path: string): { leaf: NavLeaf; group?: NavGroup } | null {
   for (const item of NAV_ITEMS) {
@@ -29,10 +24,13 @@ function findLeafByPath(path: string): { leaf: NavLeaf; group?: NavGroup } | nul
   return null;
 }
 
-function labelFor(path: string): string {
+function labelFor(path: string, dynamicLabels: Record<string, string>): string {
+  if (dynamicLabels[path]) return dynamicLabels[path];
+  
   const found = findLeafByPath(path);
   if (found) return found.leaf.label;
   if (EXTRA_LABELS[path]) return EXTRA_LABELS[path];
+  
   // Fallback: last segment, decoded and prettified.
   const seg = path.split("/").filter(Boolean).pop() ?? "";
   try {
@@ -42,34 +40,70 @@ function labelFor(path: string): string {
   }
 }
 
-function buildCrumbs(pathname: string): Crumb[] {
-  if (pathname === "/" || pathname === "") {
-    return [{ label: "Dashboard" }];
-  }
-
-  const crumbs: Crumb[] = [{ label: "Dashboard", to: "/" }];
-
-  // If the leaf belongs to a topbar group, surface that group as a non-clickable crumb.
-  const found = findLeafByPath(pathname);
-  if (found?.group) {
-    crumbs.push({ label: found.group.label });
-  }
-
-  // Build cumulative segment crumbs.
-  const segments = pathname.split("/").filter(Boolean);
-  let acc = "";
-  segments.forEach((seg, idx) => {
-    acc += `/${seg}`;
-    const isLast = idx === segments.length - 1;
-    crumbs.push({ label: labelFor(acc), to: isLast ? undefined : acc });
-  });
-
-  return crumbs;
-}
-
 export const Breadcrumbs = () => {
   const { pathname } = useLocation();
-  const crumbs = buildCrumbs(pathname);
+  const [dynamicLabels, setDynamicLabels] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchLabels = async () => {
+      const segments = pathname.split("/").filter(Boolean);
+      const newLabels: Record<string, string> = {};
+
+      // Dashboard > Pagamentos > [Nome do Lote]
+      if (segments[0] === "pagamentos" && segments[1] && segments[1] !== "novo") {
+        const paymentId = segments[1];
+        const { data } = await supabase
+          .from("payments")
+          .select("reference")
+          .eq("id", paymentId)
+          .single();
+        if (data?.reference) {
+          newLabels[`/pagamentos/${paymentId}`] = data.reference;
+        }
+
+        // Dashboard > Pagamentos > [Nome do Lote] > Empresa > [Nome da Empresa]
+        if (segments[2] === "empresa" && segments[3]) {
+          const groupId = segments[3];
+          const { data: groupData } = await supabase
+            .from("payment_company_groups")
+            .select("company_name")
+            .eq("id", groupId)
+            .single();
+          if (groupData?.company_name) {
+            const truncated = groupData.company_name.length > 40 
+              ? groupData.company_name.slice(0, 37) + "..."
+              : groupData.company_name;
+            newLabels[`/pagamentos/${paymentId}/empresa/${groupId}`] = truncated;
+            newLabels[`/pagamentos/${paymentId}/empresa`] = "Empresa";
+          }
+        }
+      }
+
+      setDynamicLabels(prev => ({ ...prev, ...newLabels }));
+    };
+
+    fetchLabels();
+  }, [pathname]);
+
+  const crumbs: { label: string; to?: string }[] = [{ label: "Dashboard", to: "/" }];
+  
+  if (pathname !== "/" && pathname !== "") {
+    const found = findLeafByPath(pathname);
+    if (found?.group) {
+      crumbs.push({ label: found.group.label });
+    }
+
+    const segments = pathname.split("/").filter(Boolean);
+    let acc = "";
+    segments.forEach((seg, idx) => {
+      acc += `/${seg}`;
+      const isLast = idx === segments.length - 1;
+      crumbs.push({ 
+        label: labelFor(acc, dynamicLabels), 
+        to: isLast ? undefined : acc 
+      });
+    });
+  }
 
   return (
     <nav aria-label="Breadcrumb" className="mb-4">
