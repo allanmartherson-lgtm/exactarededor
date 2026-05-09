@@ -98,6 +98,9 @@ export default function CompanyAnalysis() {
   const [savingItem, setSavingItem] = useState(false);
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  const [reimporting, setReimporting] = useState(false);
+  const [reimportConfirm, setReimportConfirm] = useState<File | null>(null);
+  const reimportInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
