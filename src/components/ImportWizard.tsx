@@ -185,19 +185,27 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       
       for (let i = 0; i < totalToImport; i += CHUNK) {
         const chunk = records.slice(i, i + CHUNK);
-        const data = await callFn({
-          mode: "commit",
-          records: chunk,
-          totalRows: chunk.length,
-          replaceBefore: i === 0,
-          profile: { ...profile, importMode },
-        });
-        
-        totals.inserted += data.inserted ?? 0;
-        totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
-        totals.created = (totals.created ?? 0) + (data.created ?? 0);
-        totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
-        totals.insert_errors.push(...(data.insert_errors ?? []));
+        try {
+          const data = await callFn({
+            mode: "commit",
+            records: chunk,
+            totalRows: chunk.length,
+            replaceBefore: i === 0,
+            profile: { ...profile, importMode },
+          });
+          
+          totals.inserted += data.inserted ?? 0;
+          totals.updated = (totals.updated ?? 0) + (data.updated ?? 0);
+          totals.created = (totals.created ?? 0) + (data.created ?? 0);
+          totals.removed_before_replace = (totals.removed_before_replace ?? 0) + (data.removed_before_replace ?? 0);
+          totals.insert_errors.push(...(data.insert_errors ?? []));
+        } catch (chunkErr: any) {
+          console.error(`Error in chunk ${i/CHUNK + 1}:`, chunkErr);
+          totals.insert_errors.push({ 
+            chunk: Math.floor(i / CHUNK) + 1, 
+            reason: chunkErr.message || "Erro de conexão no lote" 
+          });
+        }
         
         setProgress(Math.round(((i + chunk.length) / totalToImport) * 100));
       }
