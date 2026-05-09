@@ -924,16 +924,30 @@ const NewPayment = () => {
                           {b.matchedCompany?.name ?? b.rawCompanyName}
                         </Badge>
                         {b.manualOverride ? (
-                          <Badge variant="secondary" className="gap-1 text-success">
+                          <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
                           </Badge>
-                        ) : b.matchedCompany ? (
-                          <Badge variant="secondary" className="gap-1 text-success">
+                        ) : b.matchScore >= 0.9 ? (
+                          <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> match {Math.round(b.matchScore * 100)}%
                           </Badge>
+                        ) : b.matchScore >= 0.7 ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="gap-1 text-amber-600 border-amber-200 bg-amber-50">
+                              <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
+                            </Badge>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
+                              onClick={() => confirmBucketCompany(idx)}
+                            >
+                              Confirmar sugestão
+                            </Button>
+                          </div>
                         ) : (
-                          <Badge variant="secondary" className="gap-1 text-warning">
-                            <AlertCircle className="h-3 w-3" /> empresa não cadastrada
+                          <Badge variant="secondary" className="gap-1 text-destructive border-destructive/30 bg-destructive/10">
+                            <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
                         <Popover>
