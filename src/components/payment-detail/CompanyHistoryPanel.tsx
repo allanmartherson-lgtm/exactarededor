@@ -85,6 +85,7 @@ export function CompanyHistoryPanel({
 
   const [filterItem, setFilterItem] = useState<string>("all");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
 
   const entries = useMemo<Entry[]>(() => {
     const out: Entry[] = [];
@@ -100,6 +101,7 @@ export function CompanyHistoryPanel({
         id: `obs-${o.id}`,
         at: o.created_at,
         kind: "obs",
+        type: o.observation_type,
         authorType: o.author_type,
         authorName: o.author_id
           ? (profiles[o.author_id] ?? `Usuário ${o.author_id.slice(0, 8)}`)
