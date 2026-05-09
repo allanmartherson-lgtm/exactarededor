@@ -187,9 +187,9 @@ export default function CompanyAnalysis() {
     // Impacta aprovação
     const criticalObs = obs.filter(o => o.observation_type === "impacta_aprovacao");
     const riskData = {
-      score: (calculateFinancialRisk ? calculateFinancialRisk(items).score : 0),
-      valorEmRisco: (calculateFinancialRisk ? calculateFinancialRisk(items).valorEmRisco : 0),
-      percentualRisco: (calculateFinancialRisk ? calculateFinancialRisk(items).percentualRisco : 0)
+      score: calculateFinancialRisk(items).score,
+      valorEmRisco: calculateFinancialRisk(items).valorEmRisco,
+      percentualRisco: calculateFinancialRisk(items).percentualRisco
     };
 
     if (format === "excel") {
