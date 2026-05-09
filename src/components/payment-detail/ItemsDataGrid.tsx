@@ -1102,7 +1102,7 @@ function ItemDetailsRow({
               ) : matchedNames.length > 0 ? (
                 <div className={CARD}>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium mt-1">{matchedNames[0]}</p>
+                  <p className="font-medium mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedNames[0]}</p>
                 </div>
               ) : (
                 <div className={cn(CARD, "text-muted-foreground")}>Nenhuma regra específica casou.</div>
