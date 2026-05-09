@@ -264,6 +264,7 @@ export const PaymentGroupCard = ({
                   : "muted";
                 const raw = (item.raw_data ?? {}) as Record<string, unknown>;
                 const paciente = (raw["Paciente"] ?? raw["paciente"] ?? null) as string | null;
+                const iBreakdown = scoreItem(item);
                 return (
                   <li key={item.id} className="px-4 py-2 text-xs">
                     <div className="flex items-start gap-2">
