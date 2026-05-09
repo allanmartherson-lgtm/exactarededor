@@ -29,9 +29,8 @@ const DOCTORS_IMPORT_PROFILE: ImportProfile = {
     { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },
     { key: "phone", label: "Telefone", aliases: ["telefone", "celular", "fone"] },
     { key: "specialties", label: "Especialidades", type: "array", aliases: ["especialidade", "especialidades"] },
+    { key: "active", label: "Ativo", type: "boolean", aliases: ["ativo", "status"], defaultValue: true },
     { key: "companies_raw", label: "Empresa(s)/PJ", type: "array", aliases: ["empresa", "empresas", "pj", "pjs", "clinica", "clínica"] },
-    { key: "notes", label: "Observações", aliases: ["obs", "observacao", "observação", "observacoes", "observações"] },
-    { key: "active", label: "Ativo", type: "boolean", aliases: ["ativo", "status"] },
   ],
 };
 
