@@ -693,12 +693,57 @@ export default function CompanyAnalysis() {
 
   return (
     <div className="space-y-4 pb-32">
-      <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/pagamentos/${id}#group-${groupId}`}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
-          </Link>
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className=\"flex items-center gap-2\">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/pagamentos/${id}#group-${groupId}`}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
+            </Link>
+          </Button>
+
+          {canReimport && (
+            <>
+              <input
+                ref={reimportInputRef}
+                type=\"file\"
+                accept=\".xlsx,.xls\"
+                className=\"hidden\"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setReimportConfirm(f);
+                }}
+              />
+              <Button
+                variant=\"outline\"
+                size=\"sm\"
+                disabled={busy || reimporting}
+                onClick={() => reimportInputRef.current?.click()}
+              >
+                <Upload className=\"h-4 w-4 mr-1\" /> {reimporting ? \"Reimportando…\" : \"Reimportar base\"}
+              </Button>
+              <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.name}</strong> e reinicia a análise. Não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={reimporting}
+                      onClick={() => reimportConfirm && doReimport(reimportConfirm)}
+                      className=\"bg-primary text-primary-foreground hover:bg-primary/90\"
+                    >
+                      {reimporting ? \"Reimportando…\" : \"Confirmar\"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </div>
         <StatusBadge status={gStatus} />
       </div>
 
