@@ -25,7 +25,7 @@ import { scoreAttendance } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { recordObservation } from "@/lib/observations";
+import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
@@ -49,7 +49,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil } from "lucide-react";
 
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
@@ -80,12 +80,15 @@ const PaymentDetail = () => {
   const [busy, setBusy] = useState(false);
   const [historyItemFilter, setHistoryItemFilter] = useState<string>("all");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [obsType, setObsType] = useState<ObservationType>("informativo");
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [itemCommentIsQuestion, setItemCommentIsQuestion] = useState<Record<string, boolean>>({});
+  const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
   const [groupComment, setGroupComment] = useState<Record<string, string>>({});
+  const [groupCommentType, setGroupCommentType] = useState<Record<string, ObservationType>>({});
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState<{ reference: string; description: string; payment_due_date: string }>({ reference: "", description: "", payment_due_date: "" });
   const [savingMeta, setSavingMeta] = useState(false);
