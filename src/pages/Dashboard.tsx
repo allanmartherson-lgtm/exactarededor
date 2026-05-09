@@ -1594,7 +1594,7 @@ const TaskRow = ({
           <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
             {p.reference}
           </p>
-          {risk.score > 0 && (
+          {risk && risk.score > 0 && (
             <RiskBadge 
               level={risk.level} 
               score={risk.score} 
