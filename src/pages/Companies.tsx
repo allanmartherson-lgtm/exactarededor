@@ -36,6 +36,27 @@ const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
   return undefined;
 };
 const toStr = (v: unknown): string => v == null ? "" : String(v).trim();
+const COMPANIES_PAGE_SIZE = 1000;
+
+const fetchAllCompanies = async (columns = "*", orderBy?: string) => {
+  const all: any[] = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase.from("companies").select(columns);
+    if (orderBy) query = query.order(orderBy);
+
+    const { data, error } = await query.range(from, from + COMPANIES_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const batch = data ?? [];
+    all.push(...batch);
+    if (batch.length < COMPANIES_PAGE_SIZE) break;
+    from += COMPANIES_PAGE_SIZE;
+  }
+
+  return all;
+};
 
 const Companies = () => {
   const [items, setItems] = useState<Company[]>([]);
@@ -57,9 +78,12 @@ const Companies = () => {
   useEffect(() => { document.title = "Empresas | MedPay"; load(); }, []);
 
   const load = async () => {
-    // Aumentamos o limite para garantir que todas as empresas sejam carregadas (> 1000)
-    const { data } = await supabase.from("companies").select("*").order("name").limit(5000);
-    setItems((data ?? []) as Company[]);
+    try {
+      const data = await fetchAllCompanies("*", "name");
+      setItems(data as Company[]);
+    } catch (error: any) {
+      toast({ title: "Erro ao carregar empresas", description: error.message, variant: "destructive" });
+    }
   };
 
   const save = async () => {
