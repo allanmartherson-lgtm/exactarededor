@@ -1,8 +1,70 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateFinancialRisk, type RiskBreakdown } from "@/lib/riskScore";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
+
+type PaymentRiskRealtimeEntry = {
+  channel: ReturnType<typeof supabase.channel>;
+  subscribers: number;
+  cleanupTimer: ReturnType<typeof setTimeout> | null;
+};
+
+const paymentRiskRealtimeSubscriptions = new Map<string, PaymentRiskRealtimeEntry>();
+
+const subscribeToPaymentRisk = (paymentId: string, queryClient: QueryClient) => {
+  const existing = paymentRiskRealtimeSubscriptions.get(paymentId);
+
+  if (existing) {
+    existing.subscribers += 1;
+    if (existing.cleanupTimer) {
+      clearTimeout(existing.cleanupTimer);
+      existing.cleanupTimer = null;
+    }
+    return () => releasePaymentRiskSubscription(paymentId);
+  }
+
+  const channel = supabase
+    .channel(`payment-risk:${paymentId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "payment_items",
+        filter: `payment_id=eq.${paymentId}`,
+      },
+      () => {
+        queryClient.invalidateQueries({ queryKey: ["payment-risk", paymentId] });
+      }
+    );
+
+  paymentRiskRealtimeSubscriptions.set(paymentId, {
+    channel,
+    subscribers: 1,
+    cleanupTimer: null,
+  });
+
+  channel.subscribe();
+
+  return () => releasePaymentRiskSubscription(paymentId);
+};
+
+const releasePaymentRiskSubscription = (paymentId: string) => {
+  const entry = paymentRiskRealtimeSubscriptions.get(paymentId);
+  if (!entry) return;
+
+  entry.subscribers -= 1;
+  if (entry.subscribers > 0 || entry.cleanupTimer) return;
+
+  entry.cleanupTimer = setTimeout(() => {
+    const latest = paymentRiskRealtimeSubscriptions.get(paymentId);
+    if (!latest || latest.subscribers > 0) return;
+
+    paymentRiskRealtimeSubscriptions.delete(paymentId);
+    supabase.removeChannel(latest.channel);
+  }, 1500);
+};
 
 /**
  * Hook leve para calcular o score de risco de UM lote em listagens.
@@ -34,30 +96,11 @@ export function usePaymentRisk(paymentId: string | undefined): RiskBreakdown | n
     staleTime: 1000 * 60 * 5, // 5 minutos de cache
   });
 
-  // Realtime: Invalida o cache se houver mudança nos itens do lote
+  // Realtime: uma única assinatura por lote, compartilhada por todos os cards/linhas.
   useEffect(() => {
     if (!paymentId) return;
 
-    const channelId = `risk-${paymentId}`;
-    const channel = supabase.channel(channelId)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "payment_items",
-          filter: `payment_id=eq.${paymentId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["payment-risk", paymentId] });
-        }
-      );
-
-    channel.subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return subscribeToPaymentRisk(paymentId, queryClient);
   }, [paymentId, queryClient]);
 
   return risk ?? null;
