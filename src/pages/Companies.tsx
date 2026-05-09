@@ -537,4 +537,78 @@ const Companies = () => {
   );
 };
 
+const ImportResultsDialog = ({ open, results, progress, importing, onOpenChange }: { 
+  open: boolean, 
+  results: any, 
+  progress: number, 
+  importing: boolean,
+  onOpenChange: (open: boolean) => void 
+}) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {importing ? "Importando..." : "Resultado da Importação"}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          {importing && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span>Processando linhas...</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-muted rounded-lg">
+              <div className="text-2xl font-bold">{results.success}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Novos</div>
+            </div>
+            <div className="text-center p-3 bg-muted rounded-lg">
+              <div className="text-2xl font-bold">{results.updated}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Atualizados</div>
+            </div>
+            <div className="text-center p-3 bg-muted rounded-lg border-destructive/20 border">
+              <div className="text-2xl font-bold text-destructive">{results.errors.length}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Erros/Pulos</div>
+            </div>
+          </div>
+
+          {results.errors.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Detalhes dos erros:</Label>
+              <div className="max-h-[200px] overflow-y-auto rounded-md border bg-muted/30 p-2 space-y-1">
+                {results.errors.map((err: string, i: number) => (
+                  <div key={i} className="text-xs flex gap-2 text-destructive">
+                    <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                    <span>{err}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!importing && (
+            <div className="bg-emerald-50 text-emerald-700 p-3 rounded-md flex gap-2 text-sm border border-emerald-100">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>Importação de {results.total} linhas concluída com sucesso.</p>
+            </div>
+          )}
+        </div>
+
+        {!importing && (
+          <DialogFooter>
+            <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default Companies;
