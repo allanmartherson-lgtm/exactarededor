@@ -29,6 +29,12 @@ import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector, canReim
 import { claimPayment } from "@/lib/assignments";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
