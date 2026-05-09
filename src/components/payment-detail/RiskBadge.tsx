@@ -13,17 +13,17 @@ import {
 } from "@/components/ui/tooltip";
 
 const RISK_THRESHOLDS: Record<RiskLevel, string> = {
-  baixo: "0–29",
-  medio: "30–59",
-  alto: "60–99",
-  critico: "≥ 100",
+  baixo: "< 15",
+  medio: "15–34",
+  alto: "35–59",
+  critico: "≥ 60",
 };
 
 const RISK_DESCRIPTION: Record<RiskLevel, string> = {
-  baixo: "Sem indícios relevantes — pode seguir fluxo padrão.",
-  medio: "Tem alertas leves — vale uma conferência rápida.",
-  alto: "Vários sinais somados — priorize a revisão deste grupo.",
-  critico: "Reprovação ou bloqueio detectado — exige análise antes de pagar.",
+  baixo: "Impacto financeiro baixo ou nulo — pode seguir fluxo padrão.",
+  medio: "Impacto moderado ou alertas sem reprovação significativa.",
+  alto: "Problemas reais mas manejáveis — requer atenção.",
+  critico: "Alto percentual de valor em risco e volume relevante — atenção imediata.",
 };
 
 /**
