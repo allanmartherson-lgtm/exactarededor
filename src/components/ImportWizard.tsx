@@ -16,6 +16,7 @@ export type ImportFieldDef = {
   type?: "text" | "number" | "boolean" | "array";
   aliases?: string[];
   uniqueKey?: boolean;
+  defaultValue?: any;
 };
 
 export type ImportProfile = {
