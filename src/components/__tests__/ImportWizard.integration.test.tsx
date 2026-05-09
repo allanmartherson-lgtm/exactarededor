@@ -119,7 +119,10 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
 
     // Check that Doc 5 is in errors
     expect(screen.getByText(/Linhas com erro \(1\)/)).toBeDefined();
-    expect(screen.getByText(/L6 — Campos obrigatórios ausentes: value/)).toBeDefined();
+    expect(screen.getByText((content, element) => {
+      return element?.tagName.toLowerCase() === 'li' && content.includes('L6') && content.includes('Campos obrigatórios ausentes: value');
+    })).toBeDefined();
+
 
   });
 });
