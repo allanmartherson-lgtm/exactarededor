@@ -45,6 +45,7 @@ type Entry = {
   id: string;
   at: string;
   kind: "obs" | "ai" | "assign";
+  type?: string;
   authorType: string;
   authorName: string;
   itemId: string | null;
