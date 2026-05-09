@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 
 const RISK_THRESHOLDS: Record<RiskLevel, string> = {
   baixo: "< 15",
