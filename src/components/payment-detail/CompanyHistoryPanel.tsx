@@ -397,6 +397,24 @@ export function CompanyHistoryPanel({
                       <Icon className="h-3 w-3" />
                       {e.kind === "assign" ? "Atribuição" : authorRoleLabel(e.authorType)}
                     </span>
+                    {e.kind === "obs" && e.type && e.type !== "informativo" && (
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
+                          e.type === "impacta_aprovacao"
+                            ? "border-amber-500/50 text-amber-700 bg-amber-100"
+                            : "border-success/50 text-success-foreground bg-success/10"
+                        )}
+                      >
+                        {e.type === "impacta_aprovacao" ? (
+                          <ShieldAlert className="h-2.5 w-2.5 mr-1" />
+                        ) : (
+                          <Pencil className="h-2.5 w-2.5 mr-1" />
+                        )}
+                        {e.type === "impacta_aprovacao" ? "Impacta Aprovação" : "Justificativa"}
+                      </Badge>
+                    )}
                     {e.authorName && (
                       <span className="flex items-center gap-1 text-foreground/80">
                         <UserIcon className="h-3 w-3" />
