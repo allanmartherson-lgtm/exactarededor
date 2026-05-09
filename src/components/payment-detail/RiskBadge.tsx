@@ -4,7 +4,9 @@ import {
   RISK_EMOJI,
   RISK_LABELS,
   type RiskLevel,
+  type RiskFinancialData,
 } from "@/lib/riskScore";
+import { formatCurrency } from "@/lib/status";
 import {
   Tooltip,
   TooltipContent,
