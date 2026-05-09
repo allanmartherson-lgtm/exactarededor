@@ -504,19 +504,8 @@ const Payments = () => {
           <div className="flex items-center gap-1.5 min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-medium text-xs truncate">{p.reference}</p>
-              {(() => {
-                const { items } = usePaymentDetailData(p.id);
-                const risk = calculateFinancialRisk(items);
-                return risk.score > 0 && (
-                  <RiskBadge 
-                    level={risk.level} 
-                    score={risk.score} 
-                    financialData={risk}
-                    showLabel={false}
-                    className="scale-75 origin-left"
-                  />
-                );
-              })()}
+              <PaymentRiskBadgeInline paymentId={p.id} compact />
+
             </div>
             {openQuestionCount[p.id] > 0 && (
               <span
