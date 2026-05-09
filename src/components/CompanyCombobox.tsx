@@ -104,7 +104,7 @@ export function CompanyCombobox({
           <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[360px] p-0" align="start">
+      <PopoverContent className={cn("w-[360px] p-0 max-w-[calc(100vw-2rem)]", className?.includes("w-") && "w-auto")} align="start">
         <Command shouldFilter={false}>
           <div className="flex items-center border-b px-3">
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
