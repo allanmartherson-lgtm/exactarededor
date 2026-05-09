@@ -114,6 +114,8 @@ const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
+  const location = useLocation();
+
   const {
     payment,
     items,
