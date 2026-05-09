@@ -46,7 +46,9 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
       { "Nome": "Doc 2", "Valor": "5.687,40" },
       { "Nome": "Doc 3", "Valor": "5687.40" },
       { "Nome": "Doc 4", "Valor": "5.687" },
+      { "Nome": "Doc 5", "Valor": "abc" },
     ];
+
 
     (XLSX.read as any).mockReturnValue({
       SheetNames: ["Sheet1"],
