@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, ShieldAlert, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector } from "@/lib/paymentFlow";
+import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -98,6 +98,9 @@ export default function CompanyAnalysis() {
   const [savingItem, setSavingItem] = useState(false);
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  const [reimporting, setReimporting] = useState(false);
+  const [reimportConfirm, setReimportConfirm] = useState<File | null>(null);
+  const reimportInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
@@ -413,6 +416,80 @@ export default function CompanyAnalysis() {
     }
   };
 
+  const doReimport = async (file: File) => {
+    if (!id || !payment || !user) return;
+    setReimporting(true);
+    try {
+      const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
+      const { data: companiesData } = await supabase.from("companies").select("id,name,aliases");
+      const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
+      const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
+      if (bucket.rows.length === 0) {
+        toast.error("Arquivo vazio", { description: "Nenhuma linha válida encontrada." });
+        return;
+      }
+      
+      const path = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from("payment-files").upload(path, file);
+      if (upErr) throw upErr;
+
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+
+      const newItems = bucket.rows.map((r) => ({
+        payment_id: id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: r.company_name,
+        company_id: r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: r.specialty,
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+      }));
+      const { error: insErr } = await supabase.from("payment_items").insert(newItems);
+      if (insErr) throw insErr;
+
+      const total = bucket.rows.reduce((s, r) => s + r.gross_amount, 0);
+      await supabase.from("payments").update({
+        source_file_path: path,
+        total_amount: total,
+        items_count: bucket.rows.length,
+        status: "em_analise_ia",
+      }).eq("id", id);
+
+      await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user.id,
+        message: `Base reimportada pelo analista (${bucket.rows.length} itens, total ${total.toFixed(2)}). Arquivo: ${file.name}.`,
+        status_from: payment.status, status_to: "em_analise_ia",
+      });
+
+      supabase.functions.invoke("analyze-payment", { body: { payment_id: id } });
+      toast.success("Base reimportada", { description: "Reanalisando itens..." });
+      
+      // Como o grupo antigo sumiu, voltamos para a página do lote
+      navigate(`/pagamentos/${id}`);
+    } catch (e) {
+      toast.error("Erro ao reimportar", { description: String(e) });
+    } finally {
+      setReimporting(false);
+      setReimportConfirm(null);
+      if (reimportInputRef.current) reimportInputRef.current.value = "";
+    }
+  };
+
   const openEditItem = (it: PaymentItemRow) => {
     setEditItem(it);
     setEditDraft({
@@ -601,6 +678,7 @@ export default function CompanyAnalysis() {
   const isAdmin = hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
+  const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
@@ -615,12 +693,57 @@ export default function CompanyAnalysis() {
 
   return (
     <div className="space-y-4 pb-32">
-      <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/pagamentos/${id}#group-${groupId}`}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
-          </Link>
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/pagamentos/${id}#group-${groupId}`}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao lote
+            </Link>
+          </Button>
+
+          {canReimport && (
+            <>
+              <input
+                ref={reimportInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setReimportConfirm(f);
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || reimporting}
+                onClick={() => reimportInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-1" /> {reimporting ? "Reimportando…" : "Reimportar base"}
+              </Button>
+              <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.name}</strong> e reinicia a análise. Não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={reimporting}
+                      onClick={() => reimportConfirm && doReimport(reimportConfirm)}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      {reimporting ? "Reimportando…" : "Confirmar"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </div>
         <StatusBadge status={gStatus} />
       </div>
 

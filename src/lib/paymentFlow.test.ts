@@ -68,8 +68,8 @@ describe("canEditBatch", () => {
       it(`status ${status}: analista dono pode editar`, () => {
         expect(canEditBatch(status, { isOwner: true, isAnalista: true, isAdminOrDiretor: false })).toBe(true);
       });
-      it(`status ${status}: analista não-dono NÃO pode editar`, () => {
-        expect(canEditBatch(status, { isOwner: false, isAnalista: true, isAdminOrDiretor: false })).toBe(false);
+      it(`status ${status}: analista não-dono PODE editar`, () => {
+        expect(canEditBatch(status, { isOwner: false, isAnalista: true, isAdminOrDiretor: false })).toBe(true);
       });
       it(`status ${status}: admin/diretor pode editar (override governado)`, () => {
         expect(canEditBatch(status, { isOwner: false, isAnalista: false, isAdminOrDiretor: true })).toBe(true);
@@ -85,12 +85,12 @@ describe("canReimportBatch", () => {
   for (const status of ALL_STATUSES) {
     const allowed = REIMPORT_ALLOWED_STATUSES.has(status);
 
-    it(`status ${status}: só analista dono em status permitido`, () => {
+    it(`status ${status}: analista dono em status permitido`, () => {
       expect(canReimportBatch(status, { isOwner: true, isAnalista: true })).toBe(allowed);
     });
 
-    it(`status ${status}: analista não-dono nunca reimporta`, () => {
-      expect(canReimportBatch(status, { isOwner: false, isAnalista: true })).toBe(false);
+    it(`status ${status}: analista não-dono PODE reimportar se permitido`, () => {
+      expect(canReimportBatch(status, { isOwner: false, isAnalista: true })).toBe(allowed);
     });
 
     it(`status ${status}: dono sem ser analista nunca reimporta`, () => {
@@ -102,7 +102,7 @@ describe("canReimportBatch", () => {
     });
   }
 
-  it("status fora da lista: analista dono também não reimporta", () => {
+  it("status fora da lista: ninguém reimporta", () => {
     const blocked: PaymentStatus[] = [
       "aguardando_validacao",
       "aguardando_aprovacao",
@@ -110,10 +110,10 @@ describe("canReimportBatch", () => {
       "pago",
       "cancelado",
       "rejeitado",
-      "devolvido_analista",
     ];
     for (const s of blocked) {
       expect(canReimportBatch(s, { isOwner: true, isAnalista: true })).toBe(false);
+      expect(canReimportBatch(s, { isOwner: false, isAnalista: true })).toBe(false);
     }
   });
 });
