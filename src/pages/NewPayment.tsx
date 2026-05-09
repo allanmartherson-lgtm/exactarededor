@@ -34,6 +34,7 @@ interface ParsedRow {
   doctor_email: string;
   description: string;
   gross_amount: number;
+  valor_invalido?: boolean;
   // novos
   company_name: string | null;
   company_id: string | null;
@@ -123,6 +124,10 @@ const validateLine = (
   const hasCode = !!r.procedure_code?.trim();
   const hasDesc = !!(r.description?.trim() || r.procedure_name?.trim());
 
+  if (r.valor_invalido) {
+    issues.push({ severity: "critico", field: "gross_amount", message: "Valor numérico inválido ou negativo detectado na linha" });
+  }
+
   switch (r.tipo_linha) {
     case "procedimento":
       if (!hasDoctor) issues.push({ severity: "critico", field: "doctor_name", message: "Médico obrigatório" });
@@ -192,12 +197,37 @@ const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
   return undefined;
 };
 
-const toNumber = (v: unknown): number => {
-  if (v == null || v === "") return 0;
-  if (typeof v === "number") return v;
-  const s = String(v).replace(/[R$\s]/g, "").replace(/\.(?=\d{3}(?:[,.]|$))/g, "").replace(",", ".");
-  const n = Number(s);
-  return isNaN(n) ? 0 : n;
+const normalizeNumericValue = (v: unknown): { value: number; invalid: boolean } => {
+  if (v == null || v === "") return { value: 0, invalid: false };
+  if (typeof v === "number") {
+    const invalid = isNaN(v) || v < 0;
+    return { value: isNaN(v) ? 0 : v, invalid };
+  }
+  
+  let s = String(v).replace(/[R$\s]/g, "");
+  if (!s) return { value: 0, invalid: false };
+
+  const hasComma = s.includes(",");
+  const hasPoint = s.includes(".");
+
+  if (hasComma && hasPoint) {
+    // Caso 2: vírgula e ponto -> ponto milhar, vírgula decimal
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    // Caso 3: apenas vírgula -> decimal
+    s = s.replace(",", ".");
+  } else if (hasPoint) {
+    // Caso 4: apenas ponto -> verificar se milhar (3 dígitos) ou decimal
+    const parts = s.split(".");
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.length === 3) {
+      s = s.replace(/\./g, "");
+    }
+  }
+
+  const n = parseFloat(s);
+  const invalid = isNaN(n) || n < 0;
+  return { value: isNaN(n) ? 0 : n, invalid };
 };
 
 const toStr = (v: unknown): string | null => {
@@ -305,10 +335,20 @@ const NewPayment = () => {
 
     const rows: ParsedRow[] = json.map((row) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
-      const repasse = toNumber(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
-      const procVal = toNumber(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
-      const grossFromAny = repasse || toNumber(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"])) || procVal;
+      
+      const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
+      const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
+      const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"]));
+      const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade"]));
+      const r_perc = normalizeNumericValue(pick(row, ["percentual", "porcentagem", "%"]));
+
+      const repasse = r_repasse.value;
+      const procVal = r_procVal.value;
+      const grossFromAny = repasse || r_gross.value || procVal;
       const procedureAmountFinal = procVal || grossFromAny || null;
+      const quantity = r_qty.value || null;
+      
+      const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid || (pick(row, ["percentual", "porcentagem", "%"]) !== undefined && r_perc.invalid);
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
@@ -316,6 +356,7 @@ const NewPayment = () => {
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
+        valor_invalido,
         company_name: score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null),
         company_id: score >= 0.9 ? (company?.id ?? null) : null,
         attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
@@ -326,7 +367,7 @@ const NewPayment = () => {
         agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo"])),
         specialty: toStr(pick(row, ["especialidade", "especialid", "especialidade médica", "especialidade medica"])) || null,
         procedure_amount: procedureAmountFinal,
-        quantity: toNumber(pick(row, ["qtd", "quantidade"])) || null,
+        quantity: quantity,
         procedure_date: excelDateToISO(pick(row, ["data"])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         raw_data: row,
