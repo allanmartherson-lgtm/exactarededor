@@ -89,7 +89,7 @@ const HighlightBanner = ({
         >
           <div className="mt-0.5">
             {h.observation_type === "impacta_aprovacao" ? (
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <ShieldAlert className="h-5 w-5 text-amber-600 animate-pulse" />
             ) : (
               <Pencil className="h-4 w-4 text-success" />
             )}
