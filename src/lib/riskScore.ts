@@ -121,3 +121,30 @@ export const RISK_BADGE_CLASS: Record<RiskLevel, string> = {
   medio: "bg-muted text-muted-foreground border-border",
   baixo: "bg-muted/50 text-muted-foreground border-border/60",
 };
+
+/**
+ * Componente que renderiza os dados financeiros (valor em risco e %) abaixo do score.
+ * Centralizado para garantir consistência visual em todos os lugares (listagem, card, dashboard).
+ */
+export function RiskFinancialSummary({ 
+  valorEmRisco, 
+  percentualRisco, 
+  className 
+}: { 
+  valorEmRisco: number; 
+  percentualRisco: number; 
+  className?: string;
+}) {
+  if (valorEmRisco <= 0) return null;
+  
+  const formattedValue = new Intl.NumberFormat("pt-BR", { 
+    style: "currency", 
+    currency: "BRL" 
+  }).format(valorEmRisco);
+
+  return (
+    <div className={import("@/lib/utils").then(u => u.cn("text-[10px] text-muted-foreground whitespace-nowrap opacity-80", className)) as any}>
+      Valor em risco: <span className="font-semibold text-foreground">{formattedValue}</span> ({percentualRisco.toFixed(1)}% do total)
+    </div>
+  );
+}
