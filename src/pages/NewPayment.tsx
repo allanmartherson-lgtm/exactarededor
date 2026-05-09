@@ -406,6 +406,34 @@ const NewPayment = () => {
       }
     }
   };
+  
+  /**
+   * Confirma a sugestão automática de empresa (quando o match é < 90%).
+   */
+  const confirmBucketCompany = (idx: number) => {
+    const b = buckets[idx];
+    if (!b || !b.matchedCompany) return;
+    
+    setBuckets((prev) =>
+      prev.map((x, i) =>
+        i === idx
+          ? {
+              ...x,
+              manualOverride: true,
+              rows: x.rows.map((r) => ({ 
+                ...r, 
+                company_id: x.matchedCompany!.id, 
+                company_name: x.matchedCompany!.name 
+              })),
+            }
+          : x,
+      ),
+    );
+    toast({
+      title: "Empresa confirmada",
+      description: `A sugestão "${b.matchedCompany.name}" foi aceita para este arquivo.`,
+    });
+  };
 
   const allRows = useMemo(() => {
     return buckets.flatMap((b) => b.rows).map((r) => {
