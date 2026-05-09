@@ -178,12 +178,13 @@ export const PaymentGroupCard = ({
         <div className="flex flex-col items-end gap-1 shrink-0">
           <div className="flex items-center gap-1.5">
             {groupMaxScore > 0 && (
-              <RiskBadge 
-                level={groupRisk} 
-                score={groupMaxScore} 
-                title={`Score de impacto financeiro: ${groupMaxScore}`} 
-                reasons={groupMaxBreakdown?.reasons}
-              />
+            <RiskBadge 
+              level={groupRisk} 
+              score={groupMaxScore} 
+              title={`Score de impacto financeiro: ${groupMaxScore}`} 
+              reasons={groupMaxBreakdown?.reasons}
+              financialData={groupMaxBreakdown}
+            />
             )}
             <StatusBadge status={gStatus} />
           </div>
