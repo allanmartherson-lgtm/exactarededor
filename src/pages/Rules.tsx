@@ -331,7 +331,18 @@ const Rules = () => {
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
-  const loadCompanies = () => supabase.from("companies").select("id,name,document").order("name").limit(5000).then(({ data }) => setCompanies((data ?? []) as any));
+  const loadCompanies = async () => {
+    const PAGE = 1000;
+    let all: any[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase.from("companies").select("id,name,document").order("name").range(from, from + PAGE - 1);
+      if (error) break;
+      const batch = data ?? [];
+      all = all.concat(batch);
+      if (batch.length < PAGE) break;
+    }
+    setCompanies(all as any);
+  };
   useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
 
   const exportRuleToPDF = (r: RuleRow) => {
@@ -1700,15 +1711,17 @@ const Rules = () => {
                                         <div className="space-y-1">
                                           <Label className="text-xs">Empresa/PJ</Label>
                                           <CompanyCombobox
-                                            value={co ? { id: co.id, name: co.name, document: co.document ?? null } : null}
-                                            onChange={(c) => {
-                                              if (!c) return;
-                                              if (usedIds.has(c.id) && c.id !== link.company_id) {
-                                                toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
-                                                return;
-                                              }
-                                              updateLink({ company_id: c.id, doctors: [] });
-                                            }}
+                                             value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
+                                             onChange={(c) => {
+                                               if (!c) return;
+                                               if (usedIds.has(c.id) && c.id !== link.company_id) {
+                                                 toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
+                                                 return;
+                                               }
+                                               // Garante que a empresa selecionada apareça no cache local mesmo se não veio na primeira página
+                                               setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
+                                               updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null } as any);
+                                             }}
                                             placeholder="Selecionar empresa…"
                                             className="w-full"
                                           />
