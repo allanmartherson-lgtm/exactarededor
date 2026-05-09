@@ -110,7 +110,10 @@ const HighlightBanner = ({
                 {profiles[h.author_id!] || "Sistema"} · {new Date(h.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
               </span>
             </div>
-            <p className="text-sm font-medium text-foreground leading-relaxed">
+            <p className={cn(
+              "text-sm leading-relaxed",
+              h.observation_type === "impacta_aprovacao" ? "font-bold text-amber-900" : "font-medium text-foreground"
+            )}>
               {h.message}
             </p>
           </div>
