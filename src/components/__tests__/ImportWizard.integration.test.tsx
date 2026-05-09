@@ -62,9 +62,10 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
 
     // 1. Upload Step
     const file = new File(["test"], "test.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const input = screen.getByLabelText(/selecione um arquivo/i) || document.querySelector('input[type="file"]');
+    const input = document.querySelector('input[type="file"]');
     
     if (!input) throw new Error("File input not found");
+
     
     fireEvent.change(input, { target: { files: [file] } });
 
