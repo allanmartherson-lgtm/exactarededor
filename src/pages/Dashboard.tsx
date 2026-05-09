@@ -33,8 +33,7 @@ import {
   Building2,
   type LucideIcon,
 } from "lucide-react";
-import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
-import { calculateFinancialRisk } from "@/lib/riskScore";
+import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
@@ -1419,8 +1418,7 @@ const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: 
 };
 
 const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number }) => {
-  const { items } = usePaymentDetailData(p.id);
-  const risk = calculateFinancialRisk(items);
+  const risk = usePaymentRisk(p.id);
   const stages = computeStages(p.status);
   const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
   return (
@@ -1437,7 +1435,7 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
       <div className="min-w-0 flex flex-col gap-1" style={{ flex: "0 0 auto", maxWidth: 260 }}>
         <div className="flex items-center gap-2">
           <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
-          {risk.score > 0 && (
+          {risk && risk.score > 0 && (
             <RiskBadge 
               level={risk.level} 
               score={risk.score} 
@@ -1522,8 +1520,7 @@ const TaskRow = ({
   slaLevel?: SlaLevel;
   qCount?: number;
 }) => {
-  const { items } = usePaymentDetailData(p.id);
-  const risk = calculateFinancialRisk(items);
+  const risk = usePaymentRisk(p.id);
   const owner = ownerRoleFor(p.status);
   const creator = p.created_by ? profiles[p.created_by] : null;
   const slaTone =
@@ -1597,7 +1594,7 @@ const TaskRow = ({
           <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
             {p.reference}
           </p>
-          {risk.score > 0 && (
+          {risk && risk.score > 0 && (
             <RiskBadge 
               level={risk.level} 
               score={risk.score} 

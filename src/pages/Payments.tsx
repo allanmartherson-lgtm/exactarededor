@@ -9,8 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
 import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown } from "lucide-react";
-import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
-import { calculateFinancialRisk } from "@/lib/riskScore";
+import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
@@ -84,6 +83,22 @@ const OWNER_LABELS: Record<Exclude<OwnerGroup, "all">, string> = {
   analista: "Com analista",
   validador: "Com validador",
   diretor: "Com diretor",
+};
+
+/** Componente isolado para calcular e exibir o badge de risco em uma linha de listagem.
+ *  Mantido como subcomponente para que cada linha tenha seu próprio hook (Rules of Hooks). */
+const PaymentRiskBadgeInline = ({ paymentId, compact = false }: { paymentId: string; compact?: boolean }) => {
+  const risk = usePaymentRisk(paymentId);
+  if (!risk || risk.score <= 0) return null;
+  return (
+    <RiskBadge
+      level={risk.level}
+      score={risk.score}
+      financialData={risk}
+      showLabel={!compact}
+      className={compact ? "scale-75 origin-left" : "scale-90 origin-left"}
+    />
+  );
 };
 
 const Payments = () => {
@@ -505,19 +520,8 @@ const Payments = () => {
           <div className="flex items-center gap-1.5 min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-medium text-xs truncate">{p.reference}</p>
-              {(() => {
-                const { items } = usePaymentDetailData(p.id);
-                const risk = calculateFinancialRisk(items);
-                return risk.score > 0 && (
-                  <RiskBadge 
-                    level={risk.level} 
-                    score={risk.score} 
-                    financialData={risk}
-                    showLabel={false}
-                    className="scale-75 origin-left"
-                  />
-                );
-              })()}
+              <PaymentRiskBadgeInline paymentId={p.id} compact />
+
             </div>
             {openQuestionCount[p.id] > 0 && (
               <span
@@ -561,18 +565,8 @@ const Payments = () => {
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 min-w-0">
             <p className="font-medium text-sm truncate">{p.reference}</p>
-            {(() => {
-              const { items } = usePaymentDetailData(p.id);
-              const risk = calculateFinancialRisk(items);
-              return risk.score > 0 && (
-                <RiskBadge 
-                  level={risk.level} 
-                  score={risk.score} 
-                  financialData={risk}
-                  className="scale-90 origin-left"
-                />
-              );
-            })()}
+            <PaymentRiskBadgeInline paymentId={p.id} />
+
             {openQuestionCount[p.id] > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
