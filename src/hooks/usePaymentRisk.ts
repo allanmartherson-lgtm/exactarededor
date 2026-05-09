@@ -38,10 +38,8 @@ export function usePaymentRisk(paymentId: string | undefined): RiskBreakdown | n
   useEffect(() => {
     if (!paymentId) return;
 
-    const channelId = `payment-risk-${paymentId}`;
-    const channel = supabase.channel(channelId);
-
-    channel
+    const channelId = `risk-${paymentId}`;
+    const channel = supabase.channel(channelId)
       .on(
         "postgres_changes",
         {
@@ -53,8 +51,9 @@ export function usePaymentRisk(paymentId: string | undefined): RiskBreakdown | n
         () => {
           queryClient.invalidateQueries({ queryKey: ["payment-risk", paymentId] });
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
