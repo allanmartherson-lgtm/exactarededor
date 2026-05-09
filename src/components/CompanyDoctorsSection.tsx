@@ -33,7 +33,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
     if (!companyId) return;
     (async () => {
       const [d, l] = await Promise.all([
-        supabase.from("doctors").select("id,full_name,crm,crm_uf,active").order("full_name"),
+        supabase.from("doctors").select("id,full_name,crm,crm_uf,active").order("full_name").limit(10000),
         supabase.from("doctor_companies").select("doctor_id").eq("company_id", companyId),
       ]);
       setAllDoctors((d.data ?? []) as Doctor[]);

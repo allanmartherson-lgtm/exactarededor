@@ -48,7 +48,8 @@ const Companies = () => {
   useEffect(() => { document.title = "Empresas | MedPay"; load(); }, []);
 
   const load = async () => {
-    const { data } = await supabase.from("companies").select("*").order("name");
+    // Aumentamos o limite para garantir que todas as empresas sejam carregadas (> 1000)
+    const { data } = await supabase.from("companies").select("*").order("name").limit(5000);
     setItems((data ?? []) as Company[]);
   };
 
@@ -197,7 +198,8 @@ const Companies = () => {
       }
 
       // Upsert manual: prioriza match por CNPJ; se não houver, casa por nome.
-      const { data: existing } = await supabase.from("companies").select("id,name,document");
+      // Garantimos que a deduplicação considere toda a base (> 1000 empresas)
+      const { data: existing } = await supabase.from("companies").select("id,name,document").limit(5000);
       const byName = new Map((existing ?? []).map((c: any) => [c.name.toLowerCase(), c.id]));
       const byCnpj = new Map<string, string>();
       for (const c of (existing ?? []) as any[]) {

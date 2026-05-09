@@ -286,7 +286,7 @@ const NewPayment = () => {
   useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
 
   useEffect(() => {
-    supabase.from("companies").select("id,name,aliases").then(({ data }) => {
+    supabase.from("companies").select("id,name,aliases").limit(5000).then(({ data }) => {
       setCompanies((data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
     });
   }, []);
