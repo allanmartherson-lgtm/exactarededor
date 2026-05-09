@@ -123,8 +123,11 @@ const ownerLabel: Record<OwnerRole, string> = {
 
 interface DashboardCounts {
   mineAnalista: number;
+  mineAnalistaCompanies: number;
   mineValidador: number;
+  mineValidadorCompanies: number;
   mineDiretor: number;
+  mineDiretorCompanies: number;
   mineInvoicesDivergentes: number;
   mineInvoicesQuestionadas: number;
   mineRessalvas: number;
@@ -151,7 +154,9 @@ interface DashboardCounts {
 }
 
 const initialCounts: DashboardCounts = {
-  mineAnalista: 0, mineValidador: 0, mineDiretor: 0,
+  mineAnalista: 0, mineAnalistaCompanies: 0,
+  mineValidador: 0, mineValidadorCompanies: 0,
+  mineDiretor: 0, mineDiretorCompanies: 0,
   mineInvoicesDivergentes: 0, mineInvoicesQuestionadas: 0, mineRessalvas: 0,
   teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, teamInvoicesDivergentes: 0,
   pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
@@ -244,8 +249,9 @@ interface BigStatCardProps {
   hint?: string;
   mine?: boolean;
   to?: string;
+  companiesCount?: number;
 }
-const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to }: BigStatCardProps) => {
+const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companiesCount }: BigStatCardProps) => {
   const cardStyle: CSSProperties = {
     background: mine
       ? `linear-gradient(135deg, hsl(var(--accent)), hsl(var(--card)))`
@@ -303,6 +309,20 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to }: BigSta
       >
         {value}
       </div>
+      {companiesCount !== undefined && companiesCount > 0 && (
+        <div style={{ marginTop: 2, marginBottom: -4 }}>
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground"
+            style={{ 
+              background: "hsl(var(--muted))", 
+              color: "hsl(var(--muted-foreground))",
+              fontWeight: 500
+            }}
+          >
+            {companiesCount} {companiesCount === 1 ? "empresa" : "empresas"}
+          </span>
+        </div>
+      )}
       <div className="mt-auto flex items-center min-h-[20px]">
         {mine ? (
           <SuaVezBadge />
@@ -629,6 +649,19 @@ const Dashboard = () => {
       const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
         "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
       ]);
+
+      // Mapeia empresas por pagamento para contagem distinta nos cards de ação
+      const paymentCompaniesMap: Record<string, string[]> = {};
+      (groups ?? []).forEach((g: any) => {
+        if (g.payment_id && g.company_id) {
+          (paymentCompaniesMap[g.payment_id] = paymentCompaniesMap[g.payment_id] ?? []).push(g.company_id);
+        }
+      });
+
+      const mineAnalistaCompaniesSet = new Set<string>();
+      const mineValidadorCompaniesSet = new Set<string>();
+      const mineDiretorCompaniesSet = new Set<string>();
+
       (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
         const owner = ownerRoleFor(p.status);
         // "Minha pendência" só conta enquanto o lote AINDA está na alçada do
@@ -639,6 +672,18 @@ const Dashboard = () => {
             (owner === "validador" && p.status === "aguardando_validacao") ||
             (owner === "diretor" && p.status === "aguardando_aprovacao")
           );
+
+        if (isMineRow) {
+          const companies = paymentCompaniesMap[p.id] ?? [];
+          if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
+            companies.forEach(id => mineAnalistaCompaniesSet.add(id));
+          } else if (owner === "validador" && p.status === "aguardando_validacao") {
+            companies.forEach(id => mineValidadorCompaniesSet.add(id));
+          } else if (owner === "diretor" && p.status === "aguardando_aprovacao") {
+            companies.forEach(id => mineDiretorCompaniesSet.add(id));
+          }
+        }
+
         if (owner === "analista") {
           c.teamAnalise++;
           if (isMineRow) c.mineAnalista++;
@@ -685,6 +730,10 @@ const Dashboard = () => {
         if (p.status === "rejeitado") c.attRejeitados++;
         if (p.status === "aprovado_em_revisao") c.diretorAprovadoEmRevisao++;
       });
+
+      c.mineAnalistaCompanies = mineAnalistaCompaniesSet.size;
+      c.mineValidadorCompanies = mineValidadorCompaniesSet.size;
+      c.mineDiretorCompanies = mineDiretorCompaniesSet.size;
 
       (invDiv ?? []).forEach((row: any) => {
         c.teamInvoicesDivergentes++;
@@ -973,6 +1022,7 @@ const Dashboard = () => {
                   color="purple"
                   label="Suas bases"
                   value={counts.mineAnalista}
+                  companiesCount={counts.mineAnalistaCompanies}
                   hint={
                     slaTotals.vencido > 0
                       ? `${slaTotals.vencido} fora do SLA`
@@ -990,6 +1040,7 @@ const Dashboard = () => {
                   color="yellow"
                   label="Para validar"
                   value={counts.mineValidador}
+                  companiesCount={counts.mineValidadorCompanies}
                   mine={counts.mineValidador > 0}
                   to="/pagamentos?status=aguardando_validacao"
                 />
@@ -1000,6 +1051,7 @@ const Dashboard = () => {
                   color="teal"
                   label="Para aprovar"
                   value={counts.mineDiretor}
+                  companiesCount={counts.mineDiretorCompanies}
                   mine={counts.mineDiretor > 0}
                   to="/pagamentos?status=aguardando_aprovacao"
                 />
