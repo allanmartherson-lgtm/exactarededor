@@ -644,22 +644,36 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
-    // ---------- 8. Persiste resultados ----------
+    // ---------- 8. Persiste resultados (em lote / paralelizado) ----------
+    // Antes: cada item fazia UPDATE + INSERT + (talvez) INSERT em sequência
+    // dentro de um for..await, o que estourava o timeout de 150s da edge
+    // function quando o lote tinha muitos itens. Agora preparamos as linhas
+    // sincronamente e disparamos as escritas em paralelo (updates em chunks,
+    // inserts em bulk).
     let alerts = 0, blocks = 0;
     const itemDiffSummaries: { item_id: string; doctor: string; diff: string }[] = [];
+    const itemsById: Record<string, ItemInput> = {};
+    for (const it of items) itemsById[it.id] = it;
+    const itemsRawById: Record<string, any> = {};
+    for (const it of (itemsRaw ?? []) as any[]) itemsRawById[it.id] = it;
+
+    type ItemUpdate = { id: string; ai_status: string; ai_findings: any; attendance_group_key: string | null; specialty: string | null };
+    type VersionRow = Record<string, unknown>;
+    type ObsRow = Record<string, unknown>;
+
+    const itemUpdates: ItemUpdate[] = [];
+    const versionRows: VersionRow[] = [];
+    const obsRows: ObsRow[] = [];
 
     for (const r of results) {
-      const it = items.find((i) => i.id === r.item_id);
+      const it = itemsById[r.item_id];
       const aiJ = aiJustifications[r.item_id];
       const finalAlerts = [...r.alerts, ...(aiJ?.extra_alerts ?? [])];
       const matchedRules = r.matched_rule_name ? [r.matched_rule_name] : [];
       const matchedRuleIds = r.matched_rule_id ? [r.matched_rule_id] : [];
 
-      const itRaw = (itemsRaw ?? []).find((x: any) => x.id === r.item_id) as any;
+      const itRaw = itemsRawById[r.item_id];
       const resolvedSpec = itRaw?.__resolved_specialty as { value: string | null; source: string } | undefined;
-      // Auditoria explícita dos campos considerados na decisão da regra.
-      // `specialty.used = false` documenta a regra de projeto: especialidade
-      // médica é metadado de relatório/filtro e NÃO entra no motor de seleção.
       const decisionFields = {
         used: {
           sector: it?.classification_sector ?? null,
@@ -692,36 +706,31 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         medical_specialty_resolved: resolvedSpec
           ? { value: resolvedSpec.value, source: resolvedSpec.source }
           : null,
-        // Novos campos do motor (consumidos pela UI na Fase 4):
         engine: {
           calculation_type_used: r.calculation_type_used,
           matched_priority: r.matched_priority,
           diff_pct: r.diff_pct,
           ai_note: aiJ?.ai_note ?? null,
         },
-        // Detalhamento por item de cálculo (1:N) — quando aplicável.
         calculation_breakdown: r.calculation_breakdown ?? null,
-        // Trace de auditoria do motor: candidatas avaliadas e por que cada
-        // uma foi descartada/venceu. Base para responder "por que essa regra?"
         selection_trace: r.selection_trace ?? null,
-        // Auditoria dos campos considerados (e dos ignorados — specialty etc.)
         decision_fields: decisionFields,
       };
 
-      await supabase.from("payment_items").update({
+      itemUpdates.push({
+        id: r.item_id,
         ai_status: r.status,
         ai_findings: findings,
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
-      }).eq("id", r.item_id);
+      });
 
       if (r.status === "alerta") alerts++;
       if (r.status === "reprovado") blocks++;
 
-      // Snapshot
       const prev = prevByItem[r.item_id];
       const nextVersion = (prev?.version ?? 0) + 1;
-      await supabase.from("ai_analysis_versions").insert({
+      versionRows.push({
         payment_id,
         item_id: r.item_id,
         version: nextVersion,
@@ -736,7 +745,6 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         triggered_by: triggeredBy,
       });
 
-      // Diff por item
       if (prev) {
         const diffParts: string[] = [];
         if (prev.ai_status !== r.status) diffParts.push(`status: ${prev.ai_status} → ${r.status}`);
@@ -755,7 +763,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (addedR.length) diffParts.push(`nova regra: ${addedR.join("; ")}`);
         if (diffParts.length) {
           itemDiffSummaries.push({ item_id: r.item_id, doctor: it?.doctor_name ?? "item", diff: diffParts.join(" · ") });
-          await supabase.from("payment_observations").insert({
+          obsRows.push({
             payment_id,
             item_id: r.item_id,
             author_type: "ia",
@@ -766,12 +774,42 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         const parts: string[] = [`Análise inicial v1 — ${r.status} (${r.matched_priority})`];
         if (r.expected_amount != null) parts.push(`esperado R$ ${r.expected_amount.toFixed(2)}`);
         if (finalAlerts.length) parts.push(`${finalAlerts.length} alerta(s)`);
-        await supabase.from("payment_observations").insert({
+        obsRows.push({
           payment_id,
           item_id: r.item_id,
           author_type: "ia",
           message: parts.join(" · ") + ` — ${r.calculation_explanation}` + (aiJ?.ai_note ? ` | IA: ${aiJ.ai_note}` : ""),
         });
+      }
+    }
+
+    // Helper: executa promessas em chunks paralelos (limita conexões simultâneas).
+    const runChunked = async <T,>(arr: T[], size: number, fn: (x: T) => Promise<unknown>) => {
+      for (let i = 0; i < arr.length; i += size) {
+        await Promise.all(arr.slice(i, i + size).map(fn));
+      }
+    };
+
+    // Updates por id em paralelo (chunks de 25). Não dá para fazer um único
+    // UPDATE porque cada item tem um ai_findings diferente.
+    await runChunked(itemUpdates, 25, async (u) => {
+      await supabase.from("payment_items").update({
+        ai_status: u.ai_status,
+        ai_findings: u.ai_findings,
+        attendance_group_key: u.attendance_group_key,
+        specialty: u.specialty,
+      }).eq("id", u.id);
+    });
+
+    // Inserts em bulk (uma chamada por tabela; chunked por segurança em lotes grandes).
+    if (versionRows.length) {
+      for (let i = 0; i < versionRows.length; i += 200) {
+        await supabase.from("ai_analysis_versions").insert(versionRows.slice(i, i + 200));
+      }
+    }
+    if (obsRows.length) {
+      for (let i = 0; i < obsRows.length; i += 200) {
+        await supabase.from("payment_observations").insert(obsRows.slice(i, i + 200));
       }
     }
 
@@ -850,7 +888,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (cur) cur.items.push(it);
       else groupsMap.set(key, { company_id: it.company_id, company_name: name, items: [it] });
     }
-    for (const g of groupsMap.values()) {
+    await Promise.all(Array.from(groupsMap.values()).map(async (g) => {
       const total = g.items.reduce((s, x) => s + Number(x.gross_amount), 0);
       const { data: existing } = await supabase
         .from("payment_company_groups")
@@ -859,8 +897,6 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         .ilike("company_name", g.company_name)
         .maybeSingle();
       if (existing) {
-        // Mesma regra do payments: só rebaixa para revisao_analista se o
-        // grupo ainda estiver com o analista. Não rouba de validador/diretor.
         const groupUpd: Record<string, unknown> = {
           items_count: g.items.length,
           total_amount: total,
@@ -880,7 +916,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           total_amount: total,
         });
       }
-    }
+    }));
 
     // Notifica o analista que a IA concluiu (Evento 2)
     if (obsTransition) {
