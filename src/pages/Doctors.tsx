@@ -233,6 +233,14 @@ export default function Doctors() {
     });
   }, [items, search, filterCompany, linksByDoctor]);
 
+  // Se houver busca, mostramos apenas os filtrados. 
+  // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
+  // mas garantimos que as ações de edição estejam sempre disponíveis.
+  const displayItems = useMemo(() => {
+    if (search.trim() || filterCompany) return filtered;
+    return filtered.slice(0, 100);
+  }, [filtered, search, filterCompany]);
+
   const filteredCompaniesForDialog = useMemo(() => {
     const q = norm(companySearch);
     if (!q) return companies;
