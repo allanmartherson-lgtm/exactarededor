@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "audit:tables": "bun run scripts/audit-tables.ts",
     "audit:nav": "bun run scripts/audit-nav.ts",
