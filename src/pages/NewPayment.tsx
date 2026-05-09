@@ -316,8 +316,8 @@ const NewPayment = () => {
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
-        company_name: company?.name ?? rawCompanyName ?? null,
-        company_id: company?.id ?? null,
+        company_name: score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null),
+        company_id: score >= 0.9 ? (company?.id ?? null) : null,
         attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
         procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss"])),
         procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
@@ -405,6 +405,34 @@ const NewPayment = () => {
         });
       }
     }
+  };
+  
+  /**
+   * Confirma a sugestão automática de empresa (quando o match é < 90%).
+   */
+  const confirmBucketCompany = (idx: number) => {
+    const b = buckets[idx];
+    if (!b || !b.matchedCompany) return;
+    
+    setBuckets((prev) =>
+      prev.map((x, i) =>
+        i === idx
+          ? {
+              ...x,
+              manualOverride: true,
+              rows: x.rows.map((r) => ({ 
+                ...r, 
+                company_id: x.matchedCompany!.id, 
+                company_name: x.matchedCompany!.name 
+              })),
+            }
+          : x,
+      ),
+    );
+    toast({
+      title: "Empresa confirmada",
+      description: `A sugestão "${b.matchedCompany.name}" foi aceita para este arquivo.`,
+    });
   };
 
   const allRows = useMemo(() => {
@@ -518,6 +546,16 @@ const NewPayment = () => {
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
+    const unconfirmed = buckets.filter((b) => !b.manualOverride && b.matchScore < 0.9);
+    if (unconfirmed.length > 0) {
+      toast({
+        title: "Confirmação de empresa pendente",
+        description: `Existem ${unconfirmed.length} arquivo(s) com empresa não confirmada (match < 90%). Por favor, confirme ou selecione a empresa correta.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (preValidation.critical > 0) {
       toast({
         title: `Pré-validação: ${preValidation.critical} erro(s) crítico(s)`,
@@ -896,16 +934,30 @@ const NewPayment = () => {
                           {b.matchedCompany?.name ?? b.rawCompanyName}
                         </Badge>
                         {b.manualOverride ? (
-                          <Badge variant="secondary" className="gap-1 text-success">
+                          <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
                           </Badge>
-                        ) : b.matchedCompany ? (
-                          <Badge variant="secondary" className="gap-1 text-success">
+                        ) : b.matchScore >= 0.9 ? (
+                          <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> match {Math.round(b.matchScore * 100)}%
                           </Badge>
+                        ) : b.matchScore >= 0.7 ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="gap-1 text-amber-600 border-amber-200 bg-amber-50">
+                              <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
+                            </Badge>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
+                              onClick={() => confirmBucketCompany(idx)}
+                            >
+                              Confirmar sugestão
+                            </Button>
+                          </div>
                         ) : (
-                          <Badge variant="secondary" className="gap-1 text-warning">
-                            <AlertCircle className="h-3 w-3" /> empresa não cadastrada
+                          <Badge variant="secondary" className="gap-1 text-destructive border-destructive/30 bg-destructive/10">
+                            <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
                         <Popover>
