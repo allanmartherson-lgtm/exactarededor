@@ -67,19 +67,20 @@ export const canEditBatch = (
 ): boolean => {
   if (!ANALYST_EDITABLE_STATUSES.has(status)) return false;
   if (opts.isAdminOrDiretor) return true;
-  return Boolean(opts.isAnalista && opts.isOwner);
+  // Relaxado: qualquer analista pode editar se o lote estiver em fase de análise.
+  return opts.isAnalista;
 };
 
 /**
  * Pode reimportar a base (substitui itens)?
- * Mais restrito que `canEditBatch`: só o analista dono.
+ * Permite que qualquer analista reimporte se o lote estiver em um status permitido.
  * Admin/diretor NÃO reimportam — destrutivo demais.
  */
 export const canReimportBatch = (
   status: PaymentStatus,
   opts: { isOwner: boolean; isAnalista: boolean },
 ): boolean =>
-  Boolean(opts.isAnalista && opts.isOwner && REIMPORT_ALLOWED_STATUSES.has(status));
+  Boolean(opts.isAnalista && REIMPORT_ALLOWED_STATUSES.has(status));
 
 /**
  * Pode "assumir" o lote? Exige papel compatível com o status atual + não ser
