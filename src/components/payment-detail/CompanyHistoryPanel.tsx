@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { History, User as UserIcon, UserCheck, FileDown } from "lucide-react";
+import { History, User as UserIcon, UserCheck, FileDown, Info, ShieldAlert, Pencil } from "lucide-react";
 import type {
   AiVersionRow,
   AssignmentRow,
@@ -328,6 +328,18 @@ export function CompanyHistoryPanel({
                     </SelectItem>
                   );
                 })}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">Tipo:</span>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-8 w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="informativo">Informativo</SelectItem>
+                <SelectItem value="impacta_aprovacao">Impacta aprovação</SelectItem>
+                <SelectItem value="justificativa_override">Justificativa</SelectItem>
               </SelectContent>
             </Select>
             <Button
