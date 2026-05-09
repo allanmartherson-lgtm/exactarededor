@@ -290,7 +290,7 @@ export function inferItemSector(item: ItemInput): string {
   if (item.classification_sector) return item.classification_sector;
   const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
   if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
-  if (/(cirurg|operac|herni|colecist|laparo|artrosc)/.test(txt)) return "cirurgia";
+  if (/(cirurg|operac|herni|colecist|laparo|artrosc|tue\b)/.test(txt)) return "cirurgia";
   if (/parecer/.test(txt)) return "parecer";
   if (/visita/.test(txt)) return "visita";
   if (/consulta/.test(txt)) return "consulta";
