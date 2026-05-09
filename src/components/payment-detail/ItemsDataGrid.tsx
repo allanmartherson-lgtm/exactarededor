@@ -1089,9 +1089,9 @@ function ItemDetailsRow({
               {matchedRules.length > 0 ? (
                 <div className={CARD}>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium text-primary mt-1">{matchedRules[0].name}</p>
+                  <p className="font-medium text-primary mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].name}</p>
                   {matchedRules[0].rule_text && (
-                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap">{matchedRules[0].rule_text}</p>
+                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].rule_text}</p>
                   )}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
