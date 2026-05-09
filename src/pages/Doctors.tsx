@@ -237,8 +237,10 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
+    // Aumentamos o limite de exibição inicial para 1000 para que mais médicos sejam visíveis
+    // sem precisar de busca imediata, mantendo a performance.
     if (search.trim() || filterCompany) return filtered;
-    return filtered.slice(0, 100);
+    return filtered.slice(0, 1000);
   }, [filtered, search, filterCompany]);
 
   const filteredCompaniesForDialog = useMemo(() => {

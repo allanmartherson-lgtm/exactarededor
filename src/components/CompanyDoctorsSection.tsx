@@ -123,7 +123,7 @@ export function CompanyDoctorsSection({ companyId }: { companyId: string }) {
                   : "Nenhum médico encontrado."}
               </p>
             ) : (
-              available.slice(0, 50).map((d) => (
+              available.slice(0, 500).map((d) => (
                 <button
                   key={d.id}
                   type="button"
