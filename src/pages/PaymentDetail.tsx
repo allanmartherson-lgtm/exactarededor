@@ -731,6 +731,32 @@ const PaymentDetail = () => {
     }
   };
 
+  const reprocessAi = async () => {
+    if (!id || !user) return;
+    setReprocessingAi(true);
+    try {
+      const { error } = await supabase.functions.invoke("analyze-payment", {
+        body: { payment_id: id },
+      });
+      if (error) throw error;
+      await recordObservation({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user.id,
+        message: "Análise da IA reprocessada manualmente pelo analista (lote estava preso em em_analise_ia).",
+        status_from: payment?.status ?? null,
+        status_to: payment?.status ?? null,
+      });
+      toast({ title: "Análise reprocessada", description: "A IA reprocessou os itens deste lote." });
+      await load();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast({ title: "Falha ao reprocessar", description: msg, variant: "destructive" });
+    } finally {
+      setReprocessingAi(false);
+    }
+  };
+
   if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
 
   const isValidador = hasRole("validador") || hasRole("admin");
@@ -1127,6 +1153,19 @@ const PaymentDetail = () => {
               >
                 <MessageCircleQuestion className="h-4 w-4 mr-1.5" />
                 Questionamentos ({obs.filter((o: any) => o.is_question && !o.resolved_at).length})
+              </Button>
+            )}
+            {payment.status === "em_analise_ia" && (isAnalista || isDiretor) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reprocessAi}
+                disabled={reprocessingAi}
+                className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
+                title="Reprocessar a análise da IA quando o lote ficar preso nesta etapa"
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
+                {reprocessingAi ? "Reprocessando..." : "Reprocessar IA"}
               </Button>
             )}
             <StatusBadge status={payment.status} />
