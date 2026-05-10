@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
-import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2 } from "lucide-react";
+import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
