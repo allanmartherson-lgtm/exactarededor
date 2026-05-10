@@ -129,7 +129,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   };
 
   const prepareValidation = async () => {
-    if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
+    if (profile.entity === "reference_table_items" && profile.fields.some(f => f.key === "amount")) {
       const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
       const roles = new Set<string>();
       const rows = rowsBySheet[activeSheet] ?? [];
