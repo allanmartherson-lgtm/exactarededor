@@ -1789,7 +1789,7 @@ const PaymentDetail = () => {
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
                 if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
-                if (criticalFilter === "approved") return it.ai_status === "aprovado";
+                if (criticalFilter === "approved") return it.ai_status === "aprovado" && (it.ai_findings?.alerts?.length ?? 0) === 0;
                 
                 const st = (it.ai_status as string) ?? "pendente";
                 // Só mostra se for alerta/reprovado. Alertas informativos em itens aprovados não contam como crítico.
