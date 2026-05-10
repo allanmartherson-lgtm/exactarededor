@@ -991,7 +991,7 @@ const ReferenceTables = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </>
   );
 };
 

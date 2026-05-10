@@ -717,6 +717,7 @@ const ImportResultsDialog = ({ open, results, progress, importing, onOpenChange 
         )}
       </DialogContent>
     </Dialog>
+      </div>
     </div>
   );
 };
