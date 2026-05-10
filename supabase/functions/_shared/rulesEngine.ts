@@ -1334,9 +1334,7 @@ export function analyzeItem(
         calculation_explanation:
           `Bloqueado pela Camada 1 (${motivo}) — sem acordo para esta combinação. ` +
           `Sistema não tem acesso à tabela interna do convênio; aceita o valor pago como esperado (R$ ${paid.toFixed(2)}).`,
-        alerts: [
-          `${motivo} Regra de cálculo não aplicada — esperado = valor pago pelo convênio.`,
-        ],
+        alerts: [], // Removido alerta de bloqueio de convênio (comportamento esperado)
         needs_ai_review: false,
         needs_human_review: false,
       };
