@@ -1,3 +1,4 @@
+import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
 import {
   Sheet,
@@ -76,6 +77,7 @@ export function PaymentReportModal({
   groups,
   analystName,
 }: PaymentReportModalProps) {
+  const { toast } = useToast();
   // --- Estados de Filtro ---
   const [search, setSearch] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
