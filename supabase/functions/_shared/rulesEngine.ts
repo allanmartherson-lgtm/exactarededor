@@ -884,7 +884,7 @@ function calcExclusao(rule: RuleInput): ExpectedCalc {
   return {
     expected: 0,
     explanation: `Exclusão${motivo}: este item não deve ser pago${exc}`,
-    alerts: [`Item excluído por regra${motivo}.`],
+    alerts: [], // Removido alerta informativo de exclusão
   };
 }
 
