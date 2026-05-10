@@ -721,9 +721,10 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
   const result: any[] = [];
   const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
 
-  rows.forEach((row) => {
+  rows.forEach((row, rowIndex) => {
     const base: Record<string, any> = {};
     const otherFields = fields.filter(f => f.key !== "amount" && f.key !== "role");
+    const originalRowNum = rowIndex + 2; // Usually Excel starts at row 2 for data
     
     for (const f of otherFields) {
       const src = mapping[f.key];
@@ -740,7 +741,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
     }
 
     if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
-      const amountCols: { role: string, amount: number }[] = [];
+      const amountCols: { role: string, amount: number, sourceCol: string }[] = [];
       const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
       
       // 1. Check explicitly mapped amount
@@ -751,7 +752,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
           const roleCol = mapping["role"];
           const roleRaw = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
           const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
-          amountCols.push({ role, amount: val.value });
+          amountCols.push({ role, amount: val.value, sourceCol: mainAmountCol });
         }
       }
 
@@ -766,34 +767,48 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
           const val = normalizeNumericValue(row[colName]);
           if (!val.invalid && val.value > 0) {
             const role = (roleMapping && roleMapping[colName]) || colName;
-            amountCols.push({ role, amount: val.value });
+            amountCols.push({ role, amount: val.value, sourceCol: colName });
           }
         }
       });
 
       if (amountCols.length > 0) {
         amountCols.forEach(ac => {
-          result.push({ ...base, role: ac.role, amount: ac.amount });
+          result.push({ 
+            ...base, 
+            role: ac.role, 
+            amount: ac.amount,
+            _meta: { row: originalRowNum, sourceCol: ac.sourceCol }
+          });
         });
       } else {
-        // Fallback to one entry with 0 if needed (though usually we want to skip if no amount)
-        result.push({ ...base, role: null, amount: 0 });
+        result.push({ 
+          ...base, 
+          role: null, 
+          amount: 0,
+          _meta: { row: originalRowNum, sourceCol: mapping["amount"] || "N/A" }
+        });
       }
     } else {
-      // Standard mapping for other entities or reference table without amounts
       const out: Record<string, any> = { ...base };
       const amountField = fields.find(f => f.key === "amount");
       const roleField = fields.find(f => f.key === "role");
+      let sourceCol = "N/A";
       
       if (amountField) {
         const src = mapping["amount"];
         out["amount"] = src ? parseNumber(row[src]) : (amountField.defaultValue ?? 0);
+        if (src) sourceCol = src;
       }
       if (roleField) {
         const src = mapping["role"];
         out["role"] = src ? String(row[src] || "").trim() : (roleField.defaultValue ?? null);
       }
-      result.push(out);
+      
+      result.push({
+        ...out,
+        _meta: { row: originalRowNum, sourceCol }
+      });
     }
   });
   return result;
