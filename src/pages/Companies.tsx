@@ -553,7 +553,7 @@ const Companies = () => {
         importing={importing}
         onOpenChange={(v) => !importing && setImportResults(prev => ({ ...prev, show: v }))}
       />
-    </>
+    </div>
   );
 };
 
