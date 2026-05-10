@@ -120,7 +120,8 @@ serve(async (req) => {
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
         tipo_linha,complement_reason,
-        agreement_text,specialty,tipo_item,sector
+        agreement_text,specialty,tipo_item,sector,
+        convenio_value_totalized
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
