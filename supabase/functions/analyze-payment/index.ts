@@ -121,7 +121,8 @@ serve(async (req) => {
         authorized_exception,exception_reason,exception_authorizer,exception_note,
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,
-        convenio_value_totalized
+        convenio_value_totalized,
+        ai_status
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
