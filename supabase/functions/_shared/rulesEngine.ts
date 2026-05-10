@@ -1230,7 +1230,7 @@ function findNextCalculableRule(
       r.calculation_type !== "exclusao" &&
       r.calculation_type !== "informativo",
   );
-  const out = selectWinningRule(item, remaining);
+  const out = selectWinningRule(item, remaining, ctx);
   if (out && out.rule) return { rule: out.rule, priority: out.priority };
   return null;
 }
