@@ -1209,6 +1209,8 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   if (expected == null) return { status: "alerta", diff_pct: null };
   if (gross <= 0) return { status: "alerta", diff_pct: null };
   const diff = Math.abs(expected - gross) / Math.max(Math.abs(expected), 0.01);
+  // Regra de projeto: se o valor bate com a regra (divergência < 1%), o item é aprovado
+  // e NÃO deve gerar alertas nem aparecer no resumo de divergências.
   if (diff <= 0.01) return { status: "aprovado", diff_pct: diff };
   if (diff <= 0.10) return { status: "alerta",   diff_pct: diff };
   return { status: "reprovado", diff_pct: diff };
