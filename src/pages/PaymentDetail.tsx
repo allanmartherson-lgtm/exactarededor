@@ -801,7 +801,7 @@ const PaymentDetail = () => {
         payment_id: id,
         author_type: "analista",
         author_id: user.id,
-        message: "Análise da IA reprocessada manualmente pelo analista (lote estava preso em em_analise_ia).",
+        message: "Regras de repasse reaplicadas em todo o lote manualmente pelo analista.",
         status_from: payment?.status ?? null,
         status_to: payment?.status ?? null,
       });
@@ -1225,17 +1225,17 @@ const PaymentDetail = () => {
                 Questionamentos ({obs.filter((o: any) => o.is_question && !o.resolved_at).length})
               </Button>
             )}
-            {payment.status === "em_analise_ia" && (isAnalista || isDiretor) && (
+            {(payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={reprocessAi}
                 disabled={reprocessingAi}
                 className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
-                title="Reprocessar a análise da IA quando o lote ficar preso nesta etapa"
+                title="Reaplicar o motor de regras e análise de IA em todos os itens deste lote"
               >
                 <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
-                {reprocessingAi ? "Reprocessando..." : "Reprocessar IA"}
+                {reprocessingAi ? "Processando..." : "Reanalisar lote"}
               </Button>
             )}
             <StatusBadge status={payment.status} />
