@@ -301,18 +301,17 @@ const SECTOR_MAP: Record<string, string> = {
 };
 
 export function inferItemSector(item: ItemInput): string {
-  // 1. Prioridade máxima: setor informado na planilha
+  // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
   if (item.sector) {
     const s = normName(item.sector);
-    if (SECTOR_MAP[s]) return SECTOR_MAP[s];
-    // Se não está no mapa, tenta match parcial
-    for (const [k, v] of Object.entries(SECTOR_MAP)) {
-      if (s.includes(k)) return v;
+    // "Outros" ou similar é ignorado para permitir que heurísticas/TUSS encontrem o setor real
+    if (s !== "outro" && s !== "outros") {
+      if (SECTOR_MAP[s]) return SECTOR_MAP[s];
+      for (const [k, v] of Object.entries(SECTOR_MAP)) {
+        if (s.includes(k)) return v;
+      }
+      return s;
     }
-    // Se ainda assim não bater, mas veio algo da planilha, usamos o que veio (pode bater em regras customizadas)
-    // No entanto, para o motor padrão, precisamos que seja um dos RuleSector se possível.
-    // Se não for, retornamos o original normalizado.
-    return s;
   }
 
   // 2. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
@@ -505,7 +504,18 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
   return rules.filter((r) => {
     if (!r.active) return false;
     if (!isInValidity(r, ctx.reference_date)) return false;
-    if (!intersectsAll(ruleSectors(r), ctx.sectors)) return false;
+
+    // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
+    // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA
+    // o setor do lote/pagamento — pois o vínculo explícito por empresa/médico
+    // tem precedência sobre o setor estatístico do lote.
+    if (r.scope === "master") {
+      // Regras master são filtradas pelo setor do lote para evitar poluição.
+      // Se o lote é de 'cirurgia', pulamos regras exclusivas de 'hemodinamica'.
+      // Regras 'gerais' (setor vazio ou 'outro') passam sempre.
+      if (!intersectsAll(ruleSectors(r), ctx.sectors)) return false;
+    }
+
     if (!intersectsAll(r.applies_payment_types, ctx.payment_type ? [ctx.payment_type] : [])) return false;
     return true;
   });
