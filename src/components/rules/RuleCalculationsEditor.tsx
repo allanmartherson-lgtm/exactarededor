@@ -244,13 +244,18 @@ function CalcCard({
             </div>
           )}
           {c.calculation_type === "bonus" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
-                <Input type="number" step="0.01" value={c.bonus_amount} onChange={(e) => onChange({ bonus_amount: e.target.value })} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
+                  <Input type="number" step="0.01" value={c.bonus_amount} onChange={(e) => onChange({ bonus_amount: e.target.value })} />
+                </div>
+                <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
+                  <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
+                </div>
               </div>
-              <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
-                <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
-              </div>
+              <p className="text-[11px] text-muted-foreground italic">
+                Nota: Os códigos específicos para este bônus devem ser informados na seção <strong>Códigos específicos</strong> do formulário principal.
+              </p>
             </div>
           )}
           {c.calculation_type === "complemento" && (
