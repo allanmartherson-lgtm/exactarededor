@@ -1128,19 +1128,44 @@ function ItemDetailsRow({
 
               {it.ai_findings?.selection_trace && (
                 <div className={CARD}>
-                  <Label icon={FileText}>Trace do Motor (Debug)</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 w-full h-7 text-[10px]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
-                      alert("Trace completo enviado para o Console do Navegador (F12)");
-                    }}
-                  >
-                    Ver trace completo (Console)
-                  </Button>
+                  <Label icon={ShieldCheck}>Justificativa da Seleção</Label>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[11px] leading-relaxed">
+                      O motor selecionou a regra vencedora com base na prioridade:{" "}
+                      <span className={cn("font-semibold", TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority || "sem_regra"]])}>
+                        {RULE_MATCH_PRIORITY_LABELS[priority || "sem_regra"]}
+                      </span>.
+                    </p>
+                    <div className="text-[10px] text-muted-foreground bg-muted/30 p-2 rounded border border-border/40">
+                      <p className="font-medium mb-1 uppercase tracking-tight">Hierarquia validada:</p>
+                      <ul className="space-y-1">
+                        <li className="flex items-center gap-1.5">
+                          <div className={cn("h-1.5 w-1.5 rounded-full", priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") ? "bg-success" : "bg-muted-foreground/30")} />
+                          Regra Específica / Grupo (Médico ou Empresa)
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_codigo" || priority === "setor" ? "bg-success" : "bg-muted-foreground/30")} />
+                          Regra Geral de Setor
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_master_geral" || priority === "setor_outro" ? "bg-success" : "bg-muted-foreground/30")} />
+                          Regra Master / Geral
+                        </li>
+                      </ul>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-6 text-[9px] text-muted-foreground hover:text-foreground mt-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
+                        alert("Trace técnico completo enviado para o Console (F12)");
+                      }}
+                    >
+                      <FileText className="h-3 w-3 mr-1" /> Ver detalhes técnicos (Console)
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
