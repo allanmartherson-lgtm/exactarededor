@@ -175,6 +175,8 @@ interface FileBucket {
   manualOverride?: boolean;
   /** Mapeamento de setor identificado na planilha para o setor do sistema */
   sectorMapping?: string | null;
+  /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
+  convenioValueTotalized?: boolean;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
