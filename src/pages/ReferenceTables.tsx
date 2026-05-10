@@ -494,14 +494,14 @@ const ReferenceTables = () => {
                     Importe a planilha para popular os portes.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 p-4">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 p-4">
                     {portValues.map((p) => (
                       <div
                         key={p.id}
-                        className="rounded-md border border-border bg-card px-3 py-2 text-sm flex items-center justify-between"
+                        className="rounded-md border border-border bg-card px-3 py-2.5 text-sm flex items-center justify-between shadow-sm"
                       >
-                        <span className="font-mono text-muted-foreground">{p.port}</span>
-                        <span className="font-medium">{formatCurrency(p.amount)}</span>
+                        <span className="font-mono font-bold text-primary">{p.port}</span>
+                        <span className="font-semibold text-foreground">{formatCurrency(p.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -536,47 +536,68 @@ const ReferenceTables = () => {
                   {filteredItems.slice(0, 200).map((it) => {
                     const isPkg = selected.kind === "pacote_combinacao";
                     return (
-                      <div key={it.id} className="px-6 py-3 flex items-start gap-4 hover:bg-muted/20 transition-colors">
-                        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
-                          <span className="font-mono text-xs sm:text-sm text-muted-foreground sm:col-span-2 break-all">
-                            {isPkg ? (it.package_id ?? it.code) : it.code}
-                          </span>
-                          <span className="text-sm font-medium sm:col-span-5 break-words whitespace-normal">
-                            {it.description ?? "—"}
-                          </span>
+                      <div key={it.id} className="px-4 sm:px-6 py-4 flex items-start gap-4 hover:bg-muted/20 transition-colors">
+                        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-start sm:items-center">
+                          {/* Código e Identificador */}
+                          <div className="sm:col-span-3 flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Código</span>
+                            <span className="font-mono text-xs sm:text-sm font-semibold text-primary break-all">
+                              {isPkg ? (it.package_id ?? it.code) : it.code}
+                            </span>
+                          </div>
+
+                          {/* Descrição */}
+                          <div className="sm:col-span-5 flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Descrição</span>
+                            <span className="text-sm font-medium break-words whitespace-normal leading-relaxed">
+                              {it.description ?? <span className="text-muted-foreground italic">Sem descrição</span>}
+                            </span>
+                          </div>
                           
-                          {isCbhpm ? (
-                            <div className="sm:col-span-4 flex items-center gap-2 flex-wrap sm:justify-end">
-                              <span className="text-[10px] sm:text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono whitespace-nowrap">
-                                {it.port
-                                  ? it.port_multiplier && it.port_multiplier !== 1
-                                    ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
-                                    : it.port
-                                  : "—"}
-                              </span>
-                              <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
-                                {it.aux_count != null ? `${it.aux_count} aux` : "—"}
-                              </span>
-                            </div>
-                          ) : isPkg ? (
-                            <div className="sm:col-span-4 flex flex-col sm:items-end gap-1">
-                              <span className="text-[10px] sm:text-xs font-mono text-muted-foreground break-all line-clamp-2">
-                                {(it.tuss_codes ?? []).join(" + ") || "—"}
-                              </span>
-                              <span className="text-sm font-semibold">{formatCurrency(it.package_amount ?? 0)}</span>
-                            </div>
-                          ) : (
-                            <div className="sm:col-span-4 flex sm:justify-end">
-                              <span className="text-sm font-semibold">{formatCurrency(it.amount ?? 0)}</span>
-                            </div>
-                          )}
+                          {/* Valores e Detalhes */}
+                          <div className="sm:col-span-4 min-w-0">
+                            {isCbhpm ? (
+                              <div className="flex flex-col sm:items-end gap-1.5">
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Porte / Aux</span>
+                                <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                                  <span className="text-[10px] sm:text-xs rounded-md border border-primary/20 bg-primary/5 text-primary px-2 py-1 font-mono font-bold whitespace-nowrap">
+                                    {it.port
+                                      ? it.port_multiplier && it.port_multiplier !== 1
+                                        ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
+                                        : it.port
+                                      : "—"}
+                                  </span>
+                                  {it.aux_count != null && (
+                                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground whitespace-nowrap px-2 py-1 bg-muted rounded-md border border-border">
+                                      {it.aux_count} aux
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : isPkg ? (
+                              <div className="flex flex-col sm:items-end gap-1.5">
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Valor / TUSS</span>
+                                <div className="flex flex-col sm:items-end gap-1">
+                                  <span className="text-sm font-bold text-foreground">{formatCurrency(it.package_amount ?? 0)}</span>
+                                  <span className="text-[10px] font-mono text-muted-foreground break-all line-clamp-2 leading-tight">
+                                    {(it.tuss_codes ?? []).join(" + ") || "—"}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col sm:items-end gap-1">
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Valor</span>
+                                <span className="text-sm font-bold text-foreground">{formatCurrency(it.amount ?? 0)}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           onClick={() => removeItem(it.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                          className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 self-center"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
