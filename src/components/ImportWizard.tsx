@@ -604,7 +604,7 @@ function buildImportPayload(
   fixedContext: Record<string, any> | undefined,
   entity: ImportProfile["entity"],
 ) {
-  const mapped = applyMapping(rows, mapping, fields);
+  const mapped = applyMapping(rows, mapping, fields, entity);
   const { valid, errors, dups } = validateRows(mapped, fields, entity);
   const fixed = fixedContext ?? {};
   const records = valid.map((r) => {
