@@ -119,6 +119,29 @@ export const PaymentTimeline = ({
     toast({ title: "Observação atualizada" });
   };
 
+  const ViewToggle = (
+    <div className="flex items-center gap-1 p-0.5 bg-muted rounded-md mb-4 w-fit">
+      <Button
+        variant={viewMode === "phases" ? "default" : "ghost"}
+        size="sm"
+        className="h-7 px-2 text-[11px] gap-1.5"
+        onClick={() => setViewMode("phases")}
+      >
+        <LayoutList className="h-3 w-3" />
+        Visão por Fases
+      </Button>
+      <Button
+        variant={viewMode === "linear" ? "default" : "ghost"}
+        size="sm"
+        className="h-7 px-2 text-[11px] gap-1.5"
+        onClick={() => setViewMode("linear")}
+      >
+        <HistoryIcon className="h-3 w-3" />
+        Timeline Linear
+      </Button>
+    </div>
+  );
+
   const FilterBar = (
     <div className="flex items-center gap-2 mb-3 text-xs">
       <Filter className="h-3.5 w-3.5 text-muted-foreground" />
