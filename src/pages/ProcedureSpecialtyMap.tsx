@@ -218,76 +218,80 @@ export default function ProcedureSpecialtyMap() {
         </Button>
       </div>
 
-      <div className="flex gap-2 items-center border rounded-md p-3 bg-muted/30">
-        <Plus className="h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Código TUSS" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="max-w-[160px]" />
-        <Input placeholder="Especialidade médica (ex.: Urologia)" value={newSpec} onChange={(e) => setNewSpec(e.target.value)} className="max-w-[280px]" />
-        <Button onClick={addManual} disabled={!newCode.trim() || !newSpec.trim()}>Adicionar manual</Button>
+      <div className="flex gap-2 items-center border rounded-md p-3 bg-muted/30 flex-wrap sm:flex-nowrap">
+        <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+        <Input placeholder="Código TUSS" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="w-full sm:max-w-[160px]" />
+        <Input placeholder="Especialidade médica" value={newSpec} onChange={(e) => setNewSpec(e.target.value)} className="w-full sm:max-w-[280px]" />
+        <Button onClick={addManual} disabled={!newCode.trim() || !newSpec.trim()} className="w-full sm:w-auto">Adicionar manual</Button>
       </div>
 
       <Input placeholder="Filtrar por código, especialidade ou descrição…" value={filter} onChange={(e) => setFilter(e.target.value)} />
 
       <div className="border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr className="text-left">
-              <th className="p-3">Código</th>
-              <th className="p-3">Descrição</th>
-              <th className="p-3">Especialidade</th>
-              <th className="p-3">Confiança</th>
-              <th className="p-3">Amostra</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Carregando…</td></tr>
-            )}
-            {!loading && filtered.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Nenhum mapeamento ainda. Clique em "Gerar sugestões agora" para popular a partir do histórico.</td></tr>
-            )}
-            {filtered.map((r) => {
-              const editVal = edits[r.procedure_code] ?? r.medical_specialty;
-              const dirty = editVal !== r.medical_specialty;
-              return (
-                <tr key={r.procedure_code} className="border-t">
-                  <td className="p-3 font-mono">{r.procedure_code}</td>
-                  <td className="p-3 text-muted-foreground max-w-[320px] truncate" title={r.description ?? ""}>{r.description ?? "—"}</td>
-                  <td className="p-3">
-                    <Input
-                      value={editVal}
-                      onChange={(e) => setEdits((p) => ({ ...p, [r.procedure_code]: e.target.value }))}
-                      className="h-8"
-                    />
-                  </td>
-                  <td className="p-3">{r.confidence_pct != null ? `${r.confidence_pct}%` : "—"}</td>
-                  <td className="p-3">{r.sample_size ?? "—"}</td>
-                  <td className="p-3">
-                    <Badge variant="outline" className={STATUS_BADGE[r.status]}>{r.status}</Badge>
-                  </td>
-                  <td className="p-3 text-right space-x-1">
-                    {dirty && (
-                      <Button size="sm" variant="outline" onClick={() => update(r.procedure_code, { medical_specialty: editVal, status: "aprovado" })}>
-                        Salvar e aprovar
-                      </Button>
-                    )}
-                    {!dirty && r.status !== "aprovado" && (
-                      <Button size="sm" variant="default" onClick={() => update(r.procedure_code, { status: "aprovado" })}>
-                        <Check className="h-3 w-3 mr-1" /> Aprovar
-                      </Button>
-                    )}
-                    {r.status !== "rejeitado" && (
-                      <Button size="sm" variant="ghost" onClick={() => update(r.procedure_code, { status: "rejeitado" })}>
-                        <X className="h-3 w-3 mr-1" /> Rejeitar
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr className="text-left whitespace-nowrap">
+                <th className="p-3">Código</th>
+                <th className="p-3">Descrição</th>
+                <th className="p-3">Especialidade</th>
+                <th className="p-3">Confiança</th>
+                <th className="p-3">Amostra</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {loading && (
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Carregando…</td></tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Nenhum mapeamento ainda. Clique em "Gerar sugestões agora" para popular a partir do histórico.</td></tr>
+              )}
+              {filtered.map((r) => {
+                const editVal = edits[r.procedure_code] ?? r.medical_specialty;
+                const dirty = editVal !== r.medical_specialty;
+                return (
+                  <tr key={r.procedure_code} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-3 font-mono text-xs">{r.procedure_code}</td>
+                    <td className="p-3 text-muted-foreground max-w-[200px] sm:max-w-[320px] break-words" title={r.description ?? ""}>
+                      {r.description ?? "—"}
+                    </td>
+                    <td className="p-3">
+                      <Input
+                        value={editVal}
+                        onChange={(e) => setEdits((p) => ({ ...p, [r.procedure_code]: e.target.value }))}
+                        className="h-8 min-w-[140px]"
+                      />
+                    </td>
+                    <td className="p-3 whitespace-nowrap">{r.confidence_pct != null ? `${r.confidence_pct}%` : "—"}</td>
+                    <td className="p-3 whitespace-nowrap">{r.sample_size ?? "—"}</td>
+                    <td className="p-3 whitespace-nowrap">
+                      <Badge variant="outline" className={STATUS_BADGE[r.status]}>{r.status}</Badge>
+                    </td>
+                    <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                      {dirty && (
+                        <Button size="sm" variant="outline" onClick={() => update(r.procedure_code, { medical_specialty: editVal, status: "aprovado" })}>
+                          Salvar e aprovar
+                        </Button>
+                      )}
+                      {!dirty && r.status !== "aprovado" && (
+                        <Button size="sm" variant="default" onClick={() => update(r.procedure_code, { status: "aprovado" })}>
+                          <Check className="h-3 w-3 mr-1" /> Aprovar
+                        </Button>
+                      )}
+                      {r.status !== "rejeitado" && (
+                        <Button size="sm" variant="ghost" onClick={() => update(r.procedure_code, { status: "rejeitado" })}>
+                          <X className="h-3 w-3 mr-1" /> Rejeitar
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
