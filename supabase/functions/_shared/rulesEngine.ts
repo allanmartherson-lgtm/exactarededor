@@ -216,6 +216,7 @@ export interface PaymentContext {
   specialties: string[];
   payment_type: string | null;
   reference_date: string;
+  globalExceptionTableIds?: string[];
 }
 
 export type RuleMatchPriority =
