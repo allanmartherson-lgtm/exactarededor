@@ -345,7 +345,44 @@ const Rules = () => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
-  const loadGlobalThresholds = () => supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle().then(({ data }) => setGlobalThresholds(data?.value || null));
+  const loadGlobalThresholds = () => supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle().then(({ data }) => {
+    if (data?.value) {
+      const v = data.value as any;
+      setGlobalThresholds(v);
+      setFGlobalAlertThresholdType(v.limiar_alerta_tipo || "percentual");
+      setFGlobalAlertThresholdValue(String(v.limiar_alerta_valor ?? 1.0));
+      setFGlobalBlockThresholdType(v.limiar_bloqueio_tipo || "percentual");
+      setFGlobalBlockThresholdValue(String(v.limiar_bloqueio_valor ?? 5.0));
+    }
+  });
+
+  const saveGlobalThresholds = async () => {
+    const alertV = num(fGlobalAlertThresholdValue) ?? 1.0;
+    const blockV = num(fGlobalBlockThresholdValue) ?? 5.0;
+    
+    if (fGlobalAlertThresholdType === fGlobalBlockThresholdType && blockV <= alertV) {
+      return toast({ title: "Limiar de bloqueio inválido", description: "O valor de bloqueio deve ser maior que o de alerta.", variant: "destructive" });
+    }
+
+    const value = {
+      limiar_alerta_tipo: fGlobalAlertThresholdType,
+      limiar_alerta_valor: alertV,
+      limiar_bloqueio_tipo: fGlobalBlockThresholdType,
+      limiar_bloqueio_valor: blockV
+    };
+
+    const { error } = await supabase.from("system_configurations").upsert({
+      key: "divergence_thresholds",
+      value,
+      description: "Limiares globais padrão de divergência para análise de pagamento"
+    }, { onConflict: "key" });
+
+    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    
+    toast({ title: "Configurações salvas" });
+    setGlobalConfigOpen(false);
+    loadGlobalThresholds();
+  };
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
   const loadCompanies = async () => {
     const PAGE = 1000;
