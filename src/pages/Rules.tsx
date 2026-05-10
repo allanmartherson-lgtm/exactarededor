@@ -949,6 +949,8 @@ const Rules = () => {
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSaving(true);
+    try {
     // Abre automaticamente seções com erro para feedback imediato
     const sectionsWithErr = Object.entries(sectionErrors).filter(([, n]) => n > 0).map(([k]) => k);
     if (sectionsWithErr.length > 0) {
