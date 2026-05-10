@@ -1521,14 +1521,23 @@ const Rules = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
-              <DialogHeader>
-                <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
-                {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
-              </DialogHeader>
-              <form onSubmit={submitRule} className="flex-1 overflow-y-auto p-6 space-y-4 box-border min-w-0">
+          <Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button>
+          <FormDialog
+            open={open}
+            onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}
+            title={editingId ? "Editar regra" : "Nova regra"}
+            description={editingId ? "Atualize os campos e salve." : undefined}
+            maxWidth="4xl"
+            footer={
+              <div className="w-full flex items-center justify-end gap-3">
+                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" form="rule-form" disabled={saving}>
+                  {saving ? (editingId ? "Salvando..." : "Criando...") : (editingId ? "Atualizar" : "Criar")}
+                </Button>
+              </div>
+            }
+          >
+            <form id="rule-form" onSubmit={submitRule} className="space-y-4">
                 {calcSyncErrors.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
