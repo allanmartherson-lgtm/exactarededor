@@ -1144,12 +1144,8 @@ function ItemDetailsRow({
                           Regra Específica / Grupo / Convênio
                         </li>
                         <li className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_codigo" || priority === "setor" ? "bg-success" : "bg-muted-foreground/30")} />
-                          Regra Geral de Setor
-                        </li>
-                        <li className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_master_geral" || priority === "setor_outro" || priority === "setor_hemodinamica_master" ? "bg-success" : "bg-muted-foreground/30")} />
-                          Regra Master / Geral
+                          <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
+                          Regra Master / Geral (Independente de Setor)
                         </li>
                       </ul>
                     </div>
