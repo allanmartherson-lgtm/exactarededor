@@ -1030,7 +1030,43 @@ export default function CompanyAnalysis() {
             </>
           )}
         </div>
-        <StatusBadge status={gStatus} />
+        <div className="flex items-center gap-2">
+          {canEdit && (
+            <div className="flex items-center gap-2 mr-2 pr-2 border-r">
+              <Switch 
+                id="group-totalized" 
+                checked={items.every(it => it.convenio_value_totalized === true)}
+                onCheckedChange={async (checked) => {
+                  if (!id || !group) return;
+                  setBusy(true);
+                  const { error } = await supabase
+                    .from("payment_items")
+                    .update({ convenio_value_totalized: checked })
+                    .eq("payment_id", id)
+                    .eq("company_name", group.company_name);
+                  
+                  if (error) {
+                    toast.error("Falha ao atualizar itens: " + error.message);
+                  } else {
+                    toast.success(checked ? "Valor do convênio marcado como totalizado" : "Valor do convênio marcado como unitário");
+                    await recordObservation({
+                      payment_id: id,
+                      author_type: "analista",
+                      author_id: user?.id,
+                      message: `[${group.company_name}] Valor do convênio marcado como ${checked ? "TOTALIZADO" : "UNITÁRIO"} para todos os itens. Reanalisando...`,
+                    });
+                    await reanalyze();
+                  }
+                  setBusy(false);
+                }}
+              />
+              <Label htmlFor="group-totalized" className="text-[11px] font-normal text-muted-foreground cursor-pointer whitespace-nowrap">
+                Valor convênio já totalizado
+              </Label>
+            </div>
+          )}
+          <StatusBadge status={gStatus} />
+        </div>
       </div>
 
       {/* TOPO */}
