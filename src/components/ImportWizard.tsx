@@ -137,7 +137,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
             const sheetCol = mapping[fieldKey];
             if (sheetCol) {
               const val = normalizeNumericValue(row[sheetCol]);
-              if (val !== null) extraAmounts[fieldKey] = val;
+              if (val && !val.invalid && val.value !== null) extraAmounts[fieldKey] = val.value;
             }
           }
         });
