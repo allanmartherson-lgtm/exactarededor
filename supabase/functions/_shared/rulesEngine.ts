@@ -919,6 +919,7 @@ export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
+  tolerance_pct?: number; // Tolerância customizada (ex.: 0.05 para 5%)
 }
 
 /**
