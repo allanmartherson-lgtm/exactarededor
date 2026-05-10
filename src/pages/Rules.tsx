@@ -874,6 +874,15 @@ const Rules = () => {
         includes_holidays: r.includes_holidays, elective_mode: eMode,
       })]);
     }
+    // Thresholds
+    setFAlertThresholdType(r.limiar_alerta_tipo || "percentual");
+    setFAlertThresholdValue(r.limiar_alerta_valor != null ? String(r.limiar_alerta_valor) : "");
+    setFAlertInherit(r.limiar_alerta_valor == null);
+    
+    setFBlockThresholdType(r.limiar_bloqueio_tipo || "percentual");
+    setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
+    setFBlockInherit(r.limiar_bloqueio_valor == null);
+
     // Garante que a seção "Identificação" esteja aberta ao editar
     // (contém o bloco Convênio — eixo determinístico do motor de regras).
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
