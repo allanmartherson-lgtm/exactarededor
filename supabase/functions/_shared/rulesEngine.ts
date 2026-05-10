@@ -1505,6 +1505,7 @@ export function analyzePaymentItems(
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
   const state: EngineCtx = {
+    ...ctx,
     appliedAttendancesByRule: new Map<string, Set<string>>(),
     referenceLookup: options?.referenceLookup,
     exceptionLookup: options?.exceptionLookup,
