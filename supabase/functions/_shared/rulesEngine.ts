@@ -1498,7 +1498,7 @@ export function analyzeItem(
     calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
   }
 
-  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, ctx);
+  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, outcome?.rule ?? null, ctx);
   if (priority === "conflito") status = "alerta";
   if (priority === "sem_regra") status = "alerta";
   // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.
