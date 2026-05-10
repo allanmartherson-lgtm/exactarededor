@@ -740,7 +740,7 @@ const ReferenceTables = () => {
               </p>
               <textarea
                 className="w-full min-h-[160px] rounded-md border border-input bg-background p-2 text-sm font-mono"
-                placeholder={"30729220\n30731119 - Reparação ligamentar"}
+                placeholder={"30729220\n30731119 - Reparação ligamentar\n30729220 - Cirurgião - 150,00"}
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
               />
