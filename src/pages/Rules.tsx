@@ -1485,7 +1485,14 @@ const Rules = () => {
             </DialogContent>
           </Dialog>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
-            <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={downloadTemplate}>
+                <FileDown className="h-4 w-4 mr-2" /> Modelo
+              </Button>
+              <DialogTrigger asChild>
+                <Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button>
+              </DialogTrigger>
+            </div>
             <DialogContent>
               <DialogHeader><DialogTitle>Importar regras com IA</DialogTitle></DialogHeader>
               <Tabs defaultValue="file" className="w-full">
