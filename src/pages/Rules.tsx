@@ -2381,6 +2381,16 @@ const Rules = () => {
                                  {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
                                  {r.valid_until && new Date(r.valid_until) < new Date() && <span className="text-[10px] font-bold uppercase bg-warning/10 text-warning-foreground px-1.5 py-0.5 rounded border border-warning/20">Expirada</span>}
                                 <span className="font-semibold text-foreground">{r.name}</span>
+                                {(() => {
+                                  const alertVal = r.limiar_alerta_valor;
+                                  const alertType = r.limiar_alerta_tipo;
+                                  const blockVal = r.limiar_bloqueio_valor;
+                                  const blockType = r.limiar_bloqueio_tipo;
+                                  if (alertVal == null && blockVal == null) return null;
+                                  const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                  const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                  return <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50 ml-1">⚠ {alertText} / 🚫 {blockText}</span>;
+                                })()}
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
