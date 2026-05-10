@@ -482,6 +482,9 @@ const ReferenceTables = () => {
               <Button variant="outline" onClick={() => setSelected(null)}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
               </Button>
+              <Button variant="outline" onClick={() => downloadTemplate(selected.kind)}>
+                <Download className="h-4 w-4 mr-2" /> Baixar modelo
+              </Button>
               {!isCbhpm && (
                 <>
                   <Button variant="outline" onClick={() => setManualOpen(true)}>
