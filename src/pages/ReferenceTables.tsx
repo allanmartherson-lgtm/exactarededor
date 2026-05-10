@@ -456,8 +456,9 @@ const ReferenceTables = () => {
       // Simples / Tabela Própria
       filename = "modelo_tabela_simples.xlsx";
       const ws = XLSX.utils.json_to_sheet([
-        { "código": "30101011", "descrição": "Procedimento X", "valor": 150.00 },
-        { "código": "30101012", "descrição": "Procedimento Y", "valor": 200.00 },
+        { "código": "30101011", "descrição": "Procedimento X", "atuação": "Cirurgião", "valor": 150.00 },
+        { "código": "30101011", "descrição": "Procedimento X", "atuação": "Auxiliar 1", "valor": 45.00 },
+        { "código": "30101012", "descrição": "Procedimento Y", "atuação": "Valor Fixo", "valor": 200.00 },
       ]);
       XLSX.utils.book_append_sheet(wb, ws, "Template");
     }
