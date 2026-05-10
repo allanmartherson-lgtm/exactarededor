@@ -2507,8 +2507,8 @@ const Rules = () => {
             <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
             <Button onClick={applyBulkUpdate}>Aplicar</Button>
           </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        </DialogContent>
+      </Dialog>
 
       {/* Tela de revisão pós-importação */}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
