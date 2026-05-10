@@ -991,7 +991,8 @@ const ReferenceTables = () => {
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 };
+
 export default ReferenceTables;

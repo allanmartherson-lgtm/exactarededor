@@ -2775,7 +2775,8 @@ const Rules = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
+
 export default Rules;

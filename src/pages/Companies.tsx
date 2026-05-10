@@ -328,10 +328,10 @@ const Companies = () => {
     : items;
 
   return (
-    <>
+    <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
-      <div className="p-8 max-w-full space-y-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="p-4 md:p-8 w-full mx-auto space-y-4">
+          <div className="flex items-center justify-between gap-3">
           <Input placeholder="Buscar por nome, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
@@ -553,7 +553,96 @@ const Companies = () => {
         importing={importing}
         onOpenChange={(v) => !importing && setImportResults(prev => ({ ...prev, show: v }))}
       />
-    </>
+    </div>
+  );
+};
+
+const ImportResultsDialog = ({ open, results, progress, importing, onOpenChange }: { 
+  open: boolean, 
+  results: any, 
+  progress: number, 
+  importing: boolean,
+  onOpenChange: (open: boolean) => void 
+}) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {importing ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                Importando empresas...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                Resultado da importação
+              </>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="py-4 space-y-4">
+          {importing && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm mb-1">
+                <span>Processando linhas...</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-muted/50 p-3 rounded-md text-center">
+              <div className="text-2xl font-bold">{results.total}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Total de linhas</div>
+            </div>
+            <div className="bg-success-soft p-3 rounded-md text-center">
+              <div className="text-2xl font-bold text-success">{results.success}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Novas empresas</div>
+            </div>
+          </div>
+
+          {results.updated > 0 && (
+            <div className="bg-primary/5 p-3 rounded-md text-center">
+              <div className="text-xl font-bold text-primary">{results.updated}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Empresas atualizadas</div>
+            </div>
+          )}
+
+          {results.errors.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>Problemas detectados ({results.errors.length})</span>
+              </div>
+              <div className="max-h-32 overflow-y-auto border border-destructive/20 rounded-md p-2 bg-destructive/5">
+                <ul className="text-xs space-y-1 list-disc list-inside text-destructive">
+                  {results.errors.map((err: string, i: number) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {!importing && results.success + results.updated === results.total && results.errors.length === 0 && (
+            <div className="bg-success-soft p-3 rounded-md flex items-center gap-3 text-sm text-success font-medium border border-success/20">
+              <CheckCircle2 className="h-5 w-5" />
+              <p>Importação de {results.total} linhas concluída com sucesso.</p>
+            </div>
+          )}
+        </div>
+
+        {!importing && (
+          <DialogFooter>
+            <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -628,6 +717,7 @@ const ImportResultsDialog = ({ open, results, progress, importing, onOpenChange 
         )}
       </DialogContent>
     </Dialog>
+    </div>
   );
 };
 

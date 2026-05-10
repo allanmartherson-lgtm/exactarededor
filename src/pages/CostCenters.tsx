@@ -208,12 +208,12 @@ const CostCenters = () => {
   const filteredCount = items.length; // página atual carregada
 
   return (
-    <>
+    <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <PageHeader
         title="Centros de custo"
         description="Catálogo importado da controladoria (P12). Apenas centros com status 'Não Bloqueado' são considerados."
       />
-      <div className="p-8 max-w-full space-y-6">
+      <div className="p-4 md:p-8 w-full mx-auto space-y-6">
         {canManage && (
           <Card className="shadow-card">
             <CardHeader>
@@ -417,8 +417,7 @@ const CostCenters = () => {
         profile={COST_CENTERS_IMPORT_PROFILE}
         onComplete={handleImportComplete}
       />
-    </>
-
+    </div>
   );
 };
 
