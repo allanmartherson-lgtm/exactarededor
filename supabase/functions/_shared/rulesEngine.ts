@@ -620,9 +620,10 @@ function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
 export function selectWinningRule(
   item: ItemInput,
   rules: RuleInput[],
+  ctx?: PaymentContext,
   opts?: { collectTrace?: boolean },
 ): SelectionOutcome | null {
-  const itemSector = inferItemSector(item);
+  const itemSector = inferItemSector(item, ctx);
   const isHemo = itemSector === "hemodinamica";
   const trace: SelectionTrace | undefined = opts?.collectTrace
     ? { item_sector: itemSector, is_hemo: isHemo, levels: [], winner_rule_id: null, winner_priority: "sem_regra" }
