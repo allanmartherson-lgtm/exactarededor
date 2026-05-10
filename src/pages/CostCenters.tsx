@@ -214,6 +214,7 @@ const CostCenters = () => {
         description="Catálogo importado da controladoria (P12). Apenas centros com status 'Não Bloqueado' são considerados."
       />
       <div className="p-4 md:p-8 w-full mx-auto space-y-6">
+        {canManage && (
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Upload className="h-4 w-4" /> Importar planilha da controladoria</CardTitle>
