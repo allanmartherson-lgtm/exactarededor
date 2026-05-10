@@ -711,7 +711,7 @@ export default function ValidationRules() {
               )}
             </section>
           </div>
-          <DialogFooter className="p-6 pt-2 border-t">
+          <DialogFooter className="p-6 pt-4 border-t bg-muted/10 flex items-center justify-end gap-3">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={save}>Salvar</Button>
           </DialogFooter>

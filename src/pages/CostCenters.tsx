@@ -213,7 +213,7 @@ const CostCenters = () => {
         title="Centros de custo"
         description="Catálogo importado da controladoria (P12). Apenas centros com status 'Não Bloqueado' são considerados."
       />
-      <div className="p-8 space-y-6">
+      <div className="p-8 max-w-full space-y-6">
         {canManage && (
           <Card className="shadow-card">
             <CardHeader>

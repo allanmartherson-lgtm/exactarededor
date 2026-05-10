@@ -659,6 +659,7 @@ const ReferenceTables = () => {
               open={open}
               onOpenChange={setOpen}
               title="Nova tabela de referência"
+              maxWidth="6xl"
               footer={
                 <div className="w-full">
                   <Button type="submit" form="create-table-form" className="w-full">Criar</Button>
@@ -768,7 +769,7 @@ const ReferenceTables = () => {
           </>
         }
       />
-      <div className="p-8">
+      <div className="p-8 max-w-full">
         <Card className="shadow-card">
           <CardContent className="p-0">
             {tables.length === 0 ? (

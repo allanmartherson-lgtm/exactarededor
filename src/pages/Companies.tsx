@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { FormDialog } from "@/components/FormDialog";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { CompanySlaSection } from "@/components/CompanySlaSection";
 import { CompanyDoctorsSection } from "@/components/CompanyDoctorsSection";
@@ -350,14 +351,20 @@ const Companies = () => {
                 </span>
               </Button>
             </label>
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing(empty)}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
-            </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
-              <DialogHeader className="p-6 pb-2"><DialogTitle>{editing.id ? "Editar empresa" : "Nova empresa"}</DialogTitle></DialogHeader>
-              <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button onClick={() => { setEditing(empty); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
+            <FormDialog
+              open={open}
+              onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}
+              title={editing.id ? "Editar empresa" : "Nova empresa"}
+              maxWidth="5xl"
+              footer={
+                <div className="w-full flex items-center justify-end gap-3">
+                  <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                  <Button onClick={save}>Salvar</Button>
+                </div>
+              }
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label>Nome oficial *</Label>
                   <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Ex: Clínica Cirúrgica de Taguatinga Ltda" />
@@ -415,10 +422,8 @@ const Companies = () => {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onBlur={() => {
-                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado).
-                      // tryAddEmail cuida de trim/lowercase/dedup/validação.
                       const result = tryAddEmail(editing.invoice_emails ?? [], emailInput);
-                      if (!result.ok) return; // inválido: mantém no input pra o usuário corrigir
+                      if (!result.ok) return;
                       setEditing({ ...editing, invoice_emails: result.emails });
                       setEmailInput("");
                     }}
@@ -443,7 +448,7 @@ const Companies = () => {
                   />
                   {emailInput.trim() && (
                     <p className="text-xs text-warning">
-                      ⚠ Pressione <kbd className="px-1 rounded bg-muted">Enter</kbd> para adicionar este e-mail. (Ao salvar, será adicionado automaticamente.)
+                      ⚠ Pressione <kbd className="px-1 rounded bg-muted">Enter</kbd> para adicionar este e-mail.
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1.5">
@@ -472,14 +477,8 @@ const Companies = () => {
                 <div className="space-y-1.5 pt-2 border-t border-border">
                   <CompanyDoctorsSection companyId={editing.id} />
                 </div>
-                </div>
               </div>
-              <DialogFooter className="p-6 pt-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={save}>Salvar</Button>
-              </DialogFooter>
-            </DialogContent>
-            </Dialog>
+            </FormDialog>
           </div>
         </div>
 
