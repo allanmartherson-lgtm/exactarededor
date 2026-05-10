@@ -1642,6 +1642,18 @@ const PaymentDetail = () => {
                   <SelectItem value="approved_strict" className="text-xs">Aprovados (sem pendências)</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {hasRole("analista") || hasRole("gestor") || hasRole("diretor") ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                  onClick={() => setIsReportOpen(true)}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Relatório
+                </Button>
+              ) : null}
             </div>
           </div>
           
