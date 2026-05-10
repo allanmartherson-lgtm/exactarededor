@@ -1011,7 +1011,7 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap flex-1">
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
@@ -1040,33 +1040,32 @@ const NewPayment = () => {
                             </PopoverContent>
                           </Popover>
 
-                          <div className="flex items-center gap-2 ml-auto">
-                            <div className="flex items-center gap-1.5 mr-2 pr-2 border-r">
-                              <Switch 
-                                id={`totalized-${idx}`} 
-                                checked={b.convenioValueTotalized || false} 
-                                onCheckedChange={() => toggleBucketConvenioTotalized(idx)}
-                                className="scale-75"
-                              />
-                              <Label 
-                                htmlFor={`totalized-${idx}`} 
-                                className="text-[10px] font-normal text-muted-foreground cursor-pointer leading-tight"
-                              >
-                                Valor convênio<br />já totalizado
-                              </Label>
-                            </div>
+                          <div className="flex items-center gap-1.5 px-2 border-l border-r border-border/50 h-6">
+                            <Switch 
+                              id={`totalized-${idx}`} 
+                              checked={b.convenioValueTotalized || false} 
+                              onCheckedChange={() => toggleBucketConvenioTotalized(idx)}
+                              className="scale-[0.7]"
+                            />
+                            <Label 
+                              htmlFor={`totalized-${idx}`} 
+                              className="text-[10px] font-normal text-muted-foreground cursor-pointer leading-tight"
+                            >
+                              Valor convênio já totalizado
+                            </Label>
+                          </div>
 
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                                >
-                                  <Pencil className="h-3 w-3 mr-1" />
-                                  Setor: {b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}
-                                </Button>
-                              </PopoverTrigger>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Setor: {b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}
+                              </Button>
+                            </PopoverTrigger>
                             <PopoverContent className="w-64 p-3" align="end">
                               <div className="space-y-3">
                                 <div className="space-y-1">
@@ -1093,7 +1092,7 @@ const NewPayment = () => {
                             </PopoverContent>
                           </Popover>
                         </div>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground ml-auto">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
                       </div>
