@@ -79,6 +79,16 @@ export const PaymentTimeline = ({
     return observations.filter((o) => o.author_type === roleFilter);
   }, [observations, roleFilter]);
 
+  const phases = useMemo(() => {
+    const p = {
+      ia: observations.filter((o) => o.author_type === "ia" || o.author_type === "sistema"),
+      analista: observations.filter((o) => o.author_type === "analista"),
+      validador: observations.filter((o) => o.author_type === "validador"),
+      diretor: observations.filter((o) => o.author_type === "diretor" || o.author_type === "admin"),
+    };
+    return p;
+  }, [observations]);
+
   const startEditObs = (o: ObservationRow) => {
     setEditingObsId(o.id);
     setEditingObsDraft(o.message ?? "");
