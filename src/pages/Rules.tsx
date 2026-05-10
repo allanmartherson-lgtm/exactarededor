@@ -253,6 +253,12 @@ const Rules = () => {
   const [fBlockThresholdType, setFBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
   const [fBlockThresholdValue, setFBlockThresholdValue] = useState<string>("");
   const [fBlockInherit, setFBlockInherit] = useState(true);
+  
+  // Global Thresholds Form
+  const [fGlobalAlertThresholdType, setFGlobalAlertThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fGlobalAlertThresholdValue, setFGlobalAlertThresholdValue] = useState<string>("1.0");
+  const [fGlobalBlockThresholdType, setFGlobalBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fGlobalBlockThresholdValue, setFGlobalBlockThresholdValue] = useState<string>("5.0");
   type CalcSyncError = {
     step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
     message: string;
