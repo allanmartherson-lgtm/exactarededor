@@ -1535,7 +1535,7 @@ const Rules = () => {
             onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}
             title={editingId ? "Editar regra" : "Nova regra"}
             description={editingId ? "Atualize os campos e salve." : undefined}
-            maxWidth="4xl"
+            maxWidth="6xl"
             footer={
               <div className="w-full flex items-center justify-end gap-3">
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

@@ -354,10 +354,19 @@ const Companies = () => {
             <DialogTrigger asChild>
               <Button onClick={() => setEditing(empty)}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
-              <DialogHeader className="p-6 pb-2"><DialogTitle>{editing.id ? "Editar empresa" : "Nova empresa"}</DialogTitle></DialogHeader>
-              <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormDialog
+              open={open}
+              onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}
+              title={editing.id ? "Editar empresa" : "Nova empresa"}
+              maxWidth="5xl"
+              footer={
+                <div className="w-full flex items-center justify-end gap-3">
+                  <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                  <Button onClick={save}>Salvar</Button>
+                </div>
+              }
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label>Nome oficial *</Label>
                   <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Ex: Clínica Cirúrgica de Taguatinga Ltda" />

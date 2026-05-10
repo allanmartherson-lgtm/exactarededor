@@ -290,7 +290,7 @@ export default function Doctors() {
                 open={open}
                 onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setEditingCompanyIds([]); } }}
                 title={editing.id ? "Editar médico" : "Novo médico"}
-                maxWidth="2xl"
+                maxWidth="5xl"
                 footer={
                   <div className="w-full flex items-center justify-end gap-3">
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

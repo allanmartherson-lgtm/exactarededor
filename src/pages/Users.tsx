@@ -430,7 +430,7 @@ const Users = () => {
           </Dialog>
         ) : undefined}
       />
-      <div className="p-8 space-y-6">
+      <div className="p-8 max-w-full space-y-6">
         {isAdmin && requests.length > 0 && (
           <Card className="shadow-card border-primary/30">
             <CardContent className="p-0">
