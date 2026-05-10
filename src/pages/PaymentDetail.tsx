@@ -801,7 +801,7 @@ const PaymentDetail = () => {
         payment_id: id,
         author_type: "analista",
         author_id: user.id,
-        message: "Análise da IA reprocessada manualmente pelo analista (lote estava preso em em_analise_ia).",
+        message: "Regras de repasse reaplicadas em todo o lote manualmente pelo analista.",
         status_from: payment?.status ?? null,
         status_to: payment?.status ?? null,
       });
