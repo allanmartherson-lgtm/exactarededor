@@ -2048,6 +2048,17 @@ const PaymentDetail = () => {
           })()}
         </SheetContent>
       </Sheet>
+
+      {payment && (
+        <PaymentReportModal
+          open={isReportOpen}
+          onOpenChange={setIsReportOpen}
+          payment={payment}
+          items={items}
+          groups={groups}
+          analystName={user?.id ? profiles[user.id] : undefined}
+        />
+      )}
     </>
   );
 };
