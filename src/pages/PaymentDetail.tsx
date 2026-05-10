@@ -163,6 +163,7 @@ const PaymentDetail = () => {
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved">("all");
+  const [toleranceValue, setToleranceValue] = useState<number>(0.01);
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
@@ -799,14 +800,15 @@ const PaymentDetail = () => {
       const { error } = await supabase.functions.invoke("analyze-payment", {
         body: { 
           payment_id: id,
-          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined
+          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
+          tolerance_pct: toleranceValue
         },
       });
       if (error) throw error;
       
       const filterDesc = statuses && statuses.length > 0 
-        ? ` (filtrado por: ${statuses.join(", ")})` 
-        : " em todo o lote";
+        ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
+        : ` em todo o lote (tolerância: ${toleranceValue * 100}%)`;
 
       await recordObservation({
         payment_id: id,
@@ -1253,33 +1255,61 @@ const PaymentDetail = () => {
                 <AlertDialogContent className="max-w-md">
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reanalisar itens do lote?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Selecione quais itens você deseja reanalisar. A IA reaplicará as regras e justificativas.
-                      <br /><br />
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Filtrar por status:</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {["pendente", "alerta", "reprovado", "aprovado"].map((status) => (
-                            <label key={status} className="flex items-center gap-2 text-sm p-2 rounded-md border border-border hover:bg-muted/50 cursor-pointer">
-                              <Checkbox 
-                                checked={reprocessFilter.includes(status)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) setReprocessFilter([...reprocessFilter, status]);
-                                  else setReprocessFilter(reprocessFilter.filter(s => s !== status));
-                                }}
-                              />
-                              <span className="capitalize">{status}</span>
-                            </label>
-                          ))}
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-4">
+                        <p>
+                          Selecione quais itens você deseja reanalisar e defina o critério de tolerância para divergências.
+                        </p>
+                        
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Tolerância aceitável:</p>
+                          <Select 
+                            value={String(toleranceValue)} 
+                            onValueChange={(v) => setToleranceValue(Number(v))}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione a tolerância" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0.01">Até 1% (Padrão)</SelectItem>
+                              <SelectItem value="0.02">Até 2%</SelectItem>
+                              <SelectItem value="0.05">Até 5%</SelectItem>
+                              <SelectItem value="0.10">Até 10%</SelectItem>
+                              <SelectItem value="0.00">0% (Divergência exata)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-[11px] text-muted-foreground italic">
+                            Divergências menores que {toleranceValue * 100}% serão marcadas como "Aprovado".
+                          </p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground italic">
-                          {reprocessFilter.length === 0 
-                            ? "Nenhum filtro selecionado: reanalisará TODO o lote." 
-                            : `Reanalisando apenas itens: ${reprocessFilter.join(", ")}.`}
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Filtrar por status:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {["pendente", "alerta", "reprovado", "aprovado"].map((status) => (
+                              <label key={status} className="flex items-center gap-2 text-sm p-2 rounded-md border border-border hover:bg-muted/50 cursor-pointer">
+                                <Checkbox 
+                                  checked={reprocessFilter.includes(status)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) setReprocessFilter([...reprocessFilter, status]);
+                                    else setReprocessFilter(reprocessFilter.filter(s => s !== status));
+                                  }}
+                                />
+                                <span className="capitalize">{status}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground italic">
+                            {reprocessFilter.length === 0 
+                              ? "Nenhum filtro selecionado: reanalisará TODO o lote." 
+                              : `Reanalisando apenas itens: ${reprocessFilter.join(", ")}.`}
+                          </p>
+                        </div>
+                        
+                        <p className="text-sm pt-2">
+                          Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                         </p>
                       </div>
-                      <br />
-                      Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

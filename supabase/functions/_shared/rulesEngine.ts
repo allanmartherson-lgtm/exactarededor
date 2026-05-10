@@ -919,6 +919,7 @@ export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
+  tolerance_pct?: number; // Tolerância customizada (ex.: 0.05 para 5%)
 }
 
 /**
@@ -1205,7 +1206,7 @@ function calcTabelaDiferenciada(
   return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };
 }
 
-function classifyDiff(expected: number | null, gross: number): { status: ItemAiStatus; diff_pct: number | null } {
+function classifyDiff(expected: number | null, gross: number, ctx?: EngineCtx): { status: ItemAiStatus; diff_pct: number | null } {
   if (expected == null) return { status: "alerta", diff_pct: null };
   
   // Se o esperado é 0 (exclusão) e o pago é 0, está perfeitamente correto (aprovado).
@@ -1216,9 +1217,11 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   
   const diff = Math.abs(expected - gross) / Math.max(Math.abs(expected), 0.01);
   
-  // Regra de projeto: se o valor bate com a regra (divergência < 1%), o item é aprovado
-  // e NÃO deve gerar alertas nem aparecer no resumo de divergências.
-  if (diff <= 0.01) return { status: "aprovado", diff_pct: diff };
+  // Regra de projeto: se o valor bate com a regra (divergência < tolerância), o item é aprovado.
+  // A tolerância padrão é 1% (0.01), mas pode ser customizada via contexto.
+  const tolerance = ctx?.tolerance_pct ?? 0.01;
+  
+  if (diff <= tolerance) return { status: "aprovado", diff_pct: diff };
   if (diff <= 0.10) return { status: "alerta",   diff_pct: diff };
   return { status: "reprovado", diff_pct: diff };
 }
@@ -1460,7 +1463,7 @@ export function analyzeItem(
     calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
   }
 
-  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount);
+  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, ctx);
   if (priority === "conflito") status = "alerta";
   if (priority === "sem_regra") status = "alerta";
   // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.

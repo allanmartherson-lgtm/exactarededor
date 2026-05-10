@@ -31,7 +31,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id, company_name, ai_statuses } = await req.json();
+    const { payment_id, company_name, ai_statuses, tolerance_pct } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,6 +58,7 @@ serve(async (req) => {
       reference_date: payment?.payment_due_date
         ?? payment?.competence_month
         ?? new Date().toISOString().slice(0, 10),
+      tolerance_pct: typeof tolerance_pct === "number" ? tolerance_pct : undefined,
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
