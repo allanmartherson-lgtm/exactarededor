@@ -1497,6 +1497,14 @@ export type Database = {
           include_auxiliaries: boolean
           includes_holidays: boolean
           instrumentador_pct: number | null
+          limiar_alerta_tipo:
+            | Database["public"]["Enums"]["threshold_type"]
+            | null
+          limiar_alerta_valor: number | null
+          limiar_bloqueio_tipo:
+            | Database["public"]["Enums"]["threshold_type"]
+            | null
+          limiar_bloqueio_valor: number | null
           multiplier: number | null
           name: string
           package_amount: number | null
@@ -1565,6 +1573,14 @@ export type Database = {
           include_auxiliaries?: boolean
           includes_holidays?: boolean
           instrumentador_pct?: number | null
+          limiar_alerta_tipo?:
+            | Database["public"]["Enums"]["threshold_type"]
+            | null
+          limiar_alerta_valor?: number | null
+          limiar_bloqueio_tipo?:
+            | Database["public"]["Enums"]["threshold_type"]
+            | null
+          limiar_bloqueio_valor?: number | null
           multiplier?: number | null
           name: string
           package_amount?: number | null
@@ -1633,6 +1649,14 @@ export type Database = {
           include_auxiliaries?: boolean
           includes_holidays?: boolean
           instrumentador_pct?: number | null
+          limiar_alerta_tipo?:
+            | Database["public"]["Enums"]["threshold_type"]
+            | null
+          limiar_alerta_valor?: number | null
+          limiar_bloqueio_tipo?:
+            | Database["public"]["Enums"]["threshold_type"]
+            | null
+          limiar_bloqueio_valor?: number | null
           multiplier?: number | null
           name?: string
           package_amount?: number | null
@@ -1762,6 +1786,33 @@ export type Database = {
           status_from?: Database["public"]["Enums"]["payment_status"] | null
           status_to?: Database["public"]["Enums"]["payment_status"] | null
           triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      system_configurations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: Json
         }
         Relationships: []
       }
@@ -1972,6 +2023,7 @@ export type Database = {
         | "tabela_diferenciada"
         | "bonus"
         | "complemento"
+      threshold_type: "percentual" | "absoluto"
       validation_action: "informar" | "alerta" | "alerta_forte" | "bloquear"
       validation_kind:
         | "duplicidade_exata"
@@ -2188,6 +2240,7 @@ export const Constants = {
         "bonus",
         "complemento",
       ],
+      threshold_type: ["percentual", "absoluto"],
       validation_action: ["informar", "alerta", "alerta_forte", "bloquear"],
       validation_kind: [
         "duplicidade_exata",

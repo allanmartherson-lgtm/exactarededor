@@ -62,10 +62,10 @@ serve(async (req) => {
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
-    // ---------- 2. carrega regras (com novos campos do motor) ----------
-    const { data: rulesRaw } = await supabase
-      .from("rules")
-      .select(`
+    // ---------- 2. carrega configurações globais e regras ----------
+    const [configRes, rulesRes] = await Promise.all([
+      supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle(),
+      supabase.from("rules").select(`
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
         target_type,target_identifier,target_name,target_company_id,
         procedure_codes,applies_payment_types,valid_from,valid_until,
@@ -77,10 +77,20 @@ serve(async (req) => {
         agreement_name,agreement_aliases,agreement_match_mode,
         exception_table_ids,
         group_company_ids,group_doctors,group_company_links,
-        bonus_amount,bonus_pct,target_amount
-      `)
-      .eq("active", true);
-    const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
+        bonus_amount,bonus_pct,target_amount,
+        limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor
+      `).eq("active", true)
+    ]);
+
+    const globalThresholds = configRes.data?.value as any || {
+      limiar_alerta_tipo: "percentual",
+      limiar_alerta_valor: 1.0,
+      limiar_bloqueio_tipo: "percentual",
+      limiar_bloqueio_valor: 5.0
+    };
+
+    const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
+    (ctx as any).globalThresholds = globalThresholds;
 
     // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
     if (rules.length > 0) {

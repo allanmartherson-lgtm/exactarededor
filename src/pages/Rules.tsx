@@ -153,10 +153,12 @@ const Rules = () => {
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
+  const [globalThresholds, setGlobalThresholds] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [globalConfigOpen, setGlobalConfigOpen] = useState(false);
   const [drafts, setDrafts] = useState<DraftRule[]>([]);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
@@ -244,6 +246,19 @@ const Rules = () => {
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
   // === Lista de itens de cálculo (1:N com a regra) ===
   const [fCalculations, setFCalculations] = useState<CalcItem[]>([makeEmptyCalc()]);
+  // Thresholds
+  const [fAlertThresholdType, setFAlertThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fAlertThresholdValue, setFAlertThresholdValue] = useState<string>("");
+  const [fAlertInherit, setFAlertInherit] = useState(true);
+  const [fBlockThresholdType, setFBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fBlockThresholdValue, setFBlockThresholdValue] = useState<string>("");
+  const [fBlockInherit, setFBlockInherit] = useState(true);
+  
+  // Global Thresholds Form
+  const [fGlobalAlertThresholdType, setFGlobalAlertThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fGlobalAlertThresholdValue, setFGlobalAlertThresholdValue] = useState<string>("1.0");
+  const [fGlobalBlockThresholdType, setFGlobalBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fGlobalBlockThresholdValue, setFGlobalBlockThresholdValue] = useState<string>("5.0");
   type CalcSyncError = {
     step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
     message: string;
@@ -330,6 +345,44 @@ const Rules = () => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
+  const loadGlobalThresholds = () => supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle().then(({ data }) => {
+    if (data?.value) {
+      const v = data.value as any;
+      setGlobalThresholds(v);
+      setFGlobalAlertThresholdType(v.limiar_alerta_tipo || "percentual");
+      setFGlobalAlertThresholdValue(String(v.limiar_alerta_valor ?? 1.0));
+      setFGlobalBlockThresholdType(v.limiar_bloqueio_tipo || "percentual");
+      setFGlobalBlockThresholdValue(String(v.limiar_bloqueio_valor ?? 5.0));
+    }
+  });
+
+  const saveGlobalThresholds = async () => {
+    const alertV = num(fGlobalAlertThresholdValue) ?? 1.0;
+    const blockV = num(fGlobalBlockThresholdValue) ?? 5.0;
+    
+    if (fGlobalAlertThresholdType === fGlobalBlockThresholdType && blockV <= alertV) {
+      return toast({ title: "Limiar de bloqueio inválido", description: "O valor de bloqueio deve ser maior que o de alerta.", variant: "destructive" });
+    }
+
+    const value = {
+      limiar_alerta_tipo: fGlobalAlertThresholdType,
+      limiar_alerta_valor: alertV,
+      limiar_bloqueio_tipo: fGlobalBlockThresholdType,
+      limiar_bloqueio_valor: blockV
+    };
+
+    const { error } = await supabase.from("system_configurations").upsert({
+      key: "divergence_thresholds",
+      value,
+      description: "Limiares globais padrão de divergência para análise de pagamento"
+    }, { onConflict: "key" });
+
+    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    
+    toast({ title: "Configurações salvas" });
+    setGlobalConfigOpen(false);
+    loadGlobalThresholds();
+  };
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
   const loadCompanies = async () => {
     const PAGE = 1000;
@@ -343,7 +396,7 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | MedPay"; load(); loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
 
   const exportRuleToPDF = (r: RuleRow) => {
     const doc = new jsPDF();
@@ -752,6 +805,8 @@ const Rules = () => {
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
     setFCalculations([makeEmptyCalc()]);
+    setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
+    setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
     setCalcSyncErrors([]);
     setCalcSyncRuleId(null);
     setCalcSyncAttempt(0);
@@ -864,6 +919,15 @@ const Rules = () => {
         includes_holidays: r.includes_holidays, elective_mode: eMode,
       })]);
     }
+    // Thresholds
+    setFAlertThresholdType(r.limiar_alerta_tipo || "percentual");
+    setFAlertThresholdValue(r.limiar_alerta_valor != null ? String(r.limiar_alerta_valor) : "");
+    setFAlertInherit(r.limiar_alerta_valor == null);
+    
+    setFBlockThresholdType(r.limiar_bloqueio_tipo || "percentual");
+    setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
+    setFBlockInherit(r.limiar_bloqueio_valor == null);
+
     // Garante que a seção "Identificação" esteja aberta ao editar
     // (contém o bloco Convênio — eixo determinístico do motor de regras).
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
@@ -954,10 +1018,27 @@ const Rules = () => {
       time_start: head.has_conditions ? (head.time_start || null) : null,
       time_end: head.has_conditions ? (head.time_end || null) : null,
       elective_mode: head.has_conditions ? head.elective_mode : "qualquer",
+      limiar_alerta_tipo: fAlertInherit ? null : fAlertThresholdType,
+      limiar_alerta_valor: fAlertInherit ? null : num(fAlertThresholdValue),
+      limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
+      limiar_bloqueio_valor: fBlockInherit ? null : num(fBlockThresholdValue),
     };
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
+    
+    // Validação de limiares
+    if (!fAlertInherit && !fBlockInherit && fAlertThresholdType === fBlockThresholdType) {
+      const alertV = num(fAlertThresholdValue) ?? 0;
+      const blockV = num(fBlockThresholdValue) ?? 0;
+      if (blockV <= alertV) {
+        return toast({ title: "Limiar de bloqueio inválido", description: "O valor de bloqueio deve ser maior que o de alerta quando usam a mesma unidade.", variant: "destructive" });
+      }
+    }
+    if (!fAlertInherit && !fBlockInherit && fAlertThresholdType !== fBlockThresholdType) {
+      toast({ title: "Atenção", description: "Tipos de limiar diferentes (alerta vs bloqueio) podem gerar comportamento inesperado." });
+    }
+
     if (isEspecifica && targetType === "empresa") {
       const cnpj = payload.target_identifier;
       if (!cnpj || !isValidCNPJ(cnpj)) {
@@ -1330,6 +1411,68 @@ const Rules = () => {
       <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
         actions={<>
           <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
+          <Dialog open={globalConfigOpen} onOpenChange={setGlobalConfigOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Wand2 className="h-4 w-4 mr-2" /> Configurações Gerais
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Limiares padrão de divergência</DialogTitle>
+                <DialogDescription>
+                  Define os valores globais herdados por todas as regras que não possuem limiares personalizados.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                {/* Alerta */}
+                <div className="space-y-3">
+                  <Label className="text-warning-foreground font-bold uppercase text-xs">Alerta Padrão (Amarelo)</Label>
+                  <div className="flex gap-3">
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Tipo</Label>
+                      <Select value={fGlobalAlertThresholdType} onValueChange={(v: any) => setFGlobalAlertThresholdType(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentual">Percentual (%)</SelectItem>
+                          <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Valor</Label>
+                      <Input value={fGlobalAlertThresholdValue} onChange={(e) => setFGlobalAlertThresholdValue(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bloqueio */}
+                <div className="space-y-3">
+                  <Label className="text-destructive font-bold uppercase text-xs">Bloqueio Padrão (Vermelho)</Label>
+                  <div className="flex gap-3">
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Tipo</Label>
+                      <Select value={fGlobalBlockThresholdType} onValueChange={(v: any) => setFGlobalBlockThresholdType(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentual">Percentual (%)</SelectItem>
+                          <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Valor</Label>
+                      <Input value={fGlobalBlockThresholdValue} onChange={(e) => setFGlobalBlockThresholdValue(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setGlobalConfigOpen(false)}>Cancelar</Button>
+                <Button onClick={saveGlobalThresholds}>Salvar Configurações</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>
             <DialogContent>
@@ -1955,6 +2098,107 @@ const Rules = () => {
                   </AccordionItem>
 
                   {/* Tabelas de exceção vinculadas */}
+                  {/* Limiares de divergência */}
+                  <AccordionItem value="limiares" className="rounded-md border border-border bg-card px-3">
+                    <AccordionTrigger className="text-sm font-semibold">
+                      Limiares de divergência
+                      {(fAlertInherit && fBlockInherit) ? (
+                        <span className="ml-2 text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">HERDANDO GLOBAL</span>
+                      ) : (
+                        <span className="ml-2 text-[10px] font-normal text-info bg-info-soft px-1.5 py-0.5 rounded border border-info/20">PERSONALIZADO</span>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-4 pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Define quando uma diferença de valor deve ser tratada como Alerta ou Bloqueio Crítico.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Alerta */}
+                        <div className="rounded-md border border-warning/30 bg-warning-soft/10 p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-warning-foreground font-bold">ALERTA (AMARELO)</Label>
+                            <div className="flex items-center gap-1.5">
+                              <Checkbox id="alert-inherit" checked={fAlertInherit} onCheckedChange={(v) => setFAlertInherit(!!v)} />
+                              <Label htmlFor="alert-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>
+                            </div>
+                          </div>
+
+                          {fAlertInherit ? (
+                            <p className="text-xs text-muted-foreground italic">
+                              Global atual: {globalThresholds?.limiar_alerta_valor ?? 1}{globalThresholds?.limiar_alerta_tipo === 'percentual' ? '%' : ' R$'}
+                            </p>
+                          ) : (
+                            <div className="flex gap-2">
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-[10px]">Tipo</Label>
+                                <Select value={fAlertThresholdType} onValueChange={(v: any) => setFAlertThresholdType(v)}>
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="percentual">Percentual (%)</SelectItem>
+                                    <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-[10px]">Valor</Label>
+                                <Input 
+                                  className="h-8 text-xs" 
+                                  placeholder="0.00" 
+                                  value={fAlertThresholdValue} 
+                                  onChange={(e) => setFAlertThresholdValue(e.target.value)} 
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Bloqueio */}
+                        <div className="rounded-md border border-destructive/30 bg-destructive-soft/10 p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-destructive font-bold">BLOQUEIO (VERMELHO)</Label>
+                            <div className="flex items-center gap-1.5">
+                              <Checkbox id="block-inherit" checked={fBlockInherit} onCheckedChange={(v) => setFBlockInherit(!!v)} />
+                              <Label htmlFor="block-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>
+                            </div>
+                          </div>
+
+                          {fBlockInherit ? (
+                            <p className="text-xs text-muted-foreground italic">
+                              Global atual: {globalThresholds?.limiar_bloqueio_valor ?? 5}{globalThresholds?.limiar_bloqueio_tipo === 'percentual' ? '%' : ' R$'}
+                            </p>
+                          ) : (
+                            <div className="flex gap-2">
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-[10px]">Tipo</Label>
+                                <Select value={fBlockThresholdType} onValueChange={(v: any) => setFBlockThresholdType(v)}>
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="percentual">Percentual (%)</SelectItem>
+                                    <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-[10px]">Valor</Label>
+                                <Input 
+                                  className="h-8 text-xs" 
+                                  placeholder="0.00" 
+                                  value={fBlockThresholdValue} 
+                                  onChange={(e) => setFBlockThresholdValue(e.target.value)} 
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
                   <AccordionItem value="excecoes" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className="text-sm font-semibold">
                       Tabelas de exceção vinculadas
@@ -2137,6 +2381,16 @@ const Rules = () => {
                                  {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
                                  {r.valid_until && new Date(r.valid_until) < new Date() && <span className="text-[10px] font-bold uppercase bg-warning/10 text-warning-foreground px-1.5 py-0.5 rounded border border-warning/20">Expirada</span>}
                                 <span className="font-semibold text-foreground">{r.name}</span>
+                                {(() => {
+                                  const alertVal = r.limiar_alerta_valor;
+                                  const alertType = r.limiar_alerta_tipo;
+                                  const blockVal = r.limiar_bloqueio_valor;
+                                  const blockType = r.limiar_bloqueio_tipo;
+                                  if (alertVal == null && blockVal == null) return null;
+                                  const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                  const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                  return <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50 ml-1">⚠ {alertText} / 🚫 {blockText}</span>;
+                                })()}
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
