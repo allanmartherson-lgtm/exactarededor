@@ -796,14 +796,22 @@ const PaymentDetail = () => {
     setReprocessingAi(true);
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
-        body: { payment_id: id },
+        body: { 
+          payment_id: id,
+          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined
+        },
       });
       if (error) throw error;
+      
+      const filterDesc = statuses && statuses.length > 0 
+        ? ` (filtrado por: ${statuses.join(", ")})` 
+        : " em todo o lote";
+
       await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user.id,
-        message: "Regras de repasse reaplicadas em todo o lote manualmente pelo analista.",
+        message: `Regras de repasse reaplicadas${filterDesc} manualmente pelo analista.`,
         status_from: payment?.status ?? null,
         status_to: payment?.status ?? null,
       });
