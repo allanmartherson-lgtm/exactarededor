@@ -1867,8 +1867,9 @@ const Rules = () => {
                                   const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
                                   return (
                                     <div key={idx} className={cn(
-                                      "rounded-md border bg-card p-3 space-y-2 animate-fade-in",
-                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "border-border"
+                                      "rounded-md border bg-card p-3 space-y-2 animate-fade-in transition-all duration-500",
+                                      (link as any)._isNew ? "ring-2 ring-primary/20 border-primary/50 shadow-sm" : "border-border",
+                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : ""
                                     )}>
                                       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
                                         <div className="space-y-1 min-w-0">
