@@ -164,6 +164,17 @@ const Rules = () => {
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
 
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["nome", "descricao", "texto_da_regra", "severidade", "escopo", "setor", "tipo_alvo", "identificador_alvo", "natureza", "tipo_calculo", "valor_fixo", "percentual_convenio", "codigos_procedimento"],
+      ["Regra Exemplo", "Descrição da regra", "Pagar valor fixo de R$ 100", "aviso", "master", "outro", "medico", "", "calculavel", "valor_fixo", "100", "", "10101012; 10101039"],
+    ]);
+    ws["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 18 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Regras");
+    XLSX.writeFile(wb, "modelo-regras.xlsx");
+  };
+
   // form state (compartilhado entre Novo/Editar)
   const [fName, setFName] = useState("");
   const [fDescription, setFDescription] = useState("");
@@ -1474,7 +1485,14 @@ const Rules = () => {
             </DialogContent>
           </Dialog>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
-            <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={downloadTemplate}>
+                <FileDown className="h-4 w-4 mr-2" /> Modelo
+              </Button>
+              <DialogTrigger asChild>
+                <Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button>
+              </DialogTrigger>
+            </div>
             <DialogContent>
               <DialogHeader><DialogTitle>Importar regras com IA</DialogTitle></DialogHeader>
               <Tabs defaultValue="file" className="w-full">
