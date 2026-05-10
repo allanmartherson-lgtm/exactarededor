@@ -246,6 +246,13 @@ const Rules = () => {
   const [fElectiveMode, setFElectiveMode] = useState<ElectiveMode>("qualquer");
   // === Lista de itens de cálculo (1:N com a regra) ===
   const [fCalculations, setFCalculations] = useState<CalcItem[]>([makeEmptyCalc()]);
+  // Thresholds
+  const [fAlertThresholdType, setFAlertThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fAlertThresholdValue, setFAlertThresholdValue] = useState<string>("");
+  const [fAlertInherit, setFAlertInherit] = useState(true);
+  const [fBlockThresholdType, setFBlockThresholdType] = useState<"percentual" | "absoluto">("percentual");
+  const [fBlockThresholdValue, setFBlockThresholdValue] = useState<string>("");
+  const [fBlockInherit, setFBlockInherit] = useState(true);
   type CalcSyncError = {
     step: "delete-calculavel" | "insert-calculavel" | "delete-informativo";
     message: string;
