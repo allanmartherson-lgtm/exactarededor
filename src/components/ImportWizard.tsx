@@ -129,29 +129,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     try {
       const { allRows, records, errors, dups } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
       
-      // Ajuste para múltiplas colunas de valor: se o mapeamento for para 'amount', verificamos se há outras colunas 'amount_*'
-      const rowsWithMultiAmount = rowsBySheet[activeSheet]?.map(row => {
-        const extraAmounts: Record<string, number> = {};
-        Object.keys(mapping).forEach(fieldKey => {
-          if (fieldKey.startsWith('amount_')) {
-            const sheetCol = mapping[fieldKey];
-            if (sheetCol) {
-              const val = normalizeNumericValue(row[sheetCol]);
-              if (val && !val.invalid && val.value !== null) extraAmounts[fieldKey] = val.value;
-            }
-          }
-        });
-        return extraAmounts;
-      });
-
       setValidation({
         summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
         errors: errors.slice(0, 50),
         duplicates: dups.slice(0, 50),
-        sample: records.slice(0, 10).map((rec, i) => ({
-          ...rec,
-          ...(rowsWithMultiAmount?.[i] || {})
-        })),
+        sample: records.slice(0, 10),
       });
       setStep("validate");
     } catch (e: any) {
