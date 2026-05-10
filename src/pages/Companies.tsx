@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { FormDialog } from "@/components/FormDialog";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { CompanySlaSection } from "@/components/CompanySlaSection";
 import { CompanyDoctorsSection } from "@/components/CompanyDoctorsSection";
