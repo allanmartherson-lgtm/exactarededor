@@ -350,10 +350,7 @@ const Companies = () => {
                 </span>
               </Button>
             </label>
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing(empty)}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
-            </DialogTrigger>
+            <Button onClick={() => { setEditing(empty); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
             <FormDialog
               open={open}
               onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setAliasInput(""); } }}
@@ -482,7 +479,8 @@ const Companies = () => {
                   <CompanyDoctorsSection companyId={editing.id} />
                 </div>
                 </div>
-              </div>
+          </div>
+        </div>
               <DialogFooter className="p-6 pt-2">
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button onClick={save}>Salvar</Button>
