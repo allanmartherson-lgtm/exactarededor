@@ -284,15 +284,21 @@ export default function Doctors() {
               profile={DOCTORS_IMPORT_PROFILE}
               onComplete={() => load()}
             />
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setEditingCompanyIds([]); } }}>
-              <DialogTrigger asChild>
-                <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo médico</Button>
-              </DialogTrigger>
-              <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
-                <DialogHeader className="p-6 pb-2">
-                  <DialogTitle>{editing.id ? "Editar médico" : "Novo médico"}</DialogTitle>
-                </DialogHeader>
-                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
+            <>
+              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo médico</Button>
+              <FormDialog
+                open={open}
+                onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(empty); setEditingCompanyIds([]); } }}
+                title={editing.id ? "Editar médico" : "Novo médico"}
+                maxWidth="2xl"
+                footer={
+                  <div className="w-full flex items-center justify-end gap-3">
+                    <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button type="submit" form="doctor-form">Salvar</Button>
+                  </div>
+                }
+              >
+                <form id="doctor-form" onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-3 space-y-1.5">
                       <Label>Nome completo *</Label>
@@ -402,16 +408,12 @@ export default function Doctors() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label>Observações</Label>
-                    <Textarea rows={2} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+                    <Label>Observações internas</Label>
+                    <Textarea value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} placeholder="Notas, contatos adicionais..." />
                   </div>
-                </div>
-                <DialogFooter className="p-6 pt-2">
-                  <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                  <Button onClick={save}>Salvar</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </form>
+              </FormDialog>
+            </>
           </div>
         </div>
 
