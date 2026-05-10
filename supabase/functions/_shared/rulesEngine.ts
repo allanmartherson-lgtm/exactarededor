@@ -235,6 +235,7 @@ export type RuleMatchPriority =
   | "setor_hemodinamica_master"
   | "setor_master_geral"
   | "default_setor"
+  | "regra_bloqueio"
   | "sem_regra"
   | "conflito";
 
