@@ -1735,7 +1735,8 @@ const PaymentDetail = () => {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "approved") {
-                  return it.ai_status === "aprovado";
+                  // Aprovado legítimo: status aprovado E sem alertas
+                  return it.ai_status === "aprovado" && (it.ai_findings?.alerts?.length ?? 0) === 0;
                 }
 
                 return true;
