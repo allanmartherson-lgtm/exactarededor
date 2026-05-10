@@ -651,28 +651,84 @@ const parseNumber = (v: any): number | null => {
   return result.invalid ? null : result.value;
 };
 
-function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[]) {
-  return rows.map((row) => {
-    const out: Record<string, any> = {};
-    for (const f of fields) {
+function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
+  const result: any[] = [];
+  const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
+
+  rows.forEach((row) => {
+    const base: Record<string, any> = {};
+    const otherFields = fields.filter(f => f.key !== "amount" && f.key !== "role");
+    
+    for (const f of otherFields) {
       const src = mapping[f.key];
       const raw = src ? row[src] : undefined;
-      if (f.type === "number") out[f.key] = parseNumber(raw);
+      if (f.type === "number") base[f.key] = parseNumber(raw);
       else if (f.type === "boolean") {
         const s = String(raw ?? "").toLowerCase().trim();
-        out[f.key] = ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
+        const def = f.defaultValue !== undefined ? f.defaultValue : false;
+        base[f.key] = raw == null ? def : ["1", "true", "sim", "s", "yes", "y", "ativo"].includes(s);
       } else if (f.type === "array") {
         const s = String(raw ?? "").trim();
-        out[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
-      } else out[f.key] = raw == null ? (f.defaultValue ?? null) : String(raw).trim();
-      
-      // Caso especial para boolean: se for nulo mas tiver default, usa o default
-      if (f.type === "boolean" && raw == null && f.defaultValue !== undefined) {
-        out[f.key] = f.defaultValue;
-      }
+        base[f.key] = s ? s.split(/[,;|/\s]+/).map((x) => x.trim()).filter(Boolean) : [];
+      } else base[f.key] = raw == null ? (f.defaultValue ?? null) : String(raw).trim();
     }
-    return out;
+
+    if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
+      const amountCols: { role: string, amount: number }[] = [];
+      const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
+      
+      // 1. Check explicitly mapped amount
+      const mainAmountCol = mapping["amount"];
+      if (mainAmountCol && row[mainAmountCol] !== undefined) {
+        const val = normalizeNumericValue(row[mainAmountCol]);
+        if (!val.invalid && val.value > 0) {
+          const roleCol = mapping["role"];
+          const role = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
+          amountCols.push({ role, amount: val.value });
+        }
+      }
+
+      // 2. Automatically find other columns that look like amounts
+      Object.keys(row).forEach(colName => {
+        if (mappedSheetCols.has(colName)) return;
+        
+        const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const looksLikeAmount = amountKeywords.some(k => lowCol.includes(k));
+        
+        if (looksLikeAmount) {
+          const val = normalizeNumericValue(row[colName]);
+          if (!val.invalid && val.value > 0) {
+            amountCols.push({ role: colName, amount: val.value });
+          }
+        }
+      });
+
+      if (amountCols.length > 0) {
+        amountCols.forEach(ac => {
+          result.push({ ...base, role: ac.role, amount: ac.amount });
+        });
+      } else {
+        // Fallback to one entry with 0 if needed (though usually we want to skip if no amount)
+        result.push({ ...base, role: null, amount: 0 });
+      }
+    } else {
+      // Standard mapping for other entities or reference table without amounts
+      const out: Record<string, any> = { ...base };
+      const amountField = fields.find(f => f.key === "amount");
+      const roleField = fields.find(f => f.key === "role");
+      
+      if (amountField) {
+        const src = mapping["amount"];
+        out["amount"] = src ? parseNumber(row[src]) : (amountField.defaultValue ?? 0);
+      }
+      if (roleField) {
+        const src = mapping["role"];
+        out["role"] = src ? String(row[src] || "").trim() : (roleField.defaultValue ?? null);
+      }
+      result.push(out);
+    }
   });
+  return result;
 }
 
 function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
