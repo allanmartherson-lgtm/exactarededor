@@ -466,6 +466,12 @@ const NewPayment = () => {
     });
   };
 
+  const toggleBucketConvenioTotalized = (idx: number) => {
+    setBuckets((prev) =>
+      prev.map((x, i) => (i === idx ? { ...x, convenioValueTotalized: !x.convenioValueTotalized } : x))
+    );
+  };
+
   const allRows = useMemo(() => {
     return buckets.flatMap((b) => b.rows).map((r) => {
       const tipo_linha = classifyLine(r, paymentKind || null);
