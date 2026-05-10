@@ -223,6 +223,24 @@ export function PaymentReportModal({
         "Valor em Risco (%)": g.totalValue > 0 ? `${((g.riskValue / g.totalValue) * 100).toFixed(1)}%` : "0%",
       }));
       const wsCompanies = XLSX.utils.json_to_sheet(companyData);
+      
+      // Aplicar formatação condicional simples na aba "Por Empresa" também para consistência
+      const companyRange = XLSX.utils.decode_range(wsCompanies["!ref"] || "A1:H1");
+      for (let R = companyRange.s.r + 1; R <= companyRange.e.r; ++R) {
+        const statusCell = wsCompanies[XLSX.utils.encode_cell({ r: R, c: 1 })]; // Coluna B: Status
+        if (statusCell && statusCell.v) {
+          const val = statusCell.v;
+          let bgColor = "";
+          if (val === "Limpa") bgColor = "D1FAE5";
+          else if (val === "Com alertas") bgColor = "FEF3C7";
+          else if (val === "Com reprovações") bgColor = "FEE2E2";
+          
+          if (bgColor) {
+            statusCell.s = { fill: { fgColor: { rgb: bgColor } } };
+          }
+        }
+      }
+      
       XLSX.utils.book_append_sheet(wb, wsCompanies, "Por Empresa");
 
       // Aba 3: Detalhe dos Itens
