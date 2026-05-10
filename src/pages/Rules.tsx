@@ -1411,6 +1411,68 @@ const Rules = () => {
       <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
         actions={<>
           <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
+          <Dialog open={globalConfigOpen} onOpenChange={setGlobalConfigOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Wand2 className="h-4 w-4 mr-2" /> Configurações Gerais
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Limiares padrão de divergência</DialogTitle>
+                <DialogDescription>
+                  Define os valores globais herdados por todas as regras que não possuem limiares personalizados.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                {/* Alerta */}
+                <div className="space-y-3">
+                  <Label className="text-warning-foreground font-bold uppercase text-xs">Alerta Padrão (Amarelo)</Label>
+                  <div className="flex gap-3">
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Tipo</Label>
+                      <Select value={fGlobalAlertThresholdType} onValueChange={(v: any) => setFGlobalAlertThresholdType(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentual">Percentual (%)</SelectItem>
+                          <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Valor</Label>
+                      <Input value={fGlobalAlertThresholdValue} onChange={(e) => setFGlobalAlertThresholdValue(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bloqueio */}
+                <div className="space-y-3">
+                  <Label className="text-destructive font-bold uppercase text-xs">Bloqueio Padrão (Vermelho)</Label>
+                  <div className="flex gap-3">
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Tipo</Label>
+                      <Select value={fGlobalBlockThresholdType} onValueChange={(v: any) => setFGlobalBlockThresholdType(v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentual">Percentual (%)</SelectItem>
+                          <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <Label className="text-[10px]">Valor</Label>
+                      <Input value={fGlobalBlockThresholdValue} onChange={(e) => setFGlobalBlockThresholdValue(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setGlobalConfigOpen(false)}>Cancelar</Button>
+                <Button onClick={saveGlobalThresholds}>Salvar Configurações</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
             <DialogTrigger asChild><Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button></DialogTrigger>
             <DialogContent>
