@@ -162,7 +162,7 @@ const PaymentDetail = () => {
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
-  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved">("all");
+  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
   const [toleranceValue, setToleranceValue] = useState<number>(0.01);
 
   useEffect(() => {
@@ -1623,18 +1623,23 @@ const PaymentDetail = () => {
                 <div className="h-1.5 w-1.5 rounded-full bg-current" />
                 Divergente
               </Button>
-              <Button
-                variant={criticalFilter === "approved" ? "default" : "ghost"}
-                size="sm"
-                className={cn(
-                  "h-8 px-3 text-xs gap-1.5",
-                  criticalFilter === "approved" ? "bg-success hover:bg-success/90 text-white" : "text-success"
-                )}
-                onClick={() => setCriticalFilter("approved")}
+              <Select 
+                value={criticalFilter === "approved" || criticalFilter === "approved_strict" ? criticalFilter : undefined} 
+                onValueChange={(v) => setCriticalFilter(v as any)}
               >
-                <div className="h-1.5 w-1.5 rounded-full bg-current" />
-                Aprovado
-              </Button>
+                <SelectTrigger 
+                  className={cn(
+                    "h-8 w-[160px] text-xs gap-1.5",
+                    (criticalFilter === "approved" || criticalFilter === "approved_strict") ? "bg-success hover:bg-success/90 text-white" : "text-success border-success/30"
+                  )}
+                >
+                  <SelectValue placeholder="Aprovados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved" className="text-xs">Aprovados (flexível)</SelectItem>
+                  <SelectItem value="approved_strict" className="text-xs">Aprovados (sem pendências)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
@@ -1644,7 +1649,8 @@ const PaymentDetail = () => {
               <span>
                 {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
                 {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
-                {criticalFilter === "approved" && "Mostrando apenas empresas com itens aprovados pela IA."}
+                {criticalFilter === "approved" && "Mostrando apenas empresas aprovadas (considera justificativas/blacklists)."}
+                {criticalFilter === "approved_strict" && "Mostrando apenas empresas 100% limpas (sem alertas ou notas da IA)."}
                 {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
               </span>
               <Button 
@@ -1735,11 +1741,14 @@ const PaymentDetail = () => {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "approved") {
-                  // Aprovado legítimo: status aprovado E sem NENHUM alerta, divergência ou observação da IA
+                  // Flexível: status aprovado (pode ter alertas informativos ou justificativas)
+                  return it.ai_status === "aprovado";
+                }
+                if (criticalFilter === "approved_strict") {
+                  // Sem pendências: status aprovado E sem alertas E sem notas E sem divergência
                   const hasAlerts = (it.ai_findings?.alerts?.length ?? 0) > 0;
                   const hasAiNote = !!it.ai_findings?.engine?.ai_note;
                   const hasDiff = (it.ai_findings?.engine?.diff_pct ?? 0) !== 0;
-                  
                   return it.ai_status === "aprovado" && !hasAlerts && !hasAiNote && !hasDiff;
                 }
 
@@ -1795,6 +1804,9 @@ const PaymentDetail = () => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
                 if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 if (criticalFilter === "approved") {
+                  return it.ai_status === "aprovado";
+                }
+                if (criticalFilter === "approved_strict") {
                   const hasAlerts = (it.ai_findings?.alerts?.length ?? 0) > 0;
                   const hasAiNote = !!it.ai_findings?.engine?.ai_note;
                   const hasDiff = (it.ai_findings?.engine?.diff_pct ?? 0) !== 0;
