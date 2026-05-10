@@ -300,25 +300,29 @@ const SECTOR_MAP: Record<string, string> = {
   "ambulatorial": "procedimento",
 };
 
-export function inferItemSector(item: ItemInput): string {
-  // 1. Prioridade máxima: setor informado na planilha
+export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
+  // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
   if (item.sector) {
     const s = normName(item.sector);
-    if (SECTOR_MAP[s]) return SECTOR_MAP[s];
-    // Se não está no mapa, tenta match parcial
-    for (const [k, v] of Object.entries(SECTOR_MAP)) {
-      if (s.includes(k)) return v;
+    // "Outros" ou similar é ignorado para permitir que heurísticas/TUSS/Pagamento encontrem o setor real
+    if (s !== "outro" && s !== "outros") {
+      if (SECTOR_MAP[s]) return SECTOR_MAP[s];
+      for (const [k, v] of Object.entries(SECTOR_MAP)) {
+        if (s.includes(k)) return v;
+      }
+      return s;
     }
-    // Se ainda assim não bater, mas veio algo da planilha, usamos o que veio (pode bater em regras customizadas)
-    // No entanto, para o motor padrão, precisamos que seja um dos RuleSector se possível.
-    // Se não for, retornamos o original normalizado.
-    return s;
   }
 
-  // 2. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
+  // 2. Segunda prioridade: se o lote/pagamento tem UM ÚNICO setor definido, usamos ele
+  if (ctx && Array.isArray(ctx.sectors) && ctx.sectors.length === 1) {
+    return ctx.sectors[0];
+  }
+
+  // 3. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
   if (item.classification_sector) return item.classification_sector;
 
-  // 3. Heurística baseada em nomes
+  // 4. Heurística baseada em nomes
   const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
   if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
   if (/(cirurg|operac|herni|colecist|laparo|artrosc|tue\b)/.test(txt)) return "cirurgia";
@@ -326,6 +330,12 @@ export function inferItemSector(item: ItemInput): string {
   if (/visita/.test(txt)) return "visita";
   if (/consulta/.test(txt)) return "consulta";
   if (/procediment/.test(txt)) return "procedimento";
+
+  // 5. Fallback final: se o pagamento tem múltiplos setores, usa o primeiro como palpite
+  if (ctx && Array.isArray(ctx.sectors) && ctx.sectors.length > 0) {
+    return ctx.sectors[0];
+  }
+
   return "outro";
 }
 
@@ -505,7 +515,18 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
   return rules.filter((r) => {
     if (!r.active) return false;
     if (!isInValidity(r, ctx.reference_date)) return false;
-    if (!intersectsAll(ruleSectors(r), ctx.sectors)) return false;
+
+    // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
+    // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA
+    // o setor do lote/pagamento — pois o vínculo explícito por empresa/médico
+    // tem precedência sobre o setor estatístico do lote.
+    if (r.scope === "master") {
+      // Regras master são filtradas pelo setor do lote para evitar poluição.
+      // Se o lote é de 'cirurgia', pulamos regras exclusivas de 'hemodinamica'.
+      // Regras 'gerais' (setor vazio ou 'outro') passam sempre.
+      if (!intersectsAll(ruleSectors(r), ctx.sectors)) return false;
+    }
+
     if (!intersectsAll(r.applies_payment_types, ctx.payment_type ? [ctx.payment_type] : [])) return false;
     return true;
   });
@@ -599,9 +620,10 @@ function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
 export function selectWinningRule(
   item: ItemInput,
   rules: RuleInput[],
+  ctx?: PaymentContext,
   opts?: { collectTrace?: boolean },
 ): SelectionOutcome | null {
-  const itemSector = inferItemSector(item);
+  const itemSector = inferItemSector(item, ctx);
   const isHemo = itemSector === "hemodinamica";
   const trace: SelectionTrace | undefined = opts?.collectTrace
     ? { item_sector: itemSector, is_hemo: isHemo, levels: [], winner_rule_id: null, winner_priority: "sem_regra" }
@@ -893,7 +915,7 @@ export type ExceptionTableLookup = (
   procedureCode: string,
 ) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
 
-export interface EngineCtx {
+export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
@@ -1208,7 +1230,7 @@ function findNextCalculableRule(
       r.calculation_type !== "exclusao" &&
       r.calculation_type !== "informativo",
   );
-  const out = selectWinningRule(item, remaining);
+  const out = selectWinningRule(item, remaining, ctx);
   if (out && out.rule) return { rule: out.rule, priority: out.priority };
   return null;
 }
@@ -1254,7 +1276,7 @@ export function analyzeItem(
     };
   }
 
-  const outcome = selectWinningRule(item, preFilteredRules, { collectTrace: true });
+  const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
   let calculation_type_used: AnalysisResult["calculation_type_used"];
@@ -1409,7 +1431,7 @@ export function analyzeItem(
     // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
     // entra como "sem_regra" para revisão humana — analista precisa cadastrar
     // a regra adequada em Configurações > Regras de Repasse.
-    const sector = inferItemSector(item);
+    const sector = inferItemSector(item, ctx);
     calc = {
       expected: null,
       explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
@@ -1483,6 +1505,7 @@ export function analyzePaymentItems(
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
   const state: EngineCtx = {
+    ...ctx,
     appliedAttendancesByRule: new Map<string, Set<string>>(),
     referenceLookup: options?.referenceLookup,
     exceptionLookup: options?.exceptionLookup,
