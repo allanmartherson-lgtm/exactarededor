@@ -349,7 +349,24 @@ const NewPayment = () => {
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 
-    return { file: f, rows, rawCompanyName, matchedCompany: company ? { id: company.id, name: company.name } : null, matchScore: score };
+    // Identifica o setor dominante na planilha
+    const sectorCounts: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.sector) {
+        const s = r.sector.toLowerCase().trim();
+        sectorCounts[s] = (sectorCounts[s] ?? 0) + 1;
+      }
+    }
+    const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+    return { 
+      file: f, 
+      rows, 
+      rawCompanyName, 
+      matchedCompany: company ? { id: company.id, name: company.name } : null, 
+      matchScore: score,
+      sectorMapping: dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null
+    };
   };
 
   const onFiles = async (fileList: FileList) => {
