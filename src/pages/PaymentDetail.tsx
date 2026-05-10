@@ -1760,16 +1760,26 @@ const PaymentDetail = () => {
                 const sq = itemSearch.trim().toLowerCase();
                 const nameMatches = !sq || g.company_name?.toLowerCase().includes(sq);
                 const specMatches = !sq || paymentSpec.includes(sq);
-                
-                // Se houver filtro ativo (exceto "Todos"), o grupo só é visível se POSSUIR 
-                // itens que casam exatamente com o critério do filtro (sem regra, divergente, aprovado).
-                // Além disso, se houver busca (sq), ela deve casar com o nome da empresa ou com o item.
-                return items.some(
-                  (it) =>
-                    (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase() &&
-                    (nameMatches || specMatches || itemMatches(it)) &&
-                    (criticalFilter === "all" ? true : itemMatches(it))
+
+                // Pegamos todos os itens deste grupo específico para validações agregadas
+                const groupItems = items.filter(
+                  (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase()
                 );
+
+                // Se houver filtro ativo (exceto "Todos"), o grupo só é visível se satisfizer a condição
+                if (criticalFilter === "approved_strict") {
+                  // REGRA DE OURO: Para aparecer no "sem pendências", TODOS os itens devem ser aprovados sem ressalvas
+                  return groupItems.every((it) => itemMatches(it));
+                }
+
+                if (criticalFilter !== "all") {
+                  // Para outros filtros (sem regra, divergente, aprovado flexível), 
+                  // o grupo aparece se POSSUIR ao menos um item que atenda ao critério.
+                  return groupItems.some((it) => itemMatches(it));
+                }
+
+                // Sem filtro de status (Todos): decide pela busca no nome ou nos itens
+                return nameMatches || specMatches || groupItems.some((it) => itemMatches(it));
               });
               
               const finalSearchTerm = itemSearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
