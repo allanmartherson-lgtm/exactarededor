@@ -2326,7 +2326,7 @@ const Rules = () => {
           </FormDialog>
         </>
       }
-      />
+    />
       <div className="p-8 space-y-4">
         {/* Banner de regras incompletas */}
         {incompleteCount > 0 && (
