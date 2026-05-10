@@ -127,6 +127,10 @@ export interface RuleInput {
    * de cálculo na própria regra.
    */
   calculations?: RuleCalculationItem[] | null;
+  limiar_alerta_tipo?: "percentual" | "absoluto" | null;
+  limiar_alerta_valor?: number | null;
+  limiar_bloqueio_tipo?: "percentual" | "absoluto" | null;
+  limiar_bloqueio_valor?: number | null;
 }
 
 export interface RuleCalculationItem {
