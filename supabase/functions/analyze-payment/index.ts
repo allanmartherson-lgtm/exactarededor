@@ -313,42 +313,54 @@ serve(async (req) => {
     // recebe um lookup (tableId+code → metadados) e consulta apenas as
     // tabelas vinculadas à regra vencedora de cada item. Não há varredura
     // global — tabelas sem vínculo declarado não influenciam o cálculo.
-    const exceptionTableIdsLinked = Array.from(new Set(
+    // Camada 2 & 3 — Tabelas de exceção.
+    // 1. Tabelas explicitamente vinculadas às regras (Camada 2)
+    const linkedTableIds = Array.from(new Set(
       rules.flatMap((r) => Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []),
     ));
+    
+    // 2. Tabelas globais (Camada 3) — todas que são 'sem_acordo' ou 'exclusao' e estão ativas
+    const { data: allExcTables } = await supabase
+      .from("reference_tables")
+      .select("id,name,purpose,description,active,valid_from,valid_until")
+      .in("purpose", ["sem_acordo", "exclusao"])
+      .eq("active", true);
+
+    const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
+    const validGlobalIds: string[] = [];
     const exceptionTablesById: Record<string, { name: string; purpose: "sem_acordo" | "exclusao"; description: string | null }> = {};
-    const exceptionItemsByTable: Record<string, Record<string, { description: string | null }>> = {};
-    if (exceptionTableIdsLinked.length > 0 && codes.length > 0) {
-      const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
-      const { data: excTables } = await supabase
-        .from("reference_tables")
-        .select("id,name,purpose,description,active,valid_from,valid_until")
-        .in("id", exceptionTableIdsLinked)
-        .in("purpose", ["sem_acordo", "exclusao"]);
-      const validIds: string[] = [];
-      for (const t of (excTables ?? []) as any[]) {
-        if (!t.active) continue;
-        if (t.valid_from && t.valid_from > today) continue;
-        if (t.valid_until && t.valid_until < today) continue;
-        exceptionTablesById[t.id] = {
-          name: t.name,
-          purpose: t.purpose,
-          description: t.description ?? null,
-        };
-        validIds.push(t.id);
+
+    for (const t of (allExcTables ?? []) as any[]) {
+      if (t.valid_from && t.valid_from > today) continue;
+      if (t.valid_until && t.valid_until < today) continue;
+      
+      exceptionTablesById[t.id] = {
+        name: t.name,
+        purpose: t.purpose,
+        description: t.description ?? null,
+      };
+      
+      // Se a tabela é 'sem_acordo' ou 'exclusao', ela atua como fallback global
+      if (t.purpose === "sem_acordo" || t.purpose === "exclusao") {
+        validGlobalIds.push(t.id);
       }
-      if (validIds.length > 0) {
-        const { data: excItems } = await supabase
-          .from("reference_table_items")
-          .select("reference_table_id,code,description")
-          .in("reference_table_id", validIds)
-          .in("code", codes);
-        for (const it of (excItems ?? []) as any[]) {
-          const tid = it.reference_table_id as string;
-          const code = String(it.code ?? "").trim();
-          if (!tid || !code) continue;
-          (exceptionItemsByTable[tid] ||= {})[code] = { description: it.description ?? null };
-        }
+    }
+
+    ctx.globalExceptionTableIds = validGlobalIds;
+    const allRelevantTableIds = Array.from(new Set([...linkedTableIds, ...validGlobalIds]));
+
+    const exceptionItemsByTable: Record<string, Record<string, { description: string | null }>> = {};
+    if (allRelevantTableIds.length > 0 && codes.length > 0) {
+      const { data: excItems } = await supabase
+        .from("reference_table_items")
+        .select("reference_table_id,code,description")
+        .in("reference_table_id", allRelevantTableIds)
+        .in("code", codes);
+      for (const it of (excItems ?? []) as any[]) {
+        const tid = it.reference_table_id as string;
+        const code = String(it.code ?? "").trim();
+        if (!tid || !code) continue;
+        (exceptionItemsByTable[tid] ||= {})[code] = { description: it.description ?? null };
       }
     }
     const exceptionLookup = (tableId: string, code: string) => {
