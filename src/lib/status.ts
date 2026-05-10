@@ -155,36 +155,66 @@ export const PAYMENT_ANALYSIS_MODE_DESCRIPTIONS: Record<PaymentAnalysisMode, str
 
 // Prioridade da regra escolhida pelo motor determinístico (Fase 2/3)
 export type RuleMatchPriority =
+  | "convenio_especialidade_codigo"
+  | "convenio_especialidade"
+  | "convenio_codigo"
+  | "convenio"
   | "medico_codigo"
   | "medico"
   | "empresa_codigo"
   | "empresa"
+  | "grupo_codigo"
+  | "grupo"
   | "setor_codigo"
   | "setor"
   | "setor_outro"
-  | "default_setor";
+  | "setor_hemodinamica_master"
+  | "setor_master_geral"
+  | "default_setor"
+  | "sem_regra"
+  | "conflito";
 
 export const RULE_MATCH_PRIORITY_LABELS: Record<RuleMatchPriority, string> = {
-  medico_codigo: "Médico + código",
+  convenio_especialidade_codigo: "Convênio + Especialidade + Código",
+  convenio_especialidade: "Convênio + Especialidade",
+  convenio_codigo: "Convênio + Código",
+  convenio: "Convênio",
+  medico_codigo: "Médico + Código",
   medico: "Médico",
-  empresa_codigo: "Empresa + código",
+  empresa_codigo: "Empresa + Código",
   empresa: "Empresa",
-  setor_codigo: "Setor + código",
-  setor: "Setor (master)",
-  setor_outro: "Geral (master)",
-  default_setor: "Padrão do motor",
+  grupo_codigo: "Grupo + Código",
+  grupo: "Grupo",
+  setor_codigo: "Setor + Código",
+  setor: "Setor (Master)",
+  setor_outro: "Geral (Master)",
+  setor_hemodinamica_master: "Hemodinâmica (Master)",
+  setor_master_geral: "Master Geral",
+  default_setor: "Padrão do Motor",
+  sem_regra: "Sem Regra",
+  conflito: "Conflito",
 };
 
 // Quanto mais específico, mais "alto" = primário; default = neutro
 export const RULE_MATCH_PRIORITY_TONES: Record<RuleMatchPriority, "primary" | "info" | "muted"> = {
+  convenio_especialidade_codigo: "primary",
+  convenio_especialidade: "primary",
+  convenio_codigo: "primary",
+  convenio: "primary",
   medico_codigo: "primary",
   medico: "primary",
   empresa_codigo: "info",
   empresa: "info",
+  grupo_codigo: "info",
+  grupo: "info",
   setor_codigo: "info",
   setor: "muted",
   setor_outro: "muted",
+  setor_hemodinamica_master: "muted",
+  setor_master_geral: "muted",
   default_setor: "muted",
+  sem_regra: "muted",
+  conflito: "muted",
 };
 
 export const formatCurrency = (value: number | string | null | undefined) => {
