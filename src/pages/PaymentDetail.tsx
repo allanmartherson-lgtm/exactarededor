@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
+import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
