@@ -1533,9 +1533,8 @@ export function analyzePaymentItems(
     r.main_reason = sel.reason;
     r.main_ambiguous = sel.ambiguous;
     if (sel.ambiguous && sel.isMain) {
+      // Alerta mantido apenas como informativo técnico, mas não bloqueia a aprovação se o valor bater.
       r.alerts = [...r.alerts, "Procedimento principal ambíguo: o motor não conseguiu desempatar de forma determinística."];
-      if (r.status === "aprovado") r.status = "alerta";
-      r.needs_ai_review = true;
     }
   }
 
