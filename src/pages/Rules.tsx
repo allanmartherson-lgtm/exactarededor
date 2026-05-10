@@ -1853,7 +1853,7 @@ const Rules = () => {
                                       "rounded-md border bg-card p-3 space-y-2 animate-fade-in",
                                       (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "border-border"
                                     )}>
-                                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start">
+                                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
                                         <div className="space-y-1">
                                           <Label className="text-xs">Empresa/PJ</Label>
                                           <CompanyCombobox
