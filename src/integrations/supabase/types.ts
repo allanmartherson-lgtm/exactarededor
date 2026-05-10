@@ -756,6 +756,7 @@ export type Database = {
           company_id: string | null
           company_name: string | null
           complement_reason: string | null
+          convenio_value_totalized: boolean
           cost_center_code: string | null
           created_at: string
           description: string | null
@@ -795,6 +796,7 @@ export type Database = {
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
+          convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
           description?: string | null
@@ -834,6 +836,7 @@ export type Database = {
           company_id?: string | null
           company_name?: string | null
           complement_reason?: string | null
+          convenio_value_totalized?: boolean
           cost_center_code?: string | null
           created_at?: string
           description?: string | null
