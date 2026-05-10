@@ -1821,17 +1821,34 @@ const Rules = () => {
                           <div className="space-y-4 animate-fade-in">
                             {/* Tabela de vínculos por empresa */}
                             <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-4">
                                 <div>
                                   <Label className="text-sm font-semibold">Vínculos por empresa</Label>
                                   <p className="text-xs text-muted-foreground">Cada linha = uma empresa. Sem médicos selecionados → aplica a todos da empresa.</p>
                                 </div>
-                                <Button
-                                  type="button" size="sm" variant="outline"
-                                  onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
-                                </Button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {fGroupLinks.length > 1 && (
+                                    <Button
+                                      type="button" size="sm" variant="ghost"
+                                      onClick={() => {
+                                        setFGroupLinks(prev => [...prev].sort((a, b) => {
+                                          const nameA = (a as any).company_name || companies.find(c => c.id === a.company_id)?.name || "";
+                                          const nameB = (b as any).company_name || companies.find(c => c.id === b.company_id)?.name || "";
+                                          return nameA.localeCompare(nameB);
+                                        }));
+                                      }}
+                                      title="Ordenar por nome"
+                                    >
+                                      A-Z
+                                    </Button>
+                                  )}
+                                  <Button
+                                    type="button" size="sm" variant="outline"
+                                    onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
+                                  </Button>
+                                </div>
                               </div>
 
                               {fGroupLinks.length === 0 && (
