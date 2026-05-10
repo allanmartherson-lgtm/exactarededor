@@ -651,8 +651,6 @@ export function selectWinningRule(
     { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
     { bucket: groupRules,     withCodePriority: "grupo_codigo",   withoutCodePriority: "grupo" },
     { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
-    { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
-    { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
   ];
 
   const recordLevel = (
