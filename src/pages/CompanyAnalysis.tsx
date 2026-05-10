@@ -1056,7 +1056,7 @@ export default function CompanyAnalysis() {
                       author_id: user?.id,
                       message: `[${group.company_name}] Valor do convênio marcado como ${checked ? "TOTALIZADO" : "UNITÁRIO"} para todos os itens. Reanalisando...`,
                     });
-                    await reanalyze();
+                    await reanalyzeGroup();
                   }
                   setBusy(false);
                 }}
