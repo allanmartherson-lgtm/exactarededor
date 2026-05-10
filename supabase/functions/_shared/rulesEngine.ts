@@ -924,6 +924,12 @@ export interface EngineCtx extends PaymentContext {
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
   tolerance_pct?: number; // Tolerância customizada (ex.: 0.05 para 5%)
+  globalThresholds?: {
+    limiar_alerta_tipo: "percentual" | "absoluto";
+    limiar_alerta_valor: number;
+    limiar_bloqueio_tipo: "percentual" | "absoluto";
+    limiar_bloqueio_valor: number;
+  };
 }
 
 /**
