@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
-import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download } from "lucide-react";
+import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download, Pencil } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
@@ -182,6 +182,13 @@ const ReferenceTables = () => {
     if (selected) loadItems(selected.id);
   };
 
+  const updateItem = async (id: string, patch: Partial<RefItem>) => {
+    const { error } = await supabase.from("reference_table_items").update(patch).eq("id", id);
+    if (error) return toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+    if (selected) loadItems(selected.id);
+    toast({ title: "Item atualizado" });
+  };
+
   const addManualCodes = async () => {
     if (!selected) return;
     // Aceita códigos separados por vírgula, ponto-e-vírgula, espaço ou nova linha. Opcional "código - descrição".
@@ -194,18 +201,42 @@ const ReferenceTables = () => {
       return;
     }
     const parsed = lines.map((ln) => {
-      const m = ln.match(/^([^\s\-–—|\t]+)[\s\-–—|\t]+(.+)$/);
-      const code = (m ? m[1] : ln).trim();
-      const description = m ? m[2].trim() : null;
-      return { code, description };
+      // Formatos aceitos:
+      // 1) código - descrição - atuação - valor (Ex: 30101011 - Desc - Cirurgiao - 150,00)
+      // 2) código - descrição (Ex: 30101011 - Descricao)
+      // 3) código (Ex: 30101011)
+      const parts = ln.split(/[\s\-–—|]+/).map(s => s.trim());
+      const code = parts[0];
+      let description = parts.length > 1 ? parts[1] : null;
+      let role = null;
+      let amount = null;
+
+      if (parts.length >= 4) {
+        // Assume formato completo: código - descrição - atuação - valor
+        role = parts[2];
+        amount = parseNumber(parts[3]);
+      } else if (parts.length === 3) {
+        // Pode ser código - atuação - valor OU código - descrição - atuação/valor
+        const val = parseNumber(parts[2]);
+        if (val !== null) {
+          amount = val;
+          role = parts[1];
+        } else {
+          description = parts[1];
+          role = parts[2];
+        }
+      }
+
+      return { code, description, role, amount };
     });
-    const existing = new Set(items.map((i) => i.code));
     const toInsert = parsed
-      .filter((p) => p.code && !existing.has(p.code))
+      .filter((p) => p.code)
       .map((p) => ({
         reference_table_id: selected.id,
         code: p.code,
         description: p.description,
+        role: p.role,
+        amount: p.amount ?? 0
       }));
     if (toInsert.length === 0) {
       toast({ title: "Nada a adicionar", description: "Todos os códigos já estão na tabela." });
@@ -655,14 +686,56 @@ const ReferenceTables = () => {
                           </div>
                         </div>
                         
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => removeItem(it.id)}
-                          className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 self-center"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Editar item: {it.code}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label>Descrição</Label>
+                                  <Input 
+                                    defaultValue={it.description ?? ""} 
+                                    onBlur={(e) => updateItem(it.id, { description: e.target.value })}
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Atuação / Função</Label>
+                                    <Input 
+                                      defaultValue={it.role ?? ""} 
+                                      onBlur={(e) => updateItem(it.id, { role: e.target.value })}
+                                      placeholder="Ex: Cirurgião"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Valor (R$)</Label>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01"
+                                      defaultValue={it.amount ?? 0} 
+                                      onBlur={(e) => updateItem(it.id, { amount: Number(e.target.value) })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => removeItem(it.id)}
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
@@ -691,7 +764,7 @@ const ReferenceTables = () => {
               </p>
               <textarea
                 className="w-full min-h-[160px] rounded-md border border-input bg-background p-2 text-sm font-mono"
-                placeholder={"30729220\n30731119 - Reparação ligamentar"}
+                placeholder={"30729220\n30731119 - Reparação ligamentar\n30729220 - Cirurgião - 150,00"}
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
               />
