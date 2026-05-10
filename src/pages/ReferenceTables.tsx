@@ -736,7 +736,6 @@ const ReferenceTables = () => {
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Observações</Label>
-                  <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
                 </div>
                 <div className="pt-4">
                   <Button type="submit" className="w-full md:col-span-2">Criar</Button>
