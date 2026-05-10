@@ -1207,8 +1207,15 @@ function calcTabelaDiferenciada(
 
 function classifyDiff(expected: number | null, gross: number): { status: ItemAiStatus; diff_pct: number | null } {
   if (expected == null) return { status: "alerta", diff_pct: null };
+  
+  // Se o esperado é 0 (exclusão) e o pago é 0, está perfeitamente correto (aprovado).
+  if (expected === 0 && gross === 0) return { status: "aprovado", diff_pct: 0 };
+  
+  // Para outros casos onde gross é 0 mas expected > 0 (item não pago mas deveria ser).
   if (gross <= 0) return { status: "alerta", diff_pct: null };
+  
   const diff = Math.abs(expected - gross) / Math.max(Math.abs(expected), 0.01);
+  
   // Regra de projeto: se o valor bate com a regra (divergência < 1%), o item é aprovado
   // e NÃO deve gerar alertas nem aparecer no resumo de divergências.
   if (diff <= 0.01) return { status: "aprovado", diff_pct: diff };
