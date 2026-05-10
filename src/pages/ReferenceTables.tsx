@@ -762,14 +762,27 @@ const ReferenceTables = () => {
                   </select>
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label>Tipo estrutural</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Tipo estrutural</Label>
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 text-[10px] text-primary hover:text-primary hover:bg-primary/5"
+                      onClick={() => downloadTemplate(newTableKind)}
+                    >
+                      <Download className="h-3 w-3 mr-1" /> Baixar modelo desta estrutura
+                    </Button>
+                  </div>
                   <select
                     name="kind"
                     defaultValue="simples"
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                     onChange={(e) => {
+                      const val = e.target.value as RefKind;
+                      setNewTableKind(val);
                       const pkg = document.getElementById("rt-pkg-wrap");
-                      if (pkg) pkg.style.display = e.target.value === "pacote_combinacao" ? "" : "none";
+                      if (pkg) pkg.style.display = val === "pacote_combinacao" ? "" : "none";
                     }}
                   >
                     <option value="simples">Simples (código → valor)</option>
