@@ -910,7 +910,7 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
-export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string) => number | null;
+export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string, role?: string | null) => number | null;
 
 /**
  * Camada 2: dado um id de tabela de exceção (sem_acordo/exclusao) e um código
