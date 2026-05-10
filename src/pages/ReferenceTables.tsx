@@ -386,6 +386,7 @@ const ReferenceTables = () => {
           .map((row) => {
             const codeKey = findKey(row, ["codigo", "código", "code"]);
             const descKey = findKey(row, ["descricao", "descrição", "description", "procedimento"]);
+            const roleKey = findKey(row, ["atuacao", "funcao", "role", "tipo"]);
             const valKey = findKey(row, ["valor", "amount", "preco", "preço"]);
             const code = codeKey ? String(row[codeKey]).trim() : "";
             if (!code) return null;
@@ -393,6 +394,7 @@ const ReferenceTables = () => {
               reference_table_id: selected.id,
               code,
               description: descKey ? String(row[descKey]) : null,
+              role: roleKey ? String(row[roleKey]).trim() : null,
               amount: parseNumber(valKey ? row[valKey] : null) ?? 0,
             };
           })
