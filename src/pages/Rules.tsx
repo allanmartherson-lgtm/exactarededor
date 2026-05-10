@@ -790,6 +790,7 @@ const Rules = () => {
 
 
   const [fActive, setFActive] = useState(true);
+  const [saving, setSaving] = useState(false);
   const resetForm = () => {
     setEditingId(null);
     setFActive(true);
