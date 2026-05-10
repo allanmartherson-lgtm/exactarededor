@@ -153,10 +153,12 @@ const Rules = () => {
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [refTables, setRefTables] = useState<{ id: string; name: string; purpose?: string }[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string; document: string | null }[]>([]);
+  const [globalThresholds, setGlobalThresholds] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [globalConfigOpen, setGlobalConfigOpen] = useState(false);
   const [drafts, setDrafts] = useState<DraftRule[]>([]);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
