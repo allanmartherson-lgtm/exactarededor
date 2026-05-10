@@ -800,7 +800,8 @@ const PaymentDetail = () => {
       const { error } = await supabase.functions.invoke("analyze-payment", {
         body: { 
           payment_id: id,
-          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined
+          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
+          tolerance_pct: toleranceValue
         },
       });
       if (error) throw error;
