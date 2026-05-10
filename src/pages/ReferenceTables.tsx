@@ -642,7 +642,14 @@ const ReferenceTables = () => {
                             ) : (
                               <div className="flex flex-col sm:items-end gap-1">
                                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Valor</span>
-                                <span className="text-sm font-bold text-foreground">{formatCurrency(it.amount ?? 0)}</span>
+                                <div className="flex flex-col items-end">
+                                  <span className="text-sm font-bold text-foreground">{formatCurrency(it.amount ?? 0)}</span>
+                                  {it.role && (
+                                    <span className="text-[10px] font-medium text-primary px-1.5 py-0.5 bg-primary/5 rounded border border-primary/10">
+                                      {it.role}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
