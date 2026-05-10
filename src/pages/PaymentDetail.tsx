@@ -1754,22 +1754,25 @@ const PaymentDetail = () => {
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
               const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
-              const isErrorOnly = payment.analysis_mode === "empresa_prioritaria";
+              const isErrorOnly = payment.analysis_mode === "empresa_prioritaria" || criticalFilter !== "all";
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
+                if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
+                if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                if (criticalFilter === "approved") return it.ai_status === "aprovado";
+                
                 const st = (it.ai_status as string) ?? "pendente";
                 return st === "alerta" || st === "reprovado" || (it.ai_findings?.alerts?.length ?? 0) > 0;
               };
-              // Filtro só decide se o card aparece (busca / modo erro-apenas).
-              // O resumo dentro do card SEMPRE usa groupItemsAll, para bater
-              // com a página dedicada (que não conhece os filtros do lote).
-              const matchedItems = sq && !groupNameMatches
+              // Filtro só decide se o card aparece (busca / modo erro-apenas / filtros críticos).
+              const matchedItems = (itemSearch.trim() && !groupNameMatches)
                 ? groupItemsAll.filter(itemMatches)
                 : groupItemsAll;
-              const visibleByErrorOnly = isErrorOnly
+              const visibleByFilters = isErrorOnly
                 ? matchedItems.filter(errorOnlyFilter)
                 : matchedItems;
-              if (sq && !groupNameMatches && matchedItems.length === 0) return null;
-              if (isErrorOnly && visibleByErrorOnly.length === 0) return null;
+              
+              if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
+              if (isErrorOnly && visibleByFilters.length === 0) return null;
               return (
                 <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20">
                   <PaymentGroupCard
