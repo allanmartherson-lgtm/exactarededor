@@ -1276,7 +1276,7 @@ export function analyzeItem(
     };
   }
 
-  const outcome = selectWinningRule(item, preFilteredRules, { collectTrace: true });
+  const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
   let calculation_type_used: AnalysisResult["calculation_type_used"];
