@@ -1368,7 +1368,7 @@ export function analyzeItem(
         diff_pct: 0,
         matched_rule_id: null,
         matched_rule_name: `Camada 1 — Bloqueio de convênio: ${winner.name}`,
-        matched_priority: "sem_regra",
+        matched_priority: "regra_bloqueio",
         calculation_type_used: "informativo",
         calculation_explanation:
           `Bloqueado pela Camada 1 (${motivo}) — sem acordo para esta combinação. ` +
