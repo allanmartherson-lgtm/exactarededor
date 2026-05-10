@@ -1140,15 +1140,15 @@ function ItemDetailsRow({
                       <p className="font-medium mb-1 uppercase tracking-tight">Hierarquia validada:</p>
                       <ul className="space-y-1">
                         <li className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full", priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") ? "bg-success" : "bg-muted-foreground/30")} />
-                          Regra Específica / Grupo (Médico ou Empresa)
+                          <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
+                          Regra Específica / Grupo / Convênio
                         </li>
                         <li className="flex items-center gap-1.5">
                           <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_codigo" || priority === "setor" ? "bg-success" : "bg-muted-foreground/30")} />
                           Regra Geral de Setor
                         </li>
                         <li className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_master_geral" || priority === "setor_outro" ? "bg-success" : "bg-muted-foreground/30")} />
+                          <div className={cn("h-1.5 w-1.5 rounded-full", priority === "setor_master_geral" || priority === "setor_outro" || priority === "setor_hemodinamica_master" ? "bg-success" : "bg-muted-foreground/30")} />
                           Regra Master / Geral
                         </li>
                       </ul>
