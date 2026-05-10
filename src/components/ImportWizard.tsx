@@ -493,11 +493,45 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
-            {validation.sample.length > 0 && (
-              <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Amostra do que será importado">
-                <pre className="text-xs bg-muted/40 p-2 rounded-md max-h-40 overflow-auto">
-                  {JSON.stringify(validation.sample, null, 2)}
-                </pre>
+            {validation.itemsCreated.length > 0 && (
+              <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Itens que serão criados (prévia detalhada)">
+                <div className="overflow-auto max-h-80 rounded-md border border-border">
+                  <table className="text-[10px] w-full border-collapse">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Linha Origem</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Coluna Valor</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Código/ID</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Nome/Desc</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Valor</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Função</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.itemsCreated.map((item, idx) => (
+                        <tr key={idx} className="even:bg-muted/20 hover:bg-muted/40">
+                          <td className="px-2 py-1 border-b border-border font-mono text-muted-foreground">L{item.row}</td>
+                          <td className="px-2 py-1 border-b border-border font-medium text-blue-600">{item.sourceCol}</td>
+                          <td className="px-2 py-1 border-b border-border truncate max-w-[100px]" title={item.code}>{item.code}</td>
+                          <td className="px-2 py-1 border-b border-border truncate max-w-[150px]" title={item.name}>{item.name}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount)}
+                          </td>
+                          <td className="px-2 py-1 border-b border-border truncate max-w-[100px]" title={item.role}>
+                            <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[9px] font-medium">
+                              {item.role}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {validation.summary.valid > validation.itemsCreated.length && (
+                  <p className="text-[10px] text-muted-foreground mt-2 italic text-center">
+                    Mostrando os primeiros {validation.itemsCreated.length} de {validation.summary.valid} itens que serão criados.
+                  </p>
+                )}
               </Section>
             )}
 
