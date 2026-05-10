@@ -1216,24 +1216,49 @@ function calcTabelaDiferenciada(
   return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };
 }
 
-function classifyDiff(expected: number | null, gross: number, ctx?: EngineCtx): { status: ItemAiStatus; diff_pct: number | null } {
-  if (expected == null) return { status: "alerta", diff_pct: null };
+function classifyDiff(
+  expected: number | null, 
+  gross: number, 
+  rule: RuleInput | null,
+  ctx?: EngineCtx
+): { status: ItemAiStatus; diff_pct: number | null; diff_abs: number | null } {
+  if (expected == null) return { status: "alerta", diff_pct: null, diff_abs: null };
   
   // Se o esperado é 0 (exclusão) e o pago é 0, está perfeitamente correto (aprovado).
-  if (expected === 0 && gross === 0) return { status: "aprovado", diff_pct: 0 };
+  if (expected === 0 && gross === 0) return { status: "aprovado", diff_pct: 0, diff_abs: 0 };
   
   // Para outros casos onde gross é 0 mas expected > 0 (item não pago mas deveria ser).
-  if (gross <= 0) return { status: "alerta", diff_pct: null };
+  if (gross <= 0) return { status: "alerta", diff_pct: null, diff_abs: Math.abs(expected) };
   
-  const diff = Math.abs(expected - gross) / Math.max(Math.abs(expected), 0.01);
+  const diff_abs = Math.abs(expected - gross);
+  const diff_pct = diff_abs / Math.max(Math.abs(expected), 0.01);
   
-  // Regra de projeto: se o valor bate com a regra (divergência < tolerância), o item é aprovado.
-  // A tolerância padrão é 1% (0.01), mas pode ser customizada via contexto.
-  const tolerance = ctx?.tolerance_pct ?? 0.01;
+  // Limiares de alerta e bloqueio (prioriza regra, fallback global)
+  const g = ctx?.globalThresholds || {
+    limiar_alerta_tipo: "percentual",
+    limiar_alerta_valor: 1.0,
+    limiar_bloqueio_tipo: "percentual",
+    limiar_bloqueio_valor: 5.0
+  };
+
+  const alertType = rule?.limiar_alerta_tipo || g.limiar_alerta_tipo;
+  const alertVal = rule?.limiar_alerta_valor ?? g.limiar_alerta_valor;
+  const blockType = rule?.limiar_bloqueio_tipo || g.limiar_bloqueio_tipo;
+  const blockVal = rule?.limiar_bloqueio_valor ?? g.limiar_bloqueio_valor;
+
+  const currentAlertDiff = alertType === "percentual" ? diff_pct * 100 : diff_abs;
+  const currentBlockDiff = blockType === "percentual" ? diff_pct * 100 : diff_abs;
+
+  // Regra de projeto: se o valor bate com a regra (divergência < tolerância global de reanálise se ativa), o item é aprovado.
+  const tolerance = ctx?.tolerance_pct ? ctx.tolerance_pct * 100 : null;
+  if (tolerance !== null && (diff_pct * 100) <= tolerance) {
+    return { status: "aprovado", diff_pct, diff_abs };
+  }
+
+  if (currentBlockDiff >= blockVal) return { status: "reprovado", diff_pct, diff_abs };
+  if (currentAlertDiff >= alertVal) return { status: "alerta",   diff_pct, diff_abs };
   
-  if (diff <= tolerance) return { status: "aprovado", diff_pct: diff };
-  if (diff <= 0.10) return { status: "alerta",   diff_pct: diff };
-  return { status: "reprovado", diff_pct: diff };
+  return { status: "aprovado", diff_pct, diff_abs };
 }
 
 /**
