@@ -2317,8 +2317,6 @@ const Rules = () => {
             </form>
           </FormDialog>
         </>}
-      />
-      />
 
       <div className="p-8 space-y-4">
         {/* Banner de regras incompletas */}
