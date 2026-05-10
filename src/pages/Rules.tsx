@@ -1828,7 +1828,7 @@ const Rules = () => {
                                 </div>
                                 <Button
                                   type="button" size="sm" variant="outline"
-                                  onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [] }, ...prev])}
+                                  onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
                                 >
                                   <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
                                 </Button>
@@ -1866,10 +1866,11 @@ const Rules = () => {
                                                }
                                                // Garante que a empresa selecionada apareça no cache local mesmo se não veio na primeira página
                                                setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
-                                               updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null } as any);
+                                               updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
                                              }}
                                             placeholder="Selecionar empresa…"
                                             className="w-full"
+                                            autoOpen={(link as any)._isNew}
                                           />
                                           {isDup && <p className="text-xs text-destructive">Empresa repetida em outra linha.</p>}
                                           {noCompany && <p className="text-xs text-destructive">Selecione uma empresa.</p>}

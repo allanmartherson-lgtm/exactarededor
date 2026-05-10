@@ -38,8 +38,9 @@ export function CompanyCombobox({
   className,
   pageSize = PAGE,
   showDocumentInTrigger = true,
-}: Props) {
-  const [open, setOpen] = useState(false);
+  autoOpen = false,
+}: Props & { autoOpen?: boolean }) {
+  const [open, setOpen] = useState(autoOpen);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [items, setItems] = useState<CompanyOption[]>([]);
