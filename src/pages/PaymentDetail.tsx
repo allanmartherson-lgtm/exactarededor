@@ -1748,13 +1748,14 @@ const PaymentDetail = () => {
                 const nameMatches = !sq || g.company_name?.toLowerCase().includes(sq);
                 const specMatches = !sq || paymentSpec.includes(sq);
                 
-                // Se o nome da empresa ou especialidade casar, ainda precisamos verificar o filtro de status
-                // para garantir que a empresa possui itens que atendam ao critério (sem regra, divergente, etc)
+                // Se houver filtro ativo (exceto "Todos"), o grupo só é visível se POSSUIR 
+                // itens que casam exatamente com o critério do filtro (sem regra, divergente, aprovado).
+                // Além disso, se houver busca (sq), ela deve casar com o nome da empresa ou com o item.
                 return items.some(
                   (it) =>
                     (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase() &&
                     (nameMatches || specMatches || itemMatches(it)) &&
-                    (criticalFilter === "all" || itemMatches(it))
+                    (criticalFilter === "all" ? true : itemMatches(it))
                 );
               });
               
