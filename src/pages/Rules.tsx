@@ -2267,7 +2267,7 @@ const Rules = () => {
                   </AccordionItem>
                 </Accordion>
 
-                <Button type="submit" className="w-full">{editingId ? "Salvar alterações" : "Criar"}</Button>
+                <Button type="submit" className="w-full shrink-0">{editingId ? "Salvar alterações" : "Criar"}</Button>
               </form>
             </DialogContent>
           </Dialog>
