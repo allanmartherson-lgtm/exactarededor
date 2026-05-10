@@ -1247,7 +1247,7 @@ const PaymentDetail = () => {
                       Esta ação irá reaplicar o motor de regras e a inteligência artificial em <strong>todos os itens</strong> deste lote. 
                       Isso pode levar alguns minutos e irá sobrescrever análises manuais que não foram marcadas como exceção.
                       <br /><br />
-                      Responsável pela ação: <strong>{user?.display_name || user?.email}</strong>
+                      Responsável pela ação: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
