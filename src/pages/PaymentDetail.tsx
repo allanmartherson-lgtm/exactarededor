@@ -791,7 +791,7 @@ const PaymentDetail = () => {
     }
   };
 
-  const reprocessAi = async () => {
+  const reprocessAi = async (statuses?: string[]) => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
