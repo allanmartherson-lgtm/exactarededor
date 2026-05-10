@@ -548,16 +548,16 @@ const Users = () => {
         </CardContent></Card>
       </div>
       <Dialog open={!!manualLink} onOpenChange={(o) => !o && setManualLink(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{manualLink?.kind === "invite" ? "Link de convite" : "Link de redefinição"}</DialogTitle>
             <DialogDescription>
               Se o e-mail não chegar para {manualLink?.email}, copie e envie este link manualmente.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
             <Input readOnly value={manualLink?.link ?? ""} className="font-mono text-xs" />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 type="button"
                 onClick={() => {
@@ -574,6 +574,9 @@ const Users = () => {
               </Button>
             </div>
           </div>
+          <DialogFooter className="p-6 pt-2">
+            <Button variant="outline" onClick={() => setManualLink(null)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
