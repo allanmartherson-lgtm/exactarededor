@@ -1504,12 +1504,12 @@ const Rules = () => {
 
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-6 p-4">
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
                 {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
               </DialogHeader>
-              <form onSubmit={submitRule} className="space-y-4">
+              <form onSubmit={submitRule} className="flex-1 overflow-y-auto p-6 space-y-4 box-border min-w-0">
                 {calcSyncErrors.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1605,7 +1605,7 @@ const Rules = () => {
                         {sectionErrors.identificacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.identificacao}</span>}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <div className="flex items-center gap-2 mb-2">
                         <Checkbox id="rule-active" checked={fActive} onCheckedChange={(v) => setFActive(!!v)} />
                         <Label htmlFor="rule-active" className="cursor-pointer font-semibold">Regra Ativa</Label>
@@ -1748,7 +1748,7 @@ const Rules = () => {
                         {sectionErrors.aplicacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.aplicacao}</span>}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       {scope === "especifica" && (
                         <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                           <div className="space-y-1.5"><Label>Aplicar a</Label>
@@ -1853,8 +1853,8 @@ const Rules = () => {
                                       "rounded-md border bg-card p-3 space-y-2 animate-fade-in",
                                       (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "border-border"
                                     )}>
-                                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start">
-                                        <div className="space-y-1">
+                                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
+                                        <div className="space-y-1 min-w-0">
                                           <Label className="text-xs">Empresa/PJ</Label>
                                           <CompanyCombobox
                                              value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
@@ -1947,7 +1947,7 @@ const Rules = () => {
                                       )}
 
                                       {/* Resumo da linha */}
-                                      <div className="text-xs text-muted-foreground border-t border-border pt-1.5">
+                                      <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
                                         <span className="font-medium">{co?.name ?? "—"}</span>
                                         {" | "}
                                         {link.doctors.length === 0
@@ -2020,7 +2020,7 @@ const Rules = () => {
                         )}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <div className="space-y-1.5">
                         <Label>Natureza da regra *</Label>
                         <Select
@@ -2206,7 +2206,7 @@ const Rules = () => {
                         <span className="ml-2 text-xs font-normal text-muted-foreground">({fExceptionTableIds.length})</span>
                       )}
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <p className="text-xs text-muted-foreground">
                         Vincule tabelas do tipo <strong>Códigos sem acordo</strong> ou <strong>Exclusão</strong> que invalidam esta regra.
                         Quando o item bater nesta regra e o código estiver em uma tabela vinculada, o motor pula o cálculo e aceita o valor pago pelo convênio.
@@ -2248,7 +2248,7 @@ const Rules = () => {
                   {/* Códigos específicos */}
                   <AccordionItem value="codigos" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className="text-sm font-semibold">Códigos específicos</AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <div className="space-y-1.5"><Label>Códigos de procedimento (opcional)</Label>
                         <Input placeholder="Ex: 31005497, 31005470; 31002390"
                           value={codesInput} onChange={(e) => setCodesInput(e.target.value)} />
@@ -2267,7 +2267,7 @@ const Rules = () => {
                   </AccordionItem>
                 </Accordion>
 
-                <Button type="submit" className="w-full">{editingId ? "Salvar alterações" : "Criar"}</Button>
+                <Button type="submit" className="w-full shrink-0">{editingId ? "Salvar alterações" : "Criar"}</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -2507,8 +2507,8 @@ const Rules = () => {
             <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
             <Button onClick={applyBulkUpdate}>Aplicar</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
 
       {/* Tela de revisão pós-importação */}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
