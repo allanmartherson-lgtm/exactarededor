@@ -658,7 +658,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const itemsRawById: Record<string, any> = {};
     for (const it of (itemsRaw ?? []) as any[]) itemsRawById[it.id] = it;
 
-    type ItemUpdate = { id: string; ai_status: string; ai_findings: any; attendance_group_key: string | null; specialty: string | null };
+    type ItemUpdate = { id: string; ai_status: string; ai_findings: any; attendance_group_key: string | null; specialty: string | null; sector: string | null };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
 
@@ -724,6 +724,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         ai_findings: findings,
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
+        sector: r.selection_trace?.item_sector ?? null,
       });
 
       if (r.status === "alerta") alerts++;
@@ -799,6 +800,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         ai_findings: u.ai_findings,
         attendance_group_key: u.attendance_group_key,
         specialty: u.specialty,
+        sector: u.sector,
       }).eq("id", u.id);
     });
 
