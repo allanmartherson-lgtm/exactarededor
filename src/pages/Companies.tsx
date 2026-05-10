@@ -421,10 +421,8 @@ const Companies = () => {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     onBlur={() => {
-                      // Confirma automaticamente ao sair do campo (evita perder o e-mail digitado).
-                      // tryAddEmail cuida de trim/lowercase/dedup/validação.
                       const result = tryAddEmail(editing.invoice_emails ?? [], emailInput);
-                      if (!result.ok) return; // inválido: mantém no input pra o usuário corrigir
+                      if (!result.ok) return;
                       setEditing({ ...editing, invoice_emails: result.emails });
                       setEmailInput("");
                     }}
@@ -449,7 +447,7 @@ const Companies = () => {
                   />
                   {emailInput.trim() && (
                     <p className="text-xs text-warning">
-                      ⚠ Pressione <kbd className="px-1 rounded bg-muted">Enter</kbd> para adicionar este e-mail. (Ao salvar, será adicionado automaticamente.)
+                      ⚠ Pressione <kbd className="px-1 rounded bg-muted">Enter</kbd> para adicionar este e-mail.
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1.5">
@@ -478,15 +476,8 @@ const Companies = () => {
                 <div className="space-y-1.5 pt-2 border-t border-border">
                   <CompanyDoctorsSection companyId={editing.id} />
                 </div>
-                </div>
-          </div>
-        </div>
-              <DialogFooter className="p-6 pt-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={save}>Salvar</Button>
-              </DialogFooter>
-            </DialogContent>
-            </Dialog>
+              </div>
+            </FormDialog>
           </div>
         </div>
 
