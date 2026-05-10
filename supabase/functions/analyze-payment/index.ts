@@ -128,6 +128,9 @@ serve(async (req) => {
     if (company_name && typeof company_name === "string") {
       itemsQuery.eq("company_name", company_name);
     }
+    if (Array.isArray(ai_statuses) && ai_statuses.length > 0) {
+      itemsQuery.in("ai_status", ai_statuses);
+    }
     const { data: itemsRaw } = await itemsQuery;
 
     // ---------- 3.1 Classificação determinística por código TUSS ----------
