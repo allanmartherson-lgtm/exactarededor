@@ -415,6 +415,52 @@ const ReferenceTables = () => {
     }
   };
 
+  const downloadTemplate = (kind: RefKind) => {
+    const wb = XLSX.utils.book_new();
+    let filename = "modelo_tabela.xlsx";
+
+    if (kind === "cbhpm") {
+      filename = "modelo_cbhpm.xlsx";
+      // Portes
+      const wsPorts = XLSX.utils.json_to_sheet([
+        { "Porte": "1A", "Valor": 100.00 },
+        { "Porte": "1B", "Valor": 150.00 },
+        { "Porte": "1C", "Valor": 200.00 },
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsPorts, "VALORES POR PORTE");
+      
+      // Códigos
+      const wsCodes = XLSX.utils.json_to_sheet([
+        { "ID do Procedimento": "30101011", "Descrição Procedimento": "Consulta", "Porte": "1A", "Nº de Auxiliares": 0 },
+        { "ID do Procedimento": "30715016", "Descrição Procedimento": "Cirurgia X", "Porte": "8A", "Nº de Auxiliares": 2 },
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsCodes, "CÓDIGOS");
+    } else if (kind === "pacote_combinacao") {
+      filename = "modelo_pacote.xlsx";
+      const ws = XLSX.utils.json_to_sheet([
+        { "pacote_id": "PKG001", "codigos_tuss": "30101011;30101012", "descrição": "Pacote Exemplo", "valor_pacote": 500.00, "observacao": "Exemplo de pacote" },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+    } else if (kind === "lista_codigos") {
+      filename = "modelo_lista.xlsx";
+      const ws = XLSX.utils.json_to_sheet([
+        { "código": "30101011", "descrição": "Procedimento A" },
+        { "código": "30101012", "descrição": "Procedimento B" },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+    } else {
+      // Simples / Tabela Própria
+      filename = "modelo_tabela_simples.xlsx";
+      const ws = XLSX.utils.json_to_sheet([
+        { "código": "30101011", "descrição": "Procedimento X", "valor": 150.00 },
+        { "código": "30101012", "descrição": "Procedimento Y", "valor": 200.00 },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+    }
+    
+    XLSX.writeFile(wb, filename);
+  };
+
   if (selected) {
     const isCbhpm = selected.kind === "cbhpm";
     const q = search.trim().toLowerCase();
