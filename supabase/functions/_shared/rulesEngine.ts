@@ -1443,8 +1443,13 @@ export function analyzeItem(
 
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
+  // PULA se o item já veio com valor totalizado (convenio_value_totalized).
   const qty = Number(item.quantity ?? 1);
-  if (calc.expected != null && Number.isFinite(qty) && qty > 0 && qty !== 1) {
+  if (item.convenio_value_totalized === true) {
+    if (qty > 1 && calc.explanation) {
+      calc.explanation = `${calc.explanation} (qtd ${qty} ignorada no cálculo pois valor já é totalizado)`;
+    }
+  } else if (calc.expected != null && Number.isFinite(qty) && qty > 0 && qty !== 1) {
     const before = calc.expected;
     calc.expected = Number((before * qty).toFixed(2));
     calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
