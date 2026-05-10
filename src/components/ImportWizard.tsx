@@ -241,7 +241,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       const totalToImport = records.length;
       
       for (let i = 0; i < totalToImport; i += CHUNK) {
-        const chunk = records.slice(i, i + CHUNK);
+        const chunk = records.slice(i, i + CHUNK).map(r => {
+          const { _meta, ...clean } = r;
+          return clean;
+        });
         try {
           const data = await callFn({
             mode: "commit",
