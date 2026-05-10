@@ -94,7 +94,7 @@ export function CompanyCombobox({
           role="combobox"
           className={cn("justify-between font-normal", !value && "text-muted-foreground", className)}
         >
-          <span className="truncate">
+          <span className="truncate text-left" title={value ? (showDocumentInTrigger && value.document ? `${value.name} · ${formatCNPJ(value.document)}` : value.name) : placeholder}>
             {value
               ? showDocumentInTrigger && value.document
                 ? `${value.name} · ${formatCNPJ(value.document)}`

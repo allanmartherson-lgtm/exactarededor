@@ -1605,7 +1605,7 @@ const Rules = () => {
                         {sectionErrors.identificacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.identificacao}</span>}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <div className="flex items-center gap-2 mb-2">
                         <Checkbox id="rule-active" checked={fActive} onCheckedChange={(v) => setFActive(!!v)} />
                         <Label htmlFor="rule-active" className="cursor-pointer font-semibold">Regra Ativa</Label>
@@ -1748,7 +1748,7 @@ const Rules = () => {
                         {sectionErrors.aplicacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.aplicacao}</span>}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       {scope === "especifica" && (
                         <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
                           <div className="space-y-1.5"><Label>Aplicar a</Label>
@@ -1947,7 +1947,7 @@ const Rules = () => {
                                       )}
 
                                       {/* Resumo da linha */}
-                                      <div className="text-xs text-muted-foreground border-t border-border pt-1.5">
+                                      <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
                                         <span className="font-medium">{co?.name ?? "—"}</span>
                                         {" | "}
                                         {link.doctors.length === 0
@@ -2020,7 +2020,7 @@ const Rules = () => {
                         )}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <div className="space-y-1.5">
                         <Label>Natureza da regra *</Label>
                         <Select
@@ -2206,7 +2206,7 @@ const Rules = () => {
                         <span className="ml-2 text-xs font-normal text-muted-foreground">({fExceptionTableIds.length})</span>
                       )}
                     </AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <p className="text-xs text-muted-foreground">
                         Vincule tabelas do tipo <strong>Códigos sem acordo</strong> ou <strong>Exclusão</strong> que invalidam esta regra.
                         Quando o item bater nesta regra e o código estiver em uma tabela vinculada, o motor pula o cálculo e aceita o valor pago pelo convênio.
@@ -2248,7 +2248,7 @@ const Rules = () => {
                   {/* Códigos específicos */}
                   <AccordionItem value="codigos" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className="text-sm font-semibold">Códigos específicos</AccordionTrigger>
-                    <AccordionContent className="space-y-3 pt-1">
+                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
                       <div className="space-y-1.5"><Label>Códigos de procedimento (opcional)</Label>
                         <Input placeholder="Ex: 31005497, 31005470; 31002390"
                           value={codesInput} onChange={(e) => setCodesInput(e.target.value)} />
