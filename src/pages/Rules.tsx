@@ -2314,11 +2314,10 @@ const Rules = () => {
                   </AccordionItem>
                 </Accordion>
 
-                <Button type="submit" className="w-full shrink-0">{editingId ? "Salvar alterações" : "Criar"}</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+            </form>
+          </FormDialog>
         </>}
+      />
       />
 
       <div className="p-8 space-y-4">
