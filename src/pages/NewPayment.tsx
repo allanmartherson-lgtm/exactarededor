@@ -175,6 +175,8 @@ interface FileBucket {
   manualOverride?: boolean;
   /** Mapeamento de setor identificado na planilha para o setor do sistema */
   sectorMapping?: string | null;
+  /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
+  convenioValueTotalized?: boolean;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
@@ -464,6 +466,12 @@ const NewPayment = () => {
     });
   };
 
+  const toggleBucketConvenioTotalized = (idx: number) => {
+    setBuckets((prev) =>
+      prev.map((x, i) => (i === idx ? { ...x, convenioValueTotalized: !x.convenioValueTotalized } : x))
+    );
+  };
+
   const allRows = useMemo(() => {
     return buckets.flatMap((b) => b.rows).map((r) => {
       const tipo_linha = classifyLine(r, paymentKind || null);
@@ -710,6 +718,7 @@ const NewPayment = () => {
         sector: currentBucket?.sectorMapping || r.sector,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
       };
     });
     const { error: itemsErr } = await supabase.from("payment_items").insert(items);
@@ -1003,7 +1012,7 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap flex-1">
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
@@ -1031,6 +1040,21 @@ const NewPayment = () => {
                               />
                             </PopoverContent>
                           </Popover>
+
+                          <div className="flex items-center gap-1.5 px-2 border-l border-r border-border/50 h-6">
+                            <Switch 
+                              id={`totalized-${idx}`} 
+                              checked={b.convenioValueTotalized || false} 
+                              onCheckedChange={() => toggleBucketConvenioTotalized(idx)}
+                              className="scale-[0.7]"
+                            />
+                            <Label 
+                              htmlFor={`totalized-${idx}`} 
+                              className="text-[10px] font-normal text-muted-foreground cursor-pointer leading-tight"
+                            >
+                              Valor convênio já totalizado
+                            </Label>
+                          </div>
 
                           <Popover>
                             <PopoverTrigger asChild>
@@ -1069,7 +1093,7 @@ const NewPayment = () => {
                             </PopoverContent>
                           </Popover>
                         </div>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground ml-auto">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
                       </div>
