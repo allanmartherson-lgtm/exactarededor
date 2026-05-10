@@ -155,6 +155,7 @@ const PaymentDetail = () => {
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [reprocessingAi, setReprocessingAi] = useState(false);
+  const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
@@ -1226,17 +1227,40 @@ const PaymentDetail = () => {
               </Button>
             )}
             {(payment.status === "em_analise_ia" || payment.status === "revisao_analista" || payment.status === "devolvido_analista") && (isAnalista || isDiretor) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={reprocessAi}
-                disabled={reprocessingAi}
-                className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
-                title="Reaplicar o motor de regras e análise de IA em todos os itens deste lote"
-              >
-                <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
-                {reprocessingAi ? "Processando..." : "Reanalisar lote"}
-              </Button>
+              <AlertDialog open={reprocessConfirmOpen} onOpenChange={setReprocessConfirmOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={reprocessingAi}
+                    className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
+                    title="Reaplicar o motor de regras e análise de IA em todos os itens deste lote"
+                  >
+                    <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
+                    {reprocessingAi ? "Processando..." : "Reanalisar lote"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reanalisar todo o lote?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação irá reaplicar o motor de regras e a inteligência artificial em <strong>todos os itens</strong> deste lote. 
+                      Isso pode levar alguns minutos e irá sobrescrever análises manuais que não foram marcadas como exceção.
+                      <br /><br />
+                      Responsável pela ação: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={reprocessAi}
+                      className="bg-warning hover:bg-warning/90 text-white"
+                    >
+                      Confirmar Reanálise
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <StatusBadge status={payment.status} />
           </div>
