@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_items ADD COLUMN sector TEXT;

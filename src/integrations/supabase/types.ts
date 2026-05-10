@@ -779,6 +779,7 @@ export type Database = {
           procedure_name: string | null
           quantity: number | null
           raw_data: Json | null
+          sector: string | null
           specialty: string | null
           tipo_item: string | null
           tipo_linha: string | null
@@ -817,6 +818,7 @@ export type Database = {
           procedure_name?: string | null
           quantity?: number | null
           raw_data?: Json | null
+          sector?: string | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
@@ -855,6 +857,7 @@ export type Database = {
           procedure_name?: string | null
           quantity?: number | null
           raw_data?: Json | null
+          sector?: string | null
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
