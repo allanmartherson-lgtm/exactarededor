@@ -915,7 +915,7 @@ export type ExceptionTableLookup = (
   procedureCode: string,
 ) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
 
-export interface EngineCtx {
+export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
