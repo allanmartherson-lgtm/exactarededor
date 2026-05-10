@@ -1643,7 +1643,7 @@ const PaymentDetail = () => {
                 </SelectContent>
               </Select>
               
-              {hasRole("analista") || hasRole("gestor") || hasRole("diretor") ? (
+              {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
                 <Button
                   variant="outline"
                   size="sm"
