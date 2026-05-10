@@ -329,7 +329,7 @@ const Companies = () => {
   return (
     <>
       <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
-      <div className="p-8 max-w-5xl space-y-4">
+      <div className="p-8 max-w-full space-y-4">
         <div className="flex items-center justify-between gap-3">
           <Input placeholder="Buscar por nome, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
           <div className="flex items-center gap-2">
@@ -354,9 +354,10 @@ const Companies = () => {
             <DialogTrigger asChild>
               <Button onClick={() => setEditing(empty)}><Plus className="h-4 w-4 mr-2" /> Nova empresa</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>{editing.id ? "Editar empresa" : "Nova empresa"}</DialogTitle></DialogHeader>
-              <div className="space-y-3">
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+              <DialogHeader className="p-6 pb-2"><DialogTitle>{editing.id ? "Editar empresa" : "Nova empresa"}</DialogTitle></DialogHeader>
+              <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Nome oficial *</Label>
                   <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Ex: Clínica Cirúrgica de Taguatinga Ltda" />

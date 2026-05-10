@@ -267,36 +267,34 @@ const CostCenters = () => {
               </div>
             ) : (
               <div className="overflow-x-auto border border-border rounded-lg">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40 text-muted-foreground">
-                    <tr>
-                      <th className="text-left px-3 py-2 font-medium cell-mono">P12</th>
-                      <th className="text-left px-3 py-2 font-medium">Diretoria</th>
-                      <th className="text-left px-3 py-2 font-medium">Gerência</th>
-                      <th className="text-left px-3 py-2 font-medium">Setor</th>
-                      <th className="text-left px-3 py-2 font-medium">Sub-área</th>
-                      <th className="text-left px-3 py-2 font-medium cell-status">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <div className="w-full">
+                  <div className="hidden sm:grid sm:grid-cols-12 bg-muted/40 text-muted-foreground text-xs font-medium border-b border-border">
+                    <div className="px-3 py-2 sm:col-span-1">P12</div>
+                    <div className="px-3 py-2 sm:col-span-2">Diretoria</div>
+                    <div className="px-3 py-2 sm:col-span-3">Gerência</div>
+                    <div className="px-3 py-2 sm:col-span-2">Setor</div>
+                    <div className="px-3 py-2 sm:col-span-3">Sub-área</div>
+                    <div className="px-3 py-2 sm:col-span-1 text-right">Status</div>
+                  </div>
+                  <div className="divide-y divide-border">
                     {items.map((it) => (
-                      <tr key={it.id} className="border-t border-border hover:bg-muted/30">
-                        <td className="px-3 py-2 font-mono text-xs cell-mono">{it.code_p12}</td>
-                        <td className="px-3 py-2">{it.level2}</td>
-                        <td className="px-3 py-2">{it.level3}</td>
-                        <td className="px-3 py-2">{it.level4}</td>
-                        <td className="px-3 py-2 font-medium">{it.level5}</td>
-                        <td className="px-3 py-2 cell-status">
+                      <div key={it.id} className="grid grid-cols-1 sm:grid-cols-12 items-start sm:items-center py-2 px-3 hover:bg-muted/30 transition-colors gap-1 sm:gap-0">
+                        <div className="sm:col-span-1 font-mono text-xs text-muted-foreground break-all">{it.code_p12}</div>
+                        <div className="sm:col-span-2 text-xs break-words">{it.level2}</div>
+                        <div className="sm:col-span-3 text-xs break-words">{it.level3}</div>
+                        <div className="sm:col-span-2 text-xs break-words">{it.level4}</div>
+                        <div className="sm:col-span-3 text-sm font-medium break-words">{it.level5}</div>
+                        <div className="sm:col-span-1 flex sm:justify-end">
                           {it.active ? (
-                            <Badge variant="outline" className="text-success border-success/30 bg-success-soft">Ativo</Badge>
+                            <Badge variant="outline" className="text-[10px] text-success border-success/30 bg-success-soft h-5 px-1.5">Ativo</Badge>
                           ) : (
-                            <Badge variant="outline" className="text-muted-foreground">Inativo</Badge>
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground h-5 px-1.5">Inativo</Badge>
                           )}
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between gap-3 p-3 border-t border-border bg-muted/20">
                   <p className="text-xs text-muted-foreground">
                     Mostrando {filteredCount.toLocaleString("pt-BR")} {debouncedSearch || !showInactive ? "registros filtrados" : "de " + totalCount.toLocaleString("pt-BR")}

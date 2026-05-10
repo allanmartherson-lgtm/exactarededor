@@ -252,7 +252,7 @@ export default function Doctors() {
   return (
     <>
       <PageHeader title="Médicos" description="Cadastro mestre de médicos para regras, vínculos com empresas e validações." />
-      <div className="p-8 max-w-6xl space-y-4">
+      <div className="p-8 max-w-full space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-[280px]">
             <Input
@@ -291,11 +291,11 @@ export default function Doctors() {
               <DialogTrigger asChild>
                 <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo médico</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
+              <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+                <DialogHeader className="p-6 pb-2">
                   <DialogTitle>{editing.id ? "Editar médico" : "Novo médico"}</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-3 space-y-1.5">
                       <Label>Nome completo *</Label>
