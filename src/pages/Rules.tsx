@@ -1503,7 +1503,10 @@ const Rules = () => {
                             );
                           })}
                         </div>
-                        <p className="text-xs text-muted-foreground">Vazio = aplica a todos os setores.</p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Aviso:</strong> O campo Setor agora é apenas um atributo informativo e estatístico. 
+                          Regras Master (Gerais) serão aplicadas a todos os itens, independente dos setores marcados aqui.
+                        </p>
                       </div>
                       {/*
                         Especialidade médica é metadado de relatório/busca/filtro
