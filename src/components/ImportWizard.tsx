@@ -821,8 +821,9 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
   const errors: { row: number; reason: string }[] = [];
   const dups: { row: number; key: string }[] = [];
   const valid: any[] = [];
-  mapped.forEach((r, i) => {
-    const rowNum = i + 2;
+  
+  mapped.forEach((r) => {
+    const rowNum = r._meta?.row || 0;
     const missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" || (Array.isArray(r[k]) && r[k].length === 0));
     if (missing.length) {
       const labels = missing.map(k => fields.find(f => f.key === k)?.label || k);
@@ -830,7 +831,6 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
       return;
     }
 
-    // Validação de e-mail se presente e não for vazio
     if (r.email && typeof r.email === 'string' && r.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(r.email)) {
@@ -839,7 +839,6 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
       }
     }
 
-    // Validação específica para médicos
     if (entity === "doctors") {
       if (r.crm && !/^\d+$/.test(String(r.crm).replace(/[\s.-]/g, ''))) {
         errors.push({ row: rowNum, reason: `CRM deve conter apenas números: ${r.crm}` });
