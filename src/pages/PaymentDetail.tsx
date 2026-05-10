@@ -1735,8 +1735,12 @@ const PaymentDetail = () => {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "approved") {
-                  // Aprovado legítimo: status aprovado E sem alertas
-                  return it.ai_status === "aprovado" && (it.ai_findings?.alerts?.length ?? 0) === 0;
+                  // Aprovado legítimo: status aprovado E sem NENHUM alerta, divergência ou observação da IA
+                  const hasAlerts = (it.ai_findings?.alerts?.length ?? 0) > 0;
+                  const hasAiNote = !!it.ai_findings?.engine?.ai_note;
+                  const hasDiff = (it.ai_findings?.engine?.diff_pct ?? 0) !== 0;
+                  
+                  return it.ai_status === "aprovado" && !hasAlerts && !hasAiNote && !hasDiff;
                 }
 
                 return true;
