@@ -1735,8 +1735,12 @@ const PaymentDetail = () => {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "approved") {
-                  // Aprovado legítimo: status aprovado E sem alertas
-                  return it.ai_status === "aprovado" && (it.ai_findings?.alerts?.length ?? 0) === 0;
+                  // Aprovado legítimo: status aprovado E sem NENHUM alerta, divergência ou observação da IA
+                  const hasAlerts = (it.ai_findings?.alerts?.length ?? 0) > 0;
+                  const hasAiNote = !!it.ai_findings?.engine?.ai_note;
+                  const hasDiff = (it.ai_findings?.engine?.diff_pct ?? 0) !== 0;
+                  
+                  return it.ai_status === "aprovado" && !hasAlerts && !hasAiNote && !hasDiff;
                 }
 
                 return true;
@@ -1790,7 +1794,12 @@ const PaymentDetail = () => {
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
                 if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
-                if (criticalFilter === "approved") return it.ai_status === "aprovado" && (it.ai_findings?.alerts?.length ?? 0) === 0;
+                if (criticalFilter === "approved") {
+                  const hasAlerts = (it.ai_findings?.alerts?.length ?? 0) > 0;
+                  const hasAiNote = !!it.ai_findings?.engine?.ai_note;
+                  const hasDiff = (it.ai_findings?.engine?.diff_pct ?? 0) !== 0;
+                  return it.ai_status === "aprovado" && !hasAlerts && !hasAiNote && !hasDiff;
+                }
                 
                 const st = (it.ai_status as string) ?? "pendente";
                 // Só mostra se for alerta/reprovado. Alertas informativos em itens aprovados não contam como crítico.
