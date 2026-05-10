@@ -1828,7 +1828,7 @@ const Rules = () => {
                                 </div>
                                 <Button
                                   type="button" size="sm" variant="outline"
-                                  onClick={() => setFGroupLinks((prev) => [...prev, { company_id: "", doctors: [] }])}
+                                  onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [] }, ...prev])}
                                 >
                                   <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
                                 </Button>
