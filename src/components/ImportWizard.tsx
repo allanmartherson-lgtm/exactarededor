@@ -75,6 +75,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     errors: { row: number; reason: string }[];
     duplicates: { row: number; key: string }[];
     sample: any[];
+    itemsCreated: { row: number; code: string; name: string; amount: number; role: string; sourceCol: string }[];
   } | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("append");
@@ -174,11 +175,21 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         roleMapping
       );
       
+      const itemsCreated = records.map(r => ({
+        row: r._meta?.row || 0,
+        code: String(r.code || r.id || ""),
+        name: String(r.name || r.description || r.title || ""),
+        amount: Number(r.amount || 0),
+        role: String(r.role || ""),
+        sourceCol: String(r._meta?.sourceCol || "N/A")
+      }));
+
       setValidation({
         summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
         errors: errors.slice(0, 50),
         duplicates: dups.slice(0, 50),
         sample: records.slice(0, 10),
+        itemsCreated: itemsCreated.slice(0, 100) // Show up to 100 items in detail
       });
       setStep("validate");
     } catch (e: any) {
@@ -230,7 +241,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       const totalToImport = records.length;
       
       for (let i = 0; i < totalToImport; i += CHUNK) {
-        const chunk = records.slice(i, i + CHUNK);
+        const chunk = records.slice(i, i + CHUNK).map(r => {
+          const { _meta, ...clean } = r;
+          return clean;
+        });
         try {
           const data = await callFn({
             mode: "commit",
@@ -479,11 +493,45 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               </Section>
             )}
 
-            {validation.sample.length > 0 && (
-              <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Amostra do que será importado">
-                <pre className="text-xs bg-muted/40 p-2 rounded-md max-h-40 overflow-auto">
-                  {JSON.stringify(validation.sample, null, 2)}
-                </pre>
+            {validation.itemsCreated.length > 0 && (
+              <Section icon={<CheckCircle2 className="h-4 w-4 text-success" />} title="Itens que serão criados (prévia detalhada)">
+                <div className="overflow-auto max-h-80 rounded-md border border-border">
+                  <table className="text-[10px] w-full border-collapse">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Linha Origem</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Coluna Valor</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Código/ID</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Nome/Desc</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Valor</th>
+                        <th className="px-2 py-1.5 text-left font-medium border-b border-border">Função</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {validation.itemsCreated.map((item, idx) => (
+                        <tr key={idx} className="even:bg-muted/20 hover:bg-muted/40">
+                          <td className="px-2 py-1 border-b border-border font-mono text-muted-foreground">L{item.row}</td>
+                          <td className="px-2 py-1 border-b border-border font-medium text-blue-600">{item.sourceCol}</td>
+                          <td className="px-2 py-1 border-b border-border truncate max-w-[100px]" title={item.code}>{item.code}</td>
+                          <td className="px-2 py-1 border-b border-border truncate max-w-[150px]" title={item.name}>{item.name}</td>
+                          <td className="px-2 py-1 border-b border-border font-mono">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount)}
+                          </td>
+                          <td className="px-2 py-1 border-b border-border truncate max-w-[100px]" title={item.role}>
+                            <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[9px] font-medium">
+                              {item.role}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {validation.summary.valid > validation.itemsCreated.length && (
+                  <p className="text-[10px] text-muted-foreground mt-2 italic text-center">
+                    Mostrando os primeiros {validation.itemsCreated.length} de {validation.summary.valid} itens que serão criados.
+                  </p>
+                )}
               </Section>
             )}
 
@@ -720,9 +768,10 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
   const result: any[] = [];
   const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
 
-  rows.forEach((row) => {
+  rows.forEach((row, rowIndex) => {
     const base: Record<string, any> = {};
     const otherFields = fields.filter(f => f.key !== "amount" && f.key !== "role");
+    const originalRowNum = rowIndex + 2; // Usually Excel starts at row 2 for data
     
     for (const f of otherFields) {
       const src = mapping[f.key];
@@ -739,7 +788,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
     }
 
     if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
-      const amountCols: { role: string, amount: number }[] = [];
+      const amountCols: { role: string, amount: number, sourceCol: string }[] = [];
       const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
       
       // 1. Check explicitly mapped amount
@@ -750,7 +799,7 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
           const roleCol = mapping["role"];
           const roleRaw = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
           const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
-          amountCols.push({ role, amount: val.value });
+          amountCols.push({ role, amount: val.value, sourceCol: mainAmountCol });
         }
       }
 
@@ -765,34 +814,48 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
           const val = normalizeNumericValue(row[colName]);
           if (!val.invalid && val.value > 0) {
             const role = (roleMapping && roleMapping[colName]) || colName;
-            amountCols.push({ role, amount: val.value });
+            amountCols.push({ role, amount: val.value, sourceCol: colName });
           }
         }
       });
 
       if (amountCols.length > 0) {
         amountCols.forEach(ac => {
-          result.push({ ...base, role: ac.role, amount: ac.amount });
+          result.push({ 
+            ...base, 
+            role: ac.role, 
+            amount: ac.amount,
+            _meta: { row: originalRowNum, sourceCol: ac.sourceCol }
+          });
         });
       } else {
-        // Fallback to one entry with 0 if needed (though usually we want to skip if no amount)
-        result.push({ ...base, role: null, amount: 0 });
+        result.push({ 
+          ...base, 
+          role: null, 
+          amount: 0,
+          _meta: { row: originalRowNum, sourceCol: mapping["amount"] || "N/A" }
+        });
       }
     } else {
-      // Standard mapping for other entities or reference table without amounts
       const out: Record<string, any> = { ...base };
       const amountField = fields.find(f => f.key === "amount");
       const roleField = fields.find(f => f.key === "role");
+      let sourceCol = "N/A";
       
       if (amountField) {
         const src = mapping["amount"];
         out["amount"] = src ? parseNumber(row[src]) : (amountField.defaultValue ?? 0);
+        if (src) sourceCol = src;
       }
       if (roleField) {
         const src = mapping["role"];
         out["role"] = src ? String(row[src] || "").trim() : (roleField.defaultValue ?? null);
       }
-      result.push(out);
+      
+      result.push({
+        ...out,
+        _meta: { row: originalRowNum, sourceCol }
+      });
     }
   });
   return result;
@@ -805,8 +868,9 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
   const errors: { row: number; reason: string }[] = [];
   const dups: { row: number; key: string }[] = [];
   const valid: any[] = [];
-  mapped.forEach((r, i) => {
-    const rowNum = i + 2;
+  
+  mapped.forEach((r) => {
+    const rowNum = r._meta?.row || 0;
     const missing = requiredKeys.filter((k) => r[k] == null || r[k] === "" || (Array.isArray(r[k]) && r[k].length === 0));
     if (missing.length) {
       const labels = missing.map(k => fields.find(f => f.key === k)?.label || k);
@@ -814,7 +878,6 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
       return;
     }
 
-    // Validação de e-mail se presente e não for vazio
     if (r.email && typeof r.email === 'string' && r.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(r.email)) {
@@ -823,7 +886,6 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
       }
     }
 
-    // Validação específica para médicos
     if (entity === "doctors") {
       if (r.crm && !/^\d+$/.test(String(r.crm).replace(/[\s.-]/g, ''))) {
         errors.push({ row: rowNum, reason: `CRM deve conter apenas números: ${r.crm}` });
