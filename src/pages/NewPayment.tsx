@@ -173,6 +173,8 @@ interface FileBucket {
   matchScore: number;
   /** true quando o usuário trocou a empresa manualmente (não foi o match automático). */
   manualOverride?: boolean;
+  /** Mapeamento de setor identificado na planilha para o setor do sistema */
+  sectorMapping?: string | null;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
@@ -347,7 +349,24 @@ const NewPayment = () => {
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 
-    return { file: f, rows, rawCompanyName, matchedCompany: company ? { id: company.id, name: company.name } : null, matchScore: score };
+    // Identifica o setor dominante na planilha
+    const sectorCounts: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.sector) {
+        const s = r.sector.toLowerCase().trim();
+        sectorCounts[s] = (sectorCounts[s] ?? 0) + 1;
+      }
+    }
+    const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+    return { 
+      file: f, 
+      rows, 
+      rawCompanyName, 
+      matchedCompany: company ? { id: company.id, name: company.name } : null, 
+      matchScore: score,
+      sectorMapping: dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null
+    };
   };
 
   const onFiles = async (fileList: FileList) => {
@@ -656,30 +675,43 @@ const NewPayment = () => {
       return null;
     };
 
-    const items = allRows.map((r) => ({
-      payment_id: payment.id,
-      doctor_name: r.doctor_name,
-      doctor_document: r.doctor_document,
-      doctor_email: r.doctor_email,
-      description: r.description,
-      gross_amount: r.gross_amount,
-      company_name: r.company_name,
-      company_id: r.company_id,
-      attendance_number: r.attendance_number,
-      procedure_code: r.procedure_code,
-      procedure_name: r.procedure_name,
-      access_route: r.access_route,
-      doctor_role: r.doctor_role,
-      agreement_text: r.agreement_text,
-      specialty: resolveSpecialty(r),
-      procedure_amount: r.procedure_amount,
-      quantity: r.quantity,
-      procedure_date: r.procedure_date,
-      patient_name: r.patient_name,
-      sector: r.sector,
-      raw_data: r.raw_data as never,
-      tipo_linha: r.tipo_linha,
-    }));
+    const items = allRows.map((r, i) => {
+      // Encontra a qual bucket esta linha pertence para aplicar o mapeamento de setor se houver
+      let currentBucket: FileBucket | undefined;
+      let offset = 0;
+      for (const b of buckets) {
+        if (i >= offset && i < offset + b.rows.length) {
+          currentBucket = b;
+          break;
+        }
+        offset += b.rows.length;
+      }
+
+      return {
+        payment_id: payment.id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: r.company_name,
+        company_id: r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: resolveSpecialty(r),
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        sector: currentBucket?.sectorMapping || r.sector,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+      };
+    });
     const { error: itemsErr } = await supabase.from("payment_items").insert(items);
     if (itemsErr) {
       setSubmitting(false);
@@ -971,33 +1003,72 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                            >
-                              <Pencil className="h-3 w-3 mr-1" />
-                              {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[min(360px,calc(100vw-2rem))] p-2" align="end" collisionPadding={16}>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
-                            </p>
-                            <CompanyCombobox
-                              className="w-full"
-                              value={
-                                b.matchedCompany
-                                  ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
-                                  : null
-                              }
-                              onChange={(c) => c && overrideBucketCompany(idx, c)}
-                              placeholder="Buscar empresa por nome ou CNPJ…"
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div className="flex items-center gap-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[min(360px,calc(100vw-2rem))] p-2" align="end" collisionPadding={16}>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
+                              </p>
+                              <CompanyCombobox
+                                className="w-full"
+                                value={
+                                  b.matchedCompany
+                                    ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
+                                    : null
+                                }
+                                onChange={(c) => c && overrideBucketCompany(idx, c)}
+                                placeholder="Buscar empresa por nome ou CNPJ…"
+                              />
+                            </PopoverContent>
+                          </Popover>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Setor: {b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-3" align="end">
+                              <div className="space-y-3">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium">Mapear setor</h4>
+                                  <p className="text-xs text-muted-foreground">Forçar um setor para todos os itens deste arquivo.</p>
+                                </div>
+                                <Select 
+                                  value={b.sectorMapping || "auto"} 
+                                  onValueChange={(v) => {
+                                    setBuckets(prev => prev.map((x, i) => i === idx ? { ...x, sectorMapping: v === "auto" ? null : v } : x));
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="auto" className="text-xs italic">Detectar automaticamente</SelectItem>
+                                    {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map(s => (
+                                      <SelectItem key={s} value={s} className="text-xs">{RULE_SECTOR_LABELS[s]}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                         <span className="text-xs text-muted-foreground">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
