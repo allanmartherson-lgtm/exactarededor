@@ -1148,7 +1148,7 @@ function calcTabelaDiferenciada(
         alerts: ["Item sem código TUSS — não é possível buscar na tabela de referência."],
       };
     }
-    const v = lookup(rule.reference_table_id, code);
+    const v = lookup(rule.reference_table_id, code, item.doctor_role);
     if (v == null) {
       return {
         expected: null,
