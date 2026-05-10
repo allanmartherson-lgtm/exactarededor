@@ -201,18 +201,42 @@ const ReferenceTables = () => {
       return;
     }
     const parsed = lines.map((ln) => {
-      const m = ln.match(/^([^\s\-–—|\t]+)[\s\-–—|\t]+(.+)$/);
-      const code = (m ? m[1] : ln).trim();
-      const description = m ? m[2].trim() : null;
-      return { code, description };
+      // Formatos aceitos:
+      // 1) código - descrição - atuação - valor (Ex: 30101011 - Desc - Cirurgiao - 150,00)
+      // 2) código - descrição (Ex: 30101011 - Descricao)
+      // 3) código (Ex: 30101011)
+      const parts = ln.split(/[\s\-–—|]+/).map(s => s.trim());
+      const code = parts[0];
+      let description = parts.length > 1 ? parts[1] : null;
+      let role = null;
+      let amount = null;
+
+      if (parts.length >= 4) {
+        // Assume formato completo: código - descrição - atuação - valor
+        role = parts[2];
+        amount = parseNumber(parts[3]);
+      } else if (parts.length === 3) {
+        // Pode ser código - atuação - valor OU código - descrição - atuação/valor
+        const val = parseNumber(parts[2]);
+        if (val !== null) {
+          amount = val;
+          role = parts[1];
+        } else {
+          description = parts[1];
+          role = parts[2];
+        }
+      }
+
+      return { code, description, role, amount };
     });
-    const existing = new Set(items.map((i) => i.code));
     const toInsert = parsed
-      .filter((p) => p.code && !existing.has(p.code))
+      .filter((p) => p.code)
       .map((p) => ({
         reference_table_id: selected.id,
         code: p.code,
         description: p.description,
+        role: p.role,
+        amount: p.amount ?? 0
       }));
     if (toInsert.length === 0) {
       toast({ title: "Nada a adicionar", description: "Todos os códigos já estão na tabela." });
