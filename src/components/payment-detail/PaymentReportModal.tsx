@@ -52,7 +52,7 @@ import {
   type ItemAiStatus,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import type {
   PaymentRow,
   PaymentItemRow,
@@ -223,28 +223,65 @@ export function PaymentReportModal({
         "Valor em Risco (%)": g.totalValue > 0 ? `${((g.riskValue / g.totalValue) * 100).toFixed(1)}%` : "0%",
       }));
       const wsCompanies = XLSX.utils.json_to_sheet(companyData);
+      
+      // Aplicar formatação condicional simples na aba "Por Empresa" também para consistência
+      const companyRange = XLSX.utils.decode_range(wsCompanies["!ref"] || "A1:H1");
+      for (let R = companyRange.s.r + 1; R <= companyRange.e.r; ++R) {
+        const statusCell = wsCompanies[XLSX.utils.encode_cell({ r: R, c: 1 })]; // Coluna B: Status
+        if (statusCell && statusCell.v) {
+          const val = statusCell.v;
+          let bgColor = "";
+          if (val === "Limpa") bgColor = "D1FAE5";
+          else if (val === "Com alertas") bgColor = "FEF3C7";
+          else if (val === "Com reprovações") bgColor = "FEE2E2";
+          
+          if (bgColor) {
+            statusCell.s = { fill: { fgColor: { rgb: bgColor } } };
+          }
+        }
+      }
+      
       XLSX.utils.book_append_sheet(wb, wsCompanies, "Por Empresa");
 
       // Aba 3: Detalhe dos Itens
-      const detailData = filteredItems.map(it => {
+      const detailHeaders = [
+        "Atendimento", "Data", "Empresa", "Paciente", "Médico", "Especialidade", 
+        "Código", "Procedimento", "Valor Recebido", "Valor Esperado", 
+        "Divergência (R$)", "Status", "Motivo"
+      ];
+      
+      const detailRows = filteredItems.map(it => {
         const findings = it.ai_findings as any;
-        return {
-          "Atendimento": it.attendance_number,
-          "Data": it.procedure_date ? formatDateOnly(it.procedure_date) : "",
-          "Empresa": it.company_name,
-          "Paciente": it.patient_name,
-          "Médico": it.doctor_name,
-          "Especialidade": it.specialty,
-          "Código": it.procedure_code,
-          "Procedimento": it.procedure_name,
-          "Valor Recebido": it.gross_amount,
-          "Valor Esperado": findings?.expected_amount ?? "",
-          "Divergência (R$)": (Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2),
-          "Status": it.ai_status,
-          "Motivo": findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
-        };
+        const status = it.ai_status as string;
+        
+        // Estilo condicional para a célula de Status
+        let statusStyle = {};
+        if (status === "aprovado") {
+          statusStyle = { fill: { fgColor: { rgb: "D1FAE5" } } }; // Verde claro (emerald-100)
+        } else if (status === "alerta") {
+          statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } }; // Amarelo claro (amber-100)
+        } else if (status === "reprovado") {
+          statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } }; // Vermelho claro (red-100)
+        }
+
+        return [
+          it.attendance_number,
+          it.procedure_date ? formatDateOnly(it.procedure_date) : "",
+          it.company_name,
+          it.patient_name,
+          it.doctor_name,
+          it.specialty,
+          it.procedure_code,
+          it.procedure_name,
+          it.gross_amount,
+          findings?.expected_amount ?? "",
+          (Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2),
+          { v: status, s: statusStyle },
+          findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
+        ];
       });
-      const wsDetails = XLSX.utils.json_to_sheet(detailData);
+
+      const wsDetails = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows]);
       XLSX.utils.book_append_sheet(wb, wsDetails, "Detalhe dos Itens");
 
       const competence = payment.competence_months || payment.competence_month || "";
