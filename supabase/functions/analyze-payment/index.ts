@@ -31,7 +31,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id, company_name } = await req.json();
+    const { payment_id, company_name, ai_statuses } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -121,11 +121,15 @@ serve(async (req) => {
         authorized_exception,exception_reason,exception_authorizer,exception_note,
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,
-        convenio_value_totalized
+        convenio_value_totalized,
+        ai_status
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
       itemsQuery.eq("company_name", company_name);
+    }
+    if (Array.isArray(ai_statuses) && ai_statuses.length > 0) {
+      itemsQuery.in("ai_status", ai_statuses);
     }
     const { data: itemsRaw } = await itemsQuery;
 

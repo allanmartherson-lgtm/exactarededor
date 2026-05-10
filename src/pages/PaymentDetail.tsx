@@ -156,6 +156,7 @@ const PaymentDetail = () => {
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
+  const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
@@ -790,19 +791,27 @@ const PaymentDetail = () => {
     }
   };
 
-  const reprocessAi = async () => {
+  const reprocessAi = async (statuses?: string[]) => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
-        body: { payment_id: id },
+        body: { 
+          payment_id: id,
+          ai_statuses: statuses && statuses.length > 0 ? statuses : undefined
+        },
       });
       if (error) throw error;
+      
+      const filterDesc = statuses && statuses.length > 0 
+        ? ` (filtrado por: ${statuses.join(", ")})` 
+        : " em todo o lote";
+
       await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user.id,
-        message: "Regras de repasse reaplicadas em todo o lote manualmente pelo analista.",
+        message: `Regras de repasse reaplicadas${filterDesc} manualmente pelo analista.`,
         status_from: payment?.status ?? null,
         status_to: payment?.status ?? null,
       });
@@ -1234,26 +1243,48 @@ const PaymentDetail = () => {
                     size="sm"
                     disabled={reprocessingAi}
                     className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
-                    title="Reaplicar o motor de regras e análise de IA em todos os itens deste lote"
+                    title="Reaplicar o motor de regras e análise de IA"
                   >
                     <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
                     {reprocessingAi ? "Processando..." : "Reanalisar lote"}
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-md">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Reanalisar todo o lote?</AlertDialogTitle>
+                    <AlertDialogTitle>Reanalisar itens do lote?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação irá reaplicar o motor de regras e a inteligência artificial em <strong>todos os itens</strong> deste lote. 
-                      Isso pode levar alguns minutos e irá sobrescrever análises manuais que não foram marcadas como exceção.
+                      Selecione quais itens você deseja reanalisar. A IA reaplicará as regras e justificativas.
                       <br /><br />
-                      Responsável pela ação: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Filtrar por status:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {["pendente", "alerta", "reprovado", "aprovado"].map((status) => (
+                            <label key={status} className="flex items-center gap-2 text-sm p-2 rounded-md border border-border hover:bg-muted/50 cursor-pointer">
+                              <Checkbox 
+                                checked={reprocessFilter.includes(status)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setReprocessFilter([...reprocessFilter, status]);
+                                  else setReprocessFilter(reprocessFilter.filter(s => s !== status));
+                                }}
+                              />
+                              <span className="capitalize">{status}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground italic">
+                          {reprocessFilter.length === 0 
+                            ? "Nenhum filtro selecionado: reanalisará TODO o lote." 
+                            : `Reanalisando apenas itens: ${reprocessFilter.join(", ")}.`}
+                        </p>
+                      </div>
+                      <br />
+                      Responsável: <strong>{user?.user_metadata?.full_name || user?.email}</strong>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel onClick={() => setReprocessFilter([])}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction 
-                      onClick={reprocessAi}
+                      onClick={() => reprocessAi(reprocessFilter)}
                       className="bg-warning hover:bg-warning/90 text-white"
                     >
                       Confirmar Reanálise
