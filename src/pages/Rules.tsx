@@ -762,6 +762,8 @@ const Rules = () => {
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
     setFCalculations([makeEmptyCalc()]);
+    setFAlertThresholdType("percentual"); setFAlertThresholdValue(""); setFAlertInherit(true);
+    setFBlockThresholdType("percentual"); setFBlockThresholdValue(""); setFBlockInherit(true);
     setCalcSyncErrors([]);
     setCalcSyncRuleId(null);
     setCalcSyncAttempt(0);
