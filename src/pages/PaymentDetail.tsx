@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
+import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
@@ -49,7 +50,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3 } from "lucide-react";
 
 const ObservationTypeSelector = ({
   value,
@@ -159,6 +160,7 @@ const PaymentDetail = () => {
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
@@ -1640,6 +1642,18 @@ const PaymentDetail = () => {
                   <SelectItem value="approved_strict" className="text-xs">Aprovados (sem pendências)</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                  onClick={() => setIsReportOpen(true)}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Relatório
+                </Button>
+              ) : null}
             </div>
           </div>
           
@@ -2034,6 +2048,17 @@ const PaymentDetail = () => {
           })()}
         </SheetContent>
       </Sheet>
+
+      {payment && (
+        <PaymentReportModal
+          open={isReportOpen}
+          onOpenChange={setIsReportOpen}
+          payment={payment}
+          items={items}
+          groups={groups}
+          analystName={user?.id ? profiles[user.id] : undefined}
+        />
+      )}
     </>
   );
 };
