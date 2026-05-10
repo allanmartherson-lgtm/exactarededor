@@ -736,6 +736,8 @@ const ReferenceTables = () => {
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Observações</Label>
+                  <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
+                </div>
                 </div>
                 <div className="pt-4">
                   <Button type="submit" className="w-full md:col-span-2">Criar</Button>
@@ -761,54 +763,57 @@ const ReferenceTables = () => {
                     className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/40 text-left transition-colors"
                   >
                     <div className="flex-1 min-w-0 pr-4">
-                      <p className="font-medium text-sm">
+                      <p className="font-medium text-sm flex items-center flex-wrap gap-2">
                         {t.name}
                         {t.year ? <span className="text-muted-foreground font-normal"> · {t.year}</span> : null}
-                        <span className="ml-2 text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
-                          {KIND_LABEL[t.kind] ?? t.kind}
-                        </span>
-                        <span className={`ml-2 text-xs rounded-full px-2 py-0.5 ${t.purpose === "exclusao" ? "bg-destructive/10 text-destructive border border-destructive/30" : t.purpose === "classificacao" ? "bg-info-soft text-info border border-info/30" : t.purpose === "sem_acordo" ? "bg-warning/10 text-warning border border-warning/30" : "bg-success/10 text-success border border-success/30"}`}>
-                          {PURPOSE_LABEL[t.purpose ?? "calculo"]}
-                        </span>
                         {t.active === false && (
-                          <span className="ml-2 text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">inativa</span>
-                        )}
-                        {(t.valid_from || t.valid_until) && (
-                          <span className="ml-2 text-xs text-muted-foreground font-normal">
-                            vigência {t.valid_from ?? "—"} → {t.valid_until ?? "—"}
-                          </span>
+                          <span className="text-[10px] rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">inativa</span>
                         )}
                       </p>
-                      {t.description && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
-                      )}
-                      {t.notes && (
-                        <p className="text-xs text-muted-foreground mt-0.5 italic">{t.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-1 break-words line-clamp-2">
+                        {t.description || "Sem descrição"}
+                      </p>
+                      {(t.valid_from || t.valid_until) && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Vigência: {t.valid_from ?? "—"} → {t.valid_until ?? "—"}
+                        </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          await supabase.from("reference_tables").update({ active: !t.active } as any).eq("id", t.id);
-                          loadTables();
-                        }}
-                      >
-                        {t.active === false ? "Ativar" : "Desativar"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeTable(t.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="hidden sm:flex flex-col items-end gap-1">
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                          {KIND_LABEL[t.kind] || t.kind}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {PURPOSE_LABEL[t.purpose] || t.purpose}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await supabase.from("reference_tables").update({ active: !t.active } as any).eq("id", t.id);
+                            loadTables();
+                          }}
+                        >
+                          {t.active === false ? "Ativar" : "Desativar"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTable(t.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
                     </div>
                   </button>
                 ))}
