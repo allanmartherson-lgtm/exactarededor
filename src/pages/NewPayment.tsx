@@ -675,30 +675,43 @@ const NewPayment = () => {
       return null;
     };
 
-    const items = allRows.map((r) => ({
-      payment_id: payment.id,
-      doctor_name: r.doctor_name,
-      doctor_document: r.doctor_document,
-      doctor_email: r.doctor_email,
-      description: r.description,
-      gross_amount: r.gross_amount,
-      company_name: r.company_name,
-      company_id: r.company_id,
-      attendance_number: r.attendance_number,
-      procedure_code: r.procedure_code,
-      procedure_name: r.procedure_name,
-      access_route: r.access_route,
-      doctor_role: r.doctor_role,
-      agreement_text: r.agreement_text,
-      specialty: resolveSpecialty(r),
-      procedure_amount: r.procedure_amount,
-      quantity: r.quantity,
-      procedure_date: r.procedure_date,
-      patient_name: r.patient_name,
-      sector: r.sector,
-      raw_data: r.raw_data as never,
-      tipo_linha: r.tipo_linha,
-    }));
+    const items = allRows.map((r, i) => {
+      // Encontra a qual bucket esta linha pertence para aplicar o mapeamento de setor se houver
+      let currentBucket: FileBucket | undefined;
+      let offset = 0;
+      for (const b of buckets) {
+        if (i >= offset && i < offset + b.rows.length) {
+          currentBucket = b;
+          break;
+        }
+        offset += b.rows.length;
+      }
+
+      return {
+        payment_id: payment.id,
+        doctor_name: r.doctor_name,
+        doctor_document: r.doctor_document,
+        doctor_email: r.doctor_email,
+        description: r.description,
+        gross_amount: r.gross_amount,
+        company_name: r.company_name,
+        company_id: r.company_id,
+        attendance_number: r.attendance_number,
+        procedure_code: r.procedure_code,
+        procedure_name: r.procedure_name,
+        access_route: r.access_route,
+        doctor_role: r.doctor_role,
+        agreement_text: r.agreement_text,
+        specialty: resolveSpecialty(r),
+        procedure_amount: r.procedure_amount,
+        quantity: r.quantity,
+        procedure_date: r.procedure_date,
+        patient_name: r.patient_name,
+        sector: currentBucket?.sectorMapping || r.sector,
+        raw_data: r.raw_data as never,
+        tipo_linha: r.tipo_linha,
+      };
+    });
     const { error: itemsErr } = await supabase.from("payment_items").insert(items);
     if (itemsErr) {
       setSubmitting(false);
