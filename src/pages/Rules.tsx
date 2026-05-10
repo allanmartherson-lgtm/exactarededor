@@ -1854,7 +1854,7 @@ const Rules = () => {
                                       (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "border-border"
                                     )}>
                                       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
-                                        <div className="space-y-1">
+                                        <div className="space-y-1 min-w-0">
                                           <Label className="text-xs">Empresa/PJ</Label>
                                           <CompanyCombobox
                                              value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
