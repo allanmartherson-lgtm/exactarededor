@@ -173,6 +173,8 @@ interface FileBucket {
   matchScore: number;
   /** true quando o usuário trocou a empresa manualmente (não foi o match automático). */
   manualOverride?: boolean;
+  /** Mapeamento de setor identificado na planilha para o setor do sistema */
+  sectorMapping?: string | null;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
