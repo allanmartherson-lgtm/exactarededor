@@ -252,7 +252,7 @@ export default function Doctors() {
   return (
     <>
       <PageHeader title="Médicos" description="Cadastro mestre de médicos para regras, vínculos com empresas e validações." />
-      <div className="p-8 max-w-6xl space-y-4">
+      <div className="p-8 max-w-full space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-[280px]">
             <Input
@@ -291,11 +291,11 @@ export default function Doctors() {
               <DialogTrigger asChild>
                 <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Novo médico</Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
+              <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+                <DialogHeader className="p-6 pb-2">
                   <DialogTitle>{editing.id ? "Editar médico" : "Novo médico"}</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-3 space-y-1.5">
                       <Label>Nome completo *</Label>
@@ -409,7 +409,7 @@ export default function Doctors() {
                     <Textarea rows={2} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="p-6 pt-2">
                   <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
                   <Button onClick={save}>Salvar</Button>
                 </DialogFooter>
@@ -428,60 +428,45 @@ export default function Doctors() {
             {displayItems.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhum médico encontrado.</p>
             ) : (
-              <div className="w-full overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr className="text-left">
-                    <th className="px-4 py-2 font-medium">Nome</th>
-                    <th className="px-4 py-2 font-medium">CRM/UF</th>
-                    <th className="px-4 py-2 font-medium">Especialidades</th>
-                    <th className="px-4 py-2 font-medium">Empresas</th>
-                    <th className="px-4 py-2 font-medium">Status</th>
-                    <th className="px-4 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {displayItems.map((d) => {
-                    const cids = linksByDoctor.get(d.id) ?? [];
-                    return (
-                      <tr key={d.id}>
-                        <td className="px-4 py-2 font-medium flex items-center gap-2">
-                          <Stethoscope className="h-4 w-4 text-muted-foreground" />{d.full_name}
-                        </td>
-                        <td className="px-4 py-2 cell-mono">{d.crm}/{d.crm_uf}</td>
-                        <td className="px-4 py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {(d.specialties ?? []).map((s, i) => (
-                              <Badge key={i} variant="outline" className="text-xs">{s}</Badge>
-                            ))}
-                            {(d.specialties ?? []).length === 0 && <span className="text-muted-foreground">—</span>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2">
-                          {cids.length === 0 ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            <span className="text-xs">{cids.length} empresa(s)</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          {d.active
-                            ? <Badge variant="secondary">Ativo</Badge>
-                            : <Badge variant="outline">Inativo</Badge>}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(d)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => remove(d.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="divide-y divide-border">
+                {displayItems.map((d) => (
+                  <div key={d.id} className="p-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
+                      <div className="sm:col-span-4 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Stethoscope className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <p className="font-semibold text-sm truncate" title={d.full_name}>{d.full_name}</p>
+                          {!d.active && <Badge variant="outline" className="text-[10px] h-4">Inativo</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">{d.crm}/{d.crm_uf}</p>
+                      </div>
+                      <div className="sm:col-span-4 min-w-0">
+                        <div className="flex flex-wrap gap-1">
+                          {d.specialties?.map((s, i) => (
+                            <Badge key={i} variant="secondary" className="text-[10px] break-all whitespace-normal">
+                              {s}
+                            </Badge>
+                          ))}
+                          {!d.specialties?.length && <span className="text-xs text-muted-foreground italic">Sem especialidade</span>}
+                        </div>
+                      </div>
+                      <div className="sm:col-span-4 min-w-0 flex sm:justify-end">
+                        <div className="flex flex-col sm:items-end gap-0.5 min-w-0">
+                          <p className="text-xs truncate max-w-full" title={d.email || ""}>{d.email || "—"}</p>
+                          <p className="text-[10px] text-muted-foreground">{d.phone || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(d)} className="h-8 w-8">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => remove(d.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
