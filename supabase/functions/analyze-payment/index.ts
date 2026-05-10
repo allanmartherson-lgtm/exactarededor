@@ -356,12 +356,11 @@ serve(async (req) => {
         .select("reference_table_id,code,description")
         .in("reference_table_id", allRelevantTableIds)
         .in("code", codes);
-        for (const it of (excItems ?? []) as any[]) {
-          const tid = it.reference_table_id as string;
-          const code = String(it.code ?? "").trim();
-          if (!tid || !code) continue;
-          (exceptionItemsByTable[tid] ||= {})[code] = { description: it.description ?? null };
-        }
+      for (const it of (excItems ?? []) as any[]) {
+        const tid = it.reference_table_id as string;
+        const code = String(it.code ?? "").trim();
+        if (!tid || !code) continue;
+        (exceptionItemsByTable[tid] ||= {})[code] = { description: it.description ?? null };
       }
     }
     const exceptionLookup = (tableId: string, code: string) => {
