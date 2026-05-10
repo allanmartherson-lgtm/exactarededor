@@ -662,103 +662,103 @@ const ReferenceTables = () => {
               </DialogHeader>
               <form onSubmit={createTable} className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Nome</Label>
-                  <Input name="name" required maxLength={100} placeholder="Ex: CBHPM 2018" />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Descrição</Label>
-                  <Input name="description" maxLength={300} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Ano</Label>
-                  <Input name="year" type="number" min={1900} max={2100} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Finalidade</Label>
-                  <select
-                    name="purpose"
-                    defaultValue="calculo"
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                    onChange={(e) => {
-                      const sev = document.getElementById("rt-sev-wrap");
-                      if (sev) sev.style.display = e.target.value === "exclusao" ? "" : "none";
-                    }}
-                  >
-                    <option value="calculo">Cálculo (calcula valor esperado)</option>
-                    <option value="classificacao">Classificação (categoriza códigos)</option>
-                    <option value="exclusao">Exclusão / expurgo (não pagar)</option>
-                    <option value="sem_acordo">Sem acordo (usar valor do convênio)</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    Não misture códigos pagáveis e não pagáveis na mesma finalidade.
-                  </p>
-                </div>
-                <div id="rt-sev-wrap" className="space-y-1.5" style={{ display: "none" }}>
-                  <Label>Severidade da exclusão</Label>
-                  <select
-                    name="exclusion_severity"
-                    defaultValue="bloqueio"
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="bloqueio">Bloqueio (reprovado, R$ 0)</option>
-                    <option value="aviso">Aviso (alerta, R$ 0)</option>
-                    <option value="info">Informativo (apenas registra)</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Tipo estrutural</Label>
-                  <select
-                    name="kind"
-                    defaultValue="simples"
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                    onChange={(e) => {
-                      const pkg = document.getElementById("rt-pkg-wrap");
-                      if (pkg) pkg.style.display = e.target.value === "pacote_combinacao" ? "" : "none";
-                    }}
-                  >
-                    <option value="simples">Simples (código → valor)</option>
-                    <option value="cbhpm">CBHPM (porte → valor)</option>
-                    <option value="tabela_propria">Tabela própria (código → valor, layout livre)</option>
-                    <option value="lista_codigos">Lista de códigos (sem valor)</option>
-                    <option value="pacote_combinacao">Pacote fixo (combinação de códigos)</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    <strong>CBHPM</strong>: importa abas de portes e códigos.{" "}
-                    <strong>Simples / Tabela própria</strong>: planilha com colunas <em>código, descrição, valor</em>.{" "}
-                    <strong>Lista de códigos</strong>: apenas <em>código</em> (e descrição opcional).{" "}
-                    <strong>Pacote fixo</strong>: <em>pacote_id, códigos_tuss, descrição, valor_pacote</em> — quando os códigos do atendimento baterem com a combinação, o esperado é o valor do pacote.
-                  </p>
-                </div>
-                <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3 md:col-span-2" style={{ display: "none" }}>
-                  <div className="text-sm font-medium">Configuração do pacote</div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="package_only_main_surgeon" /> Aplica somente ao cirurgião principal
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="package_apply_auxiliaries" defaultChecked /> Aplica a auxiliares
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="package_apply_particular" defaultChecked /> Aplica a convênio particular
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="package_apply_intl_insurance" defaultChecked /> Aplica a seguradora internacional
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-3 md:col-span-2">
-                  <div className="space-y-1.5">
-                    <Label>Vigência início</Label>
-                    <Input name="valid_from" type="date" />
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label>Nome</Label>
+                    <Input name="name" required maxLength={100} placeholder="Ex: CBHPM 2018" />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label>Descrição</Label>
+                    <Input name="description" maxLength={300} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Vigência fim</Label>
-                    <Input name="valid_until" type="date" />
+                    <Label>Ano</Label>
+                    <Input name="year" type="number" min={1900} max={2100} />
                   </div>
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label>Observações</Label>
-                  <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label>Finalidade</Label>
+                    <select
+                      name="purpose"
+                      defaultValue="calculo"
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      onChange={(e) => {
+                        const sev = document.getElementById("rt-sev-wrap");
+                        if (sev) sev.style.display = e.target.value === "exclusao" ? "" : "none";
+                      }}
+                    >
+                      <option value="calculo">Cálculo (calcula valor esperado)</option>
+                      <option value="classificacao">Classificação (categoriza códigos)</option>
+                      <option value="exclusao">Exclusão / expurgo (não pagar)</option>
+                      <option value="sem_acordo">Sem acordo (usar valor do convênio)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      Não misture códigos pagáveis e não pagáveis na mesma finalidade.
+                    </p>
+                  </div>
+                  <div id="rt-sev-wrap" className="space-y-1.5" style={{ display: "none" }}>
+                    <Label>Severidade da exclusão</Label>
+                    <select
+                      name="exclusion_severity"
+                      defaultValue="bloqueio"
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="bloqueio">Bloqueio (reprovado, R$ 0)</option>
+                      <option value="aviso">Aviso (alerta, R$ 0)</option>
+                      <option value="info">Informativo (apenas registra)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label>Tipo estrutural</Label>
+                    <select
+                      name="kind"
+                      defaultValue="simples"
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      onChange={(e) => {
+                        const pkg = document.getElementById("rt-pkg-wrap");
+                        if (pkg) pkg.style.display = e.target.value === "pacote_combinacao" ? "" : "none";
+                      }}
+                    >
+                      <option value="simples">Simples (código → valor)</option>
+                      <option value="cbhpm">CBHPM (porte → valor)</option>
+                      <option value="tabela_propria">Tabela própria (código → valor, layout livre)</option>
+                      <option value="lista_codigos">Lista de códigos (sem valor)</option>
+                      <option value="pacote_combinacao">Pacote fixo (combinação de códigos)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>CBHPM</strong>: importa abas de portes e códigos.{" "}
+                      <strong>Simples / Tabela própria</strong>: planilha com colunas <em>código, descrição, valor</em>.{" "}
+                      <strong>Lista de códigos</strong>: apenas <em>código</em> (e descrição opcional).{" "}
+                      <strong>Pacote fixo</strong>: <em>pacote_id, códigos_tuss, descrição, valor_pacote</em> — quando os códigos do atendimento baterem com a combinação, o esperado é o valor do pacote.
+                    </p>
+                  </div>
+                  <div id="rt-pkg-wrap" className="space-y-2 rounded-md border border-border p-3 md:col-span-2" style={{ display: "none" }}>
+                    <div className="text-sm font-medium">Configuração do pacote</div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="package_only_main_surgeon" /> Aplica somente ao cirurgião principal
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="package_apply_auxiliaries" defaultChecked /> Aplica a auxiliares
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="package_apply_particular" defaultChecked /> Aplica a convênio particular
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="package_apply_intl_insurance" defaultChecked /> Aplica a seguradora internacional
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                    <div className="space-y-1.5">
+                      <Label>Vigência início</Label>
+                      <Input name="valid_from" type="date" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Vigência fim</Label>
+                      <Input name="valid_until" type="date" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label>Observações</Label>
+                    <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
+                  </div>
                 </div>
                 <div className="pt-4">
                   <Button type="submit" className="w-full md:col-span-2">Criar</Button>
