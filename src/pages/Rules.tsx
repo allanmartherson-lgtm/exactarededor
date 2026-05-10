@@ -2107,12 +2107,35 @@ const Rules = () => {
                       </div>
 
                       {fNature === "calculavel" && (
-                        <RuleCalculationsEditor
-                          value={fCalculations}
-                          onChange={setFCalculations}
-                          refTables={refTables}
-                          enabled={true}
-                        />
+                        <div className="space-y-4">
+                          <RuleCalculationsEditor
+                            value={fCalculations}
+                            onChange={setFCalculations}
+                            refTables={refTables}
+                            enabled={true}
+                          />
+                          
+                          {fCalculations.some(c => c.calculation_type === "bonus") && (
+                            <div className="rounded-md border border-info/30 bg-info-soft/10 p-3 space-y-2">
+                              <h4 className="text-xs font-bold text-info flex items-center gap-1.5">
+                                <Sparkles className="h-3.5 w-3.5" />
+                                CONFIGURAÇÃO DE BÔNUS
+                              </h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Você adicionou um item de <strong>Bônus</strong>. Para que este bônus seja aplicado apenas a determinados procedimentos, informe os códigos na seção <strong>Códigos específicos</strong> abaixo. Se deixado vazio, o bônus será aplicado a todos os itens que casarem com os filtros de Convênio e Escopo.
+                              </p>
+                              <Button 
+                                type="button" 
+                                variant="link" 
+                                size="sm" 
+                                className="h-auto p-0 text-xs font-semibold text-info"
+                                onClick={() => setAccordionValue(prev => Array.from(new Set([...prev, "codigos"])))}
+                              >
+                                Ir para Códigos específicos →
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {/* Bloco específico da Exclusão (mantém-se vinculado à regra,
