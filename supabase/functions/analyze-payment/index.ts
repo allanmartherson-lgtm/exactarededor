@@ -288,6 +288,7 @@ serve(async (req) => {
       // Especialidade MÉDICA resolvida (NÃO é o tipo_item).
       specialty: resolved.value,
       sector: it.sector ?? null,
+      convenio_value_totalized: it.convenio_value_totalized ?? false,
     });
     });
 
