@@ -163,6 +163,7 @@ const PaymentDetail = () => {
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved">("all");
+  const [toleranceValue, setToleranceValue] = useState<number>(0.01);
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
