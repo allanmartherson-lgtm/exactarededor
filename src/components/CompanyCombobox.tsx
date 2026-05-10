@@ -130,8 +130,8 @@ export function CompanyCombobox({
                   >
                     <Check className={cn("mr-2 h-4 w-4", checked ? "opacity-100" : "opacity-0")} />
                     <div className="flex flex-col min-w-0">
-                      <span className="truncate">{c.name}</span>
-                      <span className="text-xs text-muted-foreground">CNPJ {docMasked}</span>
+                      <span className="truncate" title={c.name}>{c.name}</span>
+                      <span className="text-xs text-muted-foreground truncate" title={`CNPJ ${docMasked}`}>CNPJ {docMasked}</span>
                     </div>
                   </CommandItem>
                 );

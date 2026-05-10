@@ -1504,12 +1504,12 @@ const Rules = () => {
 
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-6 p-4">
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
                 {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
               </DialogHeader>
-              <form onSubmit={submitRule} className="space-y-4">
+              <form onSubmit={submitRule} className="flex-1 overflow-y-auto p-6 space-y-4 box-border min-w-0">
                 {calcSyncErrors.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
