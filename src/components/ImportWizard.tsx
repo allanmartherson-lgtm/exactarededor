@@ -175,11 +175,21 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         roleMapping
       );
       
+      const itemsCreated = records.map(r => ({
+        row: r._meta?.row || 0,
+        code: String(r.code || r.id || ""),
+        name: String(r.name || r.description || r.title || ""),
+        amount: Number(r.amount || 0),
+        role: String(r.role || ""),
+        sourceCol: String(r._meta?.sourceCol || "N/A")
+      }));
+
       setValidation({
         summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
         errors: errors.slice(0, 50),
         duplicates: dups.slice(0, 50),
         sample: records.slice(0, 10),
+        itemsCreated: itemsCreated.slice(0, 100) // Show up to 100 items in detail
       });
       setStep("validate");
     } catch (e: any) {
