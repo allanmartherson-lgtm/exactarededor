@@ -470,6 +470,7 @@ export default function Doctors() {
             )}
           </CardContent>
         </Card>
+      </div>
     </div>
   );
 }

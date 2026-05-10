@@ -162,66 +162,6 @@ const Payments = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
-  const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [q, setQ] = useState("");
-  const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
-  const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
-  // Busca cruzada em itens (médico, atendimento, descrição, especialidade,
-  // procedimento, CC). Acionada com 3+ chars e debounced.
-  const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [analysts, setAnalysts] = useState<Record<string, string>>({});
-  const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
-  const [statusEnteredAt, setStatusEnteredAt] = useState<Record<string, string>>({});
-  const [analystFilter, setAnalystFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [competenceFilter, setCompetenceFilter] = useState<string>("all");
-  const [delayedOnly, setDelayedOnly] = useState(searchParams.get("delayed") === "1");
-  // Filtros vindos do Dashboard ("seus pagamentos por papel"). Quando ativos
-  // restringem por grupo de status + (opcional) só os meus.
-  const [ownerGroup, setOwnerGroup] = useState<OwnerGroup>(() => {
-    const s = searchParams.get("status");
-    return s === "analista" || s === "validador" || s === "diretor" ? s : "all";
-  });
-  const [onlyMine, setOnlyMine] = useState(() => searchParams.get("owner") === "me");
-
-  // Sincroniza filtros simples vindos de outras telas (ex: Dashboard)
-  useEffect(() => {
-    setDelayedOnly(searchParams.get("delayed") === "1");
-    setOpenQuestionOnly(searchParams.get("open_questions") === "1");
-    const st = searchParams.get("status");
-    if (st === "analista" || st === "validador" || st === "diretor") {
-      setOwnerGroup(st);
-    } else if (st) {
-      setStatusFilter(st);
-    }
-    setOnlyMine(searchParams.get("owner") === "me");
-  }, [searchParams]);
-
-  const [view, setView] = useState<"lista" | "kanban">("lista");
-  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
-  // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
-  // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
-  // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
-  const [archivedView, setArchivedView] = useState<boolean>(searchParams.get("archived") === "1");
-  const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
-  const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
-  const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
-  // Filtros avançados (não dependem de "criado por")
-  const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
-  const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
-  const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
-  const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
-  // Contagem de perguntas internas abertas por lote (badge nas listagens).
-  const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
-  const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
-  // Fila de reprocessamento: ids selecionados + estado de execução em lote.
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [reprocessing, setReprocessing] = useState(false);
-  const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -1019,6 +959,8 @@ const Payments = () => {
               </div>
             ))}
           </div>
+        )}
+      </div>
     </div>
   );
 };
