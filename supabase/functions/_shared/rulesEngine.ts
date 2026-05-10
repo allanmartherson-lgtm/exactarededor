@@ -300,11 +300,11 @@ const SECTOR_MAP: Record<string, string> = {
   "ambulatorial": "procedimento",
 };
 
-export function inferItemSector(item: ItemInput): string {
+export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
   // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
   if (item.sector) {
     const s = normName(item.sector);
-    // "Outros" ou similar é ignorado para permitir que heurísticas/TUSS encontrem o setor real
+    // "Outros" ou similar é ignorado para permitir que heurísticas/TUSS/Pagamento encontrem o setor real
     if (s !== "outro" && s !== "outros") {
       if (SECTOR_MAP[s]) return SECTOR_MAP[s];
       for (const [k, v] of Object.entries(SECTOR_MAP)) {
@@ -314,10 +314,15 @@ export function inferItemSector(item: ItemInput): string {
     }
   }
 
-  // 2. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
+  // 2. Segunda prioridade: se o lote/pagamento tem UM ÚNICO setor definido, usamos ele
+  if (ctx && Array.isArray(ctx.sectors) && ctx.sectors.length === 1) {
+    return ctx.sectors[0];
+  }
+
+  // 3. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
   if (item.classification_sector) return item.classification_sector;
 
-  // 3. Heurística baseada em nomes
+  // 4. Heurística baseada em nomes
   const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
   if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
   if (/(cirurg|operac|herni|colecist|laparo|artrosc|tue\b)/.test(txt)) return "cirurgia";
@@ -325,6 +330,12 @@ export function inferItemSector(item: ItemInput): string {
   if (/visita/.test(txt)) return "visita";
   if (/consulta/.test(txt)) return "consulta";
   if (/procediment/.test(txt)) return "procedimento";
+
+  // 5. Fallback final: se o pagamento tem múltiplos setores, usa o primeiro como palpite
+  if (ctx && Array.isArray(ctx.sectors) && ctx.sectors.length > 0) {
+    return ctx.sectors[0];
+  }
+
   return "outro";
 }
 
