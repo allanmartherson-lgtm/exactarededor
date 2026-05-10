@@ -472,8 +472,9 @@ const Companies = () => {
                 <div className="space-y-1.5 pt-2 border-t border-border">
                   <CompanyDoctorsSection companyId={editing.id} />
                 </div>
+                </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="p-6 pt-2">
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button onClick={save}>Salvar</Button>
               </DialogFooter>
@@ -488,70 +489,58 @@ const Companies = () => {
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground p-6 text-center">Nenhuma empresa cadastrada ainda.</p>
             ) : (
-              <div className="w-full overflow-x-auto">
-              <table className="w-full min-w-[980px] table-fixed text-sm">
-                <colgroup>
-                  <col className="w-[32%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[16%]" />
-                  <col className="w-[24%]" />
-                  <col className="w-[10%]" />
-                </colgroup>
-                <thead className="bg-muted">
-                  <tr className="text-left">
-                    <th className="px-4 py-2 font-medium">Nome</th>
-                    <th className="px-4 py-2 font-medium cell-mono">CNPJ</th>
-                    <th className="px-4 py-2 font-medium">Apelidos</th>
-                    <th className="px-4 py-2 font-medium">E-mails NF</th>
-                    <th className="px-4 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((c) => (
-                    <tr key={c.id}>
-                      <td className="px-4 py-2 font-medium">
-                        <div className="flex min-w-0 items-center gap-2">
+              <div className="divide-y divide-border">
+                {filtered.map((item) => (
+                  <div key={item.id} className="p-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
+                      <div className="sm:col-span-4 min-w-0">
+                        <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate" title={c.name}>{c.name}</span>
+                          <p className="font-semibold text-sm truncate" title={item.name}>{item.name}</p>
                         </div>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground cell-mono">
-                        {c.document ? (
-                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                            {c.document}
-                            {isValidCNPJ(c.document)
-                              ? <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                              : <ShieldAlert className="h-3.5 w-3.5 text-destructive" />}
-                          </span>
-                        ) : "—"}
-                      </td>
-                      <td className="px-4 py-2">
+                        {item.document && (
+                          <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 mt-1">
+                            {item.document}
+                            {isValidCNPJ(item.document)
+                              ? <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                              : <ShieldAlert className="h-3 w-3 text-destructive" />}
+                          </p>
+                        )}
+                      </div>
+                      <div className="sm:col-span-4 min-w-0">
                         <div className="flex flex-wrap gap-1">
-                          {(c.aliases ?? []).map((a, i) => <Badge key={i} variant="outline" className="text-xs">{a}</Badge>)}
-                          {(c.aliases ?? []).length === 0 && <span className="text-muted-foreground">—</span>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex flex-wrap gap-1">
-                          {(c.invoice_emails ?? []).map((a, i) => (
-                            <Badge key={i} variant="outline" className="text-xs gap-1">
-                              <Mail className="h-3 w-3" />
+                          {item.aliases?.map((a, i) => (
+                            <Badge key={i} variant="outline" className="text-[10px] break-all whitespace-normal">
                               {a}
                             </Badge>
                           ))}
-                          {(c.invoice_emails ?? []).length === 0 && (
-                            <span className="text-muted-foreground text-xs">— sem cadastro</span>
+                          {!item.aliases?.length && <span className="text-xs text-muted-foreground italic">Sem apelidos</span>}
+                        </div>
+                      </div>
+                      <div className="sm:col-span-4 min-w-0 flex sm:justify-end">
+                        <div className="flex flex-wrap gap-1 sm:justify-end">
+                          {item.invoice_emails?.map((a, i) => (
+                            <Badge key={i} variant="outline" className="text-[10px] gap-1 max-w-[150px]">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{a}</span>
+                            </Badge>
+                          ))}
+                          {!item.invoice_emails?.length && (
+                            <span className="text-xs text-muted-foreground italic">Sem e-mails</span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-2 py-2 text-right whitespace-nowrap">
-                        <Button size="icon" variant="ghost" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => remove(c.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => { setEditing(item); setOpen(true); }} className="h-8 w-8">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => remove(item.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
