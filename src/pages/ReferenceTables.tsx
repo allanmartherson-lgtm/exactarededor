@@ -536,35 +536,48 @@ const ReferenceTables = () => {
                   {filteredItems.slice(0, 200).map((it) => {
                     const isPkg = selected.kind === "pacote_combinacao";
                     return (
-                      <div key={it.id} className="px-6 py-3 flex items-center gap-4">
-                        <span className="font-mono text-sm text-muted-foreground w-28 truncate">
-                          {isPkg ? (it.package_id ?? it.code) : it.code}
-                        </span>
-                        <span className="flex-1 text-sm truncate">{it.description ?? "—"}</span>
-                        {isCbhpm ? (
-                          <>
-                            <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono w-24 text-center">
-                              {it.port
-                                ? it.port_multiplier && it.port_multiplier !== 1
-                                  ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
-                                  : it.port
-                                : "—"}
-                            </span>
-                            <span className="text-xs text-muted-foreground w-16 text-center">
-                              {it.aux_count != null ? `${it.aux_count} aux` : "—"}
-                            </span>
-                          </>
-                        ) : isPkg ? (
-                          <>
-                            <span className="text-xs font-mono text-muted-foreground max-w-xs truncate">
-                              {(it.tuss_codes ?? []).join(" + ") || "—"}
-                            </span>
-                            <span className="text-sm font-medium">{formatCurrency(it.package_amount ?? 0)}</span>
-                          </>
-                        ) : (
-                          <span className="text-sm font-medium">{formatCurrency(it.amount ?? 0)}</span>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={() => removeItem(it.id)}>
+                      <div key={it.id} className="px-6 py-3 flex items-start gap-4 hover:bg-muted/20 transition-colors">
+                        <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
+                          <span className="font-mono text-xs sm:text-sm text-muted-foreground sm:col-span-2 break-all">
+                            {isPkg ? (it.package_id ?? it.code) : it.code}
+                          </span>
+                          <span className="text-sm font-medium sm:col-span-5 break-words whitespace-normal">
+                            {it.description ?? "—"}
+                          </span>
+                          
+                          {isCbhpm ? (
+                            <div className="sm:col-span-4 flex items-center gap-2 flex-wrap sm:justify-end">
+                              <span className="text-[10px] sm:text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono whitespace-nowrap">
+                                {it.port
+                                  ? it.port_multiplier && it.port_multiplier !== 1
+                                    ? `${it.port_multiplier.toLocaleString("pt-BR")} × ${it.port}`
+                                    : it.port
+                                  : "—"}
+                              </span>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
+                                {it.aux_count != null ? `${it.aux_count} aux` : "—"}
+                              </span>
+                            </div>
+                          ) : isPkg ? (
+                            <div className="sm:col-span-4 flex flex-col sm:items-end gap-1">
+                              <span className="text-[10px] sm:text-xs font-mono text-muted-foreground break-all line-clamp-2">
+                                {(it.tuss_codes ?? []).join(" + ") || "—"}
+                              </span>
+                              <span className="text-sm font-semibold">{formatCurrency(it.package_amount ?? 0)}</span>
+                            </div>
+                          ) : (
+                            <div className="sm:col-span-4 flex sm:justify-end">
+                              <span className="text-sm font-semibold">{formatCurrency(it.amount ?? 0)}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeItem(it.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -622,11 +635,12 @@ const ReferenceTables = () => {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Nova tabela</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-3xl">
-              <DialogHeader>
+            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+              <DialogHeader className="p-6 pb-2">
                 <DialogTitle>Nova tabela de referência</DialogTitle>
               </DialogHeader>
-              <form onSubmit={createTable} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <form onSubmit={createTable} className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>Nome</Label>
                   <Input name="name" required maxLength={100} placeholder="Ex: CBHPM 2018" />
@@ -724,7 +738,9 @@ const ReferenceTables = () => {
                   <Label>Observações</Label>
                   <Input name="notes" maxLength={500} placeholder="Notas internas, fonte, etc." />
                 </div>
-                <Button type="submit" className="w-full md:col-span-2">Criar</Button>
+                <div className="pt-4">
+                  <Button type="submit" className="w-full md:col-span-2">Criar</Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
@@ -743,9 +759,9 @@ const ReferenceTables = () => {
                   <button
                     key={t.id}
                     onClick={() => setSelected(t)}
-                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/40 text-left"
+                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/40 text-left transition-colors"
                   >
-                    <div>
+                    <div className="flex-1 min-w-0 pr-4">
                       <p className="font-medium text-sm">
                         {t.name}
                         {t.year ? <span className="text-muted-foreground font-normal"> · {t.year}</span> : null}
