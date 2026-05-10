@@ -248,9 +248,8 @@ export default function Doctors() {
 
   return (
     <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
-      <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
-        <PageHeader title="Médicos" description="Cadastro mestre de médicos para regras, vínculos com empresas e validações." />
-        <div className="p-4 md:p-8 w-full mx-auto space-y-4">
+      <PageHeader title="Médicos" description="Cadastro mestre de médicos para regras, vínculos com empresas e validações." />
+      <div className="p-4 md:p-8 w-full mx-auto space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-[280px]">
             <Input
