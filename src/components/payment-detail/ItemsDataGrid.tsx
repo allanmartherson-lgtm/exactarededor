@@ -1126,41 +1126,66 @@ function ItemDetailsRow({
                 </div>
               )}
 
-              {it.ai_findings?.selection_trace && (
+              {(it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
                 <div className={CARD}>
-                  <Label icon={ShieldCheck}>Justificativa da Seleção</Label>
+                  <Label icon={ShieldAlert}>Justificativa da Classificação</Label>
                   <div className="mt-2 space-y-2">
                     <p className="text-[11px] leading-relaxed">
-                      O motor selecionou a regra vencedora com base na prioridade:{" "}
-                      <span className={cn("font-semibold", TONE_CLASSES[RULE_MATCH_PRIORITY_TONES[priority || "sem_regra"]])}>
-                        {RULE_MATCH_PRIORITY_LABELS[priority || "sem_regra"]}
-                      </span>.
+                      Este item foi marcado como <span className={cn("font-bold uppercase", TONE_CLASSES[it.ai_status === "reprovado" ? "destructive" : it.ai_status === "alerta" ? "warning" : "success"])}>{it.ai_status}</span> porque:
                     </p>
-                    <div className="text-[10px] text-muted-foreground bg-muted/30 p-2 rounded border border-border/40">
-                      <p className="font-medium mb-1 uppercase tracking-tight">Hierarquia validada:</p>
-                      <ul className="space-y-1">
-                        <li className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
-                          Regra Específica / Grupo / Convênio
+                    <ul className="text-[11px] space-y-1.5 list-disc pl-4 text-muted-foreground">
+                      {it.ai_status === "reprovado" && (
+                        <li>Divergência de valor superior a <strong>10%</strong> em relação à regra aplicada.</li>
+                      )}
+                      {it.ai_status === "alerta" && diffPct != null && (
+                        <li>Divergência de valor identificada (entre 1% e 10%), exigindo conferência.</li>
+                      )}
+                      {priority === "sem_regra" && (
+                        <li>Nenhuma regra correspondente foi encontrada para este procedimento no setor informado.</li>
+                      )}
+                      {priority === "conflito" && (
+                        <li>Múltiplas regras aplicáveis com a mesma prioridade geraram um conflito de decisão.</li>
+                      )}
+                      {diffPct != null && (
+                        <li>
+                          Diferença calculada: <strong>{(diffPct * 100).toFixed(1)}%</strong> 
+                          {diff != null && <> ({diff > 0 ? "+" : ""}{formatCurrency(diff)})</>}.
                         </li>
-                        <li className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
-                          Regra Master / Geral (Independente de Setor)
-                        </li>
-                      </ul>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full h-6 text-[9px] text-muted-foreground hover:text-foreground mt-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
-                        alert("Trace técnico completo enviado para o Console (F12)");
-                      }}
-                    >
-                      <FileText className="h-3 w-3 mr-1" /> Ver detalhes técnicos (Console)
-                    </Button>
+                      )}
+                      {priority && (
+                        <li>Baseado na regra: <strong>{RULE_MATCH_PRIORITY_LABELS[priority]}</strong>.</li>
+                      )}
+                    </ul>
+                    
+                    {it.ai_findings?.selection_trace && (
+                      <>
+                        <div className="text-[10px] text-muted-foreground bg-muted/30 p-2 rounded border border-border/40 mt-2">
+                          <p className="font-medium mb-1 uppercase tracking-tight">Hierarquia validada:</p>
+                          <ul className="space-y-1">
+                            <li className="flex items-center gap-1.5">
+                              <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
+                              Regra Específica / Grupo / Convênio
+                            </li>
+                            <li className="flex items-center gap-1.5">
+                              <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
+                              Regra Master / Geral (Independente de Setor)
+                            </li>
+                          </ul>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full h-6 text-[9px] text-muted-foreground hover:text-foreground mt-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
+                            alert("Trace técnico completo enviado para o Console (F12)");
+                          }}
+                        >
+                          <FileText className="h-3 w-3 mr-1" /> Ver detalhes técnicos (Console)
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
