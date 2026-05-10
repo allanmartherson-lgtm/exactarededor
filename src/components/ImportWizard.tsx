@@ -75,6 +75,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     errors: { row: number; reason: string }[];
     duplicates: { row: number; key: string }[];
     sample: any[];
+    itemsCreated: { row: number; code: string; name: string; amount: number; role: string; sourceCol: string }[];
   } | null>(null);
   const [result, setResult] = useState<CommitResult | null>(null);
   const [importMode, setImportMode] = useState<ImportMode>("append");
