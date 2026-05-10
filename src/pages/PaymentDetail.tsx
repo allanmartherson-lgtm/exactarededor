@@ -156,6 +156,7 @@ const PaymentDetail = () => {
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
+  const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
