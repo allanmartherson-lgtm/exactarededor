@@ -739,7 +739,7 @@ export default function ValidationRules() {
               <Switch checked={groupForm.active} onCheckedChange={(v) => setGroupForm({ ...groupForm, active: v })} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="p-6 pt-2 border-t">
             <Button variant="outline" onClick={() => setGroupOpen(false)}>Cancelar</Button>
             <Button onClick={saveGroup}>Salvar</Button>
           </DialogFooter>

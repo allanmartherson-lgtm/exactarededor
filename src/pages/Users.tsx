@@ -712,8 +712,8 @@ const Users = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={!!resetResult} onOpenChange={(o) => !o && setResetResult(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{resetResult?.emailSent ? "E-mail de redefinição enviado" : "Não foi possível enviar o e-mail"}</DialogTitle>
             <DialogDescription>
               {resetResult?.emailSent
@@ -721,20 +721,22 @@ const Users = () => {
                 : (resetResult?.warning ?? "Use o link manual abaixo para compartilhar com o usuário por um canal seguro.")}
             </DialogDescription>
           </DialogHeader>
-          {resetResult?.actionLink && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Link de redefinição manual (válido por tempo limitado). Use somente se o e-mail não chegar.
-              </p>
-              <div className="flex items-center gap-2">
-                <Input readOnly value={resetResult.actionLink} className="font-mono text-xs" />
-                <Button size="icon" variant="outline" onClick={() => resetResult.actionLink && copyText(resetResult.actionLink, "Link copiado")}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+          <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
+            {resetResult?.actionLink && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Link de redefinição manual (válido por tempo limitado). Use somente se o e-mail não chegar.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={resetResult.actionLink} className="font-mono text-xs" />
+                  <Button size="icon" variant="outline" onClick={() => resetResult.actionLink && copyText(resetResult.actionLink, "Link copiado")}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-          <DialogFooter>
+            )}
+          </div>
+          <DialogFooter className="p-6 pt-2">
             <Button onClick={() => setResetResult(null)}>Concluir</Button>
           </DialogFooter>
         </DialogContent>
