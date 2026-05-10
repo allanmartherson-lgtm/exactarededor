@@ -1538,27 +1538,99 @@ const PaymentDetail = () => {
             </CardContent>
           </Card>
         )}
-        {groups.length > 1 || items.length > 8 ? (
-          <div className="relative max-w-md">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={itemSearch}
-              onChange={(e) => setItemSearch(e.target.value)}
-              placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
-              className="pl-9 pr-9"
-            />
-            {itemSearch && (
-              <button
-                type="button"
-                onClick={() => setItemSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                aria-label="Limpar busca"
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative max-w-md flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
+                className="pl-9 pr-9"
+              />
+              {itemSearch && (
+                <button
+                  type="button"
+                  onClick={() => setItemSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+              <Button
+                variant={criticalFilter === "all" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => setCriticalFilter("all")}
               >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+                Todos
+              </Button>
+              <Button
+                variant={criticalFilter === "no_rule" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "no_rule" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600"
+                )}
+                onClick={() => setCriticalFilter("no_rule")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Sem regra
+              </Button>
+              <Button
+                variant={criticalFilter === "divergent" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "divergent" ? "bg-destructive hover:bg-destructive/90 text-white" : "text-destructive"
+                )}
+                onClick={() => setCriticalFilter("divergent")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Divergente
+              </Button>
+              <Button
+                variant={criticalFilter === "approved" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "approved" ? "bg-success hover:bg-success/90 text-white" : "text-success"
+                )}
+                onClick={() => setCriticalFilter("approved")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Aprovado
+              </Button>
+            </div>
           </div>
-        ) : null}
+          
+          {(criticalFilter !== "all" || payment.analysis_mode === "empresa_prioritaria") && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed">
+              <Info className="h-3.5 w-3.5" />
+              <span>
+                {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
+                {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
+                {criticalFilter === "approved" && "Mostrando apenas empresas com itens aprovados pela IA."}
+                {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
+              </span>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="h-auto p-0 text-xs ml-auto" 
+                onClick={() => {
+                  setCriticalFilter("all");
+                  setItemSearch("");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          )}
+        </div>
 
           {canSendForValidation && (() => {
             // Calcula divergências NF para os grupos prontos para envio
