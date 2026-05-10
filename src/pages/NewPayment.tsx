@@ -474,7 +474,7 @@ const NewPayment = () => {
     const text = (s: string | null | undefined) => (s ?? "").toLowerCase();
     const sectorHits: Record<string, number> = {};
     for (const r of allRows) {
-      const blob = `${text(r.procedure_name)} ${text(r.description)} ${text(r.doctor_role)}`;
+      const blob = `${text(r.procedure_name)} ${text(r.description)} ${text(r.doctor_role)} ${text(r.sector)}`;
       if (/visita/.test(blob)) sectorHits.visita = (sectorHits.visita ?? 0) + 1;
       if (/parecer/.test(blob)) sectorHits.parecer = (sectorHits.parecer ?? 0) + 1;
       if (/cirurgia|cirurg/.test(blob)) sectorHits.cirurgia = (sectorHits.cirurgia ?? 0) + 1;
