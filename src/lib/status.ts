@@ -197,14 +197,24 @@ export const RULE_MATCH_PRIORITY_LABELS: Record<RuleMatchPriority, string> = {
 
 // Quanto mais específico, mais "alto" = primário; default = neutro
 export const RULE_MATCH_PRIORITY_TONES: Record<RuleMatchPriority, "primary" | "info" | "muted"> = {
+  convenio_especialidade_codigo: "primary",
+  convenio_especialidade: "primary",
+  convenio_codigo: "primary",
+  convenio: "primary",
   medico_codigo: "primary",
   medico: "primary",
   empresa_codigo: "info",
   empresa: "info",
+  grupo_codigo: "info",
+  grupo: "info",
   setor_codigo: "info",
   setor: "muted",
   setor_outro: "muted",
+  setor_hemodinamica_master: "muted",
+  setor_master_geral: "muted",
   default_setor: "muted",
+  sem_regra: "muted",
+  conflito: "muted",
 };
 
 export const formatCurrency = (value: number | string | null | undefined) => {
