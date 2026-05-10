@@ -1,3 +1,4 @@
+import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
 import {
   Sheet,
@@ -76,6 +77,7 @@ export function PaymentReportModal({
   groups,
   analystName,
 }: PaymentReportModalProps) {
+  const { toast } = useToast();
   // --- Estados de Filtro ---
   const [search, setSearch] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
@@ -190,105 +192,64 @@ export function PaymentReportModal({
     return Array.from(grouped.values()).sort((a, b) => b.riskValue - a.riskValue);
   }, [filteredItems]);
 
-  // --- Exportação Excel ---
+  // --- Exportação Excel via Web Worker ---
   const handleExportExcel = async () => {
+    if (isExporting) return;
     setIsExporting(true);
+    
     try {
-      // Pequeno delay para permitir o estado de loading UI atualizar
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const wb = XLSX.utils.book_new();
-
-      // Aba 1: Resumo
-      const summaryData = [
-        ["Critério", "Itens", "Valor", "% do Total"],
-        ["Aprovados", summary.approved.count, summary.approved.value, `${summary.approved.pct.toFixed(1)}%`],
-        ["Alertas", summary.alert.count, summary.alert.value, `${summary.alert.pct.toFixed(1)}%`],
-        ["Reprovados", summary.rejected.count, summary.rejected.value, `${summary.rejected.pct.toFixed(1)}%`],
-        ["", "", "", ""],
-        ["Valor em Risco", "", summary.riskValue, `${((summary.riskValue / summary.totalValue) * 100 || 0).toFixed(1)}%`],
-      ];
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
-
-      // Aba 2: Por Empresa
-      const companyData = companyGroups.map(g => ({
-        "Empresa": g.name,
-        "Status": g.counts.reprovado > 0 ? "Com reprovações" : g.counts.alerta > 0 ? "Com alertas" : "Limpa",
-        "✓ Aprovados": g.counts.aprovado,
-        "⚠ Alertas": g.counts.alerta,
-        "✗ Reprovados": g.counts.reprovado,
-        "Valor Total": g.totalValue,
-        "Valor em Risco (R$)": g.riskValue,
-        "Valor em Risco (%)": g.totalValue > 0 ? `${((g.riskValue / g.totalValue) * 100).toFixed(1)}%` : "0%",
-      }));
-      const wsCompanies = XLSX.utils.json_to_sheet(companyData);
-      
-      // Aplicar formatação condicional simples na aba "Por Empresa" também para consistência
-      const companyRange = XLSX.utils.decode_range(wsCompanies["!ref"] || "A1:H1");
-      for (let R = companyRange.s.r + 1; R <= companyRange.e.r; ++R) {
-        const statusCell = wsCompanies[XLSX.utils.encode_cell({ r: R, c: 1 })]; // Coluna B: Status
-        if (statusCell && statusCell.v) {
-          const val = statusCell.v;
-          let bgColor = "";
-          if (val === "Limpa") bgColor = "D1FAE5";
-          else if (val === "Com alertas") bgColor = "FEF3C7";
-          else if (val === "Com reprovações") bgColor = "FEE2E2";
-          
-          if (bgColor) {
-            statusCell.s = { fill: { fgColor: { rgb: bgColor } } };
-          }
-        }
-      }
-      
-      XLSX.utils.book_append_sheet(wb, wsCompanies, "Por Empresa");
-
-      // Aba 3: Detalhe dos Itens
-      const detailHeaders = [
-        "Atendimento", "Data", "Empresa", "Paciente", "Médico", "Especialidade", 
-        "Código", "Procedimento", "Valor Recebido", "Valor Esperado", 
-        "Divergência (R$)", "Status", "Motivo"
-      ];
-      
-      const detailRows = filteredItems.map(it => {
-        const findings = it.ai_findings as any;
-        const status = it.ai_status as string;
-        
-        // Estilo condicional para a célula de Status
-        let statusStyle = {};
-        if (status === "aprovado") {
-          statusStyle = { fill: { fgColor: { rgb: "D1FAE5" } } }; // Verde claro (emerald-100)
-        } else if (status === "alerta") {
-          statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } }; // Amarelo claro (amber-100)
-        } else if (status === "reprovado") {
-          statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } }; // Vermelho claro (red-100)
-        }
-
-        return [
-          it.attendance_number,
-          it.procedure_date ? formatDateOnly(it.procedure_date) : "",
-          it.company_name,
-          it.patient_name,
-          it.doctor_name,
-          it.specialty,
-          it.procedure_code,
-          it.procedure_name,
-          it.gross_amount,
-          findings?.expected_amount ?? "",
-          (Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2),
-          { v: status, s: statusStyle },
-          findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
-        ];
-      });
-
-      const wsDetails = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows]);
-      XLSX.utils.book_append_sheet(wb, wsDetails, "Detalhe dos Itens");
-
       const competence = payment.competence_months || payment.competence_month || "";
       const fileName = `Relatorio_Lote_${formatCompetence(competence).replace(/\s/g, "")}_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${new Date().getHours()}${new Date().getMinutes()}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-    } finally {
+
+      // Preparar dados para o worker (garantir que são serializáveis)
+      const workerData = {
+        summary,
+        companyGroups,
+        filteredItems: filteredItems.map(it => ({
+          ...it,
+          procedure_date: it.procedure_date ? formatDateOnly(it.procedure_date) : ""
+        })),
+        fileName
+      };
+
+      // Criar o worker
+      const worker = new Worker(new URL('../../workers/excel-export.worker.ts', import.meta.url), {
+        type: 'module'
+      });
+
+      worker.onmessage = (e) => {
+        if (e.data.type === 'success') {
+          const blob = new Blob([e.data.buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', e.data.fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+          setIsExporting(false);
+          toast({ title: "Excel gerado com sucesso" });
+        } else if (e.data.type === 'error') {
+          console.error("Erro no worker:", e.data.error);
+          toast({ title: "Falha ao gerar Excel", variant: "destructive" });
+          setIsExporting(false);
+        }
+        worker.terminate();
+      };
+
+      worker.onerror = (err) => {
+        console.error("Worker error:", err);
+        toast({ title: "Erro no processo de exportação", variant: "destructive" });
+        setIsExporting(false);
+        worker.terminate();
+      };
+
+      worker.postMessage(workerData);
+    } catch (error) {
+      console.error("Export error:", error);
       setIsExporting(false);
+      toast({ title: "Erro inesperado", variant: "destructive" });
     }
   };
 
