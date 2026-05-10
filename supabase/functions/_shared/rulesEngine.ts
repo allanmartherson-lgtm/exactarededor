@@ -201,6 +201,8 @@ export interface ItemInput {
   agreement_name?: string | null;
   /** Especialidade resolvida no import (header "Especialidade" ou cadastro do médico). */
   specialty?: string | null;
+  /** Setor informado na planilha (opcional). */
+  sector?: string | null;
 }
 
 export interface PaymentContext {
@@ -286,8 +288,37 @@ const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/
 const normName = (s: string | null | undefined): string =>
   (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
+const SECTOR_MAP: Record<string, string> = {
+  "cirurgia": "cirurgia",
+  "centro cirurgico": "cirurgia",
+  "cc": "cirurgia",
+  "hemodinamica": "hemodinamica",
+  "parecer": "parecer",
+  "visita": "visita",
+  "consulta": "consulta",
+  "procedimento": "procedimento",
+  "ambulatorial": "procedimento",
+};
+
 export function inferItemSector(item: ItemInput): string {
+  // 1. Prioridade máxima: setor informado na planilha
+  if (item.sector) {
+    const s = normName(item.sector);
+    if (SECTOR_MAP[s]) return SECTOR_MAP[s];
+    // Se não está no mapa, tenta match parcial
+    for (const [k, v] of Object.entries(SECTOR_MAP)) {
+      if (s.includes(k)) return v;
+    }
+    // Se ainda assim não bater, mas veio algo da planilha, usamos o que veio (pode bater em regras customizadas)
+    // No entanto, para o motor padrão, precisamos que seja um dos RuleSector se possível.
+    // Se não for, retornamos o original normalizado.
+    return s;
+  }
+
+  // 2. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
   if (item.classification_sector) return item.classification_sector;
+
+  // 3. Heurística baseada em nomes
   const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
   if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
   if (/(cirurg|operac|herni|colecist|laparo|artrosc|tue\b)/.test(txt)) return "cirurgia";
@@ -584,9 +615,9 @@ export function selectWinningRule(
   const doctorRules  = filterBySpecialty(rules.filter((r) => targetsDoctor(r, item)), "medico");
   const companyRules = filterBySpecialty(rules.filter((r) => targetsCompany(r, item)), "empresa");
   const groupRules   = filterBySpecialty(rules.filter((r) => targetsGroup(r, item)), "grupo");
-  const sectorRules  = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector)), "setor");
+  const sectorRules  = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes(itemSector) && !ruleSectors(r).includes("outro") && ruleSectors(r).length > 0), "setor");
   const hemoMaster   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica")), "setor_hemodinamica_master");
-  const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0 || ruleSectors(r).includes(itemSector) || (hasCodeRestriction(r) && matchesProcedureCode(r, item)))), "setor_master_geral");
+  const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && (ruleSectors(r).includes("outro") || ruleSectors(r).length === 0)), "setor_master_geral");
 
   const levels: Array<{
     bucket: RuleInput[];
@@ -597,9 +628,9 @@ export function selectWinningRule(
     { bucket: doctorRules,    withCodePriority: "medico_codigo",  withoutCodePriority: "medico" },
     { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
     { bucket: groupRules,     withCodePriority: "grupo_codigo",   withoutCodePriority: "grupo" },
+    { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
     { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
     { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
-    { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
   ];
 
   const recordLevel = (

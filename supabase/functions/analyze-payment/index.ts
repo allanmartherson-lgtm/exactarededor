@@ -120,7 +120,7 @@ serve(async (req) => {
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
         tipo_linha,complement_reason,
-        agreement_text,specialty,tipo_item
+        agreement_text,specialty,tipo_item,sector
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -286,6 +286,7 @@ serve(async (req) => {
       agreement_name: it.agreement_text ?? null,
       // Especialidade MÉDICA resolvida (NÃO é o tipo_item).
       specialty: resolved.value,
+      sector: it.sector ?? null,
     });
     });
 

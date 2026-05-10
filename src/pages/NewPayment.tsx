@@ -48,6 +48,7 @@ interface ParsedRow {
   quantity: number | null;
   procedure_date: string | null;
   patient_name: string | null;
+  sector: string | null;
   raw_data: Record<string, unknown>;
   tipo_linha: LineType;
   line_issues: LineIssue[];
@@ -337,6 +338,7 @@ const NewPayment = () => {
         quantity: quantity,
         procedure_date: excelDateToISO(pick(row, ["data"])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
+        sector: toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"])),
         raw_data: row,
       };
       const tipo_linha = classifyLine(base, paymentKind || null);
@@ -472,7 +474,7 @@ const NewPayment = () => {
     const text = (s: string | null | undefined) => (s ?? "").toLowerCase();
     const sectorHits: Record<string, number> = {};
     for (const r of allRows) {
-      const blob = `${text(r.procedure_name)} ${text(r.description)} ${text(r.doctor_role)}`;
+      const blob = `${text(r.procedure_name)} ${text(r.description)} ${text(r.doctor_role)} ${text(r.sector)}`;
       if (/visita/.test(blob)) sectorHits.visita = (sectorHits.visita ?? 0) + 1;
       if (/parecer/.test(blob)) sectorHits.parecer = (sectorHits.parecer ?? 0) + 1;
       if (/cirurgia|cirurg/.test(blob)) sectorHits.cirurgia = (sectorHits.cirurgia ?? 0) + 1;
@@ -674,6 +676,7 @@ const NewPayment = () => {
       quantity: r.quantity,
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
+      sector: r.sector,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
     }));
