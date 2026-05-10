@@ -39,7 +39,7 @@ export type ImportProfile = {
 export type ImportMode = "append" | "update" | "replace";
 
 type Sheet = { name: string; headers: string[]; total: number; preview: any[] };
-type Step = "upload" | "preview" | "validate" | "confirm" | "done";
+type Step = "upload" | "preview" | "role_config" | "validate" | "confirm" | "done";
 type CommitResult = {
   total: number;
   inserted: number;
@@ -68,6 +68,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const [rowsBySheet, setRowsBySheet] = useState<Record<string, any[]>>({});
   const [activeSheet, setActiveSheet] = useState<string>("");
   const [mapping, setMapping] = useState<Record<string, string | null>>({});
+  const [detectedRoles, setDetectedRoles] = useState<string[]>([]);
+  const [roleMapping, setRoleMapping] = useState<Record<string, string>>({});
   const [validation, setValidation] = useState<{
     summary: { total: number; valid: number; errors: number; duplicates: number };
     errors: { row: number; reason: string }[];
@@ -88,6 +90,8 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setRowsBySheet({});
       setActiveSheet("");
       setMapping({});
+      setDetectedRoles([]);
+      setRoleMapping({});
       setValidation(null);
       setResult(null);
       setImportMode(supportedModes[0] ?? "append");
@@ -124,10 +128,51 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     }
   };
 
+  const prepareValidation = async () => {
+    if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
+      const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
+      const roles = new Set<string>();
+      const rows = rowsBySheet[activeSheet] ?? [];
+      const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
+      
+      const mainAmountCol = mapping["amount"];
+      if (mainAmountCol) roles.add(mainAmountCol);
+
+      rows.slice(0, 100).forEach(row => {
+        Object.keys(row).forEach(colName => {
+          if (mappedSheetCols.has(colName)) return;
+          const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (amountKeywords.some(k => lowCol.includes(k))) {
+            const val = normalizeNumericValue(row[colName]);
+            if (!val.invalid && val.value > 0) roles.add(colName);
+          }
+        });
+      });
+
+      if (roles.size > 1 || (roles.size === 1 && !mapping["role"])) {
+        const rolesList = Array.from(roles);
+        setDetectedRoles(rolesList);
+        const initialRoleMap: Record<string, string> = {};
+        rolesList.forEach(r => { initialRoleMap[r] = r; });
+        setRoleMapping(initialRoleMap);
+        setStep("role_config");
+        return;
+      }
+    }
+    runValidation();
+  };
+
   const runValidation = async () => {
     setBusy(true);
     try {
-      const { allRows, records, errors, dups } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
+      const { allRows, records, errors, dups } = buildImportPayload(
+        rowsBySheet[activeSheet] ?? [], 
+        mapping, 
+        profile.fields, 
+        profile.fixedContext, 
+        profile.entity,
+        roleMapping
+      );
       
       setValidation({
         summary: { total: allRows.length, valid: records.length, errors: errors.length, duplicates: dups.length },
@@ -168,7 +213,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
     setBusy(true);
     setProgress(0);
     try {
-      const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity);
+      const { allRows, records } = buildImportPayload(rowsBySheet[activeSheet] ?? [], mapping, profile.fields, profile.fixedContext, profile.entity, roleMapping);
       const totals: CommitResult = { 
         total: allRows.length, 
         inserted: 0, 
@@ -357,8 +402,45 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
               <Button variant="outline" onClick={() => setStep("upload")} disabled={busy}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Trocar arquivo
               </Button>
+              <Button onClick={prepareValidation} disabled={busy}>
+                Continuar
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+
+        {step === "role_config" && (
+          <div className="space-y-4">
+            <div className="p-3 bg-muted/30 rounded-md border border-border">
+              <h4 className="text-sm font-medium mb-1">Mapeamento de Funções</h4>
+              <p className="text-xs text-muted-foreground">
+                Detectamos múltiplas colunas de valores. Como cada uma deve ser chamada no sistema?
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {detectedRoles.map(col => (
+                <div key={col} className="flex items-center gap-3">
+                  <div className="w-1/2 text-sm font-mono bg-muted/20 p-1.5 rounded border border-border truncate" title={col}>
+                    {col}
+                  </div>
+                  <div className="text-muted-foreground">→</div>
+                  <Input 
+                    value={roleMapping[col] || ""} 
+                    onChange={e => setRoleMapping(prev => ({ ...prev, [col]: e.target.value }))}
+                    placeholder="Nome da função"
+                    className="flex-1 h-9"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <DialogFooter className="gap-2 pt-4">
+              <Button variant="outline" onClick={() => setStep("preview")} disabled={busy}>
+                <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
+              </Button>
               <Button onClick={runValidation} disabled={busy}>
-                Validar e revisar
+                Validar registros
               </Button>
             </DialogFooter>
           </div>
@@ -560,7 +642,7 @@ function FieldsHelp({ fields }: { fields: ImportFieldDef[] }) {
 }
 
 function stepLabel(s: Step) {
-  return { upload: "1. Upload", preview: "2. Mapeamento", validate: "3. Validação", done: "4. Concluído" }[s];
+  return { upload: "1. Upload", preview: "2. Mapeamento", role_config: "2.5 Funções", validate: "3. Validação", done: "4. Concluído" }[s];
 }
 
 async function readWorkbookSheets(file: File): Promise<{ sheets: Sheet[]; rowsBySheet: Record<string, any[]> }> {
@@ -585,8 +667,9 @@ function buildImportPayload(
   fields: ImportFieldDef[],
   fixedContext: Record<string, any> | undefined,
   entity: ImportProfile["entity"],
+  roleMapping?: Record<string, string>
 ) {
-  const mapped = applyMapping(rows, mapping, fields, entity);
+  const mapped = applyMapping(rows, mapping, fields, entity, roleMapping);
   const { valid, errors, dups } = validateRows(mapped, fields, entity);
   const fixed = fixedContext ?? {};
   const records = valid.map((r) => {
@@ -633,7 +716,7 @@ const parseNumber = (v: any): number | null => {
   return result.invalid ? null : result.value;
 };
 
-function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
+function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[], entity?: ImportProfile["entity"], roleMapping?: Record<string, string>) {
   const result: any[] = [];
   const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
 
@@ -665,7 +748,8 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
         const val = normalizeNumericValue(row[mainAmountCol]);
         if (!val.invalid && val.value > 0) {
           const roleCol = mapping["role"];
-          const role = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
+          const roleRaw = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
+          const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
           amountCols.push({ role, amount: val.value });
         }
       }
@@ -680,7 +764,8 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
         if (looksLikeAmount) {
           const val = normalizeNumericValue(row[colName]);
           if (!val.invalid && val.value > 0) {
-            amountCols.push({ role: colName, amount: val.value });
+            const role = (roleMapping && roleMapping[colName]) || colName;
+            amountCols.push({ role, amount: val.value });
           }
         }
       });
