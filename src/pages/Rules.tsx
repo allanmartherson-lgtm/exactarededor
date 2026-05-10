@@ -339,6 +339,7 @@ const Rules = () => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const load = () => supabase.from("rules").select("*").order("created_at", { ascending: false }).then(({ data }) => setRules(data ?? []));
+  const loadGlobalThresholds = () => supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle().then(({ data }) => setGlobalThresholds(data?.value || null));
   const loadRefs = () => supabase.from("reference_tables").select("id,name,purpose").order("name").then(({ data }) => setRefTables((data ?? []) as any));
   const loadCompanies = async () => {
     const PAGE = 1000;
