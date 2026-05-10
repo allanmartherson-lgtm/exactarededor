@@ -1431,7 +1431,7 @@ export function analyzeItem(
     // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
     // entra como "sem_regra" para revisão humana — analista precisa cadastrar
     // a regra adequada em Configurações > Regras de Repasse.
-    const sector = inferItemSector(item);
+    const sector = inferItemSector(item, ctx);
     calc = {
       expected: null,
       explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
