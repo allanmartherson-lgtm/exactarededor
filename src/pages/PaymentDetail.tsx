@@ -162,6 +162,7 @@ const PaymentDetail = () => {
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
+  const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved">("all");
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
@@ -1537,27 +1538,99 @@ const PaymentDetail = () => {
             </CardContent>
           </Card>
         )}
-        {groups.length > 1 || items.length > 8 ? (
-          <div className="relative max-w-md">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={itemSearch}
-              onChange={(e) => setItemSearch(e.target.value)}
-              placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
-              className="pl-9 pr-9"
-            />
-            {itemSearch && (
-              <button
-                type="button"
-                onClick={() => setItemSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                aria-label="Limpar busca"
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative max-w-md flex-1">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
+                className="pl-9 pr-9"
+              />
+              {itemSearch && (
+                <button
+                  type="button"
+                  onClick={() => setItemSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+              <Button
+                variant={criticalFilter === "all" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => setCriticalFilter("all")}
               >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+                Todos
+              </Button>
+              <Button
+                variant={criticalFilter === "no_rule" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "no_rule" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600"
+                )}
+                onClick={() => setCriticalFilter("no_rule")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Sem regra
+              </Button>
+              <Button
+                variant={criticalFilter === "divergent" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "divergent" ? "bg-destructive hover:bg-destructive/90 text-white" : "text-destructive"
+                )}
+                onClick={() => setCriticalFilter("divergent")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Divergente
+              </Button>
+              <Button
+                variant={criticalFilter === "approved" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "approved" ? "bg-success hover:bg-success/90 text-white" : "text-success"
+                )}
+                onClick={() => setCriticalFilter("approved")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Aprovado
+              </Button>
+            </div>
           </div>
-        ) : null}
+          
+          {(criticalFilter !== "all" || payment.analysis_mode === "empresa_prioritaria") && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed">
+              <Info className="h-3.5 w-3.5" />
+              <span>
+                {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
+                {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
+                {criticalFilter === "approved" && "Mostrando apenas empresas com itens aprovados pela IA."}
+                {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
+              </span>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="h-auto p-0 text-xs ml-auto" 
+                onClick={() => {
+                  setCriticalFilter("all");
+                  setItemSearch("");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          )}
+        </div>
 
           {canSendForValidation && (() => {
             // Calcula divergências NF para os grupos prontos para envio
@@ -1604,8 +1677,8 @@ const PaymentDetail = () => {
             {(() => {
               const sq = itemSearch.trim().toLowerCase();
               const itemMatches = (it: PaymentItemRowType) => {
-                if (!sq) return true;
-                const haystack = [
+                const sq = itemSearch.trim().toLowerCase();
+                const matchesSearch = !sq || [
                   it.company_name,
                   it.doctor_name,
                   it.doctor_role,
@@ -1619,24 +1692,46 @@ const PaymentDetail = () => {
                 ]
                   .filter(Boolean)
                   .join(" \u2022 ")
-                  .toLowerCase();
-                return haystack.includes(sq);
+                  .toLowerCase()
+                  .includes(sq);
+
+                if (!matchesSearch) return false;
+
+                // Filtro de status crítico
+                if (criticalFilter === "no_rule") {
+                  return it.ai_findings?.matched_priority === "sem_regra";
+                }
+                if (criticalFilter === "divergent") {
+                  return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                }
+                if (criticalFilter === "approved") {
+                  return it.ai_status === "aprovado";
+                }
+
+                return true;
               };
+
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
               const visibleGroups = groups.filter((g) => {
-                if (!sq) return true;
-                if (g.company_name?.toLowerCase().includes(sq)) return true;
-                if (paymentSpec.includes(sq)) return true;
+                const sq = itemSearch.trim().toLowerCase();
+                const nameMatches = !sq || g.company_name?.toLowerCase().includes(sq);
+                const specMatches = !sq || paymentSpec.includes(sq);
+                
+                // Se o nome da empresa ou especialidade casar, ainda precisamos verificar o filtro de status
+                // para garantir que a empresa possui itens que atendam ao critério (sem regra, divergente, etc)
                 return items.some(
                   (it) =>
                     (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase() &&
-                    itemMatches(it),
+                    (nameMatches || specMatches || itemMatches(it)) &&
+                    (criticalFilter === "all" || itemMatches(it))
                 );
               });
-              if (sq && visibleGroups.length === 0) {
+              
+              const finalSearchTerm = itemSearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
+              if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
                   <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Nenhum grupo ou item casa com "{itemSearch}".
+                    Nenhum grupo ou item casa com os filtros selecionados.
                   </CardContent></Card>
                 );
               }
@@ -1659,22 +1754,25 @@ const PaymentDetail = () => {
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
               const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
-              const isErrorOnly = payment.analysis_mode === "empresa_prioritaria";
+              const isErrorOnly = payment.analysis_mode === "empresa_prioritaria" || criticalFilter !== "all";
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
+                if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
+                if (criticalFilter === "divergent") return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                if (criticalFilter === "approved") return it.ai_status === "aprovado";
+                
                 const st = (it.ai_status as string) ?? "pendente";
                 return st === "alerta" || st === "reprovado" || (it.ai_findings?.alerts?.length ?? 0) > 0;
               };
-              // Filtro só decide se o card aparece (busca / modo erro-apenas).
-              // O resumo dentro do card SEMPRE usa groupItemsAll, para bater
-              // com a página dedicada (que não conhece os filtros do lote).
-              const matchedItems = sq && !groupNameMatches
+              // Filtro só decide se o card aparece (busca / modo erro-apenas / filtros críticos).
+              const matchedItems = (itemSearch.trim() && !groupNameMatches)
                 ? groupItemsAll.filter(itemMatches)
                 : groupItemsAll;
-              const visibleByErrorOnly = isErrorOnly
+              const visibleByFilters = isErrorOnly
                 ? matchedItems.filter(errorOnlyFilter)
                 : matchedItems;
-              if (sq && !groupNameMatches && matchedItems.length === 0) return null;
-              if (isErrorOnly && visibleByErrorOnly.length === 0) return null;
+              
+              if (itemSearch.trim() && !groupNameMatches && matchedItems.length === 0) return null;
+              if (isErrorOnly && visibleByFilters.length === 0) return null;
               return (
                 <div key={g.id} id={`group-${g.id}`} className="scroll-mt-20">
                   <PaymentGroupCard
