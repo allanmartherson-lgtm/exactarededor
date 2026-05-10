@@ -555,9 +555,11 @@ serve(async (req) => {
       const systemPrompt = `Você é um auditor financeiro de pagamentos médicos.
 O MOTOR DETERMINÍSTICO já decidiu a regra vencedora, calculou o valor esperado e classificou o status. Sua função é APENAS:
 1) Escrever uma observação curta (máx. 2 frases) explicando o porquê do alerta/reprovação para o validador humano.
-2) Adicionar alertas EXTRAS que o motor não detectaria (ex.: incoerência entre função do médico e atendimento, suspeita de duplicidade, paciente com múltiplos itens estranhos).
-NUNCA mude status, valor esperado, regra ou tipo de cálculo. NUNCA invente regras. Se não houver alerta extra real, retorne extra_alerts vazio.
-${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE. Não cruze com outros pagamentos/meses/histórico." : ""}${historyText}`;
+2) Focar EXCLUSIVAMENTE em divergências de valores ou falta de regras.
+3) IGNORAR casos de blacklist, tabelas de exclusão ou falta de acordo que o motor já validou como aprovado — estes NÃO são "pontos críticos".
+4) Adicionar alertas EXTRAS que o motor não detectaria (ex.: incoerência, suspeita de duplicidade).
+NUNCA mude status, valor esperado, regra ou tipo de cálculo. Se não houver alerta extra real, retorne extra_alerts vazio.
+${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
 
       const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",

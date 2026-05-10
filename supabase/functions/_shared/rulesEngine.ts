@@ -884,7 +884,7 @@ function calcExclusao(rule: RuleInput): ExpectedCalc {
   return {
     expected: 0,
     explanation: `Exclusão${motivo}: este item não deve ser pago${exc}`,
-    alerts: [`Item excluído por regra${motivo}.`],
+    alerts: [], // Removido alerta informativo de exclusão
   };
 }
 
@@ -1207,8 +1207,15 @@ function calcTabelaDiferenciada(
 
 function classifyDiff(expected: number | null, gross: number): { status: ItemAiStatus; diff_pct: number | null } {
   if (expected == null) return { status: "alerta", diff_pct: null };
+  
+  // Se o esperado é 0 (exclusão) e o pago é 0, está perfeitamente correto (aprovado).
+  if (expected === 0 && gross === 0) return { status: "aprovado", diff_pct: 0 };
+  
+  // Para outros casos onde gross é 0 mas expected > 0 (item não pago mas deveria ser).
   if (gross <= 0) return { status: "alerta", diff_pct: null };
+  
   const diff = Math.abs(expected - gross) / Math.max(Math.abs(expected), 0.01);
+  
   // Regra de projeto: se o valor bate com a regra (divergência < 1%), o item é aprovado
   // e NÃO deve gerar alertas nem aparecer no resumo de divergências.
   if (diff <= 0.01) return { status: "aprovado", diff_pct: diff };
@@ -1327,9 +1334,7 @@ export function analyzeItem(
         calculation_explanation:
           `Bloqueado pela Camada 1 (${motivo}) — sem acordo para esta combinação. ` +
           `Sistema não tem acesso à tabela interna do convênio; aceita o valor pago como esperado (R$ ${paid.toFixed(2)}).`,
-        alerts: [
-          `${motivo} Regra de cálculo não aplicada — esperado = valor pago pelo convênio.`,
-        ],
+        alerts: [], // Removido alerta de bloqueio de convênio (comportamento esperado)
         needs_ai_review: false,
         needs_human_review: false,
       };
@@ -1367,9 +1372,7 @@ export function analyzeItem(
               `Bloqueado pela Camada 2 — código TUSS ${code} consta na tabela "${hit.table_name}" ` +
               `(${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo}. ` +
               `Regra de cálculo ignorada — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`,
-            alerts: [
-              `Código ${code} em tabela "${hit.table_name}" (${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo} — cálculo não aplicado.`,
-            ],
+            alerts: [], // Removido alerta de tabela de exceção (comportamento esperado)
             needs_ai_review: false,
             needs_human_review: false,
           };

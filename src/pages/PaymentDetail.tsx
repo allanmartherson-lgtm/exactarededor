@@ -1761,7 +1761,8 @@ const PaymentDetail = () => {
                 if (criticalFilter === "approved") return it.ai_status === "aprovado";
                 
                 const st = (it.ai_status as string) ?? "pendente";
-                return st === "alerta" || st === "reprovado" || (it.ai_findings?.alerts?.length ?? 0) > 0;
+                // Só mostra se for alerta/reprovado. Alertas informativos em itens aprovados não contam como crítico.
+                return st === "alerta" || st === "reprovado";
               };
               // Filtro só decide se o card aparece (busca / modo erro-apenas / filtros críticos).
               const matchedItems = (itemSearch.trim() && !groupNameMatches)
