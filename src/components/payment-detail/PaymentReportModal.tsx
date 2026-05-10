@@ -108,7 +108,7 @@ export function PaymentReportModal({
         [it.attendance_number, it.patient_name, it.procedure_code, it.procedure_name, it.doctor_name, it.company_name]
           .some(field => String(field ?? "").toLowerCase().includes(search.toLowerCase()));
       
-      const matchesCompany = selectedCompanies.length === 0 || selectedCompanies.includes(it.company_name);
+      const matchesCompany = selectedCompanies.length === 0 || (it.company_name && selectedCompanies.includes(it.company_name));
       const matchesDoctor = selectedDoctors.length === 0 || (it.doctor_name && selectedDoctors.includes(it.doctor_name));
       const matchesSpecialty = selectedSpecialties.length === 0 || (it.specialty && selectedSpecialties.includes(it.specialty));
       
@@ -168,8 +168,9 @@ export function PaymentReportModal({
     }>();
 
     filteredItems.forEach(it => {
-      const group = grouped.get(it.company_name) || {
-        name: it.company_name,
+      const companyName = it.company_name || "Sem PJ";
+      const group = grouped.get(companyName) || {
+        name: companyName,
         items: [],
         totalValue: 0,
         riskValue: 0,
@@ -183,7 +184,7 @@ export function PaymentReportModal({
         group.riskValue += val;
       }
       group.counts[it.ai_status as ItemAiStatus]++;
-      grouped.set(it.company_name, group);
+      grouped.set(companyName, group);
     });
 
     return Array.from(grouped.values()).sort((a, b) => b.riskValue - a.riskValue);
@@ -229,7 +230,7 @@ export function PaymentReportModal({
         const findings = it.ai_findings as any;
         return {
           "Atendimento": it.attendance_number,
-          "Data": it.attendance_date ? formatDateOnly(it.attendance_date) : "",
+          "Data": it.procedure_date ? formatDateOnly(it.procedure_date) : "",
           "Empresa": it.company_name,
           "Paciente": it.patient_name,
           "Médico": it.doctor_name,
@@ -246,7 +247,8 @@ export function PaymentReportModal({
       const wsDetails = XLSX.utils.json_to_sheet(detailData);
       XLSX.utils.book_append_sheet(wb, wsDetails, "Detalhe dos Itens");
 
-      const fileName = `Relatorio_Lote_${formatCompetence(payment.competence).replace(/\s/g, "")}_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${new Date().getHours()}${new Date().getMinutes()}.xlsx`;
+      const competence = payment.competence_months || payment.competence_month || "";
+      const fileName = `Relatorio_Lote_${formatCompetence(competence).replace(/\s/g, "")}_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${new Date().getHours()}${new Date().getMinutes()}.xlsx`;
       XLSX.writeFile(wb, fileName);
     } finally {
       setIsExporting(false);
@@ -255,12 +257,12 @@ export function PaymentReportModal({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-none p-0 flex flex-col h-screen">
+      <SheetContent side="right" className="w-full sm:max-w-none p-0 flex flex-col h-screen overflow-hidden">
         <div className="border-b bg-muted/30 p-4 sticky top-0 z-10 flex items-center justify-between">
           <div>
             <SheetTitle className="text-xl">
-              Relatório do Lote — {formatCompetence(payment.competence)}
-              {payment.agreement_name && ` — ${payment.agreement_name}`}
+              Relatório do Lote — {formatCompetence(payment.competence_months || payment.competence_month)}
+              {payment.reference && ` — ${payment.reference}`}
             </SheetTitle>
             <div className="flex gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
               <span><strong>Data:</strong> {new Date().toLocaleDateString("pt-BR")}</span>
@@ -431,7 +433,7 @@ export function PaymentReportModal({
           </Card>
 
           {/* Tabela de Empresas */}
-          <div className="space-y-3">
+          <div className="space-y-3 pb-10">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <Building2 className="h-5 w-5" /> Detalhamento por Empresa
             </h3>
@@ -469,7 +471,7 @@ export function PaymentReportModal({
                         </div>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="p-0">
+                    <AccordionContent className="p-0 overflow-x-auto">
                       <Table>
                         <TableHeader className="bg-muted/50">
                           <TableRow>
@@ -491,7 +493,7 @@ export function PaymentReportModal({
                             return (
                               <TableRow key={it.id} className="text-xs">
                                 <TableCell className="font-mono">#{it.attendance_number}</TableCell>
-                                <TableCell>{it.attendance_date ? formatDateOnly(it.attendance_date) : "—"}</TableCell>
+                                <TableCell>{it.procedure_date ? formatDateOnly(it.procedure_date) : "—"}</TableCell>
                                 <TableCell>
                                   <div className="flex flex-col gap-0.5">
                                     <span className="font-medium flex items-center gap-1"><User className="h-3 w-3" /> {it.patient_name || "—"}</span>
@@ -524,7 +526,7 @@ export function PaymentReportModal({
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-[10px] leading-tight text-muted-foreground">
+                                    <div className="text-[10px] leading-tight text-muted-foreground max-w-[300px]">
                                       {findings?.alerts?.map((a: string, i: number) => (
                                         <p key={i}>• {a}</p>
                                       ))}
