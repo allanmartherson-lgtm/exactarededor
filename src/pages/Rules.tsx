@@ -993,7 +993,7 @@ const Rules = () => {
       }
     }
     if (!fAlertInherit && !fBlockInherit && fAlertThresholdType !== fBlockThresholdType) {
-      toast({ title: "Atenção", description: "Tipos de limiar diferentes (alerta vs bloqueio) podem gerar comportamento inesperado.", variant: "warning" });
+      toast({ title: "Atenção", description: "Tipos de limiar diferentes (alerta vs bloqueio) podem gerar comportamento inesperado." });
     }
 
     if (isEspecifica && targetType === "empresa") {
