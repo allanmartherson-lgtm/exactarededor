@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/status";
-import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2 } from "lucide-react";
+import { Plus, Trash2, Upload, ChevronRight, ArrowLeft, Sparkles, Wand2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 
@@ -74,6 +74,7 @@ const ReferenceTables = () => {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualText, setManualText] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
+  const [newTableKind, setNewTableKind] = useState<RefKind>("simples");
 
   const wizardProfile: ImportProfile | null = selected
     ? {
@@ -415,6 +416,52 @@ const ReferenceTables = () => {
     }
   };
 
+  const downloadTemplate = (kind: RefKind) => {
+    const wb = XLSX.utils.book_new();
+    let filename = "modelo_tabela.xlsx";
+
+    if (kind === "cbhpm") {
+      filename = "modelo_cbhpm.xlsx";
+      // Portes
+      const wsPorts = XLSX.utils.json_to_sheet([
+        { "Porte": "1A", "Valor": 100.00 },
+        { "Porte": "1B", "Valor": 150.00 },
+        { "Porte": "1C", "Valor": 200.00 },
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsPorts, "VALORES POR PORTE");
+      
+      // Códigos
+      const wsCodes = XLSX.utils.json_to_sheet([
+        { "ID do Procedimento": "30101011", "Descrição Procedimento": "Consulta", "Porte": "1A", "Nº de Auxiliares": 0 },
+        { "ID do Procedimento": "30715016", "Descrição Procedimento": "Cirurgia X", "Porte": "8A", "Nº de Auxiliares": 2 },
+      ]);
+      XLSX.utils.book_append_sheet(wb, wsCodes, "CÓDIGOS");
+    } else if (kind === "pacote_combinacao") {
+      filename = "modelo_pacote.xlsx";
+      const ws = XLSX.utils.json_to_sheet([
+        { "pacote_id": "PKG001", "codigos_tuss": "30101011;30101012", "descrição": "Pacote Exemplo", "valor_pacote": 500.00, "observacao": "Exemplo de pacote" },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+    } else if (kind === "lista_codigos") {
+      filename = "modelo_lista.xlsx";
+      const ws = XLSX.utils.json_to_sheet([
+        { "código": "30101011", "descrição": "Procedimento A" },
+        { "código": "30101012", "descrição": "Procedimento B" },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+    } else {
+      // Simples / Tabela Própria
+      filename = "modelo_tabela_simples.xlsx";
+      const ws = XLSX.utils.json_to_sheet([
+        { "código": "30101011", "descrição": "Procedimento X", "valor": 150.00 },
+        { "código": "30101012", "descrição": "Procedimento Y", "valor": 200.00 },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+    }
+    
+    XLSX.writeFile(wb, filename);
+  };
+
   if (selected) {
     const isCbhpm = selected.kind === "cbhpm";
     const q = search.trim().toLowerCase();
@@ -435,6 +482,9 @@ const ReferenceTables = () => {
             <>
               <Button variant="outline" onClick={() => setSelected(null)}>
                 <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
+              </Button>
+              <Button variant="outline" onClick={() => downloadTemplate(selected.kind)}>
+                <Download className="h-4 w-4 mr-2" /> Baixar modelo
               </Button>
               {!isCbhpm && (
                 <>
@@ -712,14 +762,27 @@ const ReferenceTables = () => {
                   </select>
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label>Tipo estrutural</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Tipo estrutural</Label>
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 text-[10px] text-primary hover:text-primary hover:bg-primary/5"
+                      onClick={() => downloadTemplate(newTableKind)}
+                    >
+                      <Download className="h-3 w-3 mr-1" /> Baixar modelo desta estrutura
+                    </Button>
+                  </div>
                   <select
                     name="kind"
                     defaultValue="simples"
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                     onChange={(e) => {
+                      const val = e.target.value as RefKind;
+                      setNewTableKind(val);
                       const pkg = document.getElementById("rt-pkg-wrap");
-                      if (pkg) pkg.style.display = e.target.value === "pacote_combinacao" ? "" : "none";
+                      if (pkg) pkg.style.display = val === "pacote_combinacao" ? "" : "none";
                     }}
                   >
                     <option value="simples">Simples (código → valor)</option>
