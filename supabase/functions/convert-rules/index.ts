@@ -106,9 +106,11 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
     });
 
     if (!aiResp.ok) {
-      if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Limite de IA atingido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Créditos esgotados." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error(`AI: ${aiResp.status}`);
+      // Retorna 200 com flag de erro para evitar que supabase-js trate como exceção
+      // e quebre a UI. O cliente decide como exibir.
+      if (aiResp.status === 429) return new Response(JSON.stringify({ error: "Limite de uso da IA atingido. Tente novamente em instantes.", code: "RATE_LIMIT" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiResp.status === 402) return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos em Configurações → Workspace.", code: "CREDITS_EXHAUSTED" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: `Falha na IA (${aiResp.status})`, code: "AI_ERROR" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const data = await aiResp.json();
     const tc = data.choices?.[0]?.message?.tool_calls?.[0];
