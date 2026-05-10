@@ -1531,8 +1531,8 @@ const Rules = () => {
             footer={
               <div className="w-full flex items-center justify-end gap-3">
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" form="rule-form" disabled={saving}>
-                  {saving ? (editingId ? "Salvando..." : "Criando...") : (editingId ? "Atualizar" : "Criar")}
+                <Button type="submit" form="rule-form">
+                  {editingId ? "Atualizar" : "Criar"}
                 </Button>
               </div>
             }
