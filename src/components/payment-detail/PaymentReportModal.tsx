@@ -52,7 +52,7 @@ import {
   type ItemAiStatus,
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import type {
   PaymentRow,
   PaymentItemRow,
