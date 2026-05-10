@@ -328,7 +328,7 @@ const Companies = () => {
     : items;
 
   return (
-    <>
+    <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
         <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
         <div className="p-4 md:p-8 w-full mx-auto space-y-4">
@@ -629,7 +629,6 @@ const ImportResultsDialog = ({ open, results, progress, importing, onOpenChange 
         )}
       </DialogContent>
     </Dialog>
-      </div>
     </div>
   );
 };

@@ -2778,4 +2778,5 @@ const Rules = () => {
     </div>
   );
 };
+
 export default Rules;

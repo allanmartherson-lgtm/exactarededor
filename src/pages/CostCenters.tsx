@@ -208,7 +208,7 @@ const CostCenters = () => {
   const filteredCount = items.length; // página atual carregada
 
   return (
-    <>
+    <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
       <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
         <PageHeader
           title="Centros de custo"
@@ -410,17 +410,15 @@ const CostCenters = () => {
           </Collapsible>
         </Card>
       </div>
+      <ImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Importar centros de custo"
+        profile={COST_CENTERS_IMPORT_PROFILE}
+        onComplete={handleImportComplete}
+      />
     </div>
-    <ImportWizard
-      open={importOpen}
-      onOpenChange={setImportOpen}
-      title="Importar centros de custo"
-      profile={COST_CENTERS_IMPORT_PROFILE}
-      onComplete={handleImportComplete}
-    />
-  </>
-);
-};
+  );
 };
 
 export default CostCenters;

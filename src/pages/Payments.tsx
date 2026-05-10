@@ -965,7 +965,6 @@ const Payments = () => {
               </div>
             ))}
           </div>
-          </div>
         </div>
       </div>
     </>
