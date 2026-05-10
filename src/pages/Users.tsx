@@ -420,7 +420,7 @@ const Users = () => {
                       </p>
                     </div>
                   </div>
-                  <DialogFooter>
+                  <DialogFooter className="p-6 pt-4 border-t">
                     <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
                     <Button onClick={submit} disabled={saving}>{saving ? "Criando..." : "Criar usuário"}</Button>
                   </DialogFooter>

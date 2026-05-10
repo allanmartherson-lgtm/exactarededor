@@ -711,7 +711,7 @@ export default function ValidationRules() {
               )}
             </section>
           </div>
-          <DialogFooter>
+          <DialogFooter className="p-6 pt-2 border-t">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={save}>Salvar</Button>
           </DialogFooter>
@@ -719,9 +719,9 @@ export default function ValidationRules() {
       </Dialog>
 
       <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{groupForm.id ? "Editar grupo assistencial" : "Novo grupo assistencial"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="p-6 pb-2"><DialogTitle>{groupForm.id ? "Editar grupo assistencial" : "Novo grupo assistencial"}</DialogTitle></DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
             <div>
               <Label>Nome</Label>
               <Input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="Ex: Cuidado clínico" />
