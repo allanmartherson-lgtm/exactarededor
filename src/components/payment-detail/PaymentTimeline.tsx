@@ -81,10 +81,10 @@ export const PaymentTimeline = ({
 
   const phases = useMemo(() => {
     const p = {
-      ia: observations.filter((o) => o.author_type === "ia" || o.author_type === "sistema"),
-      analista: observations.filter((o) => o.author_type === "analista"),
-      validador: observations.filter((o) => o.author_type === "validador"),
-      diretor: observations.filter((o) => o.author_type === "diretor" || o.author_type === "admin"),
+      ia: observations.filter((o) => (o.author_type as string) === "ia" || (o.author_type as string) === "sistema"),
+      analista: observations.filter((o) => (o.author_type as string) === "analista"),
+      validador: observations.filter((o) => (o.author_type as string) === "validador"),
+      diretor: observations.filter((o) => (o.author_type as string) === "diretor" || (o.author_type as string) === "admin"),
     };
     return p;
   }, [observations]);
