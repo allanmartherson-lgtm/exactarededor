@@ -983,6 +983,19 @@ const Rules = () => {
     if (isEspecifica && !payload.target_identifier && !payload.target_name) {
       return toast({ title: "Informe CPF/CNPJ ou nome do alvo", variant: "destructive" });
     }
+    
+    // Validação de limiares
+    if (!fAlertInherit && !fBlockInherit && fAlertThresholdType === fBlockThresholdType) {
+      const alertV = num(fAlertThresholdValue) ?? 0;
+      const blockV = num(fBlockThresholdValue) ?? 0;
+      if (blockV <= alertV) {
+        return toast({ title: "Limiar de bloqueio inválido", description: "O valor de bloqueio deve ser maior que o de alerta quando usam a mesma unidade.", variant: "destructive" });
+      }
+    }
+    if (!fAlertInherit && !fBlockInherit && fAlertThresholdType !== fBlockThresholdType) {
+      toast({ title: "Atenção", description: "Tipos de limiar diferentes (alerta vs bloqueio) podem gerar comportamento inesperado.", variant: "warning" });
+    }
+
     if (isEspecifica && targetType === "empresa") {
       const cnpj = payload.target_identifier;
       if (!cnpj || !isValidCNPJ(cnpj)) {
