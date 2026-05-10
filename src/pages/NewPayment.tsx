@@ -718,6 +718,7 @@ const NewPayment = () => {
         sector: currentBucket?.sectorMapping || r.sector,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
+        convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
       };
     });
     const { error: itemsErr } = await supabase.from("payment_items").insert(items);
