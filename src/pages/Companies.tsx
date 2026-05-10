@@ -332,7 +332,7 @@ const Companies = () => {
       <div className="flex flex-col h-full w-full max-w-[100vw] overflow-x-hidden">
         <PageHeader title="Empresas" description="Cadastro de clínicas/PJs para reconhecimento automático nas planilhas." />
         <div className="p-4 md:p-8 w-full mx-auto space-y-4">
-        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
           <Input placeholder="Buscar por nome, CNPJ ou apelido..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
