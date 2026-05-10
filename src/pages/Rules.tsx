@@ -1120,7 +1120,7 @@ const Rules = () => {
       return;
     }
 
-      setOpen(false); resetForm(); load();
+    setOpen(false); resetForm(); load();
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     } finally {
