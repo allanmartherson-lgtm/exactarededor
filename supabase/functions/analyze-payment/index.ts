@@ -58,6 +58,7 @@ serve(async (req) => {
       reference_date: payment?.payment_due_date
         ?? payment?.competence_month
         ?? new Date().toISOString().slice(0, 10),
+      tolerance_pct: typeof tolerance_pct === "number" ? tolerance_pct : undefined,
     };
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
