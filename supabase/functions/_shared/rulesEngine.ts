@@ -1372,9 +1372,7 @@ export function analyzeItem(
               `Bloqueado pela Camada 2 — código TUSS ${code} consta na tabela "${hit.table_name}" ` +
               `(${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo}. ` +
               `Regra de cálculo ignorada — esperado = valor pago pelo convênio (R$ ${paid.toFixed(2)}).`,
-            alerts: [
-              `Código ${code} em tabela "${hit.table_name}" (${purposeLabel.toLowerCase()}) vinculada à regra "${winner.name}"${motivo} — cálculo não aplicado.`,
-            ],
+            alerts: [], // Removido alerta de tabela de exceção (comportamento esperado)
             needs_ai_review: false,
             needs_human_review: false,
           };
