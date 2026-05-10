@@ -201,6 +201,8 @@ export interface ItemInput {
   agreement_name?: string | null;
   /** Especialidade resolvida no import (header "Especialidade" ou cadastro do médico). */
   specialty?: string | null;
+  /** Setor informado na planilha (opcional). */
+  sector?: string | null;
 }
 
 export interface PaymentContext {
@@ -286,8 +288,37 @@ const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/
 const normName = (s: string | null | undefined): string =>
   (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
+const SECTOR_MAP: Record<string, string> = {
+  "cirurgia": "cirurgia",
+  "centro cirurgico": "cirurgia",
+  "cc": "cirurgia",
+  "hemodinamica": "hemodinamica",
+  "parecer": "parecer",
+  "visita": "visita",
+  "consulta": "consulta",
+  "procedimento": "procedimento",
+  "ambulatorial": "procedimento",
+};
+
 export function inferItemSector(item: ItemInput): string {
+  // 1. Prioridade máxima: setor informado na planilha
+  if (item.sector) {
+    const s = normName(item.sector);
+    if (SECTOR_MAP[s]) return SECTOR_MAP[s];
+    // Se não está no mapa, tenta match parcial
+    for (const [k, v] of Object.entries(SECTOR_MAP)) {
+      if (s.includes(k)) return v;
+    }
+    // Se ainda assim não bater, mas veio algo da planilha, usamos o que veio (pode bater em regras customizadas)
+    // No entanto, para o motor padrão, precisamos que seja um dos RuleSector se possível.
+    // Se não for, retornamos o original normalizado.
+    return s;
+  }
+
+  // 2. Classificação determinística pré-aplicada (ex.: tabela_procedimentos_hemodinamica)
   if (item.classification_sector) return item.classification_sector;
+
+  // 3. Heurística baseada em nomes
   const txt = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
   if (/(hemodin|cateter|angiopl|stent|coronari)/.test(txt)) return "hemodinamica";
   if (/(cirurg|operac|herni|colecist|laparo|artrosc|tue\b)/.test(txt)) return "cirurgia";
