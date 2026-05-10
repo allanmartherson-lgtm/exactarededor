@@ -807,8 +807,8 @@ const PaymentDetail = () => {
       if (error) throw error;
       
       const filterDesc = statuses && statuses.length > 0 
-        ? ` (filtrado por: ${statuses.join(", ")})` 
-        : " em todo o lote";
+        ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
+        : ` em todo o lote (tolerância: ${toleranceValue * 100}%)`;
 
       await recordObservation({
         payment_id: id,
