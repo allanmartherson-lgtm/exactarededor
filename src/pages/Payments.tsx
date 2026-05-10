@@ -1024,5 +1024,8 @@ const Payments = () => {
     </div>
   );
 };
+    </div>
+  );
+};
 
 export default Payments;
