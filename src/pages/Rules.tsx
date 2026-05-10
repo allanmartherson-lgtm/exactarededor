@@ -353,7 +353,7 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | MedPay"; load(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | MedPay"; load(); loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
 
   const exportRuleToPDF = (r: RuleRow) => {
     const doc = new jsPDF();
