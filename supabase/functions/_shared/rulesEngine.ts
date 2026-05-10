@@ -1209,6 +1209,8 @@ function classifyDiff(expected: number | null, gross: number): { status: ItemAiS
   if (expected == null) return { status: "alerta", diff_pct: null };
   if (gross <= 0) return { status: "alerta", diff_pct: null };
   const diff = Math.abs(expected - gross) / Math.max(Math.abs(expected), 0.01);
+  // Regra de projeto: se o valor bate com a regra (divergência < 1%), o item é aprovado
+  // e NÃO deve gerar alertas nem aparecer no resumo de divergências.
   if (diff <= 0.01) return { status: "aprovado", diff_pct: diff };
   if (diff <= 0.10) return { status: "alerta",   diff_pct: diff };
   return { status: "reprovado", diff_pct: diff };
@@ -1531,9 +1533,8 @@ export function analyzePaymentItems(
     r.main_reason = sel.reason;
     r.main_ambiguous = sel.ambiguous;
     if (sel.ambiguous && sel.isMain) {
+      // Alerta mantido apenas como informativo técnico, mas não bloqueia a aprovação se o valor bater.
       r.alerts = [...r.alerts, "Procedimento principal ambíguo: o motor não conseguiu desempatar de forma determinística."];
-      if (r.status === "aprovado") r.status = "alerta";
-      r.needs_ai_review = true;
     }
   }
 
