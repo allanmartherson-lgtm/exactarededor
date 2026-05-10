@@ -182,6 +182,13 @@ const ReferenceTables = () => {
     if (selected) loadItems(selected.id);
   };
 
+  const updateItem = async (id: string, patch: Partial<RefItem>) => {
+    const { error } = await supabase.from("reference_table_items").update(patch).eq("id", id);
+    if (error) return toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+    if (selected) loadItems(selected.id);
+    toast({ title: "Item atualizado" });
+  };
+
   const addManualCodes = async () => {
     if (!selected) return;
     // Aceita códigos separados por vírgula, ponto-e-vírgula, espaço ou nova linha. Opcional "código - descrição".
