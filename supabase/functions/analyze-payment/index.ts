@@ -401,23 +401,28 @@ serve(async (req) => {
     if (refTableIds.length > 0 && codes.length > 0) {
       const { data: refRows } = await supabase
         .from("reference_table_items")
-        .select("reference_table_id,code,amount,port,package_amount")
+        .select("reference_table_id,code,amount,port,package_amount,role")
         .in("reference_table_id", refTableIds)
         .in("code", codes);
       for (const row of (refRows ?? []) as any[]) {
         const tid = row.reference_table_id as string;
         const code = String(row.code ?? "").trim();
+        const role = row.role ? String(row.role).trim().toLowerCase() : null;
         if (!tid || !code) continue;
         const amt = row.amount != null ? Number(row.amount) : (row.package_amount != null ? Number(row.package_amount) : null);
         if (amt == null || Number.isNaN(amt)) continue;
-        (refValues[tid] ||= {})[code] = amt;
+        const key = role ? `${code}|${role}` : code;
+        (refValues[tid] ||= {})[key] = amt;
       }
     }
-    const referenceLookup = (tableId: string, code: string): number | null => {
+    const referenceLookup = (tableId: string, code: string, role?: string | null): number | null => {
       const t = refValues[tableId];
       if (!t) return null;
-      const v = t[String(code).trim()];
-      return v == null ? null : v;
+      const c = String(code).trim();
+      const r = role ? String(role).trim().toLowerCase() : null;
+      // Busca específica por papel, fallback para código puro
+      if (r && t[`${c}|${r}`] != null) return t[`${c}|${r}`];
+      return t[c] ?? null;
     };
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
