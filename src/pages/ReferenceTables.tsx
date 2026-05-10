@@ -662,14 +662,56 @@ const ReferenceTables = () => {
                           </div>
                         </div>
                         
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => removeItem(it.id)}
-                          className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 self-center"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Editar item: {it.code}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label>Descrição</Label>
+                                  <Input 
+                                    defaultValue={it.description ?? ""} 
+                                    onBlur={(e) => updateItem(it.id, { description: e.target.value })}
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Atuação / Função</Label>
+                                    <Input 
+                                      defaultValue={it.role ?? ""} 
+                                      onBlur={(e) => updateItem(it.id, { role: e.target.value })}
+                                      placeholder="Ex: Cirurgião"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Valor (R$)</Label>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01"
+                                      defaultValue={it.amount ?? 0} 
+                                      onBlur={(e) => updateItem(it.id, { amount: Number(e.target.value) })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => removeItem(it.id)}
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
