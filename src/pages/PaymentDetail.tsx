@@ -1677,8 +1677,8 @@ const PaymentDetail = () => {
             {(() => {
               const sq = itemSearch.trim().toLowerCase();
               const itemMatches = (it: PaymentItemRowType) => {
-                if (!sq) return true;
-                const haystack = [
+                const sq = itemSearch.trim().toLowerCase();
+                const matchesSearch = !sq || [
                   it.company_name,
                   it.doctor_name,
                   it.doctor_role,
@@ -1692,24 +1692,46 @@ const PaymentDetail = () => {
                 ]
                   .filter(Boolean)
                   .join(" \u2022 ")
-                  .toLowerCase();
-                return haystack.includes(sq);
+                  .toLowerCase()
+                  .includes(sq);
+
+                if (!matchesSearch) return false;
+
+                // Filtro de status crítico
+                if (criticalFilter === "no_rule") {
+                  return it.ai_findings?.matched_priority === "sem_regra";
+                }
+                if (criticalFilter === "divergent") {
+                  return it.ai_status === "reprovado" || it.ai_status === "alerta";
+                }
+                if (criticalFilter === "approved") {
+                  return it.ai_status === "aprovado";
+                }
+
+                return true;
               };
+
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
               const visibleGroups = groups.filter((g) => {
-                if (!sq) return true;
-                if (g.company_name?.toLowerCase().includes(sq)) return true;
-                if (paymentSpec.includes(sq)) return true;
+                const sq = itemSearch.trim().toLowerCase();
+                const nameMatches = !sq || g.company_name?.toLowerCase().includes(sq);
+                const specMatches = !sq || paymentSpec.includes(sq);
+                
+                // Se o nome da empresa ou especialidade casar, ainda precisamos verificar o filtro de status
+                // para garantir que a empresa possui itens que atendam ao critério (sem regra, divergente, etc)
                 return items.some(
                   (it) =>
                     (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase() &&
-                    itemMatches(it),
+                    (nameMatches || specMatches || itemMatches(it)) &&
+                    (criticalFilter === "all" || itemMatches(it))
                 );
               });
-              if (sq && visibleGroups.length === 0) {
+              
+              const finalSearchTerm = itemSearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
+              if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
                   <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
-                    Nenhum grupo ou item casa com "{itemSearch}".
+                    Nenhum grupo ou item casa com os filtros selecionados.
                   </CardContent></Card>
                 );
               }
