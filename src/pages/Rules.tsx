@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { FormDialog } from "@/components/FormDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -789,6 +790,7 @@ const Rules = () => {
 
 
   const [fActive, setFActive] = useState(true);
+  const [saving, setSaving] = useState(false);
   const resetForm = () => {
     setEditingId(null);
     setFActive(true);
@@ -947,6 +949,8 @@ const Rules = () => {
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSaving(true);
+    try {
     // Abre automaticamente seções com erro para feedback imediato
     const sectionsWithErr = Object.entries(sectionErrors).filter(([, n]) => n > 0).map(([k]) => k);
     if (sectionsWithErr.length > 0) {
@@ -1116,7 +1120,12 @@ const Rules = () => {
       return;
     }
 
-    setOpen(false); resetForm(); load();
+      setOpen(false); resetForm(); load();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   /** Executa o delete + insert dos rule_calculations e devolve a lista de erros. */
@@ -1520,14 +1529,23 @@ const Rules = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild><Button onClick={() => resetForm()}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button></DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
-              <DialogHeader>
-                <DialogTitle>{editingId ? "Editar regra" : "Nova regra"}</DialogTitle>
-                {editingId && <DialogDescription>Atualize os campos e salve.</DialogDescription>}
-              </DialogHeader>
-              <form onSubmit={submitRule} className="flex-1 overflow-y-auto p-6 space-y-4 box-border min-w-0">
+          <Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="h-4 w-4 mr-2" /> Nova regra</Button>
+          <FormDialog
+            open={open}
+            onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}
+            title={editingId ? "Editar regra" : "Nova regra"}
+            description={editingId ? "Atualize os campos e salve." : undefined}
+            maxWidth="4xl"
+            footer={
+              <div className="w-full flex items-center justify-end gap-3">
+                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" form="rule-form">
+                  {editingId ? "Atualizar" : "Criar"}
+                </Button>
+              </div>
+            }
+          >
+            <form id="rule-form" onSubmit={submitRule} className="space-y-4">
                 {calcSyncErrors.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2304,13 +2322,11 @@ const Rules = () => {
                   </AccordionItem>
                 </Accordion>
 
-                <Button type="submit" className="w-full shrink-0">{editingId ? "Salvar alterações" : "Criar"}</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </>}
+            </form>
+          </FormDialog>
+        </>
+      }
       />
-
       <div className="p-8 space-y-4">
         {/* Banner de regras incompletas */}
         {incompleteCount > 0 && (
