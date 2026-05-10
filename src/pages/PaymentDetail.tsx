@@ -1741,11 +1741,14 @@ const PaymentDetail = () => {
                   return it.ai_status === "reprovado" || it.ai_status === "alerta";
                 }
                 if (criticalFilter === "approved") {
-                  // Aprovado legítimo: status aprovado E sem NENHUM alerta, divergência ou observação da IA
+                  // Flexível: status aprovado (pode ter alertas informativos ou justificativas)
+                  return it.ai_status === "aprovado";
+                }
+                if (criticalFilter === "approved_strict") {
+                  // Sem pendências: status aprovado E sem alertas E sem notas E sem divergência
                   const hasAlerts = (it.ai_findings?.alerts?.length ?? 0) > 0;
                   const hasAiNote = !!it.ai_findings?.engine?.ai_note;
                   const hasDiff = (it.ai_findings?.engine?.diff_pct ?? 0) !== 0;
-                  
                   return it.ai_status === "aprovado" && !hasAlerts && !hasAiNote && !hasDiff;
                 }
 
