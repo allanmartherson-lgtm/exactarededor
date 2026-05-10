@@ -199,6 +199,8 @@ export interface ItemInput {
   complement_reason?: string | null;
   /** Convênio/operadora lido da base (header "Convênio"). */
   agreement_name?: string | null;
+  /** Se verdadeiro, o valor base (procedure_amount) já é o total (Unitário * Qtd). */
+  convenio_value_totalized?: boolean | null;
   /** Especialidade resolvida no import (header "Especialidade" ou cadastro do médico). */
   specialty?: string | null;
   /** Setor informado na planilha (opcional). */
