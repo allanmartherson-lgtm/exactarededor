@@ -990,33 +990,72 @@ const NewPayment = () => {
                             <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                            >
-                              <Pencil className="h-3 w-3 mr-1" />
-                              {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[min(360px,calc(100vw-2rem))] p-2" align="end" collisionPadding={16}>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
-                            </p>
-                            <CompanyCombobox
-                              className="w-full"
-                              value={
-                                b.matchedCompany
-                                  ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
-                                  : null
-                              }
-                              onChange={(c) => c && overrideBucketCompany(idx, c)}
-                              placeholder="Buscar empresa por nome ou CNPJ…"
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div className="flex items-center gap-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                {b.matchedCompany ? "Trocar empresa" : "Selecionar empresa"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[min(360px,calc(100vw-2rem))] p-2" align="end" collisionPadding={16}>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Escolha a empresa correta. O nome do arquivo será salvo como apelido para reconhecimento automático nas próximas importações.
+                              </p>
+                              <CompanyCombobox
+                                className="w-full"
+                                value={
+                                  b.matchedCompany
+                                    ? { id: b.matchedCompany.id, name: b.matchedCompany.name, document: null }
+                                    : null
+                                }
+                                onChange={(c) => c && overrideBucketCompany(idx, c)}
+                                placeholder="Buscar empresa por nome ou CNPJ…"
+                              />
+                            </PopoverContent>
+                          </Popover>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Setor: {b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-3" align="end">
+                              <div className="space-y-3">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium">Mapear setor</h4>
+                                  <p className="text-xs text-muted-foreground">Forçar um setor para todos os itens deste arquivo.</p>
+                                </div>
+                                <Select 
+                                  value={b.sectorMapping || "auto"} 
+                                  onValueChange={(v) => {
+                                    setBuckets(prev => prev.map((x, i) => i === idx ? { ...x, sectorMapping: v === "auto" ? null : v } : x));
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="auto" className="text-xs italic">Detectar automaticamente</SelectItem>
+                                    {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map(s => (
+                                      <SelectItem key={s} value={s} className="text-xs">{RULE_SECTOR_LABELS[s]}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                         <span className="text-xs text-muted-foreground">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
                         </span>
