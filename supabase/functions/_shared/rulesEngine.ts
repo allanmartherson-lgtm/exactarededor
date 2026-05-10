@@ -910,7 +910,7 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
-export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string) => number | null;
+export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string, role?: string | null) => number | null;
 
 /**
  * Camada 2: dado um id de tabela de exceção (sem_acordo/exclusao) e um código
@@ -1148,7 +1148,7 @@ function calcTabelaDiferenciada(
         alerts: ["Item sem código TUSS — não é possível buscar na tabela de referência."],
       };
     }
-    const v = lookup(rule.reference_table_id, code);
+    const v = lookup(rule.reference_table_id, code, item.doctor_role);
     if (v == null) {
       return {
         expected: null,

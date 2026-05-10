@@ -43,6 +43,7 @@ const KIND_LABEL: Record<RefKind, string> = {
 };
 type RefItem = {
   id: string; code: string; description: string | null; amount: number | null;
+  role: string | null;
   port: string | null; port_multiplier: number | null; aux_count: number | null;
   package_id: string | null; tuss_codes: string[] | null; package_amount: number | null; notes: string | null;
 };
@@ -95,12 +96,12 @@ const ReferenceTables = () => {
                   { key: "notes", label: "Observação", aliases: ["observacao", "obs", "notes"] },
                 ]
               : [
-                  { key: "code", label: "Código", required: true, uniqueKey: true, aliases: ["codigo", "cod", "tuss"] },
+                  { key: "code", label: "Código", required: true, aliases: ["codigo", "cod", "tuss"] },
                   { key: "description", label: "Descrição", aliases: ["descricao", "procedimento", "nome"] },
+                  { key: "role", label: "Atuação / Função", aliases: ["atuacao", "funcao", "role", "tipo"] },
                   {
                     key: "amount",
                     label: "Valor",
-                    // Apenas finalidade "calculo" exige valor. Exclusão e Sem acordo ignoram.
                     required: selected.purpose !== "exclusao" && selected.purpose !== "sem_acordo",
                     type: "number",
                     aliases: ["valor", "preco", "preço", "amount"],
@@ -385,6 +386,7 @@ const ReferenceTables = () => {
           .map((row) => {
             const codeKey = findKey(row, ["codigo", "código", "code"]);
             const descKey = findKey(row, ["descricao", "descrição", "description", "procedimento"]);
+            const roleKey = findKey(row, ["atuacao", "funcao", "role", "tipo"]);
             const valKey = findKey(row, ["valor", "amount", "preco", "preço"]);
             const code = codeKey ? String(row[codeKey]).trim() : "";
             if (!code) return null;
@@ -392,6 +394,7 @@ const ReferenceTables = () => {
               reference_table_id: selected.id,
               code,
               description: descKey ? String(row[descKey]) : null,
+              role: roleKey ? String(row[roleKey]).trim() : null,
               amount: parseNumber(valKey ? row[valKey] : null) ?? 0,
             };
           })
@@ -453,8 +456,9 @@ const ReferenceTables = () => {
       // Simples / Tabela Própria
       filename = "modelo_tabela_simples.xlsx";
       const ws = XLSX.utils.json_to_sheet([
-        { "código": "30101011", "descrição": "Procedimento X", "valor": 150.00 },
-        { "código": "30101012", "descrição": "Procedimento Y", "valor": 200.00 },
+        { "código": "30101011", "descrição": "Procedimento X", "atuação": "Cirurgião", "valor": 150.00 },
+        { "código": "30101011", "descrição": "Procedimento X", "atuação": "Auxiliar 1", "valor": 45.00 },
+        { "código": "30101012", "descrição": "Procedimento Y", "atuação": "Valor Fixo", "valor": 200.00 },
       ]);
       XLSX.utils.book_append_sheet(wb, ws, "Template");
     }
@@ -638,7 +642,14 @@ const ReferenceTables = () => {
                             ) : (
                               <div className="flex flex-col sm:items-end gap-1">
                                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider sm:hidden">Valor</span>
-                                <span className="text-sm font-bold text-foreground">{formatCurrency(it.amount ?? 0)}</span>
+                                <div className="flex flex-col items-end">
+                                  <span className="text-sm font-bold text-foreground">{formatCurrency(it.amount ?? 0)}</span>
+                                  {it.role && (
+                                    <span className="text-[10px] font-medium text-primary px-1.5 py-0.5 bg-primary/5 rounded border border-primary/10">
+                                      {it.role}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>

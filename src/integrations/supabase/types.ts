@@ -1200,6 +1200,7 @@ export type Database = {
           port: string | null
           port_multiplier: number
           reference_table_id: string
+          role: string | null
           tuss_codes: string[]
         }
         Insert: {
@@ -1215,6 +1216,7 @@ export type Database = {
           port?: string | null
           port_multiplier?: number
           reference_table_id: string
+          role?: string | null
           tuss_codes?: string[]
         }
         Update: {
@@ -1230,6 +1232,7 @@ export type Database = {
           port?: string | null
           port_multiplier?: number
           reference_table_id?: string
+          role?: string | null
           tuss_codes?: string[]
         }
         Relationships: [
