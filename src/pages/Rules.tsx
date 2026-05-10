@@ -1120,7 +1120,12 @@ const Rules = () => {
       return;
     }
 
-    setOpen(false); resetForm(); load();
+      setOpen(false); resetForm(); load();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   /** Executa o delete + insert dos rule_calculations e devolve a lista de erros. */
