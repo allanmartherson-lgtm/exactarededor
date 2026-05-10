@@ -344,13 +344,13 @@ const Users = () => {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />Novo usuário</Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+              <DialogHeader className="p-6 pb-2">
                 <DialogTitle>Novo usuário</DialogTitle>
                 <DialogDescription>Crie uma conta e atribua papéis. O usuário definirá a senha no primeiro acesso.</DialogDescription>
               </DialogHeader>
               {tempPwd ? (
-                <div className="space-y-3">
+                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
                   <p className="text-sm">Senha temporária gerada. Compartilhe com o usuário — ele deverá alterá-la no primeiro acesso.</p>
                   <div className="flex items-center gap-2">
                     <Input readOnly value={tempPwd} className="font-mono" />
@@ -358,12 +358,9 @@ const Users = () => {
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <DialogFooter>
-                    <Button onClick={() => { setOpen(false); resetForm(); }}>Concluir</Button>
-                  </DialogFooter>
                 </div>
               ) : (
-                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 box-border min-w-0">
                   {accessRequestId && (
                     <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
                       Criando a partir de uma solicitação de acesso aprovada.
@@ -423,7 +420,7 @@ const Users = () => {
                       </p>
                     </div>
                   </div>
-                  <DialogFooter>
+                  <DialogFooter className="p-6 pt-4 border-t">
                     <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
                     <Button onClick={submit} disabled={saving}>{saving ? "Criando..." : "Criar usuário"}</Button>
                   </DialogFooter>
@@ -551,16 +548,16 @@ const Users = () => {
         </CardContent></Card>
       </div>
       <Dialog open={!!manualLink} onOpenChange={(o) => !o && setManualLink(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{manualLink?.kind === "invite" ? "Link de convite" : "Link de redefinição"}</DialogTitle>
             <DialogDescription>
               Se o e-mail não chegar para {manualLink?.email}, copie e envie este link manualmente.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
             <Input readOnly value={manualLink?.link ?? ""} className="font-mono text-xs" />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 type="button"
                 onClick={() => {
@@ -577,6 +574,9 @@ const Users = () => {
               </Button>
             </div>
           </div>
+          <DialogFooter className="p-6 pt-2">
+            <Button variant="outline" onClick={() => setManualLink(null)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
@@ -712,8 +712,8 @@ const Users = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={!!resetResult} onOpenChange={(o) => !o && setResetResult(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-lg max-h-[92vh] overflow-y-auto sm:p-0 p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{resetResult?.emailSent ? "E-mail de redefinição enviado" : "Não foi possível enviar o e-mail"}</DialogTitle>
             <DialogDescription>
               {resetResult?.emailSent
@@ -721,20 +721,22 @@ const Users = () => {
                 : (resetResult?.warning ?? "Use o link manual abaixo para compartilhar com o usuário por um canal seguro.")}
             </DialogDescription>
           </DialogHeader>
-          {resetResult?.actionLink && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Link de redefinição manual (válido por tempo limitado). Use somente se o e-mail não chegar.
-              </p>
-              <div className="flex items-center gap-2">
-                <Input readOnly value={resetResult.actionLink} className="font-mono text-xs" />
-                <Button size="icon" variant="outline" onClick={() => resetResult.actionLink && copyText(resetResult.actionLink, "Link copiado")}>
-                  <Copy className="h-4 w-4" />
-                </Button>
+          <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4">
+            {resetResult?.actionLink && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Link de redefinição manual (válido por tempo limitado). Use somente se o e-mail não chegar.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={resetResult.actionLink} className="font-mono text-xs" />
+                  <Button size="icon" variant="outline" onClick={() => resetResult.actionLink && copyText(resetResult.actionLink, "Link copiado")}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-          <DialogFooter>
+            )}
+          </div>
+          <DialogFooter className="p-6 pt-2">
             <Button onClick={() => setResetResult(null)}>Concluir</Button>
           </DialogFooter>
         </DialogContent>

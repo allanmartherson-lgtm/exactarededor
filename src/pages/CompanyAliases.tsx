@@ -127,10 +127,10 @@ export default function CompanyAliases() {
           ) : (
             <div className="space-y-3">
               {visible.map((c) => (
-                <div key={c.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="font-medium">{c.name}</span>
-                    <span className="text-xs text-muted-foreground">
+                <div key={c.id} className="border rounded-lg p-4 space-y-2 hover:bg-muted/10 transition-colors">
+                  <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+                    <span className="font-semibold text-sm sm:text-base truncate max-w-full">{c.name}</span>
+                    <span className="text-[10px] sm:text-xs text-muted-foreground font-mono">
                       CNPJ {c.document ? formatCNPJ(c.document) : "—"}
                     </span>
                   </div>
