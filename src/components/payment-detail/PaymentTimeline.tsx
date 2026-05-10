@@ -53,6 +53,7 @@ export const PaymentTimeline = ({
   const [editingObsDraft, setEditingObsDraft] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"linear" | "phases">("phases");
   // Drafts da resposta inline a uma pergunta interna (por questionId).
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [replyOpenFor, setReplyOpenFor] = useState<string | null>(null);
