@@ -421,5 +421,6 @@ const CostCenters = () => {
   </>
 );
 };
+};
 
 export default CostCenters;

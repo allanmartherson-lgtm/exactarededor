@@ -106,6 +106,9 @@ const Payments = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [reprocessing, setReprocessing] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
@@ -962,7 +965,8 @@ const Payments = () => {
               </div>
             ))}
           </div>
-        )}
+          </div>
+        </div>
       </div>
     </>
   );
