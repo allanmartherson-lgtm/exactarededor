@@ -1821,17 +1821,34 @@ const Rules = () => {
                           <div className="space-y-4 animate-fade-in">
                             {/* Tabela de vínculos por empresa */}
                             <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-4">
                                 <div>
                                   <Label className="text-sm font-semibold">Vínculos por empresa</Label>
                                   <p className="text-xs text-muted-foreground">Cada linha = uma empresa. Sem médicos selecionados → aplica a todos da empresa.</p>
                                 </div>
-                                <Button
-                                  type="button" size="sm" variant="outline"
-                                  onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
-                                </Button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {fGroupLinks.length > 1 && (
+                                    <Button
+                                      type="button" size="sm" variant="ghost"
+                                      onClick={() => {
+                                        setFGroupLinks(prev => [...prev].sort((a, b) => {
+                                          const nameA = (a as any).company_name || companies.find(c => c.id === a.company_id)?.name || "";
+                                          const nameB = (b as any).company_name || companies.find(c => c.id === b.company_id)?.name || "";
+                                          return nameA.localeCompare(nameB);
+                                        }));
+                                      }}
+                                      title="Ordenar por nome"
+                                    >
+                                      A-Z
+                                    </Button>
+                                  )}
+                                  <Button
+                                    type="button" size="sm" variant="outline"
+                                    onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
+                                  </Button>
+                                </div>
                               </div>
 
                               {fGroupLinks.length === 0 && (
@@ -1850,8 +1867,9 @@ const Rules = () => {
                                   const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
                                   return (
                                     <div key={idx} className={cn(
-                                      "rounded-md border bg-card p-3 space-y-2 animate-fade-in",
-                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "border-border"
+                                      "rounded-md border bg-card p-3 space-y-2 animate-fade-in transition-all duration-500",
+                                      (link as any)._isNew ? "ring-2 ring-primary/20 border-primary/50 shadow-sm" : "border-border",
+                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : ""
                                     )}>
                                       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
                                         <div className="space-y-1 min-w-0">
