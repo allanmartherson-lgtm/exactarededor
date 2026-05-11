@@ -975,6 +975,10 @@ export interface EngineCtx extends PaymentContext {
  * configurada (modo "qualquer"/vazio), ela é considerada satisfeita.
  */
 export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
+  // Via de acesso
+  if (!ruleAcceptsAccessRoute(c, item)) {
+    return { ok: false, reason: "via_de_acesso" };
+  }
   // Dia da semana
   const wds = Array.isArray(c.weekdays) ? c.weekdays : [];
   if (wds.length > 0 && item.procedure_date) {
