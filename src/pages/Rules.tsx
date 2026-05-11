@@ -1825,7 +1825,7 @@ const Rules = () => {
                   {/* Aplicação da regra */}
                   <AccordionItem value="aplicacao" className="rounded-md border border-border bg-card px-3">
                     <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.aplicacao > 0 && "text-destructive")}>
-                      <span className="flex items-center">Aplicação da regra
+                      <span className="flex items-center">Alvos e Filtros (Aplicação)
                         {sectionErrors.aplicacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.aplicacao}</span>}
                       </span>
                     </AccordionTrigger>
