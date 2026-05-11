@@ -1325,7 +1325,35 @@ function findNextCalculableRule(
   return null;
 }
 
+/**
+ * Busca uma regra master (geral) que possa servir de fallback quando 
+ * regras específicas falham. Prioriza regras que não tenham restrições 
+ * (como código, médico ou via de acesso).
+ */
+function findFallbackGeneralRule(
+  item: ItemInput,
+  rules: RuleInput[],
+  ctx?: EngineCtx,
+): { rule: RuleInput; priority: RuleMatchPriority } | null {
+  // Filtra apenas regras master (gerais)
+  const masterRules = rules.filter(r => r.scope === "master" && r.calculation_type !== "exclusao");
+  
+  // Tenta encontrar uma regra master que não tenha nenhuma restrição de via
+  // e que aceite o convênio do item.
+  const genericMaster = masterRules.find(r => 
+    (!r.allowed_access_routes || r.allowed_access_routes.length === 0) &&
+    ruleAcceptsItemAgreement(r, item)
+  );
+
+  if (genericMaster) {
+    return { rule: genericMaster, priority: "setor_master_geral" };
+  }
+
+  return null;
+}
+
 export function analyzeItem(
+
   item: ItemInput,
   preFilteredRules: RuleInput[],
   ctx?: EngineCtx,
