@@ -301,11 +301,14 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Se há uma busca ativa, mostramos os resultados filtrados com paginação
-    // Para simplificar, paginamos sempre a lista (seja a filtrada ou a completa)
+    // Se há uma busca ativa, mostramos TODOS os resultados filtrados para o usuário encontrar quem precisa
+    if (search.trim() || filterCompany) {
+      return filtered;
+    }
+    // Sem busca ativa, mantemos a paginação apenas para a listagem inicial ser rápida
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filtered.slice(startIndex, startIndex + itemsPerPage);
-  }, [filtered, currentPage, itemsPerPage]);
+  }, [filtered, currentPage, itemsPerPage, search, filterCompany]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
@@ -498,9 +501,11 @@ export default function Doctors() {
                 <span className="font-semibold">
                   {filtered.length} médico(s) encontrados
                 </span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  Página {currentPage} de {totalPages || 1}
-                </span>
+                {!search.trim() && !filterCompany && (
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    Página {currentPage} de {totalPages || 1}
+                  </span>
+                )}
               </div>
               <span className="text-xs font-normal text-muted-foreground">
                 Base total: {totalDatabase} médicos
@@ -556,7 +561,7 @@ export default function Doctors() {
               </div>
             )}
           </CardContent>
-          {totalPages > 1 && (
+          {!search.trim() && !filterCompany && totalPages > 1 && (
             <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
               <div className="text-xs text-muted-foreground">
                 Mostrando {displayItems.length} de {filtered.length} médicos
