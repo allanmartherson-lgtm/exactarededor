@@ -407,7 +407,7 @@ serve(async (req) => {
       for (const row of (refRows ?? []) as any[]) {
         const tid = row.reference_table_id as string;
         const code = String(row.code ?? "").trim();
-        const role = row.role ? String(row.role).trim().toLowerCase() : null;
+        const role = row.role ? row.role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
         if (!tid || !code) continue;
         const amt = row.amount != null ? Number(row.amount) : (row.package_amount != null ? Number(row.package_amount) : null);
         if (amt == null || Number.isNaN(amt)) continue;
