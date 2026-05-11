@@ -1003,6 +1003,8 @@ export type Database = {
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_type: Database["public"]["Enums"]["payment_type"] | null
+          processing_diagnostics: Json | null
+          processing_timeout_occurred: boolean | null
           reference: string
           sectors: string[]
           source_file_path: string | null
@@ -1030,6 +1032,8 @@ export type Database = {
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: Database["public"]["Enums"]["payment_type"] | null
+          processing_diagnostics?: Json | null
+          processing_timeout_occurred?: boolean | null
           reference: string
           sectors?: string[]
           source_file_path?: string | null
@@ -1057,6 +1061,8 @@ export type Database = {
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: Database["public"]["Enums"]["payment_type"] | null
+          processing_diagnostics?: Json | null
+          processing_timeout_occurred?: boolean | null
           reference?: string
           sectors?: string[]
           source_file_path?: string | null

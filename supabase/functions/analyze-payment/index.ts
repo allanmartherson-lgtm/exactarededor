@@ -30,6 +30,15 @@ interface PaymentRow {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const startTime = Date.now();
+  let diagnostics = {
+    total_items: 0,
+    ai_processed_items: 0,
+    chunk_size: 50, // Limite configurado
+    execution_time_ms: 0,
+    status: "processing"
+  };
+
   try {
     const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
@@ -1015,13 +1024,54 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }).catch(e => console.error("Failed to notify analyst (ia_concluded):", e));
     }
 
+    // ---------- 11. Atualiza Diagnósticos no Banco ----------
+    diagnostics.execution_time_ms = Date.now() - startTime;
+    diagnostics.status = "success";
+    diagnostics.total_items = results.length;
+    diagnostics.ai_processed_items = itemsToReview.length;
+
+    await supabase.from("payments").update({
+      processing_diagnostics: diagnostics,
+      processing_timeout_occurred: false
+    }).eq("id", payment_id);
+
     return new Response(
-      JSON.stringify({ ok: true, alerts, blocks, total: results.length, ai_used: itemsToReview.length > 0 }),
+      JSON.stringify({ 
+        ok: true, 
+        alerts, 
+        blocks, 
+        total: results.length, 
+        ai_used: itemsToReview.length > 0,
+        diagnostics 
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     console.error("analyze-payment error", msg);
+
+    // Registra erro de timeout ou outro
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    
+    // Tenta extrair ID do pagamento do corpo se possível (estratégia de fallback)
+    try {
+      const body = await req.clone().json();
+      if (body.payment_id) {
+        await supabase.from("payments").update({
+          processing_timeout_occurred: true,
+          processing_diagnostics: { 
+            ...diagnostics, 
+            status: "error", 
+            error: msg, 
+            execution_time_ms: Date.now() - startTime 
+          }
+        }).eq("id", body.payment_id);
+      }
+    } catch (_) {}
+
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
