@@ -103,13 +103,6 @@ const ObservationTypeSelector = ({
         <Pencil className="h-3 w-3" />
         Justificativa
       </Button>
-      <RuleTestModal
-        paymentId={id!}
-        paymentReference={payment?.reference || "Lote"}
-        items={items}
-        isOpen={isTestModalOpen}
-        onClose={() => setIsTestModalOpen(false)}
-      />
     </div>
   );
 };
