@@ -110,10 +110,6 @@ export default function Doctors() {
       const total = countResp.count ?? 0;
       setTotalDatabase(total);
 
-      // Carregamento de médicos em páginas para evitar timeout ou estouro de memória
-      const PAGE_SIZE = 5000;
-      let allDoctors: Doctor[] = [];
-      
       // Carregamento progressivo para evitar timeout e garantir que todos os dados cheguem
       const PAGE_SIZE = 2500;
       let allDoctors: Doctor[] = [];
