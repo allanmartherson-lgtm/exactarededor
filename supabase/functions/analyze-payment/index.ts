@@ -419,7 +419,7 @@ serve(async (req) => {
       const t = refValues[tableId];
       if (!t) return null;
       const c = String(code).trim();
-      const r = role ? String(role).trim().toLowerCase() : null;
+      const r = role ? role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
       // Busca específica por papel, fallback para código puro
       if (r && t[`${c}|${r}`] != null) return t[`${c}|${r}`];
       return t[c] ?? null;
