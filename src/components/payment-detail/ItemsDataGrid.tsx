@@ -1236,7 +1236,7 @@ function ItemDetailsRow({
             {/* Coluna 3 (mobile: 2º — cálculo, prioridade no mobile pois resume divergência) */}
             <div className="space-y-2 min-w-0 order-2 lg:order-3">
               {(engine || expected != null || explanation) && (
-                <div className={CARD}>
+                <SafeCard>
                   <Label icon={FileText}>Detalhes do cálculo</Label>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5 mb-2">
                     {priority && (
@@ -1272,18 +1272,20 @@ function ItemDetailsRow({
                     )}
                   </div>
                   {explanation && (
-                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{explanation}</p>
+                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">
+                      <span className="break-all">{explanation}</span>
+                    </p>
                   )}
-                </div>
+                </SafeCard>
               )}
 
               {diff != null && Math.abs(diff) > 0.01 && expected != null && (
-                <div className={cn(CARD, "border-warning/30 bg-warning-soft/40")}>
+                <SafeCard className="border-warning/30 bg-warning-soft/40">
                   <Label>Sugestão de ajuste</Label>
                   <p className="mt-1">
                     Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
                   </p>
-                </div>
+                </SafeCard>
               )}
             </div>
           </div>
