@@ -83,6 +83,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const fileRef = useRef<HTMLInputElement>(null);
 
   const supportedModes = profile.supportedModes ?? ["append", "update"];
+  const sheet = sheets.find((s) => s.name === activeSheet);
+  const autoDetectedValueColumns = sheet
+    ? detectValueColumns(sheet.headers, rowsBySheet[activeSheet] ?? [], mapping)
+    : [];
 
   useEffect(() => {
     if (!open) {
@@ -99,8 +103,6 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       setReplaceConfirm("");
     }
   }, [open]);
-
-  const sheet = sheets.find((s) => s.name === activeSheet);
 
   const callFn = async (body: any) => {
     const { data, error } = await supabase.functions.invoke("import-wizard", { body });
@@ -131,38 +133,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
   const prepareValidation = async () => {
     if (profile.entity === "reference_table_items" && profile.fields.some(f => f.key === "amount")) {
-      const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
-      const roles = new Set<string>();
       const rows = rowsBySheet[activeSheet] ?? [];
-      const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
-      
-      const mainAmountCol = mapping["amount"];
-      if (mainAmountCol) roles.add(mainAmountCol);
-
-      // Analyze more rows and handle case where mapping is empty but keywords match
-      const checkRows = rows.slice(0, 500);
       const headers = sheets.find(s => s.name === activeSheet)?.headers || [];
+      const rolesList = detectValueColumns(headers, rows, mapping);
 
-      headers.forEach(colName => {
-        // Skip columns already mapped to OTHER fields, but allow checking columns mapped to 'amount' or not mapped at all
-        const otherMapped = Object.entries(mapping).some(([k, v]) => v === colName && k !== "amount");
-        if (otherMapped) return;
-
-        const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const hasKeyword = amountKeywords.some(k => lowCol.includes(k));
-        
-        if (hasKeyword) {
-          // Verify if it actually contains numbers in the data
-          const hasNumbers = checkRows.some(row => {
-            const val = normalizeNumericValue(row[colName]);
-            return !val.invalid && val.value > 0;
-          });
-          if (hasNumbers) roles.add(colName);
-        }
-      });
-
-      if (roles.size > 1 || (roles.size === 1 && !mapping["role"])) {
-        const rolesList = Array.from(roles);
+      if (rolesList.length > 1 || (rolesList.length === 1 && !mapping["role"])) {
         setDetectedRoles(rolesList);
         const initialRoleMap: Record<string, string> = { ...roleMapping };
         rolesList.forEach(r => { 
@@ -215,7 +190,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const runCommit = async () => {
     // Validações de segurança antes de chamar o backend
     const requiredMissing = profile.fields
-      .filter((f) => f.required && !mapping[f.key])
+      .filter((f) => {
+        if (!f.required) return false;
+        if (f.key === "amount" && profile.entity === "reference_table_items" && autoDetectedValueColumns.length > 0) return false;
+        return !mapping[f.key];
+      })
       .map((f) => f.label);
     if (requiredMissing.length > 0) {
       toast({
@@ -380,8 +359,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                         {f.required && <span className="text-destructive ml-1">*</span>}
                       </span>
                       {f.key === "amount" && (
-                        <span className="text-[10px] font-normal text-blue-600 bg-blue-50 px-1 rounded border border-blue-100">
-                          Múltiplas colunas serão detectadas
+                        <span className="text-[10px] font-normal text-primary bg-primary/10 px-1 rounded border border-primary/20">
+                          {autoDetectedValueColumns.length > 1
+                            ? `${autoDetectedValueColumns.length} colunas detectadas`
+                            : "Detecção automática ativa"}
                         </span>
                       )}
                     </Label>
@@ -402,6 +383,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                         </option>
                       ))}
                     </select>
+                    {f.key === "amount" && autoDetectedValueColumns.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Detectadas: {autoDetectedValueColumns.join(", ")}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -762,6 +748,33 @@ const norm = (s: any) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 
+const VALUE_COLUMN_KEYWORDS = [
+  "valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr",
+  "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao",
+].map(norm);
+
+function detectValueColumns(headers: string[], rows: any[], mapping: Record<string, string | null>) {
+  const detected = new Set<string>();
+  const checkRows = rows.slice(0, 500);
+  const hasPositiveNumber = (colName: string) => checkRows.some((row) => {
+    const val = normalizeNumericValue(row[colName]);
+    return !val.invalid && val.value > 0;
+  });
+
+  const mainAmountCol = mapping["amount"];
+  if (mainAmountCol && hasPositiveNumber(mainAmountCol)) detected.add(mainAmountCol);
+
+  headers.forEach((colName) => {
+    const otherMapped = Object.entries(mapping).some(([k, v]) => v === colName && k !== "amount");
+    if (otherMapped) return;
+    const normalizedColumn = norm(colName);
+    const looksLikeValueColumn = VALUE_COLUMN_KEYWORDS.some((keyword) => normalizedColumn.includes(keyword));
+    if (looksLikeValueColumn && hasPositiveNumber(colName)) detected.add(colName);
+  });
+
+  return Array.from(detected);
+}
+
 function suggestMapping(headers: string[], fields: ImportFieldDef[]) {
   const out: Record<string, string | null> = {};
   const used = new Set<string>();
@@ -789,7 +802,8 @@ const parseNumber = (v: any): number | null => {
 
 function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[], entity?: ImportProfile["entity"], roleMapping?: Record<string, string>) {
   const result: any[] = [];
-  const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const detectedValueColumns = detectValueColumns(headers, rows, mapping);
 
   rows.forEach((row, rowIndex) => {
     const base: Record<string, any> = {};
@@ -812,33 +826,14 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
 
     if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
       const amountCols: { role: string, amount: number, sourceCol: string }[] = [];
-      const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
-      
-      // 1. Check explicitly mapped amount
-      const mainAmountCol = mapping["amount"];
-      if (mainAmountCol && row[mainAmountCol] !== undefined) {
-        const val = normalizeNumericValue(row[mainAmountCol]);
-        if (!val.invalid && val.value > 0) {
-          const roleCol = mapping["role"];
-          const roleRaw = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
-          const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
-          amountCols.push({ role, amount: val.value, sourceCol: mainAmountCol });
-        }
-      }
+      const roleCol = mapping["role"];
 
-      // 2. Automatically find other columns that look like amounts
-      Object.keys(row).forEach(colName => {
-        if (mappedSheetCols.has(colName)) return;
-        
-        const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const looksLikeAmount = amountKeywords.some(k => lowCol.includes(k));
-        
-        if (looksLikeAmount) {
-          const val = normalizeNumericValue(row[colName]);
-          if (!val.invalid && val.value > 0) {
-            const role = (roleMapping && roleMapping[colName]) || colName;
-            amountCols.push({ role, amount: val.value, sourceCol: colName });
-          }
+      detectedValueColumns.forEach(colName => {
+        const val = normalizeNumericValue(row[colName]);
+        if (!val.invalid && val.value > 0) {
+          const roleRaw = roleCol && colName === mapping["amount"] ? String(row[roleCol] || "").trim() : colName;
+          const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
+          amountCols.push({ role, amount: val.value, sourceCol: colName });
         }
       });
 
