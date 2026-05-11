@@ -802,7 +802,8 @@ const parseNumber = (v: any): number | null => {
 
 function applyMapping(rows: any[], mapping: Record<string, string | null>, fields: ImportFieldDef[], entity?: ImportProfile["entity"], roleMapping?: Record<string, string>) {
   const result: any[] = [];
-  const amountKeywords = ["valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr", "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao"];
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const detectedValueColumns = detectValueColumns(headers, rows, mapping);
 
   rows.forEach((row, rowIndex) => {
     const base: Record<string, any> = {};
@@ -825,33 +826,14 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
 
     if (entity === "reference_table_items" && fields.some(f => f.key === "amount")) {
       const amountCols: { role: string, amount: number, sourceCol: string }[] = [];
-      const mappedSheetCols = new Set(Object.values(mapping).filter(Boolean));
-      
-      // 1. Check explicitly mapped amount
-      const mainAmountCol = mapping["amount"];
-      if (mainAmountCol && row[mainAmountCol] !== undefined) {
-        const val = normalizeNumericValue(row[mainAmountCol]);
-        if (!val.invalid && val.value > 0) {
-          const roleCol = mapping["role"];
-          const roleRaw = roleCol ? String(row[roleCol] || "").trim() : mainAmountCol;
-          const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
-          amountCols.push({ role, amount: val.value, sourceCol: mainAmountCol });
-        }
-      }
+      const roleCol = mapping["role"];
 
-      // 2. Automatically find other columns that look like amounts
-      Object.keys(row).forEach(colName => {
-        if (mappedSheetCols.has(colName)) return;
-        
-        const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const looksLikeAmount = amountKeywords.some(k => lowCol.includes(k));
-        
-        if (looksLikeAmount) {
-          const val = normalizeNumericValue(row[colName]);
-          if (!val.invalid && val.value > 0) {
-            const role = (roleMapping && roleMapping[colName]) || colName;
-            amountCols.push({ role, amount: val.value, sourceCol: colName });
-          }
+      detectedValueColumns.forEach(colName => {
+        const val = normalizeNumericValue(row[colName]);
+        if (!val.invalid && val.value > 0) {
+          const roleRaw = roleCol && colName === mapping["amount"] ? String(row[roleCol] || "").trim() : colName;
+          const role = (roleMapping && roleMapping[roleRaw]) || roleRaw;
+          amountCols.push({ role, amount: val.value, sourceCol: colName });
         }
       });
 
