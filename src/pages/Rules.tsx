@@ -28,7 +28,7 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DoctorsEditor } from "@/components/MultiSelectChips";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
@@ -1783,43 +1783,67 @@ const Rules = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2 pt-2 border-t border-border/50">
-                        <Label className="text-sm font-semibold">Vias de acesso (eixo determinístico)</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Restringir a regra a vias específicas (ex: "Única ou principal"). 
-                          O motor normaliza variações (ex: "única/principal", "1ª via") automaticamente. 
-                          Vazio = aplica a qualquer via.
-                        </p>
-                        <div className="space-y-1.5">
-                          <Input
-                            value={fAllowedAccessRouteInput}
-                            onChange={(e) => setFAllowedAccessRouteInput(e.target.value)}
-                            placeholder="Ex: Única ou principal (Enter para adicionar)"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === ",") {
-                                e.preventDefault();
-                                const v = fAllowedAccessRouteInput.trim();
-                                if (v && !fAllowedAccessRoutes.includes(v)) {
-                                  setFAllowedAccessRoutes(p => [...p, v]);
-                                }
-                                setFAllowedAccessRouteInput("");
-                              }
-                            }}
-                          />
-                          {fAllowedAccessRoutes.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {fAllowedAccessRoutes.map(a => (
-                                <button
-                                  key={a}
-                                  type="button"
-                                  onClick={() => setFAllowedAccessRoutes(p => p.filter(x => x !== a))}
-                                  className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
-                                >
-                                  {a} ✕
-                                </button>
-                              ))}
+                      <div className="space-y-4 pt-4 border-t border-border/50 bg-muted/20 p-4 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm font-bold text-primary uppercase tracking-wider">Configuração de Vias e Fallback</Label>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold">1. Via Única ou Principal</Label>
+                            <p className="text-[11px] text-muted-foreground">
+                              Esta regra (com sua tabela/lógica atual) será aplicada prioritariamente para procedimentos marcados como "Única ou principal".
+                            </p>
+                            <div className="flex items-center gap-2 rounded-md bg-background border border-primary/20 p-2 text-xs font-medium">
+                              <CheckCheck className="h-4 w-4 text-primary" />
+                              Via Única / Principal vinculada a esta regra
                             </div>
-                          )}
+                          </div>
+
+                          <div className="space-y-2 border-t border-border/40 pt-3">
+                            <Label className="text-xs font-semibold">2. Restrições Específicas de Via</Label>
+                            <p className="text-[11px] text-muted-foreground">
+                              Se desejar que esta regra aceite APENAS certas vias, liste-as abaixo. O motor normaliza variações (ex: "única/principal", "1ª via") automaticamente. <strong>Vazio = Aceita qualquer via</strong> (respeitando a prioridade do motor).
+                            </p>
+                            <div className="space-y-1.5">
+                              <Input
+                                value={fAllowedAccessRouteInput}
+                                onChange={(e) => setFAllowedAccessRouteInput(e.target.value)}
+                                placeholder="Digite a via e pressione Enter (ex: Única ou principal)"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === ",") {
+                                    e.preventDefault();
+                                    const v = fAllowedAccessRouteInput.trim();
+                                    if (v && !fAllowedAccessRoutes.includes(v)) {
+                                      setFAllowedAccessRoutes(p => [...p, v]);
+                                    }
+                                    fAllowedAccessRouteInput && setFAllowedAccessRouteInput("");
+                                  }
+                                }}
+                              />
+                              {fAllowedAccessRoutes.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {fAllowedAccessRoutes.map(a => (
+                                    <button
+                                      key={a}
+                                      type="button"
+                                      onClick={() => setFAllowedAccessRoutes(p => p.filter(x => x !== a))}
+                                      className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                                    >
+                                      {a} ✕
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 border-t border-border/40 pt-3">
+                            <Label className="text-xs font-semibold">3. Comportamento de Fallback</Label>
+                            <p className="text-[11px] text-muted-foreground italic">
+                              Caso o procedimento NÃO seja via única (ex: Mesma via ou Outra via), o sistema fará fallback automático para a <strong>Regra Geral do Convênio (100%)</strong> para garantir o pagamento.
+                            </p>
+                          </div>
                         </div>
                       </div>
 
