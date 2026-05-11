@@ -1026,7 +1026,11 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   if (wds.length > 0 && item.procedure_date) {
     const d = new Date(item.procedure_date);
     if (!Number.isNaN(d.getTime())) {
-      if (!wds.includes(d.getDay())) return { ok: false, reason: "dia_da_semana" };
+      // Ajuste para considerar o timezone local ou UTC conforme necessário
+      // O Date() de uma string YYYY-MM-DD pode cair no dia anterior em alguns timezones
+      // Aqui usamos a data pura da string se disponível para evitar deslocamento
+      const day = item.procedure_date.includes('T') ? d.getDay() : new Date(item.procedure_date + 'T12:00:00').getDay();
+      if (!wds.includes(day)) return { ok: false, reason: "dia_da_semana" };
     }
   }
   // Janela horária
@@ -1039,6 +1043,13 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
       if (!inside) return { ok: false, reason: "horario" };
     }
   }
+  // Eletivo vs Urgência
+  if (c.elective_mode && c.elective_mode !== "qualquer") {
+    const isUrgencia = /urgencia|emergencia|pronto/i.test(item.description ?? "");
+    if (c.elective_mode === "eletivo" && isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
+    if (c.elective_mode === "urgencia" && !isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
+  }
+
   return { ok: true };
 }
 
