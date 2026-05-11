@@ -28,7 +28,7 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DoctorsEditor } from "@/components/MultiSelectChips";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
@@ -831,10 +831,12 @@ const Rules = () => {
     setCalcSyncRetrying(false);
   };
 
-  const openEdit = async (r: RuleRow) => {
-    setEditingId(r.id);
-    setFActive(r.active !== false);
-    setFName(r.name ?? ""); setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
+  const openEdit = async (r: RuleRow, isDuplicate = false) => {
+    setEditingId(isDuplicate ? null : r.id);
+    
+    setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
+    setFActive(isDuplicate ? true : (r.active !== false));
+    setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
@@ -953,6 +955,11 @@ const Rules = () => {
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
     setOpen(true);
   };
+  const openDuplicate = (r: RuleRow) => {
+    openEdit(r, true);
+    toast({ title: "Copiando regra", description: "Ajuste os campos e salve para criar a nova regra." });
+  };
+
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -2608,6 +2615,7 @@ const Rules = () => {
                             </div>
                             <div className="flex flex-col gap-1">
                               <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
                             </div>
