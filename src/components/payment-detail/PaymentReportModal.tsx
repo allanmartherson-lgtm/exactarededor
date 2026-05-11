@@ -77,6 +77,7 @@ export function PaymentReportModal({
   payment,
   items,
   groups,
+  rulesIndex,
   analystName,
 }: PaymentReportModalProps) {
   const { toast } = useToast();
@@ -207,10 +208,19 @@ export function PaymentReportModal({
       const workerData = {
         summary,
         companyGroups,
-        filteredItems: filteredItems.map(it => ({
-          ...it,
-          procedure_date: it.procedure_date ? formatDateOnly(it.procedure_date) : ""
-        })),
+        filteredItems: filteredItems.map(it => {
+          const ruleIds = it.ai_findings?.matched_rule_ids || [];
+          const ruleNames = ruleIds.map(id => rulesIndex?.[id]?.name).filter(Boolean);
+          const ruleSummary = ruleNames.length > 0 
+            ? ruleNames.join(" | ") 
+            : (it.ai_findings?.matched_rules?.join(" | ") || "");
+
+          return {
+            ...it,
+            procedure_date: it.procedure_date ? formatDateOnly(it.procedure_date) : "",
+            rule_summary: ruleSummary
+          };
+        }),
         fileName
       };
 
