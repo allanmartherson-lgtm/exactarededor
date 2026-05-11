@@ -561,7 +561,7 @@ export default function Doctors() {
               </div>
             )}
           </CardContent>
-          {totalPages > 1 && (
+          {!search.trim() && !filterCompany && totalPages > 1 && (
             <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
               <div className="text-xs text-muted-foreground">
                 Mostrando {displayItems.length} de {filtered.length} médicos
