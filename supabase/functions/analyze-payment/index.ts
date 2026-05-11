@@ -30,6 +30,7 @@ interface PaymentRow {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const startTime = Date.now();
   try {
     const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
