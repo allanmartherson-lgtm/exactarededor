@@ -1511,10 +1511,12 @@ export function analyzeItem(
 
         // Se a matriz resolveu o cálculo, finalizamos aqui.
         if (calc) {
+          (winner as any).__from_matrix = true; // Marca para silenciar filtros de via antigos no applyCalculation
           return finalizeAnalysis(item, calc, winner, winnerPriority, ctx);
         }
       }
     }
+
 
     // === Camada 1 — Gating por-regra de convênio ===
     // A vencedora foi escolhida pelos eixos (especialidade/código/médico/
