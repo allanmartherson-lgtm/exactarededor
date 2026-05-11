@@ -14,7 +14,6 @@ import CompanyAnalysis from "./pages/CompanyAnalysis.tsx";
 import Rules from "./pages/Rules.tsx";
 import ValidationRules from "./pages/ValidationRules.tsx";
 import ReferenceTables from "./pages/ReferenceTables.tsx";
-import AccessRouteMatrices from "./pages/AccessRouteMatrices.tsx";
 
 import Users from "./pages/Users.tsx";
 
@@ -69,7 +68,7 @@ const App = () => (
               <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
               <Route path="/regras/validacao" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidationRules /></ProtectedRoute>} />
               <Route path="/tabelas" element={<ProtectedRoute roles={["diretor", "admin"]}><ReferenceTables /></ProtectedRoute>} />
-              <Route path="/regras/vias" element={<ProtectedRoute roles={["diretor", "admin"]}><AccessRouteMatrices /></ProtectedRoute>} />
+              
 
               <Route path="/empresas" element={<ProtectedRoute roles={["diretor", "admin"]}><Companies /></ProtectedRoute>} />
               <Route path="/empresas/apelidos" element={<ProtectedRoute roles={["diretor", "admin"]}><CompanyAliases /></ProtectedRoute>} />
