@@ -537,6 +537,89 @@ export function calcFromDb(r: any): CalcItem {
     target_amount: r.target_amount != null ? String(r.target_amount) : "",
     multiplier: r.multiplier != null ? String(r.multiplier) : "",
     deflator_pct: r.deflator_pct != null ? String(r.deflator_pct) : "",
+    bonus_amount: r.bonus_amount != null ? String(r.bonus_amount) : "",
+    bonus_pct: r.bonus_pct != null ? String(r.bonus_pct) : "",
+    reference_table_id: r.reference_table_id ?? "",
+    repasse_pct: r.repasse_pct != null ? String(r.repasse_pct) : "",
+    convenio_percentage: r.convenio_percentage != null ? String(r.convenio_percentage) : "",
+    auxiliary_pct: r.auxiliary_pct != null ? String(r.auxiliary_pct) : "",
+    aux_first_pct: r.aux_first_pct != null ? String(r.aux_first_pct) : "30",
+    aux_second_pct: r.aux_second_pct != null ? String(r.aux_second_pct) : "20",
+    instrumentador_pct: r.instrumentador_pct != null ? String(r.instrumentador_pct) : "10",
+    include_auxiliaries: !!r.include_auxiliaries,
+    package_amount: r.package_amount != null ? String(r.package_amount) : "",
+    package_subtype: (r.package_subtype === "com_extras" ? "com_extras" : "fechado") as "fechado" | "com_extras",
+    package_main_code: r.package_main_code ?? "",
+    package_included_codes: Array.isArray(r.package_included_codes) ? r.package_included_codes.join(", ") : "",
+    package_auxiliaries_included: r.package_auxiliaries_included !== false,
+    package_opinions_count: !!r.package_opinions_count,
+    package_visits_count: !!r.package_visits_count,
+    extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
+    apply_access_route: !!r.apply_access_route,
+    allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
+    has_conditions: tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer",
+    time_mode: tMode,
+    weekdays: wdays,
+    time_start: tStart,
+    time_end: tEnd,
+    includes_holidays: !!r.includes_holidays,
+    elective_mode: eMode,
+  };
+}
+
+const numOrNull = (v: string): number | null => {
+  if (!v) return null;
+  const n = Number(String(v).replace(",", "."));
+  return isFinite(n) ? n : null;
+};
+const splitCodes = (s: string): string[] =>
+  s.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
+
+/** Converte um CalcItem em payload pronto para inserir/atualizar em rule_calculations. */
+export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number): Record<string, any> {
+  const isPacote = c.calculation_type === "pacote"
+    || c.calculation_type === "pacote_fechado"
+    || c.calculation_type === "pacote_com_extras"
+    || c.calculation_type === "pacote_por_atendimento";
+  const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
+  const isTabela = c.calculation_type === "tabela_diferenciada";
+  return {
+    rule_id: ruleId,
+    sort_order: sortOrder,
+    label: c.label?.trim() || null,
+    calculation_type: c.calculation_type,
+    fixed_amount: c.calculation_type === "valor_fixo" ? numOrNull(c.fixed_amount) : null,
+    target_amount: c.calculation_type === "complemento" ? numOrNull(c.target_amount) : null,
+    multiplier: isTabela ? numOrNull(c.multiplier) : null,
+    deflator_pct: isTabela ? numOrNull(c.deflator_pct) : null,
+    bonus_amount: c.calculation_type === "bonus" ? numOrNull(c.bonus_amount) : null,
+    bonus_pct: c.calculation_type === "bonus" ? numOrNull(c.bonus_pct) : null,
+    reference_table_id: isTabela ? (c.reference_table_id || null) : null,
+    repasse_pct: isTabela ? numOrNull(c.repasse_pct) : null,
+    convenio_percentage: c.calculation_type === "percentual_sobre_convenio" ? numOrNull(c.convenio_percentage) : null,
+    auxiliary_pct: isTabela ? numOrNull(c.auxiliary_pct) : null,
+    aux_first_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_first_pct) ?? 30) : null,
+    aux_second_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_second_pct) ?? 20) : null,
+    instrumentador_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.instrumentador_pct) ?? 10) : null,
+    include_auxiliaries: isTabela ? c.include_auxiliaries : false,
+    package_amount: isPacote ? numOrNull(c.package_amount) : null,
+    package_subtype: isPacote ? c.package_subtype : null,
+    package_main_code: isPacote ? (c.package_main_code.trim() || null) : null,
+    package_included_codes: isPacote ? splitCodes(c.package_included_codes) : null,
+    package_auxiliaries_included: isPacoteComExtras ? c.package_auxiliaries_included : false,
+    package_opinions_count: isPacoteComExtras ? c.package_opinions_count : false,
+    package_visits_count: isPacoteComExtras ? c.package_visits_count : false,
+    extras_codes: isPacoteComExtras ? splitCodes(c.extras_codes) : null,
+    apply_access_route: isTabela ? c.apply_access_route : false,
+    allowed_access_routes: c.allowed_access_routes.length > 0 ? c.allowed_access_routes : null,
+    time_mode: c.has_conditions ? c.time_mode : "qualquer",
+    weekdays: c.has_conditions && c.time_mode === "personalizado" ? c.weekdays : [],
+    time_start: c.has_conditions ? (c.time_start || null) : null,
+    time_end: c.has_conditions ? (c.time_end || null) : null,
+    includes_holidays: c.has_conditions ? c.includes_holidays : false,
+    elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
+  };
+}
 
 /** Erros por item para feedback visual no formulário (apenas validações fortes). */
 export function calcItemErrors(c: CalcItem): number {
