@@ -136,6 +136,17 @@ Deno.test("normName e normAgreement lidam com acentos e espaços", () => {
   assertEquals(normAgreement("SUL AMÉRICA"), "sulamerica");
 });
 
+Deno.test("normAccessRoute normaliza variações de Via de Acesso", () => {
+  assertEquals(normAccessRoute("Única ou principal"), "unica_principal");
+  assertEquals(normAccessRoute("unica/principal"), "unica_principal");
+  assertEquals(normAccessRoute("1ª via"), "unica_principal");
+  assertEquals(normAccessRoute("1 via"), "unica_principal");
+  assertEquals(normAccessRoute("Principal"), "unica_principal");
+  assertEquals(normAccessRoute("Mesma via"), "mesma_via");
+  assertEquals(normAccessRoute("Outra via"), "outra_via");
+});
+
+
 // --- Teste de Fluxo Completo de Importação e Matching ---
 
 Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclaturas e normalizações", () => {
