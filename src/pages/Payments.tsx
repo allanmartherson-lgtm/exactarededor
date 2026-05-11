@@ -37,6 +37,8 @@ interface Row {
   payment_due_date: string | null;
   payment_type: PaymentType | null;
   payment_kind: PaymentKind | null;
+  processing_diagnostics?: any;
+  processing_timeout_occurred?: boolean;
 }
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
