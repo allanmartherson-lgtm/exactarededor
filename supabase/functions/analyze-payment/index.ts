@@ -31,6 +31,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const startTime = Date.now();
+  let diagnostics = {
+    total_items: 0,
+    ai_processed_items: 0,
+    chunk_size: 50, // Limite configurado
+    execution_time_ms: 0,
+    status: "processing"
+  };
+
   try {
     const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
