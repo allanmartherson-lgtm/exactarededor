@@ -492,11 +492,17 @@ function CalcCard({
                             const n = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                             let normalized = input;
                             
-                            if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via|1.a via)/i.test(n)) {
+                            // Regex expandida para capturar variações comuns
+                            // Única ou Principal: 1ª, 1a, 1 via, primeira via, unica, principal, etc.
+                            if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via)/i.test(n)) {
                               normalized = "Única ou Principal";
-                            } else if (/(mesma via|mesma)/i.test(n)) {
+                            } 
+                            // Mesma Via: mesma, mesma via, repetida, etc.
+                            else if (/(mesma\s?via|mesma|repetida)/i.test(n)) {
                               normalized = "Mesma Via";
-                            } else if (/(outra via|via diferente|diferente)/i.test(n)) {
+                            } 
+                            // Outra Via: outra, diferente, via diferente, 2ª via, etc.
+                            else if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via)/i.test(n)) {
                               normalized = "Outra Via";
                             }
 
