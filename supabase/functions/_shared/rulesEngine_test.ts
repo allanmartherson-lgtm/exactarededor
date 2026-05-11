@@ -218,3 +218,68 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
   assertEquals(results[2].matched_rule_id, "rule-doctor");
   assertEquals(results[2].expected_amount, 88);
 });
+
+// --- Teste de Sequência de Itens de Cálculo (Cálculo 1 → Cálculo 2 por Via) ---
+
+Deno.test("applyCalculation respeita sort_order e usa Cálculo 2 quando Via Principal não casa", () => {
+  const rule = makeRule({
+    calculation_type: "percentual_sobre_convenio",
+    calculations: [
+      {
+        id: "c1",
+        sort_order: 0,
+        label: "Via Principal — fixo",
+        calculation_type: "valor_fixo",
+        fixed_amount: 4000,
+        allowed_access_routes: ["Única ou principal"],
+      },
+      {
+        id: "c2",
+        sort_order: 1,
+        label: "Vias Secundárias — 100% convênio",
+        calculation_type: "percentual_sobre_convenio",
+        convenio_percentage: 100,
+        allowed_access_routes: ["Mesma Via", "Outra Via"],
+      },
+    ],
+  });
+
+  const itemPrincipal = makeItem({ id: "p", access_route: "Única ou principal", gross_amount: 1234, procedure_amount: 1234 });
+  const r1 = analyzePaymentItems([itemPrincipal], [rule], baseCtx);
+  assertEquals(r1[0].expected_amount, 4000);
+
+  const itemMesma = makeItem({ id: "m", access_route: "Mesma via de acesso", gross_amount: 1234, procedure_amount: 1234 });
+  const r2 = analyzePaymentItems([itemMesma], [rule], baseCtx);
+  assertEquals(r2[0].expected_amount, 1234);
+
+  const itemOutra = makeItem({ id: "o", access_route: "Via de acesso diferente", gross_amount: 800, procedure_amount: 800 });
+  const r3 = analyzePaymentItems([itemOutra], [rule], baseCtx);
+  assertEquals(r3[0].expected_amount, 800);
+});
+
+Deno.test("applyCalculation ordena calculations defensivamente por sort_order mesmo se a fonte vier embaralhada", () => {
+  const rule = makeRule({
+    calculations: [
+      {
+        id: "c2",
+        sort_order: 1,
+        label: "Secundárias",
+        calculation_type: "percentual_sobre_convenio",
+        convenio_percentage: 100,
+        allowed_access_routes: ["Mesma Via", "Outra Via"],
+      },
+      {
+        id: "c1",
+        sort_order: 0,
+        label: "Principal fixo",
+        calculation_type: "valor_fixo",
+        fixed_amount: 4000,
+        allowed_access_routes: ["Única ou principal"],
+      },
+    ],
+  });
+  const item = makeItem({ access_route: "Única ou principal", procedure_amount: 100 });
+  const r = analyzePaymentItems([item], [rule], baseCtx);
+  assertEquals(r[0].expected_amount, 4000);
+});
+
