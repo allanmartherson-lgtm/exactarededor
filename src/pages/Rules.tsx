@@ -852,6 +852,8 @@ const Rules = () => {
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
+    setFAllowedAccessRoutes(Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : []);
+    setFAllowedAccessRouteInput("");
     setFBonusPct(r.bonus_pct != null ? String(r.bonus_pct) : "");
     setFTargetAmount(r.target_amount != null ? String(r.target_amount) : "");
     setFMultiplier(r.multiplier != null ? String(r.multiplier) : "");
