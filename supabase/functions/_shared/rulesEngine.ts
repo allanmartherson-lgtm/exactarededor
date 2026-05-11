@@ -1126,7 +1126,6 @@ export function applyCalculation(
     for (const c of list) {
       const label = (c.label && c.label.trim()) || c.calculation_type;
       const m = calcItemMatches(c, item);
-      console.log(`[ENGINE] Match item ${item.id} (${item.procedure_code}) with calc ${label}: ok=${m.ok}, route=${item.access_route} (norm=${normAccessRoute(item.access_route)}), allowed=${JSON.stringify(c.allowed_access_routes)} (norm=${JSON.stringify((c.allowed_access_routes || []).map(a => normAccessRoute(a)))})`);
       
       if (!m.ok) {
         const reason = (m as any).reason || "condicao_nao_satisfeita";
@@ -1137,7 +1136,7 @@ export function applyCalculation(
           matched: false,
           skip_reason: reason,
           expected: null,
-          explanation: `Não aplicado — condição de via de acesso "${item.access_route || "vazia"}" (normalizada: ${normAccessRoute(item.access_route)}) não permitida para o cálculo "${label}".`,
+          explanation: `Não aplicado — condição "${reason}" não satisfeita.`,
           alerts: [],
         });
         continue;
