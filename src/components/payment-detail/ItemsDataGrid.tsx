@@ -1029,7 +1029,7 @@ function ItemDetailsRow({
             {summary.map((s) => (
               <div key={s.label} className="min-w-0">
                 <Label>{s.label}</Label>
-                <p className={cn(TEXT_BODY, "break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full mt-0.5")}>{s.value}</p>
+                <p className={cn(TEXT_BODY, "break-words whitespace-normal max-w-full mt-0.5")}>{s.value}</p>
               </div>
             ))}
           </div>
