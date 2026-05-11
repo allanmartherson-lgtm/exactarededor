@@ -593,6 +593,55 @@ function CalcCard({
                       </div>
                     )}
                   </div>
+                <div className="space-y-1.5 border-t border-border/40 pt-3">
+                  <Label className="text-xs font-semibold">Restrições Adicionais (Setores e Especialidades)</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Opcional: Restringir este cálculo apenas a setores ou especialidades específicas.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <Label className="text-[11px]">Setores (apenas se informado na produção)</Label>
+                      <MultiSelectChips
+                        options={Object.entries(RULE_SECTOR_LABELS).map(([v, label]) => ({ v, label }))}
+                        value={c.sectors}
+                        onChange={(vals) => onChange({ sectors: vals })}
+                        placeholder="Todos os setores"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px]">Especialidades (apenas se informado na produção)</Label>
+                      <div className="space-y-1.5">
+                        <Input
+                          placeholder="Digite a especialidade e pressione Enter"
+                          className="h-8 text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === ",") {
+                              e.preventDefault();
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !c.specialties.includes(val)) {
+                                onChange({ specialties: [...c.specialties, val] });
+                              }
+                              (e.target as HTMLInputElement).value = "";
+                            }
+                          }}
+                        />
+                        {c.specialties.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {c.specialties.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => onChange({ specialties: c.specialties.filter((x) => x !== s) })}
+                                className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                              >
+                                {s} ✕
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
