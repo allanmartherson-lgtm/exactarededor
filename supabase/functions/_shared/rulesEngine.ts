@@ -115,6 +115,11 @@ export interface RuleInput {
    */
   agreement_match_mode?: "whitelist" | "blacklist" | null;
   /**
+   * Lista de vias de acesso permitidas (ex: 'Única ou principal').
+   * Se preenchido, a regra só dá match se o item tiver uma dessas vias.
+   */
+  allowed_access_routes?: string[] | null;
+  /**
    * IDs de reference_tables (purpose IN ('sem_acordo','exclusao')) vinculadas
    * a esta regra. Camada 2: quando o item bate na regra e o código TUSS está
    * em uma dessas tabelas, o motor pula o cálculo. Tabelas só têm efeito
@@ -145,6 +150,8 @@ export interface RuleCalculationItem {
   weekdays?: number[] | null;        // 0..6 (Dom..Sáb)
   includes_holidays?: boolean | null;
   elective_mode?: string | null;     // 'qualquer' | 'eletivo' | 'urgencia'
+  /** Vias de acesso permitidas para este item de cálculo específico. */
+  allowed_access_routes?: string[] | null;
   // ---- parâmetros de cálculo (espelham os da regra) ----
   convenio_percentage?: number | null;
   fixed_amount?: number | null;
