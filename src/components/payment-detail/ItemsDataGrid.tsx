@@ -1289,8 +1289,8 @@ function ItemDetailsRow({
                     )}
                   </div>
                   {explanation && (
-                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">
-                      <span className="break-all">{explanation}</span>
+                    <p className="mt-2 text-muted-foreground italic break-all whitespace-normal">
+                      {explanation}
                     </p>
                   )}
                 </SafeCard>
