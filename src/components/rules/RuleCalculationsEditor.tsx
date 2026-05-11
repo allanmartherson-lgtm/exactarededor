@@ -481,28 +481,47 @@ function CalcCard({
                     O motor normaliza variações automaticamente.
                   </p>
                   <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {["Única ou Principal", "Mesma Via", "Outra Via"].map((route) => {
+                        const isSelected = c.allowed_access_routes.includes(route);
+                        return (
+                          <Button
+                            key={route}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 text-[10px] px-2 rounded-full"
+                            onClick={() => {
+                              const next = isSelected 
+                                ? c.allowed_access_routes.filter(r => r !== route)
+                                : [...c.allowed_access_routes, route];
+                              onChange({ allowed_access_routes: next });
+                            }}
+                          >
+                            {route}
+                            {isSelected && <span className="ml-1">✕</span>}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
                     <Input
-                      placeholder="Digite e pressione Enter (ex: Única ou principal)"
+                      placeholder="Outro nome (se necessário)..."
+                      className="h-8 text-xs"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === ",") {
                           e.preventDefault();
                           const input = (e.target as HTMLInputElement).value.trim();
                           if (input) {
-                            // Normalização automática antes de adicionar à lista
+                            // Normalização automática se o usuário digitar algo que mapeie para os padrões
                             const n = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
                             let normalized = input;
                             
-                            // Regex expandida para capturar variações comuns
-                            // Única ou Principal: 1ª, 1a, 1 via, primeira via, unica, principal, etc.
                             if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via)/i.test(n)) {
                               normalized = "Única ou Principal";
-                            } 
-                            // Mesma Via: mesma, mesma via, repetida, etc.
-                            else if (/(mesma\s?via|mesma|repetida)/i.test(n)) {
+                            } else if (/(mesma\s?via|mesma|repetida)/i.test(n)) {
                               normalized = "Mesma Via";
-                            } 
-                            // Outra Via: outra, diferente, via diferente, 2ª via, etc.
-                            else if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via)/i.test(n)) {
+                            } else if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via)/i.test(n)) {
                               normalized = "Outra Via";
                             }
 
@@ -515,9 +534,9 @@ function CalcCard({
                       }}
                     />
 
-                    {c.allowed_access_routes.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {c.allowed_access_routes.map((a) => (
+                    {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via"].includes(a)).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via"].includes(a)).map((a) => (
                           <button
                             key={a}
                             type="button"
