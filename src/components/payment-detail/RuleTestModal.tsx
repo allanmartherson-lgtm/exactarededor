@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GitCompare, Loader2, Play } from "lucide-react";
+import { GitCompare, Loader2, Play, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency, TONE_CLASSES } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface RuleTestModalProps {
   paymentId: string;
