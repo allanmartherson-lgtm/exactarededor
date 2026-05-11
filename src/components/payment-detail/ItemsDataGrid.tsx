@@ -1054,7 +1054,7 @@ function ItemDetailsRow({
                 </AlertBanner>
               )}
               {exceptionMarked && (
-                <div className={cn("rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]", TEXT_BODY)}>
+                <div className={cn("rounded-md border border-info/20 bg-info-soft px-4 py-3 text-info min-w-0 break-words whitespace-normal", TEXT_BODY)}>
                   <div className="flex items-center gap-1.5 font-medium">
                     <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                     Exceção autorizada registrada
