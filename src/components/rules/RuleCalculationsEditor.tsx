@@ -442,6 +442,32 @@ function CalcCard({
                     Inclui feriados
                   </label>
                 </div>
+                <div className="space-y-1.5 pt-2 border-t border-border/50">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Restrição por via de acesso</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Única ou principal", "Mesma via", "Diferentes vias"].map((route) => {
+                      const checked = c.allowed_access_routes.includes(route);
+                      return (
+                        <Button
+                          key={route}
+                          type="button"
+                          size="sm"
+                          variant={checked ? "default" : "outline"}
+                          className="h-7 text-[10px] px-2"
+                          onClick={() => {
+                            const next = checked 
+                              ? c.allowed_access_routes.filter(r => r !== route)
+                              : [...c.allowed_access_routes, route];
+                            onChange({ allowed_access_routes: next });
+                          }}
+                        >
+                          {route}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">Se selecionado, este cálculo só aplica se a via do item for uma das marcadas.</p>
+                </div>
               </>
             )}
           </div>
