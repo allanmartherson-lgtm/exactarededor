@@ -833,7 +833,7 @@ const Rules = () => {
 
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
     setEditingId(isDuplicate ? null : r.id);
-    setFActive(r.active !== false);
+    
     setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
     setFActive(isDuplicate ? true : (r.active !== false));
     setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
