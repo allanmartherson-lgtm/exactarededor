@@ -111,7 +111,7 @@ export default function Doctors() {
       setTotalDatabase(total);
 
       // Carregamento progressivo para evitar timeout e garantir que todos os dados cheguem
-      const PAGE_SIZE = 2500;
+      const PAGE_SIZE = 5000;
       let allDoctors: Doctor[] = [];
       
       // Loop robusto para garantir que TODA a base seja carregada
