@@ -522,18 +522,18 @@ export function ItemsDataGrid({
             })}
           </ul>
           {filtered.length > 0 && (
-            <div className="md:hidden flex items-baseline justify-between gap-2 border-t bg-muted/40 px-3 py-2">
-              <span className={cn(TEXT_LABEL)}>Total ({totals.count})</span>
-              <div className="flex items-baseline gap-3">
+            <div className="md:hidden sticky bottom-0 z-20 flex items-center justify-between gap-2 border-t bg-muted/95 backdrop-blur px-4 py-4 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)]">
+              <div className="flex flex-col gap-0.5">
+                <span className={cn(TEXT_LABEL, "text-[10px] font-bold text-foreground")}>Total ({totals.count})</span>
                 {totals.esperado != null && (
-                  <span className={cn(TEXT_META, "tabular-nums")}>
-                    esp. {formatCurrency(totals.esperado)}
+                  <span className={cn(TEXT_META, "tabular-nums text-[10px] font-medium")}>
+                    Esp. {formatCurrency(totals.esperado)}
                   </span>
                 )}
-                <span className="tabular-nums font-semibold text-xs">
-                  {formatCurrency(totals.valor)}
-                </span>
               </div>
+              <span className="tabular-nums font-bold text-sm text-foreground">
+                {formatCurrency(totals.valor)}
+              </span>
             </div>
           )}
 
