@@ -300,7 +300,7 @@ export default function Doctors() {
     return filtered.slice(startIndex, startIndex + itemsPerPage);
   }, [filtered, currentPage, itemsPerPage, search, filterCompany]);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const totalPages = itemsPerPage > 0 ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
   // Resetar página quando a busca mudar
   useEffect(() => {
