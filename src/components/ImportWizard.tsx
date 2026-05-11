@@ -139,22 +139,35 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       const mainAmountCol = mapping["amount"];
       if (mainAmountCol) roles.add(mainAmountCol);
 
-      rows.slice(0, 100).forEach(row => {
-        Object.keys(row).forEach(colName => {
-          if (mappedSheetCols.has(colName)) return;
-          const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          if (amountKeywords.some(k => lowCol.includes(k))) {
+      // Analyze more rows and handle case where mapping is empty but keywords match
+      const checkRows = rows.slice(0, 500);
+      const headers = sheets.find(s => s.name === activeSheet)?.headers || [];
+
+      headers.forEach(colName => {
+        // Skip columns already mapped to OTHER fields, but allow checking columns mapped to 'amount' or not mapped at all
+        const otherMapped = Object.entries(mapping).some(([k, v]) => v === colName && k !== "amount");
+        if (otherMapped) return;
+
+        const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const hasKeyword = amountKeywords.some(k => lowCol.includes(k));
+        
+        if (hasKeyword) {
+          // Verify if it actually contains numbers in the data
+          const hasNumbers = checkRows.some(row => {
             const val = normalizeNumericValue(row[colName]);
-            if (!val.invalid && val.value > 0) roles.add(colName);
-          }
-        });
+            return !val.invalid && val.value > 0;
+          });
+          if (hasNumbers) roles.add(colName);
+        }
       });
 
       if (roles.size > 1 || (roles.size === 1 && !mapping["role"])) {
         const rolesList = Array.from(roles);
         setDetectedRoles(rolesList);
-        const initialRoleMap: Record<string, string> = {};
-        rolesList.forEach(r => { initialRoleMap[r] = r; });
+        const initialRoleMap: Record<string, string> = { ...roleMapping };
+        rolesList.forEach(r => { 
+          if (!initialRoleMap[r]) initialRoleMap[r] = r; 
+        });
         setRoleMapping(initialRoleMap);
         setStep("role_config");
         return;
