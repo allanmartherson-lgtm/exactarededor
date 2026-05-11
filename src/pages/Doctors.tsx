@@ -112,25 +112,43 @@ export default function Doctors() {
       const PAGE_SIZE = 5000;
       let allDoctors: Doctor[] = [];
       
-      for (let offset = 0; offset < total && offset < 40000; offset += PAGE_SIZE) {
-        const { data, error } = await supabase
-          .from("doctors")
-          .select("*")
-          .order("full_name")
-          .range(offset, offset + PAGE_SIZE - 1);
-        
-        if (error) {
-          console.error("Erro ao carregar lote de médicos:", error);
-          break;
+      // Carregamos a primeira página e já exibimos para o usuário
+      const firstPage = await supabase
+        .from("doctors")
+        .select("*")
+        .order("full_name")
+        .range(0, PAGE_SIZE - 1);
+      
+      if (firstPage.error) {
+        console.error("Erro ao carregar primeira página de médicos:", firstPage.error);
+        toast({ title: "Erro na conexão", description: "Não foi possível carregar os dados.", variant: "destructive" });
+        return;
+      }
+
+      if (firstPage.data) {
+        allDoctors = firstPage.data as Doctor[];
+        setItems([...allDoctors]);
+      }
+
+      // Se houver mais páginas, carregamos em background
+      if (total > PAGE_SIZE) {
+        for (let offset = PAGE_SIZE; offset < total && offset < 40000; offset += PAGE_SIZE) {
+          const { data, error } = await supabase
+            .from("doctors")
+            .select("*")
+            .order("full_name")
+            .range(offset, offset + PAGE_SIZE - 1);
+          
+          if (error) {
+            console.error(`Erro ao carregar lote (offset ${offset}):`, error);
+            break;
+          }
+          
+          if (data && data.length > 0) {
+            allDoctors = [...allDoctors, ...(data as Doctor[])];
+            setItems([...allDoctors]);
+          }
         }
-        
-        if (data) {
-          allDoctors = [...allDoctors, ...(data as Doctor[])];
-          // Atualiza o estado parcialmente para o usuário ver progresso (opcional, mas bom para UX)
-          setItems([...allDoctors]);
-        }
-        
-        if (data.length < PAGE_SIZE) break;
       }
     } catch (err) {
       console.error("Erro fatal no carregamento:", err);
