@@ -1167,15 +1167,15 @@ function ItemDetailsRow({
                             <div className="min-w-0">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Normalização</p>
                               <div className="space-y-1.5">
-                                <div>
+                                <div className="min-w-0">
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Médico (Normalizado)</span>
-                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={(it.ai_findings as any)?.decision_fields?.used?.doctor_name}>
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block break-all whitespace-normal" title={(it.ai_findings as any)?.decision_fields?.used?.doctor_name}>
                                     {(it.ai_findings as any)?.decision_fields?.used?.doctor_name || "—"}
                                   </code>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Convênio (Normalizado)</span>
-                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={(it.ai_findings as any)?.decision_fields?.used?.agreement_name}>
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block break-all whitespace-normal" title={(it.ai_findings as any)?.decision_fields?.used?.agreement_name}>
                                     {(it.ai_findings as any)?.decision_fields?.used?.agreement_name || "—"}
                                   </code>
                                 </div>
