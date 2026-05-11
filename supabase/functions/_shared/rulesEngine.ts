@@ -140,6 +140,10 @@ export interface RuleInput {
 export interface RuleCalculationItem {
   id?: string;
   label?: string | null;
+  /** Ordem do item dentro da regra (0,1,2…). O motor processa em ordem
+   *  crescente — o PRIMEIRO item cujas condições casarem e produzir um
+   *  valor calculado define o resultado (exclusividade). */
+  sort_order?: number | null;
   calculation_type: CalculationType;
   // ---- condições vinculadas ao cálculo ----
   time_mode?: string | null;         // 'qualquer' | 'comercial' | 'noturno' | 'fim_de_semana' | 'personalizado' | ...
