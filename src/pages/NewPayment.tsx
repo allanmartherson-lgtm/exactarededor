@@ -1162,6 +1162,10 @@ const NewPayment = () => {
                           const bucketIndex = r.source_bucket_index;
                           const rowIndex = r.source_row_index;
                           const canEdit = typeof bucketIndex === "number" && typeof rowIndex === "number";
+                          const applyRowChange = (changes: Partial<ParsedRow>) => {
+                            if (typeof bucketIndex !== "number" || typeof rowIndex !== "number") return;
+                            updateRow(bucketIndex, rowIndex, changes);
+                          };
                           return (
                             <div key={`${r.source_file}-${r.source_row_number}-${i}`} className="rounded-md border border-border bg-background p-3 space-y-2">
                               <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1179,7 +1183,7 @@ const NewPayment = () => {
                               <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                                 <div className="space-y-1">
                                   <Label className="text-xs">Tipo</Label>
-                                  <Select disabled={!canEdit} value={r.tipo_linha} onValueChange={(v) => canEdit && updateRow(bucketIndex, rowIndex, { tipo_linha_manual: v as LineType })}>
+                                  <Select disabled={!canEdit} value={r.tipo_linha} onValueChange={(v) => applyRowChange({ tipo_linha_manual: v as LineType })}>
                                     <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                       {(Object.keys(LINE_TYPE_LABELS) as LineType[]).map((type) => (
@@ -1190,23 +1194,22 @@ const NewPayment = () => {
                                 </div>
                                 <div className="space-y-1 sm:col-span-2">
                                   <Label className="text-xs">Médico</Label>
-                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.doctor_name} onChange={(e) => canEdit && updateRow(bucketIndex, rowIndex, { doctor_name: e.target.value })} />
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.doctor_name} onChange={(e) => applyRowChange({ doctor_name: e.target.value })} />
                                 </div>
                                 <div className="space-y-1">
                                   <Label className="text-xs">Valor</Label>
                                   <Input className="h-8 text-xs" disabled={!canEdit} value={r.gross_amount ? String(r.gross_amount).replace(".", ",") : ""} onChange={(e) => {
-                                    if (!canEdit) return;
                                     const parsed = normalizeNumericValue(e.target.value);
-                                    updateRow(bucketIndex, rowIndex, { gross_amount: parsed.value, valor_invalido: parsed.invalid });
+                                    applyRowChange({ gross_amount: parsed.value, valor_invalido: parsed.invalid });
                                   }} />
                                 </div>
                                 <div className="space-y-1">
                                   <Label className="text-xs">TUSS</Label>
-                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.procedure_code ?? ""} onChange={(e) => canEdit && updateRow(bucketIndex, rowIndex, { procedure_code: e.target.value })} />
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.procedure_code ?? ""} onChange={(e) => applyRowChange({ procedure_code: e.target.value })} />
                                 </div>
                                 <div className="space-y-1 sm:col-span-5">
                                   <Label className="text-xs">Descrição</Label>
-                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.description || r.procedure_name || ""} onChange={(e) => canEdit && updateRow(bucketIndex, rowIndex, { description: e.target.value, procedure_name: e.target.value })} />
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.description || r.procedure_name || ""} onChange={(e) => applyRowChange({ description: e.target.value, procedure_name: e.target.value })} />
                                 </div>
                               </div>
                             </div>
