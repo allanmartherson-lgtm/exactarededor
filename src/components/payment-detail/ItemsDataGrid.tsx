@@ -660,8 +660,8 @@ export function ItemsDataGrid({
               const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
               const footPad = isCompact ? "px-1.5 py-3" : "px-2 py-4";
               return (
-                <tfoot className="sticky bottom-0 z-20">
-                  <tr className="shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <tfoot className="sticky bottom-0 z-20 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)]">
+                  <tr>
                     <td
                       colSpan={leadingCols}
                       className={cn(footPad, "text-right border-t bg-muted/95 backdrop-blur whitespace-nowrap")}
