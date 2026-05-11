@@ -96,15 +96,26 @@ export function MultiSelectChips({ values, onChange, options, placeholder = "Sel
   );
 }
 
+import { DoctorCombobox, type DoctorOption } from "./DoctorCombobox";
+
 /** Editor de médicos nomeados (nome + CRM). */
 export function DoctorsEditor({ value, onChange }: { value: { name: string; crm?: string }[]; onChange: (next: { name: string; crm?: string }[]) => void }) {
-  const [name, setName] = useState("");
-  const [crm, setCrm] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState<DoctorOption | null>(null);
+
   const add = () => {
-    if (!name.trim()) return;
-    onChange([...value, { name: name.trim(), crm: crm.trim() || undefined }]);
-    setName(""); setCrm("");
+    if (!selectedDoctor) return;
+    const crmStr = selectedDoctor.crm ? `${selectedDoctor.crm}${selectedDoctor.crm_uf ? `/${selectedDoctor.crm_uf}` : ""}` : undefined;
+    
+    // Evita duplicados
+    if (value.some(v => v.name === selectedDoctor.name && v.crm === crmStr)) {
+      setSelectedDoctor(null);
+      return;
+    }
+
+    onChange([...value, { name: selectedDoctor.name, crm: crmStr }]);
+    setSelectedDoctor(null);
   };
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
@@ -116,12 +127,18 @@ export function DoctorsEditor({ value, onChange }: { value: { name: string; crm?
             </button>
           </Badge>
         ))}
-        {value.length === 0 && <span className="text-xs text-muted-foreground">Nenhum médico nomeado.</span>}
+        {value.length === 0 && <span className="text-xs text-muted-foreground">Nenhum médico selecionado.</span>}
       </div>
-      <div className="grid grid-cols-[1fr_120px_auto] gap-2">
-        <Input placeholder="Nome do médico" value={name} onChange={(e) => setName(e.target.value)} />
-        <Input placeholder="CRM (opcional)" value={crm} onChange={(e) => setCrm(e.target.value)} />
-        <Button type="button" variant="outline" onClick={add} disabled={!name.trim()}><Plus className="h-4 w-4" /></Button>
+      <div className="flex gap-2">
+        <DoctorCombobox
+          className="flex-1"
+          value={selectedDoctor}
+          onChange={setSelectedDoctor}
+          placeholder="Buscar no cadastro de médicos..."
+        />
+        <Button type="button" variant="outline" onClick={add} disabled={!selectedDoctor}>
+          <Plus className="h-4 w-4 mr-2" /> Adicionar
+        </Button>
       </div>
     </div>
   );
