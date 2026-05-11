@@ -112,25 +112,43 @@ export default function Doctors() {
       const PAGE_SIZE = 5000;
       let allDoctors: Doctor[] = [];
       
-      for (let offset = 0; offset < total && offset < 40000; offset += PAGE_SIZE) {
-        const { data, error } = await supabase
-          .from("doctors")
-          .select("*")
-          .order("full_name")
-          .range(offset, offset + PAGE_SIZE - 1);
-        
-        if (error) {
-          console.error("Erro ao carregar lote de médicos:", error);
-          break;
+      // Carregamos a primeira página e já exibimos para o usuário
+      const firstPage = await supabase
+        .from("doctors")
+        .select("*")
+        .order("full_name")
+        .range(0, PAGE_SIZE - 1);
+      
+      if (firstPage.error) {
+        console.error("Erro ao carregar primeira página de médicos:", firstPage.error);
+        toast({ title: "Erro na conexão", description: "Não foi possível carregar os dados.", variant: "destructive" });
+        return;
+      }
+
+      if (firstPage.data) {
+        allDoctors = firstPage.data as Doctor[];
+        setItems([...allDoctors]);
+      }
+
+      // Se houver mais páginas, carregamos em background
+      if (total > PAGE_SIZE) {
+        for (let offset = PAGE_SIZE; offset < total && offset < 40000; offset += PAGE_SIZE) {
+          const { data, error } = await supabase
+            .from("doctors")
+            .select("*")
+            .order("full_name")
+            .range(offset, offset + PAGE_SIZE - 1);
+          
+          if (error) {
+            console.error(`Erro ao carregar lote (offset ${offset}):`, error);
+            break;
+          }
+          
+          if (data && data.length > 0) {
+            allDoctors = [...allDoctors, ...(data as Doctor[])];
+            setItems([...allDoctors]);
+          }
         }
-        
-        if (data) {
-          allDoctors = [...allDoctors, ...(data as Doctor[])];
-          // Atualiza o estado parcialmente para o usuário ver progresso (opcional, mas bom para UX)
-          setItems([...allDoctors]);
-        }
-        
-        if (data.length < PAGE_SIZE) break;
       }
     } catch (err) {
       console.error("Erro fatal no carregamento:", err);
@@ -252,13 +270,18 @@ export default function Doctors() {
 
   const filtered = useMemo(() => {
     const q = norm(search);
+    
+    // Se não há busca nem filtro de empresa, retornamos a lista completa (limitada visualmente no displayItems)
     if (!q && !filterCompany) return items;
 
-    return items.filter((d) => {
+    const results = items.filter((d) => {
+      // Filtro de empresa se estiver ativo
       if (filterCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
         if (!cids.includes(filterCompany)) return false;
       }
+      
+      // Se não há termo de busca mas passou pelo filtro de empresa
       if (!q) return true;
       
       const nameMatch = norm(d.full_name).includes(q);
@@ -268,14 +291,19 @@ export default function Doctors() {
       
       return nameMatch || crmMatch || emailMatch || specMatch;
     });
+
+    return results;
   }, [items, search, filterCompany, linksByDoctor]);
 
   // Se houver busca, mostramos apenas os filtrados. 
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    if (search.trim() || filterCompany) return filtered;
-    // Sem busca, mostramos apenas os 100 primeiros para extrema performance
+    // Se há uma busca ativa, mostramos TODOS os resultados filtrados
+    if (search.trim() || filterCompany) {
+      return filtered;
+    }
+    // Sem busca ativa, limitamos a 100 apenas para a listagem inicial ser rápida
     return filtered.slice(0, 100);
   }, [filtered, search, filterCompany]);
 
