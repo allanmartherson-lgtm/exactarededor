@@ -38,6 +38,9 @@ const Auth = () => {
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [reqForm, setReqForm] = useState({
+    full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
+  });
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -102,9 +105,6 @@ const Auth = () => {
     navigate("/", { replace: true });
   };
 
-  const [reqForm, setReqForm] = useState({
-    full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
-  });
   const handleAccessRequest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const parsed = accessRequestSchema.safeParse(reqForm);
