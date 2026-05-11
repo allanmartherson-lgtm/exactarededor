@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils"
 
 interface SafeCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
+  headerColor?: string
+  badge?: React.ReactNode
 }
 
 /**
