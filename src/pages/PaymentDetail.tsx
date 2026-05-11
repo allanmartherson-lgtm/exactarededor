@@ -801,8 +801,9 @@ const PaymentDetail = () => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
-      const { error } = await supabase.functions.invoke("analyze-payment", {
-        body: { 
+      const fnName = (statuses && statuses.length > 0) ? "analyze-payment" : "dispatch-payment-analysis";
+      const { error } = await supabase.functions.invoke(fnName, {
+        body: {
           payment_id: id,
           ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
           tolerance_pct: toleranceValue
