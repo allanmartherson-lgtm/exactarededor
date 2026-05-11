@@ -82,12 +82,18 @@ serve(async (req) => {
       `).eq("active", true)
     ]);
 
-    const globalThresholds = configRes.data?.value as any || {
+    const configs = (configRes.data ?? []) as any[];
+    const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
+    const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
+
+    const globalThresholds = divergenceConfig?.value as any || {
       limiar_alerta_tipo: "percentual",
       limiar_alerta_valor: 1.0,
       limiar_bloqueio_tipo: "percentual",
       limiar_bloqueio_valor: 5.0
     };
+
+    const roleAliases = (roleAliasesConfig?.value as Record<string, string[]>) || {};
 
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
     (ctx as any).globalThresholds = globalThresholds;
