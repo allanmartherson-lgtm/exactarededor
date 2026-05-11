@@ -1025,11 +1025,6 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
 /** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
  *  reutilizar os calculadores legados. */
 function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
-  // ATENÇÃO: Se a regra estiver vinculada a uma Matriz de Vias, 
-  // limpamos restrições de via individuais para evitar conflitos,
-  // já que a matriz tem precedência total sobre o comportamento de via.
-  const bypassVia = (rule as any).__from_matrix === true;
-
   return {
     ...rule,
     calculation_type: c.calculation_type,
@@ -1056,9 +1051,10 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     bonus_amount: c.bonus_amount ?? rule.bonus_amount,
     bonus_pct: c.bonus_pct ?? rule.bonus_pct,
     target_amount: c.target_amount ?? rule.target_amount,
-    allowed_access_routes: bypassVia ? null : (c.allowed_access_routes ?? rule.allowed_access_routes),
+    allowed_access_routes: c.allowed_access_routes ?? rule.allowed_access_routes,
   };
 }
+
 
 
 export function applyCalculation(
