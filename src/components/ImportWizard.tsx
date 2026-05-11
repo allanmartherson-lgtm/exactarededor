@@ -864,6 +864,10 @@ function applyMapping(rows: any[], mapping: Record<string, string | null>, field
 function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportProfile["entity"]) {
   const requiredKeys = fields.filter((f) => f.required).map((f) => f.key);
   const uniqueKeys = fields.filter((f) => f.uniqueKey).map((f) => f.key);
+  
+  // Se for reference_table_items, a unicidade deve considerar code + role para não barrar múltiplas colunas de valor da mesma linha
+  const isRefTable = entity === "reference_table_items";
+  
   const seen = new Set<string>();
   const errors: { row: number; reason: string }[] = [];
   const dups: { row: number; key: string }[] = [];
@@ -898,7 +902,13 @@ function validateRows(mapped: any[], fields: ImportFieldDef[], entity?: ImportPr
     }
 
     if (uniqueKeys.length) {
-      const k = uniqueKeys.map((u) => String(r[u] ?? "").toLowerCase().trim()).join("||");
+      let k = uniqueKeys.map((u) => String(r[u] ?? "").toLowerCase().trim()).join("||");
+      
+      // Ajuste para evitar falsos positivos em múltiplas colunas de valor
+      if (isRefTable && r.role) {
+        k += `||role:${String(r.role).toLowerCase().trim()}`;
+      }
+
       if (seen.has(k)) {
         dups.push({ row: rowNum, key: k });
         return;
