@@ -718,7 +718,11 @@ export function selectWinningRule(
 
   for (const lvl of levels) {
     if (lvl.enabled === false) continue;
-    const withCode = lvl.bucket.filter((r) => hasCodeRestriction(r) && matchesProcedureCode(r, item));
+    const withCode = lvl.bucket.filter((r) => 
+      hasCodeRestriction(r) && 
+      matchesProcedureCode(r, item) &&
+      ruleAcceptsAccessRoute(r, item)
+    );
     if (withCode.length > 0) {
       const { winner, tied } = breakTie(withCode);
       if (winner) {
