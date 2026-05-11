@@ -139,22 +139,35 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
       const mainAmountCol = mapping["amount"];
       if (mainAmountCol) roles.add(mainAmountCol);
 
-      rows.slice(0, 100).forEach(row => {
-        Object.keys(row).forEach(colName => {
-          if (mappedSheetCols.has(colName)) return;
-          const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          if (amountKeywords.some(k => lowCol.includes(k))) {
+      // Analyze more rows and handle case where mapping is empty but keywords match
+      const checkRows = rows.slice(0, 500);
+      const headers = sheets.find(s => s.name === activeSheet)?.headers || [];
+
+      headers.forEach(colName => {
+        // Skip columns already mapped to OTHER fields, but allow checking columns mapped to 'amount' or not mapped at all
+        const otherMapped = Object.entries(mapping).some(([k, v]) => v === colName && k !== "amount");
+        if (otherMapped) return;
+
+        const lowCol = colName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const hasKeyword = amountKeywords.some(k => lowCol.includes(k));
+        
+        if (hasKeyword) {
+          // Verify if it actually contains numbers in the data
+          const hasNumbers = checkRows.some(row => {
             const val = normalizeNumericValue(row[colName]);
-            if (!val.invalid && val.value > 0) roles.add(colName);
-          }
-        });
+            return !val.invalid && val.value > 0;
+          });
+          if (hasNumbers) roles.add(colName);
+        }
       });
 
       if (roles.size > 1 || (roles.size === 1 && !mapping["role"])) {
         const rolesList = Array.from(roles);
         setDetectedRoles(rolesList);
-        const initialRoleMap: Record<string, string> = {};
-        rolesList.forEach(r => { initialRoleMap[r] = r; });
+        const initialRoleMap: Record<string, string> = { ...roleMapping };
+        rolesList.forEach(r => { 
+          if (!initialRoleMap[r]) initialRoleMap[r] = r; 
+        });
         setRoleMapping(initialRoleMap);
         setStep("role_config");
         return;
@@ -358,19 +371,29 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
             <div>
               <Label className="mb-2 block">Mapeamento de colunas</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                 {profile.fields.map((f) => (
-                  <div key={f.key} className="flex items-center gap-2">
-                    <span className="text-sm w-40 shrink-0">
-                      {f.label}
-                      {f.required && <span className="text-destructive ml-1">*</span>}
-                    </span>
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs flex items-center justify-between">
+                      <span>
+                        {f.label}
+                        {f.required && <span className="text-destructive ml-1">*</span>}
+                      </span>
+                      {f.key === "amount" && (
+                        <span className="text-[10px] font-normal text-blue-600 bg-blue-50 px-1 rounded border border-blue-100">
+                          Múltiplas colunas serão detectadas
+                        </span>
+                      )}
+                    </Label>
                     <select
                       value={mapping[f.key] ?? ""}
-                      onChange={(e) =>
-                        setMapping((m) => ({ ...m, [f.key]: e.target.value || null }))
-                      }
-                      className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm"
+                      onChange={(e) => {
+                        const val = e.target.value || null;
+                        setMapping((m) => ({ ...m, [f.key]: val }));
+                        // Se o usuário selecionou uma coluna manualmente para 'amount', 
+                        // garantimos que o sistema ainda possa detectar outras, mas essa é a principal.
+                      }}
+                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:ring-1 focus:ring-ring"
                     >
                       <option value="">— ignorar —</option>
                       {sheet.headers.map((h) => (
