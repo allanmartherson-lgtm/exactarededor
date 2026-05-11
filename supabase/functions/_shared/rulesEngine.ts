@@ -396,14 +396,14 @@ function targetsCompany(r: RuleInput, item: ItemInput): boolean {
 
 type DoctorRole = "cirurgiao" | "primeiro_aux" | "demais_aux" | "instrumentador" | "outro";
 function classifyDoctorRole(role: string | null | undefined): DoctorRole {
-  const s = (role ?? "").toLowerCase().trim();
+  const s = (role ?? "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!s) return "outro";
   if (s.includes("instrument")) return "instrumentador";
   if (s.includes("cirurgi")) return "cirurgiao";
   // 1º / primeiro / 1
-  if (/(^|\b)(1º|1o|1\b|primeir)/.test(s) && s.includes("aux")) return "primeiro_aux";
+  if (/(^|\b)(1[ºo]|1\b|primeir)/.test(s) && s.includes("aux")) return "primeiro_aux";
   // 2º / 3º / segundo / terceiro / etc + aux
-  if (/(2º|2o|3º|3o|4º|4o|segund|terceir|quart|quint)/.test(s) && s.includes("aux")) return "demais_aux";
+  if (/(2[ºo]|3[ºo]|4[ºo]|segund|terceir|quart|quint)/.test(s) && s.includes("aux")) return "demais_aux";
   if (s.includes("aux")) return "primeiro_aux"; // sem ordinal explícito → trata como 1º
   return "outro";
 }
