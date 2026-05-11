@@ -80,6 +80,7 @@ export function makeEmptyCalc(): CalcItem {
     allowed_access_routes: [],
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
+    sectors: [], specialties: [],
   };
 }
 
