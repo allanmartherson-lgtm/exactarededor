@@ -64,7 +64,7 @@ serve(async (req) => {
 
     // ---------- 2. carrega configurações globais e regras ----------
     const [configRes, rulesRes] = await Promise.all([
-      supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle(),
+      supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
         target_type,target_identifier,target_name,target_company_id,
@@ -82,12 +82,18 @@ serve(async (req) => {
       `).eq("active", true)
     ]);
 
-    const globalThresholds = configRes.data?.value as any || {
+    const configs = (configRes.data ?? []) as any[];
+    const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
+    const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
+
+    const globalThresholds = divergenceConfig?.value as any || {
       limiar_alerta_tipo: "percentual",
       limiar_alerta_valor: 1.0,
       limiar_bloqueio_tipo: "percentual",
       limiar_bloqueio_valor: 5.0
     };
+
+    const roleAliases = (roleAliasesConfig?.value as Record<string, string[]>) || {};
 
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
     (ctx as any).globalThresholds = globalThresholds;
@@ -407,7 +413,7 @@ serve(async (req) => {
       for (const row of (refRows ?? []) as any[]) {
         const tid = row.reference_table_id as string;
         const code = String(row.code ?? "").trim();
-        const role = row.role ? String(row.role).trim().toLowerCase() : null;
+        const role = row.role ? row.role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
         if (!tid || !code) continue;
         const amt = row.amount != null ? Number(row.amount) : (row.package_amount != null ? Number(row.package_amount) : null);
         if (amt == null || Number.isNaN(amt)) continue;
@@ -419,9 +425,26 @@ serve(async (req) => {
       const t = refValues[tableId];
       if (!t) return null;
       const c = String(code).trim();
-      const r = role ? String(role).trim().toLowerCase() : null;
-      // Busca específica por papel, fallback para código puro
-      if (r && t[`${c}|${r}`] != null) return t[`${c}|${r}`];
+
+      const rolesToTry: (string | null)[] = [role ? role.toString().trim() : null];
+      
+      // Se temos o papel original, tenta encontrar o papel canônico via aliases
+      if (role) {
+        const roleNorm = role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        for (const [canonical, aliases] of Object.entries(roleAliases)) {
+          const normAliases = aliases.map(a => a.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+          if (normAliases.includes(roleNorm)) {
+            rolesToTry.push(canonical);
+            break;
+          }
+        }
+      }
+
+      for (const r of rolesToTry) {
+        const rNorm = r ? r.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
+        if (rNorm && t[`${c}|${rNorm}`] != null) return t[`${c}|${rNorm}`];
+      }
+
       return t[c] ?? null;
     };
 
