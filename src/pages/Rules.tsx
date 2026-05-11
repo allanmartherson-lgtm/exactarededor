@@ -2616,6 +2616,7 @@ const Rules = () => {
                             </div>
                             <div className="flex flex-col gap-1">
                               <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
                             </div>
