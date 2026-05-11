@@ -494,10 +494,14 @@ export default function Doctors() {
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
-              <span>
-                {filtered.length} médico(s) encontrados
-                {filtered.length > displayItems.length && ` (mostrando primeiros ${displayItems.length})`}
-              </span>
+              <div className="flex flex-col">
+                <span className="font-semibold">
+                  {filtered.length} médico(s) encontrados
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  Página {currentPage} de {totalPages || 1}
+                </span>
+              </div>
               <span className="text-xs font-normal text-muted-foreground">
                 Base total: {totalDatabase} médicos
               </span>
