@@ -60,6 +60,8 @@ export type CalcItem = {
   time_end: string;
   includes_holidays: boolean;
   elective_mode: ElectiveMode;
+  sectors: string[];
+  specialties: string[];
 };
 
 /** Construtor de item vazio (default sensato). */
