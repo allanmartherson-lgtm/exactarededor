@@ -604,7 +604,7 @@ function CalcCard({
                     <div className="space-y-2">
                       <Label className="text-[11px]">Setores (apenas se informado na produção)</Label>
                       <MultiSelectChips
-                        options={Object.entries(RULE_SECTOR_LABELS).map(([v, label]) => ({ v, label }))}
+                        options={Object.entries(RULE_SECTOR_LABELS).map(([v, label]) => ({ v, label })) as any}
                         value={c.sectors}
                         onChange={(vals) => onChange({ sectors: vals })}
                         placeholder="Todos os setores"
