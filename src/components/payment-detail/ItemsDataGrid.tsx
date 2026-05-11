@@ -1168,14 +1168,14 @@ function ItemDetailsRow({
                               <div className="space-y-1.5">
                                 <div>
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Médico (Normalizado)</span>
-                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={it.ai_findings?.decision_fields?.used?.doctor_name}>
-                                    {it.ai_findings?.decision_fields?.used?.doctor_name || "—"}
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={(it.ai_findings as any)?.decision_fields?.used?.doctor_name}>
+                                    {(it.ai_findings as any)?.decision_fields?.used?.doctor_name || "—"}
                                   </code>
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Convênio (Normalizado)</span>
-                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={it.ai_findings?.decision_fields?.used?.agreement_name}>
-                                    {it.ai_findings?.decision_fields?.used?.agreement_name || "—"}
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={(it.ai_findings as any)?.decision_fields?.used?.agreement_name}>
+                                    {(it.ai_findings as any)?.decision_fields?.used?.agreement_name || "—"}
                                   </code>
                                 </div>
                               </div>
@@ -1188,7 +1188,7 @@ function ItemDetailsRow({
                                   <span className="text-[10px] font-medium">{it.doctor_role || "—"}</span>
                                   <ChevronRight className="h-3 w-3 text-muted-foreground" />
                                   <Badge variant="outline" className="h-4 px-1.5 bg-primary/10 text-primary border-primary/20 text-[9px] font-bold">
-                                    {it.ai_findings?.decision_fields?.used?.doctor_role || "—"}
+                                    {(it.ai_findings as any)?.decision_fields?.used?.doctor_role || "—"}
                                   </Badge>
                                 </div>
                                 <p className="text-[9px] text-muted-foreground mt-1.5 leading-tight italic">
