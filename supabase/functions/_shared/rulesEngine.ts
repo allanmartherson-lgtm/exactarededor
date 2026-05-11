@@ -18,8 +18,8 @@
  *   9. setor_master_geral (master absoluto de fallback)
  */
 
-export type ReferenceTableLookup = (tableId: string, code: string, role?: string | null) => number | null;
-export type ExceptionTableLookup = (tableId: string, code: string) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
+// ReferenceTableLookup e ExceptionTableLookup movidos para EngineCtx para evitar duplicidade
+
 
 export type CalculationType =
   | "percentual_sobre_convenio"
@@ -491,9 +491,10 @@ export function normAccessRoute(s: string | null | undefined): string {
   if (!n) return "";
   
   // Mapeamento de variações comuns para termos canônicos
-  if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via)/.test(n)) {
+  if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via|1.a via)/i.test(n)) {
     return "unica_principal";
   }
+
   if (/(mesma via|mesma)/.test(n)) {
     return "mesma_via";
   }
@@ -1419,6 +1420,7 @@ export function analyzeItem(
   }
 
   const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
+  let winner: RuleInput | null = null;
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
   let calculation_type_used: AnalysisResult["calculation_type_used"];
@@ -1439,8 +1441,9 @@ export function analyzeItem(
     };
     conflict = outcome.conflict;
   } else if (outcome && outcome.rule) {
-    let winner = outcome.rule;
+    winner = outcome.rule;
     let winnerPriority = outcome.priority;
+
 
 
 
@@ -1626,7 +1629,23 @@ export function analyzeItem(
 
   }
 
+  const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
+  if (outcome?.trace) res.selection_trace = outcome.trace;
+  return res;
+}
 
+
+
+
+
+function finalizeAnalysis(
+  item: ItemInput,
+  calc: ExpectedCalc,
+  rule: RuleInput | null,
+  priority: RuleMatchPriority,
+  ctx?: EngineCtx,
+  conflict?: AnalysisResult["conflict"]
+): AnalysisResult {
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
   // PULA se o item já veio com valor totalizado (convenio_value_totalized).
@@ -1641,14 +1660,14 @@ export function analyzeItem(
     calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
   }
 
-  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, outcome?.rule ?? null, ctx);
+  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, rule, ctx);
   if (priority === "conflito") status = "alerta";
   if (priority === "sem_regra") status = "alerta";
   // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.
   if (
     item.authorized_exception === true &&
     calc.expected == null &&
-    matched_rule_id != null
+    rule != null
   ) {
     status = "alerta";
   }
@@ -1664,22 +1683,22 @@ export function analyzeItem(
     status,
     expected_amount: calc.expected,
     diff_pct,
-    matched_rule_id,
-    matched_rule_name,
+    matched_rule_id: rule?.id ?? null,
+    matched_rule_name: rule?.name ?? null,
     matched_priority: priority,
-    calculation_type_used,
+    calculation_type_used: rule?.calculation_type ?? "informativo",
     calculation_explanation: calc.explanation,
     alerts,
     needs_ai_review: status !== "aprovado",
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
-    ...(outcome?.trace ? { selection_trace: outcome.trace } : {}),
   };
 }
 
 export function analyzePaymentItems(
   items: ItemInput[],
+
   rules: RuleInput[],
   ctx: PaymentContext,
   options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup },
@@ -1909,5 +1928,7 @@ export const _test_only = {
   classifyDoctorRole,
   normAgreement,
   normName,
+  normAccessRoute,
   onlyDigits
 };
+
