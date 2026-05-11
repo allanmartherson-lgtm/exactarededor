@@ -1817,8 +1817,6 @@ const Rules = () => {
                           <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
                         </div>
                       </div>
-
-
                     </AccordionContent>
                   </AccordionItem>
 
