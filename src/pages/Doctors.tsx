@@ -95,23 +95,47 @@ export default function Doctors() {
   }, []);
 
   const load = async () => {
-    // Médicos e empresas podem passar de 1000 registros, então aumentamos o limite.
-    // Usamos select("count") para saber o total real no banco.
-    const [d, c, l, count] = await Promise.all([
-      supabase.from("doctors").select("*").order("full_name").limit(30000),
-      supabase.from("companies").select("id,name,document").order("name").limit(5000),
-      supabase.from("doctor_companies").select("doctor_id,company_id").limit(30000),
-      supabase.from("doctors").select("*", { count: 'exact', head: true })
-    ]);
-    
-    if (d.error) console.error("Erro ao carregar médicos:", d.error);
-    if (c.error) console.error("Erro ao carregar empresas:", c.error);
-    if (l.error) console.error("Erro ao carregar vínculos:", l.error);
+    try {
+      // Carregamento de empresas e vínculos primeiro (são menores)
+      const [c, l, countResp] = await Promise.all([
+        supabase.from("companies").select("id,name,document").order("name").limit(5000),
+        supabase.from("doctor_companies").select("doctor_id,company_id").limit(50000),
+        supabase.from("doctors").select("*", { count: 'exact', head: true })
+      ]);
+      
+      setCompanies((c.data ?? []) as Company[]);
+      setLinks((l.data ?? []) as Link[]);
+      const total = countResp.count ?? 0;
+      setTotalDatabase(total);
 
-    setItems((d.data ?? []) as Doctor[]);
-    setCompanies((c.data ?? []) as Company[]);
-    setLinks((l.data ?? []) as Link[]);
-    setTotalDatabase(count.count ?? 0);
+      // Carregamento de médicos em páginas para evitar timeout ou estouro de memória
+      const PAGE_SIZE = 5000;
+      let allDoctors: Doctor[] = [];
+      
+      for (let offset = 0; offset < total && offset < 40000; offset += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("doctors")
+          .select("*")
+          .order("full_name")
+          .range(offset, offset + PAGE_SIZE - 1);
+        
+        if (error) {
+          console.error("Erro ao carregar lote de médicos:", error);
+          break;
+        }
+        
+        if (data) {
+          allDoctors = [...allDoctors, ...(data as Doctor[])];
+          // Atualiza o estado parcialmente para o usuário ver progresso (opcional, mas bom para UX)
+          setItems([...allDoctors]);
+        }
+        
+        if (data.length < PAGE_SIZE) break;
+      }
+    } catch (err) {
+      console.error("Erro fatal no carregamento:", err);
+      toast({ title: "Erro ao carregar base", description: "Verifique sua conexão", variant: "destructive" });
+    }
   };
 
   const linksByDoctor = useMemo(() => {
@@ -250,10 +274,9 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Se há busca ou filtro, mostramos todos os resultados encontrados
     if (search.trim() || filterCompany) return filtered;
-    // Sem busca, mostramos apenas uma parte para performance (virtualização simples)
-    return filtered.slice(0, 500);
+    // Sem busca, mostramos apenas os 100 primeiros para extrema performance
+    return filtered.slice(0, 100);
   }, [filtered, search, filterCompany]);
 
   const filteredCompaniesForDialog = useMemo(() => {
