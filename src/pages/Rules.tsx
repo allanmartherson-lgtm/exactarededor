@@ -1015,7 +1015,7 @@ const Rules = () => {
       deflator_pct: isTabela ? num(head.deflator_pct) : null,
       reference_table_id: isTabela ? (head.reference_table_id || null) : null,
       exception_table_ids: fExceptionTableIds,
-      allowed_access_routes: fAllowedAccessRoutes.length > 0 ? fAllowedAccessRoutes : null,
+      allowed_access_routes: head.allowed_access_routes.length > 0 ? head.allowed_access_routes : null,
       include_auxiliaries: isTabela ? head.include_auxiliaries : false,
       auxiliary_pct: isTabela ? num(head.auxiliary_pct) : null,
       aux_first_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_first_pct) ?? 30) : null,
