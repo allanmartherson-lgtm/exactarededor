@@ -1076,13 +1076,21 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (body.payment_id) {
         await supabase.from("payments").update({
           processing_timeout_occurred: true,
-          processing_diagnostics: { 
-            ...diagnostics, 
-            status: "error", 
-            error: msg, 
-            execution_time_ms: Date.now() - startTime 
+          processing_diagnostics: {
+            ...diagnostics,
+            status: "error",
+            error: msg,
+            execution_time_ms: Date.now() - startTime
           }
         }).eq("id", body.payment_id);
+      }
+      // Reporta falha ao job de dispatch (se houver)
+      if (body._job_id) {
+        await supabase.rpc("increment_processing_progress", {
+          _job_id: body._job_id,
+          _company_name: body._company_label ?? body.company_name ?? "Sem empresa",
+          _error: msg.slice(0, 300),
+        });
       }
     } catch (_) {}
 
