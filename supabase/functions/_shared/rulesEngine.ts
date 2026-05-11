@@ -1,11 +1,6 @@
 /**
  * Motor determinístico de seleção e cálculo de regras de pagamento (Fase 2).
- */
-
-// ruleAcceptsAccessRoute removida do topo para evitar conflito com declaração principal na linha 545
-// Se precisar usar no topo, declare apenas o tipo ou mova a implementação para cá.
-
-/**
+ *
  * Precedência (mais específico ganha):
  *   1. médico  + código procedimento
  *   2. médico
