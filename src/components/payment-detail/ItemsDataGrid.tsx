@@ -14,6 +14,7 @@ import {
   Columns3,
   ChevronRight,
   FileText,
+  SafeCard,
   Pencil,
   Search,
   ShieldAlert,
