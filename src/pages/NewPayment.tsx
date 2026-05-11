@@ -50,6 +50,11 @@ interface ParsedRow {
   patient_name: string | null;
   sector: string | null;
   raw_data: Record<string, unknown>;
+  source_file?: string;
+  source_row_number?: number;
+  source_bucket_index?: number;
+  source_row_index?: number;
+  tipo_linha_manual?: LineType | null;
   tipo_linha: LineType;
   line_issues: LineIssue[];
 }
@@ -305,14 +310,13 @@ const NewPayment = () => {
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companies);
 
-    const rows: ParsedRow[] = json.map((row) => {
+    const rows: ParsedRow[] = json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
       const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"]));
       const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade"]));
-      const r_perc = normalizeNumericValue(pick(row, ["percentual", "porcentagem", "%"]));
 
       const repasse = r_repasse.value;
       const procVal = r_procVal.value;
@@ -320,7 +324,7 @@ const NewPayment = () => {
       const procedureAmountFinal = procVal || grossFromAny || null;
       const quantity = r_qty.value || null;
       
-      const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid || (pick(row, ["percentual", "porcentagem", "%"]) !== undefined && r_perc.invalid);
+      const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
@@ -344,6 +348,8 @@ const NewPayment = () => {
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"])),
         raw_data: row,
+        source_file: f.name,
+        source_row_number: rowIndex + 2,
       };
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
@@ -472,9 +478,22 @@ const NewPayment = () => {
     );
   };
 
+  const updateRow = (bucketIndex: number, rowIndex: number, changes: Partial<ParsedRow>) => {
+    setBuckets((prev) =>
+      prev.map((bucket, bIdx) =>
+        bIdx !== bucketIndex
+          ? bucket
+          : {
+              ...bucket,
+              rows: bucket.rows.map((row, rIdx) => (rIdx === rowIndex ? { ...row, ...changes } : row)),
+            },
+      ),
+    );
+  };
+
   const allRows = useMemo(() => {
-    return buckets.flatMap((b) => b.rows).map((r) => {
-      const tipo_linha = classifyLine(r, paymentKind || null);
+    return buckets.flatMap((b, bucketIndex) => b.rows.map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))).map((r) => {
+      const tipo_linha = r.tipo_linha_manual ?? classifyLine(r, paymentKind || null);
       const withType = { ...r, tipo_linha };
       return { ...withType, line_issues: validateLine(withType) };
     });
@@ -495,6 +514,11 @@ const NewPayment = () => {
     }
     return { byType, critical, warnings };
   }, [allRows]);
+
+  const rowsWithIssues = useMemo(
+    () => allRows.filter((r) => r.line_issues.length > 0),
+    [allRows],
+  );
 
   // === Detecção heurística do conteúdo da planilha ===
   const detected = useMemo(() => {
@@ -1130,6 +1154,73 @@ const NewPayment = () => {
                       <span className="text-warning">{preValidation.warnings} alerta(s) leve(s)</span>
                     )}
                   </div>
+                  {rowsWithIssues.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/70">
+                      <p className="text-xs font-medium text-foreground">Itens com pendências</p>
+                      <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                        {rowsWithIssues.slice(0, 30).map((r, i) => {
+                          const bucketIndex = r.source_bucket_index;
+                          const rowIndex = r.source_row_index;
+                          const canEdit = typeof bucketIndex === "number" && typeof rowIndex === "number";
+                          const applyRowChange = (changes: Partial<ParsedRow>) => {
+                            if (typeof bucketIndex !== "number" || typeof rowIndex !== "number") return;
+                            updateRow(bucketIndex, rowIndex, changes);
+                          };
+                          return (
+                            <div key={`${r.source_file}-${r.source_row_number}-${i}`} className="rounded-md border border-border bg-background p-3 space-y-2">
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <Badge variant="outline">Linha {r.source_row_number ?? "—"}</Badge>
+                                <Badge variant="secondary">{LINE_TYPE_LABELS[r.tipo_linha]}</Badge>
+                                <span className="text-muted-foreground truncate">{r.source_file}</span>
+                              </div>
+                              <ul className="list-disc pl-4 text-xs space-y-0.5">
+                                {r.line_issues.map((issue, issueIdx) => (
+                                  <li key={issueIdx} className={issue.severity === "critico" ? "text-destructive" : "text-warning"}>
+                                    {issue.message} <span className="text-muted-foreground">({issue.field})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Tipo</Label>
+                                  <Select disabled={!canEdit} value={r.tipo_linha} onValueChange={(v) => applyRowChange({ tipo_linha_manual: v as LineType })}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {(Object.keys(LINE_TYPE_LABELS) as LineType[]).map((type) => (
+                                        <SelectItem key={type} value={type}>{LINE_TYPE_LABELS[type]}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1 sm:col-span-2">
+                                  <Label className="text-xs">Médico</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.doctor_name} onChange={(e) => applyRowChange({ doctor_name: e.target.value })} />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Valor</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.gross_amount ? String(r.gross_amount).replace(".", ",") : ""} onChange={(e) => {
+                                    const parsed = normalizeNumericValue(e.target.value);
+                                    applyRowChange({ gross_amount: parsed.value, valor_invalido: parsed.invalid });
+                                  }} />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">TUSS</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.procedure_code ?? ""} onChange={(e) => applyRowChange({ procedure_code: e.target.value })} />
+                                </div>
+                                <div className="space-y-1 sm:col-span-5">
+                                  <Label className="text-xs">Descrição</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.description || r.procedure_name || ""} onChange={(e) => applyRowChange({ description: e.target.value, procedure_name: e.target.value })} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {rowsWithIssues.length > 30 && (
+                        <p className="text-xs text-muted-foreground">Mostrando 30 de {rowsWithIssues.length} itens com pendências.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
