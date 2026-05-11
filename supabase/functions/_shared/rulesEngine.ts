@@ -1121,7 +1121,14 @@ export function applyCalculation(
   ctx?: EngineCtx,
 ): ExpectedCalc {
   // ---- NOVO: itens de cálculo (1:N) ----
-  const list = Array.isArray(rule.calculations) ? rule.calculations : [];
+  const rawList = Array.isArray(rule.calculations) ? rule.calculations : [];
+  // Defensivo: garante a sequência (sort_order ASC) mesmo que a fonte tenha
+  // entregue fora de ordem. Itens sem sort_order vão para o fim, preservando
+  // a ordem original entre si (sort estável).
+  const list = rawList
+    .map((c, i) => ({ c, i, so: c.sort_order ?? Number.MAX_SAFE_INTEGER }))
+    .sort((a, b) => a.so - b.so || a.i - b.i)
+    .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
     let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null } | null = null;
