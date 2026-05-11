@@ -1604,8 +1604,6 @@ export function analyzeItem(
           ],
         };
       }
-    } else {
-      calc = applyCalculation(winner, item, ctx);
     }
     priority = winnerPriority;
     calculation_type_used = winner.calculation_type;
@@ -1624,10 +1622,17 @@ export function analyzeItem(
         "Tentativa de exceção autorizada em regra de exclusão que NÃO admite exceção — ignorada.",
       ];
     }
-  } else {
+  }
+
+  // REGRA DE PROJETO: "Fallback Master — Apenas após exaustão"
+  // Só executamos o fallback geral se:
+  // 1. Nenhuma regra (medico/empresa/grupo/master) deu match
+  // 2. OU se a regra vencedora acima não resultou em cálculo válido (calc.expected === null)
+  //    APÓS percorrer todos os seus itens de cálculo internos.
+  const needsFallback = !winner || (calc && calc.expected === null);
+
+  if (needsFallback) {
     // --- Camada 3: Verificação global de tabelas de "sem acordo" ou "exclusão" ---
-    // Se o item não bateu em nenhuma regra, verificamos se ele consta em alguma 
-    // tabela global de exceção (ex: códigos que sabidamente não têm acordo).
     const code = (item.procedure_code ?? "").trim();
     if (code && ctx?.globalExceptionTableIds?.length && ctx?.exceptionLookup) {
       for (const tid of ctx.globalExceptionTableIds) {
@@ -1655,33 +1660,40 @@ export function analyzeItem(
     }
 
     // --- Camada 4: Fallback Determinístico para Regra Geral ---
-    // Se o item não bateu em nenhuma regra restrita (ex: por via de acesso), o motor 
-    // busca automaticamente por uma regra master de fallback (ex: 100% do convênio).
     const fallbackResult = findFallbackGeneralRule(item, preFilteredRules, ctx);
     if (fallbackResult) {
       const { rule: fRule, priority: fPriority } = fallbackResult;
-      calc = applyCalculation(fRule, item, ctx);
+      const fCalc = applyCalculation(fRule, item, ctx);
       
-      // Adiciona explicação clara no histórico de auditoria do item
-      calc.explanation = `Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
-      
-      return finalizeAnalysis(item, calc, fRule, fPriority, ctx);
-    } else {
-
-      // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
-      // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
-      // entra como "sem_regra" para revisão humana — analista precisa cadastrar
-      // a regra adequada em Configurações > Regras de Repasse.
-      const sector = inferItemSector(item, ctx);
-      calc = {
-        expected: null,
-        explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
-        alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
-      };
-      priority = "sem_regra";
-      calculation_type_used = "informativo";
+      if (fCalc.expected !== null) {
+        const oldExplanation = calc?.explanation || "";
+        calc = fCalc;
+        priority = fPriority;
+        calculation_type_used = fRule.calculation_type;
+        matched_rule_id = fRule.id;
+        matched_rule_name = fRule.name;
+        
+        calc.explanation = winner 
+          ? `Regra específica "${winner.name}" falhou em todos os cálculos (${oldExplanation}). Aplicado fallback geral "${fRule.name}". ${calc.explanation}`
+          : `Nenhuma regra específica satisfeita. Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
+          
+        const res = finalizeAnalysis(item, calc, fRule, fPriority, ctx);
+        if (outcome?.trace) res.selection_trace = outcome.trace;
+        return res;
+      }
     }
+  }
 
+  if (!calc || calc.expected === null) {
+    // Sem regra cadastrada (nem específica, nem geral por setor)
+    const sector = inferItemSector(item, ctx);
+    calc = {
+      expected: null,
+      explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
+      alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
+    };
+    priority = "sem_regra";
+    calculation_type_used = "informativo";
   }
 
   const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
