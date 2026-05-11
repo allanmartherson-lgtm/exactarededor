@@ -1735,7 +1735,7 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
     <Link
       ref={ref}
       to={to}
-      className="pipeline-col"
+      className="pipeline-col min-w-0"
       style={{
         display: "flex",
         flexDirection: "column",
