@@ -556,6 +556,40 @@ export default function Doctors() {
               </div>
             )}
           </CardContent>
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
+              <div className="text-xs text-muted-foreground">
+                Mostrando {displayItems.length} de {filtered.length} médicos
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    setCurrentPage(p => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  Anterior
+                </Button>
+                <div className="text-sm font-medium min-w-[80px] text-center">
+                  {currentPage} / {totalPages}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    setCurrentPage(p => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
     </div>
