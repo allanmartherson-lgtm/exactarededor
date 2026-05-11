@@ -546,7 +546,8 @@ export function ruleAcceptsAccessRoute(r: { allowed_access_routes?: string[] | n
   const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
   if (allowed.length === 0) return true;
   const itemRoute = normAccessRoute(item.access_route);
-  if (!itemRoute) return false;
+  // Se o item não tem via mas a regra exige, não aceita (exceto se a regra aceita 'sem_via')
+  if (!itemRoute) return allowed.some(a => normAccessRoute(a) === "sem_via");
   return allowed.some(a => normAccessRoute(a) === itemRoute);
 }
 
