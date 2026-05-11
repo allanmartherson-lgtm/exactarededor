@@ -789,11 +789,11 @@ export function selectWinningRule(
 
 // ---------- via de acesso (em código) ----------
 export function accessRouteFactor(raw: string | null | undefined): number {
-  const t = normName(raw);
+  const t = normAccessRoute(raw);
   if (!t) return 1;
-  if (/(unica|única|principal)/.test(t)) return 1;
-  if (/(mesma)/.test(t)) return 0.5;
-  if (/(diferente|outra via)/.test(t)) return 0.7;
+  if (t === "unica_principal") return 1;
+  if (t === "mesma_via") return 0.5;
+  if (t === "outra_via") return 0.7;
   return 1;
 }
 
