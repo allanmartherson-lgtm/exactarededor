@@ -1498,9 +1498,7 @@ export function analyzeItem(
   } else if (outcome && outcome.rule) {
     winner = outcome.rule;
     let winnerPriority = outcome.priority;
-
-
-
+    calc = applyCalculation(winner, item, ctx);
 
     // === Camada 1 — Gating por-regra de convênio ===
     // A vencedora foi escolhida pelos eixos (especialidade/código/médico/
