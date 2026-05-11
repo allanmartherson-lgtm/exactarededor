@@ -1158,33 +1158,73 @@ function ItemDetailsRow({
                     </ul>
                     
                     {it.ai_findings?.selection_trace && (
-                      <>
-                        <div className="text-[10px] text-muted-foreground bg-muted/30 p-2 rounded border border-border/40 mt-2">
-                          <p className="font-medium mb-1 uppercase tracking-tight">Hierarquia validada:</p>
-                          <ul className="space-y-1">
-                            <li className="flex items-center gap-1.5">
-                              <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
-                              Regra Específica / Grupo / Convênio
-                            </li>
-                            <li className="flex items-center gap-1.5">
-                              <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
-                              Regra Master / Geral (Independente de Setor)
-                            </li>
-                          </ul>
+                      <div className="mt-4 p-3 rounded-md border border-info/20 bg-info-soft/10">
+                        <Label icon={ShieldAlert}>Auditoria de Normalização & Cruzamento</Label>
+                        <div className="mt-2 space-y-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="min-w-0">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Normalização</p>
+                              <div className="space-y-1.5">
+                                <div>
+                                  <span className="text-[9px] text-muted-foreground block mb-0.5">Médico (Normalizado)</span>
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={it.ai_findings?.decision_fields?.used?.doctor_name}>
+                                    {it.ai_findings?.decision_fields?.used?.doctor_name || "—"}
+                                  </code>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-muted-foreground block mb-0.5">Convênio (Normalizado)</span>
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={it.ai_findings?.decision_fields?.used?.agreement_name}>
+                                    {it.ai_findings?.decision_fields?.used?.agreement_name || "—"}
+                                  </code>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Alias Aplicado</p>
+                              <div>
+                                <span className="text-[9px] text-muted-foreground block mb-0.5">Função (Role)</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-medium">{it.doctor_role || "—"}</span>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                  <Badge variant="outline" className="h-4 px-1.5 bg-primary/10 text-primary border-primary/20 text-[9px] font-bold">
+                                    {it.ai_findings?.decision_fields?.used?.doctor_role || "—"}
+                                  </Badge>
+                                </div>
+                                <p className="text-[9px] text-muted-foreground mt-1.5 leading-tight italic">
+                                  Alias resolvido via mapeamento inteligente (medical_role_aliases) para busca na tabela de referência.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-2 border-t border-border/40">
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Hierarquia validada:</p>
+                            <ul className="space-y-1">
+                              <li className="flex items-center gap-1.5 text-[10px]">
+                                <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
+                                Regra Específica / Grupo / Convênio
+                              </li>
+                              <li className="flex items-center gap-1.5 text-[10px]">
+                                <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
+                                Regra Master / Geral (Independente de Setor)
+                              </li>
+                            </ul>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full h-7 text-[9px] text-muted-foreground hover:text-foreground mt-1 border border-dashed border-border/60"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
+                              alert("Trace técnico completo enviado para o Console (F12)");
+                            }}
+                          >
+                            <FileText className="h-3 w-3 mr-1" /> Ver detalhes técnicos (Console)
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full h-6 text-[9px] text-muted-foreground hover:text-foreground mt-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log("Full Selection Trace for Item " + it.id, it.ai_findings.selection_trace);
-                            alert("Trace técnico completo enviado para o Console (F12)");
-                          }}
-                        >
-                          <FileText className="h-3 w-3 mr-1" /> Ver detalhes técnicos (Console)
-                        </Button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
