@@ -491,9 +491,10 @@ export function normAccessRoute(s: string | null | undefined): string {
   if (!n) return "";
   
   // Mapeamento de variações comuns para termos canônicos
-  if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via)/.test(n)) {
+  if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via|1.a via)/i.test(n)) {
     return "unica_principal";
   }
+
   if (/(mesma via|mesma)/.test(n)) {
     return "mesma_via";
   }
