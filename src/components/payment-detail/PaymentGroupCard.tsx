@@ -388,6 +388,6 @@ export const PaymentGroupCard = ({
           </div>
         </CardContent>
       )}
-    </Card>
+    </SafeCard>
   );
 };
