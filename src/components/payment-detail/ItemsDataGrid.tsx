@@ -1028,7 +1028,7 @@ function ItemDetailsRow({
           {/* Resumo do item */}
           <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8 min-w-0">
             {summary.map((s) => (
-              <div key={s.label} className="min-w-0 overflow-hidden">
+              <div key={s.label} className="min-w-0">
                 <Label>{s.label}</Label>
                 <p className={cn(TEXT_BODY, "break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full mt-0.5")}>{s.value}</p>
               </div>
