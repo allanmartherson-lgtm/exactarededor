@@ -1025,6 +1025,11 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
 /** Projeta um item de cálculo sobre a regra, criando uma "regra efetiva" para
  *  reutilizar os calculadores legados. */
 function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
+  // ATENÇÃO: Se a regra estiver vinculada a uma Matriz de Vias, 
+  // limpamos restrições de via individuais para evitar conflitos,
+  // já que a matriz tem precedência total sobre o comportamento de via.
+  const bypassVia = (rule as any).__from_matrix === true;
+
   return {
     ...rule,
     calculation_type: c.calculation_type,
@@ -1051,9 +1056,10 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     bonus_amount: c.bonus_amount ?? rule.bonus_amount,
     bonus_pct: c.bonus_pct ?? rule.bonus_pct,
     target_amount: c.target_amount ?? rule.target_amount,
-    allowed_access_routes: c.allowed_access_routes ?? rule.allowed_access_routes,
+    allowed_access_routes: bypassVia ? null : (c.allowed_access_routes ?? rule.allowed_access_routes),
   };
 }
+
 
 export function applyCalculation(
   rule: RuleInput,
@@ -1440,6 +1446,75 @@ export function analyzeItem(
     let winner = outcome.rule;
     let winnerPriority = outcome.priority;
 
+    // === Camada 0 — Matriz de Vias de Acesso (Override Estrutural) ===
+    // Se a regra vencedora estiver vinculada a uma Matriz de Vias, a matriz 
+    // assume o controle total do cálculo baseado na via do item.
+    if (ctx?.matrices && ctx.matrices.length > 0) {
+      const matrix = ctx.matrices.find(m => m.rule_id === winner.id);
+      if (matrix) {
+        const isPrimary = normAccessRoute(item.access_route) === "unica_principal";
+        
+        if (isPrimary) {
+          // Via Principal -> Usa Tabela Fixa da Matriz
+          if (matrix.primary_route_table_id) {
+            const tableId = matrix.primary_route_table_id;
+            const mult = matrix.primary_route_multiplier || 1;
+            const base = ctx.referenceLookup?.(tableId, item.procedure_code || "", item.doctor_role);
+            
+            if (base != null) {
+              const expected = Number((base * mult).toFixed(2));
+              calc = {
+                expected,
+                explanation: `Matriz de Vias (Via Principal): Tabela Ref. R$ ${base.toFixed(2)} × mult ${mult} = R$ ${expected.toFixed(2)}`,
+                alerts: []
+              };
+            } else {
+              calc = {
+                expected: null,
+                explanation: `Matriz de Vias (Via Principal): Código ${item.procedure_code} não encontrado na tabela vinculada.`,
+                alerts: [`Código não encontrado na tabela fixa da matriz.`]
+              };
+            }
+          } else {
+            calc = { expected: null, explanation: "Matriz de Vias: Via principal sem tabela configurada.", alerts: [] };
+          }
+        } else {
+          // Demais Vias -> Fallback configurado na Matriz
+          if (matrix.secondary_route_type === "convenio_percentage") {
+            const pct = matrix.secondary_route_value || 100;
+            const base = item.procedure_amount;
+            if (base != null) {
+              const expected = Number((base * (pct / 100)).toFixed(2));
+              calc = {
+                expected,
+                explanation: `Matriz de Vias (Fallback Outras Vias): ${pct}% do convênio (R$ ${base.toFixed(2)}) = R$ ${expected.toFixed(2)}`,
+                alerts: []
+              };
+            } else {
+              calc = { expected: null, explanation: `Matriz de Vias (Fallback): ${pct}% do convênio — valor base ausente.`, alerts: ["procedure_amount ausente."] };
+            }
+          } else if (matrix.secondary_route_type === "fixed_amount") {
+            const val = matrix.secondary_route_value || 0;
+            calc = { expected: val, explanation: `Matriz de Vias (Fallback): Valor fixo R$ ${val.toFixed(2)}`, alerts: [] };
+          } else if (matrix.secondary_route_type === "reference_table" && matrix.secondary_route_table_id) {
+            const base = ctx.referenceLookup?.(matrix.secondary_route_table_id, item.procedure_code || "", item.doctor_role);
+            if (base != null) {
+              calc = { expected: base, explanation: `Matriz de Vias (Fallback): Tabela Ref. R$ ${base.toFixed(2)}`, alerts: [] };
+            } else {
+              calc = { expected: null, explanation: `Matriz de Vias (Fallback): Código não encontrado na tabela secundária.`, alerts: [] };
+            }
+          } else {
+            calc = { expected: null, explanation: "Matriz de Vias: Fallback não configurado corretamente.", alerts: [] };
+          }
+        }
+
+        // Se a matriz resolveu o cálculo, finalizamos aqui.
+        if (calc) {
+          return finalizeAnalysis(item, calc, winner, winnerPriority, ctx);
+        }
+      }
+    }
+
     // === Camada 1 — Gating por-regra de convênio ===
     // A vencedora foi escolhida pelos eixos (especialidade/código/médico/
     // empresa/grupo/setor) sem considerar convênio. Agora validamos se a
@@ -1604,10 +1679,7 @@ export function analyzeItem(
       // Adiciona explicação clara no histórico de auditoria do item
       calc.explanation = `Fallback Automático: Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
       
-      priority = fPriority;
-      calculation_type_used = fRule.calculation_type;
-      matched_rule_id = fRule.id;
-      matched_rule_name = fRule.name;
+      return finalizeAnalysis(item, calc, fRule, fPriority, ctx);
     } else {
       // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
       // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
@@ -1622,6 +1694,7 @@ export function analyzeItem(
       priority = "sem_regra";
       calculation_type_used = "informativo";
     }
+
   }
 
 
