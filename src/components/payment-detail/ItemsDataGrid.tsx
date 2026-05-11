@@ -1123,7 +1123,7 @@ function ItemDetailsRow({
               {aiNote && (
                 <SafeCard>
                   <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
-                  <p className="text-muted-foreground italic mt-1">{aiNote}</p>
+                  <p className="text-muted-foreground italic mt-1 break-words whitespace-normal">{aiNote}</p>
                 </SafeCard>
               )}
 
