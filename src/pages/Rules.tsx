@@ -226,6 +226,9 @@ const Rules = () => {
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
+  /** Vias de acesso permitidas para a regra (eixo determinístico). */
+  const [fAllowedAccessRoutes, setFAllowedAccessRoutes] = useState<string[]>([]);
+  const [fAllowedAccessRouteInput, setFAllowedAccessRouteInput] = useState<string>("");
   // Convênio (eixo determinístico do motor de regras) — modo whitelist/blacklist + tags livres.
   // `agreement_name` legado é mantido apenas para retrocompatibilidade na leitura
   // (mesclado em `fAgreementAliases` no openEdit). Novas regras gravam só em aliases.
@@ -814,6 +817,7 @@ const Rules = () => {
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
+    setFAllowedAccessRoutes([]); setFAllowedAccessRouteInput("");
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFHasConditions(false);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
@@ -848,6 +852,8 @@ const Rules = () => {
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
+    setFAllowedAccessRoutes(Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : []);
+    setFAllowedAccessRouteInput("");
     setFBonusPct(r.bonus_pct != null ? String(r.bonus_pct) : "");
     setFTargetAmount(r.target_amount != null ? String(r.target_amount) : "");
     setFMultiplier(r.multiplier != null ? String(r.multiplier) : "");
@@ -1007,6 +1013,7 @@ const Rules = () => {
       deflator_pct: isTabela ? num(head.deflator_pct) : null,
       reference_table_id: isTabela ? (head.reference_table_id || null) : null,
       exception_table_ids: fExceptionTableIds,
+      allowed_access_routes: fAllowedAccessRoutes.length > 0 ? fAllowedAccessRoutes : null,
       include_auxiliaries: isTabela ? head.include_auxiliaries : false,
       auxiliary_pct: isTabela ? num(head.auxiliary_pct) : null,
       aux_first_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_first_pct) ?? 30) : null,
@@ -1773,6 +1780,45 @@ const Rules = () => {
                         </div>
                         <div className="space-y-1.5"><Label>Vigência — fim</Label>
                           <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-border/50">
+                        <Label className="text-sm font-semibold">Vias de acesso (eixo determinístico)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Restringir a regra a vias específicas (ex: "Única ou principal"). 
+                          Deixe vazio para aplicar a qualquer via.
+                        </p>
+                        <div className="space-y-1.5">
+                          <Input
+                            value={fAllowedAccessRouteInput}
+                            onChange={(e) => setFAllowedAccessRouteInput(e.target.value)}
+                            placeholder="Ex: Única ou principal (Enter para adicionar)"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === ",") {
+                                e.preventDefault();
+                                const v = fAllowedAccessRouteInput.trim();
+                                if (v && !fAllowedAccessRoutes.includes(v)) {
+                                  setFAllowedAccessRoutes(p => [...p, v]);
+                                }
+                                setFAllowedAccessRouteInput("");
+                              }
+                            }}
+                          />
+                          {fAllowedAccessRoutes.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {fAllowedAccessRoutes.map(a => (
+                                <button
+                                  key={a}
+                                  type="button"
+                                  onClick={() => setFAllowedAccessRoutes(p => p.filter(x => x !== a))}
+                                  className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                                >
+                                  {a} ✕
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </AccordionContent>

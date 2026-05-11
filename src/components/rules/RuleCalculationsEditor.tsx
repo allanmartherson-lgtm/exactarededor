@@ -49,6 +49,8 @@ export type CalcItem = {
   package_visits_count: boolean;
   extras_codes: string; // entrada livre
   apply_access_route: boolean;
+  /** Vias de acesso permitidas para este item de cálculo. */
+  allowed_access_routes: string[];
 
   // condições (vinculadas a ESTE cálculo)
   has_conditions: boolean;
@@ -73,6 +75,7 @@ export function makeEmptyCalc(): CalcItem {
     package_included_codes: "", package_auxiliaries_included: true,
     package_opinions_count: false, package_visits_count: false,
     extras_codes: "", apply_access_route: false,
+    allowed_access_routes: [],
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
   };
@@ -439,6 +442,32 @@ function CalcCard({
                     Inclui feriados
                   </label>
                 </div>
+                <div className="space-y-1.5 pt-2 border-t border-border/50">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Restrição por via de acesso</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Única ou principal", "Mesma via", "Diferentes vias"].map((route) => {
+                      const checked = c.allowed_access_routes.includes(route);
+                      return (
+                        <Button
+                          key={route}
+                          type="button"
+                          size="sm"
+                          variant={checked ? "default" : "outline"}
+                          className="h-7 text-[10px] px-2"
+                          onClick={() => {
+                            const next = checked 
+                              ? c.allowed_access_routes.filter(r => r !== route)
+                              : [...c.allowed_access_routes, route];
+                            onChange({ allowed_access_routes: next });
+                          }}
+                        >
+                          {route}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">Se selecionado, este cálculo só aplica se a via do item for uma das marcadas.</p>
+                </div>
               </>
             )}
           </div>
@@ -486,6 +515,7 @@ export function calcFromDb(r: any): CalcItem {
     package_visits_count: !!r.package_visits_count,
     extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
     apply_access_route: !!r.apply_access_route,
+    allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
     has_conditions: tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer",
     time_mode: tMode,
     weekdays: wdays,
@@ -540,6 +570,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     package_visits_count: isPacoteComExtras ? c.package_visits_count : false,
     extras_codes: isPacoteComExtras ? splitCodes(c.extras_codes) : null,
     apply_access_route: isTabela ? c.apply_access_route : false,
+    allowed_access_routes: c.allowed_access_routes.length > 0 ? c.allowed_access_routes : null,
     time_mode: c.has_conditions ? c.time_mode : "qualquer",
     weekdays: c.has_conditions && c.time_mode === "personalizado" ? c.weekdays : [],
     time_start: c.has_conditions ? (c.time_start || null) : null,
