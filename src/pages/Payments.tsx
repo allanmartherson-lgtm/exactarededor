@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope } from "lucide-react";
+import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -110,7 +111,9 @@ const Payments = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
+  const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
   const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
+  const [paymentIdsForDoctor, setPaymentIdsForDoctor] = useState<Set<string> | null>(null);
   // Busca cruzada em itens (médico, atendimento, descrição, especialidade,
   // procedimento, CC). Acionada com 3+ chars e debounced.
   const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
@@ -325,6 +328,22 @@ const Payments = () => {
       });
     return () => { cancelled = true; };
   }, [companyFilter]);
+
+  // Quando um médico é escolhido, busca os payment_ids que possuem itens dele.
+  useEffect(() => {
+    let cancelled = false;
+    if (!doctorFilter) { setPaymentIdsForDoctor(null); return; }
+    supabase
+      .from("payment_items")
+      .select("payment_id")
+      .eq("doctor_name", doctorFilter.full_name)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const ids = new Set<string>((data ?? []).map((r: any) => r.payment_id).filter(Boolean));
+        setPaymentIdsForDoctor(ids);
+      });
+    return () => { cancelled = true; };
+  }, [doctorFilter]);
 
   // Busca cruzada em payment_items quando o termo for ≥3 chars.
   useEffect(() => {
