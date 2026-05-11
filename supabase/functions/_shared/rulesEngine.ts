@@ -1436,7 +1436,7 @@ export function analyzeItem(
       item.authorized_exception === true &&
       winner.allows_authorized_exception === true
     ) {
-      const fallback = findNextCalculableRule(item, preFilteredRules, winner.id);
+      const fallback = findNextCalculableRule(item, preFilteredRules, winner.id, ctx);
       if (fallback) {
         winner = fallback.rule;
         winnerPriority = fallback.priority;
