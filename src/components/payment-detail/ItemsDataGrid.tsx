@@ -1202,10 +1202,10 @@ function ItemDetailsRow({
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Alias Aplicado</p>
                               <div>
                                 <span className="text-[9px] text-muted-foreground block mb-0.5">Função (Role)</span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] font-medium">{it.doctor_role || "—"}</span>
-                                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                  <Badge variant="outline" className="h-4 px-1.5 bg-primary/10 text-primary border-primary/20 text-[9px] font-bold">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-medium break-all">{it.doctor_role || "—"}</span>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <Badge variant="outline" className="h-4 px-1.5 bg-primary/10 text-primary border-primary/20 text-[9px] font-bold break-all whitespace-normal h-auto py-0.5">
                                     {(it.ai_findings as any)?.decision_fields?.used?.doctor_role || "—"}
                                   </Badge>
                                 </div>
