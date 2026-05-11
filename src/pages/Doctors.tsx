@@ -107,11 +107,12 @@ export default function Doctors() {
       
       setCompanies((c.data ?? []) as Company[]);
       setLinks((l.data ?? []) as Link[]);
-      const total = countResp.count ?? 0;
+      const total = countResp.count || 0;
+      console.log(`Carregando base total: ${total} médicos`);
       setTotalDatabase(total);
 
       // Carregamento progressivo para evitar timeout e garantir que todos os dados cheguem
-      const PAGE_SIZE = 2500;
+      const PAGE_SIZE = 5000;
       let allDoctors: Doctor[] = [];
       
       // Loop robusto para garantir que TODA a base seja carregada
@@ -291,16 +292,16 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Se há uma busca ativa, mostramos TODOS os resultados filtrados para o usuário encontrar quem precisa
+    // Se há uma busca ativa, mostramos os resultados filtrados SEM limite (garantindo que todos apareçam)
     if (search.trim() || filterCompany) {
       return filtered;
     }
-    // Sem busca ativa, mantemos a paginação apenas para a listagem inicial ser rápida
+    // Sem busca ativa, mantemos a paginação de 100 itens para performance inicial
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filtered.slice(startIndex, startIndex + itemsPerPage);
   }, [filtered, currentPage, itemsPerPage, search, filterCompany]);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const totalPages = itemsPerPage > 0 ? Math.ceil(filtered.length / itemsPerPage) : 1;
 
   // Resetar página quando a busca mudar
   useEffect(() => {
