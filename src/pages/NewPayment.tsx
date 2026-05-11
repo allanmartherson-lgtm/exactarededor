@@ -50,6 +50,11 @@ interface ParsedRow {
   patient_name: string | null;
   sector: string | null;
   raw_data: Record<string, unknown>;
+  source_file?: string;
+  source_row_number?: number;
+  source_bucket_index?: number;
+  source_row_index?: number;
+  tipo_linha_manual?: LineType | null;
   tipo_linha: LineType;
   line_issues: LineIssue[];
 }
@@ -305,14 +310,13 @@ const NewPayment = () => {
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companies);
 
-    const rows: ParsedRow[] = json.map((row) => {
+    const rows: ParsedRow[] = json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
       const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"]));
       const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade"]));
-      const r_perc = normalizeNumericValue(pick(row, ["percentual", "porcentagem", "%"]));
 
       const repasse = r_repasse.value;
       const procVal = r_procVal.value;
@@ -320,7 +324,7 @@ const NewPayment = () => {
       const procedureAmountFinal = procVal || grossFromAny || null;
       const quantity = r_qty.value || null;
       
-      const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid || (pick(row, ["percentual", "porcentagem", "%"]) !== undefined && r_perc.invalid);
+      const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
@@ -344,6 +348,8 @@ const NewPayment = () => {
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"])),
         raw_data: row,
+        source_file: f.name,
+        source_row_number: rowIndex + 2,
       };
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
