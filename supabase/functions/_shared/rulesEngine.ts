@@ -18,6 +18,9 @@
  *   9. setor_master_geral (master absoluto de fallback)
  */
 
+export type ReferenceTableLookup = (tableId: string, code: string, role?: string | null) => number | null;
+export type ExceptionTableLookup = (tableId: string, code: string) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
+
 export type CalculationType =
   | "percentual_sobre_convenio"
   | "regra_vias"
