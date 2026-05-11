@@ -603,7 +603,7 @@ const ReferenceTables = () => {
                   <span>
                     Códigos ({filteredItems.length}
                     {q ? ` de ${items.length}` : ""})
-                    {filteredItems.length > 200 ? " · mostrando 200 primeiros" : ""}
+                    {filteredItems.length > 1000 ? " · mostrando 1000 primeiros" : ""}
                   </span>
                   <Input
                     value={search}
@@ -619,7 +619,7 @@ const ReferenceTables = () => {
                 </p>
               ) : (
                 <div className="divide-y divide-border">
-                  {filteredItems.slice(0, 200).map((it) => {
+                  {filteredItems.slice(0, 1000).map((it) => {
                     const isPkg = selected.kind === "pacote_combinacao";
                     return (
                       <div key={it.id} className="px-4 sm:px-6 py-4 flex items-start gap-4 hover:bg-muted/20 transition-colors">

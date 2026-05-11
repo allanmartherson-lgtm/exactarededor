@@ -96,7 +96,7 @@ export default function Doctors() {
   const load = async () => {
     // Médicos e empresas podem passar de 1000 registros, então aumentamos o limite.
     const [d, c, l] = await Promise.all([
-      supabase.from("doctors").select("*").order("full_name").limit(10000),
+      supabase.from("doctors").select("*").order("full_name").limit(20000),
       supabase.from("companies").select("id,name,document").order("name").limit(5000),
       supabase.from("doctor_companies").select("doctor_id,company_id").limit(20000),
     ]);
@@ -234,10 +234,10 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Aumentamos o limite de exibição inicial para 1000 para que mais médicos sejam visíveis
-    // sem precisar de busca imediata, mantendo a performance.
+    // Aumentamos o limite de exibição para permitir ver todos os médicos carregados.
+    // O limite de carregamento (load) agora é de 20.000.
     if (search.trim() || filterCompany) return filtered;
-    return filtered.slice(0, 1000);
+    return filtered.slice(0, 10000);
   }, [filtered, search, filterCompany]);
 
   const filteredCompaniesForDialog = useMemo(() => {

@@ -177,7 +177,7 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
         errors: errors.slice(0, 50),
         duplicates: dups.slice(0, 50),
         sample: records.slice(0, 10),
-        itemsCreated: itemsCreated.slice(0, 100) // Show up to 100 items in detail
+        itemsCreated: itemsCreated.slice(0, 500) // Show up to 500 items in detail
       });
       setStep("validate");
     } catch (e: any) {
