@@ -1793,3 +1793,13 @@ export function selectMainProcedures(
 
   return { byItemId };
 }
+
+/**
+ * Exportado para testes: permite validar a normalização e classificação de papéis médicos.
+ */
+export const _test_only = {
+  classifyDoctorRole,
+  normAgreement,
+  normName,
+  onlyDigits
+};
