@@ -1909,5 +1909,7 @@ export const _test_only = {
   classifyDoctorRole,
   normAgreement,
   normName,
+  normAccessRoute,
   onlyDigits
 };
+
