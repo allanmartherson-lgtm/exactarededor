@@ -64,7 +64,7 @@ serve(async (req) => {
 
     // ---------- 2. carrega configurações globais e regras ----------
     const [configRes, rulesRes] = await Promise.all([
-      supabase.from("system_configurations").select("value").eq("key", "divergence_thresholds").maybeSingle(),
+      supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
         target_type,target_identifier,target_name,target_company_id,
