@@ -435,13 +435,22 @@ export default function Doctors() {
 
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-base">
-              {filtered.length} médico(s) {filtered.length > displayItems.length && `(mostrando primeiros ${displayItems.length})`}
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>
+                {filtered.length} médico(s) encontrados
+                {filtered.length > displayItems.length && ` (mostrando primeiros ${displayItems.length})`}
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Base total: {totalDatabase} médicos
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {displayItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-6 text-center">Nenhum médico encontrado.</p>
+              <div className="p-12 text-center space-y-2">
+                <p className="text-sm text-muted-foreground">Nenhum médico encontrado com o termo "{search}".</p>
+                <p className="text-xs text-muted-foreground italic">Dica: Verifique se o nome está escrito corretamente ou tente buscar pelo CRM.</p>
+              </div>
             ) : (
               <div className="divide-y divide-border">
                 {displayItems.map((d) => (
