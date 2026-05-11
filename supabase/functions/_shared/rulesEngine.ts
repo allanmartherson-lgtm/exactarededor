@@ -683,6 +683,7 @@ function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
 }
 
 // ruleAcceptsAccessRoute removida por duplicidade (já declarada na linha 545)
+// ruleAcceptsAccessRoute já está declarada no início do arquivo para evitar conflitos de redeclaração.
 
 export function selectWinningRule(
   item: ItemInput,
