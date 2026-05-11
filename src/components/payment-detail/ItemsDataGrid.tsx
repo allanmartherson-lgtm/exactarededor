@@ -1218,14 +1218,14 @@ function ItemDetailsRow({
                           
                           <div className="pt-2 border-t border-border/40">
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Hierarquia validada:</p>
-                            <ul className="space-y-1">
-                              <li className="flex items-center gap-1.5 text-[10px]">
-                                <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
-                                Regra Específica / Grupo / Convênio
+                            <ul className="space-y-2 list-none pl-0 text-muted-foreground">
+                              <li className="flex items-start gap-1.5 text-[10px] break-words whitespace-normal min-w-0">
+                                <div className={cn("h-1.5 w-1.5 rounded-full mt-1 shrink-0", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
+                                <span>Regra Específica / Grupo / Convênio</span>
                               </li>
-                              <li className="flex items-center gap-1.5 text-[10px]">
-                                <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
-                                Regra Master / Geral (Independente de Setor)
+                              <li className="flex items-start gap-1.5 text-[10px] break-words whitespace-normal min-w-0">
+                                <div className={cn("h-1.5 w-1.5 rounded-full mt-1 shrink-0", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
+                                <span>Regra Master / Geral (Independente de Setor)</span>
                               </li>
                             </ul>
                           </div>
