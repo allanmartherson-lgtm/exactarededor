@@ -593,6 +593,8 @@ function CalcCard({
                       </div>
                     )}
                   </div>
+                </div>
+
                 <div className="space-y-1.5 border-t border-border/40 pt-3">
                   <Label className="text-xs font-semibold">Restrições Adicionais (Setores e Especialidades)</Label>
                   <p className="text-[11px] text-muted-foreground leading-tight">
@@ -646,8 +648,6 @@ function CalcCard({
               </div>
             )}
           </div>
-
-
         </>
       )}
     </div>
