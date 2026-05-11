@@ -299,8 +299,11 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    if (search.trim() || filterCompany) return filtered;
-    // Sem busca, mostramos apenas os 100 primeiros para extrema performance
+    // Se há uma busca ativa, mostramos TODOS os resultados filtrados
+    if (search.trim() || filterCompany) {
+      return filtered;
+    }
+    // Sem busca ativa, limitamos a 100 apenas para a listagem inicial ser rápida
     return filtered.slice(0, 100);
   }, [filtered, search, filterCompany]);
 
