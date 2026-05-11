@@ -1276,6 +1276,7 @@ function findNextCalculableRule(
   item: ItemInput,
   rules: RuleInput[],
   excludeId: string,
+  ctx?: EngineCtx,
 ): { rule: RuleInput; priority: RuleMatchPriority } | null {
   const remaining = rules.filter(
     (r) =>
