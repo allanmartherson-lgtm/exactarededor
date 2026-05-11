@@ -1452,6 +1452,7 @@ export function analyzeItem(
     if (ctx?.matrices && ctx.matrices.length > 0) {
       const matrix = ctx.matrices.find(m => m.rule_id === winner.id);
       if (matrix) {
+
         const isPrimary = normAccessRoute(item.access_route) === "unica_principal";
         
         if (isPrimary) {
