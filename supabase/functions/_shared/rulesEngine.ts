@@ -15,6 +15,7 @@
  *   6. setor   (master do setor do item)
  *   7. setor "outro" (master geral)
  *   8. default por setor (hemodinâmica = 88%; demais = 100%)
+ *   9. setor_master_geral (master absoluto de fallback)
  */
 
 export type CalculationType =
@@ -399,12 +400,20 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
   const s = (role ?? "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!s) return "outro";
   if (s.includes("instrument")) return "instrumentador";
-  if (s.includes("cirurgi")) return "cirurgiao";
+  if (s.includes("cirurgi") || s.includes("operador")) return "cirurgiao";
+  
+  // 2º / 3º / segundo / terceiro / etc + aux (deve vir ANTES do match de 1º)
+  // Ordem importa: 2º casa com /2/ mas não com /^1/
+  if (/(2[ºo]|2\b|segund|3[ºo]|3\b|terceir|quart|quint)/.test(s) && (s.includes("aux") || s.includes("ajudante"))) {
+    return "demais_aux";
+  }
+  
   // 1º / primeiro / 1
-  if (/(^|\b)(1[ºo]|1\b|primeir)/.test(s) && s.includes("aux")) return "primeiro_aux";
-  // 2º / 3º / segundo / terceiro / etc + aux
-  if (/(2[ºo]|3[ºo]|4[ºo]|segund|terceir|quart|quint)/.test(s) && s.includes("aux")) return "demais_aux";
-  if (s.includes("aux")) return "primeiro_aux"; // sem ordinal explícito → trata como 1º
+  if (/(^|\b)(1[ºo]|1\b|primeir)/.test(s) && (s.includes("aux") || s.includes("ajudante"))) {
+    return "primeiro_aux";
+  }
+  
+  if (s.includes("aux") || s.includes("ajudante")) return "primeiro_aux"; // sem ordinal explícito → trata como 1º
   return "outro";
 }
 
@@ -1272,6 +1281,7 @@ function findNextCalculableRule(
   item: ItemInput,
   rules: RuleInput[],
   excludeId: string,
+  ctx?: EngineCtx,
 ): { rule: RuleInput; priority: RuleMatchPriority } | null {
   const remaining = rules.filter(
     (r) =>
@@ -1431,7 +1441,7 @@ export function analyzeItem(
       item.authorized_exception === true &&
       winner.allows_authorized_exception === true
     ) {
-      const fallback = findNextCalculableRule(item, preFilteredRules, winner.id);
+      const fallback = findNextCalculableRule(item, preFilteredRules, winner.id, ctx);
       if (fallback) {
         winner = fallback.rule;
         winnerPriority = fallback.priority;
@@ -1789,3 +1799,13 @@ export function selectMainProcedures(
 
   return { byItemId };
 }
+
+/**
+ * Exportado para testes: permite validar a normalização e classificação de papéis médicos.
+ */
+export const _test_only = {
+  classifyDoctorRole,
+  normAgreement,
+  normName,
+  onlyDigits
+};

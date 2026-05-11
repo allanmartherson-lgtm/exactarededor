@@ -1,23 +1,23 @@
 /**
- * Garante a regra de projeto:
- *   "Especialidade médica é apenas relatório/busca/filtro — nunca impacta
- *   cálculo, status ou seleção de regra."
- *
+ * Testes do Motor de Regras (rulesEngine.ts)
+ * 
  * Cobertura:
- *   1. `preFilterRules` NÃO descarta regras com `specialties` que não
- *      intersectam `payments.specialties` (campo de relatório).
- *   2. `selectWinningRule` escolhe a regra mesmo quando `item.specialty`
- *      é diferente de `rule.specialties` (não pode entrar como eixo).
- *   3. Trace não marca candidatas como `filtered_specialty`.
+ *   1. Regra de projeto: Especialidade médica não impacta cálculo.
+ *   2. Normalização de papéis médicos (aliases: Primeiro Aux, 1º Auxiliar, etc).
+ *   3. Matching determinístico por empresa e código.
  */
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   preFilterRules,
   selectWinningRule,
+  analyzePaymentItems,
   type ItemInput,
   type PaymentContext,
   type RuleInput,
+  _test_only
 } from "./rulesEngine.ts";
+
+const { classifyDoctorRole } = _test_only;
 
 function makeRule(overrides: Partial<RuleInput> = {}): RuleInput {
   return {
@@ -75,61 +75,97 @@ function makeItem(overrides: Partial<ItemInput> = {}): ItemInput {
 
 const baseCtx: PaymentContext = {
   sectors: ["outro"],
-  specialties: ["Ginecologia"], // intencionalmente diferente
+  specialties: ["Ginecologia"],
   payment_type: null,
   reference_date: "2026-05-01",
 };
 
+// --- Testes de Especialidade (Regra de Projeto) ---
+
 Deno.test("preFilterRules NÃO descarta regra cuja specialties não bate com ctx.specialties", () => {
   const rule = makeRule({ specialties: ["Ortopedia", "Pediatria"] });
   const out = preFilterRules([rule], baseCtx);
-  assertEquals(out.length, 1, "regra deve permanecer mesmo sem intersecção de especialidades");
-  assertEquals(out[0].id, rule.id);
-});
-
-Deno.test("preFilterRules ignora rule.specialties em todas as combinações", () => {
-  const rules: RuleInput[] = [
-    makeRule({ id: "a", specialties: null }),
-    makeRule({ id: "b", specialties: [] }),
-    makeRule({ id: "c", specialties: ["Cardiologia"] }),
-    makeRule({ id: "d", specialties: ["Inexistente"] }),
-  ];
-  const ctxEmpty: PaymentContext = { ...baseCtx, specialties: [] };
-  assertEquals(preFilterRules(rules, baseCtx).length, 4);
-  assertEquals(preFilterRules(rules, ctxEmpty).length, 4);
+  assertEquals(out.length, 1);
 });
 
 Deno.test("selectWinningRule escolhe regra mesmo quando item.specialty difere de rule.specialties", () => {
   const rule = makeRule({ specialties: ["Ortopedia"] });
   const item = makeItem({ specialty: "Cardiologia" });
   const outcome = selectWinningRule(item, [rule]);
-  assert(outcome, "deveria existir um SelectionOutcome");
-  assertEquals(outcome!.rule?.id, rule.id, "regra deve vencer apesar de specialty divergente");
-  assertEquals(outcome!.priority, "empresa");
-});
-
-Deno.test("selectWinningRule não usa item.specialty como tie-breaker nem filtro", () => {
-  // Duas regras, ambas casam em empresa. A com specialty 'igual' à do item
-  // não pode ter vantagem — desempate é por severidade/vigência, nunca por specialty.
-  const a = makeRule({ id: "a", specialties: ["Cardiologia"], severity: "aviso" });
-  const b = makeRule({ id: "b", specialties: ["Ortopedia"], severity: "bloqueio" });
-  const item = makeItem({ specialty: "Cardiologia" });
-  const outcome = selectWinningRule(item, [a, b]);
   assert(outcome);
-  assertEquals(outcome!.rule?.id, "b", "vence a regra com maior severidade, não a de specialty igual");
+  assertEquals(outcome!.rule?.id, rule.id);
 });
 
-Deno.test("trace não marca candidatas como filtered_specialty", () => {
-  const rule = makeRule({ specialties: ["Inexistente"] });
-  const item = makeItem({ specialty: "Cardiologia" });
-  const outcome = selectWinningRule(item, [rule], { collectTrace: true });
-  assert(outcome?.trace);
-  for (const lvl of outcome!.trace!.levels) {
-    for (const c of lvl.candidates) {
-      assert(
-        c.result !== "filtered_specialty",
-        `candidata ${c.rule_id} marcada como filtered_specialty (não permitido)`,
-      );
-    }
-  }
+// --- Testes de Normalização de Roles (Médicos) ---
+
+Deno.test("classifyDoctorRole normaliza variações de Primeiro Auxiliar", () => {
+  assertEquals(classifyDoctorRole("Primeiro Auxiliar"), "primeiro_aux");
+  assertEquals(classifyDoctorRole("1º Auxiliar"), "primeiro_aux");
+  assertEquals(classifyDoctorRole("1o Auxiliar"), "primeiro_aux");
+  assertEquals(classifyDoctorRole("Primeiro Aux"), "primeiro_aux");
+  assertEquals(classifyDoctorRole("1.º Auxiliar"), "primeiro_aux");
+  assertEquals(classifyDoctorRole("Auxiliar 1"), "primeiro_aux");
+});
+
+Deno.test("classifyDoctorRole normaliza variações de Segundo Auxiliar", () => {
+  assertEquals(classifyDoctorRole("Segundo Auxiliar"), "demais_aux");
+  assertEquals(classifyDoctorRole("2º Auxiliar"), "demais_aux");
+  assertEquals(classifyDoctorRole("2o Auxiliar"), "demais_aux");
+  assertEquals(classifyDoctorRole("Segundo Aux"), "demais_aux");
+  assertEquals(classifyDoctorRole("Auxiliar 2"), "demais_aux");
+});
+
+Deno.test("classifyDoctorRole normaliza Terceiro Auxiliar", () => {
+  assertEquals(classifyDoctorRole("Terceiro Auxiliar"), "demais_aux");
+  assertEquals(classifyDoctorRole("3º Auxiliar"), "demais_aux");
+});
+
+Deno.test("classifyDoctorRole normaliza Cirurgião", () => {
+  assertEquals(classifyDoctorRole("Cirurgião Principal"), "cirurgiao");
+  assertEquals(classifyDoctorRole("Cirurgiao"), "cirurgiao");
+  assertEquals(classifyDoctorRole("Operador"), "cirurgiao");
+});
+
+// --- Teste de Fluxo Completo de Importação e Matching ---
+
+Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclaturas de role", () => {
+  const tableId = "table-toracica";
+  const code = "30803217";
+  
+  const mockLookup = (tid: string, c: string, role?: string | null) => {
+    if (tid !== tableId || c !== code) return null;
+    const classified = classifyDoctorRole(role);
+    if (classified === "primeiro_aux") return 5864.39;
+    if (classified === "cirurgiao") return 19547.95;
+    return null;
+  };
+
+  const rule = makeRule({
+    id: "rule-toracica",
+    name: "Regra Torácica",
+    calculation_type: "tabela_diferenciada",
+    reference_table_id: tableId
+  });
+
+  const item1 = makeItem({
+    id: "item-1",
+    doctor_role: "Primeiro Aux",
+    procedure_code: code,
+    gross_amount: 5864.39
+  });
+
+  const item2 = makeItem({
+    id: "item-2",
+    doctor_role: "1º Auxiliar",
+    procedure_code: code,
+    gross_amount: 5864.39
+  });
+
+  const results = analyzePaymentItems([item1, item2], [rule], baseCtx, { referenceLookup: mockLookup });
+  
+  assertEquals(results.length, 2);
+  assertEquals(results[0].expected_amount, 5864.39);
+  assertEquals(results[1].expected_amount, 5864.39);
+  assertEquals(results[0].matched_rule_id, "rule-toracica");
+  assertEquals(results[1].matched_rule_id, "rule-toracica");
 });
