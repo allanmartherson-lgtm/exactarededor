@@ -76,6 +76,7 @@ function similarity(a: string, b: string): number {
 }
 
 export default function Doctors() {
+  const [items, setItems] = useState<Doctor[]>([]);
   const [totalDatabase, setTotalDatabase] = useState(0);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
