@@ -63,7 +63,7 @@ serve(async (req) => {
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
     // ---------- 2. carrega configurações globais e regras ----------
-    const [configRes, rulesRes] = await Promise.all([
+    const [configRes, rulesRes, matricesRes] = await Promise.all([
       supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
@@ -89,7 +89,7 @@ serve(async (req) => {
 
     const configs = (configRes.data ?? []) as any[];
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
-    const matrices = (configRes as any).data?.[2] || []; // results from third query
+    const matrices = (matricesRes.data ?? []) as any[];
 
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
     const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
@@ -102,6 +102,7 @@ serve(async (req) => {
     };
 
     const roleAliases = (roleAliasesConfig?.value as Record<string, string[]>) || {};
+
 
     (ctx as any).globalThresholds = globalThresholds;
 
