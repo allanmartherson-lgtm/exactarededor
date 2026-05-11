@@ -114,42 +114,36 @@ export default function Doctors() {
       const PAGE_SIZE = 5000;
       let allDoctors: Doctor[] = [];
       
-      // Carregamos a primeira página e já exibimos para o usuário
-      const firstPage = await supabase
-        .from("doctors")
-        .select("*")
-        .order("full_name")
-        .range(0, PAGE_SIZE - 1);
+      // Carregamento progressivo para evitar timeout e garantir que todos os dados cheguem
+      const PAGE_SIZE = 2500;
+      let allDoctors: Doctor[] = [];
       
-      if (firstPage.error) {
-        console.error("Erro ao carregar primeira página de médicos:", firstPage.error);
-        toast({ title: "Erro na conexão", description: "Não foi possível carregar os dados.", variant: "destructive" });
-        return;
-      }
-
-      if (firstPage.data) {
-        allDoctors = firstPage.data as Doctor[];
-        setItems([...allDoctors]);
-      }
-
-      // Se houver mais páginas, carregamos em background
-      if (total > PAGE_SIZE) {
-        for (let offset = PAGE_SIZE; offset < total && offset < 40000; offset += PAGE_SIZE) {
-          const { data, error } = await supabase
+      // Loop robusto para garantir que TODA a base seja carregada
+      for (let offset = 0; offset < total; offset += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("doctors")
+          .select("*")
+          .order("full_name")
+          .range(offset, offset + PAGE_SIZE - 1);
+        
+        if (error) {
+          console.error(`Erro no lote ${offset}:`, error);
+          // Tenta novamente uma vez se falhar
+          const retry = await supabase
             .from("doctors")
             .select("*")
             .order("full_name")
             .range(offset, offset + PAGE_SIZE - 1);
           
-          if (error) {
-            console.error(`Erro ao carregar lote (offset ${offset}):`, error);
-            break;
-          }
-          
-          if (data && data.length > 0) {
-            allDoctors = [...allDoctors, ...(data as Doctor[])];
+          if (retry.error) break;
+          if (retry.data) {
+            allDoctors = [...allDoctors, ...(retry.data as Doctor[])];
             setItems([...allDoctors]);
           }
+        } else if (data) {
+          allDoctors = [...allDoctors, ...(data as Doctor[])];
+          setItems([...allDoctors]);
+          if (data.length < PAGE_SIZE) break;
         }
       }
     } catch (err) {
