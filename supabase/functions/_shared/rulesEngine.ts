@@ -1,11 +1,6 @@
 /**
  * Motor determinístico de seleção e cálculo de regras de pagamento (Fase 2).
  *
- * - Toda decisão de QUAL regra aplicar e QUANTO é o esperado mora aqui (TS).
- * - A IA não escolhe regra nem calcula valor — só justifica/aponta alertas
- *   extras em itens que o motor já marcou como `alerta`/`reprovado`.
- * - Funções puras: nada de I/O.
- *
  * Precedência (mais específico ganha):
  *   1. médico  + código procedimento
  *   2. médico
@@ -546,7 +541,8 @@ export function ruleAcceptsAccessRoute(r: { allowed_access_routes?: string[] | n
   const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
   if (allowed.length === 0) return true;
   const itemRoute = normAccessRoute(item.access_route);
-  if (!itemRoute) return false;
+  // Se o item não tem via mas a regra exige, não aceita (exceto se a regra aceita 'sem_via')
+  if (!itemRoute) return allowed.some(a => normAccessRoute(a) === "sem_via");
   return allowed.some(a => normAccessRoute(a) === itemRoute);
 }
 
@@ -681,17 +677,8 @@ function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
   return true;
 }
 
-/**
- * Filtra se a regra (ou item de cálculo) aceita a via de acesso do item.
- */
-function ruleAcceptsAccessRoute(r: RuleInput | RuleCalculationItem, item: ItemInput): boolean {
-  const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
-  if (allowed.length === 0) return true;
-  if (!item.access_route) return false;
-  
-  const itemRouteNorm = normAccessRoute(item.access_route);
-  return allowed.some(a => normAccessRoute(a) === itemRouteNorm);
-}
+// ruleAcceptsAccessRoute removida por duplicidade (já declarada na linha 545)
+// ruleAcceptsAccessRoute já está declarada no início do arquivo para evitar conflitos de redeclaração.
 
 export function selectWinningRule(
   item: ItemInput,
