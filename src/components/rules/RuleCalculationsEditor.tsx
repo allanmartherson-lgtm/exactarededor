@@ -641,13 +641,15 @@ export function calcFromDb(r: any): CalcItem {
     extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
     apply_access_route: !!r.apply_access_route,
     allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
-    has_conditions: !!r.has_conditions || tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer" || (Array.isArray(r.allowed_access_routes) && r.allowed_access_routes.length > 0),
+    has_conditions: !!r.has_conditions || tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer" || (Array.isArray(r.allowed_access_routes) && r.allowed_access_routes.length > 0) || (Array.isArray(r.sectors) && r.sectors.length > 0) || (Array.isArray(r.specialties) && r.specialties.length > 0),
     time_mode: tMode,
     weekdays: wdays,
     time_start: tStart,
     time_end: tEnd,
     includes_holidays: !!r.includes_holidays,
     elective_mode: eMode,
+    sectors: Array.isArray(r.sectors) ? r.sectors : [],
+    specialties: Array.isArray(r.specialties) ? r.specialties : [],
   };
 }
 
