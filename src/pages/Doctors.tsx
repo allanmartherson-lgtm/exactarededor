@@ -78,6 +78,8 @@ function similarity(a: string, b: string): number {
 export default function Doctors() {
   const [items, setItems] = useState<Doctor[]>([]);
   const [totalDatabase, setTotalDatabase] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(100);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [open, setOpen] = useState(false);
@@ -299,13 +301,18 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Se há uma busca ativa, mostramos TODOS os resultados filtrados
-    if (search.trim() || filterCompany) {
-      return filtered;
-    }
-    // Sem busca ativa, limitamos a 100 apenas para a listagem inicial ser rápida
-    return filtered.slice(0, 100);
-  }, [filtered, search, filterCompany]);
+    // Se há uma busca ativa, mostramos os resultados filtrados com paginação
+    // Para simplificar, paginamos sempre a lista (seja a filtrada ou a completa)
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  // Resetar página quando a busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterCompany]);
 
   const filteredCompaniesForDialog = useMemo(() => {
     const q = norm(companySearch);
@@ -487,10 +494,14 @@ export default function Doctors() {
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
-              <span>
-                {filtered.length} médico(s) encontrados
-                {filtered.length > displayItems.length && ` (mostrando primeiros ${displayItems.length})`}
-              </span>
+              <div className="flex flex-col">
+                <span className="font-semibold">
+                  {filtered.length} médico(s) encontrados
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  Página {currentPage} de {totalPages || 1}
+                </span>
+              </div>
               <span className="text-xs font-normal text-muted-foreground">
                 Base total: {totalDatabase} médicos
               </span>
@@ -545,6 +556,40 @@ export default function Doctors() {
               </div>
             )}
           </CardContent>
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/20">
+              <div className="text-xs text-muted-foreground">
+                Mostrando {displayItems.length} de {filtered.length} médicos
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    setCurrentPage(p => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  Anterior
+                </Button>
+                <div className="text-sm font-medium min-w-[80px] text-center">
+                  {currentPage} / {totalPages}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    setCurrentPage(p => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
     </div>
