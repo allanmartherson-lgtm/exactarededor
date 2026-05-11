@@ -1395,7 +1395,7 @@ const PaymentDetail = () => {
                 </Dialog>
               )}
               {canReimport && (
-                <>
+                <div className="flex gap-2">
                   <input
                     ref={reimportInputRef}
                     type="file"
@@ -1433,7 +1433,7 @@ const PaymentDetail = () => {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                </>
+                </div>
               )}
               {canCancel && (
                 <AlertDialog>
