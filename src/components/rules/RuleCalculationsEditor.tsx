@@ -49,6 +49,8 @@ export type CalcItem = {
   package_visits_count: boolean;
   extras_codes: string; // entrada livre
   apply_access_route: boolean;
+  /** Vias de acesso permitidas para este item de cálculo. */
+  allowed_access_routes: string[];
 
   // condições (vinculadas a ESTE cálculo)
   has_conditions: boolean;
