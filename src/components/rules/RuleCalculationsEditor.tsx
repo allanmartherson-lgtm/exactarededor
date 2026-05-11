@@ -486,14 +486,29 @@ function CalcCard({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === ",") {
                           e.preventDefault();
-                          const v = (e.target as HTMLInputElement).value.trim();
-                          if (v && !c.allowed_access_routes.includes(v)) {
-                            onChange({ allowed_access_routes: [...c.allowed_access_routes, v] });
+                          const input = (e.target as HTMLInputElement).value.trim();
+                          if (input) {
+                            // Normalização automática antes de adicionar à lista
+                            const n = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                            let normalized = input;
+                            
+                            if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via|1.a via)/i.test(n)) {
+                              normalized = "Única ou Principal";
+                            } else if (/(mesma via|mesma)/i.test(n)) {
+                              normalized = "Mesma Via";
+                            } else if (/(outra via|via diferente|diferente)/i.test(n)) {
+                              normalized = "Outra Via";
+                            }
+
+                            if (!c.allowed_access_routes.includes(normalized)) {
+                              onChange({ allowed_access_routes: [...c.allowed_access_routes, normalized] });
+                            }
                           }
                           (e.target as HTMLInputElement).value = "";
                         }
                       }}
                     />
+
                     {c.allowed_access_routes.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {c.allowed_access_routes.map((a) => (
