@@ -1570,19 +1570,38 @@ export function analyzeItem(
       }
     }
 
-    // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
-    // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
-    // entra como "sem_regra" para revisão humana — analista precisa cadastrar
-    // a regra adequada em Configurações > Regras de Repasse.
-    const sector = inferItemSector(item, ctx);
-    calc = {
-      expected: null,
-      explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
-      alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
-    };
-    priority = "sem_regra";
-    calculation_type_used = "informativo";
+    // --- Camada 4: Fallback Automático para Regra Geral do Convênio ---
+    // Se o item não bateu em nenhuma regra restrita (ex: por via de acesso), o motor 
+    // agora busca automaticamente por uma regra master de fallback (ex: 100% do convênio)
+    // para garantir que o pagamento não fique travado em "sem regra".
+    const fallbackResult = findFallbackGeneralRule(item, preFilteredRules, ctx);
+    if (fallbackResult) {
+      const { rule: fRule, priority: fPriority } = fallbackResult;
+      calc = applyCalculation(fRule, item, ctx);
+      
+      // Adiciona explicação clara no histórico de auditoria do item
+      calc.explanation = `Fallback Automático: Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
+      
+      priority = fPriority;
+      calculation_type_used = fRule.calculation_type;
+      matched_rule_id = fRule.id;
+      matched_rule_name = fRule.name;
+    } else {
+      // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
+      // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
+      // entra como "sem_regra" para revisão humana — analista precisa cadastrar
+      // a regra adequada em Configurações > Regras de Repasse.
+      const sector = inferItemSector(item, ctx);
+      calc = {
+        expected: null,
+        explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
+        alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
+      };
+      priority = "sem_regra";
+      calculation_type_used = "informativo";
+    }
   }
+
 
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
