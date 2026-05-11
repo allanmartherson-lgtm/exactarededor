@@ -1800,6 +1800,8 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         color: "hsl(var(--muted-foreground))",
         textAlign: "center",
         lineHeight: 1.3,
+        overflowWrap: "anywhere",
+        wordBreak: "break-word",
       }}
     >
       {label}
