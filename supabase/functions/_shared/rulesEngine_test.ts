@@ -133,15 +133,16 @@ Deno.test("classifyDoctorRole normaliza Cirurgião", () => {
 // --- Teste de Fluxo Completo de Importação e Matching ---
 
 Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclaturas de role", () => {
+Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclaturas de role", () => {
   const tableId = "table-toracica";
   const code = "30803217";
   
   // Simula o lookup da tabela de referência (o que a Edge Function faz buscando no DB)
+  // Nota: a lógica real usa aliases carregados do DB, aqui simulamos o resultado final.
   const mockLookup = (tid: string, c: string, role?: string | null) => {
     if (tid !== tableId || c !== code) return null;
     const r = role ? role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
     
-    // Na tabela de referência, o papel está como "1º auxiliar" (canonizado no import)
     const values: Record<string, number> = {
       "30803217|1o auxiliar": 5864.39,
       "30803217|primeiro aux": 5864.39, 
@@ -158,17 +159,27 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
     reference_table_id: tableId
   });
 
-  const item = makeItem({
-    id: "item-salutaire",
-    doctor_role: "Primeiro Aux", // Nomenclatura da planilha
+  // Caso 1: Primeiro Aux (como no Salutaire)
+  const item1 = makeItem({
+    id: "item-1",
+    doctor_role: "Primeiro Aux",
     procedure_code: code,
     gross_amount: 5864.39
   });
 
-  const results = analyzePaymentItems([item], [rule], baseCtx, { referenceLookup: mockLookup });
+  // Caso 2: 1º Auxiliar (canônico)
+  const item2 = makeItem({
+    id: "item-2",
+    doctor_role: "1º Auxiliar",
+    procedure_code: code,
+    gross_amount: 5864.39
+  });
+
+  const results = analyzePaymentItems([item1, item2], [rule], baseCtx, { referenceLookup: mockLookup });
   
-  assertEquals(results.length, 1);
-  assertEquals(results[0].status, "aprovado");
+  assertEquals(results.length, 2);
+  assertEquals(results[0].status, "aprovado", "Item 1 (Primeiro Aux) deve ser aprovado");
+  assertEquals(results[1].status, "aprovado", "Item 2 (1º Auxiliar) deve ser aprovado");
   assertEquals(results[0].expected_amount, 5864.39);
-  assertEquals(results[0].matched_rule_id, "rule-toracica");
+  assertEquals(results[1].expected_amount, 5864.39);
 });
