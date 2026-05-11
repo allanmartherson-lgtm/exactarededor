@@ -56,8 +56,8 @@ export function AlertBanner({
   return (
     <div
       className={cn(
-        "rounded-md border flex gap-2 overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word]",
-        compact ? "p-2 text-xs" : "p-2.5 text-xs",
+        "rounded-md border flex gap-3 overflow-hidden break-words whitespace-normal [overflow-wrap:anywhere] [word-break:break-word] min-w-0 max-w-full",
+        compact ? "px-3 py-2 text-xs" : "px-4 py-3 text-xs",
         SEVERITY_CLASSES[severity],
         className,
       )}

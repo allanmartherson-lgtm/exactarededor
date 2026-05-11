@@ -9,6 +9,7 @@ import { AlertBanner } from "./AlertBanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { SafeCard } from "@/components/ui/SafeCard";
 import {
   AlertTriangle,
   Columns3,
@@ -1003,8 +1004,7 @@ function ItemDetailsRow({
   // ============ TIPOGRAFIA UNIFICADA ============
   // Reusa o set tipográfico exportado no topo do arquivo (TEXT_BODY/TEXT_LABEL/TEXT_META)
   // para manter o painel expandido idêntico ao restante da tela (headers + cells + AlertBanner).
-  // Card base: contém o conteúdo com overflow seguro (nada vaza, nada invade vizinhos).
-  const CARD = "rounded-md border bg-background p-3 min-w-0 overflow-hidden break-words [overflow-wrap:anywhere] [word-break:break-word]";
+  // Card base (SafeCard já provê o comportamento correto).
 
   const Label = ({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) => (
     <p className={cn(TEXT_LABEL, "flex items-center gap-1")}>
@@ -1021,20 +1021,20 @@ function ItemDetailsRow({
           cortado pelo scroll horizontal, usamos sticky + max-width baseado em 100vw.
         */}
         <div
-          className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4 animate-accordion-down", TEXT_BODY)}
+          className={cn("sticky left-0 px-3 sm:px-4 py-3 sm:py-4 animate-accordion-down overflow-hidden", TEXT_BODY)}
           style={{ width: "min(100%, calc(100vw - 1rem))", maxWidth: "calc(100vw - 1rem)" }}
         >
           {/* Resumo do item */}
-          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8 min-w-0">
+          <div className="mb-4 grid gap-x-4 gap-y-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-8">
             {summary.map((s) => (
-              <div key={s.label} className="min-w-0 overflow-hidden">
+              <div key={s.label} className="min-w-0">
                 <Label>{s.label}</Label>
-                <p className={cn(TEXT_BODY, "break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full mt-0.5")}>{s.value}</p>
+                <p className={cn(TEXT_BODY, "break-words whitespace-normal max-w-full mt-0.5")}>{s.value}</p>
               </div>
             ))}
           </div>
 
-          <div className={cn("grid gap-3 grid-cols-1 lg:grid-cols-3 items-start", TEXT_BODY)}>
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-3 items-start">
             {/* Coluna 1 (mobile: 1º — alertas + histórico) */}
             <div className="space-y-2 min-w-0 order-1 lg:order-1">
               {alerts.length > 0 && (
@@ -1053,7 +1053,7 @@ function ItemDetailsRow({
                 </AlertBanner>
               )}
               {exceptionMarked && (
-                <div className={cn("rounded-md border border-info/20 bg-info-soft px-3 py-2.5 text-info min-w-0 overflow-hidden break-words [overflow-wrap:anywhere]", TEXT_BODY)}>
+                <div className={cn("rounded-md border border-info/20 bg-info-soft px-4 py-3 text-info min-w-0 break-words whitespace-normal", TEXT_BODY)}>
                   <div className="flex items-center gap-1.5 font-medium">
                     <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                     Exceção autorizada registrada
@@ -1067,94 +1067,112 @@ function ItemDetailsRow({
                   )}
                 </div>
               )}
-              <div className={CARD}>
+              <SafeCard>
                 <Label>Histórico deste item ({itemObs.length})</Label>
                 {itemObs.length === 0 ? (
-                  <p className="text-muted-foreground mt-1.5">Sem comentários ainda.</p>
+                  <p className="text-muted-foreground mt-1.5 italic">Sem comentários ainda.</p>
                 ) : (
                   <ul className="space-y-2 max-h-56 overflow-y-auto mt-1.5 pr-1">
                     {itemObs.map((o) => (
-                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0">
-                        <div className={cn("flex items-center gap-1.5", TEXT_META)}>
-                          <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">{authorRoleLabel(o.author_type)}</span>
+                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0 flex flex-col items-start">
+                        <div className={cn("flex items-center gap-1.5 w-full", TEXT_META)}>
+                          <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted shrink-0">{authorRoleLabel(o.author_type)}</span>
                           {o.author_id && profiles[o.author_id] ? (
-                            <span className="text-muted-foreground truncate">
+                            <span className="text-muted-foreground truncate flex-1 min-w-0">
                               {profiles[o.author_id]} <span className="opacity-70">({authorRoleLabel(o.author_type)})</span>
                             </span>
                           ) : (
                             (o.author_type === "sistema" || o.author_type === "ia") && (
-                              <span className="text-muted-foreground truncate">Sistema</span>
+                              <span className="text-muted-foreground truncate flex-1 min-w-0">Sistema</span>
                             )
                           )}
-                          <span className="ml-auto">{fmtDate(o.created_at)}</span>
+                          <span className="shrink-0 ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{o.message}</p>
+                        <p className="mt-1 whitespace-normal break-words w-full">{o.message}</p>
                       </li>
                     ))}
                   </ul>
                 )}
-              </div>
+              </SafeCard>
             </div>
 
             {/* Coluna 2 (mobile: 3º — regra + IA) */}
-            <div className="space-y-2 min-w-0 order-3 lg:order-2">
+            <div className="space-y-3 min-w-0 order-3 lg:order-2">
               {matchedRules.length > 0 ? (
-                <div className={CARD}>
+                <SafeCard>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium text-primary mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].name}</p>
+                  <p className="font-medium text-primary mt-1 break-words whitespace-normal">{matchedRules[0].name}</p>
                   {matchedRules[0].rule_text && (
-                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].rule_text}</p>
+                    <p className="mt-1 text-muted-foreground break-words whitespace-normal">{matchedRules[0].rule_text}</p>
                   )}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
                     </p>
                   )}
-                </div>
+                </SafeCard>
               ) : matchedNames.length > 0 ? (
-                <div className={CARD}>
+                <SafeCard>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedNames[0]}</p>
-                </div>
+                  <p className="font-medium mt-1">{matchedNames[0]}</p>
+                </SafeCard>
               ) : (
-                <div className={cn(CARD, "text-muted-foreground")}>Nenhuma regra específica casou.</div>
+                <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
               )}
 
               {aiNote && (
-                <div className={CARD}>
+                <SafeCard>
                   <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
-                  <p className="text-muted-foreground italic whitespace-pre-wrap mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{aiNote}</p>
-                </div>
+                  <p className="text-muted-foreground italic mt-1 break-words whitespace-normal">{aiNote}</p>
+                </SafeCard>
               )}
 
               {(it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
-                <div className={CARD}>
+                <SafeCard>
                   <Label icon={ShieldAlert}>Justificativa da Classificação</Label>
                   <div className="mt-2 space-y-2">
                     <p className="text-[11px] leading-relaxed">
                       Este item foi marcado como <span className={cn("font-bold uppercase", TONE_CLASSES[it.ai_status === "reprovado" ? "destructive" : it.ai_status === "alerta" ? "warning" : "success"])}>{it.ai_status}</span> porque:
                     </p>
-                    <ul className="text-[11px] space-y-1.5 list-disc pl-4 text-muted-foreground">
+                    <ul className="text-[11px] space-y-2 list-none pl-0 text-muted-foreground">
                       {it.ai_status === "reprovado" && (
-                        <li>Divergência de valor superior a <strong>10%</strong> em relação à regra aplicada.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Divergência de valor superior a <strong>10%</strong> em relação à regra aplicada.</span>
+                        </li>
                       )}
                       {it.ai_status === "alerta" && diffPct != null && (
-                        <li>Divergência de valor identificada (entre 1% e 10%), exigindo conferência.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Divergência de valor identificada (entre 1% e 10%), exigindo conferência.</span>
+                        </li>
                       )}
                       {priority === "sem_regra" && (
-                        <li>Nenhuma regra correspondente foi encontrada para este procedimento no setor informado.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Nenhuma regra correspondente foi encontrada para este procedimento no setor informado.</span>
+                        </li>
                       )}
                       {priority === "conflito" && (
-                        <li>Múltiplas regras aplicáveis com a mesma prioridade geraram um conflito de decisão.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Múltiplas regras aplicáveis com a mesma prioridade geraram um conflito de decisão.</span>
+                        </li>
                       )}
                       {diffPct != null && (
-                        <li>
-                          Diferença calculada: <strong>{(diffPct * 100).toFixed(1)}%</strong> 
-                          {diff != null && <> ({diff > 0 ? "+" : ""}{formatCurrency(diff)})</>}.
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>
+                            Diferença calculada: <strong>{(diffPct * 100).toFixed(1)}%</strong> 
+                            {diff != null && <> ({diff > 0 ? "+" : ""}{formatCurrency(diff)})</>}.
+                          </span>
                         </li>
                       )}
                       {priority && (
-                        <li>Baseado na regra: <strong>{RULE_MATCH_PRIORITY_LABELS[priority]}</strong>.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Baseado na regra: <strong>{RULE_MATCH_PRIORITY_LABELS[priority]}</strong>.</span>
+                        </li>
                       )}
                     </ul>
                     
@@ -1166,15 +1184,15 @@ function ItemDetailsRow({
                             <div className="min-w-0">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Normalização</p>
                               <div className="space-y-1.5">
-                                <div>
+                                <div className="min-w-0">
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Médico (Normalizado)</span>
-                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={(it.ai_findings as any)?.decision_fields?.used?.doctor_name}>
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block break-all whitespace-normal" title={(it.ai_findings as any)?.decision_fields?.used?.doctor_name}>
                                     {(it.ai_findings as any)?.decision_fields?.used?.doctor_name || "—"}
                                   </code>
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Convênio (Normalizado)</span>
-                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block truncate" title={(it.ai_findings as any)?.decision_fields?.used?.agreement_name}>
+                                  <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/40 block break-all whitespace-normal" title={(it.ai_findings as any)?.decision_fields?.used?.agreement_name}>
                                     {(it.ai_findings as any)?.decision_fields?.used?.agreement_name || "—"}
                                   </code>
                                 </div>
@@ -1184,10 +1202,10 @@ function ItemDetailsRow({
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Alias Aplicado</p>
                               <div>
                                 <span className="text-[9px] text-muted-foreground block mb-0.5">Função (Role)</span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] font-medium">{it.doctor_role || "—"}</span>
-                                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                  <Badge variant="outline" className="h-4 px-1.5 bg-primary/10 text-primary border-primary/20 text-[9px] font-bold">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-medium break-all">{it.doctor_role || "—"}</span>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <Badge variant="outline" className="h-4 px-1.5 bg-primary/10 text-primary border-primary/20 text-[9px] font-bold break-all whitespace-normal h-auto py-0.5">
                                     {(it.ai_findings as any)?.decision_fields?.used?.doctor_role || "—"}
                                   </Badge>
                                 </div>
@@ -1200,14 +1218,14 @@ function ItemDetailsRow({
                           
                           <div className="pt-2 border-t border-border/40">
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Hierarquia validada:</p>
-                            <ul className="space-y-1">
-                              <li className="flex items-center gap-1.5 text-[10px]">
-                                <div className={cn("h-1.5 w-1.5 rounded-full", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
-                                Regra Específica / Grupo / Convênio
+                            <ul className="space-y-2 list-none pl-0 text-muted-foreground">
+                              <li className="flex items-start gap-1.5 text-[10px] break-words whitespace-normal min-w-0">
+                                <div className={cn("h-1.5 w-1.5 rounded-full mt-1 shrink-0", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
+                                <span>Regra Específica / Grupo / Convênio</span>
                               </li>
-                              <li className="flex items-center gap-1.5 text-[10px]">
-                                <div className={cn("h-1.5 w-1.5 rounded-full", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
-                                Regra Master / Geral (Independente de Setor)
+                              <li className="flex items-start gap-1.5 text-[10px] break-words whitespace-normal min-w-0">
+                                <div className={cn("h-1.5 w-1.5 rounded-full mt-1 shrink-0", (priority === "setor_master_geral" || priority === "setor_codigo" || priority === "setor_outro") ? "bg-success" : "bg-muted-foreground/30")} />
+                                <span>Regra Master / Geral (Independente de Setor)</span>
                               </li>
                             </ul>
                           </div>
@@ -1228,14 +1246,14 @@ function ItemDetailsRow({
                       </div>
                     )}
                   </div>
-                </div>
+                </SafeCard>
               )}
             </div>
 
             {/* Coluna 3 (mobile: 2º — cálculo, prioridade no mobile pois resume divergência) */}
             <div className="space-y-2 min-w-0 order-2 lg:order-3">
               {(engine || expected != null || explanation) && (
-                <div className={CARD}>
+                <SafeCard>
                   <Label icon={FileText}>Detalhes do cálculo</Label>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1.5 mb-2">
                     {priority && (
@@ -1271,18 +1289,20 @@ function ItemDetailsRow({
                     )}
                   </div>
                   {explanation && (
-                    <p className="mt-2 text-muted-foreground italic whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{explanation}</p>
+                    <p className="mt-2 text-muted-foreground italic break-all whitespace-normal">
+                      {explanation}
+                    </p>
                   )}
-                </div>
+                </SafeCard>
               )}
 
               {diff != null && Math.abs(diff) > 0.01 && expected != null && (
-                <div className={cn(CARD, "border-warning/30 bg-warning-soft/40")}>
+                <SafeCard className="border-warning/30 bg-warning-soft/40">
                   <Label>Sugestão de ajuste</Label>
                   <p className="mt-1">
                     Ajustar valor para <strong>{formatCurrency(Number(expected))}</strong>.
                   </p>
-                </div>
+                </SafeCard>
               )}
             </div>
           </div>
