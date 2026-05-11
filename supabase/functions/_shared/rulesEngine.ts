@@ -537,6 +537,17 @@ export function ruleHasAgreement(r: RuleInput): boolean {
 }
 
 /**
+ * Verifica se a regra aceita a via de acesso do item.
+ */
+export function ruleAcceptsAccessRoute(r: { allowed_access_routes?: string[] | null }, item: ItemInput): boolean {
+  const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
+  if (allowed.length === 0) return true;
+  const itemRoute = normAccessRoute(item.access_route);
+  if (!itemRoute) return false;
+  return allowed.some(a => normAccessRoute(a) === itemRoute);
+}
+
+/**
  * Camada 1 — Gating por-regra de convênio.
  *
  * Após o motor identificar a regra vencedora pelos eixos (especialidade,
