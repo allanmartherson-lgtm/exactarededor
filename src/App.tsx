@@ -14,6 +14,7 @@ import CompanyAnalysis from "./pages/CompanyAnalysis.tsx";
 import Rules from "./pages/Rules.tsx";
 import ValidationRules from "./pages/ValidationRules.tsx";
 import ReferenceTables from "./pages/ReferenceTables.tsx";
+import AccessRouteMatrices from "./pages/AccessRouteMatrices.tsx";
 
 import Users from "./pages/Users.tsx";
 
