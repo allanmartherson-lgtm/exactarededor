@@ -15,7 +15,11 @@
  *   6. setor   (master do setor do item)
  *   7. setor "outro" (master geral)
  *   8. default por setor (hemodinâmica = 88%; demais = 100%)
+ *   9. setor_master_geral (master absoluto de fallback)
  */
+
+export type ReferenceTableLookup = (tableId: string, code: string, role?: string | null) => number | null;
+export type ExceptionTableLookup = (tableId: string, code: string) => { table_name: string; purpose: "sem_acordo" | "exclusao"; reason: string | null } | null;
 
 export type CalculationType =
   | "percentual_sobre_convenio"
