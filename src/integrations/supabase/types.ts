@@ -958,6 +958,45 @@ export type Database = {
           },
         ]
       }
+      payment_processing_jobs: {
+        Row: {
+          created_at: string
+          failed_companies: Json
+          finished_at: string | null
+          id: string
+          payment_id: string
+          processed_companies: number
+          started_at: string
+          status: string
+          total_companies: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          failed_companies?: Json
+          finished_at?: string | null
+          id?: string
+          payment_id: string
+          processed_companies?: number
+          started_at?: string
+          status?: string
+          total_companies?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          failed_companies?: Json
+          finished_at?: string | null
+          id?: string
+          payment_id?: string
+          processed_companies?: number
+          started_at?: string
+          status?: string
+          total_companies?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_status_history: {
         Row: {
           changed_at: string
@@ -1949,6 +1988,27 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_processing_progress: {
+        Args: { _company_name: string; _error?: string; _job_id: string }
+        Returns: {
+          created_at: string
+          failed_companies: Json
+          finished_at: string | null
+          id: string
+          payment_id: string
+          processed_companies: number
+          started_at: string
+          status: string
+          total_companies: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_processing_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       is_valid_status_transition: {
         Args: {
