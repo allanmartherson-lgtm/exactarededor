@@ -482,7 +482,7 @@ function CalcCard({
                   </p>
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-2">
-                      {["Única ou Principal", "Mesma Via", "Outra Via"].map((route) => {
+                      {["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].map((route) => {
                         const isSelected = c.allowed_access_routes.includes(route);
                         return (
                           <Button
@@ -523,6 +523,8 @@ function CalcCard({
                               normalized = "Mesma Via";
                             } else if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via)/i.test(n)) {
                               normalized = "Outra Via";
+                            } else if (/(sem\s?via|bonus|complemento|n\/a|nao\s?se\s?aplica)/i.test(n)) {
+                              normalized = "Sem Via (Bônus/Complemento)";
                             }
 
                             if (!c.allowed_access_routes.includes(normalized)) {
@@ -534,9 +536,9 @@ function CalcCard({
                       }}
                     />
 
-                    {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via"].includes(a)).length > 0 && (
+                    {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].includes(a)).length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
-                        {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via"].includes(a)).map((a) => (
+                        {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].includes(a)).map((a) => (
                           <button
                             key={a}
                             type="button"
