@@ -494,7 +494,7 @@ function CalcCard({
                             
                             // Regex expandida para capturar variações comuns
                             // Única ou Principal: 1ª, 1a, 1 via, primeira via, unica, principal, etc.
-                            if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal)/i.test(n)) {
+                            if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via)/i.test(n)) {
                               normalized = "Única ou Principal";
                             } 
                             // Mesma Via: mesma, mesma via, repetida, etc.
