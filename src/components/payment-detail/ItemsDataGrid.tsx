@@ -1229,7 +1229,7 @@ function ItemDetailsRow({
                       </div>
                     )}
                   </div>
-                </div>
+                </SafeCard>
               )}
             </div>
 
