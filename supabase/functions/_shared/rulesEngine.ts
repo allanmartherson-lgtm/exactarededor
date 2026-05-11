@@ -400,11 +400,11 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
   const s = (role ?? "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!s) return "outro";
   if (s.includes("instrument")) return "instrumentador";
-  if (s.includes("cirurgi")) return "cirurgiao";
+  if (s.includes("cirurgi") || s.includes("operador")) return "cirurgiao";
+  // 2º / 3º / segundo / terceiro / etc + aux
+  if (/(2[ºo]|3[ºo]|4[ºo]|segund|terceir|quart|quint)/.test(s) && (s.includes("aux") || s.includes("ajudante"))) return "demais_aux";
   // 1º / primeiro / 1
   if (/(^|\b)(1[ºo]|1\b|primeir)/.test(s) && s.includes("aux")) return "primeiro_aux";
-  // 2º / 3º / segundo / terceiro / etc + aux
-  if (/(2[ºo]|3[ºo]|4[ºo]|segund|terceir|quart|quint)/.test(s) && s.includes("aux")) return "demais_aux";
   if (s.includes("aux")) return "primeiro_aux"; // sem ordinal explícito → trata como 1º
   return "outro";
 }
