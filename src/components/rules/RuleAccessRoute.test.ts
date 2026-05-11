@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 function normalizeAccessRoute(input: string): string {
   const n = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   
-  if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal)/i.test(n)) {
+  if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via)/i.test(n)) {
     return "Única ou Principal";
   } 
   if (/(mesma\s?via|mesma|repetida)/i.test(n)) {
