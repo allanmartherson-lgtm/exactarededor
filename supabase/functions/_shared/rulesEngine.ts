@@ -674,8 +674,8 @@ function ruleAcceptsAccessRoute(r: RuleInput | RuleCalculationItem, item: ItemIn
   if (allowed.length === 0) return true;
   if (!item.access_route) return false;
   
-  const itemRouteNorm = normName(item.access_route);
-  return allowed.some(a => normName(a) === itemRouteNorm);
+  const itemRouteNorm = normAccessRoute(item.access_route);
+  return allowed.some(a => normAccessRoute(a) === itemRouteNorm);
 }
 
 export function selectWinningRule(
