@@ -113,6 +113,10 @@ Deno.test("classifyDoctorRole normaliza variações de Segundo Auxiliar", () => 
   assertEquals(classifyDoctorRole("2o Auxiliar"), "demais_aux");
   assertEquals(classifyDoctorRole("Segundo Aux"), "demais_aux");
   assertEquals(classifyDoctorRole("Auxiliar 2"), "demais_aux");
+  assertEquals(classifyDoctorRole("2º Auxiliar"), "demais_aux");
+  assertEquals(classifyDoctorRole("2o Auxiliar"), "demais_aux");
+  assertEquals(classifyDoctorRole("Segundo Aux"), "demais_aux");
+  assertEquals(classifyDoctorRole("Auxiliar 2"), "demais_aux");
 });
 
 Deno.test("classifyDoctorRole normaliza Terceiro Auxiliar", () => {
