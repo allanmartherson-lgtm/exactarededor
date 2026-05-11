@@ -1531,9 +1531,9 @@ export function analyzeItem(
 
   const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
-  let calc: ExpectedCalc;
-  let priority: RuleMatchPriority;
-  let calculation_type_used: AnalysisResult["calculation_type_used"];
+  let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
+  let priority: RuleMatchPriority = "sem_regra";
+  let calculation_type_used: AnalysisResult["calculation_type_used"] = "informativo";
   let matched_rule_id: string | null = null;
   let matched_rule_name: string | null = null;
   let conflict: AnalysisResult["conflict"] | undefined;
