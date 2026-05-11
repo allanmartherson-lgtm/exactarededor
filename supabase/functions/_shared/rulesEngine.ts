@@ -486,17 +486,19 @@ export function normAccessRoute(s: string | null | undefined): string {
   if (!n) return "";
   
   // Mapeamento de variações comuns para termos canônicos
-  if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via|1.a via)/i.test(n)) {
+  if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via)/i.test(n)) {
     return "unica_principal";
   }
 
-  if (/(mesma via|mesma)/.test(n)) {
+  if (/(mesma\s?via|mesma|repetida)/.test(n)) {
     return "mesma_via";
   }
-  if (/(outra via|via diferente|diferente)/.test(n)) {
+
+  if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via)/.test(n)) {
     return "outra_via";
   }
-  if (/(sem via|bonus|complemento|n\/a|nao se aplica|null)/.test(n)) {
+
+  if (/(sem\s?via|bonus|complemento|n\/a|nao\s?se\s?aplica|null)/.test(n)) {
     return "sem_via";
   }
   
