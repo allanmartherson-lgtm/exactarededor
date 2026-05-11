@@ -741,7 +741,7 @@ export function selectWinningRule(
         trace,
       };
     }
-    const withoutCode = lvl.bucket.filter((r) => !hasCodeRestriction(r));
+    const withoutCode = lvl.bucket.filter((r) => !hasCodeRestriction(r) && ruleAcceptsAccessRoute(r, item));
     if (withoutCode.length > 0) {
       const { winner, tied } = breakTie(withoutCode);
       if (winner) {
