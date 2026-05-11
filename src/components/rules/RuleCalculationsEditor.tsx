@@ -705,6 +705,8 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     time_end: c.has_conditions ? (c.time_end || null) : null,
     includes_holidays: c.has_conditions ? c.includes_holidays : false,
     elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
+    sectors: c.has_conditions ? c.sectors : [],
+    specialties: c.has_conditions ? c.specialties : [],
   };
 }
 
