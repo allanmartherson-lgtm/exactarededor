@@ -544,6 +544,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     package_visits_count: isPacoteComExtras ? c.package_visits_count : false,
     extras_codes: isPacoteComExtras ? splitCodes(c.extras_codes) : null,
     apply_access_route: isTabela ? c.apply_access_route : false,
+    allowed_access_routes: c.allowed_access_routes.length > 0 ? c.allowed_access_routes : null,
     time_mode: c.has_conditions ? c.time_mode : "qualquer",
     weekdays: c.has_conditions && c.time_mode === "personalizado" ? c.weekdays : [],
     time_start: c.has_conditions ? (c.time_start || null) : null,
