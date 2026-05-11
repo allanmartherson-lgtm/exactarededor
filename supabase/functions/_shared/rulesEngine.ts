@@ -1686,10 +1686,9 @@ function finalizeAnalysis(
   };
 }
 
-}
-
 export function analyzePaymentItems(
   items: ItemInput[],
+
   rules: RuleInput[],
   ctx: PaymentContext,
   options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup },
