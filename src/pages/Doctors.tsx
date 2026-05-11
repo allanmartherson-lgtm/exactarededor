@@ -301,13 +301,18 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Se há uma busca ativa, mostramos TODOS os resultados filtrados
-    if (search.trim() || filterCompany) {
-      return filtered;
-    }
-    // Sem busca ativa, limitamos a 100 apenas para a listagem inicial ser rápida
-    return filtered.slice(0, 100);
-  }, [filtered, search, filterCompany]);
+    // Se há uma busca ativa, mostramos os resultados filtrados com paginação
+    // Para simplificar, paginamos sempre a lista (seja a filtrada ou a completa)
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  // Resetar página quando a busca mudar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterCompany]);
 
   const filteredCompaniesForDialog = useMemo(() => {
     const q = norm(companySearch);
