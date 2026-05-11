@@ -2489,8 +2489,19 @@ const Rules = () => {
             className="min-w-[240px] h-9"
           />
           {filterCompany && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)}>
-              <X className="h-3.5 w-3.5 mr-1" /> Limpar empresa
+            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)} className="h-9 px-2">
+              <X className="h-4 w-4 mr-1" />
+            </Button>
+          )}
+          <DoctorCombobox
+            value={filterDoctor}
+            onChange={setFilterDoctor}
+            placeholder="Filtrar por médico (CRM)…"
+            className="min-w-[240px] h-9"
+          />
+          {filterDoctor && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
+              <X className="h-4 w-4 mr-1" />
             </Button>
           )}
           <label className="flex items-center gap-2 text-xs">
