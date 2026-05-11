@@ -63,7 +63,7 @@ serve(async (req) => {
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
     // ---------- 2. carrega configurações globais e regras ----------
-    const [configRes, rulesRes] = await Promise.all([
+    const [configRes, rulesRes, matricesRes] = await Promise.all([
       supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
@@ -79,10 +79,18 @@ serve(async (req) => {
         group_company_ids,group_doctors,group_company_links,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor
-      `).eq("active", true)
+      `).eq("active", true),
+      supabase.from("access_route_matrices").select(`
+        id, name, rule_id,
+        primary_route_table_id, primary_route_multiplier,
+        secondary_route_type, secondary_route_value, secondary_route_table_id
+      `)
     ]);
 
     const configs = (configRes.data ?? []) as any[];
+    const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
+    const matrices = (matricesRes.data ?? []) as any[];
+
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
     const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
 
@@ -95,7 +103,7 @@ serve(async (req) => {
 
     const roleAliases = (roleAliasesConfig?.value as Record<string, string[]>) || {};
 
-    const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
+
     (ctx as any).globalThresholds = globalThresholds;
 
     // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
