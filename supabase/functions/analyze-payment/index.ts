@@ -114,7 +114,7 @@ serve(async (req) => {
           reference_table_id,multiplier,deflator_pct,repasse_pct,
           apply_access_route,include_auxiliaries,
           auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
-          bonus_amount,bonus_pct,target_amount
+          bonus_amount,bonus_pct,target_amount,allowed_access_routes
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
