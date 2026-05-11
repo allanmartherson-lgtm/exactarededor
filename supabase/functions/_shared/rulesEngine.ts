@@ -486,19 +486,26 @@ export function normAccessRoute(s: string | null | undefined): string {
   if (!n) return "";
   
   // Mapeamento de variações comuns para termos canônicos
-  if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via|unica\s?ou\s?principal)/i.test(n)) {
+  // Importante: a ordem aqui importa para não pegar substrings erradas
+  if (/(unica\s?ou\s?principal|unica\s?\/\s?principal|unica\s?e\s?principal|1[aª]\s?via\s?principal|principal)/i.test(n)) {
+    return "unica_principal";
+  }
+  
+  if (/(unica|1[aª]|1[.\s]?via|primeira\s?via|1\.[aª]\s?via)/i.test(n)) {
     return "unica_principal";
   }
 
-  if (/(mesma\s?via|mesma|repetida|mesma\s?via\s?de\s?acesso)/.test(n)) {
+  if (/(mesma\s?via|repetida|mesma\s?via\s?de\s?acesso)/.test(n)) {
     return "mesma_via";
   }
+  
+  if (n === "mesma") return "mesma_via";
 
   if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via|via\s?de\s?acesso\s?diferente)/.test(n)) {
     return "outra_via";
   }
 
-  // Tratamento específico para strings compostas como "Mesma Via Outra Via" em regras
+  // Tratamento específico para strings compostas de REGRAS (não de ITENS)
   if (n === "mesma via outra via" || n === "mesmaviaoutravia") {
     return "mesma_outra_via";
   }
@@ -1327,6 +1334,12 @@ function calcTabelaDiferenciada(
   // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor para 1º Auxiliar),
   // NÃO aplicamos novamente o percentual de auxiliar para evitar bitributação/cálculo em cascata.
   const roleInTableMatchesRoleInItem = lookup && rule.reference_table_id && item.doctor_role && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role) !== null;
+  
+  // LOGICA DE REJEIÇÃO POR VIA: Se a regra de tabela diferenciada (Cálculo 1) exige "Única ou Principal"
+  // e o item é "Mesma Via" ou "Diferente", o lookup deve falhar para este item de cálculo específico
+  // se ele estiver dentro de um container que valida a via.
+  // No entanto, o motor está dando MATCH no item de cálculo porque a normalização de "Única ou Principal"
+  // está sendo muito permissiva ou o item de cálculo não está filtrando corretamente.
 
   if (rule.include_auxiliaries && !roleInTableMatchesRoleInItem) {
     const role = classifyDoctorRole(item.doctor_role);
