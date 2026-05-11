@@ -1325,7 +1325,35 @@ function findNextCalculableRule(
   return null;
 }
 
+/**
+ * Busca uma regra master (geral) que possa servir de fallback quando 
+ * regras específicas falham. Prioriza regras que não tenham restrições 
+ * (como código, médico ou via de acesso).
+ */
+function findFallbackGeneralRule(
+  item: ItemInput,
+  rules: RuleInput[],
+  ctx?: EngineCtx,
+): { rule: RuleInput; priority: RuleMatchPriority } | null {
+  // Filtra apenas regras master (gerais)
+  const masterRules = rules.filter(r => r.scope === "master" && r.calculation_type !== "exclusao");
+  
+  // Tenta encontrar uma regra master que não tenha nenhuma restrição de via
+  // e que aceite o convênio do item.
+  const genericMaster = masterRules.find(r => 
+    (!r.allowed_access_routes || r.allowed_access_routes.length === 0) &&
+    ruleAcceptsItemAgreement(r, item)
+  );
+
+  if (genericMaster) {
+    return { rule: genericMaster, priority: "setor_master_geral" };
+  }
+
+  return null;
+}
+
 export function analyzeItem(
+
   item: ItemInput,
   preFilteredRules: RuleInput[],
   ctx?: EngineCtx,
@@ -1542,19 +1570,38 @@ export function analyzeItem(
       }
     }
 
-    // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
-    // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
-    // entra como "sem_regra" para revisão humana — analista precisa cadastrar
-    // a regra adequada em Configurações > Regras de Repasse.
-    const sector = inferItemSector(item, ctx);
-    calc = {
-      expected: null,
-      explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
-      alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
-    };
-    priority = "sem_regra";
-    calculation_type_used = "informativo";
+    // --- Camada 4: Fallback Automático para Regra Geral do Convênio ---
+    // Se o item não bateu em nenhuma regra restrita (ex: por via de acesso), o motor 
+    // agora busca automaticamente por uma regra master de fallback (ex: 100% do convênio)
+    // para garantir que o pagamento não fique travado em "sem regra".
+    const fallbackResult = findFallbackGeneralRule(item, preFilteredRules, ctx);
+    if (fallbackResult) {
+      const { rule: fRule, priority: fPriority } = fallbackResult;
+      calc = applyCalculation(fRule, item, ctx);
+      
+      // Adiciona explicação clara no histórico de auditoria do item
+      calc.explanation = `Fallback Automático: Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
+      
+      priority = fPriority;
+      calculation_type_used = fRule.calculation_type;
+      matched_rule_id = fRule.id;
+      matched_rule_name = fRule.name;
+    } else {
+      // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
+      // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
+      // entra como "sem_regra" para revisão humana — analista precisa cadastrar
+      // a regra adequada em Configurações > Regras de Repasse.
+      const sector = inferItemSector(item, ctx);
+      calc = {
+        expected: null,
+        explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
+        alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
+      };
+      priority = "sem_regra";
+      calculation_type_used = "informativo";
+    }
   }
+
 
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
