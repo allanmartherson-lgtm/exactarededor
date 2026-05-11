@@ -40,7 +40,7 @@ serve(async (req) => {
   };
 
   try {
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run } = await req.json();
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
