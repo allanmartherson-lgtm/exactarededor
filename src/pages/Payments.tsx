@@ -610,6 +610,42 @@ const Payments = () => {
                 <TooltipContent>{openQuestionCount[p.id]} questionamento{openQuestionCount[p.id] > 1 ? "s" : ""} aguardando resposta</TooltipContent>
               </Tooltip>
             )}
+
+            {p.processing_timeout_occurred && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-semibold border border-destructive/20 cursor-help">
+                    <Clock className="h-3 w-3" />
+                    Limite IA
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[280px] space-y-2 text-xs">
+                  <p className="font-bold flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-destructive" /> Diagnóstico de Performance
+                  </p>
+                  <p>O lote original excedeu o tempo limite de análise da IA.</p>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/20 mt-1">
+                    <div>
+                      <p className="text-muted-foreground">Itens IA:</p>
+                      <p className="font-medium text-foreground">{p.processing_diagnostics?.ai_processed_items || "—"} / {p.processing_diagnostics?.total_items || p.items_count}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Chunk Size:</p>
+                      <p className="font-medium text-foreground">{p.processing_diagnostics?.chunk_size || 50} itens</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Tempo Total:</p>
+                      <p className="font-medium text-foreground">{( (p.processing_diagnostics?.execution_time_ms || 0) / 1000 ).toFixed(1)}s</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Status:</p>
+                      <p className="font-medium text-destructive">Timeout</p>
+                    </div>
+                  </div>
+                  <p className="italic text-[10px] pt-1">O motor determinístico concluiu 100% dos cálculos; apenas as justificativas de IA foram limitadas aos itens mais críticos.</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
