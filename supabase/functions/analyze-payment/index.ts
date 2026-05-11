@@ -82,7 +82,6 @@ serve(async (req) => {
       `).eq("active", true)
     ]);
 
-
     const configs = (configRes.data ?? []) as any[];
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
 
