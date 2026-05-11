@@ -5,6 +5,7 @@
  *   1. Regra de projeto: Especialidade médica não impacta cálculo.
  *   2. Normalização de papéis médicos (aliases: Primeiro Aux, 1º Auxiliar, etc).
  *   3. Matching determinístico por empresa e código.
+ *   4. Resiliência a variações de espaços e acentos em nomes/convênios.
  */
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
@@ -17,7 +18,7 @@ import {
   _test_only
 } from "./rulesEngine.ts";
 
-const { classifyDoctorRole } = _test_only;
+const { classifyDoctorRole, normAgreement, normName } = _test_only;
 
 function makeRule(overrides: Partial<RuleInput> = {}): RuleInput {
   return {
@@ -115,7 +116,7 @@ Deno.test("classifyDoctorRole normaliza variações de Segundo Auxiliar", () => 
   assertEquals(classifyDoctorRole("Auxiliar 2"), "demais_aux");
 });
 
-Deno.test("classifyDoctorRole normaliza Terceiro Auxiliar", () => {
+Deno.test("classifyDoctorRole normaliza variações de Terceiro Auxiliar", () => {
   assertEquals(classifyDoctorRole("Terceiro Auxiliar"), "demais_aux");
   assertEquals(classifyDoctorRole("3º Auxiliar"), "demais_aux");
 });
@@ -126,9 +127,17 @@ Deno.test("classifyDoctorRole normaliza Cirurgião", () => {
   assertEquals(classifyDoctorRole("Operador"), "cirurgiao");
 });
 
+// --- Testes de Normalização de Nomes e Convênios (Acentos e Espaços) ---
+
+Deno.test("normName e normAgreement lidam com acentos e espaços", () => {
+  assertEquals(normName("João Müller "), "joao muller");
+  assertEquals(normAgreement(" Bradesco Saúde  "), "bradescosaude");
+  assertEquals(normAgreement("SUL AMÉRICA"), "sulamerica");
+});
+
 // --- Teste de Fluxo Completo de Importação e Matching ---
 
-Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclaturas de role", () => {
+Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclaturas e normalizações", () => {
   const tableId = "table-toracica";
   const code = "30803217";
   
@@ -144,28 +153,55 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
     id: "rule-toracica",
     name: "Regra Torácica",
     calculation_type: "tabela_diferenciada",
-    reference_table_id: tableId
+    reference_table_id: tableId,
+    agreement_aliases: ["Bradesco Saude"], // Sem acento na regra
+    agreement_match_mode: "whitelist"
   });
 
+  // Caso 1: Primeiro Aux (como no Salutaire) + Convênio com acento
   const item1 = makeItem({
     id: "item-1",
     doctor_role: "Primeiro Aux",
     procedure_code: code,
-    gross_amount: 5864.39
+    gross_amount: 5864.39,
+    agreement_name: "Bradesco Saúde"
   });
 
+  // Caso 2: 1º Auxiliar (canônico) + Convênio com espaços extras
   const item2 = makeItem({
     id: "item-2",
     doctor_role: "1º Auxiliar",
     procedure_code: code,
-    gross_amount: 5864.39
+    gross_amount: 5864.39,
+    agreement_name: "  Bradesco Saude  "
   });
 
-  const results = analyzePaymentItems([item1, item2], [rule], baseCtx, { referenceLookup: mockLookup });
+  // Caso 3: Nome do médico com acento na regra mas sem no item (ou vice-versa)
+  const ruleDoc = makeRule({
+    id: "rule-doctor",
+    scope: "especifica",
+    target_type: "medico",
+    target_name: "João Müller",
+    convenio_percentage: 88
+  });
+  const item3 = makeItem({
+    id: "item-3",
+    doctor_name: "Joao Muller",
+    gross_amount: 88,
+    procedure_amount: 100
+  });
+
+  const results = analyzePaymentItems([item1, item2, item3], [rule, ruleDoc], baseCtx, { referenceLookup: mockLookup });
   
-  assertEquals(results.length, 2);
+  assertEquals(results.length, 3);
+  
+  // Verificações dos itens Salutaire
   assertEquals(results[0].expected_amount, 5864.39);
-  assertEquals(results[1].expected_amount, 5864.39);
   assertEquals(results[0].matched_rule_id, "rule-toracica");
+  assertEquals(results[1].expected_amount, 5864.39);
   assertEquals(results[1].matched_rule_id, "rule-toracica");
+  
+  // Verificação de normalização de nome de médico
+  assertEquals(results[2].matched_rule_id, "rule-doctor");
+  assertEquals(results[2].expected_amount, 88);
 });
