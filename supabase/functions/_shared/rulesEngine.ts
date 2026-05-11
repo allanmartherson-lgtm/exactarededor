@@ -1092,14 +1092,15 @@ export function applyCalculation(
       const m = calcItemMatches(c, item);
       
       if (!m.ok) {
+        const reason = (m as any).reason || "condicao_nao_satisfeita";
         breakdown.push({
           calc_id: c.id ?? null,
           label,
           calculation_type: c.calculation_type,
           matched: false,
-          skip_reason: m.reason,
+          skip_reason: reason,
           expected: null,
-          explanation: `Não aplicado — condição "${m.reason}" não satisfeita.`,
+          explanation: `Não aplicado — condição "${reason}" não satisfeita.`,
           alerts: [],
         });
         continue;
