@@ -628,7 +628,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Itens marcados pelo motor (JSON):\n${JSON.stringify(itemsForAi, null, 2)}` },
@@ -834,7 +834,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         expected_amount: r.expected_amount,
         calculation_explanation: r.calculation_explanation,
         gross_amount_at_time: it ? it.gross_amount : null,
-        model: aiJ ? "engine+gemini-2.5-flash" : "engine",
+        model: aiJ ? "engine+gemini-2.5-pro" : "engine",
         triggered_by: triggeredBy,
       });
 

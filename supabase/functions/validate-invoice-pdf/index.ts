@@ -109,7 +109,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: "Você é um auditor financeiro que confere notas fiscais." },
           {
@@ -146,7 +146,7 @@ serve(async (req) => {
     const confidence      = (parsed.confidence as string) ?? "media";
 
     await supabase.from("invoices").update({
-      ai_validation: { ...parsed, model: "google/gemini-2.5-flash" },
+      ai_validation: { ...parsed, model: "google/gemini-2.5-pro" },
       ai_validated_at: new Date().toISOString(),
       ai_extracted_amount: extractedAmount,
       ai_extracted_number: extractedNumber,
