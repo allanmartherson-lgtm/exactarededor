@@ -355,6 +355,7 @@ const Rules = () => {
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
   const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
+  const [filterDoctor, setFilterDoctor] = useState<DoctorOption | null>(null);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
