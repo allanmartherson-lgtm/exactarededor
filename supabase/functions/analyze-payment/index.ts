@@ -31,7 +31,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id, company_name, ai_statuses, tolerance_pct } = await req.json();
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -707,6 +707,26 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }
 
     // ---------- 8. Persiste resultados (em lote / paralelizado) ----------
+    if (is_dry_run) {
+      console.log(`[DRY RUN] Analysis completed for ${results.length} items. Skipping persistence.`);
+      return new Response(
+        JSON.stringify({ 
+          ok: true, 
+          is_dry_run: true,
+          total: results.length,
+          results: results.map(r => ({
+            item_id: r.item_id,
+            status: r.status,
+            expected_amount: r.expected_amount,
+            matched_rule_name: r.matched_rule_name,
+            calculation_explanation: r.calculation_explanation,
+            breakdown: r.calculation_breakdown
+          }))
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Antes: cada item fazia UPDATE + INSERT + (talvez) INSERT em sequência
     // dentro de um for..await, o que estourava o timeout de 150s da edge
     // function quando o lote tinha muitos itens. Agora preparamos as linhas

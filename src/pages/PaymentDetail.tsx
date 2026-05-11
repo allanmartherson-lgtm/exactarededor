@@ -20,6 +20,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
+import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
@@ -50,7 +51,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3, TestTube2 } from "lucide-react";
 
 const ObservationTypeSelector = ({
   value,
@@ -161,6 +162,7 @@ const PaymentDetail = () => {
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
