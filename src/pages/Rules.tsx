@@ -1299,34 +1299,16 @@ const Rules = () => {
       });
     }
     const toInsert = sel.map((d) => ({
-      active: d.active,
-      name: d.name, description: d.description || null, rule_text: d.rule_text,
-      severity: d.severity, scope: d.scope, sector: d.sector,
+      ...d,
+      description: d.description || null,
       target_type: d.scope === "especifica" ? d.target_type : null,
       target_identifier: d.scope === "especifica"
         ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
         : null,
       target_name: d.scope === "especifica" ? d.target_name : null,
-      rule_type: d.rule_type,
-      calculation_type: d.calculation_type,
-      convenio_percentage: d.calculation_type === "percentual_sobre_convenio" ? d.convenio_percentage : null,
-      fixed_amount: d.calculation_type === "valor_fixo" ? d.fixed_amount : null,
-      extras_codes: d.calculation_type === "pacote_com_extras" ? (d.extras_codes.length ? d.extras_codes : null) : null,
-      package_amount: d.rule_type === "pacote" ? d.package_amount : null,
-      bonus_amount: d.rule_type === "bonus" ? d.bonus_amount : null,
-      bonus_pct: d.rule_type === "bonus" ? d.bonus_pct : null,
-      target_amount: d.rule_type === "complemento" ? d.target_amount : null,
-      multiplier: d.rule_type === "tabela_diferenciada" ? d.multiplier : null,
-      deflator_pct: d.rule_type === "tabela_diferenciada" ? d.deflator_pct : null,
       reference_table_id: d.reference_table_id || null,
       procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
-      payment_term: d.payment_term,
       applies_payment_types: d.applies_payment_types.length ? d.applies_payment_types : null,
-      sectors: d.sectors,
-      specialties: d.specialties,
-      valid_from: d.valid_from,
-      valid_until: d.valid_until,
-      doctors: d.doctors,
       created_by: user!.id,
       target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
         ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
