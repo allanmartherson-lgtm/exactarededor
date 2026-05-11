@@ -358,19 +358,29 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
 
             <div>
               <Label className="mb-2 block">Mapeamento de colunas</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                 {profile.fields.map((f) => (
-                  <div key={f.key} className="flex items-center gap-2">
-                    <span className="text-sm w-40 shrink-0">
-                      {f.label}
-                      {f.required && <span className="text-destructive ml-1">*</span>}
-                    </span>
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs flex items-center justify-between">
+                      <span>
+                        {f.label}
+                        {f.required && <span className="text-destructive ml-1">*</span>}
+                      </span>
+                      {f.key === "amount" && (
+                        <span className="text-[10px] font-normal text-blue-600 bg-blue-50 px-1 rounded border border-blue-100">
+                          Múltiplas colunas serão detectadas
+                        </span>
+                      )}
+                    </Label>
                     <select
                       value={mapping[f.key] ?? ""}
-                      onChange={(e) =>
-                        setMapping((m) => ({ ...m, [f.key]: e.target.value || null }))
-                      }
-                      className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm"
+                      onChange={(e) => {
+                        const val = e.target.value || null;
+                        setMapping((m) => ({ ...m, [f.key]: val }));
+                        // Se o usuário selecionou uma coluna manualmente para 'amount', 
+                        // garantimos que o sistema ainda possa detectar outras, mas essa é a principal.
+                      }}
+                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:ring-1 focus:ring-ring"
                     >
                       <option value="">— ignorar —</option>
                       {sheet.headers.map((h) => (
