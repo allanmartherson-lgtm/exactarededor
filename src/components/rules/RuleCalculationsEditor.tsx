@@ -371,6 +371,43 @@ function CalcCard({
                   )}
                 </>
               )}
+              
+              <div className="space-y-2 border-t border-border/40 pt-3">
+                <Label className="text-xs font-semibold">Configuração de Vias de Acesso</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Selecione as vias de acesso aceitas para este cálculo. Deixe vazio para aceitar qualquer via.
+                </p>
+                <div className="space-y-1.5">
+                  <Input
+                    placeholder="Digite a via e pressione Enter (ex: Única ou principal, Mesma Via)"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault();
+                        const target = e.target as HTMLInputElement;
+                        const v = target.value.trim();
+                        if (v && !c.allowed_access_routes.includes(v)) {
+                          onChange({ allowed_access_routes: [...c.allowed_access_routes, v] });
+                        }
+                        target.value = "";
+                      }
+                    }}
+                  />
+                  {c.allowed_access_routes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {c.allowed_access_routes.map(a => (
+                        <button
+                          key={a}
+                          type="button"
+                          onClick={() => onChange({ allowed_access_routes: c.allowed_access_routes.filter(x => x !== a) })}
+                          className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                        >
+                          {a} ✕
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
