@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
+import { SafeCard } from "@/components/ui/SafeCard";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
