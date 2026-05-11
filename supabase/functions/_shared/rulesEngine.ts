@@ -1628,11 +1628,11 @@ export function analyzeItem(
 
   }
 
-  const finalWinner = winner; // Captura para o fechamento
-  const res = finalizeAnalysis(item, calc, finalWinner, priority, ctx, conflict);
+  const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
   if (outcome?.trace) res.selection_trace = outcome.trace;
   return res;
 }
+
 
 
 
