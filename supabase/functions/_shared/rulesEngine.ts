@@ -1014,7 +1014,7 @@ function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "
   return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
 }
 
-export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string, role?: string | null) => number | null;
+export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string, role?: string | null, forceSpecific?: boolean) => number | null;
 
 /**
  * Camada 2: dado um id de tabela de exceção (sem_acordo/exclusao) e um código
@@ -1344,7 +1344,7 @@ function calcTabelaDiferenciada(
   //    INDEPENDENTES — quando ambos os checkboxes estão ativos, multiplicam juntos.
   // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor para 1º Auxiliar),
   // NÃO aplicamos novamente o percentual de auxiliar para evitar bitributação/cálculo em cascata.
-  const roleInTableMatchesRoleInItem = lookup && rule.reference_table_id && item.doctor_role && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role) !== null;
+  const roleInTableMatchesRoleInItem = lookup && rule.reference_table_id && item.doctor_role && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role, true) !== null;
   
   // LOGICA DE REJEIÇÃO POR VIA: Se a regra de tabela diferenciada (Cálculo 1) exige "Única ou Principal"
   // e o item é "Mesma Via" ou "Diferente", o lookup deve falhar para este item de cálculo específico

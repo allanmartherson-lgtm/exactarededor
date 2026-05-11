@@ -432,15 +432,15 @@ serve(async (req) => {
         (refValues[tid] ||= {})[key] = amt;
       }
     }
-    const referenceLookup = (tableId: string, code: string, role?: string | null): number | null => {
+    const referenceLookup: ReferenceTableLookup = (tableId: string, code: string, role?: string | null, forceSpecific?: boolean): number | null => {
       const t = refValues[tableId];
       if (!t) return null;
       const c = String(code).trim();
 
-      const rolesToTry: (string | null)[] = [role ? role.toString().trim() : null];
-      
-      // Se temos o papel original, tenta encontrar o papel canônico via aliases
       if (role) {
+        const rolesToTry: string[] = [role.toString().trim()];
+        
+        // Tenta encontrar o papel canônico via aliases
         const roleNorm = role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         for (const [canonical, aliases] of Object.entries(roleAliases)) {
           const normAliases = aliases.map(a => a.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
@@ -449,13 +449,14 @@ serve(async (req) => {
             break;
           }
         }
+
+        for (const r of rolesToTry) {
+          const rNorm = r.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (t[`${c}|${rNorm}`] != null) return t[`${c}|${rNorm}`];
+        }
       }
 
-      for (const r of rolesToTry) {
-        const rNorm = r ? r.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
-        if (rNorm && t[`${c}|${rNorm}`] != null) return t[`${c}|${rNorm}`];
-      }
-
+      if (forceSpecific) return null;
       return t[c] ?? null;
     };
 
