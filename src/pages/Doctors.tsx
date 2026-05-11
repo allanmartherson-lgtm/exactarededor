@@ -566,6 +566,17 @@ export default function Doctors() {
                 Mostrando {displayItems.length} de {filtered.length} médicos
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  Primeira
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -590,6 +601,17 @@ export default function Doctors() {
                   }}
                 >
                   Próxima
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    setCurrentPage(totalPages);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  Última
                 </Button>
               </div>
             </div>
