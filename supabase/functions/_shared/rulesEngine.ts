@@ -1600,20 +1600,20 @@ export function analyzeItem(
       }
     }
 
-    // --- Camada 4: Fallback Automático para Regra Geral do Convênio ---
+    // --- Camada 4: Fallback Determinístico para Regra Geral ---
     // Se o item não bateu em nenhuma regra restrita (ex: por via de acesso), o motor 
-    // agora busca automaticamente por uma regra master de fallback (ex: 100% do convênio)
-    // para garantir que o pagamento não fique travado em "sem regra".
+    // busca automaticamente por uma regra master de fallback (ex: 100% do convênio).
     const fallbackResult = findFallbackGeneralRule(item, preFilteredRules, ctx);
     if (fallbackResult) {
       const { rule: fRule, priority: fPriority } = fallbackResult;
       calc = applyCalculation(fRule, item, ctx);
       
       // Adiciona explicação clara no histórico de auditoria do item
-      calc.explanation = `Fallback Automático: Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
+      calc.explanation = `Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
       
       return finalizeAnalysis(item, calc, fRule, fPriority, ctx);
     } else {
+
       // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
       // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
       // entra como "sem_regra" para revisão humana — analista precisa cadastrar
