@@ -561,7 +561,7 @@ serve(async (req) => {
     const itemsToReview = results.filter((r) => r.needs_ai_review).slice(0, 30);
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
-    if (false && itemsToReview.length > 0 && LOVABLE_API_KEY) { // Temporarily disabled for debugging timeout
+    if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
       const itemsForAi = itemsToReview.map((r) => {
         const it = items.find((i) => i.id === r.item_id)!;
         return {
