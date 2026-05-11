@@ -1015,7 +1015,7 @@ export interface EngineCtx extends PaymentContext {
  */
 export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
   // Via de acesso
-  if (c.calculation_type !== "tabela_diferenciada" && !ruleAcceptsAccessRoute(c, item)) {
+  if (!ruleAcceptsAccessRoute(c, item)) {
     return { ok: false, reason: "via_de_acesso" };
   }
   // Dia da semana
@@ -1110,8 +1110,10 @@ export function applyCalculation(
       
       // REGRA DE PROJETO: "Exclusividade de Item de Cálculo". 
       // Em vez de somar (comportamento de pacote), o motor agora usa o PRIMEIRO 
-      // item de cálculo que der match como a regra definitiva para este item.
-      if (!winnerCalc) {
+      // item de cálculo que der match e RESULTAR EM VALOR (expected != null)
+      // como a regra definitiva para este item. Se o primeiro der match mas 
+      // falhar no cálculo (ex: código não encontrado na tabela), ele tenta o próximo.
+      if (!winnerCalc && r.expected !== null) {
         winnerCalc = { 
           ...r, 
           label, 
@@ -1127,7 +1129,21 @@ export function applyCalculation(
           explanation: r.explanation,
           alerts: r.alerts.map((a) => `[${label}] ${a}`),
         });
-      } else {
+      } else if (!winnerCalc && r.expected === null) {
+        // Deu match na condição (ex: via), mas falhou no cálculo interno (ex: tabela).
+        // Registramos como match=false (falha técnica) para permitir que o próximo item de cálculo tente.
+        breakdown.push({
+          calc_id: c.id ?? null,
+          label,
+          calculation_type: c.calculation_type,
+          matched: false,
+          skip_reason: "calculo_sem_resultado",
+          expected: null,
+          explanation: `Tentativa falhou: ${r.explanation}. Seguindo para próximo cálculo disponível.`,
+          alerts: r.alerts.map((a) => `[${label}] ${a}`),
+        });
+        anyMatched = false; // Reset anyMatched para não travar no winnerCalc nulo se for o único
+      } else if (winnerCalc) {
         // Itens de cálculo posteriores que também dariam match são ignorados (exclusividade)
         breakdown.push({
           calc_id: c.id ?? null,
@@ -1168,9 +1184,10 @@ function applyCalculationSingle(
   item: ItemInput,
   ctx?: EngineCtx,
 ): ExpectedCalc {
-  // HIERARQUIA: se a regra tem tabela de referência vinculada, ela TEM precedência
-  // sobre o calculation_type — buscamos sempre o valor na tabela, ignorando procedure_amount.
-  if (rule.reference_table_id) {
+  // HIERARQUIA: se a regra tem tabela de referência vinculada E o tipo de cálculo
+  // não é um que explicitamente a ignore ou se o tipo for tabela_diferenciada/referencia,
+  // ela TEM precedência.
+  if (rule.reference_table_id && (rule.calculation_type === "tabela_diferenciada" || rule.calculation_type === "tabela_referencia")) {
     return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
   }
 
