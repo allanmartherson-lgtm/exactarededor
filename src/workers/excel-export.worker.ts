@@ -50,7 +50,7 @@ self.onmessage = async (e) => {
     const detailHeaders = [
       "Atendimento", "Data", "Empresa", "Paciente", "Médico", "Especialidade", 
       "Código", "Procedimento", "Valor Recebido", "Valor Esperado", 
-      "Divergência (R$)", "Status", "Motivo"
+      "Divergência (R$)", "Status", "Regra", "Motivo"
     ];
     
     const detailRows = filteredItems.map(it => {
@@ -74,6 +74,7 @@ self.onmessage = async (e) => {
         findings?.expected_amount ?? "",
         (Number(it.gross_amount ?? 0) - Number(findings?.expected_amount ?? 0)).toFixed(2),
         { v: status, s: statusStyle },
+        it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
       ];
     });
