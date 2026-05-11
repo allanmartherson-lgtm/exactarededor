@@ -110,7 +110,9 @@ const Payments = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
+  const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
   const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
+  const [paymentIdsForDoctor, setPaymentIdsForDoctor] = useState<Set<string> | null>(null);
   // Busca cruzada em itens (médico, atendimento, descrição, especialidade,
   // procedimento, CC). Acionada com 3+ chars e debounced.
   const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
