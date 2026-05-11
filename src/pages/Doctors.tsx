@@ -108,6 +108,7 @@ export default function Doctors() {
       setCompanies((c.data ?? []) as Company[]);
       setLinks((l.data ?? []) as Link[]);
       const total = countResp.count || 0;
+      console.log(`Carregando base total: ${total} médicos`);
       setTotalDatabase(total);
 
       // Carregamento progressivo para evitar timeout e garantir que todos os dados cheguem
