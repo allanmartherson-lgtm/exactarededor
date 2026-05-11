@@ -953,6 +953,14 @@ const Rules = () => {
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
     setOpen(true);
   };
+  const openDuplicate = async (r: RuleRow) => {
+    await openEdit(r);
+    setEditingId(null);
+    setFName(`Cópia de ${r.name}`);
+    setFActive(true);
+    toast({ title: "Copiando regra", description: "Ajuste os campos e salve para criar a nova regra." });
+  };
+
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
