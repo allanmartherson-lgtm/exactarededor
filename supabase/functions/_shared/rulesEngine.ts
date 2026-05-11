@@ -1126,6 +1126,7 @@ export function applyCalculation(
     for (const c of list) {
       const label = (c.label && c.label.trim()) || c.calculation_type;
       const m = calcItemMatches(c, item);
+      console.log(`[ENGINE] Match item ${item.id} with calc ${label}: ok=${m.ok}, route=${item.access_route}, allowed=${JSON.stringify(c.allowed_access_routes)}`);
       
       if (!m.ok) {
         const reason = (m as any).reason || "condicao_nao_satisfeita";
