@@ -482,6 +482,28 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
 const normAgreement = (s: string | null | undefined): string =>
   (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "");
 
+/**
+ * Normaliza vias de acesso para tolerar variações de escrita e abreviações comuns.
+ * "Única ou principal" = "unica/principal" = "unica ou principal" = "unica"
+ */
+export function normAccessRoute(s: string | null | undefined): string {
+  const n = (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (!n) return "";
+  
+  // Mapeamento de variações comuns para termos canônicos
+  if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via)/.test(n)) {
+    return "unica_principal";
+  }
+  if (/(mesma via|mesma)/.test(n)) {
+    return "mesma_via";
+  }
+  if (/(outra via|via diferente|diferente)/.test(n)) {
+    return "outra_via";
+  }
+  
+  return n.replace(/\s+/g, "_");
+}
+
 /** Lista consolidada de tags da regra (aliases + nome principal legado). */
 function ruleAgreementTags(r: RuleInput): string[] {
   const tags = Array.isArray(r.agreement_aliases) ? [...r.agreement_aliases] : [];
@@ -652,8 +674,8 @@ function ruleAcceptsAccessRoute(r: RuleInput | RuleCalculationItem, item: ItemIn
   if (allowed.length === 0) return true;
   if (!item.access_route) return false;
   
-  const itemRouteNorm = normName(item.access_route);
-  return allowed.some(a => normName(a) === itemRouteNorm);
+  const itemRouteNorm = normAccessRoute(item.access_route);
+  return allowed.some(a => normAccessRoute(a) === itemRouteNorm);
 }
 
 export function selectWinningRule(
@@ -767,11 +789,11 @@ export function selectWinningRule(
 
 // ---------- via de acesso (em código) ----------
 export function accessRouteFactor(raw: string | null | undefined): number {
-  const t = normName(raw);
+  const t = normAccessRoute(raw);
   if (!t) return 1;
-  if (/(unica|única|principal)/.test(t)) return 1;
-  if (/(mesma)/.test(t)) return 0.5;
-  if (/(diferente|outra via)/.test(t)) return 0.7;
+  if (t === "unica_principal") return 1;
+  if (t === "mesma_via") return 0.5;
+  if (t === "outra_via") return 0.7;
   return 1;
 }
 
