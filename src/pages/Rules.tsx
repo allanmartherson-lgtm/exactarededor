@@ -955,11 +955,8 @@ const Rules = () => {
     setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
     setOpen(true);
   };
-  const openDuplicate = async (r: RuleRow) => {
-    await openEdit(r);
-    setEditingId(null);
-    setFName(`Cópia de ${r.name}`);
-    setFActive(true);
+  const openDuplicate = (r: RuleRow) => {
+    openEdit(r, true);
     toast({ title: "Copiando regra", description: "Ajuste os campos e salve para criar a nova regra." });
   };
 
