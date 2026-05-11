@@ -270,13 +270,18 @@ export default function Doctors() {
 
   const filtered = useMemo(() => {
     const q = norm(search);
+    
+    // Se não há busca nem filtro de empresa, retornamos a lista completa (limitada visualmente no displayItems)
     if (!q && !filterCompany) return items;
 
-    return items.filter((d) => {
+    const results = items.filter((d) => {
+      // Filtro de empresa se estiver ativo
       if (filterCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
         if (!cids.includes(filterCompany)) return false;
       }
+      
+      // Se não há termo de busca mas passou pelo filtro de empresa
       if (!q) return true;
       
       const nameMatch = norm(d.full_name).includes(q);
@@ -286,6 +291,8 @@ export default function Doctors() {
       
       return nameMatch || crmMatch || emailMatch || specMatch;
     });
+
+    return results;
   }, [items, search, filterCompany, linksByDoctor]);
 
   // Se houver busca, mostramos apenas os filtrados. 
