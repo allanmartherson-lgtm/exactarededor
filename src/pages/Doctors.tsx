@@ -225,8 +225,14 @@ export default function Doctors() {
         if (!cids.includes(filterCompany)) return false;
       }
       if (!q) return true;
-      const hay = [d.full_name, d.crm, d.crm_uf, d.email ?? "", ...(d.specialties ?? [])].map(norm).join(" ");
-      return hay.includes(q);
+      
+      // Busca simplificada para garantir que nomes parciais (como Diego) funcionem sempre
+      const nameMatch = norm(d.full_name).includes(q);
+      const crmMatch = norm(d.crm).includes(q);
+      const emailMatch = d.email ? norm(d.email).includes(q) : false;
+      const specMatch = (d.specialties ?? []).some(s => norm(s).includes(q));
+      
+      return nameMatch || crmMatch || emailMatch || specMatch;
     });
   }, [items, search, filterCompany, linksByDoctor]);
 
