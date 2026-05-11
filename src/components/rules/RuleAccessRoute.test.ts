@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { _test_only } from "../../supabase/functions/_shared/rulesEngine";
+// @ts-ignore
+import { _test_only } from "../../../supabase/functions/_shared/rulesEngine";
 
 const { normAccessRoute } = _test_only;
 
