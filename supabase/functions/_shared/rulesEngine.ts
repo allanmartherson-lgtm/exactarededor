@@ -1627,6 +1627,14 @@ export function analyzeItem(
   }
 
 
+function finalizeAnalysis(
+  item: ItemInput,
+  calc: ExpectedCalc,
+  rule: RuleInput | null,
+  priority: RuleMatchPriority,
+  ctx?: EngineCtx,
+  conflict?: AnalysisResult["conflict"]
+): AnalysisResult {
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
   // PULA se o item já veio com valor totalizado (convenio_value_totalized).
@@ -1641,14 +1649,14 @@ export function analyzeItem(
     calc.explanation = `${calc.explanation} × qtd ${qty} = R$ ${calc.expected.toFixed(2)}`;
   }
 
-  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, outcome?.rule ?? null, ctx);
+  let { status, diff_pct } = classifyDiff(calc.expected, item.gross_amount, rule, ctx);
   if (priority === "conflito") status = "alerta";
   if (priority === "sem_regra") status = "alerta";
   // Exceção autorizada que caiu sem regra calculável => alerta de validação manual.
   if (
     item.authorized_exception === true &&
     calc.expected == null &&
-    matched_rule_id != null
+    rule != null
   ) {
     status = "alerta";
   }
@@ -1664,18 +1672,19 @@ export function analyzeItem(
     status,
     expected_amount: calc.expected,
     diff_pct,
-    matched_rule_id,
-    matched_rule_name,
+    matched_rule_id: rule?.id ?? null,
+    matched_rule_name: rule?.name ?? null,
     matched_priority: priority,
-    calculation_type_used,
+    calculation_type_used: rule?.calculation_type ?? "informativo",
     calculation_explanation: calc.explanation,
     alerts,
     needs_ai_review: status !== "aprovado",
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
-    ...(outcome?.trace ? { selection_trace: outcome.trace } : {}),
   };
+}
+
 }
 
 export function analyzePaymentItems(
