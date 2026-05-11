@@ -2442,7 +2442,18 @@ const Rules = () => {
               </div>
             </CardContent>
           </Card>
-        )}
+          )}
+          <DoctorCombobox
+            value={filterDoctor}
+            onChange={setFilterDoctor}
+            placeholder="Filtrar por médico (CRM)…"
+            className="min-w-[240px] h-9"
+          />
+          {filterDoctor && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
