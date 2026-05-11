@@ -1734,6 +1734,9 @@ const PaymentDetail = () => {
             );
           })()}
 
+          {id && <AnalysisProgressBar paymentId={id} />}
+          {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+
           <TooltipProvider delayDuration={150}>
             {(() => {
               const sq = itemSearch.trim().toLowerCase();
