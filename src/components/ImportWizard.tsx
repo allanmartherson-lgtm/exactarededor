@@ -748,6 +748,33 @@ const norm = (s: any) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 
+const VALUE_COLUMN_KEYWORDS = [
+  "valor", "preco", "amount", "honorario", "uco", "filme", "custo", "vlr",
+  "auxiliar", "cirurgiao", "porte", "anestesista", "instrumentador", "coparticipacao",
+].map(norm);
+
+function detectValueColumns(headers: string[], rows: any[], mapping: Record<string, string | null>) {
+  const detected = new Set<string>();
+  const checkRows = rows.slice(0, 500);
+  const hasPositiveNumber = (colName: string) => checkRows.some((row) => {
+    const val = normalizeNumericValue(row[colName]);
+    return !val.invalid && val.value > 0;
+  });
+
+  const mainAmountCol = mapping["amount"];
+  if (mainAmountCol && hasPositiveNumber(mainAmountCol)) detected.add(mainAmountCol);
+
+  headers.forEach((colName) => {
+    const otherMapped = Object.entries(mapping).some(([k, v]) => v === colName && k !== "amount");
+    if (otherMapped) return;
+    const normalizedColumn = norm(colName);
+    const looksLikeValueColumn = VALUE_COLUMN_KEYWORDS.some((keyword) => normalizedColumn.includes(keyword));
+    if (looksLikeValueColumn && hasPositiveNumber(colName)) detected.add(colName);
+  });
+
+  return Array.from(detected);
+}
+
 function suggestMapping(headers: string[], fields: ImportFieldDef[]) {
   const out: Record<string, string | null> = {};
   const used = new Set<string>();
