@@ -85,7 +85,6 @@ serve(async (req) => {
 
     const configs = (configRes.data ?? []) as any[];
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
-    const matrices = (matricesRes.data ?? []) as any[];
 
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
     const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
