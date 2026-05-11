@@ -1154,6 +1154,70 @@ const NewPayment = () => {
                       <span className="text-warning">{preValidation.warnings} alerta(s) leve(s)</span>
                     )}
                   </div>
+                  {rowsWithIssues.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/70">
+                      <p className="text-xs font-medium text-foreground">Itens com pendências</p>
+                      <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                        {rowsWithIssues.slice(0, 30).map((r, i) => {
+                          const bucketIndex = r.source_bucket_index;
+                          const rowIndex = r.source_row_index;
+                          const canEdit = typeof bucketIndex === "number" && typeof rowIndex === "number";
+                          return (
+                            <div key={`${r.source_file}-${r.source_row_number}-${i}`} className="rounded-md border border-border bg-background p-3 space-y-2">
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <Badge variant="outline">Linha {r.source_row_number ?? "—"}</Badge>
+                                <Badge variant="secondary">{LINE_TYPE_LABELS[r.tipo_linha]}</Badge>
+                                <span className="text-muted-foreground truncate">{r.source_file}</span>
+                              </div>
+                              <ul className="list-disc pl-4 text-xs space-y-0.5">
+                                {r.line_issues.map((issue, issueIdx) => (
+                                  <li key={issueIdx} className={issue.severity === "critico" ? "text-destructive" : "text-warning"}>
+                                    {issue.message} <span className="text-muted-foreground">({issue.field})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Tipo</Label>
+                                  <Select disabled={!canEdit} value={r.tipo_linha} onValueChange={(v) => canEdit && updateRow(bucketIndex, rowIndex, { tipo_linha_manual: v as LineType })}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {(Object.keys(LINE_TYPE_LABELS) as LineType[]).map((type) => (
+                                        <SelectItem key={type} value={type}>{LINE_TYPE_LABELS[type]}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1 sm:col-span-2">
+                                  <Label className="text-xs">Médico</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.doctor_name} onChange={(e) => canEdit && updateRow(bucketIndex, rowIndex, { doctor_name: e.target.value })} />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Valor</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.gross_amount ? String(r.gross_amount).replace(".", ",") : ""} onChange={(e) => {
+                                    if (!canEdit) return;
+                                    const parsed = normalizeNumericValue(e.target.value);
+                                    updateRow(bucketIndex, rowIndex, { gross_amount: parsed.value, valor_invalido: parsed.invalid });
+                                  }} />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">TUSS</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.procedure_code ?? ""} onChange={(e) => canEdit && updateRow(bucketIndex, rowIndex, { procedure_code: e.target.value })} />
+                                </div>
+                                <div className="space-y-1 sm:col-span-5">
+                                  <Label className="text-xs">Descrição</Label>
+                                  <Input className="h-8 text-xs" disabled={!canEdit} value={r.description || r.procedure_name || ""} onChange={(e) => canEdit && updateRow(bucketIndex, rowIndex, { description: e.target.value, procedure_name: e.target.value })} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {rowsWithIssues.length > 30 && (
+                        <p className="text-xs text-muted-foreground">Mostrando 30 de {rowsWithIssues.length} itens com pendências.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
