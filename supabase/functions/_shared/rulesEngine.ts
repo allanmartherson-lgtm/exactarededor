@@ -1015,7 +1015,7 @@ export interface EngineCtx extends PaymentContext {
  */
 export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
   // Via de acesso
-  if (!ruleAcceptsAccessRoute(c, item)) {
+  if (c.calculation_type !== "tabela_diferenciada" && !ruleAcceptsAccessRoute(c, item)) {
     return { ok: false, reason: "via_de_acesso" };
   }
   // Dia da semana
