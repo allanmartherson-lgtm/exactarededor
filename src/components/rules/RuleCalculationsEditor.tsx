@@ -489,6 +489,7 @@ export function calcFromDb(r: any): CalcItem {
     package_visits_count: !!r.package_visits_count,
     extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
     apply_access_route: !!r.apply_access_route,
+    allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
     has_conditions: tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer",
     time_mode: tMode,
     weekdays: wdays,
