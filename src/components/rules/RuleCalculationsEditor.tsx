@@ -376,29 +376,31 @@ function CalcCard({
 
           {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
           <div className="rounded-md border border-border bg-card p-3 space-y-3">
-            <label className="flex items-start gap-2 text-sm">
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
               <Checkbox
                 checked={c.has_conditions}
                 onCheckedChange={(v) => onChange({ has_conditions: !!v })}
                 className="mt-0.5"
               />
               <span>
-                Aplica-se a algum período, dia ou horário específico?
+                Aplica-se a algum período, dia, horário ou via específica?
                 <span className="block text-xs text-muted-foreground">
-                  Marque para restringir este cálculo a determinadas janelas. Desmarcado = vale sempre.
+                  Marque para restringir este cálculo a determinadas janelas ou vias de acesso.
                 </span>
               </span>
             </label>
 
             {c.has_conditions && (
-              <>
+              <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Dias / período</Label>
                     <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        {Object.entries(TIME_MODE_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -407,11 +409,14 @@ function CalcCard({
                     <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+
                 {c.time_mode === "personalizado" && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Dias da semana</Label>
@@ -419,8 +424,17 @@ function CalcCard({
                       {WEEKDAY_LABELS.map((d) => {
                         const checked = c.weekdays.includes(d.v);
                         return (
-                          <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
-                            onClick={() => onChange({ weekdays: checked ? c.weekdays.filter((x) => x !== d.v) : [...c.weekdays, d.v] })}>
+                          <Button
+                            key={d.v}
+                            type="button"
+                            size="sm"
+                            variant={checked ? "default" : "outline"}
+                            className="h-7 px-3 text-[11px]"
+                            onClick={() => {
+                              const next = checked ? c.weekdays.filter((x) => x !== d.v) : [...c.weekdays, d.v];
+                              onChange({ weekdays: next });
+                            }}
+                          >
                             {d.label}
                           </Button>
                         );
@@ -428,47 +442,75 @@ function CalcCard({
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Hora início (opcional)</Label>
-                    <Input type="time" value={c.time_start} onChange={(e) => onChange({ time_start: e.target.value })} />
+
+                {(c.time_mode === "personalizado" || c.time_mode === "comercial") && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Horário inicial</Label>
+                      <Input
+                        type="time"
+                        value={c.time_start}
+                        onChange={(e) => onChange({ time_start: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Horário final</Label>
+                      <Input
+                        type="time"
+                        value={c.time_end}
+                        onChange={(e) => onChange({ time_end: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Hora fim (opcional)</Label>
-                    <Input type="time" value={c.time_end} onChange={(e) => onChange({ time_end: e.target.value })} />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm pb-2">
-                    <Checkbox checked={c.includes_holidays} onCheckedChange={(v) => onChange({ includes_holidays: !!v })} />
-                    Inclui feriados
+                )}
+
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={c.includes_holidays}
+                      onCheckedChange={(v) => onChange({ includes_holidays: !!v })}
+                    />
+                    <span className="text-xs">Incluir feriados</span>
                   </label>
                 </div>
-                <div className="space-y-1.5 pt-2 border-t border-border/50">
-                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Restrição por via de acesso</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Única ou principal", "Mesma via", "Diferentes vias"].map((route) => {
-                      const checked = c.allowed_access_routes.includes(route);
-                      return (
-                        <Button
-                          key={route}
-                          type="button"
-                          size="sm"
-                          variant={checked ? "default" : "outline"}
-                          className="h-7 text-[10px] px-2"
-                          onClick={() => {
-                            const next = checked 
-                              ? c.allowed_access_routes.filter(r => r !== route)
-                              : [...c.allowed_access_routes, route];
-                            onChange({ allowed_access_routes: next });
-                          }}
-                        >
-                          {route}
-                        </Button>
-                      );
-                    })}
+
+                <div className="space-y-1.5 border-t border-border/40 pt-3">
+                  <Label className="text-xs font-semibold">Vias de acesso permitidas</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Restringir este cálculo apenas a vias específicas (ex: "Única ou principal"). 
+                    Vazio = aplica a qualquer via.
+                  </p>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Digite e pressione Enter (ex: Única ou principal)"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const v = (e.target as HTMLInputElement).value.trim();
+                          if (v && !c.allowed_access_routes.includes(v)) {
+                            onChange({ allowed_access_routes: [...c.allowed_access_routes, v] });
+                          }
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                    />
+                    {c.allowed_access_routes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {c.allowed_access_routes.map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() => onChange({ allowed_access_routes: c.allowed_access_routes.filter((x) => x !== a) })}
+                            className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                          >
+                            {a} ✕
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground italic">Se selecionado, este cálculo só aplica se a via do item for uma das marcadas.</p>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </>
@@ -478,20 +520,19 @@ function CalcCard({
 }
 
 /* ============================================================
- *  Helpers de mapeamento DB ↔ formulário
+ *  Helpers de conversão (DB <-> State)
  * ============================================================ */
-
-/** Converte uma linha do banco (rule_calculations) em CalcItem do formulário. */
 export function calcFromDb(r: any): CalcItem {
-  const tMode = (r.time_mode ?? "qualquer") as TimeMode;
+  const tMode = (r.time_mode as TimeMode) ?? "qualquer";
+  const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
   const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
   const tEnd = r.time_end ? String(r.time_end).slice(0, 5) : "";
-  const eMode = (r.elective_mode ?? "qualquer") as ElectiveMode;
-  const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
+  const eMode = (r.elective_mode as ElectiveMode) ?? "qualquer";
+
   return {
     id: r.id,
-    label: r.label ?? null,
-    calculation_type: (r.calculation_type ?? "informativo") as RuleCalculationType,
+    label: r.label,
+    calculation_type: r.calculation_type as RuleCalculationType,
     fixed_amount: r.fixed_amount != null ? String(r.fixed_amount) : "",
     target_amount: r.target_amount != null ? String(r.target_amount) : "",
     multiplier: r.multiplier != null ? String(r.multiplier) : "",
