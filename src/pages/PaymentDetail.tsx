@@ -20,6 +20,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
+import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
@@ -50,7 +51,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3, TestTube2 } from "lucide-react";
 
 const ObservationTypeSelector = ({
   value,
@@ -161,6 +162,7 @@ const PaymentDetail = () => {
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
@@ -1353,7 +1355,13 @@ const PaymentDetail = () => {
             {payment.payment_type && <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS]}</span></div>}
             {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
             {payment.cost_center_code && <div><span className="text-muted-foreground">Centro de custos:</span> <span className="font-mono text-xs font-medium">{payment.cost_center_code}</span></div>}
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex flex-wrap gap-2">
+              {canReimport && (
+                <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => setIsTestModalOpen(true)}>
+                  <TestTube2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Teste de Regra</span>
+                </Button>
+              )}
               {canEditMeta && (
                 <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
                   <DialogTrigger asChild>
@@ -1387,7 +1395,7 @@ const PaymentDetail = () => {
                 </Dialog>
               )}
               {canReimport && (
-                <>
+                <div className="flex gap-2">
                   <input
                     ref={reimportInputRef}
                     type="file"
@@ -1425,7 +1433,7 @@ const PaymentDetail = () => {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                </>
+                </div>
               )}
               {canCancel && (
                 <AlertDialog>
@@ -2048,6 +2056,14 @@ const PaymentDetail = () => {
           })()}
         </SheetContent>
       </Sheet>
+
+      <RuleTestModal
+        paymentId={id!}
+        paymentReference={payment?.reference || "Lote"}
+        items={items}
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+      />
 
       {payment && (
         <PaymentReportModal
