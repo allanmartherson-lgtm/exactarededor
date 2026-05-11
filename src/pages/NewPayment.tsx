@@ -478,9 +478,22 @@ const NewPayment = () => {
     );
   };
 
+  const updateRow = (bucketIndex: number, rowIndex: number, changes: Partial<ParsedRow>) => {
+    setBuckets((prev) =>
+      prev.map((bucket, bIdx) =>
+        bIdx !== bucketIndex
+          ? bucket
+          : {
+              ...bucket,
+              rows: bucket.rows.map((row, rIdx) => (rIdx === rowIndex ? { ...row, ...changes } : row)),
+            },
+      ),
+    );
+  };
+
   const allRows = useMemo(() => {
-    return buckets.flatMap((b) => b.rows).map((r) => {
-      const tipo_linha = classifyLine(r, paymentKind || null);
+    return buckets.flatMap((b, bucketIndex) => b.rows.map((r, rowIndex) => ({ ...r, source_bucket_index: bucketIndex, source_row_index: rowIndex }))).map((r) => {
+      const tipo_linha = r.tipo_linha_manual ?? classifyLine(r, paymentKind || null);
       const withType = { ...r, tipo_linha };
       return { ...withType, line_issues: validateLine(withType) };
     });
