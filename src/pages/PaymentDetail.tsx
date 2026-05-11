@@ -785,8 +785,8 @@ const PaymentDetail = () => {
         status_from: payment.status, status_to: "em_analise_ia",
       });
 
-      supabase.functions.invoke("analyze-payment", { body: { payment_id: id } });
-      toast({ title: "Base reimportada", description: "Reanalisando itens..." });
+      supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: id } });
+      toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
       load();
     } catch (e) {
       toast({ title: "Erro ao reimportar", description: String(e), variant: "destructive" });
