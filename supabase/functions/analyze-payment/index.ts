@@ -79,8 +79,16 @@ serve(async (req) => {
         group_company_ids,group_doctors,group_company_links,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor
-      `).eq("active", true)
+      `).eq("active", true),
+      supabase.from("access_route_matrices").select(`
+        id, name, rule_id,
+        primary_route_table_id, primary_route_multiplier,
+        secondary_route_type, secondary_route_value, secondary_route_table_id
+      `)
     ]);
+
+    const matrices = (rulesRes.data?.[1] || []) as any[];
+    const rules: RuleInput[] = (rulesRes.data?.[0] || []) as unknown as RuleInput[];
 
     const configs = (configRes.data ?? []) as any[];
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
