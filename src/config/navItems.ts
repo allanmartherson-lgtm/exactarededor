@@ -16,7 +16,6 @@ import {
   Stethoscope,
   Sparkles,
   AlertTriangle,
-  GitBranch,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
