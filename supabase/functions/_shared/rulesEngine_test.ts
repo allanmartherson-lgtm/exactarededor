@@ -18,7 +18,8 @@ import {
   _test_only
 } from "./rulesEngine.ts";
 
-const { classifyDoctorRole, normAgreement, normName } = _test_only;
+const { classifyDoctorRole, normAgreement, normName, normAccessRoute } = _test_only;
+
 
 function makeRule(overrides: Partial<RuleInput> = {}): RuleInput {
   return {
