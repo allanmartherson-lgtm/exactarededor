@@ -739,13 +739,27 @@ export function selectWinningRule(
     });
   };
 
+  const bucketProcessed = new Set<string>();
+
   for (const lvl of levels) {
     if (lvl.enabled === false) continue;
-    const withCode = lvl.bucket.filter((r) => 
-      hasCodeRestriction(r) && 
-      matchesProcedureCode(r, item) &&
-      ruleAcceptsAccessRoute(r, item)
-    );
+    
+    // Filtramos o bucket por regras que casam com o item (código e via)
+    const candidates = lvl.bucket.filter((r) => {
+      // 1) Se a regra tem restrição de código, ela deve casar com o código do item
+      if (hasCodeRestriction(r) && !matchesProcedureCode(r, item)) return false;
+      
+      // 2) A via de acesso deve ser aceita pela regra
+      if (!ruleAcceptsAccessRoute(r, item)) return false;
+      
+      return true;
+    });
+
+    if (candidates.length === 0) continue;
+
+    // Dentro do nível, priorizamos regras com código específico
+    const withCode = candidates.filter(hasCodeRestriction);
+    
     if (withCode.length > 0) {
       const { winner, tied } = breakTie(withCode);
       if (winner) {
@@ -764,7 +778,9 @@ export function selectWinningRule(
         trace,
       };
     }
-    const withoutCode = lvl.bucket.filter((r) => !hasCodeRestriction(r) && ruleAcceptsAccessRoute(r, item));
+
+    // Se não houver regra com código, tentamos as sem código (gerais do nível)
+    const withoutCode = candidates.filter((r) => !hasCodeRestriction(r));
     if (withoutCode.length > 0) {
       const { winner, tied } = breakTie(withoutCode);
       if (winner) {
