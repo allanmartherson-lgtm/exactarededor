@@ -681,17 +681,7 @@ function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
   return true;
 }
 
-/**
- * Filtra se a regra (ou item de cálculo) aceita a via de acesso do item.
- */
-function ruleAcceptsAccessRoute(r: RuleInput | RuleCalculationItem, item: ItemInput): boolean {
-  const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
-  if (allowed.length === 0) return true;
-  if (!item.access_route) return false;
-  
-  const itemRouteNorm = normAccessRoute(item.access_route);
-  return allowed.some(a => normAccessRoute(a) === itemRouteNorm);
-}
+// ruleAcceptsAccessRoute removida por duplicidade (já declarada na linha 545)
 
 export function selectWinningRule(
   item: ItemInput,
