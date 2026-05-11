@@ -69,7 +69,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["diretor", "admin"] },
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["diretor", "admin"] },
-      { to: "/regras/vias", label: "Matriz de Vias", icon: GitBranch, iconName: "GitBranch", roles: ["diretor", "admin"] },
+      
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["diretor", "admin"] },
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["diretor", "admin"] },
       { to: "/empresas/apelidos", label: "Apelidos aprendidos", icon: Sparkles, iconName: "Sparkles", roles: ["diretor", "admin"] },
