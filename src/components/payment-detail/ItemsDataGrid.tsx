@@ -1098,34 +1098,34 @@ function ItemDetailsRow({
             </div>
 
             {/* Coluna 2 (mobile: 3º — regra + IA) */}
-            <div className="space-y-2 min-w-0 order-3 lg:order-2">
+            <div className="space-y-3 min-w-0 order-3 lg:order-2">
               {matchedRules.length > 0 ? (
-                <div className={CARD}>
+                <SafeCard>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium text-primary mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].name}</p>
+                  <p className="font-medium text-primary mt-1">{matchedRules[0].name}</p>
                   {matchedRules[0].rule_text && (
-                    <p className="mt-1 text-muted-foreground whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedRules[0].rule_text}</p>
+                    <p className="mt-1 text-muted-foreground">{matchedRules[0].rule_text}</p>
                   )}
                   {matchedRules.length > 1 && (
                     <p className={cn("mt-1 italic", TEXT_META)}>
                       + {matchedRules.length - 1} regra(s) também casaram
                     </p>
                   )}
-                </div>
+                </SafeCard>
               ) : matchedNames.length > 0 ? (
-                <div className={CARD}>
+                <SafeCard>
                   <Label>Regra aplicada</Label>
-                  <p className="font-medium mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{matchedNames[0]}</p>
-                </div>
+                  <p className="font-medium mt-1">{matchedNames[0]}</p>
+                </SafeCard>
               ) : (
-                <div className={cn(CARD, "text-muted-foreground")}>Nenhuma regra específica casou.</div>
+                <SafeCard className="text-muted-foreground italic">Nenhuma regra específica casou.</SafeCard>
               )}
 
               {aiNote && (
-                <div className={CARD}>
+                <SafeCard>
                   <Label icon={Sparkles}>Explicação sugerida (IA)</Label>
-                  <p className="text-muted-foreground italic whitespace-pre-wrap mt-1 break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{aiNote}</p>
-                </div>
+                  <p className="text-muted-foreground italic mt-1">{aiNote}</p>
+                </SafeCard>
               )}
 
               {(it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
