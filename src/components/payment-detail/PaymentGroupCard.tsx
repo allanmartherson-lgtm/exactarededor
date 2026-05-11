@@ -30,6 +30,7 @@ import type {
 } from "@/hooks/usePaymentDetailData";
 import { scoreAttendance, classifyRisk, scoreItem, calculateFinancialRisk } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
+import { SafeCard } from "@/components/ui/SafeCard";
 import { cn } from "@/lib/utils";
 
 export type PaymentGroupCardProps = {
