@@ -1611,97 +1611,102 @@ const TaskRow = ({
       }}
     >
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          {mine ? (
-            <SuaVezBadge />
-          ) : owner !== "—" ? (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                background: "hsl(var(--muted))",
-                color: "hsl(var(--muted-foreground))",
-                borderRadius: 20,
-                padding: "3px 8px",
-                lineHeight: 1,
-              }}
-            >
-              Com {ownerLabel[owner]}
+        <SafeCard className="p-0 border-none bg-transparent shadow-none space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {mine ? (
+              <SuaVezBadge />
+            ) : owner !== "—" ? (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  background: "hsl(var(--muted))",
+                  color: "hsl(var(--muted-foreground))",
+                  borderRadius: 20,
+                  padding: "3px 8px",
+                  lineHeight: 1,
+                }}
+              >
+                Com {ownerLabel[owner]}
+              </span>
+            ) : null}
+            {qCount > 0 && (
+              <span
+                title={`${qCount} questionamento(s) aguardando resposta`}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  background: "hsl(var(--warning-soft))",
+                  color: "hsl(var(--warning-foreground))",
+                  border: "1px solid hsl(var(--warning) / 0.4)",
+                  borderRadius: 20,
+                  padding: "3px 8px",
+                  lineHeight: 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <AlertTriangle size={11} /> Questionamento ({qCount})
+              </span>
+            )}
+            
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
+                  {p.reference}
+                </p>
+                {risk && risk.score > 0 && (
+                  <RiskBadge 
+                    level={risk.level} 
+                    score={risk.score} 
+                    financialData={risk}
+                    showLabel={false}
+                    className="scale-90 shrink-0"
+                  />
+                )}
+              </div>
+            </div>
+
+            {slaTone && (
+              <span
+                style={{
+                  fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
+                  background: slaTone.bg, color: slaTone.fg, borderRadius: 20, padding: "3px 8px", lineHeight: 1,
+                }}
+              >
+                {slaTone.label}
+              </span>
+            )}
+            {timeMs != null && (
+              <span
+                style={{
+                  fontSize: 11, color: "hsl(var(--muted-foreground))",
+                  display: "inline-flex", alignItems: "center", gap: 3,
+                }}
+                title="Tempo no status atual"
+              >
+                <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
+              </span>
+            )}
+          </div>
+          <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+            <span className="capitalize">
+              {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
             </span>
-          ) : null}
-          {qCount > 0 && (
-            <span
-              title={`${qCount} questionamento(s) aguardando resposta`}
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                background: "hsl(var(--warning-soft))",
-                color: "hsl(var(--warning-foreground))",
-                border: "1px solid hsl(var(--warning) / 0.4)",
-                borderRadius: 20,
-                padding: "3px 8px",
-                lineHeight: 1,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <AlertTriangle size={11} /> Questionamento ({qCount})
-            </span>
-          )}
-        
-        <div className="flex items-center gap-2">
-          <p style={{ fontSize: 14, fontWeight: 500, color: "hsl(var(--foreground))" }} className="truncate">
-            {p.reference}
+            {" · "}{p.items_count} itens
+            {" · "}<span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency(p.total_amount)}</span>
+            {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
+            {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
+            {" · "}{formatDate(p.created_at)}
           </p>
-          {risk && risk.score > 0 && (
-            <RiskBadge 
-              level={risk.level} 
-              score={risk.score} 
-              financialData={risk}
-              showLabel={false}
-              className="scale-90"
-            />
-          )}
-        </div>
-          {slaTone && (
-            <span
-              style={{
-                fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em",
-                background: slaTone.bg, color: slaTone.fg, borderRadius: 20, padding: "3px 8px", lineHeight: 1,
-              }}
-            >
-              {slaTone.label}
-            </span>
-          )}
-          {timeMs != null && (
-            <span
-              style={{
-                fontSize: 11, color: "hsl(var(--muted-foreground))",
-                display: "inline-flex", alignItems: "center", gap: 3,
-              }}
-              title="Tempo no status atual"
-            >
-              <Timer size={11} aria-hidden /> {formatShortDuration(timeMs)}
-            </span>
-          )}
-        </div>
-        <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-          <span className="capitalize">
-            {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
-          </span>
-          {" · "}{p.items_count} itens
-          {" · "}{formatCurrency(p.total_amount)}
-          {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
-          {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
-          {" · "}{formatDate(p.created_at)}
-        </p>
+        </SafeCard>
       </div>
-      <StatusBadge status={p.status} />
+      <StatusBadge status={p.status} className="shrink-0" />
     </Link>
   );
 };
