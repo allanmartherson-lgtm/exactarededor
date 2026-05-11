@@ -1673,10 +1673,7 @@ export function analyzeItem(
       // Adiciona explicação clara no histórico de auditoria do item
       calc.explanation = `Fallback Automático: Nenhuma regra específica satisfeita (ex: via de acesso). Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
       
-      priority = fPriority;
-      calculation_type_used = fRule.calculation_type;
-      matched_rule_id = fRule.id;
-      matched_rule_name = fRule.name;
+      return finalizeAnalysis(item, calc, fRule, fPriority, ctx);
     } else {
       // Sem regra cadastrada (nem específica, nem geral por setor): NÃO aplicamos
       // mais nenhum default hardcoded. O item fica sem valor esperado calculado e
@@ -1691,6 +1688,7 @@ export function analyzeItem(
       priority = "sem_regra";
       calculation_type_used = "informativo";
     }
+
   }
 
 
