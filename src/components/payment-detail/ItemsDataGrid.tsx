@@ -1135,27 +1135,45 @@ function ItemDetailsRow({
                     <p className="text-[11px] leading-relaxed">
                       Este item foi marcado como <span className={cn("font-bold uppercase", TONE_CLASSES[it.ai_status === "reprovado" ? "destructive" : it.ai_status === "alerta" ? "warning" : "success"])}>{it.ai_status}</span> porque:
                     </p>
-                    <ul className="text-[11px] space-y-1.5 list-disc pl-4 text-muted-foreground">
+                    <ul className="text-[11px] space-y-2 list-none pl-0 text-muted-foreground">
                       {it.ai_status === "reprovado" && (
-                        <li>Divergência de valor superior a <strong>10%</strong> em relação à regra aplicada.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Divergência de valor superior a <strong>10%</strong> em relação à regra aplicada.</span>
+                        </li>
                       )}
                       {it.ai_status === "alerta" && diffPct != null && (
-                        <li>Divergência de valor identificada (entre 1% e 10%), exigindo conferência.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Divergência de valor identificada (entre 1% e 10%), exigindo conferência.</span>
+                        </li>
                       )}
                       {priority === "sem_regra" && (
-                        <li>Nenhuma regra correspondente foi encontrada para este procedimento no setor informado.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Nenhuma regra correspondente foi encontrada para este procedimento no setor informado.</span>
+                        </li>
                       )}
                       {priority === "conflito" && (
-                        <li>Múltiplas regras aplicáveis com a mesma prioridade geraram um conflito de decisão.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Múltiplas regras aplicáveis com a mesma prioridade geraram um conflito de decisão.</span>
+                        </li>
                       )}
                       {diffPct != null && (
-                        <li>
-                          Diferença calculada: <strong>{(diffPct * 100).toFixed(1)}%</strong> 
-                          {diff != null && <> ({diff > 0 ? "+" : ""}{formatCurrency(diff)})</>}.
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>
+                            Diferença calculada: <strong>{(diffPct * 100).toFixed(1)}%</strong> 
+                            {diff != null && <> ({diff > 0 ? "+" : ""}{formatCurrency(diff)})</>}.
+                          </span>
                         </li>
                       )}
                       {priority && (
-                        <li>Baseado na regra: <strong>{RULE_MATCH_PRIORITY_LABELS[priority]}</strong>.</li>
+                        <li className="flex items-start gap-1.5 break-words whitespace-normal min-w-0">
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-muted-foreground shrink-0" />
+                          <span>Baseado na regra: <strong>{RULE_MATCH_PRIORITY_LABELS[priority]}</strong>.</span>
+                        </li>
                       )}
                     </ul>
                     
