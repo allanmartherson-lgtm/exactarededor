@@ -78,6 +78,7 @@ function similarity(a: string, b: string): number {
 export default function Doctors() {
   const [items, setItems] = useState<Doctor[]>([]);
   const [totalDatabase, setTotalDatabase] = useState(0);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(100);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -98,6 +99,7 @@ export default function Doctors() {
 
   const load = async () => {
     try {
+      setLoadingDoctors(true);
       // Carregamento de empresas e vínculos primeiro (são menores)
       const [c, l, countResp] = await Promise.all([
         supabase.from("companies").select("id,name,document").order("name").limit(5000),
@@ -110,9 +112,11 @@ export default function Doctors() {
       const total = countResp.count || 0;
       console.log(`Carregando base total: ${total} médicos`);
       setTotalDatabase(total);
+      setItems([]);
 
-      // Carregamento progressivo para evitar timeout e garantir que todos os dados cheguem
-      const PAGE_SIZE = 5000;
+      // A API REST retorna no máximo 1.000 linhas por resposta, mesmo quando a query pede mais.
+      // Por isso o lote precisa ser <= 1.000; antes o lote 5.000 encerrava no primeiro retorno truncado.
+      const PAGE_SIZE = 1000;
       let allDoctors: Doctor[] = [];
       
       // Loop robusto para garantir que TODA a base seja carregada
@@ -146,6 +150,8 @@ export default function Doctors() {
     } catch (err) {
       console.error("Erro fatal no carregamento:", err);
       toast({ title: "Erro ao carregar base", description: "Verifique sua conexão", variant: "destructive" });
+    } finally {
+      setLoadingDoctors(false);
     }
   };
 
@@ -494,7 +500,9 @@ export default function Doctors() {
                 </span>
                 {!search.trim() && !filterCompany && (
                   <span className="text-[10px] text-muted-foreground font-normal">
-                    Página {currentPage} de {totalPages || 1}
+                    {loadingDoctors
+                      ? `Carregando ${items.length} de ${totalDatabase || "..."}`
+                      : `Página ${currentPage} de ${totalPages || 1}`}
                   </span>
                 )}
               </div>
