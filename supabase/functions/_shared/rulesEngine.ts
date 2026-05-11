@@ -1452,6 +1452,7 @@ export function analyzeItem(
     if (ctx?.matrices && ctx.matrices.length > 0) {
       const matrix = ctx.matrices.find(m => m.rule_id === winner.id);
       if (matrix) {
+
         const isPrimary = normAccessRoute(item.access_route) === "unica_principal";
         
         if (isPrimary) {
@@ -1510,10 +1511,12 @@ export function analyzeItem(
 
         // Se a matriz resolveu o cálculo, finalizamos aqui.
         if (calc) {
+          (winner as any).__from_matrix = true; // Marca para silenciar filtros de via antigos no applyCalculation
           return finalizeAnalysis(item, calc, winner, winnerPriority, ctx);
         }
       }
     }
+
 
     // === Camada 1 — Gating por-regra de convênio ===
     // A vencedora foi escolhida pelos eixos (especialidade/código/médico/
