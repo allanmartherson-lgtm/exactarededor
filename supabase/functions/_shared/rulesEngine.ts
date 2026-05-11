@@ -1143,6 +1143,7 @@ function applyCalculationSingle(
   if (rule.reference_table_id) {
     return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
   }
+
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
