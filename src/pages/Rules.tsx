@@ -1821,6 +1821,21 @@ const Rules = () => {
                                   }
                                 }}
                               />
+                              {fAllowedAccessRouteInput.trim() && (
+                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 px-1 py-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <Sparkles className="h-3 w-3 text-primary/70" />
+                                  Lido como: <span className="font-bold text-primary italic">
+                                    {(() => {
+                                      const n = fAllowedAccessRouteInput.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                                      if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via)/.test(n)) return "Única ou Principal";
+                                      if (/(mesma via|mesma)/.test(n)) return "Mesma Via";
+                                      if (/(outra via|via diferente|diferente)/.test(n)) return "Outra Via";
+                                      return n;
+                                    })()}
+                                  </span>
+                                </p>
+                              )}
+
                               {fAllowedAccessRoutes.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                   {fAllowedAccessRoutes.map(a => (
