@@ -1342,6 +1342,7 @@ export type Database = {
       }
       rule_calculations: {
         Row: {
+          allowed_access_routes: string[] | null
           apply_access_route: boolean
           aux_first_pct: number | null
           aux_second_pct: number | null
@@ -1380,6 +1381,7 @@ export type Database = {
           weekdays: number[]
         }
         Insert: {
+          allowed_access_routes?: string[] | null
           apply_access_route?: boolean
           aux_first_pct?: number | null
           aux_second_pct?: number | null
@@ -1418,6 +1420,7 @@ export type Database = {
           weekdays?: number[]
         }
         Update: {
+          allowed_access_routes?: string[] | null
           apply_access_route?: boolean
           aux_first_pct?: number | null
           aux_second_pct?: number | null
@@ -1471,6 +1474,7 @@ export type Database = {
           agreement_aliases: string[]
           agreement_match_mode: string
           agreement_name: string | null
+          allowed_access_routes: string[] | null
           allows_authorized_exception: boolean
           applies_payment_types:
             | Database["public"]["Enums"]["payment_type"][]
@@ -1547,6 +1551,7 @@ export type Database = {
           agreement_aliases?: string[]
           agreement_match_mode?: string
           agreement_name?: string | null
+          allowed_access_routes?: string[] | null
           allows_authorized_exception?: boolean
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
@@ -1623,6 +1628,7 @@ export type Database = {
           agreement_aliases?: string[]
           agreement_match_mode?: string
           agreement_name?: string | null
+          allowed_access_routes?: string[] | null
           allows_authorized_exception?: boolean
           applies_payment_types?:
             | Database["public"]["Enums"]["payment_type"][]
