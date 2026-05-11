@@ -1845,12 +1845,27 @@ const Rules = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1.5"><Label>CPF</Label>
-                                <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                            <div className="space-y-2">
+                              <div className="space-y-1.5">
+                                <Label>Médico cadastrado</Label>
+                                <DoctorCombobox
+                                  value={fTargetName ? { id: "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
+                                  onChange={(d) => {
+                                    setFTargetName(d?.name ?? "");
+                                    setFTargetIdentifier(d?.crm ?? "");
+                                  }}
+                                  placeholder="Buscar médico…"
+                                  className="w-full"
+                                />
+                                <p className="text-xs text-muted-foreground">Puxa nome e CRM direto do cadastro de médicos.</p>
                               </div>
-                              <div className="space-y-1.5"><Label>Nome</Label>
-                                <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1.5"><Label>CRM (ou Identificador)</Label>
+                                  <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                                </div>
+                                <div className="space-y-1.5"><Label>Nome</Label>
+                                  <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                                </div>
                               </div>
                             </div>
                           )}
