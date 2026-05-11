@@ -31,7 +31,7 @@ import {
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DoctorsEditor } from "@/components/MultiSelectChips";
-import { DoctorCombobox } from "@/components/DoctorCombobox";
+import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
