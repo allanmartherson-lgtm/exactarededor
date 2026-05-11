@@ -1041,6 +1041,7 @@ const Rules = () => {
       time_start: head.has_conditions ? (head.time_start || null) : null,
       time_end: head.has_conditions ? (head.time_end || null) : null,
       elective_mode: head.has_conditions ? head.elective_mode : "qualquer",
+      has_conditions: head.has_conditions,
       limiar_alerta_tipo: fAlertInherit ? null : fAlertThresholdType,
       limiar_alerta_valor: fAlertInherit ? null : num(fAlertThresholdValue),
       limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
