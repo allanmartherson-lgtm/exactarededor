@@ -1783,44 +1783,12 @@ const Rules = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-2 pt-2 border-t border-border/50">
-                        <Label className="text-sm font-semibold">Vias de acesso (eixo determinístico)</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Restringir a regra a vias específicas (ex: "Única ou principal"). 
-                          Deixe vazio para aplicar a qualquer via.
+                      <div className="pt-2 border-t border-border/50">
+                        <p className="text-[10px] text-muted-foreground italic">
+                          Dica: Restrições por via de acesso agora devem ser configuradas na tela <strong>Matriz de Vias</strong> para maior controle de fallback.
                         </p>
-                        <div className="space-y-1.5">
-                          <Input
-                            value={fAllowedAccessRouteInput}
-                            onChange={(e) => setFAllowedAccessRouteInput(e.target.value)}
-                            placeholder="Ex: Única ou principal (Enter para adicionar)"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === ",") {
-                                e.preventDefault();
-                                const v = fAllowedAccessRouteInput.trim();
-                                if (v && !fAllowedAccessRoutes.includes(v)) {
-                                  setFAllowedAccessRoutes(p => [...p, v]);
-                                }
-                                setFAllowedAccessRouteInput("");
-                              }
-                            }}
-                          />
-                          {fAllowedAccessRoutes.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {fAllowedAccessRoutes.map(a => (
-                                <button
-                                  key={a}
-                                  type="button"
-                                  onClick={() => setFAllowedAccessRoutes(p => p.filter(x => x !== a))}
-                                  className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
-                                >
-                                  {a} ✕
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
                       </div>
+
                     </AccordionContent>
                   </AccordionItem>
 
