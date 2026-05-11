@@ -498,6 +498,11 @@ export function normAccessRoute(s: string | null | undefined): string {
     return "outra_via";
   }
 
+  // Tratamento específico para strings compostas como "Mesma Via Outra Via" em regras
+  if (n === "mesma via outra via" || n === "mesmaviaoutravia") {
+    return "mesma_outra_via";
+  }
+
   if (/(sem\s?via|bonus|complemento|n\/a|nao\s?se\s?aplica|null)/.test(n)) {
     return "sem_via";
   }
@@ -542,10 +547,21 @@ export function ruleHasAgreement(r: RuleInput): boolean {
 export function ruleAcceptsAccessRoute(r: { allowed_access_routes?: string[] | null }, item: ItemInput): boolean {
   const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
   if (allowed.length === 0) return true;
+  
   const itemRoute = normAccessRoute(item.access_route);
+  
+  // Normaliza as vias permitidas da regra
+  const normalizedAllowed = allowed.map(a => normAccessRoute(a));
+  
+  // Se a regra tem a string composta "mesma_outra_via", ela aceita tanto mesma quanto outra
+  if (normalizedAllowed.includes("mesma_outra_via")) {
+    if (itemRoute === "mesma_via" || itemRoute === "outra_via") return true;
+  }
+
   // Se o item não tem via mas a regra exige, não aceita (exceto se a regra aceita 'sem_via')
-  if (!itemRoute) return allowed.some(a => normAccessRoute(a) === "sem_via");
-  return allowed.some(a => normAccessRoute(a) === itemRoute);
+  if (!itemRoute) return normalizedAllowed.includes("sem_via");
+  
+  return normalizedAllowed.includes(itemRoute);
 }
 
 /**
