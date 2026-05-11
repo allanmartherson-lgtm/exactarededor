@@ -498,9 +498,13 @@ export function normAccessRoute(s: string | null | undefined): string {
     return "outra_via";
   }
 
-  // Tratamento específico para strings compostas como "Mesma Via Outra Via" em regras
+  // Tratamento específico para strings compostas como "Mesma Via Outra Via" ou "Única ou Principal" em regras
   if (n === "mesma via outra via" || n === "mesmaviaoutravia") {
     return "mesma_outra_via";
+  }
+
+  if (n === "unica ou principal" || n === "unicaouprincipal") {
+    return "unica_principal";
   }
 
   if (/(sem\s?via|bonus|complemento|n\/a|nao\s?se\s?aplica|null)/.test(n)) {
