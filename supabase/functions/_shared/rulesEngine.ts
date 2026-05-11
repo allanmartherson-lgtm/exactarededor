@@ -501,6 +501,9 @@ export function normAccessRoute(s: string | null | undefined): string {
   if (/(outra via|via diferente|diferente)/.test(n)) {
     return "outra_via";
   }
+  if (/(sem via|bonus|complemento|n\/a|nao se aplica|null)/.test(n)) {
+    return "sem_via";
+  }
   
   return n.replace(/\s+/g, "_");
 }
