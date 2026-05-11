@@ -644,6 +644,18 @@ function ruleAcceptsItemSpecialty(_r: RuleInput, _item: ItemInput): boolean {
   return true;
 }
 
+/**
+ * Filtra se a regra (ou item de cálculo) aceita a via de acesso do item.
+ */
+function ruleAcceptsAccessRoute(r: RuleInput | RuleCalculationItem, item: ItemInput): boolean {
+  const allowed = Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [];
+  if (allowed.length === 0) return true;
+  if (!item.access_route) return false;
+  
+  const itemRouteNorm = normName(item.access_route);
+  return allowed.some(a => normName(a) === itemRouteNorm);
+}
+
 export function selectWinningRule(
   item: ItemInput,
   rules: RuleInput[],
