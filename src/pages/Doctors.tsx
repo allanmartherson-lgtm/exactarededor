@@ -225,6 +225,8 @@ export default function Doctors() {
 
   const filtered = useMemo(() => {
     const q = norm(search);
+    if (!q && !filterCompany) return items;
+
     return items.filter((d) => {
       if (filterCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
@@ -232,7 +234,6 @@ export default function Doctors() {
       }
       if (!q) return true;
       
-      // Busca simplificada para garantir que nomes parciais (como Diego) funcionem sempre
       const nameMatch = norm(d.full_name).includes(q);
       const crmMatch = norm(d.crm).includes(q);
       const emailMatch = d.email ? norm(d.email).includes(q) : false;
