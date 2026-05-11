@@ -87,8 +87,8 @@ serve(async (req) => {
       `)
     ]);
 
-    const matrices = (rulesRes.data?.[1] || []) as any[];
-    const rules: RuleInput[] = (rulesRes.data?.[0] || []) as unknown as RuleInput[];
+    const matrices = (rulesRes.data ?? []) as any[];
+    const rules: RuleInput[] = (configRes.data?.[1]?.data || []) as unknown as RuleInput[];
 
     const configs = (configRes.data ?? []) as any[];
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
@@ -103,7 +103,6 @@ serve(async (req) => {
 
     const roleAliases = (roleAliasesConfig?.value as Record<string, string[]>) || {};
 
-    const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
     (ctx as any).globalThresholds = globalThresholds;
 
     // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
