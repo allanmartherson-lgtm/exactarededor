@@ -831,8 +831,8 @@ const Rules = () => {
     setCalcSyncRetrying(false);
   };
 
-  const openEdit = async (r: RuleRow) => {
-    setEditingId(r.id);
+  const openEdit = async (r: RuleRow, isDuplicate = false) => {
+    setEditingId(isDuplicate ? null : r.id);
     setFActive(r.active !== false);
     setFName(r.name ?? ""); setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
