@@ -2087,32 +2087,49 @@ const Rules = () => {
                         );
                       })()}
 
-                      {scope === "master" && (
-                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens. Altere o escopo na Identificação para vincular a empresa, médico ou grupo.</p>
-                      )}
+                      <div className="space-y-4 rounded-md border border-border bg-muted/40 p-3">
+                        <div className="space-y-1">
+                          <Label className="text-sm font-semibold">Filtros adicionais de produção</Label>
+                          <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5"><Label>Setores específicos</Label>
+                            <MultiSelectChips
+                              values={fSectors}
+                              onChange={setFSectors}
+                              options={Object.keys(RULE_SECTOR_LABELS)}
+                              placeholder="Todos os setores"
+                              allowCustom={true}
+                              emptyHint="Vazio = todos os setores."
+                            />
+                          </div>
+                          <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
+                            <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                              {PAYMENT_TYPE_KEYS.map((k) => {
+                                const checked = appliesTypes.includes(k);
+                                return (
+                                  <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                                    onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
+                                    {PAYMENT_TYPE_LABELS[k]}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
                           <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1.5"><Label>Tipos de pagamento aplicáveis</Label>
-                          <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                            {PAYMENT_TYPE_KEYS.map((k) => {
-                              const checked = appliesTypes.includes(k);
-                              return (
-                                <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                  onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
-                                  {PAYMENT_TYPE_LABELS[k]}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Vazio = aplica a todos.</p>
-                        </div>
                       </div>
+
+                      {scope === "master" && (
+                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima.</p>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
 
