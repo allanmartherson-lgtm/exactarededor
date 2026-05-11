@@ -1262,7 +1262,11 @@ function calcTabelaDiferenciada(
 
   // 2) função do médico (auxiliar/instrumentador) e via de acesso são fatores
   //    INDEPENDENTES — quando ambos os checkboxes estão ativos, multiplicam juntos.
-  if (rule.include_auxiliaries) {
+  // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor para 1º Auxiliar),
+  // NÃO aplicamos novamente o percentual de auxiliar para evitar bitributação/cálculo em cascata.
+  const roleInTableMatchesRoleInItem = lookup && rule.reference_table_id && item.doctor_role && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role) !== null;
+
+  if (rule.include_auxiliaries && !roleInTableMatchesRoleInItem) {
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
       const pct = (rule.instrumentador_pct ?? 10) / 100;
@@ -1277,7 +1281,10 @@ function calcTabelaDiferenciada(
       value *= pct;
       parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
     }
+  } else if (roleInTableMatchesRoleInItem) {
+    parts.push(`(valor específico para papel "${item.doctor_role}")`);
   }
+
   if (rule.apply_access_route) {
     const f = accessRouteFactor(item.access_route);
     value *= f;
