@@ -1068,33 +1068,33 @@ function ItemDetailsRow({
                   )}
                 </div>
               )}
-              <div className={CARD}>
+              <SafeCard>
                 <Label>Histórico deste item ({itemObs.length})</Label>
                 {itemObs.length === 0 ? (
-                  <p className="text-muted-foreground mt-1.5">Sem comentários ainda.</p>
+                  <p className="text-muted-foreground mt-1.5 italic">Sem comentários ainda.</p>
                 ) : (
                   <ul className="space-y-2 max-h-56 overflow-y-auto mt-1.5 pr-1">
                     {itemObs.map((o) => (
-                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0">
-                        <div className={cn("flex items-center gap-1.5", TEXT_META)}>
-                          <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted">{authorRoleLabel(o.author_type)}</span>
+                      <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0 flex flex-col items-start">
+                        <div className={cn("flex items-center gap-1.5 w-full", TEXT_META)}>
+                          <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted shrink-0">{authorRoleLabel(o.author_type)}</span>
                           {o.author_id && profiles[o.author_id] ? (
-                            <span className="text-muted-foreground truncate">
+                            <span className="text-muted-foreground truncate flex-1 min-w-0">
                               {profiles[o.author_id]} <span className="opacity-70">({authorRoleLabel(o.author_type)})</span>
                             </span>
                           ) : (
                             (o.author_type === "sistema" || o.author_type === "ia") && (
-                              <span className="text-muted-foreground truncate">Sistema</span>
+                              <span className="text-muted-foreground truncate flex-1 min-w-0">Sistema</span>
                             )
                           )}
-                          <span className="ml-auto">{fmtDate(o.created_at)}</span>
+                          <span className="shrink-0 ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] max-w-full">{o.message}</p>
+                        <p className="mt-1 whitespace-normal break-words w-full">{o.message}</p>
                       </li>
                     ))}
                   </ul>
                 )}
-              </div>
+              </SafeCard>
             </div>
 
             {/* Coluna 2 (mobile: 3º — regra + IA) */}
