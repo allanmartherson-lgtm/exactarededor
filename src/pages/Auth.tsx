@@ -105,9 +105,6 @@ const Auth = () => {
     navigate("/", { replace: true });
   };
 
-  const [reqForm, setReqForm] = useState({
-    full_name: "", email: "", phone: "", role_title: "", department: "", birth_date: "", message: "",
-  });
   const handleAccessRequest = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const parsed = accessRequestSchema.safeParse(reqForm);
