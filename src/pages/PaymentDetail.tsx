@@ -103,6 +103,13 @@ const ObservationTypeSelector = ({
         <Pencil className="h-3 w-3" />
         Justificativa
       </Button>
+      <RuleTestModal
+        paymentId={id!}
+        paymentReference={payment?.reference || "Lote"}
+        items={items}
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+      />
     </div>
   );
 };
@@ -1355,7 +1362,13 @@ const PaymentDetail = () => {
             {payment.payment_type && <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS]}</span></div>}
             {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
             {payment.cost_center_code && <div><span className="text-muted-foreground">Centro de custos:</span> <span className="font-mono text-xs font-medium">{payment.cost_center_code}</span></div>}
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex flex-wrap gap-2">
+              {canReimport && (
+                <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => setIsTestModalOpen(true)}>
+                  <TestTube2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Teste de Regra</span>
+                </Button>
+              )}
               {canEditMeta && (
                 <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
                   <DialogTrigger asChild>
