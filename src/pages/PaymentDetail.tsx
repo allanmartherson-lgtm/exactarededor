@@ -23,6 +23,8 @@ import { PaymentReportModal } from "@/components/payment-detail/PaymentReportMod
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
+import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
+import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -785,8 +787,8 @@ const PaymentDetail = () => {
         status_from: payment.status, status_to: "em_analise_ia",
       });
 
-      supabase.functions.invoke("analyze-payment", { body: { payment_id: id } });
-      toast({ title: "Base reimportada", description: "Reanalisando itens..." });
+      supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: id } });
+      toast({ title: "Base reimportada", description: "Análise iniciada por empresa em background." });
       load();
     } catch (e) {
       toast({ title: "Erro ao reimportar", description: String(e), variant: "destructive" });
@@ -801,8 +803,9 @@ const PaymentDetail = () => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
-      const { error } = await supabase.functions.invoke("analyze-payment", {
-        body: { 
+      const fnName = (statuses && statuses.length > 0) ? "analyze-payment" : "dispatch-payment-analysis";
+      const { error } = await supabase.functions.invoke(fnName, {
+        body: {
           payment_id: id,
           ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
           tolerance_pct: toleranceValue
@@ -1730,6 +1733,9 @@ const PaymentDetail = () => {
             </Card>
             );
           })()}
+
+          {id && <AnalysisProgressBar paymentId={id} />}
+          {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
 
           <TooltipProvider delayDuration={150}>
             {(() => {

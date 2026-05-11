@@ -40,7 +40,7 @@ serve(async (req) => {
   };
 
   try {
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run } = await req.json();
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1036,14 +1036,27 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       processing_timeout_occurred: false
     }).eq("id", payment_id);
 
+    // Reporta progresso ao job de dispatch (se houver)
+    if (_job_id) {
+      try {
+        await supabase.rpc("increment_processing_progress", {
+          _job_id,
+          _company_name: _company_label ?? company_name ?? "Sem empresa",
+          _error: null,
+        });
+      } catch (e) {
+        console.error("Falha ao reportar progresso", e);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ 
-        ok: true, 
-        alerts, 
-        blocks, 
-        total: results.length, 
+      JSON.stringify({
+        ok: true,
+        alerts,
+        blocks,
+        total: results.length,
         ai_used: itemsToReview.length > 0,
-        diagnostics 
+        diagnostics
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
@@ -1063,13 +1076,21 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       if (body.payment_id) {
         await supabase.from("payments").update({
           processing_timeout_occurred: true,
-          processing_diagnostics: { 
-            ...diagnostics, 
-            status: "error", 
-            error: msg, 
-            execution_time_ms: Date.now() - startTime 
+          processing_diagnostics: {
+            ...diagnostics,
+            status: "error",
+            error: msg,
+            execution_time_ms: Date.now() - startTime
           }
         }).eq("id", body.payment_id);
+      }
+      // Reporta falha ao job de dispatch (se houver)
+      if (body._job_id) {
+        await supabase.rpc("increment_processing_progress", {
+          _job_id: body._job_id,
+          _company_name: body._company_label ?? body.company_name ?? "Sem empresa",
+          _error: msg.slice(0, 300),
+        });
       }
     } catch (_) {}
 

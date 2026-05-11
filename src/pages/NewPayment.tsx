@@ -805,7 +805,7 @@ const NewPayment = () => {
     }
 
     toast({ title: "Lote criado", description: "Iniciando análise por IA..." });
-    supabase.functions.invoke("analyze-payment", { body: { payment_id: payment.id } });
+    supabase.functions.invoke("dispatch-payment-analysis", { body: { payment_id: payment.id } });
 
     // Substitui a entrada "/pagamentos/novo" no histórico para que o botão Voltar
     // do detalhe leve à lista de pagamentos, e não de volta ao formulário de criação.
