@@ -1129,7 +1129,7 @@ function ItemDetailsRow({
               )}
 
               {(it.ai_findings?.selection_trace || it.ai_status !== "aprovado") && (
-                <div className={CARD}>
+                <SafeCard>
                   <Label icon={ShieldAlert}>Justificativa da Classificação</Label>
                   <div className="mt-2 space-y-2">
                     <p className="text-[11px] leading-relaxed">
