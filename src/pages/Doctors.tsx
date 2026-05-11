@@ -501,9 +501,11 @@ export default function Doctors() {
                 <span className="font-semibold">
                   {filtered.length} médico(s) encontrados
                 </span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  Página {currentPage} de {totalPages || 1}
-                </span>
+                {!search.trim() && !filterCompany && (
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    Página {currentPage} de {totalPages || 1}
+                  </span>
+                )}
               </div>
               <span className="text-xs font-normal text-muted-foreground">
                 Base total: {totalDatabase} médicos
