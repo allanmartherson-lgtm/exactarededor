@@ -183,3 +183,5 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
   assertEquals(results[0].expected_amount, 5864.39);
   assertEquals(results[1].expected_amount, 5864.39);
 });
+// Fim do arquivo
+
