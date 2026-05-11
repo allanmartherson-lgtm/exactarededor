@@ -58,6 +58,7 @@ import type {
   PaymentRow,
   PaymentItemRow,
   GroupRow,
+  RuleLite,
 } from "@/hooks/usePaymentDetailData";
 
 interface PaymentReportModalProps {
@@ -66,6 +67,7 @@ interface PaymentReportModalProps {
   payment: PaymentRow;
   items: PaymentItemRow[];
   groups: GroupRow[];
+  rulesIndex?: Record<string, RuleLite>;
   analystName?: string;
 }
 
