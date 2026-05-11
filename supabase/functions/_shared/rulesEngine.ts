@@ -140,6 +140,10 @@ export interface RuleInput {
 export interface RuleCalculationItem {
   id?: string;
   label?: string | null;
+  /** Ordem do item dentro da regra (0,1,2…). O motor processa em ordem
+   *  crescente — o PRIMEIRO item cujas condições casarem e produzir um
+   *  valor calculado define o resultado (exclusividade). */
+  sort_order?: number | null;
   calculation_type: CalculationType;
   // ---- condições vinculadas ao cálculo ----
   time_mode?: string | null;         // 'qualquer' | 'comercial' | 'noturno' | 'fim_de_semana' | 'personalizado' | ...
@@ -1117,7 +1121,14 @@ export function applyCalculation(
   ctx?: EngineCtx,
 ): ExpectedCalc {
   // ---- NOVO: itens de cálculo (1:N) ----
-  const list = Array.isArray(rule.calculations) ? rule.calculations : [];
+  const rawList = Array.isArray(rule.calculations) ? rule.calculations : [];
+  // Defensivo: garante a sequência (sort_order ASC) mesmo que a fonte tenha
+  // entregue fora de ordem. Itens sem sort_order vão para o fim, preservando
+  // a ordem original entre si (sort estável).
+  const list = rawList
+    .map((c, i) => ({ c, i, so: c.sort_order ?? Number.MAX_SAFE_INTEGER }))
+    .sort((a, b) => a.so - b.so || a.i - b.i)
+    .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
     let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null } | null = null;
@@ -1520,9 +1531,9 @@ export function analyzeItem(
 
   const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
-  let calc: ExpectedCalc;
-  let priority: RuleMatchPriority;
-  let calculation_type_used: AnalysisResult["calculation_type_used"];
+  let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
+  let priority: RuleMatchPriority = "sem_regra";
+  let calculation_type_used: AnalysisResult["calculation_type_used"] = "informativo";
   let matched_rule_id: string | null = null;
   let matched_rule_name: string | null = null;
   let conflict: AnalysisResult["conflict"] | undefined;
