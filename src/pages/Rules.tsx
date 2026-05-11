@@ -31,6 +31,7 @@ import {
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DoctorsEditor } from "@/components/MultiSelectChips";
+import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
@@ -354,6 +355,7 @@ const Rules = () => {
   const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
   const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
+  const [filterDoctor, setFilterDoctor] = useState<DoctorOption | null>(null);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -1361,6 +1363,8 @@ const Rules = () => {
   const filtered = useMemo(() => {
     const filterCompanyId = filterCompany?.id ?? null;
     const companyDigits = filterCompany?.document ? onlyDigits(filterCompany.document) : null;
+    const filterDoctorCrm = filterDoctor?.crm ?? null;
+
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
@@ -1369,15 +1373,43 @@ const Rules = () => {
       if (filterType !== "todos" && r.rule_type !== filterType) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
+      
       if (filterCompanyId) {
         const linked = r.target_company_id === filterCompanyId;
-        // fallback para regras antigas ainda não vinculadas: compara CNPJ por dígitos
         const matchByCnpj = !linked && companyDigits && r.target_identifier && onlyDigits(r.target_identifier) === companyDigits;
-        if (!linked && !matchByCnpj) return false;
+        // Verifica também em group_company_links (escopo grupo)
+        const inGroup = Array.isArray(r.group_company_links) && r.group_company_links.some((l: any) => l.company_id === filterCompanyId);
+        const inGroupIds = Array.isArray(r.group_company_ids) && r.group_company_ids.includes(filterCompanyId);
+        if (!linked && !matchByCnpj && !inGroup && !inGroupIds) return false;
       }
+
+      if (filterDoctor) {
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const dName = norm(filterDoctor.name);
+        
+        // Match no alvo específico
+        const specificMatch = r.target_type === 'medico' && (
+          norm(r.target_name ?? "") === dName || 
+          (filterDoctorCrm && r.target_identifier === filterDoctorCrm)
+        );
+
+        // Match na lista de médicos da regra
+        const inList = Array.isArray(r.doctors) && r.doctors.some((d: any) => norm(d.name) === dName);
+
+        // Match no grupo de médicos
+        const inGroup = Array.isArray(r.group_doctors) && r.group_doctors.some((d: any) => norm(d.name) === dName);
+
+        // Match nos médicos de vínculos por empresa
+        const inLinks = Array.isArray(r.group_company_links) && r.group_company_links.some((l: any) => 
+          Array.isArray(l.doctors) && l.doctors.some((d: any) => norm(d.name) === dName)
+        );
+
+        if (!specificMatch && !inList && !inGroup && !inLinks) return false;
+      }
+
       return true;
     });
-  }, [rules, filterScope, filterSector, filterType, filterTarget, filterCompany, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterType, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -1844,12 +1876,27 @@ const Rules = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1.5"><Label>CPF</Label>
-                                <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                            <div className="space-y-2">
+                              <div className="space-y-1.5">
+                                <Label>Médico cadastrado</Label>
+                                <DoctorCombobox
+                                  value={fTargetName ? { id: "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
+                                  onChange={(d) => {
+                                    setFTargetName(d?.name ?? "");
+                                    setFTargetIdentifier(d?.crm ?? "");
+                                  }}
+                                  placeholder="Buscar médico…"
+                                  className="w-full"
+                                />
+                                <p className="text-xs text-muted-foreground">Puxa nome e CRM direto do cadastro de médicos.</p>
                               </div>
-                              <div className="space-y-1.5"><Label>Nome</Label>
-                                <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1.5"><Label>CRM (ou Identificador)</Label>
+                                  <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                                </div>
+                                <div className="space-y-1.5"><Label>Nome</Label>
+                                  <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                                </div>
                               </div>
                             </div>
                           )}
@@ -2395,7 +2442,18 @@ const Rules = () => {
               </div>
             </CardContent>
           </Card>
-        )}
+          )}
+          <DoctorCombobox
+            value={filterDoctor}
+            onChange={setFilterDoctor}
+            placeholder="Filtrar por médico (CRM)…"
+            className="min-w-[240px] h-9"
+          />
+          {filterDoctor && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
@@ -2431,8 +2489,19 @@ const Rules = () => {
             className="min-w-[240px] h-9"
           />
           {filterCompany && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)}>
-              <X className="h-3.5 w-3.5 mr-1" /> Limpar empresa
+            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)} className="h-9 px-2">
+              <X className="h-4 w-4 mr-1" />
+            </Button>
+          )}
+          <DoctorCombobox
+            value={filterDoctor}
+            onChange={setFilterDoctor}
+            placeholder="Filtrar por médico (CRM)…"
+            className="min-w-[240px] h-9"
+          />
+          {filterDoctor && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
+              <X className="h-4 w-4 mr-1" />
             </Button>
           )}
           <label className="flex items-center gap-2 text-xs">
