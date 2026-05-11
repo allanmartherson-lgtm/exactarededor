@@ -658,27 +658,29 @@ export function ItemsDataGrid({
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
               const trailingCols = 1 /* status */ + (colVis.observacao ? 1 : 0) + (canEdit ? 1 : 0);
-              const footPad = isCompact ? "px-1.5 py-1.5" : "px-2 py-2";
+              const footPad = isCompact ? "px-1.5 py-3" : "px-2 py-4";
               return (
                 <tfoot className="sticky bottom-0 z-20">
-                  <tr>
+                  <tr className="shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                     <td
                       colSpan={leadingCols}
-                      className={cn(footPad, TEXT_LABEL, "text-right border-t bg-muted/80 backdrop-blur whitespace-nowrap")}
+                      className={cn(footPad, "text-right border-t bg-muted/95 backdrop-blur whitespace-nowrap")}
                     >
-                      Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
+                      <span className={cn(TEXT_LABEL, "text-xs font-bold text-foreground")}>
+                        Total ({totals.count} {totals.count === 1 ? "item" : "itens"})
+                      </span>
                     </td>
-                    <td className={cn(footPad, "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap")}>
+                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
                       {formatCurrency(totals.valor)}
                     </td>
-                    <td className={cn(footPad, "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap")}>
+                    <td className={cn(footPad, "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap")}>
                       {totals.esperado != null ? formatCurrency(totals.esperado) : "—"}
                     </td>
                     {colVis.diferenca && (
                       <td
                         className={cn(
                           footPad,
-                          "text-right tabular-nums font-semibold border-t bg-muted/80 backdrop-blur whitespace-nowrap",
+                          "text-right tabular-nums font-bold text-sm border-t bg-muted/95 backdrop-blur whitespace-nowrap",
                           totals.diferenca != null && Math.abs(totals.diferenca) > 0.01
                             ? totals.diferenca < 0 ? "text-warning-foreground" : "text-success"
                             : "text-muted-foreground",
@@ -689,7 +691,7 @@ export function ItemsDataGrid({
                           : "—"}
                       </td>
                     )}
-                    <td colSpan={trailingCols} className={cn(footPad, "border-t bg-muted/80 backdrop-blur")} />
+                    <td colSpan={trailingCols} className={cn(footPad, "border-t bg-muted/95 backdrop-blur")} />
                   </tr>
                 </tfoot>
               );
