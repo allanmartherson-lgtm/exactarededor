@@ -63,7 +63,7 @@ serve(async (req) => {
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
     // ---------- 2. carrega configurações globais e regras ----------
-    const [configRes, rulesRes, matricesRes] = await Promise.all([
+    const [configRes, rulesRes] = await Promise.all([
       supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
         id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
@@ -79,13 +79,9 @@ serve(async (req) => {
         group_company_ids,group_doctors,group_company_links,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor
-      `).eq("active", true),
-      supabase.from("access_route_matrices").select(`
-        id, name, rule_id,
-        primary_route_table_id, primary_route_multiplier,
-        secondary_route_type, secondary_route_value, secondary_route_table_id
-      `)
+      `).eq("active", true)
     ]);
+
 
     const configs = (configRes.data ?? []) as any[];
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
