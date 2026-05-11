@@ -1036,14 +1036,27 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       processing_timeout_occurred: false
     }).eq("id", payment_id);
 
+    // Reporta progresso ao job de dispatch (se houver)
+    if (_job_id) {
+      try {
+        await supabase.rpc("increment_processing_progress", {
+          _job_id,
+          _company_name: _company_label ?? company_name ?? "Sem empresa",
+          _error: null,
+        });
+      } catch (e) {
+        console.error("Falha ao reportar progresso", e);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ 
-        ok: true, 
-        alerts, 
-        blocks, 
-        total: results.length, 
+      JSON.stringify({
+        ok: true,
+        alerts,
+        blocks,
+        total: results.length,
         ai_used: itemsToReview.length > 0,
-        diagnostics 
+        diagnostics
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
