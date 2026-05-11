@@ -126,7 +126,7 @@ export const PaymentGroupCard = ({
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
   return (
-    <Card className="shadow-card">
+    <SafeCard className="shadow-card p-0">
       <button
         type="button"
         onClick={onToggleExpanded}
