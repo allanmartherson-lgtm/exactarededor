@@ -558,7 +558,7 @@ serve(async (req) => {
 
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
-    const itemsToReview = results.filter((r) => r.needs_ai_review);
+    const itemsToReview = results.filter((r) => r.needs_ai_review).slice(0, 50);
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
@@ -873,9 +873,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     };
 
-    // Updates por id em paralelo (chunks de 25). Não dá para fazer um único
+    // Updates por id em paralelo (chunks de 50). Não dá para fazer um único
     // UPDATE porque cada item tem um ai_findings diferente.
-    await runChunked(itemUpdates, 25, async (u) => {
+    await runChunked(itemUpdates, 50, async (u) => {
       await supabase.from("payment_items").update({
         ai_status: u.ai_status,
         ai_findings: u.ai_findings,
