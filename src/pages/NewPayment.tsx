@@ -515,6 +515,11 @@ const NewPayment = () => {
     return { byType, critical, warnings };
   }, [allRows]);
 
+  const rowsWithIssues = useMemo(
+    () => allRows.filter((r) => r.line_issues.length > 0),
+    [allRows],
+  );
+
   // === Detecção heurística do conteúdo da planilha ===
   const detected = useMemo(() => {
     const text = (s: string | null | undefined) => (s ?? "").toLowerCase();
