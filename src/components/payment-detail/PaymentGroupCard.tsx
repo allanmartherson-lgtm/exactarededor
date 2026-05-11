@@ -30,6 +30,7 @@ import type {
 } from "@/hooks/usePaymentDetailData";
 import { scoreAttendance, classifyRisk, scoreItem, calculateFinancialRisk } from "@/lib/riskScore";
 import { RiskBadge } from "./RiskBadge";
+import { SafeCard } from "@/components/ui/SafeCard";
 import { cn } from "@/lib/utils";
 
 export type PaymentGroupCardProps = {
@@ -125,7 +126,7 @@ export const PaymentGroupCard = ({
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
   return (
-    <Card className="shadow-card">
+    <SafeCard className="shadow-card p-0">
       <button
         type="button"
         onClick={onToggleExpanded}
@@ -139,8 +140,8 @@ export const PaymentGroupCard = ({
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
           <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="text-base font-semibold truncate">{g.company_name}</span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-base font-semibold truncate flex-1">{g.company_name}</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
             · {g.items_count} itens · {formatCurrency(g.total_amount)}
           </span>
           <div className="hidden md:flex items-center gap-1 ml-2">
@@ -387,6 +388,6 @@ export const PaymentGroupCard = ({
           </div>
         </CardContent>
       )}
-    </Card>
+    </SafeCard>
   );
 };

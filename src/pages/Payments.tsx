@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { SafeCard } from "@/components/ui/SafeCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
@@ -519,46 +520,62 @@ const Payments = () => {
     const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
     
     if (compact) {
+      const slaBadge = (
+        <span className={cn(
+          "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px]",
+          finalLvl === "critico" && "bg-destructive-soft text-destructive",
+          finalLvl === "leve" && "bg-warning-soft text-warning-foreground",
+          finalLvl === "none" && "text-muted-foreground",
+        )}>
+          <Clock className="h-2.5 w-2.5 shrink-0" />{" "}
+          <span className="truncate">
+            {sla?.level === "vencido" ? "vencido" : sla?.level === "preventivo" ? "perto do prazo" : formatDuration(elapsedMs)}
+          </span>
+        </span>
+      );
+
       return (
         <Link
           key={p.id}
           to={`/pagamentos/${p.id}`}
-          className={cn(
-            "block rounded-md border bg-card px-3 py-2 hover:bg-muted/40 transition-colors space-y-1.5",
-            finalLvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
-          )}
+          className="block min-w-0"
         >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-medium text-xs truncate">{p.reference}</p>
-              <PaymentRiskBadgeInline paymentId={p.id} compact />
-
-            </div>
-            {openQuestionCount[p.id] > 0 && (
+          <SafeCard
+            headerColor={
+              finalLvl === "critico" ? "hsl(var(--destructive))" : 
+              finalLvl === "leve" ? "hsl(var(--warning))" : 
+              undefined
+            }
+            badge={openQuestionCount[p.id] > 0 ? (
               <span
                 title={`${openQuestionCount[p.id]} questionamento(s) aguardando resposta`}
-                className="inline-flex items-center gap-0.5 rounded-full border border-warning/40 bg-warning-soft px-1.5 py-0 text-[9px] font-semibold text-warning-foreground shrink-0"
+                className="inline-flex items-center gap-0.5 rounded-bl-md border-l border-b border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-warning-foreground shrink-0 shadow-sm"
               >
-                <AlertTriangle className="h-2 w-2" /> Questionamento
+                <AlertTriangle className="h-2 w-2" />
               </span>
+            ) : undefined}
+            className={cn(
+              "hover:bg-muted/40 transition-colors space-y-2 p-0", // p-0 because SafeCard has padding 3
+              finalLvl === "critico" && "border-destructive/40 ring-1 ring-destructive/20",
             )}
-          </div>
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span className="truncate">{analystName}</span>
-            <span className="tabular-nums">{formatCurrency(p.total_amount)}</span>
-          </div>
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-muted-foreground">{p.items_count} itens · {companies || "—"} PJ</span>
-            <span className={cn(
-              "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
-              finalLvl === "critico" && "bg-destructive-soft text-destructive",
-              finalLvl === "leve" && "bg-warning-soft text-warning-foreground",
-              finalLvl === "none" && "text-muted-foreground",
-            )}>
-              <Clock className="h-2.5 w-2.5" />{" "}
-              {sla?.level === "vencido" ? "vencido" : sla?.level === "preventivo" ? "perto do prazo" : formatDuration(elapsedMs)}
-            </span>
-          </div>
+          >
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <p className="font-semibold text-xs break-words">{p.reference}</p>
+                <PaymentRiskBadgeInline paymentId={p.id} compact />
+              </div>
+              
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground gap-2">
+                <span className="truncate flex-1">{analystName}</span>
+                <span className="tabular-nums font-medium text-foreground shrink-0">{formatCurrency(p.total_amount)}</span>
+              </div>
+              
+              <div className="flex items-center justify-between text-[10px] gap-2 pt-1 border-t border-border/40">
+                <span className="text-muted-foreground shrink-0">{p.items_count} itens · {companies || "—"} PJ</span>
+                {slaBadge}
+              </div>
+            </div>
+          </SafeCard>
         </Link>
       );
     }

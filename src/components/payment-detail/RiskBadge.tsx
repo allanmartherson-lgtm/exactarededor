@@ -66,10 +66,10 @@ export function RiskBadge({
         {showLabel && <span>{RISK_LABELS[level]}</span>}
       {score != null && <span className="opacity-70">· {score}</span>}
       </span>
-      <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help" />
+      <HelpCircle className="h-3 w-3 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity cursor-help shrink-0" />
       {financialData && financialData.valorEmRisco > 0 && (
-        <div className="text-[10px] text-muted-foreground whitespace-nowrap opacity-80 mt-0.5">
-          Valor em risco: <span className="font-semibold text-foreground">{formatCurrency(financialData.valorEmRisco)}</span> ({financialData.percentualRisco.toFixed(1)}% do total)
+        <div className="text-[10px] text-muted-foreground whitespace-normal break-words opacity-80 mt-0.5 min-w-0">
+          Valor em risco: <div className="font-semibold text-foreground inline-block"> {formatCurrency(financialData.valorEmRisco)}</div> <span className="whitespace-nowrap">({financialData.percentualRisco.toFixed(1)}% do total)</span>
         </div>
       )}
     </div>
