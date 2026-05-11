@@ -1419,6 +1419,7 @@ export function analyzeItem(
   }
 
   const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
+  let winner: RuleInput | null = null;
   let calc: ExpectedCalc;
   let priority: RuleMatchPriority;
   let calculation_type_used: AnalysisResult["calculation_type_used"];
@@ -1439,8 +1440,9 @@ export function analyzeItem(
     };
     conflict = outcome.conflict;
   } else if (outcome && outcome.rule) {
-    let winner = outcome.rule;
+    winner = outcome.rule;
     let winnerPriority = outcome.priority;
+
 
 
 
