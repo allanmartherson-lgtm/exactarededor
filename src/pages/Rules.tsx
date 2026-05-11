@@ -226,9 +226,6 @@ const Rules = () => {
   // novos campos: setores multi, especialidades, vigência, médicos
   const [fSectors, setFSectors] = useState<string[]>([]);
   const [fSpecialties, setFSpecialties] = useState<string[]>([]);
-  /** Vias de acesso permitidas para a regra (eixo determinístico). */
-  const [fAllowedAccessRoutes, setFAllowedAccessRoutes] = useState<string[]>([]);
-  const [fAllowedAccessRouteInput, setFAllowedAccessRouteInput] = useState<string>("");
   // Convênio (eixo determinístico do motor de regras) — modo whitelist/blacklist + tags livres.
   // `agreement_name` legado é mantido apenas para retrocompatibilidade na leitura
   // (mesclado em `fAgreementAliases` no openEdit). Novas regras gravam só em aliases.
@@ -817,7 +814,7 @@ const Rules = () => {
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
-    setFAllowedAccessRoutes([]); setFAllowedAccessRouteInput("");
+    
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFHasConditions(false);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
@@ -854,8 +851,6 @@ const Rules = () => {
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
-    setFAllowedAccessRoutes(Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : []);
-    setFAllowedAccessRouteInput("");
     setFBonusPct(r.bonus_pct != null ? String(r.bonus_pct) : "");
     setFTargetAmount(r.target_amount != null ? String(r.target_amount) : "");
     setFMultiplier(r.multiplier != null ? String(r.multiplier) : "");
@@ -1020,7 +1015,7 @@ const Rules = () => {
       deflator_pct: isTabela ? num(head.deflator_pct) : null,
       reference_table_id: isTabela ? (head.reference_table_id || null) : null,
       exception_table_ids: fExceptionTableIds,
-      allowed_access_routes: fAllowedAccessRoutes.length > 0 ? fAllowedAccessRoutes : null,
+      allowed_access_routes: head.allowed_access_routes.length > 0 ? head.allowed_access_routes : null,
       include_auxiliaries: isTabela ? head.include_auxiliaries : false,
       auxiliary_pct: isTabela ? num(head.auxiliary_pct) : null,
       aux_first_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_first_pct) ?? 30) : null,
@@ -1791,84 +1786,6 @@ const Rules = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-4 pt-4 border-t border-border/50 bg-muted/20 p-4 rounded-md">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm font-bold text-primary uppercase tracking-wider">Configuração de Vias e Fallback</Label>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold">1. Via Única ou Principal</Label>
-                            <p className="text-[11px] text-muted-foreground">
-                              Esta regra (com sua tabela/lógica atual) será aplicada prioritariamente para procedimentos marcados como "Única ou principal".
-                            </p>
-                            <div className="flex items-center gap-2 rounded-md bg-background border border-primary/20 p-2 text-xs font-medium">
-                              <CheckCheck className="h-4 w-4 text-primary" />
-                              Via Única / Principal vinculada a esta regra
-                            </div>
-                          </div>
-
-                          <div className="space-y-2 border-t border-border/40 pt-3">
-                            <Label className="text-xs font-semibold">2. Restrições Específicas de Via</Label>
-                            <p className="text-[11px] text-muted-foreground">
-                              Se desejar que esta regra aceite APENAS certas vias, liste-as abaixo. O motor normaliza variações (ex: "única/principal", "1ª via") automaticamente. <strong>Vazio = Aceita qualquer via</strong> (respeitando a prioridade do motor).
-                            </p>
-                            <div className="space-y-1.5">
-                              <Input
-                                value={fAllowedAccessRouteInput}
-                                onChange={(e) => setFAllowedAccessRouteInput(e.target.value)}
-                                placeholder="Digite a via e pressione Enter (ex: Única ou principal)"
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === ",") {
-                                    e.preventDefault();
-                                    const v = fAllowedAccessRouteInput.trim();
-                                    if (v && !fAllowedAccessRoutes.includes(v)) {
-                                      setFAllowedAccessRoutes(p => [...p, v]);
-                                    }
-                                    fAllowedAccessRouteInput && setFAllowedAccessRouteInput("");
-                                  }
-                                }}
-                              />
-                              {fAllowedAccessRouteInput.trim() && (
-                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 px-1 py-0.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                                  <Sparkles className="h-3 w-3 text-primary/70" />
-                                  Lido como: <span className="font-bold text-primary italic">
-                                    {(() => {
-                                      const n = fAllowedAccessRouteInput.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                                      if (/(unica|principal|unica\/principal|unica ou principal|1a via|1 via)/.test(n)) return "Única ou Principal";
-                                      if (/(mesma via|mesma)/.test(n)) return "Mesma Via";
-                                      if (/(outra via|via diferente|diferente)/.test(n)) return "Outra Via";
-                                      return n;
-                                    })()}
-                                  </span>
-                                </p>
-                              )}
-
-                              {fAllowedAccessRoutes.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {fAllowedAccessRoutes.map(a => (
-                                    <button
-                                      key={a}
-                                      type="button"
-                                      onClick={() => setFAllowedAccessRoutes(p => p.filter(x => x !== a))}
-                                      className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
-                                    >
-                                      {a} ✕
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1.5 border-t border-border/40 pt-3">
-                            <Label className="text-xs font-semibold">3. Comportamento de Fallback</Label>
-                            <p className="text-[11px] text-muted-foreground italic">
-                              Caso o procedimento NÃO seja via única (ex: Mesma via ou Outra via), o sistema fará fallback automático para a <strong>Regra Geral do Convênio (100%)</strong> para garantir o pagamento.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
 
                     </AccordionContent>
                   </AccordionItem>
