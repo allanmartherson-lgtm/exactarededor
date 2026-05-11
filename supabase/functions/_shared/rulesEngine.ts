@@ -1624,7 +1624,8 @@ export function analyzeItem(
       calculation_type_used = "informativo";
     }
 
-  }
+  return finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
+}
 
 
 function finalizeAnalysis(
