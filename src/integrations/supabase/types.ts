@@ -1379,7 +1379,9 @@ export type Database = {
           reference_table_id: string | null
           repasse_pct: number | null
           rule_id: string
+          sectors: string[] | null
           sort_order: number
+          specialties: string[] | null
           target_amount: number | null
           time_end: string | null
           time_mode: string
@@ -1419,7 +1421,9 @@ export type Database = {
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_id: string
+          sectors?: string[] | null
           sort_order?: number
+          specialties?: string[] | null
           target_amount?: number | null
           time_end?: string | null
           time_mode?: string
@@ -1459,7 +1463,9 @@ export type Database = {
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_id?: string
+          sectors?: string[] | null
           sort_order?: number
+          specialties?: string[] | null
           target_amount?: number | null
           time_end?: string | null
           time_mode?: string
