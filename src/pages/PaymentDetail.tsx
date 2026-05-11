@@ -23,6 +23,8 @@ import { PaymentReportModal } from "@/components/payment-detail/PaymentReportMod
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
+import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
+import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
