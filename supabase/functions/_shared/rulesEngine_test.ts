@@ -134,15 +134,10 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
   
   const mockLookup = (tid: string, c: string, role?: string | null) => {
     if (tid !== tableId || c !== code) return null;
-    const r = role ? role.toString().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : null;
-    
-    const values: Record<string, number> = {
-      "30803217|1o auxiliar": 5864.39,
-      "30803217|primeiro aux": 5864.39, 
-      "30803217": 19547.95
-    };
-    
-    return values[`${c}|${r}`] || values[c] || null;
+    const classified = classifyDoctorRole(role);
+    if (classified === "primeiro_aux") return 5864.39;
+    if (classified === "cirurgiao") return 19547.95;
+    return null;
   };
 
   const rule = makeRule({
@@ -169,13 +164,8 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
   const results = analyzePaymentItems([item1, item2], [rule], baseCtx, { referenceLookup: mockLookup });
   
   assertEquals(results.length, 2);
-  
-  // No Deno, o classifyDiff pode ter variações se não passarmos o tolerance_pct no ctx
-  // mas o motor determinístico deve aprovar se o valor bater com o lookup.
   assertEquals(results[0].expected_amount, 5864.39);
   assertEquals(results[1].expected_amount, 5864.39);
-  
-  // Valida que ambos bateram na mesma regra apesar das nomenclaturas diferentes
   assertEquals(results[0].matched_rule_id, "rule-toracica");
   assertEquals(results[1].matched_rule_id, "rule-toracica");
 });
