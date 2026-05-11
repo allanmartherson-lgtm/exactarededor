@@ -380,6 +380,136 @@ function CalcCard({
               <Checkbox
                 checked={c.has_conditions}
                 onCheckedChange={(v) => onChange({ has_conditions: !!v })}
+              />
+              <span>Aplica-se a algum período, dia ou horário específico?</span>
+            </label>
+
+            {c.has_conditions && (
+              <div className="space-y-3 pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Janela Temporal</Label>
+                  <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TIME_MODE_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {c.time_mode === "personalizado" && (
+                  <div className="space-y-2">
+                    <Label className="text-[10px] text-muted-foreground">Dias da semana</Label>
+                    <div className="flex flex-wrap gap-1">
+                      {WEEKDAY_LABELS.map((w) => {
+                        const active = c.weekdays.includes(w.v);
+                        return (
+                          <Button
+                            key={w.v}
+                            type="button"
+                            variant={active ? "default" : "outline"}
+                            size="sm"
+                            className="h-6 px-2 text-[10px]"
+                            onClick={() => {
+                              const next = active ? c.weekdays.filter((x) => x !== w.v) : [...c.weekdays, w.v];
+                              onChange({ weekdays: next });
+                            }}
+                          >
+                            {w.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {(c.time_mode === "comercial" || c.time_mode === "personalizado") && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Início</Label>
+                      <Input
+                        type="time"
+                        className="h-7 text-xs"
+                        value={c.time_start}
+                        onChange={(e) => onChange({ time_start: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Fim</Label>
+                      <Input
+                        type="time"
+                        className="h-7 text-xs"
+                        value={c.time_end}
+                        onChange={(e) => onChange({ time_end: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={c.includes_holidays}
+                      onCheckedChange={(v) => onChange({ includes_holidays: !!v })}
+                    />
+                    <span className="text-[11px]">Incluir feriados</span>
+                  </label>
+                </div>
+
+                <div className="space-y-1.5 border-t border-border/40 pt-2">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Tipo de Atendimento</Label>
+                  <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 border-t border-border/40 pt-2">
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Vias de Acesso Permitidas</Label>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Restringir este cálculo apenas a vias específicas. Deixe vazio para aplicar a qualquer via.
+                  </p>
+                  <div className="space-y-1.5">
+                    <Input
+                      placeholder="Ex: Única ou principal (Enter para adicionar)"
+                      className="h-8 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const v = (e.target as HTMLInputElement).value.trim();
+                          if (v && !c.allowed_access_routes.includes(v)) {
+                            onChange({ allowed_access_routes: [...c.allowed_access_routes, v] });
+                          }
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                    />
+                    {c.allowed_access_routes.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {c.allowed_access_routes.map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() => onChange({ allowed_access_routes: c.allowed_access_routes.filter((x) => x !== a) })}
+                            className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                          >
+                            {a} ✕
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+                checked={c.has_conditions}
+                onCheckedChange={(v) => onChange({ has_conditions: !!v })}
                 className="mt-0.5"
               />
               <span>
