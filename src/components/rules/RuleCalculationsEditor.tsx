@@ -75,6 +75,7 @@ export function makeEmptyCalc(): CalcItem {
     package_included_codes: "", package_auxiliaries_included: true,
     package_opinions_count: false, package_visits_count: false,
     extras_codes: "", apply_access_route: false,
+    allowed_access_routes: [],
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
   };
