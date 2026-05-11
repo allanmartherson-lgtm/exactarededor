@@ -9,12 +9,12 @@ import { AlertBanner } from "./AlertBanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { SafeCard } from "@/components/ui/SafeCard";
 import {
   AlertTriangle,
   Columns3,
   ChevronRight,
   FileText,
-  Pencil,
   Pencil,
   Search,
   ShieldAlert,
