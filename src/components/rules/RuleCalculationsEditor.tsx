@@ -383,10 +383,9 @@ function CalcCard({
                 className="mt-0.5"
               />
               <span>
-                Aplica-se a algum período, dia ou horário específico?
+                Aplica-se a algum período, dia, horário ou via específica?
                 <span className="block text-xs text-muted-foreground">
-                  Marque para restringir este cálculo a determinadas janelas temporais. 
-                  (Vias de acesso são configuradas na <strong>Matriz de Vias</strong>).
+                  Marque para restringir este cálculo a determinadas janelas ou vias de acesso.
                 </span>
               </span>
             </label>
@@ -474,9 +473,47 @@ function CalcCard({
                     <span className="text-xs">Incluir feriados</span>
                   </label>
                 </div>
+
+                <div className="space-y-1.5 border-t border-border/40 pt-3">
+                  <Label className="text-xs font-semibold">Vias de acesso permitidas</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Restringir este cálculo apenas a vias específicas (ex: "Única ou principal"). 
+                    O motor normaliza variações automaticamente.
+                  </p>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Digite e pressione Enter (ex: Única ou principal)"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const v = (e.target as HTMLInputElement).value.trim();
+                          if (v && !c.allowed_access_routes.includes(v)) {
+                            onChange({ allowed_access_routes: [...c.allowed_access_routes, v] });
+                          }
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                    />
+                    {c.allowed_access_routes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {c.allowed_access_routes.map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() => onChange({ allowed_access_routes: c.allowed_access_routes.filter((x) => x !== a) })}
+                            className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                          >
+                            {a} ✕
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
+
 
         </>
       )}
