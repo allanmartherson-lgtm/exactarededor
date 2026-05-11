@@ -178,8 +178,8 @@ Deno.test("analyzePaymentItems realiza matching correto com diferentes nomenclat
   const results = analyzePaymentItems([item1, item2], [rule], baseCtx, { referenceLookup: mockLookup });
   
   assertEquals(results.length, 2);
-  assertEquals(results[0].status, "aprovado", "Item 1 (Primeiro Aux) deve ser aprovado");
-  assertEquals(results[1].status, "aprovado", "Item 2 (1º Auxiliar) deve ser aprovado");
+  assertEquals(results[0].status, "aprovado");
+  assertEquals(results[1].status, "aprovado");
   assertEquals(results[0].expected_amount, 5864.39);
   assertEquals(results[1].expected_amount, 5864.39);
 });
