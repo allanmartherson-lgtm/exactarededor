@@ -2057,6 +2057,14 @@ const PaymentDetail = () => {
         </SheetContent>
       </Sheet>
 
+      <RuleTestModal
+        paymentId={id!}
+        paymentReference={payment?.reference || "Lote"}
+        items={items}
+        isOpen={isTestModalOpen}
+        onClose={() => setIsTestModalOpen(false)}
+      />
+
       {payment && (
         <PaymentReportModal
           open={isReportOpen}
