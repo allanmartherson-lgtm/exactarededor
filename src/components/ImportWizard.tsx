@@ -190,7 +190,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
   const runCommit = async () => {
     // Validações de segurança antes de chamar o backend
     const requiredMissing = profile.fields
-      .filter((f) => f.required && !mapping[f.key])
+      .filter((f) => {
+        if (!f.required) return false;
+        if (f.key === "amount" && profile.entity === "reference_table_items" && autoDetectedValueColumns.length > 0) return false;
+        return !mapping[f.key];
+      })
       .map((f) => f.label);
     if (requiredMissing.length > 0) {
       toast({
@@ -355,8 +359,10 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                         {f.required && <span className="text-destructive ml-1">*</span>}
                       </span>
                       {f.key === "amount" && (
-                        <span className="text-[10px] font-normal text-blue-600 bg-blue-50 px-1 rounded border border-blue-100">
-                          Múltiplas colunas serão detectadas
+                        <span className="text-[10px] font-normal text-primary bg-primary/10 px-1 rounded border border-primary/20">
+                          {autoDetectedValueColumns.length > 1
+                            ? `${autoDetectedValueColumns.length} colunas detectadas`
+                            : "Detecção automática ativa"}
                         </span>
                       )}
                     </Label>
@@ -377,6 +383,11 @@ export function ImportWizard({ open, onOpenChange, title, profile, onComplete }:
                         </option>
                       ))}
                     </select>
+                    {f.key === "amount" && autoDetectedValueColumns.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Detectadas: {autoDetectedValueColumns.join(", ")}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
