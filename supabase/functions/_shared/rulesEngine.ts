@@ -1083,15 +1083,13 @@ export function applyCalculation(
   const list = Array.isArray(rule.calculations) ? rule.calculations : [];
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
-    let sum = 0;
+    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null } | null = null;
     let anyMatched = false;
-    let anyNullMatched = false;
-    const aggAlerts: string[] = [];
-    const matchedExplanations: string[] = [];
 
     for (const c of list) {
       const label = (c.label && c.label.trim()) || c.calculation_type;
       const m = calcItemMatches(c, item);
+      
       if (!m.ok) {
         breakdown.push({
           calc_id: c.id ?? null,
@@ -1105,26 +1103,46 @@ export function applyCalculation(
         });
         continue;
       }
+
       anyMatched = true;
       const eff = ruleFromCalcItem(rule, c);
       const r = applyCalculationSingle(eff, item, ctx);
-      const prefixedAlerts = r.alerts.map((a) => `[${label}] ${a}`);
-      breakdown.push({
-        calc_id: c.id ?? null,
-        label,
-        calculation_type: c.calculation_type,
-        matched: true,
-        expected: r.expected,
-        explanation: r.explanation,
-        alerts: prefixedAlerts,
-      });
-      aggAlerts.push(...prefixedAlerts);
-      matchedExplanations.push(`[${label}] ${r.explanation}`);
-      if (r.expected == null) anyNullMatched = true;
-      else sum += r.expected;
+      
+      // REGRA DE PROJETO: "Exclusividade de Item de Cálculo". 
+      // Em vez de somar (comportamento de pacote), o motor agora usa o PRIMEIRO 
+      // item de cálculo que der match como a regra definitiva para este item.
+      if (!winnerCalc) {
+        winnerCalc = { 
+          ...r, 
+          label, 
+          id: c.id ?? null 
+        };
+        
+        breakdown.push({
+          calc_id: c.id ?? null,
+          label,
+          calculation_type: c.calculation_type,
+          matched: true,
+          expected: r.expected,
+          explanation: r.explanation,
+          alerts: r.alerts.map((a) => `[${label}] ${a}`),
+        });
+      } else {
+        // Itens de cálculo posteriores que também dariam match são ignorados (exclusividade)
+        breakdown.push({
+          calc_id: c.id ?? null,
+          label,
+          calculation_type: c.calculation_type,
+          matched: false,
+          skip_reason: "item_calculo_ja_atendido",
+          expected: null,
+          explanation: `Ignorado — o item já foi atendido pelo cálculo anterior "${winnerCalc.label}".`,
+          alerts: [],
+        });
+      }
     }
 
-    if (!anyMatched) {
+    if (!anyMatched || !winnerCalc) {
       return {
         expected: null,
         explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições deste item.`,
@@ -1133,15 +1151,11 @@ export function applyCalculation(
       };
     }
 
-    if (anyNullMatched && sum === 0) {
-      return { expected: null, explanation: matchedExplanations.join(" + "), alerts: aggAlerts, breakdown };
-    }
-    const expected = Number(sum.toFixed(2));
-    const header = matchedExplanations.length > 1 ? `Soma de ${matchedExplanations.length} cálculos` : "1 cálculo";
+    const expected = winnerCalc.expected != null ? Number(winnerCalc.expected.toFixed(2)) : null;
     return {
       expected,
-      explanation: `${header}: ${matchedExplanations.join(" + ")} = R$ ${expected.toFixed(2)}${anyNullMatched ? " (alguns cálculos sem valor base)" : ""}`,
-      alerts: aggAlerts,
+      explanation: `[${winnerCalc.label}] ${winnerCalc.explanation}`,
+      alerts: winnerCalc.alerts.map((a) => `[${winnerCalc.label}] ${a}`),
       breakdown,
     };
   }
