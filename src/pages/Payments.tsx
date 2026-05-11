@@ -328,6 +328,22 @@ const Payments = () => {
     return () => { cancelled = true; };
   }, [companyFilter]);
 
+  // Quando um médico é escolhido, busca os payment_ids que possuem itens dele.
+  useEffect(() => {
+    let cancelled = false;
+    if (!doctorFilter) { setPaymentIdsForDoctor(null); return; }
+    supabase
+      .from("payment_items")
+      .select("payment_id")
+      .eq("doctor_name", doctorFilter.full_name)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const ids = new Set<string>((data ?? []).map((r: any) => r.payment_id).filter(Boolean));
+        setPaymentIdsForDoctor(ids);
+      });
+    return () => { cancelled = true; };
+  }, [doctorFilter]);
+
   // Busca cruzada em payment_items quando o termo for ≥3 chars.
   useEffect(() => {
     let cancelled = false;
