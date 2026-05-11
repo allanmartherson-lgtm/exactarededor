@@ -1184,9 +1184,10 @@ function applyCalculationSingle(
   item: ItemInput,
   ctx?: EngineCtx,
 ): ExpectedCalc {
-  // HIERARQUIA: se a regra tem tabela de referência vinculada, ela TEM precedência
-  // sobre o calculation_type — buscamos sempre o valor na tabela, ignorando procedure_amount.
-  if (rule.reference_table_id) {
+  // HIERARQUIA: se a regra tem tabela de referência vinculada E o tipo de cálculo
+  // não é um que explicitamente a ignore ou se o tipo for tabela_diferenciada/referencia,
+  // ela TEM precedência.
+  if (rule.reference_table_id && (rule.calculation_type === "tabela_diferenciada" || rule.calculation_type === "tabela_referencia")) {
     return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
   }
 
