@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { MultiSelectChips } from "@/components/MultiSelectChips";
+import { RULE_SECTOR_LABELS } from "@/lib/status";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -60,6 +62,8 @@ export type CalcItem = {
   time_end: string;
   includes_holidays: boolean;
   elective_mode: ElectiveMode;
+  sectors: string[];
+  specialties: string[];
 };
 
 /** Construtor de item vazio (default sensato). */
@@ -78,6 +82,7 @@ export function makeEmptyCalc(): CalcItem {
     allowed_access_routes: [],
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
+    sectors: [], specialties: [],
   };
 }
 
@@ -589,11 +594,60 @@ function CalcCard({
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-1.5 border-t border-border/40 pt-3">
+                  <Label className="text-xs font-semibold">Restrições Adicionais (Setores e Especialidades)</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Opcional: Restringir este cálculo apenas a setores ou especialidades específicas.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <Label className="text-[11px]">Setores (apenas se informado na produção)</Label>
+                      <MultiSelectChips
+                        options={Object.values(RULE_SECTOR_LABELS)}
+                        values={c.sectors}
+                        onChange={(vals) => onChange({ sectors: vals })}
+                        placeholder="Todos os setores"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px]">Especialidades (apenas se informado na produção)</Label>
+                      <div className="space-y-1.5">
+                        <Input
+                          placeholder="Digite a especialidade e pressione Enter"
+                          className="h-8 text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === ",") {
+                              e.preventDefault();
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !c.specialties.includes(val)) {
+                                onChange({ specialties: [...c.specialties, val] });
+                              }
+                              (e.target as HTMLInputElement).value = "";
+                            }
+                          }}
+                        />
+                        {c.specialties.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {c.specialties.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => onChange({ specialties: c.specialties.filter((x) => x !== s) })}
+                                className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                              >
+                                {s} ✕
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-
-
         </>
       )}
     </div>
@@ -638,13 +692,15 @@ export function calcFromDb(r: any): CalcItem {
     extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
     apply_access_route: !!r.apply_access_route,
     allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
-    has_conditions: !!r.has_conditions || tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer" || (Array.isArray(r.allowed_access_routes) && r.allowed_access_routes.length > 0),
+    has_conditions: !!r.has_conditions || tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer" || (Array.isArray(r.allowed_access_routes) && r.allowed_access_routes.length > 0) || (Array.isArray(r.sectors) && r.sectors.length > 0) || (Array.isArray(r.specialties) && r.specialties.length > 0),
     time_mode: tMode,
     weekdays: wdays,
     time_start: tStart,
     time_end: tEnd,
     includes_holidays: !!r.includes_holidays,
     elective_mode: eMode,
+    sectors: Array.isArray(r.sectors) ? r.sectors : [],
+    specialties: Array.isArray(r.specialties) ? r.specialties : [],
   };
 }
 
@@ -700,6 +756,8 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     time_end: c.has_conditions ? (c.time_end || null) : null,
     includes_holidays: c.has_conditions ? c.includes_holidays : false,
     elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
+    sectors: c.has_conditions ? c.sectors : [],
+    specialties: c.has_conditions ? c.specialties : [],
   };
 }
 
