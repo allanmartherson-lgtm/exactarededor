@@ -1142,7 +1142,7 @@ export function applyCalculation(
           explanation: `Tentativa falhou: ${r.explanation}. Seguindo para próximo cálculo disponível.`,
           alerts: r.alerts.map((a) => `[${label}] ${a}`),
         });
-        anyMatched = false; // Reset anyMatched para não travar no winnerCalc nulo se for o único
+        // anyMatched = false; // Removido para manter anyMatched=true se houve match de condição
       } else if (winnerCalc) {
         // Itens de cálculo posteriores que também dariam match são ignorados (exclusividade)
         breakdown.push({
