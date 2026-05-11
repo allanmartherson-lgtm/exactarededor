@@ -1136,7 +1136,7 @@ export function applyCalculation(
           matched: false,
           skip_reason: reason,
           expected: null,
-          explanation: `Não aplicado — condição "${reason}" não satisfeita.`,
+          explanation: `Não aplicado — condição de via de acesso "${item.access_route || "vazia"}" (normalizada: ${normAccessRoute(item.access_route)}) não permitida para o cálculo "${label}".`,
           alerts: [],
         });
         continue;
