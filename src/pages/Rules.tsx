@@ -814,7 +814,7 @@ const Rules = () => {
     setFAllowsAuthorizedException(false);
     setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
-    setFAllowedAccessRoutes([]); setFAllowedAccessRouteInput("");
+    
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFHasConditions(false);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
