@@ -1624,8 +1624,13 @@ export function analyzeItem(
       calculation_type_used = "informativo";
     }
 
-  return finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
+  }
+
+  const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
+  if (outcome?.trace) res.selection_trace = outcome.trace;
+  return res;
 }
+
 
 
 function finalizeAnalysis(
