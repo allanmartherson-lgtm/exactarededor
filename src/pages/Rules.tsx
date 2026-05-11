@@ -834,7 +834,9 @@ const Rules = () => {
   const openEdit = async (r: RuleRow, isDuplicate = false) => {
     setEditingId(isDuplicate ? null : r.id);
     setFActive(r.active !== false);
-    setFName(r.name ?? ""); setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
+    setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
+    setFActive(isDuplicate ? true : (r.active !== false));
+    setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
     setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
