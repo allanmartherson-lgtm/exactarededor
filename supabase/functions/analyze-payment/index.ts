@@ -87,10 +87,10 @@ serve(async (req) => {
       `)
     ]);
 
-    const matrices = (rulesRes.data ?? []) as any[];
-    const rules: RuleInput[] = (configRes.data?.[1]?.data || []) as unknown as RuleInput[];
-
     const configs = (configRes.data ?? []) as any[];
+    const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
+    const matrices = (configRes as any).data?.[2] || []; // results from third query
+
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
     const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
 
