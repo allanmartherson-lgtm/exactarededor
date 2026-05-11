@@ -376,47 +376,66 @@ function CalcCard({
 
           {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
           <div className="rounded-md border border-border bg-card p-3 space-y-3">
-            <label className="flex items-start gap-2 text-sm">
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
               <Checkbox
                 checked={c.has_conditions}
                 onCheckedChange={(v) => onChange({ has_conditions: !!v })}
+                className="mt-0.5"
               />
-              <span>Aplica-se a algum período, dia ou horário específico?</span>
+              <span>
+                Aplica-se a algum período, dia, horário ou via específica?
+                <span className="block text-xs text-muted-foreground">
+                  Marque para restringir este cálculo a determinadas janelas ou vias de acesso.
+                </span>
+              </span>
             </label>
 
             {c.has_conditions && (
-              <div className="space-y-3 pt-1">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Janela Temporal</Label>
-                  <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(TIME_MODE_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Dias / período</Label>
+                    <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(TIME_MODE_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tipo de atendimento</Label>
+                    <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {c.time_mode === "personalizado" && (
-                  <div className="space-y-2">
-                    <Label className="text-[10px] text-muted-foreground">Dias da semana</Label>
-                    <div className="flex flex-wrap gap-1">
-                      {WEEKDAY_LABELS.map((w) => {
-                        const active = c.weekdays.includes(w.v);
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Dias da semana</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEKDAY_LABELS.map((d) => {
+                        const checked = c.weekdays.includes(d.v);
                         return (
                           <Button
-                            key={w.v}
+                            key={d.v}
                             type="button"
-                            variant={active ? "default" : "outline"}
                             size="sm"
-                            className="h-6 px-2 text-[10px]"
+                            variant={checked ? "default" : "outline"}
+                            className="h-7 px-3 text-[11px]"
                             onClick={() => {
-                              const next = active ? c.weekdays.filter((x) => x !== w.v) : [...c.weekdays, w.v];
+                              const next = checked ? c.weekdays.filter((x) => x !== d.v) : [...c.weekdays, d.v];
                               onChange({ weekdays: next });
                             }}
                           >
-                            {w.label}
+                            {d.label}
                           </Button>
                         );
                       })}
@@ -424,22 +443,20 @@ function CalcCard({
                   </div>
                 )}
 
-                {(c.time_mode === "comercial" || c.time_mode === "personalizado") && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">Início</Label>
+                {(c.time_mode === "personalizado" || c.time_mode === "comercial") && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Horário inicial</Label>
                       <Input
                         type="time"
-                        className="h-7 text-xs"
                         value={c.time_start}
                         onChange={(e) => onChange({ time_start: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">Fim</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Horário final</Label>
                       <Input
                         type="time"
-                        className="h-7 text-xs"
                         value={c.time_end}
                         onChange={(e) => onChange({ time_end: e.target.value })}
                       />
@@ -447,37 +464,25 @@ function CalcCard({
                   </div>
                 )}
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox
                       checked={c.includes_holidays}
                       onCheckedChange={(v) => onChange({ includes_holidays: !!v })}
                     />
-                    <span className="text-[11px]">Incluir feriados</span>
+                    <span className="text-xs">Incluir feriados</span>
                   </label>
                 </div>
 
-                <div className="space-y-1.5 border-t border-border/40 pt-2">
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Tipo de Atendimento</Label>
-                  <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5 border-t border-border/40 pt-2">
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Vias de Acesso Permitidas</Label>
-                  <p className="text-[10px] text-muted-foreground leading-tight">
-                    Restringir este cálculo apenas a vias específicas. Deixe vazio para aplicar a qualquer via.
+                <div className="space-y-1.5 border-t border-border/40 pt-3">
+                  <Label className="text-xs font-semibold">Vias de acesso permitidas</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Restringir este cálculo apenas a vias específicas (ex: "Única ou principal"). 
+                    Vazio = aplica a qualquer via.
                   </p>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <Input
-                      placeholder="Ex: Única ou principal (Enter para adicionar)"
-                      className="h-8 text-xs"
+                      placeholder="Digite e pressione Enter (ex: Única ou principal)"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === ",") {
                           e.preventDefault();
@@ -490,7 +495,7 @@ function CalcCard({
                       }}
                     />
                     {c.allowed_access_routes.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1.5">
                         {c.allowed_access_routes.map((a) => (
                           <button
                             key={a}
@@ -507,99 +512,6 @@ function CalcCard({
                 </div>
               </div>
             )}
-
-                checked={c.has_conditions}
-                onCheckedChange={(v) => onChange({ has_conditions: !!v })}
-                className="mt-0.5"
-              />
-              <span>
-                Aplica-se a algum período, dia ou horário específico?
-                <span className="block text-xs text-muted-foreground">
-                  Marque para restringir este cálculo a determinadas janelas. Desmarcado = vale sempre.
-                </span>
-              </span>
-            </label>
-
-            {c.has_conditions && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Dias / período</Label>
-                    <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Tipo de atendimento</Label>
-                    <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {c.time_mode === "personalizado" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Dias da semana</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {WEEKDAY_LABELS.map((d) => {
-                        const checked = c.weekdays.includes(d.v);
-                        return (
-                          <Button key={d.v} type="button" size="sm" variant={checked ? "default" : "outline"}
-                            onClick={() => onChange({ weekdays: checked ? c.weekdays.filter((x) => x !== d.v) : [...c.weekdays, d.v] })}>
-                            {d.label}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Hora início (opcional)</Label>
-                    <Input type="time" value={c.time_start} onChange={(e) => onChange({ time_start: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Hora fim (opcional)</Label>
-                    <Input type="time" value={c.time_end} onChange={(e) => onChange({ time_end: e.target.value })} />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm pb-2">
-                    <Checkbox checked={c.includes_holidays} onCheckedChange={(v) => onChange({ includes_holidays: !!v })} />
-                    Inclui feriados
-                  </label>
-                </div>
-                <div className="space-y-1.5 pt-2 border-t border-border/50">
-                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Restrição por via de acesso</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Única ou principal", "Mesma via", "Diferentes vias"].map((route) => {
-                      const checked = c.allowed_access_routes.includes(route);
-                      return (
-                        <Button
-                          key={route}
-                          type="button"
-                          size="sm"
-                          variant={checked ? "default" : "outline"}
-                          className="h-7 text-[10px] px-2"
-                          onClick={() => {
-                            const next = checked 
-                              ? c.allowed_access_routes.filter(r => r !== route)
-                              : [...c.allowed_access_routes, route];
-                            onChange({ allowed_access_routes: next });
-                          }}
-                        >
-                          {route}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground italic">Se selecionado, este cálculo só aplica se a via do item for uma das marcadas.</p>
-                </div>
-              </>
-            )}
           </div>
         </>
       )}
@@ -608,107 +520,23 @@ function CalcCard({
 }
 
 /* ============================================================
- *  Helpers de mapeamento DB ↔ formulário
+ *  Helpers de conversão (DB <-> State)
  * ============================================================ */
-
-/** Converte uma linha do banco (rule_calculations) em CalcItem do formulário. */
 export function calcFromDb(r: any): CalcItem {
-  const tMode = (r.time_mode ?? "qualquer") as TimeMode;
+  const tMode = (r.time_mode as TimeMode) ?? "qualquer";
+  const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
   const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
   const tEnd = r.time_end ? String(r.time_end).slice(0, 5) : "";
-  const eMode = (r.elective_mode ?? "qualquer") as ElectiveMode;
-  const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
+  const eMode = (r.elective_mode as ElectiveMode) ?? "qualquer";
+
   return {
     id: r.id,
-    label: r.label ?? null,
-    calculation_type: (r.calculation_type ?? "informativo") as RuleCalculationType,
+    label: r.label,
+    calculation_type: r.calculation_type as RuleCalculationType,
     fixed_amount: r.fixed_amount != null ? String(r.fixed_amount) : "",
     target_amount: r.target_amount != null ? String(r.target_amount) : "",
     multiplier: r.multiplier != null ? String(r.multiplier) : "",
     deflator_pct: r.deflator_pct != null ? String(r.deflator_pct) : "",
-    bonus_amount: r.bonus_amount != null ? String(r.bonus_amount) : "",
-    bonus_pct: r.bonus_pct != null ? String(r.bonus_pct) : "",
-    reference_table_id: r.reference_table_id ?? "",
-    repasse_pct: r.repasse_pct != null ? String(r.repasse_pct) : "",
-    convenio_percentage: r.convenio_percentage != null ? String(r.convenio_percentage) : "",
-    auxiliary_pct: r.auxiliary_pct != null ? String(r.auxiliary_pct) : "",
-    aux_first_pct: r.aux_first_pct != null ? String(r.aux_first_pct) : "30",
-    aux_second_pct: r.aux_second_pct != null ? String(r.aux_second_pct) : "20",
-    instrumentador_pct: r.instrumentador_pct != null ? String(r.instrumentador_pct) : "10",
-    include_auxiliaries: !!r.include_auxiliaries,
-    package_amount: r.package_amount != null ? String(r.package_amount) : "",
-    package_subtype: (r.package_subtype === "com_extras" ? "com_extras" : "fechado") as "fechado" | "com_extras",
-    package_main_code: r.package_main_code ?? "",
-    package_included_codes: Array.isArray(r.package_included_codes) ? r.package_included_codes.join(", ") : "",
-    package_auxiliaries_included: r.package_auxiliaries_included !== false,
-    package_opinions_count: !!r.package_opinions_count,
-    package_visits_count: !!r.package_visits_count,
-    extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "",
-    apply_access_route: !!r.apply_access_route,
-    allowed_access_routes: Array.isArray(r.allowed_access_routes) ? r.allowed_access_routes : [],
-    has_conditions: tMode !== "qualquer" || wdays.length > 0 || !!r.includes_holidays || !!tStart || !!tEnd || eMode !== "qualquer",
-    time_mode: tMode,
-    weekdays: wdays,
-    time_start: tStart,
-    time_end: tEnd,
-    includes_holidays: !!r.includes_holidays,
-    elective_mode: eMode,
-  };
-}
-
-const numOrNull = (v: string): number | null => {
-  if (!v) return null;
-  const n = Number(String(v).replace(",", "."));
-  return isFinite(n) ? n : null;
-};
-const splitCodes = (s: string): string[] =>
-  s.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean);
-
-/** Converte um CalcItem em payload pronto para inserir/atualizar em rule_calculations. */
-export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number): Record<string, any> {
-  const isPacote = c.calculation_type === "pacote"
-    || c.calculation_type === "pacote_fechado"
-    || c.calculation_type === "pacote_com_extras"
-    || c.calculation_type === "pacote_por_atendimento";
-  const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
-  const isTabela = c.calculation_type === "tabela_diferenciada";
-  return {
-    rule_id: ruleId,
-    sort_order: sortOrder,
-    label: c.label?.trim() || null,
-    calculation_type: c.calculation_type,
-    fixed_amount: c.calculation_type === "valor_fixo" ? numOrNull(c.fixed_amount) : null,
-    target_amount: c.calculation_type === "complemento" ? numOrNull(c.target_amount) : null,
-    multiplier: isTabela ? numOrNull(c.multiplier) : null,
-    deflator_pct: isTabela ? numOrNull(c.deflator_pct) : null,
-    bonus_amount: c.calculation_type === "bonus" ? numOrNull(c.bonus_amount) : null,
-    bonus_pct: c.calculation_type === "bonus" ? numOrNull(c.bonus_pct) : null,
-    reference_table_id: isTabela ? (c.reference_table_id || null) : null,
-    repasse_pct: isTabela ? numOrNull(c.repasse_pct) : null,
-    convenio_percentage: c.calculation_type === "percentual_sobre_convenio" ? numOrNull(c.convenio_percentage) : null,
-    auxiliary_pct: isTabela ? numOrNull(c.auxiliary_pct) : null,
-    aux_first_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_first_pct) ?? 30) : null,
-    aux_second_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_second_pct) ?? 20) : null,
-    instrumentador_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.instrumentador_pct) ?? 10) : null,
-    include_auxiliaries: isTabela ? c.include_auxiliaries : false,
-    package_amount: isPacote ? numOrNull(c.package_amount) : null,
-    package_subtype: isPacote ? c.package_subtype : null,
-    package_main_code: isPacote ? (c.package_main_code.trim() || null) : null,
-    package_included_codes: isPacote ? splitCodes(c.package_included_codes) : null,
-    package_auxiliaries_included: isPacoteComExtras ? c.package_auxiliaries_included : false,
-    package_opinions_count: isPacoteComExtras ? c.package_opinions_count : false,
-    package_visits_count: isPacoteComExtras ? c.package_visits_count : false,
-    extras_codes: isPacoteComExtras ? splitCodes(c.extras_codes) : null,
-    apply_access_route: isTabela ? c.apply_access_route : false,
-    allowed_access_routes: c.allowed_access_routes.length > 0 ? c.allowed_access_routes : null,
-    time_mode: c.has_conditions ? c.time_mode : "qualquer",
-    weekdays: c.has_conditions && c.time_mode === "personalizado" ? c.weekdays : [],
-    time_start: c.has_conditions ? (c.time_start || null) : null,
-    time_end: c.has_conditions ? (c.time_end || null) : null,
-    includes_holidays: c.has_conditions ? c.includes_holidays : false,
-    elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
-  };
-}
 
 /** Erros por item para feedback visual no formulário (apenas validações fortes). */
 export function calcItemErrors(c: CalcItem): number {
