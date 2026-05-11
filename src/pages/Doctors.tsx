@@ -77,6 +77,7 @@ function similarity(a: string, b: string): number {
 
 export default function Doctors() {
   const [items, setItems] = useState<Doctor[]>([]);
+  const [totalDatabase, setTotalDatabase] = useState(0);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [open, setOpen] = useState(false);
@@ -95,14 +96,22 @@ export default function Doctors() {
 
   const load = async () => {
     // Médicos e empresas podem passar de 1000 registros, então aumentamos o limite.
-    const [d, c, l] = await Promise.all([
-      supabase.from("doctors").select("*").order("full_name").limit(20000),
+    // Usamos select("count") para saber o total real no banco.
+    const [d, c, l, count] = await Promise.all([
+      supabase.from("doctors").select("*").order("full_name").limit(30000),
       supabase.from("companies").select("id,name,document").order("name").limit(5000),
-      supabase.from("doctor_companies").select("doctor_id,company_id").limit(20000),
+      supabase.from("doctor_companies").select("doctor_id,company_id").limit(30000),
+      supabase.from("doctors").select("*", { count: 'exact', head: true })
     ]);
+    
+    if (d.error) console.error("Erro ao carregar médicos:", d.error);
+    if (c.error) console.error("Erro ao carregar empresas:", c.error);
+    if (l.error) console.error("Erro ao carregar vínculos:", l.error);
+
     setItems((d.data ?? []) as Doctor[]);
     setCompanies((c.data ?? []) as Company[]);
     setLinks((l.data ?? []) as Link[]);
+    setTotalDatabase(count.count ?? 0);
   };
 
   const linksByDoctor = useMemo(() => {
@@ -219,6 +228,8 @@ export default function Doctors() {
 
   const filtered = useMemo(() => {
     const q = norm(search);
+    if (!q && !filterCompany) return items;
+
     return items.filter((d) => {
       if (filterCompany) {
         const cids = linksByDoctor.get(d.id) ?? [];
@@ -226,7 +237,6 @@ export default function Doctors() {
       }
       if (!q) return true;
       
-      // Busca simplificada para garantir que nomes parciais (como Diego) funcionem sempre
       const nameMatch = norm(d.full_name).includes(q);
       const crmMatch = norm(d.crm).includes(q);
       const emailMatch = d.email ? norm(d.email).includes(q) : false;
@@ -240,10 +250,10 @@ export default function Doctors() {
   // Se não houver busca, mostramos os primeiros 100 para não travar o browser, 
   // mas garantimos que as ações de edição estejam sempre disponíveis.
   const displayItems = useMemo(() => {
-    // Aumentamos o limite de exibição para permitir ver todos os médicos carregados.
-    // O limite de carregamento (load) agora é de 20.000.
+    // Se há busca ou filtro, mostramos todos os resultados encontrados
     if (search.trim() || filterCompany) return filtered;
-    return filtered.slice(0, 10000);
+    // Sem busca, mostramos apenas uma parte para performance (virtualização simples)
+    return filtered.slice(0, 500);
   }, [filtered, search, filterCompany]);
 
   const filteredCompaniesForDialog = useMemo(() => {
@@ -425,13 +435,22 @@ export default function Doctors() {
 
         <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-base">
-              {filtered.length} médico(s) {filtered.length > displayItems.length && `(mostrando primeiros ${displayItems.length})`}
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>
+                {filtered.length} médico(s) encontrados
+                {filtered.length > displayItems.length && ` (mostrando primeiros ${displayItems.length})`}
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Base total: {totalDatabase} médicos
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {displayItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-6 text-center">Nenhum médico encontrado.</p>
+              <div className="p-12 text-center space-y-2">
+                <p className="text-sm text-muted-foreground">Nenhum médico encontrado com o termo "{search}".</p>
+                <p className="text-xs text-muted-foreground italic">Dica: Verifique se o nome está escrito corretamente ou tente buscar pelo CRM.</p>
+              </div>
             ) : (
               <div className="divide-y divide-border">
                 {displayItems.map((d) => (
