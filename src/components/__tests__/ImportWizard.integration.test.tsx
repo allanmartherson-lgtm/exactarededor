@@ -85,9 +85,16 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
     // Verify mapping is suggested or set it manually
     expect(screen.getByText("Mapeamento de colunas")).toBeDefined();
     
-    // Click "Validar registros"
-    const validateBtn = screen.getByText("Validar registros");
-    fireEvent.click(validateBtn);
+    // Click "Continuar" → may go to role_config or directly to validate
+    fireEvent.click(screen.getByText("Continuar"));
+    // If role_config step appears, advance with "Validar registros"
+    await waitFor(() => {
+      const validateBtn = screen.queryByText("Validar registros");
+      if (validateBtn) fireEvent.click(validateBtn);
+      expect(
+        screen.queryByText(/3\. Validação/) || screen.queryByText("Validar registros"),
+      ).not.toBeNull();
+    }, { timeout: 3000 });
 
     // 3. Validation Step
     await waitFor(() => {
