@@ -988,7 +988,7 @@ const PaymentDetail = () => {
       </div>
       <div><span className="text-muted-foreground">Status:</span> <span className="font-medium">{v.ai_status}</span></div>
       <div><span className="text-muted-foreground">Esperado:</span> <span className="tabular-nums">{v.expected_amount != null ? formatCurrency(v.expected_amount) : "—"}</span></div>
-      <div><span className="text-muted-foreground">Bruto:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
+      <div><span className="text-muted-foreground">Repasse:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
       {Array.isArray(v.matched_rules) && v.matched_rules.length > 0 && (
         <div><span className="text-muted-foreground">Regras:</span> {v.matched_rules.join(", ")}</div>
       )}
@@ -1090,7 +1090,7 @@ const PaymentDetail = () => {
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
                       <div><span className="text-muted-foreground">Esperado:</span> <span className="tabular-nums">{v.expected_amount != null ? formatCurrency(v.expected_amount) : "—"}</span></div>
-                      <div><span className="text-muted-foreground">Bruto na época:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
+                      <div><span className="text-muted-foreground">Repasse na época:</span> <span className="tabular-nums">{v.gross_amount_at_time != null ? formatCurrency(v.gross_amount_at_time) : "—"}</span></div>
                     </div>
                     {Array.isArray(v.alerts) && v.alerts.length > 0 && (
                       <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground space-y-0.5">

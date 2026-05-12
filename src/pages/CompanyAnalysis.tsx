@@ -220,7 +220,7 @@ export default function CompanyAnalysis() {
         "TUSS": it.procedure_code || "-",
         "Procedimento": it.procedure_name || "-",
         "Médico": it.doctor_name || "-",
-        "Valor Informado": it.gross_amount,
+        "Valor Repasse": it.gross_amount,
         "Valor Esperado": it.ai_findings?.expected_amount || 0,
         "Diferença": (Number(it.gross_amount) - Number(it.ai_findings?.expected_amount || 0)),
         "Status": it.ai_status
