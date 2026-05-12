@@ -87,6 +87,57 @@ function legacyRuleLevelFilters(r: RuleRow): string[] {
   if (has(r?.allowed_access_routes)) out.push("vias de acesso");
   return out;
 }
+
+/**
+ * Promove os filtros legados do nível Regra para dentro de cada cálculo filho.
+ * Para cada `rule_calculations` da regra, preenche apenas os campos que ainda
+ * estão vazios (não sobrescreve filtro já configurado por cálculo). Em seguida,
+ * limpa as colunas legadas no nível Regra. Idempotente.
+ */
+async function promoteLegacyToCalculations(rule: RuleRow): Promise<{ updated: number }> {
+  const legacy = {
+    procedure_codes: Array.isArray(rule?.procedure_codes) ? rule.procedure_codes : [],
+    sectors: Array.isArray(rule?.sectors) ? rule.sectors : [],
+    specialties: Array.isArray(rule?.specialties) ? rule.specialties : [],
+    agreement_aliases: Array.isArray(rule?.agreement_aliases) ? rule.agreement_aliases : [],
+    allowed_access_routes: Array.isArray(rule?.allowed_access_routes) ? rule.allowed_access_routes : [],
+  };
+  const { data: calcs, error: cErr } = await supabase
+    .from("rule_calculations")
+    .select("id, procedure_codes, sectors, specialties, agreement_aliases, allowed_access_routes")
+    .eq("rule_id", rule.id);
+  if (cErr) throw cErr;
+
+  let updated = 0;
+  for (const c of (calcs ?? []) as any[]) {
+    const patch: Record<string, any> = {};
+    const isEmpty = (v: unknown) => !Array.isArray(v) || v.length === 0;
+    if (legacy.procedure_codes.length && isEmpty(c.procedure_codes)) patch.procedure_codes = legacy.procedure_codes;
+    if (legacy.sectors.length && isEmpty(c.sectors)) patch.sectors = legacy.sectors;
+    if (legacy.specialties.length && isEmpty(c.specialties)) patch.specialties = legacy.specialties;
+    if (legacy.agreement_aliases.length && isEmpty(c.agreement_aliases)) patch.agreement_aliases = legacy.agreement_aliases;
+    if (legacy.allowed_access_routes.length && isEmpty(c.allowed_access_routes)) patch.allowed_access_routes = legacy.allowed_access_routes;
+    if (Object.keys(patch).length === 0) continue;
+    const { error } = await supabase.from("rule_calculations").update(patch).eq("id", c.id);
+    if (error) throw error;
+    updated++;
+  }
+
+  // Limpa filtros legados no nível Regra
+  const { error: rErr } = await supabase
+    .from("rules")
+    .update({
+      procedure_codes: [],
+      sectors: [],
+      specialties: [],
+      agreement_aliases: [],
+      allowed_access_routes: [],
+    })
+    .eq("id", rule.id);
+  if (rErr) throw rErr;
+
+  return { updated };
+}
 type DraftRule = {
   active: boolean;
   name: string; description: string; rule_text: string;
