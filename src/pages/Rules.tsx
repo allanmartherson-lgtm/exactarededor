@@ -2169,11 +2169,7 @@ const Rules = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                                {Array.isArray(r.sectors) && r.sectors.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
-                                    {(r.sectors as RuleSector[]).map((s) => RULE_SECTOR_LABELS[s] ?? s).join(" · ")}
-                                  </span>
-                                )}
+                                {/* Badge de setores removida — restritivo vive por Cálculo */}
                                  {(r.valid_from || r.valid_until) && (
                                   <span className={cn(
                                     "text-xs rounded-full border px-2 py-0.5",
