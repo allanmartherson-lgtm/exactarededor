@@ -1546,10 +1546,8 @@ export type Database = {
       rules: {
         Row: {
           active: boolean
-          agreement_aliases: string[]
           agreement_match_mode: string
           agreement_name: string | null
-          allowed_access_routes: string[] | null
           allows_authorized_exception: boolean
           apply_access_route: boolean
           aux_first_pct: number | null
@@ -1592,14 +1590,11 @@ export type Database = {
           package_opinions_count: boolean
           package_subtype: string | null
           package_visits_count: boolean
-          procedure_codes: string[] | null
           reference_table_id: string | null
           repasse_pct: number | null
           rule_text: string
           scope: Database["public"]["Enums"]["rule_scope"]
-          sectors: string[]
           severity: Database["public"]["Enums"]["rule_severity"]
-          specialties: string[]
           target_amount: number | null
           target_company_id: string | null
           target_identifier: string | null
@@ -1615,10 +1610,8 @@ export type Database = {
         }
         Insert: {
           active?: boolean
-          agreement_aliases?: string[]
           agreement_match_mode?: string
           agreement_name?: string | null
-          allowed_access_routes?: string[] | null
           allows_authorized_exception?: boolean
           apply_access_route?: boolean
           aux_first_pct?: number | null
@@ -1661,14 +1654,11 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
-          procedure_codes?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_text: string
           scope?: Database["public"]["Enums"]["rule_scope"]
-          sectors?: string[]
           severity?: Database["public"]["Enums"]["rule_severity"]
-          specialties?: string[]
           target_amount?: number | null
           target_company_id?: string | null
           target_identifier?: string | null
@@ -1684,10 +1674,8 @@ export type Database = {
         }
         Update: {
           active?: boolean
-          agreement_aliases?: string[]
           agreement_match_mode?: string
           agreement_name?: string | null
-          allowed_access_routes?: string[] | null
           allows_authorized_exception?: boolean
           apply_access_route?: boolean
           aux_first_pct?: number | null
@@ -1730,14 +1718,11 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
-          procedure_codes?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_text?: string
           scope?: Database["public"]["Enums"]["rule_scope"]
-          sectors?: string[]
           severity?: Database["public"]["Enums"]["rule_severity"]
-          specialties?: string[]
           target_amount?: number | null
           target_company_id?: string | null
           target_identifier?: string | null

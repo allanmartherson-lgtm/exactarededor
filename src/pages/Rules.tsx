@@ -71,22 +71,10 @@ const WEEKDAY_LABELS: { v: number; label: string }[] = [
 
 type RuleRow = any;
 
-/**
- * Detecta restritivos legados ainda armazenados no NÍVEL REGRA.
- * Pós-refatoração, esses filtros vivem por Cálculo. Quando aparecerem aqui,
- * a regra é "legada" e merece um aviso visual para que o operador migre os
- * critérios para dentro de cada cálculo.
- */
-function legacyRuleLevelFilters(r: RuleRow): string[] {
-  const out: string[] = [];
-  const has = (v: unknown) => Array.isArray(v) && v.length > 0;
-  if (has(r?.procedure_codes)) out.push("códigos");
-  if (has(r?.sectors)) out.push("setores");
-  if (has(r?.specialties)) out.push("especialidades");
-  if (has(r?.agreement_aliases)) out.push("convênios");
-  if (has(r?.allowed_access_routes)) out.push("vias de acesso");
-  return out;
-}
+// Filtros restritivos (códigos, setores, especialidades, convênios, vias)
+// vivem exclusivamente em rule_calculations desde a migração 2026-05-12.
+// As colunas equivalentes em public.rules foram removidas.
+
 type DraftRule = {
   active: boolean;
   name: string; description: string; rule_text: string;
@@ -940,13 +928,8 @@ const Rules = () => {
       instrumentador_pct: null,
       repasse_pct: null,
       apply_access_route: false,
-      procedure_codes: null,
-      sectors: [],
-      specialties: [],
       agreement_name: null,
-      agreement_aliases: [],
       agreement_match_mode: "whitelist",
-      allowed_access_routes: null,
       // ===== Campos próprios da Regra =====
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
@@ -1209,21 +1192,24 @@ const Rules = () => {
         variant: "destructive",
       });
     }
-    const toInsert = sel.map((d) => ({
-      ...d,
-      description: d.description || null,
-      target_type: d.scope === "especifica" ? d.target_type : null,
-      target_identifier: d.scope === "especifica"
-        ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
-        : null,
-      target_name: d.scope === "especifica" ? d.target_name : null,
-      reference_table_id: null,
-      procedure_codes: null,
-      created_by: user!.id,
-      target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
-        ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
-        : null,
-    }));
+    const toInsert = sel.map((d) => {
+      // Strip campos que não existem mais em public.rules (vivem por Cálculo)
+      const { procedure_codes: _pc, sectors: _s, specialties: _sp, ...rest } = d;
+      return {
+        ...rest,
+        description: d.description || null,
+        target_type: d.scope === "especifica" ? d.target_type : null,
+        target_identifier: d.scope === "especifica"
+          ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
+          : null,
+        target_name: d.scope === "especifica" ? d.target_name : null,
+        reference_table_id: null,
+        created_by: user!.id,
+        target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
+          ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
+          : null,
+      };
+    });
     const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     // Registra auditoria por regra criada
@@ -2203,18 +2189,7 @@ const Rules = () => {
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
                                   </span>
                                 )}
-                                {(() => {
-                                  const legacy = legacyRuleLevelFilters(r);
-                                  if (legacy.length === 0) return null;
-                                  return (
-                                    <span
-                                      className="text-xs rounded-full border border-warning/60 bg-warning/15 text-warning-foreground px-2 py-0.5 flex items-center gap-1"
-                                      title={`Esta regra ainda guarda ${legacy.join(", ")} no nível Regra (legado). Após a refatoração, esses filtros devem viver por Cálculo. Edite a regra e mova os critérios para dentro de cada cálculo.`}
-                                    >
-                                      <AlertTriangle className="h-3 w-3" /> Legado nível-Regra: {legacy.join(", ")}
-                                    </span>
-                                  );
-                                })()}
+                                {/* Filtros legados (códigos/setores/etc. no nível Regra) foram removidos do schema. */}
                               </div>
                               {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
                               <p className="text-sm">{r.rule_text}</p>
