@@ -1258,9 +1258,8 @@ const Rules = () => {
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
-        (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector);
+        (Array.isArray(r.sectors) && r.sectors.includes(filterSector));
       if (!sectorOk) return false;
-      if (filterType !== "todos" && r.rule_type !== filterType) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
       
@@ -1299,7 +1298,7 @@ const Rules = () => {
 
       return true;
     });
-  }, [rules, filterScope, filterSector, filterType, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -1327,7 +1326,7 @@ const Rules = () => {
   const renderCalcBadge = (r: RuleRow) => {
     const ct = r.calculation_type as RuleCalculationType | undefined;
     if (ct === "pacote" && r.package_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.package_amount)} (pacote)</span>;
-    if (ct === "tabela_diferenciada" || ct === "tabela_referencia") {
+    if (ct === "tabela_diferenciada") {
       const ref = refTables.find((t) => t.id === r.reference_table_id);
       const parts = [ref?.name ?? "tabela", r.multiplier ? `× ${r.multiplier}` : null, r.deflator_pct ? `− ${r.deflator_pct}%` : null].filter(Boolean);
       return <span className="text-xs font-medium">{parts.join(" ")}</span>;
@@ -1877,35 +1876,8 @@ const Rules = () => {
                         <div className="space-y-1">
                           <Label className="text-sm font-semibold">Filtros adicionais de produção</Label>
                           <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
-                        </div>
-                        
-                        <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
-                          <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                            {PAYMENT_TYPE_KEYS.map((k) => {
-                              const checked = appliesTypes.includes(k);
-                              return (
-                                <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                  onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
-                                  {PAYMENT_TYPE_LABELS[k]}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Setores, códigos, convênios, especialidades e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.
-                          </p>
-                        </div>
-
-                        <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
-                          <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
                       {scope === "master" && (
-                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima.</p>
+                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima. Setores, códigos, convênios, especialidades, tipos de pagamento e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.</p>
                       )}
                     </AccordionContent>
                   </AccordionItem>
