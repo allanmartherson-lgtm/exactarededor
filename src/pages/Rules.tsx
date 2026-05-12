@@ -916,9 +916,8 @@ const Rules = () => {
     setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
     setFBlockInherit(r.limiar_bloqueio_valor == null);
 
-    // Garante que a seção "Identificação" esteja aberta ao editar
-    // (contém o bloco Convênio — eixo determinístico do motor de regras).
-    setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
+    // Todas as seções iniciam fechadas ao abrir uma regra para edição.
+    setAccordionValue([]);
     setOpen(true);
   };
   const openDuplicate = (r: RuleRow) => {
