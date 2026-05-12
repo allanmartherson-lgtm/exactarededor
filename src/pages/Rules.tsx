@@ -47,22 +47,7 @@ import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
-// Tipos legados — usados só para renderizar regras antigas que ainda têm esses campos
-// (read-only). Nunca são gravados no payload de submitRule/saveDrafts.
-type LegacyRuleType = string;
-type PaymentTerm = string;
-const RULE_TYPE_LABELS: Record<string, string> = {
-  informativo: "Informativa / bloqueio",
-  pacote: "Pacote (valor fixo)",
-  tabela_diferenciada: "Tabela diferenciada",
-  bonus: "Bônus",
-  complemento: "Complemento",
-};
-const PAYMENT_TERM_LABELS: Record<string, string> = {
-  qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
-};
 
-const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
 const TIME_MODE_LABELS: Record<TimeMode, string> = {
@@ -101,18 +86,7 @@ type DraftRule = {
   valid_from: string | null; valid_until: string | null;
 };
 
-/**
- * Mapeia rule_type legado (vindo da IA) → calculation_type (motor novo).
- */
-const inferCalculationType = (ruleType: string | null | undefined): RuleCalculationType => {
-  switch (ruleType) {
-    case "pacote":              return "pacote";
-    case "tabela_diferenciada": return "tabela_diferenciada";
-    case "bonus":               return "bonus";
-    case "complemento":         return "complemento";
-    default:                    return "informativo";
-  }
-};
+
 
 /** Métodos exibidos quando a Natureza = Calculável. */
 const CALCULABLE_METHODS: RuleCalculationType[] = [
@@ -135,8 +109,6 @@ const num = (v: any): number | null => {
 // Campos "novos" que toda regra deve ter preenchidos. Quando adicionar um novo campo,
 // inclua aqui para o sistema cobrar atualização nas regras antigas.
 const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [
-  { key: "payment_term", label: "Prazo de pagamento", isMissing: (r) => !r.payment_term || r.payment_term === "qualquer" ? false : false }, // tem default 'qualquer', considere preenchido
-  { key: "applies_payment_types", label: "Tipos de pagamento aplicáveis", isMissing: (r) => !r.applies_payment_types || r.applies_payment_types.length === 0 },
   { key: "sectors", label: "Setores (multi)", isMissing: (r) => !Array.isArray(r.sectors) || r.sectors.length === 0 },
 ];
 // regra fica "incompleta" se faltar QUALQUER campo novo de fato exigido
@@ -175,12 +147,12 @@ const Rules = () => {
   const [fDescription, setFDescription] = useState("");
   const [fRuleText, setFRuleText] = useState("");
   const [fSeverity, setFSeverity] = useState<RuleSeverity>("aviso");
-  const [fSector, setFSector] = useState<RuleSector>("outro");
+  
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
-  const [ruleType, setRuleType] = useState<LegacyRuleType>("informativo");
+  
   // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
   const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
   // === Novo motor (Fase 4) ===
@@ -193,8 +165,6 @@ const Rules = () => {
   const [fExceptionTableIds, setFExceptionTableIds] = useState<string[]>([]);
   // codesInput / fSectors / fSpecialties / fAgreement* removidos do nível Regra.
   // Todos os filtros restritivos vivem agora dentro de cada item de Cálculo.
-  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
-  const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
   const [fPackageAmount, setFPackageAmount] = useState<string>("");
   const [fBonusAmount, setFBonusAmount] = useState<string>("");
   const [fBonusPct, setFBonusPct] = useState<string>("");
@@ -338,17 +308,13 @@ const Rules = () => {
     fNature, fCalculations,
   ]);
 
-  // bulk update
+  // seleção em lote (atualmente sem ações em massa disponíveis após cleanup)
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkPaymentTerm, setBulkPaymentTerm] = useState<PaymentTerm | "">("");
-  const [bulkAppliesTypes, setBulkAppliesTypes] = useState<PaymentType[]>([]);
-  const [bulkRefTableId, setBulkRefTableId] = useState<string>("");
 
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
-  const [filterType, setFilterType] = useState<"todos" | LegacyRuleType>("todos");
+  
   const [filterTarget, setFilterTarget] = useState("");
   const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
   const [filterDoctor, setFilterDoctor] = useState<DoctorOption | null>(null);
@@ -443,11 +409,10 @@ const Rules = () => {
       ["Campo", "Valor"],
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
-      ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as LegacyRuleType] ?? r.rule_type ?? "Informativo"],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
-      ["Setor / Item", Array.isArray(r.sectors) && r.sectors.length > 0 
+      ["Setores", Array.isArray(r.sectors) && r.sectors.length > 0
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
-        : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
+        : "Todos"],
       ["Especialidades", Array.isArray(r.specialties) && r.specialties.length > 0 ? r.specialties.join(", ") : "Todas"],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
       ["Status", (() => {
@@ -526,10 +491,6 @@ const Rules = () => {
 
     const payInfo = [
       ["Configuração", "Valor"],
-      ["Prazo de Pagamento", PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm] ?? "Qualquer"],
-      ["Tipos Aplicáveis", Array.isArray(r.applies_payment_types) && r.applies_payment_types.length > 0
-        ? r.applies_payment_types.map((t: any) => PAYMENT_TYPE_LABELS[t as PaymentType]).join(", ")
-        : "Qualquer"],
       ["Natureza", r.calculation_type === 'informativo' ? "Informativa" : "Calculável"],
       ["Tipo de Cálculo", RULE_CALCULATION_TYPE_LABELS[r.calculation_type as RuleCalculationType] ?? r.calculation_type ?? "N/A"]
     ];
@@ -794,13 +755,12 @@ const Rules = () => {
     setEditingId(null);
     setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
-    setFSeverity("aviso"); setFSector("outro");
+    setFSeverity("aviso");
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
-    setRuleType("informativo"); setRefTableId(""); setFExceptionTableIds([]);
+    setRefTableId(""); setFExceptionTableIds([]);
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
-    setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
     setFAuxFirstPct("30"); setFAuxSecondPct("20"); setFInstrumentadorPct("10");
@@ -831,11 +791,10 @@ const Rules = () => {
     setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
     setFActive(isDuplicate ? true : (r.active !== false));
     setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
-    setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
+    setFSeverity(r.severity ?? "aviso");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
-    setRuleType((r.rule_type as LegacyRuleType) ?? "informativo");
-    const calc = (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as LegacyRuleType) ?? "informativo");
+    const calc = (r.calculation_type as RuleCalculationType) ?? "informativo";
     setFCalculationType(calc);
     setFNature(calc === "informativo" ? "informativo" : "calculavel");
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
@@ -844,8 +803,6 @@ const Rules = () => {
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
     // procedure_codes legados ignorados — agora vivem por Cálculo.
-    setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
-    setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
     setFBonusPct(r.bonus_pct != null ? String(r.bonus_pct) : "");
@@ -875,21 +832,12 @@ const Rules = () => {
     // sectors/specialties/agreement_* legados ignorados — restritivos vivem por Cálculo.
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
-    setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
-    const gci = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
-    const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+    setFDoctors([]);
     const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
-    setFGroupCompanyIds(gci);
-    setFGroupDoctors(gdo);
-    setFGroupMode(gci.length > 0 ? "empresa" : gdo.length > 0 ? "medico" : "empresa");
-    // Migra legado para o novo formato de linhas se necessário.
-    if (glinks.length > 0) {
-      setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
-    } else if (gci.length > 0) {
-      setFGroupLinks(gci.map((id: string) => ({ company_id: id, doctors: gci.length === 1 ? gdo : [] })));
-    } else {
-      setFGroupLinks([]);
-    }
+    setFGroupCompanyIds([]);
+    setFGroupDoctors([]);
+    setFGroupMode("empresa");
+    setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
     const tMode = (r.time_mode as TimeMode) ?? "qualquer";
     const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
     const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
@@ -1225,23 +1173,19 @@ const Rules = () => {
       const ds: DraftRule[] = data.rules.map((r: any) => ({
         active: true,
         name: r.name ?? "", description: r.description ?? "", rule_text: r.rule_text ?? "",
-        severity: r.severity ?? "aviso", scope: r.scope ?? "master", sector: r.sector ?? "outro",
+        severity: r.severity ?? "aviso", scope: r.scope ?? "master",
         target_type: r.target_type ?? null, target_identifier: r.target_identifier ?? null, target_name: r.target_name ?? null,
-        rule_type: r.rule_type ?? "informativo",
-        calculation_type: (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as LegacyRuleType) ?? "informativo"),
+        calculation_type: (r.calculation_type as RuleCalculationType) ?? "informativo",
         convenio_percentage: r.convenio_percentage ?? null,
         fixed_amount: r.fixed_amount ?? r.bonus_amount ?? r.target_amount ?? null,
         extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes : [],
         package_amount: r.package_amount ?? null, bonus_amount: r.bonus_amount ?? null, bonus_pct: r.bonus_pct ?? null,
         target_amount: r.target_amount ?? null, multiplier: r.multiplier ?? null, deflator_pct: r.deflator_pct ?? null,
         reference_table_id: null, procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
-        payment_term: (r.payment_term ?? "qualquer") as PaymentTerm,
-        applies_payment_types: Array.isArray(r.applies_payment_types) ? r.applies_payment_types : [],
         sectors: Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []),
         specialties: Array.isArray(r.specialties) ? r.specialties : [],
         valid_from: r.valid_from ?? null,
         valid_until: r.valid_until ?? null,
-        doctors: Array.isArray(r.doctors) ? r.doctors : [],
       }));
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
     } catch (e: any) {
@@ -1314,9 +1258,8 @@ const Rules = () => {
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
-        (Array.isArray(r.sectors) && r.sectors.length > 0 ? r.sectors.includes(filterSector) : r.sector === filterSector);
+        (Array.isArray(r.sectors) && r.sectors.includes(filterSector));
       if (!sectorOk) return false;
-      if (filterType !== "todos" && r.rule_type !== filterType) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
       
@@ -1355,7 +1298,7 @@ const Rules = () => {
 
       return true;
     });
-  }, [rules, filterScope, filterSector, filterType, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -1381,14 +1324,16 @@ const Rules = () => {
   }, [filtered]);
 
   const renderCalcBadge = (r: RuleRow) => {
-    if (r.rule_type === "pacote" && r.package_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.package_amount)} (pacote)</span>;
-    if (r.rule_type === "tabela_diferenciada") {
+    const ct = r.calculation_type as RuleCalculationType | undefined;
+    if (ct === "pacote" && r.package_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.package_amount)} (pacote)</span>;
+    if (ct === "tabela_diferenciada") {
       const ref = refTables.find((t) => t.id === r.reference_table_id);
       const parts = [ref?.name ?? "tabela", r.multiplier ? `× ${r.multiplier}` : null, r.deflator_pct ? `− ${r.deflator_pct}%` : null].filter(Boolean);
       return <span className="text-xs font-medium">{parts.join(" ")}</span>;
     }
-    if (r.rule_type === "bonus") return <span className="text-xs font-medium">{r.bonus_amount != null ? `+${formatCurrency(r.bonus_amount)}` : r.bonus_pct != null ? `+${r.bonus_pct}%` : "bônus"}</span>;
-    if (r.rule_type === "complemento" && r.target_amount != null) return <span className="text-xs font-medium">complementa até {formatCurrency(r.target_amount)}</span>;
+    if (ct === "bonus") return <span className="text-xs font-medium">{r.bonus_amount != null ? `+${formatCurrency(r.bonus_amount)}` : r.bonus_pct != null ? `+${r.bonus_pct}%` : "bônus"}</span>;
+    if (ct === "complemento" && r.target_amount != null) return <span className="text-xs font-medium">complementa até {formatCurrency(r.target_amount)}</span>;
+    if (ct === "valor_fixo" && r.fixed_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.fixed_amount)} (fixo)</span>;
     return null;
   };
 
@@ -1398,20 +1343,6 @@ const Rules = () => {
   const selectAllVisible = () => setSelected(new Set(filtered.map((r) => r.id)));
   const selectAllIncomplete = () => setSelected(new Set(rules.filter(isIncomplete).map((r) => r.id)));
   const clearSelection = () => setSelected(new Set());
-
-  const applyBulkUpdate = async () => {
-    if (selected.size === 0) return;
-    const patch: any = {};
-    if (bulkPaymentTerm) patch.payment_term = bulkPaymentTerm;
-    if (bulkAppliesTypes.length > 0) patch.applies_payment_types = bulkAppliesTypes;
-    if (Object.keys(patch).length === 0) return toast({ title: "Selecione ao menos um campo para atualizar", variant: "destructive" });
-    const ids = Array.from(selected);
-    const { error } = await supabase.from("rules").update(patch).in("id", ids);
-    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    toast({ title: `${ids.length} regra(s) atualizadas` });
-    setBulkOpen(false); setBulkPaymentTerm(""); setBulkAppliesTypes([]); setBulkRefTableId("");
-    clearSelection(); load();
-  };
 
   return (
     <>
@@ -1945,35 +1876,8 @@ const Rules = () => {
                         <div className="space-y-1">
                           <Label className="text-sm font-semibold">Filtros adicionais de produção</Label>
                           <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
-                        </div>
-                        
-                        <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
-                          <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                            {PAYMENT_TYPE_KEYS.map((k) => {
-                              const checked = appliesTypes.includes(k);
-                              return (
-                                <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                  onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
-                                  {PAYMENT_TYPE_LABELS[k]}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Setores, códigos, convênios, especialidades e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.
-                          </p>
-                        </div>
-
-                        <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
-                          <Select value={paymentTerm} onValueChange={(v) => setPaymentTerm(v as PaymentTerm)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
                       {scope === "master" && (
-                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima.</p>
+                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima. Setores, códigos, convênios, especialidades, tipos de pagamento e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.</p>
                       )}
                     </AccordionContent>
                   </AccordionItem>
