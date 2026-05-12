@@ -284,19 +284,9 @@ const Rules = () => {
     "delete-informativo": "Limpar cálculos (regra informativa)",
   };
 
-  // Persistência das seções abertas do accordion (lembra entre aberturas do modal)
-  const ACCORDION_STORAGE_KEY = "rules.form.accordion.v1";
-  const [accordionValue, setAccordionValue] = useState<string[]>(() => {
-    if (typeof window === "undefined") return ["identificacao"];
-    try {
-      const raw = window.localStorage.getItem(ACCORDION_STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) && parsed.length ? parsed : ["identificacao"];
-    } catch { return ["identificacao"]; }
-  });
-  useEffect(() => {
-    try { window.localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(accordionValue)); } catch {}
-  }, [accordionValue]);
+  // Accordion: por padrão todas as seções começam FECHADAS ao abrir o modal —
+  // facilita a navegação/busca. O usuário expande conforme precisa.
+  const [accordionValue, setAccordionValue] = useState<string[]>([]);
 
   // parsedCodes removido — códigos restritivos vivem em cada Cálculo.
 
@@ -926,9 +916,8 @@ const Rules = () => {
     setFBlockThresholdValue(r.limiar_bloqueio_valor != null ? String(r.limiar_bloqueio_valor) : "");
     setFBlockInherit(r.limiar_bloqueio_valor == null);
 
-    // Garante que a seção "Identificação" esteja aberta ao editar
-    // (contém o bloco Convênio — eixo determinístico do motor de regras).
-    setAccordionValue((prev) => Array.from(new Set([...(prev ?? []), "identificacao"])));
+    // Todas as seções iniciam fechadas ao abrir uma regra para edição.
+    setAccordionValue([]);
     setOpen(true);
   };
   const openDuplicate = (r: RuleRow) => {
