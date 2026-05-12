@@ -223,8 +223,8 @@ export default function RuleSimulator() {
                 <DoctorCombobox value={doctor} onChange={setDoctor} />
               </Field>
 
-              <Field label="Valor pago (gross)"><Input value={form.gross_amount} onChange={(e) => set("gross_amount", e.target.value)} placeholder="0,00" /></Field>
-              <Field label="Valor base (procedure)"><Input value={form.procedure_amount} onChange={(e) => set("procedure_amount", e.target.value)} placeholder="opcional" /></Field>
+              <Field label="Valor Repasse"><Input value={form.gross_amount} onChange={(e) => set("gross_amount", e.target.value)} placeholder="0,00" /></Field>
+              <Field label="Valor Tabela"><Input value={form.procedure_amount} onChange={(e) => set("procedure_amount", e.target.value)} placeholder="opcional" /></Field>
               <Field label="Qtd"><Input value={form.quantity} onChange={(e) => set("quantity", e.target.value)} /></Field>
               <Field label="Atendimento"><Input value={form.attendance_number} onChange={(e) => set("attendance_number", e.target.value)} placeholder="opcional" /></Field>
 
@@ -284,7 +284,7 @@ export default function RuleSimulator() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <KV label="Regra vencedora" value={result.matched_rule_name ?? "—"} />
                   <KV label="Valor esperado" value={fmtMoney(result.expected_amount)} />
-                  <KV label="Valor pago" value={fmtMoney(Number(form.gross_amount.replace(",", ".")) || 0)} />
+                  <KV label="Valor Repasse" value={fmtMoney(Number(form.gross_amount.replace(",", ".")) || 0)} />
                   <KV label="Divergência" value={result.diff_pct != null ? `${(result.diff_pct * 100).toFixed(2)}%` : "—"} />
                 </div>
 
@@ -522,9 +522,9 @@ function AgreementCombobox({ value, onChange }: { value: string; onChange: (v: s
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 min-w-0">
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      {children}
+      <div className="min-w-0 [&_*]:max-w-full">{children}</div>
     </div>
   );
 }
