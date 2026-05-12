@@ -191,6 +191,21 @@ export interface RuleCalculationItem {
    * - "por_paciente_dia": idem, mas usa paciente+data quando não há attendance_number.
    */
   application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
+  // ===== Filtros restritivos por cálculo (refactor "tudo no cálculo") =====
+  /** Lista de códigos TUSS/CBHPM aos quais este cálculo se aplica. Vazio = qualquer código. */
+  procedure_codes?: string[] | null;
+  /** Modo de comparação dos códigos: 'whitelist' (só esses), 'blacklist' (todos menos esses), 'any' (ignora). */
+  code_match_mode?: "whitelist" | "blacklist" | "any" | null;
+  /** Funções do médico (cirurgiao, primeiro_aux, demais_aux, instrumentador) — vazio = qualquer função. */
+  doctor_roles?: string[] | null;
+  /** Lista de convênios que este cálculo aceita/bloqueia (mesmo formato da regra). */
+  agreement_aliases?: string[] | null;
+  /** Modo do filtro de convênio: 'whitelist' | 'blacklist'. Se ausente, herda da regra-pai. */
+  agreement_match_mode?: "whitelist" | "blacklist" | null;
+  /** Setores aplicáveis (vazio = qualquer). */
+  sectors?: string[] | null;
+  /** Especialidades aplicáveis (vazio = qualquer). */
+  specialties?: string[] | null;
 }
 
 export interface ItemInput {
