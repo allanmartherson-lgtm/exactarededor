@@ -2191,38 +2191,7 @@ const Rules = () => {
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
                                   </span>
                                 )}
-                                {(() => {
-                                  const legacy = legacyRuleLevelFilters(r);
-                                  if (legacy.length === 0) return null;
-                                  return (
-                                    <span className="inline-flex items-center gap-1">
-                                      <span
-                                        className="text-xs rounded-full border border-warning/60 bg-warning/15 text-warning-foreground px-2 py-0.5 flex items-center gap-1"
-                                        title={`Esta regra ainda guarda ${legacy.join(", ")} no nível Regra (legado). Após a refatoração, esses filtros devem viver por Cálculo. Use "Promover" para mover automaticamente.`}
-                                      >
-                                        <AlertTriangle className="h-3 w-3" /> Legado nível-Regra: {legacy.join(", ")}
-                                      </span>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-6 px-2 text-xs"
-                                        onClick={async (e) => {
-                                          e.stopPropagation();
-                                          if (!confirm(`Promover ${legacy.join(", ")} para todos os cálculos desta regra?\n\nFiltros já preenchidos por cálculo são preservados. Esta ação limpa os filtros do nível Regra.`)) return;
-                                          try {
-                                            const { updated } = await promoteLegacyToCalculations(r);
-                                            toast({ title: "Promovido", description: `${updated} cálculo(s) atualizado(s); filtros legados removidos da regra.` });
-                                            await load();
-                                          } catch (err: any) {
-                                            toast({ title: "Erro ao promover", description: err?.message || String(err), variant: "destructive" });
-                                          }
-                                        }}
-                                      >
-                                        <Wand2 className="h-3 w-3 mr-1" /> Promover
-                                      </Button>
-                                    </span>
-                                  );
-                                })()}
+                                {/* Filtros legados (códigos/setores/etc. no nível Regra) foram removidos do schema. */}
                               </div>
                               {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
                               <p className="text-sm">{r.rule_text}</p>
