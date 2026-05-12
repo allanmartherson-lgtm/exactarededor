@@ -207,26 +207,45 @@ export default function RuleSimulator() {
                   </>
                 )}
 
-                {trace?.candidates?.length > 0 && (
+                {trace?.levels?.length > 0 && (
                   <>
                     <Separator />
                     <div>
-                      <Label className="text-xs">Caminho de fallback — regras avaliadas ({trace.candidates.length})</Label>
-                      <div className="mt-2 space-y-1 max-h-80 overflow-y-auto pr-1">
-                        {trace.candidates.map((c: any, i: number) => {
-                          const isWinner = c.rule_id === result.matched_rule_id;
-                          return (
-                            <div key={i} className={`rounded border px-2 py-1.5 text-xs ${isWinner ? "border-primary bg-primary/5" : "border-muted"}`}>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-medium truncate">
-                                  {isWinner && "🏆 "}{ruleNames[c.rule_id] ?? c.rule_id}
-                                </span>
-                                <Badge variant="outline" className="text-[10px]">{c.priority ?? c.outcome ?? "—"}</Badge>
-                              </div>
-                              {c.reason && <p className="text-muted-foreground mt-0.5">{c.reason}</p>}
+                      <Label className="text-xs">
+                        Caminho de fallback — níveis avaliados ({trace.levels.length})
+                        {trace.item_sector && <span className="ml-2 text-muted-foreground">setor: {trace.item_sector}</span>}
+                      </Label>
+                      <div className="mt-2 space-y-2 max-h-96 overflow-y-auto pr-1">
+                        {trace.levels.map((lvl: any, i: number) => (
+                          <div key={i} className="rounded border border-border">
+                            <div className="flex items-center justify-between gap-2 px-2 py-1 bg-muted/40 text-xs">
+                              <span className="font-medium">{lvl.level}</span>
+                              <span className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[10px]">{lvl.outcome}</Badge>
+                                <span className="text-muted-foreground">{lvl.bucket_size} candidata(s)</span>
+                              </span>
                             </div>
-                          );
-                        })}
+                            {lvl.candidates?.length > 0 && (
+                              <ul className="text-xs divide-y divide-border">
+                                {lvl.candidates.map((c: any, j: number) => {
+                                  const isWinner = c.rule_id === result.matched_rule_id && c.result === "winner";
+                                  return (
+                                    <li key={j} className={`flex items-center justify-between gap-2 px-2 py-1 ${isWinner ? "bg-primary/5" : ""}`}>
+                                      <span className="truncate">
+                                        {isWinner && "🏆 "}{c.rule_name}
+                                        {c.with_code && <span className="ml-1 text-[10px] text-muted-foreground">[c/ código]</span>}
+                                      </span>
+                                      <span className="flex items-center gap-1.5 shrink-0">
+                                        <Badge variant={c.result === "winner" ? "default" : "outline"} className="text-[10px]">{c.result}</Badge>
+                                        {c.filter_reason && <span className="text-[10px] text-muted-foreground truncate max-w-[180px]" title={c.filter_reason}>{c.filter_reason}</span>}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </>
