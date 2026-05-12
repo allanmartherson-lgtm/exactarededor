@@ -47,22 +47,7 @@ import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
-// Tipos legados — usados só para renderizar regras antigas que ainda têm esses campos
-// (read-only). Nunca são gravados no payload de submitRule/saveDrafts.
-type LegacyRuleType = string;
-type PaymentTerm = string;
-const RULE_TYPE_LABELS: Record<string, string> = {
-  informativo: "Informativa / bloqueio",
-  pacote: "Pacote (valor fixo)",
-  tabela_diferenciada: "Tabela diferenciada",
-  bonus: "Bônus",
-  complemento: "Complemento",
-};
-const PAYMENT_TERM_LABELS: Record<string, string> = {
-  qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
-};
 
-const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
 const TIME_MODE_LABELS: Record<TimeMode, string> = {
@@ -101,18 +86,7 @@ type DraftRule = {
   valid_from: string | null; valid_until: string | null;
 };
 
-/**
- * Mapeia rule_type legado (vindo da IA) → calculation_type (motor novo).
- */
-const inferCalculationType = (ruleType: string | null | undefined): RuleCalculationType => {
-  switch (ruleType) {
-    case "pacote":              return "pacote";
-    case "tabela_diferenciada": return "tabela_diferenciada";
-    case "bonus":               return "bonus";
-    case "complemento":         return "complemento";
-    default:                    return "informativo";
-  }
-};
+
 
 /** Métodos exibidos quando a Natureza = Calculável. */
 const CALCULABLE_METHODS: RuleCalculationType[] = [
@@ -135,8 +109,6 @@ const num = (v: any): number | null => {
 // Campos "novos" que toda regra deve ter preenchidos. Quando adicionar um novo campo,
 // inclua aqui para o sistema cobrar atualização nas regras antigas.
 const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [
-  { key: "payment_term", label: "Prazo de pagamento", isMissing: (r) => !r.payment_term || r.payment_term === "qualquer" ? false : false }, // tem default 'qualquer', considere preenchido
-  { key: "applies_payment_types", label: "Tipos de pagamento aplicáveis", isMissing: (r) => !r.applies_payment_types || r.applies_payment_types.length === 0 },
   { key: "sectors", label: "Setores (multi)", isMissing: (r) => !Array.isArray(r.sectors) || r.sectors.length === 0 },
 ];
 // regra fica "incompleta" se faltar QUALQUER campo novo de fato exigido
