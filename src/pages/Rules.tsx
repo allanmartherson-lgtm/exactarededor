@@ -2296,47 +2296,6 @@ const Rules = () => {
         )}
       </div>
 
-      {/* Bulk update dialog */}
-      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Atualizar {selected.size} regra{selected.size > 1 ? "s" : ""} em massa</DialogTitle>
-            <DialogDescription>Apenas os campos preenchidos abaixo serão atualizados nas regras selecionadas.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Prazo de pagamento</Label>
-              <Select value={bulkPaymentTerm || "__keep"} onValueChange={(v) => setBulkPaymentTerm(v === "__keep" ? "" : v as PaymentTerm)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__keep">Manter</SelectItem>
-                  {Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tipos de pagamento aplicáveis</Label>
-              <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                {PAYMENT_TYPE_KEYS.map((k) => {
-                  const checked = bulkAppliesTypes.includes(k);
-                  return (
-                    <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                      onClick={() => setBulkAppliesTypes((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
-                      {PAYMENT_TYPE_LABELS[k]}
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">Vazio = não altera.</p>
-            </div>
-            {/* Tabela de referência removida do bulk: deve ser configurada por Cálculo. */}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
-            <Button onClick={applyBulkUpdate}>Aplicar</Button>
-          </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
       {/* Tela de revisão pós-importação */}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
