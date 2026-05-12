@@ -2093,30 +2093,21 @@ const Rules = () => {
                           <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5"><Label>Setores específicos</Label>
-                            <MultiSelectChips
-                              values={fSectors}
-                              onChange={setFSectors}
-                              options={Object.keys(RULE_SECTOR_LABELS)}
-                              placeholder="Todos os setores"
-                              allowCustom={true}
-                              emptyHint="Vazio = todos os setores."
-                            />
+                        <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
+                          <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                            {PAYMENT_TYPE_KEYS.map((k) => {
+                              const checked = appliesTypes.includes(k);
+                              return (
+                                <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                                  onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
+                                  {PAYMENT_TYPE_LABELS[k]}
+                                </Button>
+                              );
+                            })}
                           </div>
-                          <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
-                            <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                              {PAYMENT_TYPE_KEYS.map((k) => {
-                                const checked = appliesTypes.includes(k);
-                                return (
-                                  <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                    onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
-                                    {PAYMENT_TYPE_LABELS[k]}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Setores, códigos, convênios, especialidades e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.
+                          </p>
                         </div>
 
                         <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
