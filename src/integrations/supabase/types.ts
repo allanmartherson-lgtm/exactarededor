@@ -1401,6 +1401,7 @@ export type Database = {
           elective_mode: string
           extras_codes: string[] | null
           fixed_amount: number | null
+          force_totalized: boolean | null
           has_conditions: boolean | null
           id: string
           include_auxiliaries: boolean
@@ -1443,6 +1444,7 @@ export type Database = {
           elective_mode?: string
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          force_totalized?: boolean | null
           has_conditions?: boolean | null
           id?: string
           include_auxiliaries?: boolean
@@ -1485,6 +1487,7 @@ export type Database = {
           elective_mode?: string
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          force_totalized?: boolean | null
           has_conditions?: boolean | null
           id?: string
           include_auxiliaries?: boolean
@@ -1551,6 +1554,7 @@ export type Database = {
           exclusion_reason: string | null
           extras_codes: string[] | null
           fixed_amount: number | null
+          force_totalized: boolean | null
           group_company_ids: string[]
           group_company_links: Json
           group_doctors: Json
@@ -1629,6 +1633,7 @@ export type Database = {
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          force_totalized?: boolean | null
           group_company_ids?: string[]
           group_company_links?: Json
           group_doctors?: Json
@@ -1707,6 +1712,7 @@ export type Database = {
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
+          force_totalized?: boolean | null
           group_company_ids?: string[]
           group_company_links?: Json
           group_doctors?: Json
