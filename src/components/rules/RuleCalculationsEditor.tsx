@@ -951,7 +951,9 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
     application_unit: c.calculation_type === "bonus" ? c.application_unit : "por_item",
     procedure_codes: c.procedure_codes.length > 0 ? c.procedure_codes : null,
-    code_match_mode: c.code_match_mode,
+    // Normaliza: sem códigos listados ⇒ modo "any" (fallback). Evita o anti-padrão
+    // "whitelist sem códigos" que faz o cálculo capturar qualquer item por engano.
+    code_match_mode: c.procedure_codes.length > 0 ? c.code_match_mode : "any",
     agreement_aliases: c.agreement_aliases.length > 0 ? c.agreement_aliases : null,
     agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
     doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
