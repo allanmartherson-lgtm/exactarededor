@@ -1870,6 +1870,7 @@ function finalizeAnalysis(
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
+    ...(calc.application_unit ? { application_unit_used: calc.application_unit } : {}),
   };
 }
 
