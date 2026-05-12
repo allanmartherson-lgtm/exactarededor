@@ -106,11 +106,9 @@ const num = (v: any): number | null => {
   return isFinite(n) ? n : null;
 };
 
-// Campos "novos" que toda regra deve ter preenchidos. Quando adicionar um novo campo,
-// inclua aqui para o sistema cobrar atualização nas regras antigas.
-const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [
-  { key: "sectors", label: "Setores (multi)", isMissing: (r) => !Array.isArray(r.sectors) || r.sectors.length === 0 },
-];
+// Campos "novos" exigidos no nível Regra. Restritivos (setores/especialidades/códigos/
+// convênios/vias) vivem por Cálculo agora — nada aqui.
+const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [];
 // regra fica "incompleta" se faltar QUALQUER campo novo de fato exigido
 const isIncomplete = (r: RuleRow) => REQUIRED_NEW_FIELDS.some((f) => f.isMissing(r));
 const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMissing(r)).map((f) => f.label);
@@ -313,7 +311,7 @@ const Rules = () => {
 
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
-  const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
+  // filterSector removido — restritivos por Cálculo, não por Regra
   
   const [filterTarget, setFilterTarget] = useState("");
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
@@ -408,10 +406,6 @@ const Rules = () => {
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
-      ["Setores", Array.isArray(r.sectors) && r.sectors.length > 0
-        ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
-        : "Todos"],
-      ["Especialidades", Array.isArray(r.specialties) && r.specialties.length > 0 ? r.specialties.join(", ") : "Todas"],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
       ["Status", (() => {
         const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
@@ -421,9 +415,7 @@ const Rules = () => {
       })()]
     ];
 
-    if (r.agreement_aliases && r.agreement_aliases.length > 0) {
-      basicInfo.push(["Apelidos Convênio", r.agreement_aliases.join(", ")]);
-    }
+    // Restritivos (setores, especialidades, convênios) vivem por Cálculo — não exibir aqui.
 
     if (r.time_mode && r.time_mode !== 'qualquer') {
         const mode = r.time_mode === 'comercial' ? 'Horário Comercial' : r.time_mode === 'plantao' ? 'Horário Plantão' : 'Personalizado';
@@ -587,20 +579,19 @@ const Rules = () => {
         currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
-    // Tabelas e Códigos Vinculados
+    // Tabelas Vinculadas (códigos restritivos vivem por Cálculo)
     const hasRefTable = !!r.reference_table_id;
     const hasExceptions = Array.isArray(r.exception_table_ids) && r.exception_table_ids.length > 0;
-    const hasCodes = Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0;
 
-    if (hasRefTable || hasExceptions || hasCodes) {
+    if (hasRefTable || hasExceptions) {
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(41, 128, 185);
-        doc.text("Tabelas e Códigos Vinculados", 14, currentY);
+        doc.text("Tabelas Vinculadas", 14, currentY);
         currentY += 5;
 
         const tableLinks = [["Tipo de Vínculo", "Identificação / Nome"]];
-        
+
         if (hasRefTable) {
             const ref = refTables.find((t: any) => t.id === r.reference_table_id);
             tableLinks.push(["Tabela de Referência", ref?.name || r.reference_table_id || "Não identificada"]);
@@ -611,10 +602,6 @@ const Rules = () => {
                 const ref = refTables.find((t: any) => t.id === id);
                 tableLinks.push(["Tabela de Exceção / Vínculo", ref?.name || id]);
             });
-        }
-
-        if (hasCodes) {
-            tableLinks.push(["Códigos Específicos", r.procedure_codes.join(", ")]);
         }
 
         autoTable(doc, {
@@ -1251,14 +1238,11 @@ const Rules = () => {
   const filtered = useMemo(() => {
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
-      const sectorOk = filterSector === "todos" ||
-        (Array.isArray(r.sectors) && r.sectors.includes(filterSector));
-      if (!sectorOk) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
       return true;
     });
-  }, [rules, filterScope, filterSector, filterTarget, onlyIncomplete]);
+  }, [rules, filterScope, filterTarget, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -2132,13 +2116,7 @@ const Rules = () => {
               {Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filterSector} onValueChange={(v) => setFilterSector(v as any)}>
-            <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos (setor / item pgto)</SelectItem>
-              {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {/* Filtro por setor removido — restritivo agora vive por Cálculo */}
           <div className="relative">
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
@@ -2191,11 +2169,7 @@ const Rules = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                                {Array.isArray(r.sectors) && r.sectors.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
-                                    {(r.sectors as RuleSector[]).map((s) => RULE_SECTOR_LABELS[s] ?? s).join(" · ")}
-                                  </span>
-                                )}
+                                {/* Badge de setores removida — restritivo vive por Cálculo */}
                                  {(r.valid_from || r.valid_until) && (
                                   <span className={cn(
                                     "text-xs rounded-full border px-2 py-0.5",
