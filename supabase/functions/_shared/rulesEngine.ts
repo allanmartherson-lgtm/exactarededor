@@ -93,6 +93,8 @@ export interface RuleInput {
   allows_authorized_exception?: boolean | null;
   /** Se verdadeiro, o motor ignora a coluna quantidade do item e considera o valor calculado como total. */
   force_totalized?: boolean | null;
+  /** Unidade de aplicação no nível da regra (fallback quando o item de cálculo não define). */
+  application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
   // ===== Eixo "convênio" (matching determinístico por operadora) =====
   /**
    * (Legado) Nome principal do convênio. Mantido como tag adicional na lista
