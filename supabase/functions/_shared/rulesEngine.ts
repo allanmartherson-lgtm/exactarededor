@@ -93,6 +93,8 @@ export interface RuleInput {
   allows_authorized_exception?: boolean | null;
   /** Se verdadeiro, o motor ignora a coluna quantidade do item e considera o valor calculado como total. */
   force_totalized?: boolean | null;
+  /** Unidade de aplicação no nível da regra (fallback quando o item de cálculo não define). */
+  application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
   // ===== Eixo "convênio" (matching determinístico por operadora) =====
   /**
    * (Legado) Nome principal do convênio. Mantido como tag adicional na lista
@@ -182,6 +184,13 @@ export interface RuleCalculationItem {
   target_amount?: number | null;
   /** Se verdadeiro, ignora a quantidade para este item de cálculo específico. */
   force_totalized?: boolean | null;
+  /**
+   * Unidade de aplicação do cálculo (usado principalmente em bônus):
+   * - "por_item" (default): aplica em cada linha que casar.
+   * - "por_atendimento": aplica 1× por grupo de atendimento (anchor = procedimento principal).
+   * - "por_paciente_dia": idem, mas usa paciente+data quando não há attendance_number.
+   */
+  application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
 }
 
 export interface ItemInput {
@@ -284,6 +293,10 @@ export interface AnalysisResult {
   calculation_breakdown?: CalculationBreakdownEntry[];
   /** Trace de auditoria: regras candidatas avaliadas e motivo de descarte/vitória. */
   selection_trace?: SelectionTrace;
+  /** Unidade de aplicação efetivamente usada (do calc item ou da regra). */
+  application_unit_used?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
+  /** Se este resultado foi suprimido por dedup (já contado em outro item do mesmo atendimento). */
+  suppressed_by_dedup?: boolean;
 }
 
 export interface CalculationBreakdownEntry {
@@ -1052,16 +1065,30 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   if (!ruleAcceptsAccessRoute(c, item)) {
     return { ok: false, reason: "via_de_acesso" };
   }
-  // Dia da semana
-  const wds = Array.isArray(c.weekdays) ? c.weekdays : [];
-  if (wds.length > 0 && item.procedure_date) {
+  // Dia da semana — preferimos o array `weekdays` (modo personalizado) e,
+  // quando vazio, derivamos do `time_mode` (fim_de_semana / comercial / fora_comercial).
+  const tm = (c.time_mode ?? "qualquer") as string;
+  let effectiveWeekdays: number[] | null = Array.isArray(c.weekdays) && c.weekdays.length > 0
+    ? c.weekdays
+    : null;
+  if (!effectiveWeekdays) {
+    if (tm === "fim_de_semana") effectiveWeekdays = [0, 6];
+    else if (tm === "comercial" || tm === "fora_comercial") effectiveWeekdays = [1, 2, 3, 4, 5];
+  }
+  if (effectiveWeekdays && item.procedure_date) {
     const d = new Date(item.procedure_date);
     if (!Number.isNaN(d.getTime())) {
-      // Ajuste para considerar o timezone local ou UTC conforme necessário
-      // O Date() de uma string YYYY-MM-DD pode cair no dia anterior em alguns timezones
-      // Aqui usamos a data pura da string se disponível para evitar deslocamento
+      // Para fim_de_semana: usamos a DATA do procedimento (sem carry-over de sexta→sábado).
+      // Pegamos sempre o dia exato registrado em procedure_date.
       const day = item.procedure_date.includes('T') ? d.getDay() : new Date(item.procedure_date + 'T12:00:00').getDay();
-      if (!wds.includes(day)) return { ok: false, reason: "dia_da_semana" };
+      const inSet = effectiveWeekdays.includes(day);
+      if (tm === "fora_comercial") {
+        // Fora comercial = (sáb/dom) OU (seg-sex fora 07-19h). Aqui validamos só o dia
+        // quando não há janela horária; o filtro de horário restante cai no bloco abaixo.
+        if (inSet && !c.time_start && !c.time_end) return { ok: false, reason: "fora_comercial_dia_util" };
+      } else if (!inSet) {
+        return { ok: false, reason: tm === "fim_de_semana" ? "fim_de_semana" : "dia_da_semana" };
+      }
     }
   }
   // Janela horária
@@ -1114,7 +1141,9 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     bonus_pct: c.bonus_pct ?? rule.bonus_pct,
     target_amount: c.target_amount ?? rule.target_amount,
     allowed_access_routes: c.allowed_access_routes ?? rule.allowed_access_routes,
-  };
+    // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
+    application_unit: c.application_unit ?? rule.application_unit ?? null,
+  } as RuleInput & { application_unit?: string | null };
 }
 
 
@@ -1125,6 +1154,7 @@ export interface ExpectedCalc {
   alerts: string[];
   breakdown?: CalculationBreakdownEntry[];
   force_totalized?: boolean;
+  application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
 }
 
 export function applyCalculation(
@@ -1143,7 +1173,7 @@ export function applyCalculation(
     .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
-    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null; force_totalized?: boolean } | null = null;
+    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null; force_totalized?: boolean; application_unit?: string | null } | null = null;
     let anyMatched = false;
 
     for (const c of list) {
@@ -1179,7 +1209,8 @@ export function applyCalculation(
           ...r, 
           label, 
           id: c.id ?? null,
-          force_totalized: c.force_totalized ?? false
+          force_totalized: c.force_totalized ?? false,
+          application_unit: c.application_unit ?? rule.application_unit ?? "por_item",
         };
         
         breakdown.push({
@@ -1240,6 +1271,7 @@ export function applyCalculation(
       alerts: winnerCalc.alerts.map((a) => `[${winnerCalc.label}] ${a}`),
       breakdown,
       force_totalized: finalForceTotalized,
+      application_unit: (winnerCalc.application_unit as any) ?? rule.application_unit ?? "por_item",
     };
   }
   // ---- LEGADO: campos diretos na regra ----
@@ -1838,6 +1870,7 @@ function finalizeAnalysis(
     needs_human_review: priority === "sem_regra" || priority === "conflito",
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
+    ...(calc.application_unit ? { application_unit_used: calc.application_unit } : {}),
   };
 }
 
@@ -1927,6 +1960,47 @@ export function analyzePaymentItems(
       ];
       if (r.status === "aprovado") r.status = "alerta";
       r.needs_ai_review = true;
+    }
+  }
+
+  // === Dedup de bônus por atendimento/paciente-dia ===
+  // Quando o cálculo aplicado tem application_unit != "por_item", o bônus deve
+  // contar 1× por grupo (anchor = procedimento principal). Os demais itens do
+  // mesmo grupo que casaram com a mesma regra-bônus têm o bônus suprimido:
+  // - expected_amount = gross_amount (aceita o valor pago, geralmente 0/sem bônus)
+  // - status = aprovado, com nota explicando que já foi contabilizado no anchor.
+  // Isso aplica tanto para "por_atendimento" quanto para "por_paciente_dia"
+  // (o group key já inclui paciente+data quando attendance_number está vazio).
+  const bonusGroupsSeen = new Map<string, string>(); // chave: ruleId|groupKey -> item_id anchor
+  for (const r of out) {
+    if (!r.application_unit_used || r.application_unit_used === "por_item") continue;
+    if (r.calculation_type_used !== "bonus") continue;
+    if (!r.matched_rule_id || !r.attendance_group_key) continue;
+    const key = `${r.matched_rule_id}|${r.attendance_group_key}`;
+    const existingAnchor = bonusGroupsSeen.get(key);
+    if (existingAnchor) continue; // outro item do grupo já é o anchor
+    // Anchor preferencial: item marcado como principal; senão, este mesmo.
+    bonusGroupsSeen.set(key, r.is_main_procedure ? r.item_id : r.item_id);
+  }
+  // Segunda passada: suprimir bônus duplicados.
+  for (const r of out) {
+    if (!r.application_unit_used || r.application_unit_used === "por_item") continue;
+    if (r.calculation_type_used !== "bonus") continue;
+    if (!r.matched_rule_id || !r.attendance_group_key) continue;
+    const key = `${r.matched_rule_id}|${r.attendance_group_key}`;
+    const anchor = bonusGroupsSeen.get(key);
+    if (anchor && anchor !== r.item_id) {
+      const it = items.find((x) => x.id === r.item_id);
+      const paid = Number(it?.gross_amount ?? 0);
+      r.suppressed_by_dedup = true;
+      r.expected_amount = paid;
+      r.diff_pct = 0;
+      r.status = "aprovado";
+      r.calculation_explanation =
+        `Bônus já contabilizado 1× no atendimento (anchor item ${anchor}). ` +
+        `Aplicação configurada como "${r.application_unit_used}".`;
+      r.alerts = [...r.alerts, "Bônus suprimido neste item — já aplicado uma vez no atendimento."];
+      r.needs_ai_review = false;
     }
   }
 

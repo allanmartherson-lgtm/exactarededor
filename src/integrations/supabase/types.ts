@@ -1388,6 +1388,7 @@ export type Database = {
       rule_calculations: {
         Row: {
           allowed_access_routes: string[] | null
+          application_unit: string
           apply_access_route: boolean
           aux_first_pct: number | null
           aux_second_pct: number | null
@@ -1431,6 +1432,7 @@ export type Database = {
         }
         Insert: {
           allowed_access_routes?: string[] | null
+          application_unit?: string
           apply_access_route?: boolean
           aux_first_pct?: number | null
           aux_second_pct?: number | null
@@ -1474,6 +1476,7 @@ export type Database = {
         }
         Update: {
           allowed_access_routes?: string[] | null
+          application_unit?: string
           apply_access_route?: boolean
           aux_first_pct?: number | null
           aux_second_pct?: number | null

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -65,6 +66,8 @@ export type CalcItem = {
   sectors: string[];
   specialties: string[];
   force_totalized: boolean;
+  /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
+  application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
 };
 
 /** Construtor de item vazio (default sensato). */
@@ -85,6 +88,7 @@ export function makeEmptyCalc(): CalcItem {
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
     sectors: [], specialties: [],
     force_totalized: false,
+    application_unit: "por_item",
   };
 }
 
@@ -269,6 +273,33 @@ function CalcCard({
                 <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
                   <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
                 </div>
+              </div>
+              <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                <Label className="text-xs font-semibold uppercase tracking-wide">Unidade de aplicação</Label>
+                <RadioGroup
+                  value={c.application_unit}
+                  onValueChange={(v) => onChange({ application_unit: v as CalcItem["application_unit"] })}
+                  className="space-y-1"
+                >
+                  <div className="flex items-start gap-2">
+                    <RadioGroupItem value="por_item" id={`au-item-${c.label ?? "x"}`} className="mt-0.5" />
+                    <Label htmlFor={`au-item-${c.label ?? "x"}`} className="text-xs font-normal leading-tight">
+                      <strong>Por item / código</strong> — aplica 1× em cada linha que casar (padrão).
+                    </Label>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <RadioGroupItem value="por_atendimento" id={`au-att-${c.label ?? "x"}`} className="mt-0.5" />
+                    <Label htmlFor={`au-att-${c.label ?? "x"}`} className="text-xs font-normal leading-tight">
+                      <strong>Por atendimento (paciente)</strong> — aplica 1× por atendimento, mesmo com vários códigos/cirurgiões. Use para bônus de plantão de fim de semana/feriado.
+                    </Label>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <RadioGroupItem value="por_paciente_dia" id={`au-pd-${c.label ?? "x"}`} className="mt-0.5" />
+                    <Label htmlFor={`au-pd-${c.label ?? "x"}`} className="text-xs font-normal leading-tight">
+                      <strong>Por paciente + dia</strong> — fallback quando o item não traz número de atendimento.
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
               <p className="text-[11px] text-muted-foreground italic">
                 Nota: Os códigos específicos para este bônus devem ser informados na seção <strong>Códigos específicos</strong> do formulário principal.
@@ -711,6 +742,7 @@ export function calcFromDb(r: any): CalcItem {
     sectors: Array.isArray(r.sectors) ? r.sectors : [],
     specialties: Array.isArray(r.specialties) ? r.specialties : [],
     force_totalized: !!r.force_totalized,
+    application_unit: (r.application_unit === "por_atendimento" || r.application_unit === "por_paciente_dia") ? r.application_unit : "por_item",
   };
 }
 
@@ -769,6 +801,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     sectors: c.has_conditions ? c.sectors : [],
     specialties: c.has_conditions ? c.specialties : [],
     force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
+    application_unit: c.calculation_type === "bonus" ? c.application_unit : "por_item",
   };
 }
 
