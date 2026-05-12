@@ -2,7 +2,7 @@
 // O motor não pode herdar codes/sectors/agreements/access_routes do nível Regra.
 import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  analyzePaymentItems,
+
   validateCalcOnlyFilters,
 } from "./rulesEngine.ts";
 
