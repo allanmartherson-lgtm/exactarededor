@@ -471,6 +471,134 @@ function CalcCard({
             </div>
           )}
 
+          {/* === FILTROS RESTRITIVOS (códigos / convênios / função) === */}
+          <div className="rounded-md border border-amber-300/40 bg-amber-50/40 dark:bg-amber-950/10 p-3 space-y-3">
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                Quando aplicar este cálculo
+              </Label>
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                Restrinja este cálculo específico por código, convênio ou função do médico.
+                Deixe em branco para aplicar a todos. <strong>Cada cálculo tem seu próprio escopo</strong> —
+                use vários cálculos numa mesma regra para cobrir cenários diferentes.
+              </p>
+            </div>
+
+            {/* Códigos */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Códigos TUSS / CBHPM</Label>
+                <Select
+                  value={c.code_match_mode}
+                  onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}
+                >
+                  <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="whitelist">Apenas estes códigos</SelectItem>
+                    <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+                    <SelectItem value="any">Qualquer código</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {c.code_match_mode !== "any" && (
+                <>
+                  <Input
+                    placeholder="Digite um código e pressione Enter (ex: 31005497)"
+                    className="h-8 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault();
+                        const t = e.target as HTMLInputElement;
+                        const vals = t.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                        const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
+                        if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
+                        t.value = "";
+                      }
+                    }}
+                  />
+                  {c.procedure_codes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {c.procedure_codes.map(code => (
+                        <button key={code} type="button"
+                          onClick={() => onChange({ procedure_codes: c.procedure_codes.filter(x => x !== code) })}
+                          className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors font-mono"
+                        >{code} ✕</button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Convênios */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Convênios</Label>
+                <Select
+                  value={c.agreement_match_mode}
+                  onValueChange={(v) => onChange({ agreement_match_mode: v as CalcItem["agreement_match_mode"] })}
+                >
+                  <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="whitelist">Apenas estes convênios</SelectItem>
+                    <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                placeholder="Digite o convênio e pressione Enter (ex: Unimed)"
+                className="h-8 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    const t = e.target as HTMLInputElement;
+                    const v = t.value.trim();
+                    if (v && !c.agreement_aliases.includes(v)) {
+                      onChange({ agreement_aliases: [...c.agreement_aliases, v] });
+                    }
+                    t.value = "";
+                  }
+                }}
+              />
+              {c.agreement_aliases.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {c.agreement_aliases.map(a => (
+                    <button key={a} type="button"
+                      onClick={() => onChange({ agreement_aliases: c.agreement_aliases.filter(x => x !== a) })}
+                      className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                    >{a} ✕</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Função do médico */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Função do médico</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { v: "cirurgiao", label: "Cirurgião principal" },
+                  { v: "primeiro_aux", label: "1º auxiliar" },
+                  { v: "demais_aux", label: "Demais auxiliares" },
+                  { v: "instrumentador", label: "Instrumentador" },
+                ].map(opt => {
+                  const sel = c.doctor_roles.includes(opt.v);
+                  return (
+                    <Button key={opt.v} type="button" size="sm"
+                      variant={sel ? "default" : "outline"}
+                      className="h-7 px-3 text-[11px]"
+                      onClick={() => {
+                        const next = sel ? c.doctor_roles.filter(x => x !== opt.v) : [...c.doctor_roles, opt.v];
+                        onChange({ doctor_roles: next });
+                      }}
+                    >{opt.label}</Button>
+                  );
+                })}
+              </div>
+              <p className="text-[10.5px] text-muted-foreground">Vazio = qualquer função.</p>
+            </div>
+          </div>
+
           {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
           <div className="rounded-md border border-border bg-card p-3 space-y-3">
             <label className="flex items-start gap-2 text-sm cursor-pointer">
