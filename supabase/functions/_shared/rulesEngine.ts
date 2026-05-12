@@ -182,6 +182,13 @@ export interface RuleCalculationItem {
   target_amount?: number | null;
   /** Se verdadeiro, ignora a quantidade para este item de cálculo específico. */
   force_totalized?: boolean | null;
+  /**
+   * Unidade de aplicação do cálculo (usado principalmente em bônus):
+   * - "por_item" (default): aplica em cada linha que casar.
+   * - "por_atendimento": aplica 1× por grupo de atendimento (anchor = procedimento principal).
+   * - "por_paciente_dia": idem, mas usa paciente+data quando não há attendance_number.
+   */
+  application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
 }
 
 export interface ItemInput {
