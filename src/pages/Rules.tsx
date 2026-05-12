@@ -1285,8 +1285,8 @@ const Rules = () => {
         ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
         : null,
       target_name: d.scope === "especifica" ? d.target_name : null,
-      reference_table_id: d.reference_table_id || null,
-      procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
+      reference_table_id: null,
+      procedure_codes: null,
       applies_payment_types: d.applies_payment_types.length ? d.applies_payment_types : null,
       created_by: user!.id,
       target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
@@ -1419,8 +1419,6 @@ const Rules = () => {
     const patch: any = {};
     if (bulkPaymentTerm) patch.payment_term = bulkPaymentTerm;
     if (bulkAppliesTypes.length > 0) patch.applies_payment_types = bulkAppliesTypes;
-    if (bulkRefTableId === "__none") patch.reference_table_id = null;
-    else if (bulkRefTableId) patch.reference_table_id = bulkRefTableId;
     if (Object.keys(patch).length === 0) return toast({ title: "Selecione ao menos um campo para atualizar", variant: "destructive" });
     const ids = Array.from(selected);
     const { error } = await supabase.from("rules").update(patch).in("id", ids);
@@ -2426,13 +2424,7 @@ const Rules = () => {
                                     {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
                                   </span>
                                 )}
-                                {r.reference_table_id && r.rule_type !== "tabela_diferenciada" && (() => {
-                                  const ref = refTables.find((t) => t.id === r.reference_table_id);
-                                  return ref ? <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">📋 {ref.name}</span> : null;
-                                })()}
-                                {r.procedure_codes && r.procedure_codes.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{r.procedure_codes.join(", ")}</span>
-                                )}
+                                {/* Tabela vinculada e códigos agora vivem por Cálculo, não na regra. */}
                                 {incomplete && (
                                   <span className="text-xs rounded-full border border-warning/50 bg-warning/10 text-warning-foreground px-2 py-0.5 flex items-center gap-1">
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
@@ -2493,17 +2485,7 @@ const Rules = () => {
               </div>
               <p className="text-xs text-muted-foreground">Vazio = não altera.</p>
             </div>
-            <div className="space-y-1.5">
-              <Label>Tabela de referência</Label>
-              <Select value={bulkRefTableId || "__keep"} onValueChange={(v) => setBulkRefTableId(v === "__keep" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__keep">Manter</SelectItem>
-                  <SelectItem value="__none">Remover vínculo</SelectItem>
-                  {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Tabela de referência removida do bulk: deve ser configurada por Cálculo. */}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
@@ -2602,21 +2584,7 @@ const Rules = () => {
                   </>}
                 </div>
 
-                {d.rule_type === "pacote" && (
-                  <div className="space-y-1 mb-3"><Label className="text-xs">Valor do pacote (R$)</Label>
-                    <Input type="number" step="0.01" value={d.package_amount ?? ""} onChange={(e) => updateDraft(i, { package_amount: num(e.target.value) })} />
-                  </div>
-                )}
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="space-y-1"><Label className="text-xs">Tabela vinculada (opcional)</Label>
-                    <Select value={d.reference_table_id ?? "__none"} onValueChange={(v) => updateDraft(i, { reference_table_id: v === "__none" ? null : v })}>
-                      <SelectTrigger><SelectValue placeholder={refTables.length ? "Sem vínculo" : "Cadastre uma tabela"} /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">Sem vínculo</SelectItem>
-                        {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="space-y-1"><Label className="text-xs">Prazo de pagamento</Label>
                     <Select value={d.payment_term} onValueChange={(v) => updateDraft(i, { payment_term: v as PaymentTerm })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -2637,54 +2605,11 @@ const Rules = () => {
                     </div>
                   </div>
                 </div>
-                {d.rule_type === "tabela_diferenciada" && (
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="space-y-1"><Label className="text-xs">Multiplicador</Label>
-                      <Input type="number" step="0.01" value={d.multiplier ?? ""} onChange={(e) => updateDraft(i, { multiplier: num(e.target.value) })} />
-                    </div>
-                    <div className="space-y-1"><Label className="text-xs">Deflator (%)</Label>
-                      <Input type="number" step="0.01" value={d.deflator_pct ?? ""} onChange={(e) => updateDraft(i, { deflator_pct: num(e.target.value) })} />
-                    </div>
-                  </div>
-                )}
-                {d.rule_type === "bonus" && (
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="space-y-1"><Label className="text-xs">Bônus fixo (R$)</Label>
-                      <Input type="number" step="0.01" value={d.bonus_amount ?? ""} onChange={(e) => updateDraft(i, { bonus_amount: num(e.target.value) })} />
-                    </div>
-                    <div className="space-y-1"><Label className="text-xs">Bônus (%)</Label>
-                      <Input type="number" step="0.01" value={d.bonus_pct ?? ""} onChange={(e) => updateDraft(i, { bonus_pct: num(e.target.value) })} />
-                    </div>
-                  </div>
-                )}
-                {d.rule_type === "complemento" && (
-                  <div className="space-y-1 mb-3"><Label className="text-xs">Valor alvo (R$)</Label>
-                    <Input type="number" step="0.01" value={d.target_amount ?? ""} onChange={(e) => updateDraft(i, { target_amount: num(e.target.value) })} />
-                  </div>
-                )}
-                {d.calculation_type === "percentual_sobre_convenio" && (
-                  <div className="space-y-1 mb-3"><Label className="text-xs">% sobre convênio (motor)</Label>
-                    <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
-                      value={d.convenio_percentage ?? ""} onChange={(e) => updateDraft(i, { convenio_percentage: num(e.target.value) })} />
-                  </div>
-                )}
-                {d.calculation_type === "valor_fixo" && (
-                  <div className="space-y-1 mb-3"><Label className="text-xs">Valor fixo (R$) (motor)</Label>
-                    <Input type="number" step="0.01"
-                      value={d.fixed_amount ?? ""} onChange={(e) => updateDraft(i, { fixed_amount: num(e.target.value) })} />
-                  </div>
-                )}
-                {d.calculation_type === "pacote_com_extras" && (
-                  <div className="space-y-1 mb-3"><Label className="text-xs">Códigos extras (motor)</Label>
-                    <Input value={d.extras_codes.join(", ")}
-                      onChange={(e) => updateDraft(i, { extras_codes: e.target.value.split(/[,;\s]+/).filter(Boolean) })}
-                      placeholder="Códigos pagos à parte (100% do convênio)" />
-                  </div>
-                )}
 
-                <div className="space-y-1 mb-3"><Label className="text-xs">Códigos de procedimento</Label>
-                  <Input value={d.procedure_codes.join(", ")} onChange={(e) => updateDraft(i, { procedure_codes: e.target.value.split(/[,;\s]+/).filter(Boolean) })} placeholder="Ex: 31005497, 31005470" />
+                <div className="rounded-md border border-dashed border-warning/50 bg-warning/5 p-2 mb-3 text-xs text-warning-foreground">
+                  ⚠ Tabela vinculada, multiplicador, deflator, bônus, valor fixo, % convênio, códigos extras e códigos de procedimento devem ser configurados <strong>no Cálculo</strong> após salvar a regra (botão Editar → aba Cálculos).
                 </div>
+
                 <div className="space-y-1 mb-2"><Label className="text-xs">Descrição</Label>
                   <Input value={d.description} onChange={(e) => updateDraft(i, { description: e.target.value })} />
                 </div>
