@@ -805,8 +805,7 @@ const Rules = () => {
     setFPackageSubtype("fechado");
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
-    setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
+    setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFHasConditions(false);
