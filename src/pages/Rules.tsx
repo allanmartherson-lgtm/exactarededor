@@ -2143,7 +2143,6 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
-          </div>
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
             <span>Só desatualizadas</span>
