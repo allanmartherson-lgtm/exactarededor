@@ -522,9 +522,9 @@ function AgreementCombobox({ value, onChange }: { value: string; onChange: (v: s
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 min-w-0">
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      {children}
+      <div className="min-w-0 [&_*]:max-w-full">{children}</div>
     </div>
   );
 }
