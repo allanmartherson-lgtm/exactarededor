@@ -838,7 +838,7 @@ const Rules = () => {
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
-    setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
+    // procedure_codes legados ignorados — agora vivem por Cálculo.
     setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
