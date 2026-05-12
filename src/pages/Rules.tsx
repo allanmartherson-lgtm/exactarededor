@@ -1802,25 +1802,8 @@ const Rules = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="setores" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">
-                      Especialidades vinculadas
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-1 pb-3">
-                      <div className="space-y-1.5">
-                        <Label>Especialidades (opcional)</Label>
-                        <MultiSelectChips
-                          values={fSpecialties}
-                          onChange={setFSpecialties}
-                          options={[]} // lista de sugestões pode ser carregada via DB se necessário
-                          placeholder="Selecionar ou digitar especialidade..."
-                          allowCustom={true}
-                          emptyHint="Vazio = aplica a todas as especialidades."
-                        />
-                        <p className="text-xs text-muted-foreground">A regra será filtrada apenas para atendimentos marcados com estas especialidades no arquivo.</p>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  {/* Accordion "Especialidades vinculadas" removido —
+                      especialidade é apenas metadado de relatório/filtro e nunca afeta cálculo. */}
 
                   {/* Aplicação da regra */}
                   <AccordionItem value="aplicacao" className="rounded-md border border-border bg-card px-3">
