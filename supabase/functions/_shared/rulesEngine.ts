@@ -1404,6 +1404,15 @@ function applyCalculationSingle(
 function calcBonus(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: "Bônus — valor base ausente.", alerts: ["procedure_amount ausente."] };
+  const hasFixed = rule.bonus_amount != null;
+  const hasPct = rule.bonus_pct != null;
+  if (!hasFixed && !hasPct) {
+    return {
+      expected: null,
+      explanation: "Bônus mal configurado: nenhum valor (bonus_amount) nem percentual (bonus_pct) definido no cálculo.",
+      alerts: ["Cálculo de bônus sem bonus_amount e sem bonus_pct — regra ignorada."],
+    };
+  }
   const fixed = rule.bonus_amount ?? 0;
   const pct = rule.bonus_pct ?? 0;
   const value = base + fixed + base * (pct / 100);
