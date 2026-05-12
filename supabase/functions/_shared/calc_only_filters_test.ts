@@ -1,6 +1,6 @@
 // Garante que filtros restritivos vivem apenas no item de Cálculo.
 // O motor não pode herdar codes/sectors/agreements/access_routes do nível Regra.
-import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
 
   validateCalcOnlyFilters,
