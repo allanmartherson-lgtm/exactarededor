@@ -106,11 +106,9 @@ const num = (v: any): number | null => {
   return isFinite(n) ? n : null;
 };
 
-// Campos "novos" que toda regra deve ter preenchidos. Quando adicionar um novo campo,
-// inclua aqui para o sistema cobrar atualização nas regras antigas.
-const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [
-  { key: "sectors", label: "Setores (multi)", isMissing: (r) => !Array.isArray(r.sectors) || r.sectors.length === 0 },
-];
+// Campos "novos" exigidos no nível Regra. Restritivos (setores/especialidades/códigos/
+// convênios/vias) vivem por Cálculo agora — nada aqui.
+const REQUIRED_NEW_FIELDS: { key: string; label: string; isMissing: (r: RuleRow) => boolean }[] = [];
 // regra fica "incompleta" se faltar QUALQUER campo novo de fato exigido
 const isIncomplete = (r: RuleRow) => REQUIRED_NEW_FIELDS.some((f) => f.isMissing(r));
 const missingFields = (r: RuleRow) => REQUIRED_NEW_FIELDS.filter((f) => f.isMissing(r)).map((f) => f.label);
