@@ -38,7 +38,6 @@ function makeRule(overrides: Partial<RuleInput> = {}): RuleInput {
     target_name: "ACME LTDA",
     target_company_id: "company-1",
     procedure_codes: null,
-    applies_payment_types: null,
     valid_from: null,
     valid_until: null,
     calculation_type: "percentual_sobre_convenio",

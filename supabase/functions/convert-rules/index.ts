@@ -43,16 +43,17 @@ Cada regra deve ter:
 - rule_text: texto da regra em português descrevendo a condição
 - severity: 'info' | 'aviso' | 'bloqueio' ('bloqueio' impede pagamento; 'aviso' alerta o validador; 'info' é observação)
 - scope: 'master' (regra geral, vale para todos quando não há específica) ou 'especifica' (vale apenas para um médico ou empresa)
-- sector: 'cirurgia' | 'hemodinamica' | 'parecer' | 'visita' | 'procedimento' | 'consulta' | 'outro' — identifique pelo contexto; use 'outro' se não estiver claro
+- sectors: array com um ou mais setores: 'cirurgia' | 'hemodinamica' | 'parecer' | 'visita' | 'procedimento' | 'consulta' | 'outro' — identifique pelo contexto; use ['outro'] se não estiver claro
 - target_type: 'medico' | 'empresa' | null — preencha apenas se scope='especifica'
 - target_identifier: CPF (médico) ou CNPJ (empresa), apenas se scope='especifica' e mencionado
 - target_name: nome do médico ou da empresa, apenas se scope='especifica' e mencionado
 
-- rule_type: 'informativo' | 'pacote' | 'tabela_diferenciada' | 'bonus' | 'complemento'
+- calculation_type: 'informativo' | 'pacote' | 'tabela_diferenciada' | 'tabela_referencia' | 'bonus' | 'complemento' | 'percentual_fixo'
     * 'pacote': valor fixo para o procedimento todo. Preencha package_amount (R$).
-    * 'tabela_diferenciada': pagamento baseado em tabela de referência (ex: CBHPM 2018). Preencha multiplier (ex: 1.5) e/ou deflator_pct (ex: 5 para 5%). Se mencionar uma tabela específica, coloque o nome no campo description.
+    * 'tabela_diferenciada' / 'tabela_referencia': pagamento baseado em tabela de referência. Preencha multiplier e/ou deflator_pct. Se mencionar uma tabela específica, coloque o nome no campo description.
     * 'bonus': honorário + adicional. Preencha bonus_amount (R$ fixo) OU bonus_pct (%).
     * 'complemento': completa o valor para chegar ao acordado. Preencha target_amount (R$).
+    * 'percentual_fixo': repasse percentual sobre o valor do procedimento.
     * 'informativo': qualquer regra que apenas alerta/bloqueia (default).
 - procedure_codes: array de códigos de procedimento (ex: ["31005497","31005470"]) quando a regra cita códigos específicos. Vazio se não houver.
 - package_amount, bonus_amount, bonus_pct, target_amount, multiplier, deflator_pct: numéricos ou null.
@@ -78,11 +79,11 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
                       rule_text: { type: "string" },
                       severity: { type: "string", enum: ["info", "aviso", "bloqueio"] },
                       scope: { type: "string", enum: ["master", "especifica"] },
-                      sector: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] },
+                      sectors: { type: "array", items: { type: "string", enum: ["cirurgia", "hemodinamica", "parecer", "visita", "procedimento", "consulta", "outro"] } },
                       target_type: { type: ["string", "null"], enum: ["medico", "empresa", null] },
                       target_identifier: { type: ["string", "null"] },
                       target_name: { type: ["string", "null"] },
-                      rule_type: { type: "string", enum: ["informativo","pacote","tabela_diferenciada","bonus","complemento"] },
+                      calculation_type: { type: "string", enum: ["informativo","pacote","tabela_diferenciada","tabela_referencia","bonus","complemento","percentual_fixo"] },
                       package_amount: { type: ["number","null"] },
                       bonus_amount: { type: ["number","null"] },
                       bonus_pct: { type: ["number","null"] },
@@ -91,7 +92,7 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
                       deflator_pct: { type: ["number","null"] },
                       procedure_codes: { type: "array", items: { type: "string" } },
                     },
-                    required: ["name", "description", "rule_text", "severity", "scope", "sector", "rule_type"],
+                    required: ["name", "description", "rule_text", "severity", "scope", "sectors", "calculation_type"],
                     additionalProperties: false,
                   },
                 },
