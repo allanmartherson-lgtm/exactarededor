@@ -125,6 +125,11 @@ serve(async (req) => {
       `)
       .eq("active", true);
 
+    if (rulesErr) {
+      console.error("[simulate-rule] rules query error:", rulesErr);
+      throw new Error(`Falha ao carregar regras: ${rulesErr.message}`);
+    }
+
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
 
     if (rules.length > 0) {
