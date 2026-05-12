@@ -1249,10 +1249,6 @@ const Rules = () => {
 
   // filtered + grouped
   const filtered = useMemo(() => {
-    const filterCompanyId = filterCompany?.id ?? null;
-    const companyDigits = filterCompany?.document ? onlyDigits(filterCompany.document) : null;
-    const filterDoctorCrm = filterDoctor?.crm ?? null;
-
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
@@ -1260,43 +1256,9 @@ const Rules = () => {
       if (!sectorOk) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
-      
-      if (filterCompanyId) {
-        const linked = r.target_company_id === filterCompanyId;
-        const matchByCnpj = !linked && companyDigits && r.target_identifier && onlyDigits(r.target_identifier) === companyDigits;
-        // Verifica também em group_company_links (escopo grupo)
-        const inGroup = Array.isArray(r.group_company_links) && r.group_company_links.some((l: any) => l.company_id === filterCompanyId);
-        const inGroupIds = Array.isArray(r.group_company_ids) && r.group_company_ids.includes(filterCompanyId);
-        if (!linked && !matchByCnpj && !inGroup && !inGroupIds) return false;
-      }
-
-      if (filterDoctor) {
-        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const dName = norm(filterDoctor.name);
-        
-        // Match no alvo específico
-        const specificMatch = r.target_type === 'medico' && (
-          norm(r.target_name ?? "") === dName || 
-          (filterDoctorCrm && r.target_identifier === filterDoctorCrm)
-        );
-
-        // Match na lista de médicos da regra
-        const inList = Array.isArray(r.doctors) && r.doctors.some((d: any) => norm(d.name) === dName);
-
-        // Match no grupo de médicos
-        const inGroup = Array.isArray(r.group_doctors) && r.group_doctors.some((d: any) => norm(d.name) === dName);
-
-        // Match nos médicos de vínculos por empresa
-        const inLinks = Array.isArray(r.group_company_links) && r.group_company_links.some((l: any) => 
-          Array.isArray(l.doctors) && l.doctors.some((d: any) => norm(d.name) === dName)
-        );
-
-        if (!specificMatch && !inList && !inGroup && !inLinks) return false;
-      }
-
       return true;
     });
-  }, [rules, filterScope, filterSector, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterTarget, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
