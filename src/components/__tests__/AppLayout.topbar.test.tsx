@@ -133,6 +133,7 @@ describe("AppLayout topbar navigation", () => {
       "KPIs",
       "Regras de Pagamento",
       "Regras de Validação",
+      "Simulador de Regras",
       "Tabelas de referência",
       "Empresas",
       "Apelidos aprendidos",
@@ -144,6 +145,6 @@ describe("AppLayout topbar navigation", () => {
       "Auditoria",
       "Anomalias de status",
     ]);
-    expect(collected).toHaveLength(16);
+    expect(collected).toHaveLength(17);
   });
 });
