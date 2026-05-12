@@ -1285,8 +1285,8 @@ const Rules = () => {
         ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
         : null,
       target_name: d.scope === "especifica" ? d.target_name : null,
-      reference_table_id: d.reference_table_id || null,
-      procedure_codes: d.procedure_codes.length ? d.procedure_codes : null,
+      reference_table_id: null,
+      procedure_codes: null,
       applies_payment_types: d.applies_payment_types.length ? d.applies_payment_types : null,
       created_by: user!.id,
       target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
