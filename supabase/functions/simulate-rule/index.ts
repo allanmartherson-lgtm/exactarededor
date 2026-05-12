@@ -105,7 +105,7 @@ serve(async (req) => {
     };
 
     // ---- 3. Carrega regras ativas + cálculos ----
-    const { data: rulesRaw } = await supabase
+    const { data: rulesRaw, error: rulesErr } = await supabase
       .from("rules")
       .select(`
         id,name,rule_text,description,active,severity,scope,
@@ -124,6 +124,11 @@ serve(async (req) => {
         force_totalized
       `)
       .eq("active", true);
+
+    if (rulesErr) {
+      console.error("[simulate-rule] rules query error:", rulesErr);
+      throw new Error(`Falha ao carregar regras: ${rulesErr.message}`);
+    }
 
     const rules: RuleInput[] = (rulesRaw ?? []) as unknown as RuleInput[];
 
