@@ -11,26 +11,32 @@ vi.mock("@/hooks/usePaymentDetailData", () => ({
 }));
 
 // Mock do supabase client
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          order: vi.fn(() => ({
-            abortSignal: vi.fn(() => Promise.resolve({ data: [] })),
-          })),
-          abortSignal: vi.fn(() => Promise.resolve({ data: [] })),
-        })),
-        abortSignal: vi.fn(() => Promise.resolve({ data: [] })),
+vi.mock("@/integrations/supabase/client", () => {
+  const ok = () => Promise.resolve({ data: [], error: null });
+  const okSingle = () => Promise.resolve({ data: null, error: null });
+  const chain: any = new Proxy(
+    {},
+    {
+      get(_t, prop: string) {
+        if (prop === "then") return undefined;
+        if (prop === "maybeSingle" || prop === "single") return vi.fn(okSingle);
+        if (prop === "abortSignal" || prop === "range" || prop === "csv")
+          return vi.fn(ok);
+        return vi.fn(() => chain);
+      },
+    },
+  );
+  return {
+    supabase: {
+      from: vi.fn(() => chain),
+      channel: vi.fn(() => ({
+        on: vi.fn().mockReturnThis(),
+        subscribe: vi.fn(),
       })),
-    })),
-    channel: vi.fn(() => ({
-      on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn(),
-    })),
-    removeChannel: vi.fn(),
-  },
-}));
+      removeChannel: vi.fn(),
+    },
+  };
+});
 
 const mockUser = { id: "user-1", email: "test@example.com" };
 
