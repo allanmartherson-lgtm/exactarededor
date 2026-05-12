@@ -928,13 +928,8 @@ const Rules = () => {
       instrumentador_pct: null,
       repasse_pct: null,
       apply_access_route: false,
-      procedure_codes: null,
-      sectors: [],
-      specialties: [],
       agreement_name: null,
-      agreement_aliases: [],
       agreement_match_mode: "whitelist",
-      allowed_access_routes: null,
       // ===== Campos próprios da Regra =====
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
