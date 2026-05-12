@@ -19,9 +19,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import {
   TONE_CLASSES,
-  type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType, type RuleType,
+  type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType,
   RULE_SCOPE_LABELS, RULE_SECTOR_LABELS, RULE_TARGET_TYPE_LABELS,
-  RULE_TYPE_LABELS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
 import {
@@ -48,10 +47,21 @@ import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
-type PaymentTerm = "qualquer" | "prioridade" | "habitual";
-const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
+// Tipos legados — usados só para renderizar regras antigas que ainda têm esses campos
+// (read-only). Nunca são gravados no payload de submitRule/saveDrafts.
+type LegacyRuleType = string;
+type PaymentTerm = string;
+const RULE_TYPE_LABELS: Record<string, string> = {
+  informativo: "Informativa / bloqueio",
+  pacote: "Pacote (valor fixo)",
+  tabela_diferenciada: "Tabela diferenciada",
+  bonus: "Bônus",
+  complemento: "Complemento",
+};
+const PAYMENT_TERM_LABELS: Record<string, string> = {
   qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
 };
+
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
@@ -78,9 +88,8 @@ type RuleRow = any;
 type DraftRule = {
   active: boolean;
   name: string; description: string; rule_text: string;
-  severity: RuleSeverity; scope: RuleScope; sector: RuleSector;
+  severity: RuleSeverity; scope: RuleScope;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
-  rule_type: RuleType;
   calculation_type: RuleCalculationType;
   convenio_percentage: number | null;
   fixed_amount: number | null;
@@ -88,37 +97,20 @@ type DraftRule = {
   package_amount: number | null; bonus_amount: number | null; bonus_pct: number | null;
   target_amount: number | null; multiplier: number | null; deflator_pct: number | null;
   reference_table_id: string | null; procedure_codes: string[];
-  payment_term: PaymentTerm; applies_payment_types: PaymentType[];
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
-  doctors: { name: string; crm?: string }[];
 };
 
 /**
- * Mapeia rule_type legado → calculation_type (motor novo).
- * Mesma lógica da migração SQL — usado quando a IA importa regras no formato antigo.
+ * Mapeia rule_type legado (vindo da IA) → calculation_type (motor novo).
  */
-const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
+const inferCalculationType = (ruleType: string | null | undefined): RuleCalculationType => {
   switch (ruleType) {
     case "pacote":              return "pacote";
     case "tabela_diferenciada": return "tabela_diferenciada";
     case "bonus":               return "bonus";
     case "complemento":         return "complemento";
-    case "informativo":         return "informativo";
-  }
-};
-
-/** Deriva o `rule_type` (legado) a partir do `calculation_type` (novo motor). */
-const deriveRuleType = (calc: RuleCalculationType): RuleType => {
-  switch (calc) {
-    case "pacote":
-    case "pacote_fechado":
-    case "pacote_com_extras":
-    case "pacote_por_atendimento": return "pacote";
-    case "tabela_diferenciada":    return "tabela_diferenciada";
-    case "bonus":                  return "bonus";
-    case "complemento":            return "complemento";
-    default:                       return "informativo";
+    default:                    return "informativo";
   }
 };
 
@@ -188,7 +180,7 @@ const Rules = () => {
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
-  const [ruleType, setRuleType] = useState<RuleType>("informativo");
+  const [ruleType, setRuleType] = useState<LegacyRuleType>("informativo");
   // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
   const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
   // === Novo motor (Fase 4) ===
@@ -356,7 +348,7 @@ const Rules = () => {
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
-  const [filterType, setFilterType] = useState<"todos" | RuleType>("todos");
+  const [filterType, setFilterType] = useState<"todos" | LegacyRuleType>("todos");
   const [filterTarget, setFilterTarget] = useState("");
   const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
   const [filterDoctor, setFilterDoctor] = useState<DoctorOption | null>(null);
@@ -451,7 +443,7 @@ const Rules = () => {
       ["Campo", "Valor"],
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
-      ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type ?? "Informativo"],
+      ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as LegacyRuleType] ?? r.rule_type ?? "Informativo"],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
       ["Setor / Item", Array.isArray(r.sectors) && r.sectors.length > 0 
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
@@ -842,8 +834,8 @@ const Rules = () => {
     setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
-    setRuleType((r.rule_type as RuleType) ?? "informativo");
-    const calc = (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo");
+    setRuleType((r.rule_type as LegacyRuleType) ?? "informativo");
+    const calc = (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as LegacyRuleType) ?? "informativo");
     setFCalculationType(calc);
     setFNature(calc === "informativo" ? "informativo" : "calculavel");
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
@@ -966,15 +958,13 @@ const Rules = () => {
     const head = fCalculations[0] ?? makeEmptyCalc();
     const effectiveCalc: RuleCalculationType =
       fNature === "informativo" ? "informativo" : head.calculation_type;
-    const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
     const payload: any = {
       active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
-      severity: fSeverity, scope, sector: fSector,
+      severity: fSeverity, scope,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
-      rule_type: effectiveRuleType,
       calculation_type: effectiveCalc,
       // ===== Campos de cálculo: TODOS nulos no nível Regra =====
       convenio_percentage: null,
@@ -1011,14 +1001,9 @@ const Rules = () => {
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       exception_table_ids: fExceptionTableIds,
-      payment_term: paymentTerm,
-      applies_payment_types: appliesTypes.length ? appliesTypes : null,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
-      doctors: fDoctors,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
-      group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
-      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: "qualquer",
       weekdays: [],
       includes_holidays: false,
@@ -1243,7 +1228,7 @@ const Rules = () => {
         severity: r.severity ?? "aviso", scope: r.scope ?? "master", sector: r.sector ?? "outro",
         target_type: r.target_type ?? null, target_identifier: r.target_identifier ?? null, target_name: r.target_name ?? null,
         rule_type: r.rule_type ?? "informativo",
-        calculation_type: (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as RuleType) ?? "informativo"),
+        calculation_type: (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as LegacyRuleType) ?? "informativo"),
         convenio_percentage: r.convenio_percentage ?? null,
         fixed_amount: r.fixed_amount ?? r.bonus_amount ?? r.target_amount ?? null,
         extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes : [],
@@ -2395,7 +2380,7 @@ const Rules = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                                <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as RuleType] ?? r.rule_type}</span>
+                                <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as LegacyRuleType] ?? r.rule_type}</span>
                                 {Array.isArray(r.sectors) && r.sectors.length > 0 ? (
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
                                     {(r.sectors as RuleSector[]).map((s) => RULE_SECTOR_LABELS[s] ?? s).join(" · ")}
@@ -2512,7 +2497,7 @@ const Rules = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   <div className="space-y-1"><Label className="text-xs">Tipo</Label>
-                    <Select value={d.rule_type} onValueChange={(v) => updateDraft(i, { rule_type: v as RuleType })}>
+                    <Select value={d.rule_type} onValueChange={(v) => updateDraft(i, { rule_type: v as LegacyRuleType })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
