@@ -21,7 +21,7 @@ import {
   TONE_CLASSES,
   type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType,
   RULE_SCOPE_LABELS, RULE_SECTOR_LABELS, RULE_TARGET_TYPE_LABELS,
-  formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
+  formatCurrency,
 } from "@/lib/status";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
@@ -30,11 +30,11 @@ import {
 import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DoctorsEditor, MultiSelectChips } from "@/components/MultiSelectChips";
-import { DoctorCombobox, type DoctorOption } from "@/components/DoctorCombobox";
+import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
-import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { CompanyCombobox } from "@/components/CompanyCombobox";
 import {
   RuleCalculationsEditor,
   makeEmptyCalc,
@@ -316,8 +316,6 @@ const Rules = () => {
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
   
   const [filterTarget, setFilterTarget] = useState("");
-  const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
-  const [filterDoctor, setFilterDoctor] = useState<DoctorOption | null>(null);
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -1251,10 +1249,6 @@ const Rules = () => {
 
   // filtered + grouped
   const filtered = useMemo(() => {
-    const filterCompanyId = filterCompany?.id ?? null;
-    const companyDigits = filterCompany?.document ? onlyDigits(filterCompany.document) : null;
-    const filterDoctorCrm = filterDoctor?.crm ?? null;
-
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       const sectorOk = filterSector === "todos" ||
@@ -1262,43 +1256,9 @@ const Rules = () => {
       if (!sectorOk) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
-      
-      if (filterCompanyId) {
-        const linked = r.target_company_id === filterCompanyId;
-        const matchByCnpj = !linked && companyDigits && r.target_identifier && onlyDigits(r.target_identifier) === companyDigits;
-        // Verifica também em group_company_links (escopo grupo)
-        const inGroup = Array.isArray(r.group_company_links) && r.group_company_links.some((l: any) => l.company_id === filterCompanyId);
-        const inGroupIds = Array.isArray(r.group_company_ids) && r.group_company_ids.includes(filterCompanyId);
-        if (!linked && !matchByCnpj && !inGroup && !inGroupIds) return false;
-      }
-
-      if (filterDoctor) {
-        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const dName = norm(filterDoctor.name);
-        
-        // Match no alvo específico
-        const specificMatch = r.target_type === 'medico' && (
-          norm(r.target_name ?? "") === dName || 
-          (filterDoctorCrm && r.target_identifier === filterDoctorCrm)
-        );
-
-        // Match na lista de médicos da regra
-        const inList = Array.isArray(r.doctors) && r.doctors.some((d: any) => norm(d.name) === dName);
-
-        // Match no grupo de médicos
-        const inGroup = Array.isArray(r.group_doctors) && r.group_doctors.some((d: any) => norm(d.name) === dName);
-
-        // Match nos médicos de vínculos por empresa
-        const inLinks = Array.isArray(r.group_company_links) && r.group_company_links.some((l: any) => 
-          Array.isArray(l.doctors) && l.doctors.some((d: any) => norm(d.name) === dName)
-        );
-
-        if (!specificMatch && !inList && !inGroup && !inLinks) return false;
-      }
-
       return true;
     });
-  }, [rules, filterScope, filterSector, filterTarget, filterCompany, filterDoctor, onlyIncomplete]);
+  }, [rules, filterScope, filterSector, filterTarget, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
@@ -2183,28 +2143,6 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
-          <CompanyCombobox
-            value={filterCompany}
-            onChange={setFilterCompany}
-            placeholder="Filtrar por empresa (CNPJ)…"
-            className="min-w-[240px] h-9"
-          />
-          {filterCompany && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)} className="h-9 px-2">
-              <X className="h-4 w-4 mr-1" />
-            </Button>
-          )}
-          <DoctorCombobox
-            value={filterDoctor}
-            onChange={setFilterDoctor}
-            placeholder="Filtrar por médico (CRM)…"
-            className="min-w-[240px] h-9"
-          />
-          {filterDoctor && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
-              <X className="h-4 w-4 mr-1" />
-            </Button>
-          )}
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
             <span>Só desatualizadas</span>
