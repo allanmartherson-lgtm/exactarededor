@@ -2400,26 +2400,7 @@ const Rules = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* Códigos específicos */}
-                  <AccordionItem value="codigos" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Códigos específicos</AccordionTrigger>
-                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                      <div className="space-y-1.5"><Label>Códigos de procedimento (opcional)</Label>
-                        <Input placeholder="Ex: 31005497, 31005470; 31002390"
-                          value={codesInput} onChange={(e) => setCodesInput(e.target.value)} />
-                        <p className="text-xs text-muted-foreground">
-                          Separe por vírgula <code>,</code>, ponto e vírgula <code>;</code> ou espaço.
-                        </p>
-                        {parsedCodes.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {parsedCodes.map((c, i) => (
-                              <span key={`${c}-${i}`} className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{c}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  {/* Códigos específicos: removido — agora dentro de cada cálculo. */}
                 </Accordion>
 
             </form>
