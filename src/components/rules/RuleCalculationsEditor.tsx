@@ -526,6 +526,15 @@ function CalcCard({
                       ))}
                     </div>
                   )}
+                  {c.code_match_mode === "whitelist"
+                    && c.procedure_codes.length === 0
+                    && c.calculation_type !== "tabela_diferenciada" && (
+                    <p className="text-[11px] text-destructive leading-tight">
+                      ⚠️ <strong>Whitelist sem códigos</strong> faz este cálculo capturar
+                      qualquer item. Liste os códigos específicos ou troque o modo para
+                      "Qualquer código". Permitido apenas em "Tabela diferenciada".
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -960,6 +969,18 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
   };
 }
 
+/**
+ * Misconfigurações que indicam anti-padrão de "whitelist sem códigos".
+ * Permitido apenas em `tabela_diferenciada`, onde a própria tabela define o universo de códigos.
+ */
+export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
+  return (
+    c.code_match_mode === "whitelist" &&
+    c.procedure_codes.length === 0 &&
+    c.calculation_type !== "tabela_diferenciada"
+  );
+}
+
 /** Erros por item para feedback visual no formulário (apenas validações fortes). */
 export function calcItemErrors(c: CalcItem): number {
   let n = 0;
@@ -970,5 +991,6 @@ export function calcItemErrors(c: CalcItem): number {
   if ((c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
     || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento") && !c.package_amount) n++;
   if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) n++;
+  if (calcItemHasWhitelistWithoutCodes(c)) n++;
   return n;
 }
