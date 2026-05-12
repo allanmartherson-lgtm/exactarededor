@@ -94,7 +94,7 @@ export default function RuleSimulator() {
   };
 
   const result = data?.result;
-  const ruleNames: Record<string, string> = data?.rule_names ?? {};
+  
   const trace = result?.selection_trace;
   const breakdown = result?.calculation_breakdown ?? [];
 
