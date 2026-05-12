@@ -2253,15 +2253,11 @@ const Rules = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                                <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as LegacyRuleType] ?? r.rule_type}</span>
-                                {Array.isArray(r.sectors) && r.sectors.length > 0 ? (
+                                {Array.isArray(r.sectors) && r.sectors.length > 0 && (
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
                                     {(r.sectors as RuleSector[]).map((s) => RULE_SECTOR_LABELS[s] ?? s).join(" · ")}
                                   </span>
-                                ) : (
-                                  <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                                 )}
-                                {/* Especialidade não é eixo do motor — não exibimos como badge de regra. */}
                                  {(r.valid_from || r.valid_until) && (
                                   <span className={cn(
                                     "text-xs rounded-full border px-2 py-0.5",
@@ -2272,19 +2268,7 @@ const Rules = () => {
                                     Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
                                   </span>
                                 )}
-                                {Array.isArray(r.doctors) && r.doctors.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">👤 {r.doctors.length} médico{r.doctors.length > 1 ? "s" : ""}</span>
-                                )}
                                 {renderCalcBadge(r)}
-                                {r.payment_term && r.payment_term !== "qualquer" && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
-                                )}
-                                {r.applies_payment_types && r.applies_payment_types.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
-                                    {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
-                                  </span>
-                                )}
-                                {/* Tabela vinculada e códigos agora vivem por Cálculo, não na regra. */}
                                 {incomplete && (
                                   <span className="text-xs rounded-full border border-warning/50 bg-warning/10 text-warning-foreground px-2 py-0.5 flex items-center gap-1">
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
