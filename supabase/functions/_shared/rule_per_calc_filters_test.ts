@@ -116,19 +116,19 @@ const fdsRule = rule({
   ],
 } as any);
 
-Deno.test("Bônus FDS — código de Cirurgia Geral cai no Cálculo 1 (R$ 1500)", () => {
-  const r = analyzePaymentItems([item({ procedure_code: CIRURGIA_GERAL[1] })], [fdsRule], baseCtx);
+Deno.test("Bônus FDS — código de Cirurgia Geral cai no Cálculo 1 (R$ 1500 + base)", () => {
+  const r = analyzePaymentItems([item({ procedure_code: CIRURGIA_GERAL[1], gross_amount: 0, procedure_amount: 0 })], [fdsRule], baseCtx);
   assertEquals(r[0].matched_rule_id, fdsRule.id);
   assertEquals(r[0].expected_amount, 1500);
 });
 
-Deno.test("Bônus FDS — código de Bariátrica cai no Cálculo 2 (R$ 3000)", () => {
-  const r = analyzePaymentItems([item({ procedure_code: BARIATRICA })], [fdsRule], baseCtx);
+Deno.test("Bônus FDS — código de Bariátrica cai no Cálculo 2 (R$ 3000 + base)", () => {
+  const r = analyzePaymentItems([item({ procedure_code: BARIATRICA, gross_amount: 0, procedure_amount: 0 })], [fdsRule], baseCtx);
   assertEquals(r[0].expected_amount, 3000);
 });
 
-Deno.test("Bônus FDS — código não listado cai no Fallback (R$ 500)", () => {
-  const r = analyzePaymentItems([item({ procedure_code: "99999999" })], [fdsRule], baseCtx);
+Deno.test("Bônus FDS — código não listado cai no Fallback (R$ 500 + base)", () => {
+  const r = analyzePaymentItems([item({ procedure_code: "99999999", gross_amount: 0, procedure_amount: 0 })], [fdsRule], baseCtx);
   assertEquals(r[0].expected_amount, 500);
 });
 
@@ -136,6 +136,8 @@ Deno.test("Bônus FDS — dia útil não casa nenhum cálculo (sem_regra)", () =
   const weekdayItem = item({
     procedure_code: CIRURGIA_GERAL[0],
     procedure_date: "2026-05-06T10:00:00", // quarta
+    gross_amount: 0,
+    procedure_amount: 0,
   });
   const ctx = { ...baseCtx, reference_date: "2026-05-06" };
   const r = analyzePaymentItems([weekdayItem], [fdsRule], ctx);
