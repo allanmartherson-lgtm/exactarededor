@@ -70,6 +70,23 @@ const WEEKDAY_LABELS: { v: number; label: string }[] = [
 ];
 
 type RuleRow = any;
+
+/**
+ * Detecta restritivos legados ainda armazenados no NÍVEL REGRA.
+ * Pós-refatoração, esses filtros vivem por Cálculo. Quando aparecerem aqui,
+ * a regra é "legada" e merece um aviso visual para que o operador migre os
+ * critérios para dentro de cada cálculo.
+ */
+function legacyRuleLevelFilters(r: RuleRow): string[] {
+  const out: string[] = [];
+  const has = (v: unknown) => Array.isArray(v) && v.length > 0;
+  if (has(r?.procedure_codes)) out.push("códigos");
+  if (has(r?.sectors)) out.push("setores");
+  if (has(r?.specialties)) out.push("especialidades");
+  if (has(r?.agreement_aliases)) out.push("convênios");
+  if (has(r?.allowed_access_routes)) out.push("vias de acesso");
+  return out;
+}
 type DraftRule = {
   active: boolean;
   name: string; description: string; rule_text: string;
