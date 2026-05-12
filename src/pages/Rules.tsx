@@ -298,10 +298,7 @@ const Rules = () => {
     try { window.localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(accordionValue)); } catch {}
   }, [accordionValue]);
 
-  const parsedCodes = useMemo(
-    () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
-    [codesInput]
-  );
+  // parsedCodes removido — códigos restritivos vivem em cada Cálculo.
 
   // Erros por seção do formulário (feedback visual + auto-abrir seção com erro)
   const sectionErrors = useMemo(() => {
