@@ -1568,6 +1568,7 @@ export type Database = {
           fixed_amount: number | null
           force_totalized: boolean | null
           group_company_links: Json
+          group_doctors: Json
           has_conditions: boolean | null
           id: string
           include_auxiliaries: boolean
@@ -1632,6 +1633,7 @@ export type Database = {
           fixed_amount?: number | null
           force_totalized?: boolean | null
           group_company_links?: Json
+          group_doctors?: Json
           has_conditions?: boolean | null
           id?: string
           include_auxiliaries?: boolean
@@ -1696,6 +1698,7 @@ export type Database = {
           fixed_amount?: number | null
           force_totalized?: boolean | null
           group_company_links?: Json
+          group_doctors?: Json
           has_conditions?: boolean | null
           id?: string
           include_auxiliaries?: boolean

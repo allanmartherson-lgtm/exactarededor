@@ -825,7 +825,7 @@ const Rules = () => {
     setFDoctors([]);
     const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
     setFGroupCompanyIds([]);
-    setFGroupDoctors([]);
+    setFGroupDoctors(Array.isArray((r as any).group_doctors) ? (r as any).group_doctors : []);
     setFGroupMode("empresa");
     setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
     const tMode = (r.time_mode as TimeMode) ?? "qualquer";
@@ -937,6 +937,7 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
+      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: "qualquer",
       weekdays: [],
       includes_holidays: false,

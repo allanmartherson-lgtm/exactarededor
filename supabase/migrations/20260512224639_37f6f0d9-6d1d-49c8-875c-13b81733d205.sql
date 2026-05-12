@@ -1,0 +1,1 @@
+ALTER TABLE public.rules ADD COLUMN IF NOT EXISTS group_doctors jsonb NOT NULL DEFAULT '[]'::jsonb;
