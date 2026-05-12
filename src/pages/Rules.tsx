@@ -73,9 +73,8 @@ type RuleRow = any;
 type DraftRule = {
   active: boolean;
   name: string; description: string; rule_text: string;
-  severity: RuleSeverity; scope: RuleScope; sector: RuleSector;
+  severity: RuleSeverity; scope: RuleScope;
   target_type: RuleTargetType | null; target_identifier: string | null; target_name: string | null;
-  rule_type: RuleType;
   calculation_type: RuleCalculationType;
   convenio_percentage: number | null;
   fixed_amount: number | null;
@@ -83,37 +82,20 @@ type DraftRule = {
   package_amount: number | null; bonus_amount: number | null; bonus_pct: number | null;
   target_amount: number | null; multiplier: number | null; deflator_pct: number | null;
   reference_table_id: string | null; procedure_codes: string[];
-  payment_term: PaymentTerm; applies_payment_types: PaymentType[];
   sectors: string[]; specialties: string[];
   valid_from: string | null; valid_until: string | null;
-  doctors: { name: string; crm?: string }[];
 };
 
 /**
- * Mapeia rule_type legado → calculation_type (motor novo).
- * Mesma lógica da migração SQL — usado quando a IA importa regras no formato antigo.
+ * Mapeia rule_type legado (vindo da IA) → calculation_type (motor novo).
  */
-const inferCalculationType = (ruleType: RuleType): RuleCalculationType => {
+const inferCalculationType = (ruleType: string | null | undefined): RuleCalculationType => {
   switch (ruleType) {
     case "pacote":              return "pacote";
     case "tabela_diferenciada": return "tabela_diferenciada";
     case "bonus":               return "bonus";
     case "complemento":         return "complemento";
-    case "informativo":         return "informativo";
-  }
-};
-
-/** Deriva o `rule_type` (legado) a partir do `calculation_type` (novo motor). */
-const deriveRuleType = (calc: RuleCalculationType): RuleType => {
-  switch (calc) {
-    case "pacote":
-    case "pacote_fechado":
-    case "pacote_com_extras":
-    case "pacote_por_atendimento": return "pacote";
-    case "tabela_diferenciada":    return "tabela_diferenciada";
-    case "bonus":                  return "bonus";
-    case "complemento":            return "complemento";
-    default:                       return "informativo";
+    default:                    return "informativo";
   }
 };
 
