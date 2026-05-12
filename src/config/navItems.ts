@@ -16,6 +16,7 @@ import {
   Stethoscope,
   Sparkles,
   AlertTriangle,
+  FlaskConical,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -69,6 +70,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/regras/pagamento", label: "Regras de Pagamento", icon: BadgeDollarSign, iconName: "BadgeDollarSign", roles: ["diretor", "admin"] },
       { to: "/regras/validacao", label: "Regras de Validação", icon: ShieldCheck, iconName: "ShieldCheck", roles: ["diretor", "admin"] },
+      { to: "/regras/simulador", label: "Simulador de Regras", icon: FlaskConical, iconName: "FlaskConical", roles: ["diretor", "admin"] },
       
       { to: "/tabelas", label: "Tabelas de referência", icon: Table, iconName: "Table", roles: ["diretor", "admin"] },
       { to: "/empresas", label: "Empresas", icon: Building2, iconName: "Building2", roles: ["diretor", "admin"] },
@@ -103,6 +105,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
+  { label: "Simulador de Regras", iconName: "FlaskConical" },
   
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
