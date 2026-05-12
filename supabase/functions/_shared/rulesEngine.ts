@@ -1963,6 +1963,47 @@ export function analyzePaymentItems(
     }
   }
 
+  // === Dedup de bônus por atendimento/paciente-dia ===
+  // Quando o cálculo aplicado tem application_unit != "por_item", o bônus deve
+  // contar 1× por grupo (anchor = procedimento principal). Os demais itens do
+  // mesmo grupo que casaram com a mesma regra-bônus têm o bônus suprimido:
+  // - expected_amount = gross_amount (aceita o valor pago, geralmente 0/sem bônus)
+  // - status = aprovado, com nota explicando que já foi contabilizado no anchor.
+  // Isso aplica tanto para "por_atendimento" quanto para "por_paciente_dia"
+  // (o group key já inclui paciente+data quando attendance_number está vazio).
+  const bonusGroupsSeen = new Map<string, string>(); // chave: ruleId|groupKey -> item_id anchor
+  for (const r of out) {
+    if (!r.application_unit_used || r.application_unit_used === "por_item") continue;
+    if (r.calculation_type_used !== "bonus") continue;
+    if (!r.matched_rule_id || !r.attendance_group_key) continue;
+    const key = `${r.matched_rule_id}|${r.attendance_group_key}`;
+    const existingAnchor = bonusGroupsSeen.get(key);
+    if (existingAnchor) continue; // outro item do grupo já é o anchor
+    // Anchor preferencial: item marcado como principal; senão, este mesmo.
+    bonusGroupsSeen.set(key, r.is_main_procedure ? r.item_id : r.item_id);
+  }
+  // Segunda passada: suprimir bônus duplicados.
+  for (const r of out) {
+    if (!r.application_unit_used || r.application_unit_used === "por_item") continue;
+    if (r.calculation_type_used !== "bonus") continue;
+    if (!r.matched_rule_id || !r.attendance_group_key) continue;
+    const key = `${r.matched_rule_id}|${r.attendance_group_key}`;
+    const anchor = bonusGroupsSeen.get(key);
+    if (anchor && anchor !== r.item_id) {
+      const it = items.find((x) => x.id === r.item_id);
+      const paid = Number(it?.gross_amount ?? 0);
+      r.suppressed_by_dedup = true;
+      r.expected_amount = paid;
+      r.diff_pct = 0;
+      r.status = "aprovado";
+      r.calculation_explanation =
+        `Bônus já contabilizado 1× no atendimento (anchor item ${anchor}). ` +
+        `Aplicação configurada como "${r.application_unit_used}".`;
+      r.alerts = [...r.alerts, "Bônus suprimido neste item — já aplicado uma vez no atendimento."];
+      r.needs_ai_review = false;
+    }
+  }
+
   return out;
 }
 
