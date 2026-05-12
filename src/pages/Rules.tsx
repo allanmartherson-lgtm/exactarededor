@@ -1872,10 +1872,6 @@ const Rules = () => {
                         );
                       })()}
 
-                      <div className="space-y-4 rounded-md border border-border bg-muted/40 p-3">
-                        <div className="space-y-1">
-                          <Label className="text-sm font-semibold">Filtros adicionais de produção</Label>
-                          <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
                       {scope === "master" && (
                         <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima. Setores, códigos, convênios, especialidades, tipos de pagamento e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.</p>
                       )}
