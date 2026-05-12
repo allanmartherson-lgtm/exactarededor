@@ -223,8 +223,8 @@ export default function RuleSimulator() {
                 <DoctorCombobox value={doctor} onChange={setDoctor} />
               </Field>
 
-              <Field label="Valor pago (gross)"><Input value={form.gross_amount} onChange={(e) => set("gross_amount", e.target.value)} placeholder="0,00" /></Field>
-              <Field label="Valor base (procedure)"><Input value={form.procedure_amount} onChange={(e) => set("procedure_amount", e.target.value)} placeholder="opcional" /></Field>
+              <Field label="Valor Repasse"><Input value={form.gross_amount} onChange={(e) => set("gross_amount", e.target.value)} placeholder="0,00" /></Field>
+              <Field label="Valor Tabela"><Input value={form.procedure_amount} onChange={(e) => set("procedure_amount", e.target.value)} placeholder="opcional" /></Field>
               <Field label="Qtd"><Input value={form.quantity} onChange={(e) => set("quantity", e.target.value)} /></Field>
               <Field label="Atendimento"><Input value={form.attendance_number} onChange={(e) => set("attendance_number", e.target.value)} placeholder="opcional" /></Field>
 
