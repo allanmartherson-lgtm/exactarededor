@@ -526,6 +526,15 @@ function CalcCard({
                       ))}
                     </div>
                   )}
+                  {c.code_match_mode === "whitelist"
+                    && c.procedure_codes.length === 0
+                    && c.calculation_type !== "tabela_diferenciada" && (
+                    <p className="text-[11px] text-destructive leading-tight">
+                      ⚠️ <strong>Whitelist sem códigos</strong> faz este cálculo capturar
+                      qualquer item. Liste os códigos específicos ou troque o modo para
+                      "Qualquer código". Permitido apenas em "Tabela diferenciada".
+                    </p>
+                  )}
                 </>
               )}
             </div>
