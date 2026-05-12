@@ -93,3 +93,16 @@ Para regras existentes que têm critérios no nível regra:
 ## Risco
 
 Mudança grande na UI de cadastro. Regras antigas continuam funcionando via backfill. Após a refatoração, qualquer ajuste fino é feito por cálculo — sem precisar de correção em banco.
+## Status de execução (2026-05-12)
+
+**Concluído:**
+- Motor (`rulesEngine.ts`): roteamento por `priority` + `first_match`, sem default hardcoded → `sem_regra`
+- `rule_calculations`: colunas de filtros locais + backfill dos pais aplicado
+- UI `RuleCalculationsEditor`: seção "Quando aplicar" por cálculo (códigos+modo, setores, especialidades, convênios+modo, vias, função, eletiva)
+- UI `Rules.tsx`: badge âmbar "Legado nível-Regra" sinalizando regras com filtros restritivos ainda no nível regra (helper `legacyRuleLevelFilters`)
+- Banco: `COMMENT ON COLUMN` marcando como DEPRECATED em `public.rules`: `procedure_codes`, `sectors`, `specialties`, `agreement_aliases`, `allowed_access_routes` (leitura legada preservada)
+- Testes: 196/196 passando
+
+**Pendente (opcional, futuro):**
+- Remoção física das colunas legadas em `public.rules` após período de observação sem badges acesos
+- Migração assistida na UI para mover automaticamente filtros legados de regra → cálculos filhos (botão "promover para cálculo")
