@@ -1154,6 +1154,7 @@ export interface ExpectedCalc {
   alerts: string[];
   breakdown?: CalculationBreakdownEntry[];
   force_totalized?: boolean;
+  application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
 }
 
 export function applyCalculation(
