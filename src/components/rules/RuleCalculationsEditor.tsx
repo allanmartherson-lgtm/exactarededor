@@ -758,6 +758,11 @@ export function calcFromDb(r: any): CalcItem {
     specialties: Array.isArray(r.specialties) ? r.specialties : [],
     force_totalized: !!r.force_totalized,
     application_unit: (r.application_unit === "por_atendimento" || r.application_unit === "por_paciente_dia") ? r.application_unit : "por_item",
+    procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
+    code_match_mode: (r.code_match_mode === "blacklist" || r.code_match_mode === "any") ? r.code_match_mode : "whitelist",
+    agreement_aliases: Array.isArray(r.agreement_aliases) ? r.agreement_aliases : [],
+    agreement_match_mode: r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist",
+    doctor_roles: Array.isArray(r.doctor_roles) ? r.doctor_roles : [],
   };
 }
 
