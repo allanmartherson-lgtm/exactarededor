@@ -284,7 +284,7 @@ export default function RuleSimulator() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <KV label="Regra vencedora" value={result.matched_rule_name ?? "—"} />
                   <KV label="Valor esperado" value={fmtMoney(result.expected_amount)} />
-                  <KV label="Valor pago" value={fmtMoney(Number(form.gross_amount.replace(",", ".")) || 0)} />
+                  <KV label="Valor Repasse" value={fmtMoney(Number(form.gross_amount.replace(",", ".")) || 0)} />
                   <KV label="Divergência" value={result.diff_pct != null ? `${(result.diff_pct * 100).toFixed(2)}%` : "—"} />
                 </div>
 
