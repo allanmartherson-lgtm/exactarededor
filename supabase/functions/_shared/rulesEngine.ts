@@ -79,6 +79,11 @@ export interface RuleInput {
    * Se preenchido → aplica somente aos médicos listados naquela empresa.
    */
   group_company_links?: { company_id: string; doctors?: { name?: string; crm?: string }[] }[] | null;
+  /**
+   * Médicos avulsos (sem PJ). Casa por nome+CRM em qualquer empresa do item.
+   * Útil para acordos pessoais que seguem o médico independente do CNPJ que faturar.
+   */
+  group_doctors?: { name?: string; crm?: string }[] | null;
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
