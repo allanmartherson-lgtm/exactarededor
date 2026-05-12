@@ -1238,14 +1238,11 @@ const Rules = () => {
   const filtered = useMemo(() => {
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
-      const sectorOk = filterSector === "todos" ||
-        (Array.isArray(r.sectors) && r.sectors.includes(filterSector));
-      if (!sectorOk) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
       if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
       return true;
     });
-  }, [rules, filterScope, filterSector, filterTarget, onlyIncomplete]);
+  }, [rules, filterScope, filterTarget, onlyIncomplete]);
 
   const incompleteCount = useMemo(() => rules.filter(isIncomplete).length, [rules]);
 
