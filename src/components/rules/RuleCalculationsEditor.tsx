@@ -68,6 +68,16 @@ export type CalcItem = {
   force_totalized: boolean;
   /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
   application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
+
+  // ---- Filtros restritivos por cálculo (refactor: tudo no cálculo) ----
+  /** Códigos TUSS aos quais este cálculo se aplica. Vazio = qualquer código. */
+  procedure_codes: string[];
+  code_match_mode: "whitelist" | "blacklist" | "any";
+  /** Convênios aceitos/bloqueados; herda da regra-pai se vazio (legado). */
+  agreement_aliases: string[];
+  agreement_match_mode: "whitelist" | "blacklist";
+  /** Funções do médico aplicáveis. */
+  doctor_roles: string[];
 };
 
 /** Construtor de item vazio (default sensato). */
@@ -89,6 +99,11 @@ export function makeEmptyCalc(): CalcItem {
     sectors: [], specialties: [],
     force_totalized: false,
     application_unit: "por_item",
+    procedure_codes: [],
+    code_match_mode: "whitelist",
+    agreement_aliases: [],
+    agreement_match_mode: "whitelist",
+    doctor_roles: [],
   };
 }
 
@@ -456,6 +471,134 @@ function CalcCard({
             </div>
           )}
 
+          {/* === FILTROS RESTRITIVOS (códigos / convênios / função) === */}
+          <div className="rounded-md border border-amber-300/40 bg-amber-50/40 dark:bg-amber-950/10 p-3 space-y-3">
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                Quando aplicar este cálculo
+              </Label>
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                Restrinja este cálculo específico por código, convênio ou função do médico.
+                Deixe em branco para aplicar a todos. <strong>Cada cálculo tem seu próprio escopo</strong> —
+                use vários cálculos numa mesma regra para cobrir cenários diferentes.
+              </p>
+            </div>
+
+            {/* Códigos */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Códigos TUSS / CBHPM</Label>
+                <Select
+                  value={c.code_match_mode}
+                  onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}
+                >
+                  <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="whitelist">Apenas estes códigos</SelectItem>
+                    <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+                    <SelectItem value="any">Qualquer código</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {c.code_match_mode !== "any" && (
+                <>
+                  <Input
+                    placeholder="Digite um código e pressione Enter (ex: 31005497)"
+                    className="h-8 text-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ",") {
+                        e.preventDefault();
+                        const t = e.target as HTMLInputElement;
+                        const vals = t.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                        const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
+                        if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
+                        t.value = "";
+                      }
+                    }}
+                  />
+                  {c.procedure_codes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {c.procedure_codes.map(code => (
+                        <button key={code} type="button"
+                          onClick={() => onChange({ procedure_codes: c.procedure_codes.filter(x => x !== code) })}
+                          className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors font-mono"
+                        >{code} ✕</button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Convênios */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Convênios</Label>
+                <Select
+                  value={c.agreement_match_mode}
+                  onValueChange={(v) => onChange({ agreement_match_mode: v as CalcItem["agreement_match_mode"] })}
+                >
+                  <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="whitelist">Apenas estes convênios</SelectItem>
+                    <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                placeholder="Digite o convênio e pressione Enter (ex: Unimed)"
+                className="h-8 text-xs"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    const t = e.target as HTMLInputElement;
+                    const v = t.value.trim();
+                    if (v && !c.agreement_aliases.includes(v)) {
+                      onChange({ agreement_aliases: [...c.agreement_aliases, v] });
+                    }
+                    t.value = "";
+                  }
+                }}
+              />
+              {c.agreement_aliases.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {c.agreement_aliases.map(a => (
+                    <button key={a} type="button"
+                      onClick={() => onChange({ agreement_aliases: c.agreement_aliases.filter(x => x !== a) })}
+                      className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
+                    >{a} ✕</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Função do médico */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Função do médico</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { v: "cirurgiao", label: "Cirurgião principal" },
+                  { v: "primeiro_aux", label: "1º auxiliar" },
+                  { v: "demais_aux", label: "Demais auxiliares" },
+                  { v: "instrumentador", label: "Instrumentador" },
+                ].map(opt => {
+                  const sel = c.doctor_roles.includes(opt.v);
+                  return (
+                    <Button key={opt.v} type="button" size="sm"
+                      variant={sel ? "default" : "outline"}
+                      className="h-7 px-3 text-[11px]"
+                      onClick={() => {
+                        const next = sel ? c.doctor_roles.filter(x => x !== opt.v) : [...c.doctor_roles, opt.v];
+                        onChange({ doctor_roles: next });
+                      }}
+                    >{opt.label}</Button>
+                  );
+                })}
+              </div>
+              <p className="text-[10.5px] text-muted-foreground">Vazio = qualquer função.</p>
+            </div>
+          </div>
+
           {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
           <div className="rounded-md border border-border bg-card p-3 space-y-3">
             <label className="flex items-start gap-2 text-sm cursor-pointer">
@@ -743,6 +886,11 @@ export function calcFromDb(r: any): CalcItem {
     specialties: Array.isArray(r.specialties) ? r.specialties : [],
     force_totalized: !!r.force_totalized,
     application_unit: (r.application_unit === "por_atendimento" || r.application_unit === "por_paciente_dia") ? r.application_unit : "por_item",
+    procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
+    code_match_mode: (r.code_match_mode === "blacklist" || r.code_match_mode === "any") ? r.code_match_mode : "whitelist",
+    agreement_aliases: Array.isArray(r.agreement_aliases) ? r.agreement_aliases : [],
+    agreement_match_mode: r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist",
+    doctor_roles: Array.isArray(r.doctor_roles) ? r.doctor_roles : [],
   };
 }
 
@@ -802,6 +950,11 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     specialties: c.has_conditions ? c.specialties : [],
     force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
     application_unit: c.calculation_type === "bonus" ? c.application_unit : "por_item",
+    procedure_codes: c.procedure_codes.length > 0 ? c.procedure_codes : null,
+    code_match_mode: c.code_match_mode,
+    agreement_aliases: c.agreement_aliases.length > 0 ? c.agreement_aliases : null,
+    agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
+    doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
   };
 }
 

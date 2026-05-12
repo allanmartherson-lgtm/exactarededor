@@ -1387,6 +1387,8 @@ export type Database = {
       }
       rule_calculations: {
         Row: {
+          agreement_aliases: string[] | null
+          agreement_match_mode: string | null
           allowed_access_routes: string[] | null
           application_unit: string
           apply_access_route: boolean
@@ -1396,9 +1398,11 @@ export type Database = {
           bonus_amount: number | null
           bonus_pct: number | null
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
+          code_match_mode: string
           convenio_percentage: number | null
           created_at: string
           deflator_pct: number | null
+          doctor_roles: string[] | null
           elective_mode: string
           extras_codes: string[] | null
           fixed_amount: number | null
@@ -1417,6 +1421,7 @@ export type Database = {
           package_opinions_count: boolean
           package_subtype: string | null
           package_visits_count: boolean
+          procedure_codes: string[] | null
           reference_table_id: string | null
           repasse_pct: number | null
           rule_id: string
@@ -1431,6 +1436,8 @@ export type Database = {
           weekdays: number[]
         }
         Insert: {
+          agreement_aliases?: string[] | null
+          agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
           application_unit?: string
           apply_access_route?: boolean
@@ -1440,9 +1447,11 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          code_match_mode?: string
           convenio_percentage?: number | null
           created_at?: string
           deflator_pct?: number | null
+          doctor_roles?: string[] | null
           elective_mode?: string
           extras_codes?: string[] | null
           fixed_amount?: number | null
@@ -1461,6 +1470,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          procedure_codes?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_id: string
@@ -1475,6 +1485,8 @@ export type Database = {
           weekdays?: number[]
         }
         Update: {
+          agreement_aliases?: string[] | null
+          agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
           application_unit?: string
           apply_access_route?: boolean
@@ -1484,9 +1496,11 @@ export type Database = {
           bonus_amount?: number | null
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
+          code_match_mode?: string
           convenio_percentage?: number | null
           created_at?: string
           deflator_pct?: number | null
+          doctor_roles?: string[] | null
           elective_mode?: string
           extras_codes?: string[] | null
           fixed_amount?: number | null
@@ -1505,6 +1519,7 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
+          procedure_codes?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_id?: string

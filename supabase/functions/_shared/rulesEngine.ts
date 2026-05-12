@@ -191,6 +191,21 @@ export interface RuleCalculationItem {
    * - "por_paciente_dia": idem, mas usa paciente+data quando não há attendance_number.
    */
   application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
+  // ===== Filtros restritivos por cálculo (refactor "tudo no cálculo") =====
+  /** Lista de códigos TUSS/CBHPM aos quais este cálculo se aplica. Vazio = qualquer código. */
+  procedure_codes?: string[] | null;
+  /** Modo de comparação dos códigos: 'whitelist' (só esses), 'blacklist' (todos menos esses), 'any' (ignora). */
+  code_match_mode?: "whitelist" | "blacklist" | "any" | null;
+  /** Funções do médico (cirurgiao, primeiro_aux, demais_aux, instrumentador) — vazio = qualquer função. */
+  doctor_roles?: string[] | null;
+  /** Lista de convênios que este cálculo aceita/bloqueia (mesmo formato da regra). */
+  agreement_aliases?: string[] | null;
+  /** Modo do filtro de convênio: 'whitelist' | 'blacklist'. Se ausente, herda da regra-pai. */
+  agreement_match_mode?: "whitelist" | "blacklist" | null;
+  /** Setores aplicáveis (vazio = qualquer). */
+  sectors?: string[] | null;
+  /** Especialidades aplicáveis (vazio = qualquer). */
+  specialties?: string[] | null;
 }
 
 export interface ItemInput {
@@ -1061,6 +1076,42 @@ export interface EngineCtx extends PaymentContext {
  * configurada (modo "qualquer"/vazio), ela é considerada satisfeita.
  */
 export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
+  // ---- Filtros restritivos por cálculo ----
+  // Códigos de procedimento (whitelist/blacklist/any)
+  const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes.filter(Boolean) : [];
+  const codeMode = (c.code_match_mode ?? "whitelist") as "whitelist" | "blacklist" | "any";
+  if (codeMode !== "any" && codes.length > 0) {
+    const ic = (item.procedure_code ?? "").trim();
+    const inList = !!ic && codes.includes(ic);
+    if (codeMode === "whitelist" && !inList) return { ok: false, reason: "codigo_nao_listado" };
+    if (codeMode === "blacklist" && inList) return { ok: false, reason: "codigo_excluido" };
+  }
+  // Convênios (mesmo padrão da regra)
+  const ags = Array.isArray(c.agreement_aliases) ? c.agreement_aliases.filter(Boolean) : [];
+  if (ags.length > 0) {
+    const mode = c.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
+    const itemAg = normAgreement(item.agreement_name);
+    const norm = ags.map(normAgreement).filter(Boolean);
+    if (mode === "whitelist") {
+      if (!itemAg || !norm.includes(itemAg)) return { ok: false, reason: "convenio_nao_listado" };
+    } else {
+      if (itemAg && norm.includes(itemAg)) return { ok: false, reason: "convenio_bloqueado" };
+    }
+  }
+  // Função do médico
+  const roles = Array.isArray(c.doctor_roles) ? c.doctor_roles.filter(Boolean) : [];
+  if (roles.length > 0) {
+    const itemRole = classifyDoctorRole(item.doctor_role);
+    if (!roles.includes(itemRole)) return { ok: false, reason: "funcao_medico" };
+  }
+  // Setores
+  const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
+  if (cSectors.length > 0) {
+    const itemSector = (item as any).sector ?? null;
+    if (!itemSector || !cSectors.map((s) => normName(s)).includes(normName(itemSector))) {
+      return { ok: false, reason: "setor" };
+    }
+  }
   // Via de acesso
   if (!ruleAcceptsAccessRoute(c, item)) {
     return { ok: false, reason: "via_de_acesso" };
