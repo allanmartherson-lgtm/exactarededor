@@ -99,6 +99,11 @@ export function makeEmptyCalc(): CalcItem {
     sectors: [], specialties: [],
     force_totalized: false,
     application_unit: "por_item",
+    procedure_codes: [],
+    code_match_mode: "whitelist",
+    agreement_aliases: [],
+    agreement_match_mode: "whitelist",
+    doctor_roles: [],
   };
 }
 
