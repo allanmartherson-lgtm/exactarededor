@@ -1197,21 +1197,24 @@ const Rules = () => {
         variant: "destructive",
       });
     }
-    const toInsert = sel.map((d) => ({
-      ...d,
-      description: d.description || null,
-      target_type: d.scope === "especifica" ? d.target_type : null,
-      target_identifier: d.scope === "especifica"
-        ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
-        : null,
-      target_name: d.scope === "especifica" ? d.target_name : null,
-      reference_table_id: null,
-      procedure_codes: null,
-      created_by: user!.id,
-      target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
-        ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
-        : null,
-    }));
+    const toInsert = sel.map((d) => {
+      // Strip campos que não existem mais em public.rules (vivem por Cálculo)
+      const { procedure_codes: _pc, sectors: _s, specialties: _sp, ...rest } = d;
+      return {
+        ...rest,
+        description: d.description || null,
+        target_type: d.scope === "especifica" ? d.target_type : null,
+        target_identifier: d.scope === "especifica"
+          ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
+          : null,
+        target_name: d.scope === "especifica" ? d.target_name : null,
+        reference_table_id: null,
+        created_by: user!.id,
+        target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
+          ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
+          : null,
+      };
+    });
     const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     // Registra auditoria por regra criada
