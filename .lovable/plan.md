@@ -103,6 +103,11 @@ Mudança grande na UI de cadastro. Regras antigas continuam funcionando via back
 - Banco: `COMMENT ON COLUMN` marcando como DEPRECATED em `public.rules`: `procedure_codes`, `sectors`, `specialties`, `agreement_aliases`, `allowed_access_routes` (leitura legada preservada)
 - Testes: 196/196 passando
 
-**Pendente (opcional, futuro):**
-- Remoção física das colunas legadas em `public.rules` após período de observação sem badges acesos
-- Migração assistida na UI para mover automaticamente filtros legados de regra → cálculos filhos (botão "promover para cálculo")
+**Concluído (2026-05-12, fase final):**
+- Migração SQL com backfill defensivo (Regra→Cálculos onde estiver vazio) seguida de `DROP COLUMN` em `public.rules` para: `procedure_codes`, `sectors`, `specialties`, `agreement_aliases`, `allowed_access_routes`
+- Edge functions (`analyze-payment`, `simulate-rule`): SELECTs reduzidos, sem mais referência rule-level a esses campos
+- `Rules.tsx`: removidos writes (`procedure_codes: null` etc.), helper `legacyRuleLevelFilters`, `promoteLegacyToCalculations` e badge "Legado" (código morto pós-drop). Insert do importer faz strip dos campos antes do INSERT
+- Testes Vitest 196/196 e Deno (engine + analyze-payment) verdes
+
+**Status: refatoração 100% concluída.** Nenhuma pendência aberta.
+
