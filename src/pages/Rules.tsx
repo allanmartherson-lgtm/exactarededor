@@ -2485,17 +2485,7 @@ const Rules = () => {
               </div>
               <p className="text-xs text-muted-foreground">Vazio = não altera.</p>
             </div>
-            <div className="space-y-1.5">
-              <Label>Tabela de referência</Label>
-              <Select value={bulkRefTableId || "__keep"} onValueChange={(v) => setBulkRefTableId(v === "__keep" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__keep">Manter</SelectItem>
-                  <SelectItem value="__none">Remover vínculo</SelectItem>
-                  {refTables.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Tabela de referência removida do bulk: deve ser configurada por Cálculo. */}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
