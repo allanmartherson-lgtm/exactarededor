@@ -2143,28 +2143,7 @@ const Rules = () => {
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
           </div>
-          <CompanyCombobox
-            value={filterCompany}
-            onChange={setFilterCompany}
-            placeholder="Filtrar por empresa (CNPJ)…"
-            className="min-w-[240px] h-9"
-          />
-          {filterCompany && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCompany(null)} className="h-9 px-2">
-              <X className="h-4 w-4 mr-1" />
-            </Button>
-          )}
-          <DoctorCombobox
-            value={filterDoctor}
-            onChange={setFilterDoctor}
-            placeholder="Filtrar por médico (CRM)…"
-            className="min-w-[240px] h-9"
-          />
-          {filterDoctor && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
-              <X className="h-4 w-4 mr-1" />
-            </Button>
-          )}
+          </div>
           <label className="flex items-center gap-2 text-xs">
             <Checkbox checked={onlyIncomplete} onCheckedChange={(c) => setOnlyIncomplete(!!c)} />
             <span>Só desatualizadas</span>
