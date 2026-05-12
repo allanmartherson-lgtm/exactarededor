@@ -1419,8 +1419,6 @@ const Rules = () => {
     const patch: any = {};
     if (bulkPaymentTerm) patch.payment_term = bulkPaymentTerm;
     if (bulkAppliesTypes.length > 0) patch.applies_payment_types = bulkAppliesTypes;
-    if (bulkRefTableId === "__none") patch.reference_table_id = null;
-    else if (bulkRefTableId) patch.reference_table_id = bulkRefTableId;
     if (Object.keys(patch).length === 0) return toast({ title: "Selecione ao menos um campo para atualizar", variant: "destructive" });
     const ids = Array.from(selected);
     const { error } = await supabase.from("rules").update(patch).in("id", ids);
