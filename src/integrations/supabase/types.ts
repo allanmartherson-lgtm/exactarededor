@@ -1551,9 +1551,6 @@ export type Database = {
           agreement_name: string | null
           allowed_access_routes: string[] | null
           allows_authorized_exception: boolean
-          applies_payment_types:
-            | Database["public"]["Enums"]["payment_type"][]
-            | null
           apply_access_route: boolean
           aux_first_pct: number | null
           aux_second_pct: number | null
@@ -1566,16 +1563,13 @@ export type Database = {
           created_by: string | null
           deflator_pct: number | null
           description: string | null
-          doctors: Json
           elective_mode: string
           exception_table_ids: string[]
           exclusion_reason: string | null
           extras_codes: string[] | null
           fixed_amount: number | null
           force_totalized: boolean | null
-          group_company_ids: string[]
           group_company_links: Json
-          group_doctors: Json
           has_conditions: boolean | null
           id: string
           include_auxiliaries: boolean
@@ -1598,15 +1592,11 @@ export type Database = {
           package_opinions_count: boolean
           package_subtype: string | null
           package_visits_count: boolean
-          payment_term: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes: string[] | null
           reference_table_id: string | null
           repasse_pct: number | null
-          rule_json: Json | null
           rule_text: string
-          rule_type: Database["public"]["Enums"]["rule_type"]
           scope: Database["public"]["Enums"]["rule_scope"]
-          sector: Database["public"]["Enums"]["rule_sector"]
           sectors: string[]
           severity: Database["public"]["Enums"]["rule_severity"]
           specialties: string[]
@@ -1630,9 +1620,6 @@ export type Database = {
           agreement_name?: string | null
           allowed_access_routes?: string[] | null
           allows_authorized_exception?: boolean
-          applies_payment_types?:
-            | Database["public"]["Enums"]["payment_type"][]
-            | null
           apply_access_route?: boolean
           aux_first_pct?: number | null
           aux_second_pct?: number | null
@@ -1645,16 +1632,13 @@ export type Database = {
           created_by?: string | null
           deflator_pct?: number | null
           description?: string | null
-          doctors?: Json
           elective_mode?: string
           exception_table_ids?: string[]
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
           force_totalized?: boolean | null
-          group_company_ids?: string[]
           group_company_links?: Json
-          group_doctors?: Json
           has_conditions?: boolean | null
           id?: string
           include_auxiliaries?: boolean
@@ -1677,15 +1661,11 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
-          payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
-          rule_json?: Json | null
           rule_text: string
-          rule_type?: Database["public"]["Enums"]["rule_type"]
           scope?: Database["public"]["Enums"]["rule_scope"]
-          sector?: Database["public"]["Enums"]["rule_sector"]
           sectors?: string[]
           severity?: Database["public"]["Enums"]["rule_severity"]
           specialties?: string[]
@@ -1709,9 +1689,6 @@ export type Database = {
           agreement_name?: string | null
           allowed_access_routes?: string[] | null
           allows_authorized_exception?: boolean
-          applies_payment_types?:
-            | Database["public"]["Enums"]["payment_type"][]
-            | null
           apply_access_route?: boolean
           aux_first_pct?: number | null
           aux_second_pct?: number | null
@@ -1724,16 +1701,13 @@ export type Database = {
           created_by?: string | null
           deflator_pct?: number | null
           description?: string | null
-          doctors?: Json
           elective_mode?: string
           exception_table_ids?: string[]
           exclusion_reason?: string | null
           extras_codes?: string[] | null
           fixed_amount?: number | null
           force_totalized?: boolean | null
-          group_company_ids?: string[]
           group_company_links?: Json
-          group_doctors?: Json
           has_conditions?: boolean | null
           id?: string
           include_auxiliaries?: boolean
@@ -1756,15 +1730,11 @@ export type Database = {
           package_opinions_count?: boolean
           package_subtype?: string | null
           package_visits_count?: boolean
-          payment_term?: Database["public"]["Enums"]["rule_payment_term"]
           procedure_codes?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
-          rule_json?: Json | null
           rule_text?: string
-          rule_type?: Database["public"]["Enums"]["rule_type"]
           scope?: Database["public"]["Enums"]["rule_scope"]
-          sector?: Database["public"]["Enums"]["rule_sector"]
           sectors?: string[]
           severity?: Database["public"]["Enums"]["rule_severity"]
           specialties?: string[]
@@ -2128,12 +2098,6 @@ export type Database = {
         | "outro"
       rule_severity: "info" | "aviso" | "bloqueio"
       rule_target_type: "medico" | "empresa"
-      rule_type:
-        | "informativo"
-        | "pacote"
-        | "tabela_diferenciada"
-        | "bonus"
-        | "complemento"
       threshold_type: "percentual" | "absoluto"
       validation_action: "informar" | "alerta" | "alerta_forte" | "bloquear"
       validation_kind:
@@ -2344,13 +2308,6 @@ export const Constants = {
       ],
       rule_severity: ["info", "aviso", "bloqueio"],
       rule_target_type: ["medico", "empresa"],
-      rule_type: [
-        "informativo",
-        "pacote",
-        "tabela_diferenciada",
-        "bonus",
-        "complemento",
-      ],
       threshold_type: ["percentual", "absoluto"],
       validation_action: ["informar", "alerta", "alerta_forte", "bloquear"],
       validation_kind: [
