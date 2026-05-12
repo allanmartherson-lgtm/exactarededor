@@ -68,6 +68,16 @@ export type CalcItem = {
   force_totalized: boolean;
   /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
   application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
+
+  // ---- Filtros restritivos por cálculo (refactor: tudo no cálculo) ----
+  /** Códigos TUSS aos quais este cálculo se aplica. Vazio = qualquer código. */
+  procedure_codes: string[];
+  code_match_mode: "whitelist" | "blacklist" | "any";
+  /** Convênios aceitos/bloqueados; herda da regra-pai se vazio (legado). */
+  agreement_aliases: string[];
+  agreement_match_mode: "whitelist" | "blacklist";
+  /** Funções do médico aplicáveis. */
+  doctor_roles: string[];
 };
 
 /** Construtor de item vazio (default sensato). */
