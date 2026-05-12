@@ -75,17 +75,17 @@ serve(async (req) => {
     const [configRes, rulesRes] = await Promise.all([
       supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
-        id,name,rule_text,description,active,severity,scope,sector,sectors,specialties,
+        id,name,rule_text,description,active,severity,scope,sectors,specialties,
         target_type,target_identifier,target_name,target_company_id,
-        procedure_codes,applies_payment_types,valid_from,valid_until,
+        procedure_codes,valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,package_subtype,
-        rule_type,reference_table_id,multiplier,deflator_pct,repasse_pct,
+        reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
         exclusion_reason,allows_authorized_exception,
         agreement_name,agreement_aliases,agreement_match_mode,
         exception_table_ids,
-        group_company_ids,group_doctors,group_company_links,
+        group_company_links,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
         force_totalized

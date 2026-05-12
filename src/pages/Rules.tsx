@@ -1273,7 +1273,6 @@ const Rules = () => {
       target_name: d.scope === "especifica" ? d.target_name : null,
       reference_table_id: null,
       procedure_codes: null,
-      applies_payment_types: d.applies_payment_types.length ? d.applies_payment_types : null,
       created_by: user!.id,
       target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
         ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
@@ -2008,11 +2007,9 @@ const Rules = () => {
                             setFNature(nat);
                             if (nat === "informativo") {
                               setFCalculationType("informativo");
-                              setRuleType("informativo");
                               setRefTableId("");
                             } else if (fCalculationType === "informativo") {
                               setFCalculationType("percentual_sobre_convenio");
-                              setRuleType(deriveRuleType("percentual_sobre_convenio"));
                             }
                           }}
                         >
@@ -2495,13 +2492,7 @@ const Rules = () => {
                   <Checkbox checked={d.active} onCheckedChange={(v) => updateDraft(i, { active: !!v })} className="mt-1" />
                   <Input value={d.name} onChange={(e) => updateDraft(i, { name: e.target.value })} placeholder="Nome" className="font-medium" />
                 </div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
-                  <div className="space-y-1"><Label className="text-xs">Tipo</Label>
-                    <Select value={d.rule_type} onValueChange={(v) => updateDraft(i, { rule_type: v as LegacyRuleType })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="space-y-1"><Label className="text-xs">Tipo de cálculo (motor)</Label>
                     <Select value={d.calculation_type} onValueChange={(v) => updateDraft(i, { calculation_type: v as RuleCalculationType })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -2516,12 +2507,6 @@ const Rules = () => {
                     <Select value={d.severity} onValueChange={(v) => updateDraft(i, { severity: v as RuleSeverity })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1"><Label className="text-xs">Setor / Item Pagamento</Label>
-                    <Select value={d.sector} onValueChange={(v) => updateDraft(i, { sector: v as RuleSector })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -2571,27 +2556,6 @@ const Rules = () => {
                   </>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="space-y-1"><Label className="text-xs">Prazo de pagamento</Label>
-                    <Select value={d.payment_term} onValueChange={(v) => updateDraft(i, { payment_term: v as PaymentTerm })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1"><Label className="text-xs">Tipos de pagamento</Label>
-                    <div className="flex flex-wrap gap-1 rounded-md border border-input bg-background p-1.5 min-h-9">
-                      {PAYMENT_TYPE_KEYS.map((k) => {
-                        const checked = d.applies_payment_types.includes(k);
-                        return (
-                          <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"} className="h-7 px-2 text-xs"
-                            onClick={() => updateDraft(i, { applies_payment_types: checked ? d.applies_payment_types.filter((x) => x !== k) : [...d.applies_payment_types, k] })}>
-                            {PAYMENT_TYPE_LABELS[k]}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
 
                 <div className="rounded-md border border-dashed border-warning/50 bg-warning/5 p-2 mb-3 text-xs text-warning-foreground">
                   ⚠ Tabela vinculada, multiplicador, deflator, bônus, valor fixo, % convênio, códigos extras e códigos de procedimento devem ser configurados <strong>no Cálculo</strong> após salvar a regra (botão Editar → aba Cálculos).
