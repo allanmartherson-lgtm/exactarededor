@@ -289,6 +289,11 @@ function CalcCard({
                   <Input type="number" step="0.01" value={c.bonus_pct} onChange={(e) => onChange({ bonus_pct: e.target.value })} />
                 </div>
               </div>
+              {!c.bonus_amount && !c.bonus_pct && (
+                <p className="text-xs text-destructive">
+                  ⚠ Preencha pelo menos um: bônus fixo (R$) ou bônus (%). Sem isso o cálculo é descartado pelo motor.
+                </p>
+              )}
               <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                 <Label className="text-xs font-semibold uppercase tracking-wide">Unidade de aplicação</Label>
                 <RadioGroup
