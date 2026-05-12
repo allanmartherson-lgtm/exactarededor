@@ -64,6 +64,7 @@ export type CalcItem = {
   elective_mode: ElectiveMode;
   sectors: string[];
   specialties: string[];
+  force_totalized: boolean;
 };
 
 /** Construtor de item vazio (default sensato). */
@@ -83,6 +84,7 @@ export function makeEmptyCalc(): CalcItem {
     has_conditions: false, time_mode: "qualquer", weekdays: [],
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
     sectors: [], specialties: [],
+    force_totalized: false,
   };
 }
 
@@ -243,6 +245,13 @@ function CalcCard({
               <Label className="text-xs">Percentual sobre o convênio (%)</Label>
               <Input type="number" step="0.01" placeholder="Ex.: 100, 88, 70"
                 value={c.convenio_percentage} onChange={(e) => onChange({ convenio_percentage: e.target.value })} />
+              <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                <Checkbox
+                  checked={c.force_totalized}
+                  onCheckedChange={(v) => onChange({ force_totalized: !!v })}
+                />
+                <span className="text-xs font-medium">Considerar valor do convênio como já totalizado (ignora quantidade)</span>
+              </label>
             </div>
           )}
           {c.calculation_type === "valor_fixo" && (
@@ -701,6 +710,7 @@ export function calcFromDb(r: any): CalcItem {
     elective_mode: eMode,
     sectors: Array.isArray(r.sectors) ? r.sectors : [],
     specialties: Array.isArray(r.specialties) ? r.specialties : [],
+    force_totalized: !!r.force_totalized,
   };
 }
 
@@ -758,6 +768,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     elective_mode: c.has_conditions ? c.elective_mode : "qualquer",
     sectors: c.has_conditions ? c.sectors : [],
     specialties: c.has_conditions ? c.specialties : [],
+    force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
   };
 }
 
