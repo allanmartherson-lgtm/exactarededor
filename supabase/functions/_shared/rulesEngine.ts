@@ -293,6 +293,10 @@ export interface AnalysisResult {
   calculation_breakdown?: CalculationBreakdownEntry[];
   /** Trace de auditoria: regras candidatas avaliadas e motivo de descarte/vitória. */
   selection_trace?: SelectionTrace;
+  /** Unidade de aplicação efetivamente usada (do calc item ou da regra). */
+  application_unit_used?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
+  /** Se este resultado foi suprimido por dedup (já contado em outro item do mesmo atendimento). */
+  suppressed_by_dedup?: boolean;
 }
 
 export interface CalculationBreakdownEntry {
