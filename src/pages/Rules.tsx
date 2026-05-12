@@ -937,6 +937,7 @@ const Rules = () => {
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
+      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: "qualquer",
       weekdays: [],
       includes_holidays: false,
