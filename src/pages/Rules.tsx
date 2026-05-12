@@ -313,6 +313,7 @@ const Rules = () => {
     }
     // Erros por item de cálculo (somente quando a regra é Calculável)
     if (fNature === "calculavel") {
+      if (fCalculations.length === 0) e.calculo++;
       const calcErrorsCount = fCalculations.reduce((acc, c) => acc + calcItemErrors(c), 0);
       e.calculo += calcErrorsCount;
     }
