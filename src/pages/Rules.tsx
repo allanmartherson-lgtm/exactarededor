@@ -19,9 +19,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import {
   TONE_CLASSES,
-  type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType, type RuleType,
+  type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType,
   RULE_SCOPE_LABELS, RULE_SECTOR_LABELS, RULE_TARGET_TYPE_LABELS,
-  RULE_TYPE_LABELS,
   formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
 } from "@/lib/status";
 import {
@@ -48,10 +47,6 @@ import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
-type PaymentTerm = "qualquer" | "prioridade" | "habitual";
-const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
-  qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
-};
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
