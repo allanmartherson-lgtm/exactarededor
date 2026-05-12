@@ -2203,6 +2203,18 @@ const Rules = () => {
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
                                   </span>
                                 )}
+                                {(() => {
+                                  const legacy = legacyRuleLevelFilters(r);
+                                  if (legacy.length === 0) return null;
+                                  return (
+                                    <span
+                                      className="text-xs rounded-full border border-warning/60 bg-warning/15 text-warning-foreground px-2 py-0.5 flex items-center gap-1"
+                                      title={`Esta regra ainda guarda ${legacy.join(", ")} no nível Regra (legado). Após a refatoração, esses filtros devem viver por Cálculo. Edite a regra e mova os critérios para dentro de cada cálculo.`}
+                                    >
+                                      <AlertTriangle className="h-3 w-3" /> Legado nível-Regra: {legacy.join(", ")}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                               {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
                               <p className="text-sm">{r.rule_text}</p>
