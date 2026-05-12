@@ -91,6 +91,8 @@ export interface RuleInput {
   // Exclusão / não pagar
   exclusion_reason?: string | null;
   allows_authorized_exception?: boolean | null;
+  /** Se verdadeiro, o motor ignora a coluna quantidade do item e considera o valor calculado como total. */
+  force_totalized?: boolean | null;
   // ===== Eixo "convênio" (matching determinístico por operadora) =====
   /**
    * (Legado) Nome principal do convênio. Mantido como tag adicional na lista
@@ -178,6 +180,8 @@ export interface RuleCalculationItem {
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
+  /** Se verdadeiro, ignora a quantidade para este item de cálculo específico. */
+  force_totalized?: boolean | null;
 }
 
 export interface ItemInput {
@@ -1217,15 +1221,24 @@ export function applyCalculation(
     }
 
     const expected = winnerCalc.expected != null ? Number(winnerCalc.expected.toFixed(2)) : null;
+    
+    // Propaga a flag force_totalized do item de cálculo ou da regra pai
+    const finalForceTotalized = winnerCalc.force_totalized ?? rule.force_totalized ?? false;
+
     return {
       expected,
       explanation: `[${winnerCalc.label}] ${winnerCalc.explanation}`,
       alerts: winnerCalc.alerts.map((a) => `[${winnerCalc.label}] ${a}`),
       breakdown,
+      force_totalized: finalForceTotalized,
     };
   }
   // ---- LEGADO: campos diretos na regra ----
-  return applyCalculationSingle(rule, item, ctx);
+  const res = applyCalculationSingle(rule, item, ctx);
+  if (res) {
+    res.force_totalized = rule.force_totalized ?? false;
+  }
+  return res;
 }
 
 function applyCalculationSingle(
@@ -1768,11 +1781,14 @@ function finalizeAnalysis(
 ): AnalysisResult {
   // Multiplicação final pela quantidade do item (coluna "Quantidade" da base).
   // Aplica a TODOS os tipos de cálculo: o esperado é por unidade × qtd.
-  // PULA se o item já veio com valor totalizado (convenio_value_totalized).
+  // PULA se o item já veio com valor totalizado (convenio_value_totalized) OU se a regra forçar totalização.
   const qty = Number(item.quantity ?? 1);
-  if (item.convenio_value_totalized === true) {
+  const isTotalized = item.convenio_value_totalized === true || calc.force_totalized === true;
+
+  if (isTotalized) {
     if (qty > 1 && calc.explanation) {
-      calc.explanation = `${calc.explanation} (qtd ${qty} ignorada no cálculo pois valor já é totalizado)`;
+      const reason = item.convenio_value_totalized === true ? "importação" : "regra";
+      calc.explanation = `${calc.explanation} (qtd ${qty} ignorada no cálculo pois valor já é totalizado via ${reason})`;
     }
   } else if (calc.expected != null && Number.isFinite(qty) && qty > 0 && qty !== 1) {
     const before = calc.expected;

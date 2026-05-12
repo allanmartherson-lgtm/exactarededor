@@ -87,7 +87,8 @@ serve(async (req) => {
         exception_table_ids,
         group_company_ids,group_doctors,group_company_links,
         bonus_amount,bonus_pct,target_amount,
-        limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor
+        limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
+        force_totalized
       `).eq("active", true)
     ]);
 
@@ -123,7 +124,8 @@ serve(async (req) => {
           reference_table_id,multiplier,deflator_pct,repasse_pct,
           apply_access_route,include_auxiliaries,
           auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
-          bonus_amount,bonus_pct,target_amount,allowed_access_routes
+          bonus_amount,bonus_pct,target_amount,allowed_access_routes,
+          force_totalized
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
