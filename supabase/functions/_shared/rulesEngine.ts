@@ -1179,7 +1179,7 @@ export function applyCalculation(
           ...r, 
           label, 
           id: c.id ?? null,
-          force_totalized: c.force_totalized
+          force_totalized: c.force_totalized ?? false
         };
         
         breakdown.push({
