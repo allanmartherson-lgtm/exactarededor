@@ -54,6 +54,7 @@ const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
   Configurações: [
     "Regras de Pagamento",
     "Regras de Validação",
+    "Simulador de Regras",
     "Tabelas de referência",
     "Empresas",
     "Apelidos aprendidos",
