@@ -105,6 +105,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
+  { label: "Simulador de Regras", iconName: "FlaskConical" },
   
   { label: "Tabelas de referência", iconName: "Table" },
   { label: "Empresas", iconName: "Building2" },
