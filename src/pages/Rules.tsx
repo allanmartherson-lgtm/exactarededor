@@ -21,7 +21,7 @@ import {
   TONE_CLASSES,
   type RuleSeverity, type RuleScope, type RuleSector, type RuleTargetType,
   RULE_SCOPE_LABELS, RULE_SECTOR_LABELS, RULE_TARGET_TYPE_LABELS,
-  formatCurrency, PAYMENT_TYPE_LABELS, type PaymentType,
+  formatCurrency,
 } from "@/lib/status";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
