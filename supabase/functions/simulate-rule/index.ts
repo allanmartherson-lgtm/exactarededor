@@ -27,6 +27,7 @@ interface SimInput {
   procedure_name?: string | null;
   agreement_name?: string | null;
   doctor_name?: string | null;
+  doctor_document?: string | null;
   doctor_role?: string | null;
   access_route?: string | null;
   sector?: string | null;
