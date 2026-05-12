@@ -71,7 +71,6 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 export type RuleScope = Database["public"]["Enums"]["rule_scope"];
 export type RuleSector = Database["public"]["Enums"]["rule_sector"];
 export type RuleTargetType = Database["public"]["Enums"]["rule_target_type"];
-export type RuleType = Database["public"]["Enums"]["rule_type"];
 export type RuleCalculationType = Database["public"]["Enums"]["rule_calculation_type"];
 export type PaymentAnalysisMode = Database["public"]["Enums"]["payment_analysis_mode"];
 
@@ -96,21 +95,8 @@ export const RULE_TARGET_TYPE_LABELS: Record<RuleTargetType, string> = {
   empresa: "Empresa",
 };
 
-export const RULE_TYPE_LABELS: Record<RuleType, string> = {
-  informativo: "Informativa / bloqueio",
-  pacote: "Pacote (valor fixo)",
-  tabela_diferenciada: "Tabela diferenciada",
-  bonus: "Bônus",
-  complemento: "Complemento",
-};
-
-export const RULE_TYPE_DESCRIPTIONS: Record<RuleType, string> = {
-  informativo: "Apenas alerta/bloqueia o validador, não calcula valor esperado.",
-  pacote: "Valor fixo para a cirurgia/procedimento toda.",
-  tabela_diferenciada: "Referência (ex: CBHPM 2018) × multiplicador − deflator.",
-  bonus: "Honorário do convênio + um valor ou % adicional.",
-  complemento: "Completa o que faltou para chegar ao valor acordado.",
-};
+// RULE_TYPE_LABELS / RULE_TYPE_DESCRIPTIONS removidos — natureza/método agora vivem
+// somente em RULE_CALCULATION_TYPE_* (motor novo).
 
 // === Novo motor determinístico (Fase 2/3) ===
 export const RULE_CALCULATION_TYPE_LABELS: Record<RuleCalculationType, string> = {

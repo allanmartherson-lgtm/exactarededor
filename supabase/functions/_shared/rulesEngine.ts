@@ -41,7 +41,6 @@ export interface RuleInput {
   active: boolean;
   severity: string;
   scope: "master" | "especifica" | "grupo";
-  sector: string;
   sectors: string[] | null;
   specialties: string[] | null;
   target_type: "medico" | "empresa" | null;
@@ -49,7 +48,6 @@ export interface RuleInput {
   target_name: string | null;
   target_company_id: string | null;
   procedure_codes: string[] | null;
-  applies_payment_types: string[] | null;
   valid_from: string | null;
   valid_until: string | null;
   calculation_type: CalculationType;
@@ -65,7 +63,6 @@ export interface RuleInput {
   package_auxiliaries_included?: boolean | null;
   package_subtype?: string | null;
   // Parâmetros de cálculo de tabela diferenciada (pertencem à regra)
-  rule_type?: string | null;
   reference_table_id?: string | null;
   multiplier?: number | null;
   deflator_pct?: number | null;
@@ -76,13 +73,10 @@ export interface RuleInput {
   aux_first_pct?: number | null;
   aux_second_pct?: number | null;
   instrumentador_pct?: number | null;
-  group_company_ids?: string[] | null;
-  group_doctors?: { name?: string; crm?: string }[] | null;
   /**
-   * Vínculos por empresa (novo modelo). Cada item: empresa + (opcional) lista de médicos.
+   * Vínculos por empresa (escopo "grupo"). Cada item: empresa + (opcional) lista de médicos.
    * Se `doctors` estiver vazio → aplica a todos médicos daquela empresa.
    * Se preenchido → aplica somente aos médicos listados naquela empresa.
-   * Tem precedência sobre `group_company_ids`/`group_doctors` quando presente.
    */
   group_company_links?: { company_id: string; doctors?: { name?: string; crm?: string }[] }[] | null;
   bonus_amount?: number | null;
@@ -391,7 +385,7 @@ export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
 
 function ruleSectors(r: RuleInput): string[] {
   if (Array.isArray(r.sectors) && r.sectors.length > 0) return r.sectors;
-  return r.sector ? [r.sector] : [];
+  return [];
 }
 
 function isInValidity(r: RuleInput, refDate: string): boolean {
@@ -495,8 +489,6 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
 function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "grupo") return false;
   const links = r.group_company_links ?? [];
-  const cids = r.group_company_ids ?? [];
-  const docs = r.group_doctors ?? [];
 
   const matchDoctorList = (doctors: { name?: string; crm?: string }[]): boolean => {
     if (!doctors.length || !item.doctor_name) return false;
@@ -509,33 +501,16 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     return false;
   };
 
-  // Novo modelo: vínculos por empresa (linha-a-linha).
-  if (links.length > 0) {
-    for (const link of links) {
-      if (!link?.company_id) continue;
-      if (item.company_id !== link.company_id) continue;
-      const ds = link.doctors ?? [];
-      if (ds.length === 0) return true; // todos os médicos daquela empresa
-      if (matchDoctorList(ds)) return true;
-    }
-    // Sem links de empresa casados, ainda permite "médicos avulsos" (sem empresa).
-    if (docs.length > 0 && cids.length === 0) return matchDoctorList(docs);
-    return false;
+  // Vínculos por empresa (único modelo suportado). Cada linha = uma empresa,
+  // opcionalmente restrita a uma lista de médicos.
+  if (links.length === 0) return false;
+  for (const link of links) {
+    if (!link?.company_id) continue;
+    if (item.company_id !== link.company_id) continue;
+    const ds = link.doctors ?? [];
+    if (ds.length === 0) return true; // todos os médicos daquela empresa
+    if (matchDoctorList(ds)) return true;
   }
-
-  // Legado modo empresa.
-  if (cids.length > 0) {
-    const inCompany = !!(item.company_id && cids.includes(item.company_id));
-    if (!inCompany) return false;
-    if (docs.length === 0) return true;
-    return matchDoctorList(docs);
-  }
-
-  // Legado modo médico avulso.
-  if (docs.length > 0) return matchDoctorList(docs);
-
-  // Sem vínculos de empresa nem médicos: regra de grupo sem alvo NÃO casa
-  // com nada (proteção contra o bug onde "vazio = aplica a todos").
   return false;
 }
 
@@ -682,7 +657,6 @@ export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInp
       if (!intersectsAll(ruleSectors(r), ctx.sectors)) return false;
     }
 
-    if (!intersectsAll(r.applies_payment_types, ctx.payment_type ? [ctx.payment_type] : [])) return false;
     return true;
   });
 }
