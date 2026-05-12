@@ -1178,7 +1178,8 @@ export function applyCalculation(
         winnerCalc = { 
           ...r, 
           label, 
-          id: c.id ?? null 
+          id: c.id ?? null,
+          force_totalized: c.force_totalized
         };
         
         breakdown.push({
