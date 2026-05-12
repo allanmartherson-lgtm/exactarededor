@@ -995,6 +995,7 @@ export function calcItemErrors(c: CalcItem): number {
   if (c.calculation_type === "tabela_diferenciada" && !c.reference_table_id) n++;
   if ((c.calculation_type === "pacote" || c.calculation_type === "pacote_fechado"
     || c.calculation_type === "pacote_com_extras" || c.calculation_type === "pacote_por_atendimento") && !c.package_amount) n++;
+  if (c.calculation_type === "bonus" && !c.bonus_amount && !c.bonus_pct) n++;
   if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) n++;
   if (calcItemHasWhitelistWithoutCodes(c)) n++;
   return n;
