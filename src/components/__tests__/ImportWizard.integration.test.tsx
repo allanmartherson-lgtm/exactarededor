@@ -85,8 +85,8 @@ describe("ImportWizard Integration - Numeric Normalization", () => {
     // Verify mapping is suggested or set it manually
     expect(screen.getByText("Mapeamento de colunas")).toBeDefined();
     
-    // Click "Validar e revisar"
-    const validateBtn = screen.getByText("Validar e revisar");
+    // Click "Validar registros"
+    const validateBtn = screen.getByText("Validar registros");
     fireEvent.click(validateBtn);
 
     // 3. Validation Step
