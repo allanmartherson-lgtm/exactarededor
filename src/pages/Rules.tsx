@@ -118,7 +118,7 @@ async function promoteLegacyToCalculations(rule: RuleRow): Promise<{ updated: nu
     if (legacy.agreement_aliases.length && isEmpty(c.agreement_aliases)) patch.agreement_aliases = legacy.agreement_aliases;
     if (legacy.allowed_access_routes.length && isEmpty(c.allowed_access_routes)) patch.allowed_access_routes = legacy.allowed_access_routes;
     if (Object.keys(patch).length === 0) continue;
-    const { error } = await supabase.from("rule_calculations").update(patch).eq("id", c.id);
+    const { error } = await supabase.from("rule_calculations").update(patch as any).eq("id", c.id);
     if (error) throw error;
     updated++;
   }
