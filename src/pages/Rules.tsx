@@ -70,6 +70,23 @@ const WEEKDAY_LABELS: { v: number; label: string }[] = [
 ];
 
 type RuleRow = any;
+
+/**
+ * Detecta restritivos legados ainda armazenados no NÍVEL REGRA.
+ * Pós-refatoração, esses filtros vivem por Cálculo. Quando aparecerem aqui,
+ * a regra é "legada" e merece um aviso visual para que o operador migre os
+ * critérios para dentro de cada cálculo.
+ */
+function legacyRuleLevelFilters(r: RuleRow): string[] {
+  const out: string[] = [];
+  const has = (v: unknown) => Array.isArray(v) && v.length > 0;
+  if (has(r?.procedure_codes)) out.push("códigos");
+  if (has(r?.sectors)) out.push("setores");
+  if (has(r?.specialties)) out.push("especialidades");
+  if (has(r?.agreement_aliases)) out.push("convênios");
+  if (has(r?.allowed_access_routes)) out.push("vias de acesso");
+  return out;
+}
 type DraftRule = {
   active: boolean;
   name: string; description: string; rule_text: string;
@@ -2186,6 +2203,18 @@ const Rules = () => {
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
                                   </span>
                                 )}
+                                {(() => {
+                                  const legacy = legacyRuleLevelFilters(r);
+                                  if (legacy.length === 0) return null;
+                                  return (
+                                    <span
+                                      className="text-xs rounded-full border border-warning/60 bg-warning/15 text-warning-foreground px-2 py-0.5 flex items-center gap-1"
+                                      title={`Esta regra ainda guarda ${legacy.join(", ")} no nível Regra (legado). Após a refatoração, esses filtros devem viver por Cálculo. Edite a regra e mova os critérios para dentro de cada cálculo.`}
+                                    >
+                                      <AlertTriangle className="h-3 w-3" /> Legado nível-Regra: {legacy.join(", ")}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                               {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
                               <p className="text-sm">{r.rule_text}</p>
