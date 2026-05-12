@@ -2116,13 +2116,7 @@ const Rules = () => {
               {Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={filterSector} onValueChange={(v) => setFilterSector(v as any)}>
-            <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos (setor / item pgto)</SelectItem>
-              {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {/* Filtro por setor removido — restritivo agora vive por Cálculo */}
           <div className="relative">
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={filterTarget} onChange={(e) => setFilterTarget(e.target.value)} placeholder="Buscar empresa/médico" className="pl-8 w-[220px]" />
