@@ -579,20 +579,19 @@ const Rules = () => {
         currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
-    // Tabelas e Códigos Vinculados
+    // Tabelas Vinculadas (códigos restritivos vivem por Cálculo)
     const hasRefTable = !!r.reference_table_id;
     const hasExceptions = Array.isArray(r.exception_table_ids) && r.exception_table_ids.length > 0;
-    const hasCodes = Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0;
 
-    if (hasRefTable || hasExceptions || hasCodes) {
+    if (hasRefTable || hasExceptions) {
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(41, 128, 185);
-        doc.text("Tabelas e Códigos Vinculados", 14, currentY);
+        doc.text("Tabelas Vinculadas", 14, currentY);
         currentY += 5;
 
         const tableLinks = [["Tipo de Vínculo", "Identificação / Nome"]];
-        
+
         if (hasRefTable) {
             const ref = refTables.find((t: any) => t.id === r.reference_table_id);
             tableLinks.push(["Tabela de Referência", ref?.name || r.reference_table_id || "Não identificada"]);
@@ -603,10 +602,6 @@ const Rules = () => {
                 const ref = refTables.find((t: any) => t.id === id);
                 tableLinks.push(["Tabela de Exceção / Vínculo", ref?.name || id]);
             });
-        }
-
-        if (hasCodes) {
-            tableLinks.push(["Códigos Específicos", r.procedure_codes.join(", ")]);
         }
 
         autoTable(doc, {
