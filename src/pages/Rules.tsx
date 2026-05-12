@@ -311,7 +311,7 @@ const Rules = () => {
 
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
-  const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
+  // filterSector removido — restritivos por Cálculo, não por Regra
   
   const [filterTarget, setFilterTarget] = useState("");
   const [onlyIncomplete, setOnlyIncomplete] = useState(false);
