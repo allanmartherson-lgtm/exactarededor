@@ -1871,13 +1871,21 @@ export function analyzeItem(
       
       if (fCalc.expected !== null) {
         const oldExplanation = calc?.explanation || "";
+        const oldBreakdown = (calc?.breakdown ?? []).map((b) => ({
+          ...b,
+          label: winner ? `[${winner.name}] ${b.label}` : b.label,
+        }));
         calc = fCalc;
+        // Preserva o breakdown da regra específica que falhou para diagnóstico
+        if (oldBreakdown.length > 0) {
+          calc.breakdown = [...oldBreakdown, ...(calc.breakdown ?? [])];
+        }
         priority = fPriority;
         calculation_type_used = fRule.calculation_type;
         matched_rule_id = fRule.id;
         matched_rule_name = fRule.name;
-        
-        calc.explanation = winner 
+
+        calc.explanation = winner
           ? `Regra específica "${winner.name}" falhou em todos os cálculos (${oldExplanation}). Aplicado fallback geral "${fRule.name}". ${calc.explanation}`
           : `Nenhuma regra específica satisfeita. Aplicada regra geral "${fRule.name}". ${calc.explanation}`;
           
