@@ -44,6 +44,7 @@ import {
   calcItemErrors,
   type CalcItem,
 } from "@/components/rules/RuleCalculationsEditor";
+import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -2252,6 +2253,7 @@ const Rules = () => {
       }
     />
       <div className="p-8 space-y-4">
+        <RulesHealthPanel onSelectRule={(id) => { const r = rules.find((x) => x.id === id); if (r) { openEdit(r); setOpen(true); } }} />
         {/* Banner de regras incompletas */}
         {incompleteCount > 0 && (
           <Card className="border-warning/50 bg-warning/5">
