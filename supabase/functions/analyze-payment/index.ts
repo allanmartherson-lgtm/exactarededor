@@ -125,7 +125,9 @@ serve(async (req) => {
           apply_access_route,include_auxiliaries,
           auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
           bonus_amount,bonus_pct,target_amount,allowed_access_routes,
-          force_totalized
+          force_totalized,application_unit,sectors,specialties,
+          procedure_codes,code_match_mode,doctor_roles,
+          agreement_match_mode,agreement_aliases
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
