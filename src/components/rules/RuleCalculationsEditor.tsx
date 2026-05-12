@@ -773,6 +773,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     sectors: c.has_conditions ? c.sectors : [],
     specialties: c.has_conditions ? c.specialties : [],
     force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
+    application_unit: c.calculation_type === "bonus" ? c.application_unit : "por_item",
   };
 }
 
