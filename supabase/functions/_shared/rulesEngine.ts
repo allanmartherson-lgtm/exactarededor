@@ -1135,7 +1135,9 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     bonus_pct: c.bonus_pct ?? rule.bonus_pct,
     target_amount: c.target_amount ?? rule.target_amount,
     allowed_access_routes: c.allowed_access_routes ?? rule.allowed_access_routes,
-  };
+    // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
+    application_unit: c.application_unit ?? rule.application_unit ?? null,
+  } as RuleInput & { application_unit?: string | null };
 }
 
 
