@@ -34,7 +34,7 @@ import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { cn } from "@/lib/utils";
-import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { CompanyCombobox } from "@/components/CompanyCombobox";
 import {
   RuleCalculationsEditor,
   makeEmptyCalc,
