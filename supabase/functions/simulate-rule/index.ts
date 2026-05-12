@@ -119,7 +119,7 @@ serve(async (req) => {
         exclusion_reason,allows_authorized_exception,
         agreement_name,agreement_match_mode,
         exception_table_ids,
-        group_company_links,
+        group_company_links,group_doctors,
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
         force_totalized

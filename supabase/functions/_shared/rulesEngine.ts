@@ -79,6 +79,11 @@ export interface RuleInput {
    * Se preenchido → aplica somente aos médicos listados naquela empresa.
    */
   group_company_links?: { company_id: string; doctors?: { name?: string; crm?: string }[] }[] | null;
+  /**
+   * Médicos avulsos (sem PJ). Casa por nome+CRM em qualquer empresa do item.
+   * Útil para acordos pessoais que seguem o médico independente do CNPJ que faturar.
+   */
+  group_doctors?: { name?: string; crm?: string }[] | null;
   bonus_amount?: number | null;
   bonus_pct?: number | null;
   target_amount?: number | null;
@@ -489,6 +494,7 @@ function classifyDoctorRole(role: string | null | undefined): DoctorRole {
 function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   if (r.scope !== "grupo") return false;
   const links = r.group_company_links ?? [];
+  const looseDoctors = r.group_doctors ?? [];
 
   const matchDoctorList = (doctors: { name?: string; crm?: string }[]): boolean => {
     if (!doctors.length || !item.doctor_name) return false;
@@ -501,16 +507,19 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
     return false;
   };
 
-  // Vínculos por empresa (único modelo suportado). Cada linha = uma empresa,
-  // opcionalmente restrita a uma lista de médicos.
-  if (links.length === 0) return false;
+  // Match por médico avulso (independente da PJ): segue o médico em qualquer empresa.
+  if (looseDoctors.length > 0 && matchDoctorList(looseDoctors)) return true;
+
+  // Vínculos por empresa: empresa do item precisa estar na lista; se a lista de
+  // médicos do link estiver vazia, vale para toda a equipe da PJ.
   for (const link of links) {
     if (!link?.company_id) continue;
     if (item.company_id !== link.company_id) continue;
     const ds = link.doctors ?? [];
-    if (ds.length === 0) return true; // todos os médicos daquela empresa
+    if (ds.length === 0) return true;
     if (matchDoctorList(ds)) return true;
   }
+
   return false;
 }
 
