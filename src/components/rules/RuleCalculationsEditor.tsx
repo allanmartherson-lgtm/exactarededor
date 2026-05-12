@@ -714,6 +714,7 @@ export function calcFromDb(r: any): CalcItem {
     sectors: Array.isArray(r.sectors) ? r.sectors : [],
     specialties: Array.isArray(r.specialties) ? r.specialties : [],
     force_totalized: !!r.force_totalized,
+    application_unit: (r.application_unit === "por_atendimento" || r.application_unit === "por_paciente_dia") ? r.application_unit : "por_item",
   };
 }
 
