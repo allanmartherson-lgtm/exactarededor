@@ -198,7 +198,8 @@ const Rules = () => {
   const [refTableId, setRefTableId] = useState<string>("");
   // Tabelas de exceção vinculadas (purpose IN sem_acordo, exclusao) — bloqueiam o cálculo da regra.
   const [fExceptionTableIds, setFExceptionTableIds] = useState<string[]>([]);
-  const [codesInput, setCodesInput] = useState<string>("");
+  // codesInput / fSectors / fSpecialties / fAgreement* removidos do nível Regra.
+  // Todos os filtros restritivos vivem agora dentro de cada item de Cálculo.
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
   const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
   const [fPackageAmount, setFPackageAmount] = useState<string>("");
@@ -225,14 +226,7 @@ const Rules = () => {
   const [fExclusionReason, setFExclusionReason] = useState<string>("");
   const [fAllowsAuthorizedException, setFAllowsAuthorizedException] = useState(false);
   // novos campos: setores multi, especialidades, vigência, médicos
-  const [fSectors, setFSectors] = useState<string[]>([]);
-  const [fSpecialties, setFSpecialties] = useState<string[]>([]);
-  // Convênio (eixo determinístico do motor de regras) — modo whitelist/blacklist + tags livres.
-  // `agreement_name` legado é mantido apenas para retrocompatibilidade na leitura
-  // (mesclado em `fAgreementAliases` no openEdit). Novas regras gravam só em aliases.
-  const [fAgreementMatchMode, setFAgreementMatchMode] = useState<"whitelist" | "blacklist">("whitelist");
-  const [fAgreementAliases, setFAgreementAliases] = useState<string[]>([]);
-  const [fAgreementInput, setFAgreementInput] = useState<string>("");
+  // Setores, especialidades, convênios e vias migraram para cada Cálculo.
   const [fValidFrom, setFValidFrom] = useState<string>("");
   const [fValidUntil, setFValidUntil] = useState<string>("");
   const [fDoctors, setFDoctors] = useState<{ name: string; crm?: string }[]>([]);
@@ -304,10 +298,7 @@ const Rules = () => {
     try { window.localStorage.setItem(ACCORDION_STORAGE_KEY, JSON.stringify(accordionValue)); } catch {}
   }, [accordionValue]);
 
-  const parsedCodes = useMemo(
-    () => codesInput.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean),
-    [codesInput]
-  );
+  // parsedCodes removido — códigos restritivos vivem em cada Cálculo.
 
   // Erros por seção do formulário (feedback visual + auto-abrir seção com erro)
   const sectionErrors = useMemo(() => {
@@ -801,7 +792,7 @@ const Rules = () => {
     setFSeverity("aviso"); setFSector("outro");
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
-    setRuleType("informativo"); setRefTableId(""); setFExceptionTableIds([]); setCodesInput("");
+    setRuleType("informativo"); setRefTableId(""); setFExceptionTableIds([]);
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
     setPaymentTerm("qualquer"); setAppliesTypes([]);
@@ -814,8 +805,7 @@ const Rules = () => {
     setFPackageSubtype("fechado");
     setFExclusionReason("");
     setFAllowsAuthorizedException(false);
-    setFSectors([]); setFSpecialties([]); setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
-    setFAgreementMatchMode("whitelist"); setFAgreementAliases([]); setFAgreementInput("");
+    setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
     setFHasConditions(false);
@@ -848,7 +838,7 @@ const Rules = () => {
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
-    setCodesInput(Array.isArray(r.procedure_codes) ? r.procedure_codes.join(", ") : "");
+    // procedure_codes legados ignorados — agora vivem por Cálculo.
     setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
     setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
@@ -877,18 +867,7 @@ const Rules = () => {
     setFPackageSubtype(legacySubtype);
     setFExclusionReason(r.exclusion_reason ?? "");
     setFAllowsAuthorizedException(!!r.allows_authorized_exception);
-    setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
-    setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
-    // Mescla nome principal legado dentro da nova lista de tags.
-    {
-      const aliases = Array.isArray(r.agreement_aliases) ? [...r.agreement_aliases] : [];
-      if (r.agreement_name && r.agreement_name.trim() && !aliases.some((a) => a.trim().toLowerCase() === r.agreement_name.trim().toLowerCase())) {
-        aliases.unshift(r.agreement_name.trim());
-      }
-      setFAgreementAliases(aliases);
-      setFAgreementInput("");
-      setFAgreementMatchMode((r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist") as "whitelist" | "blacklist");
-    }
+    // sectors/specialties/agreement_* legados ignorados — restritivos vivem por Cálculo.
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
@@ -1025,14 +1004,15 @@ const Rules = () => {
       instrumentador_pct: (isTabela && head.include_auxiliaries) ? (num(head.instrumentador_pct) ?? 10) : null,
       repasse_pct: isTabela ? num(head.repasse_pct) : null,
       apply_access_route: isTabela ? head.apply_access_route : false,
-      procedure_codes: parsedCodes.length ? parsedCodes : null,
+      // Restritivos (códigos, setores, especialidades, convênios) vivem por Cálculo agora.
+      procedure_codes: null,
       payment_term: paymentTerm,
       applies_payment_types: appliesTypes.length ? appliesTypes : null,
-      sectors: fSectors,
-      specialties: fSpecialties,
+      sectors: [],
+      specialties: [],
       agreement_name: null,
-      agreement_aliases: fAgreementAliases.map((a) => a.trim()).filter(Boolean),
-      agreement_match_mode: fAgreementMatchMode,
+      agreement_aliases: [],
+      agreement_match_mode: "whitelist",
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
