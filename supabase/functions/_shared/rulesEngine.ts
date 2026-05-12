@@ -1271,6 +1271,7 @@ export function applyCalculation(
       alerts: winnerCalc.alerts.map((a) => `[${winnerCalc.label}] ${a}`),
       breakdown,
       force_totalized: finalForceTotalized,
+      application_unit: (winnerCalc.application_unit as any) ?? rule.application_unit ?? "por_item",
     };
   }
   // ---- LEGADO: campos diretos na regra ----
