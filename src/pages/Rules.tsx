@@ -1872,10 +1872,6 @@ const Rules = () => {
                         );
                       })()}
 
-                      <div className="space-y-4 rounded-md border border-border bg-muted/40 p-3">
-                        <div className="space-y-1">
-                          <Label className="text-sm font-semibold">Filtros adicionais de produção</Label>
-                          <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
                       {scope === "master" && (
                         <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima. Setores, códigos, convênios, especialidades, tipos de pagamento e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.</p>
                       )}
@@ -2147,13 +2143,10 @@ const Rules = () => {
               <AlertTriangle className="h-5 w-5 text-warning" />
               <div className="flex-1 min-w-[200px]">
                 <p className="text-sm font-medium">{incompleteCount} regra{incompleteCount > 1 ? "s estão" : " está"} desatualizada{incompleteCount > 1 ? "s" : ""}</p>
-                <p className="text-xs text-muted-foreground">Faltam campos novos (ex.: tipos de pagamento aplicáveis). Atualize individualmente ou em massa.</p>
+                <p className="text-xs text-muted-foreground">Faltam campos novos. Edite individualmente para atualizar.</p>
               </div>
               <Button size="sm" variant="outline" onClick={() => { setOnlyIncomplete(true); selectAllIncomplete(); }}>
                 Selecionar todas
-              </Button>
-              <Button size="sm" onClick={() => { selectAllIncomplete(); setBulkOpen(true); }}>
-                <Wand2 className="h-4 w-4 mr-2" /> Atualizar em massa
               </Button>
             </CardContent>
           </Card>
@@ -2166,23 +2159,9 @@ const Rules = () => {
               <p className="text-sm font-medium">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
               <Button size="sm" variant="ghost" onClick={selectAllVisible}>Selecionar visíveis</Button>
               <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
-              <div className="ml-auto flex gap-2">
-                <Button size="sm" onClick={() => setBulkOpen(true)}><Wand2 className="h-4 w-4 mr-2" /> Atualizar em massa</Button>
-              </div>
             </CardContent>
           </Card>
-          )}
-          <DoctorCombobox
-            value={filterDoctor}
-            onChange={setFilterDoctor}
-            placeholder="Filtrar por médico (CRM)…"
-            className="min-w-[240px] h-9"
-          />
-          {filterDoctor && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
@@ -2198,13 +2177,6 @@ const Rules = () => {
             <SelectContent>
               <SelectItem value="todos">Todos (setor / item pgto)</SelectItem>
               {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              {Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="relative">
@@ -2281,15 +2253,11 @@ const Rules = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                                <span className="text-xs rounded-full border border-border bg-background px-2 py-0.5">{RULE_TYPE_LABELS[r.rule_type as LegacyRuleType] ?? r.rule_type}</span>
-                                {Array.isArray(r.sectors) && r.sectors.length > 0 ? (
+                                {Array.isArray(r.sectors) && r.sectors.length > 0 && (
                                   <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">
                                     {(r.sectors as RuleSector[]).map((s) => RULE_SECTOR_LABELS[s] ?? s).join(" · ")}
                                   </span>
-                                ) : (
-                                  <span className="text-xs rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector}</span>
                                 )}
-                                {/* Especialidade não é eixo do motor — não exibimos como badge de regra. */}
                                  {(r.valid_from || r.valid_until) && (
                                   <span className={cn(
                                     "text-xs rounded-full border px-2 py-0.5",
@@ -2300,19 +2268,7 @@ const Rules = () => {
                                     Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
                                   </span>
                                 )}
-                                {Array.isArray(r.doctors) && r.doctors.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">👤 {r.doctors.length} médico{r.doctors.length > 1 ? "s" : ""}</span>
-                                )}
                                 {renderCalcBadge(r)}
-                                {r.payment_term && r.payment_term !== "qualquer" && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">{PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm]}</span>
-                                )}
-                                {r.applies_payment_types && r.applies_payment_types.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">
-                                    {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
-                                  </span>
-                                )}
-                                {/* Tabela vinculada e códigos agora vivem por Cálculo, não na regra. */}
                                 {incomplete && (
                                   <span className="text-xs rounded-full border border-warning/50 bg-warning/10 text-warning-foreground px-2 py-0.5 flex items-center gap-1">
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
@@ -2340,47 +2296,6 @@ const Rules = () => {
         )}
       </div>
 
-      {/* Bulk update dialog */}
-      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Atualizar {selected.size} regra{selected.size > 1 ? "s" : ""} em massa</DialogTitle>
-            <DialogDescription>Apenas os campos preenchidos abaixo serão atualizados nas regras selecionadas.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Prazo de pagamento</Label>
-              <Select value={bulkPaymentTerm || "__keep"} onValueChange={(v) => setBulkPaymentTerm(v === "__keep" ? "" : v as PaymentTerm)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__keep">Manter</SelectItem>
-                  {Object.entries(PAYMENT_TERM_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tipos de pagamento aplicáveis</Label>
-              <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                {PAYMENT_TYPE_KEYS.map((k) => {
-                  const checked = bulkAppliesTypes.includes(k);
-                  return (
-                    <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                      onClick={() => setBulkAppliesTypes((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
-                      {PAYMENT_TYPE_LABELS[k]}
-                    </Button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">Vazio = não altera.</p>
-            </div>
-            {/* Tabela de referência removida do bulk: deve ser configurada por Cálculo. */}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
-            <Button onClick={applyBulkUpdate}>Aplicar</Button>
-          </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
       {/* Tela de revisão pós-importação */}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
