@@ -2143,13 +2143,10 @@ const Rules = () => {
               <AlertTriangle className="h-5 w-5 text-warning" />
               <div className="flex-1 min-w-[200px]">
                 <p className="text-sm font-medium">{incompleteCount} regra{incompleteCount > 1 ? "s estão" : " está"} desatualizada{incompleteCount > 1 ? "s" : ""}</p>
-                <p className="text-xs text-muted-foreground">Faltam campos novos (ex.: tipos de pagamento aplicáveis). Atualize individualmente ou em massa.</p>
+                <p className="text-xs text-muted-foreground">Faltam campos novos. Edite individualmente para atualizar.</p>
               </div>
               <Button size="sm" variant="outline" onClick={() => { setOnlyIncomplete(true); selectAllIncomplete(); }}>
                 Selecionar todas
-              </Button>
-              <Button size="sm" onClick={() => { selectAllIncomplete(); setBulkOpen(true); }}>
-                <Wand2 className="h-4 w-4 mr-2" /> Atualizar em massa
               </Button>
             </CardContent>
           </Card>
@@ -2162,23 +2159,9 @@ const Rules = () => {
               <p className="text-sm font-medium">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
               <Button size="sm" variant="ghost" onClick={selectAllVisible}>Selecionar visíveis</Button>
               <Button size="sm" variant="ghost" onClick={clearSelection}>Limpar</Button>
-              <div className="ml-auto flex gap-2">
-                <Button size="sm" onClick={() => setBulkOpen(true)}><Wand2 className="h-4 w-4 mr-2" /> Atualizar em massa</Button>
-              </div>
             </CardContent>
           </Card>
-          )}
-          <DoctorCombobox
-            value={filterDoctor}
-            onChange={setFilterDoctor}
-            placeholder="Filtrar por médico (CRM)…"
-            className="min-w-[240px] h-9"
-          />
-          {filterDoctor && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterDoctor(null)} className="h-9 px-2">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
@@ -2194,13 +2177,6 @@ const Rules = () => {
             <SelectContent>
               <SelectItem value="todos">Todos (setor / item pgto)</SelectItem>
               {Object.entries(RULE_SECTOR_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterType} onValueChange={(v) => setFilterType(v as any)}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              {Object.entries(RULE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="relative">
