@@ -958,15 +958,13 @@ const Rules = () => {
     const head = fCalculations[0] ?? makeEmptyCalc();
     const effectiveCalc: RuleCalculationType =
       fNature === "informativo" ? "informativo" : head.calculation_type;
-    const effectiveRuleType: LegacyRuleType = deriveRuleType(effectiveCalc);
     const payload: any = {
       active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
-      severity: fSeverity, scope, sector: fSector,
+      severity: fSeverity, scope,
       target_type: isEspecifica ? targetType : null,
       target_identifier: isEspecifica ? (fTargetIdentifier || null) : null,
       target_name: isEspecifica ? (fTargetName || null) : null,
-      rule_type: effectiveRuleType,
       calculation_type: effectiveCalc,
       // ===== Campos de cálculo: TODOS nulos no nível Regra =====
       convenio_percentage: null,
@@ -1003,14 +1001,9 @@ const Rules = () => {
       exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
       allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
       exception_table_ids: fExceptionTableIds,
-      payment_term: paymentTerm,
-      applies_payment_types: appliesTypes.length ? appliesTypes : null,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
-      doctors: fDoctors,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
-      group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
-      group_doctors: scope === "grupo" ? fGroupDoctors : [],
       time_mode: "qualquer",
       weekdays: [],
       includes_holidays: false,
