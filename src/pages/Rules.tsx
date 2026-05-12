@@ -755,13 +755,12 @@ const Rules = () => {
     setEditingId(null);
     setFActive(true);
     setFName(""); setFDescription(""); setFRuleText("");
-    setFSeverity("aviso"); setFSector("outro");
+    setFSeverity("aviso");
     setScope("master"); setTargetType("medico");
     setFTargetIdentifier(""); setFTargetName("");
-    setRuleType("informativo"); setRefTableId(""); setFExceptionTableIds([]);
+    setRefTableId(""); setFExceptionTableIds([]);
     setFCalculationType("informativo"); setFConvenioPct(""); setFFixedAmount(""); setFExtrasCodes("");
     setFNature("informativo");
-    setPaymentTerm("qualquer"); setAppliesTypes([]);
     setFPackageAmount(""); setFBonusAmount(""); setFBonusPct(""); setFTargetAmount("");
     setFMultiplier(""); setFDeflatorPct(""); setFIncludeAux(false); setFAuxPct("");
     setFAuxFirstPct("30"); setFAuxSecondPct("20"); setFInstrumentadorPct("10");
@@ -792,11 +791,10 @@ const Rules = () => {
     setFName(isDuplicate ? `Cópia de ${r.name ?? ""}` : (r.name ?? ""));
     setFActive(isDuplicate ? true : (r.active !== false));
     setFDescription(r.description ?? ""); setFRuleText(r.rule_text ?? "");
-    setFSeverity(r.severity ?? "aviso"); setFSector(r.sector ?? "outro");
+    setFSeverity(r.severity ?? "aviso");
     setScope(r.scope ?? "master"); setTargetType((r.target_type as RuleTargetType) ?? "medico");
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
-    setRuleType((r.rule_type as LegacyRuleType) ?? "informativo");
-    const calc = (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as LegacyRuleType) ?? "informativo");
+    const calc = (r.calculation_type as RuleCalculationType) ?? "informativo";
     setFCalculationType(calc);
     setFNature(calc === "informativo" ? "informativo" : "calculavel");
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
@@ -805,8 +803,6 @@ const Rules = () => {
     setRefTableId(r.reference_table_id ?? "");
     setFExceptionTableIds(Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []);
     // procedure_codes legados ignorados — agora vivem por Cálculo.
-    setPaymentTerm((r.payment_term as PaymentTerm) ?? "qualquer");
-    setAppliesTypes(Array.isArray(r.applies_payment_types) ? r.applies_payment_types : []);
     setFPackageAmount(r.package_amount != null ? String(r.package_amount) : "");
     setFBonusAmount(r.bonus_amount != null ? String(r.bonus_amount) : "");
     setFBonusPct(r.bonus_pct != null ? String(r.bonus_pct) : "");
@@ -836,21 +832,12 @@ const Rules = () => {
     // sectors/specialties/agreement_* legados ignorados — restritivos vivem por Cálculo.
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
-    setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
-    const gci = Array.isArray(r.group_company_ids) ? r.group_company_ids : [];
-    const gdo = Array.isArray(r.group_doctors) ? r.group_doctors : [];
+    setFDoctors([]);
     const glinks = Array.isArray((r as any).group_company_links) ? (r as any).group_company_links : [];
-    setFGroupCompanyIds(gci);
-    setFGroupDoctors(gdo);
-    setFGroupMode(gci.length > 0 ? "empresa" : gdo.length > 0 ? "medico" : "empresa");
-    // Migra legado para o novo formato de linhas se necessário.
-    if (glinks.length > 0) {
-      setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
-    } else if (gci.length > 0) {
-      setFGroupLinks(gci.map((id: string) => ({ company_id: id, doctors: gci.length === 1 ? gdo : [] })));
-    } else {
-      setFGroupLinks([]);
-    }
+    setFGroupCompanyIds([]);
+    setFGroupDoctors([]);
+    setFGroupMode("empresa");
+    setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
     const tMode = (r.time_mode as TimeMode) ?? "qualquer";
     const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
     const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
@@ -1186,23 +1173,19 @@ const Rules = () => {
       const ds: DraftRule[] = data.rules.map((r: any) => ({
         active: true,
         name: r.name ?? "", description: r.description ?? "", rule_text: r.rule_text ?? "",
-        severity: r.severity ?? "aviso", scope: r.scope ?? "master", sector: r.sector ?? "outro",
+        severity: r.severity ?? "aviso", scope: r.scope ?? "master",
         target_type: r.target_type ?? null, target_identifier: r.target_identifier ?? null, target_name: r.target_name ?? null,
-        rule_type: r.rule_type ?? "informativo",
-        calculation_type: (r.calculation_type as RuleCalculationType) ?? inferCalculationType((r.rule_type as LegacyRuleType) ?? "informativo"),
+        calculation_type: (r.calculation_type as RuleCalculationType) ?? "informativo",
         convenio_percentage: r.convenio_percentage ?? null,
         fixed_amount: r.fixed_amount ?? r.bonus_amount ?? r.target_amount ?? null,
         extras_codes: Array.isArray(r.extras_codes) ? r.extras_codes : [],
         package_amount: r.package_amount ?? null, bonus_amount: r.bonus_amount ?? null, bonus_pct: r.bonus_pct ?? null,
         target_amount: r.target_amount ?? null, multiplier: r.multiplier ?? null, deflator_pct: r.deflator_pct ?? null,
         reference_table_id: null, procedure_codes: Array.isArray(r.procedure_codes) ? r.procedure_codes : [],
-        payment_term: (r.payment_term ?? "qualquer") as PaymentTerm,
-        applies_payment_types: Array.isArray(r.applies_payment_types) ? r.applies_payment_types : [],
         sectors: Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []),
         specialties: Array.isArray(r.specialties) ? r.specialties : [],
         valid_from: r.valid_from ?? null,
         valid_until: r.valid_until ?? null,
-        doctors: Array.isArray(r.doctors) ? r.doctors : [],
       }));
       setDrafts(ds); setImportOpen(false); setReviewOpen(true); setImportText(""); setImportFile(null);
     } catch (e: any) {
@@ -1342,14 +1325,16 @@ const Rules = () => {
   }, [filtered]);
 
   const renderCalcBadge = (r: RuleRow) => {
-    if (r.rule_type === "pacote" && r.package_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.package_amount)} (pacote)</span>;
-    if (r.rule_type === "tabela_diferenciada") {
+    const ct = r.calculation_type as RuleCalculationType | undefined;
+    if (ct === "pacote" && r.package_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.package_amount)} (pacote)</span>;
+    if (ct === "tabela_diferenciada" || ct === "tabela_referencia") {
       const ref = refTables.find((t) => t.id === r.reference_table_id);
       const parts = [ref?.name ?? "tabela", r.multiplier ? `× ${r.multiplier}` : null, r.deflator_pct ? `− ${r.deflator_pct}%` : null].filter(Boolean);
       return <span className="text-xs font-medium">{parts.join(" ")}</span>;
     }
-    if (r.rule_type === "bonus") return <span className="text-xs font-medium">{r.bonus_amount != null ? `+${formatCurrency(r.bonus_amount)}` : r.bonus_pct != null ? `+${r.bonus_pct}%` : "bônus"}</span>;
-    if (r.rule_type === "complemento" && r.target_amount != null) return <span className="text-xs font-medium">complementa até {formatCurrency(r.target_amount)}</span>;
+    if (ct === "bonus") return <span className="text-xs font-medium">{r.bonus_amount != null ? `+${formatCurrency(r.bonus_amount)}` : r.bonus_pct != null ? `+${r.bonus_pct}%` : "bônus"}</span>;
+    if (ct === "complemento" && r.target_amount != null) return <span className="text-xs font-medium">complementa até {formatCurrency(r.target_amount)}</span>;
+    if (ct === "valor_fixo" && r.fixed_amount != null) return <span className="text-xs font-medium">{formatCurrency(r.fixed_amount)} (fixo)</span>;
     return null;
   };
 
@@ -1359,20 +1344,6 @@ const Rules = () => {
   const selectAllVisible = () => setSelected(new Set(filtered.map((r) => r.id)));
   const selectAllIncomplete = () => setSelected(new Set(rules.filter(isIncomplete).map((r) => r.id)));
   const clearSelection = () => setSelected(new Set());
-
-  const applyBulkUpdate = async () => {
-    if (selected.size === 0) return;
-    const patch: any = {};
-    if (bulkPaymentTerm) patch.payment_term = bulkPaymentTerm;
-    if (bulkAppliesTypes.length > 0) patch.applies_payment_types = bulkAppliesTypes;
-    if (Object.keys(patch).length === 0) return toast({ title: "Selecione ao menos um campo para atualizar", variant: "destructive" });
-    const ids = Array.from(selected);
-    const { error } = await supabase.from("rules").update(patch).in("id", ids);
-    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-    toast({ title: `${ids.length} regra(s) atualizadas` });
-    setBulkOpen(false); setBulkPaymentTerm(""); setBulkAppliesTypes([]); setBulkRefTableId("");
-    clearSelection(); load();
-  };
 
   return (
     <>
