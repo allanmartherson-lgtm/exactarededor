@@ -65,6 +65,8 @@ export type CalcItem = {
   sectors: string[];
   specialties: string[];
   force_totalized: boolean;
+  /** Para bônus: define se aplica por linha, por atendimento ou por paciente+dia (fallback). */
+  application_unit: "por_item" | "por_atendimento" | "por_paciente_dia";
 };
 
 /** Construtor de item vazio (default sensato). */
