@@ -1,78 +1,95 @@
 ## Objetivo
 
-Preparar o sistema para lotes grandes (150+ empresas, milhares de itens) sem timeout, e dar visibilidade aos itens cujas empresas ainda não estão cadastradas.
+Refatorar o cadastro de regras para que **todo critério restritivo** (códigos, convênios, setores, especialidades, horário, vias de acesso, função do médico, urgência/eletiva) viva **dentro de cada cálculo** — não mais no nível da regra. Assim, uma única regra pode conter múltiplos cálculos com escopos completamente diferentes (ex.: Bônus Final de Semana com 3 cálculos: Cirurgia Geral em 3 códigos, Bariátrica em 1 código, Geral como fallback).
 
----
+## Conceito atual vs novo
 
-## Parte 1 — Processar por empresa em background (sem timeout)
+```text
+HOJE                                  NOVO
+────                                  ────
+Regra                                 Regra (apenas identificação + escopo de cliente)
+├─ códigos                            └─ Cálculos[]
+├─ setores                                ├─ Cálculo 1
+├─ especialidades                         │   ├─ critérios (códigos, setor, conv., horário, via, função, urg.)
+├─ convênios                              │   ├─ unidade (item / atendimento / paciente-dia)
+├─ horário                                │   └─ fórmula (% conv., bônus, pacote, fixo, etc.)
+├─ vias                                   ├─ Cálculo 2 ← outro escopo, outra fórmula
+└─ Cálculos[] (só fórmula)                └─ Cálculo 3 (fallback geral)
+    └─ fórmula
+```
 
-Hoje a `analyze-payment` recebe o `payment_id` inteiro e tenta processar todos os itens em uma única execução de até 150s. Em lotes grandes isso estoura.
+## Nível Regra — fica apenas
 
-**Nova arquitetura (dispatcher → workers):**
+- Identificação: nome, descrição, texto-base, severidade, vigência
+- Escopo de **cliente**: master / específica / grupo (empresa, médico, grupo de empresas)
+- Tipos de pagamento aplicáveis + prazo
+- Limiares de divergência (alerta/bloqueio)
 
-1. Criar `dispatch-payment-analysis` (edge function leve):
-   - Recebe `payment_id`.
-   - Lê todas as `company_name` distintas do lote (`payment_items`).
-   - Cria/atualiza um registro em `payment_processing_jobs` com `total_companies`, `processed_companies = 0`, `status = 'em_andamento'`.
-   - Dispara, em paralelo (chunks de ~10 invocações simultâneas), uma chamada `analyze-payment` para cada empresa via `supabase.functions.invoke("analyze-payment", { body: { payment_id, company_name } })` em modo fire-and-forget (sem `await` no retorno).
-   - Retorna 202 imediatamente com `total_companies` para o cliente acompanhar.
+## Nível Cálculo — passa a conter
 
-2. Ajustar `analyze-payment` (sem reescrever — já suporta `company_name`):
-   - Ao final, incrementar `processed_companies` em `payment_processing_jobs` de forma atômica (RPC `increment_processed_company`).
-   - Quando `processed_companies = total_companies`, marcar `status = 'concluido'` e disparar `notify-analyst-event`.
-   - Capturar erros por empresa em coluna `failed_companies jsonb[]` para reprocesso pontual.
+Já tem hoje: `time_mode`, `weekdays`, `time_start/end`, `includes_holidays`, `elective_mode`, `allowed_access_routes`, `apply_access_route`, `sectors`, `specialties`, `application_unit`, `force_totalized`, fórmula completa, `extras_codes`.
 
-3. Tabela nova `payment_processing_jobs`:
-   - `payment_id`, `total_companies`, `processed_companies`, `status` (em_andamento, concluido, parcial), `failed_companies jsonb`, `started_at`, `finished_at`.
-   - RLS: workflow lê/escreve.
+**A adicionar:**
 
-4. Frontend (`PaymentDetail.tsx`):
-   - Mostrar barra de progresso "Analisando 47/152 empresas…" usando realtime na tabela `payment_processing_jobs`.
-   - Botão "Reprocessar empresas com falha" quando `failed_companies` não vazio.
+- `procedure_codes text[]` — códigos TUSS/CBHPM aos quais o cálculo se aplica (vazio = qualquer código)
+- `code_match_mode text` — `whitelist` (só esses) | `blacklist` (qualquer menos esses) | `any` (ignora)
+- `doctor_roles text[]` — função do médico no item (cirurgião, anestesista, auxiliar…)
+- `agreement_match_mode text` + `agreement_aliases text[]` — filtro por convênio (whitelist/blacklist)
+- `priority int` — ordem de avaliação dentro da regra (primeiro match aplica; cálculo "geral" fica por último)
+- `match_strategy text` — `first_match` (default, para o no primeiro que casar) | `all_match` (avalia todos, soma efeitos)
 
-**Ganhos:** cada worker processa apenas ~30 itens em média (lote/empresa), terminando em poucos segundos. Sem risco de timeout. Paralelismo controlado evita estourar conexões.
+## Motor (`rulesEngine.ts`)
 
----
+Ao avaliar um item contra uma regra:
 
-## Parte 2 — Relatório de empresas não cadastradas
+1. Validar escopo da **regra** (cliente, prazo, tipo de pagamento, vigência) — se falhar, descarta a regra inteira
+2. Iterar `calculations` ordenados por `priority`
+3. Para cada cálculo, avaliar os filtros locais (código, setor, especialidade, convênio, horário, via, função, eletiva)
+4. `first_match`: aplica o primeiro que casar e para
+5. Se nenhum cálculo casar → item sai com `sem_regra` (sem default, conforme memória)
 
-Os itens já entram no lote com `company_id = NULL` quando a empresa não é reconhecida. Falta visibilidade.
+Remover do motor qualquer leitura de códigos/setores/etc. do nível regra para fins de filtro de aplicação.
 
-1. **No upload (`NewPayment.tsx`):**
-   - Antes de submeter, mostrar um painel "Empresas não cadastradas" listando os `rawCompanyName` sem match (ou match < 90% não confirmado), com contagem de itens e valor bruto total por empresa.
-   - Botão "Baixar CSV" com colunas: empresa_arquivo, qtd_itens, valor_bruto_total, primeiro_medico, arquivo_origem.
-   - Toast de aviso ao confirmar: "X itens entrarão sem empresa cadastrada — relatório disponível na tela do lote."
+## UI — `Rules.tsx` + `RuleCalculationsEditor.tsx`
 
-2. **Na tela do lote (`PaymentDetail.tsx`):**
-   - Nova seção "Empresas não reconhecidas" (sempre visível quando há itens com `company_id IS NULL`).
-   - Lista cada `company_name` distinta sem `company_id`, com:
-     - quantidade de itens, valor bruto total
-     - botão "Vincular a empresa existente" (abre `CompanyCombobox` e atualiza todos os itens daquela empresa em uma chamada)
-     - botão "Cadastrar nova empresa" (abre dialog de criação de `companies`, já preenchido com o nome)
-     - botão "Baixar CSV"
-   - Após vincular/cadastrar, oferece reprocessar somente aquela empresa (usa o dispatcher da Parte 1 com filtro).
+**Aba Identificação** (Regra):
+- Nome, descrição, texto, severidade, vigência
 
-3. Não excluir itens — eles continuam no lote como hoje, apenas ganham essa camada de gestão.
+**Aba Aplicação** (Regra):
+- Escopo de cliente (master/específica/grupo)
+- Prazo + tipos de pagamento
+- Limiares
 
----
+**Aba Cálculos** (lista ordenável de cálculos):
+Cada cálculo num accordion expandido com **3 seções internas**:
+1. **Quando aplicar** (filtros): códigos + modo, setores, especialidades, convênios + modo, horário/dias, vias, função, eletiva/urgência
+2. **Como contar** (unidade): por item / atendimento / paciente-dia, force_totalized
+3. **Fórmula**: tipo + parâmetros (% conv., bônus, pacote, fixo, complemento, etc.)
 
-## Arquivos afetados
+Botões: adicionar cálculo, duplicar, reordenar (drag/setas), remover. Badge "Fallback" automático no último sem filtros.
 
-**Backend:**
-- `supabase/functions/dispatch-payment-analysis/index.ts` (novo)
-- `supabase/functions/analyze-payment/index.ts` (incremento de progresso ao final)
-- migração: tabela `payment_processing_jobs` + RPC `increment_processed_company` + realtime publication
+Remover da Regra os campos: `procedure_codes`, `sectors`, `specialties`, `agreement_*`, `allowed_access_routes`, `payment_term`/`applies_payment_types` ficam (são da regra). 
 
-**Frontend:**
-- `src/pages/NewPayment.tsx` (painel de empresas não reconhecidas + CSV no upload)
-- `src/pages/PaymentDetail.tsx` (barra de progresso + seção empresas não reconhecidas)
-- `src/components/payment-detail/UnregisteredCompaniesPanel.tsx` (novo)
-- `src/components/payment-detail/AnalysisProgressBar.tsx` (novo)
-- Substituir chamadas atuais de `supabase.functions.invoke("analyze-payment", { body: { payment_id }})` por `dispatch-payment-analysis` quando o lote tiver mais de 1 empresa.
+## Migração de dados
 
----
+Para regras existentes que têm critérios no nível regra:
+- Copiar `procedure_codes`, `sectors`, `specialties`, `agreement_*`, `allowed_access_routes` da regra para **cada** `rule_calculations` filho que ainda não tenha o equivalente
+- Manter colunas antigas na tabela `rules` como deprecated por enquanto (não remover) para não quebrar leitura legada; UI deixa de exibir/editar
 
-## Não incluído (para confirmar depois)
+## Detalhes técnicos
 
-- Retry automático de empresas falhas (faremos manual via botão na primeira versão).
-- Limitar concorrência por instância (10 paralelos por chunk já é seguro para a maioria dos casos; ajustável via constante).
+- **Migration**: adicionar colunas em `rule_calculations` (`procedure_codes`, `code_match_mode`, `doctor_roles`, `agreement_match_mode`, `agreement_aliases`, `priority`, `match_strategy`); backfill copiando dos pais
+- **Motor**: novo helper `calcMatchesItem(calc, item, ctx)` que centraliza todos os filtros locais; `analyzePaymentItems` usa `first_match` por priority
+- **UI**: `RuleCalculationsEditor` ganha sub-seção "Quando aplicar" com inputs já existentes hoje no nível Regra (reaproveitar componentes)
+- **Form state em `Rules.tsx`**: remover `codesInput`, `fSectors`, `fSpecialties`, `fAgreementAliases`, `fAllowedAccessRoutes` do nível regra (passam a ser por-cálculo dentro do `CalcItem`)
+- **Testes**: criar `rule_per_calc_filters_test.ts` cobrindo: bônus 3 códigos / 1 código / fallback, prioridade, first_match, herança nenhuma quando regra não tem mais filtros
+
+## Fora de escopo
+
+- Não tocar em `payment_items`, status, ou qualquer cálculo financeiro além do roteamento
+- Não remover colunas legadas da tabela `rules` neste passo (depreciação só)
+- Não mexer em outras telas (Pagamentos, Detalhe, Faturas)
+
+## Risco
+
+Mudança grande na UI de cadastro. Regras antigas continuam funcionando via backfill. Após a refatoração, qualquer ajuste fino é feito por cálculo — sem precisar de correção em banco.
