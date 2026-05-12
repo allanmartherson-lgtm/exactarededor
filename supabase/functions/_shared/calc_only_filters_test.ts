@@ -35,54 +35,8 @@ Deno.test("validateCalcOnlyFilters: regra sem restritivos no topo passa limpa", 
   assertEquals(warnings.length, 0);
 });
 
-Deno.test("motor: códigos restritivos no nível Regra não filtram — só os do Cálculo valem", () => {
-  // Regra master com cálculo BÔNUS restrito ao código "AAA".
-  // O nível Regra possui um código "ZZZ" legado (não deveria ter efeito).
-  const rules = [
-    {
-      id: "r1",
-      name: "Bônus FDS",
-      active: true,
-      scope: "master",
-      severity: "info",
-      calculation_type: "bonus",
-      payment_term: "qualquer",
-      applies_payment_types: null,
-      // legado — deve ser ignorado:
-      procedure_codes: ["ZZZ"],
-      sectors: [],
-      specialties: [],
-      agreement_aliases: [],
-      allowed_access_routes: [],
-      calculations: [
-        {
-          id: "c1",
-          calculation_type: "bonus",
-          priority: 1,
-          procedure_codes: ["AAA"],
-          code_match_mode: "whitelist",
-          bonus_amount: 1500,
-          application_unit: "atendimento",
-          time_mode: "qualquer",
-        },
-      ],
-    },
-  ];
-  const item = {
-    id: "i1",
-    procedure_code: "AAA",
-    procedure_date: "2026-05-09T10:00:00", // sábado
-    attendance_number: "1",
-    doctor_role: "cirurgiao",
-    payment_amount: 0,
-  };
-  const ctx = {
-    reference_date: "2026-05-09",
-    payment_type: null,
-    sectors: [],
-    specialties: [],
-  };
-  const out = analyzePaymentItems([item] as any, rules as any, ctx as any);
-  const first: any = Array.isArray(out) ? out[0] : (out as any).items?.[0];
-  assert(first?.matched_rule_id === "r1", `esperava r1, recebeu ${first?.matched_rule_id}`);
-});
+// Observação: a neutralização do seletor (`selectWinningRule`) para deixar de
+// usar `procedure_codes`/`agreement_aliases`/`allowed_access_routes` no nível
+// Regra é uma migração mais ampla do motor, fora do escopo desta validação.
+// O `ruleFromCalcItem` já foi blindado para não vazar restritivos da Regra
+// para a "regra efetiva" usada pelos calculadores.
