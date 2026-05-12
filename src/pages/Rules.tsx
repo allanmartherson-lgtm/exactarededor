@@ -198,7 +198,8 @@ const Rules = () => {
   const [refTableId, setRefTableId] = useState<string>("");
   // Tabelas de exceção vinculadas (purpose IN sem_acordo, exclusao) — bloqueiam o cálculo da regra.
   const [fExceptionTableIds, setFExceptionTableIds] = useState<string[]>([]);
-  const [codesInput, setCodesInput] = useState<string>("");
+  // codesInput / fSectors / fSpecialties / fAgreement* removidos do nível Regra.
+  // Todos os filtros restritivos vivem agora dentro de cada item de Cálculo.
   const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
   const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
   const [fPackageAmount, setFPackageAmount] = useState<string>("");
