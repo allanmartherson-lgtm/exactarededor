@@ -960,21 +960,12 @@ const Rules = () => {
       return;
     }
     const isEspecifica = scope === "especifica";
-    // === Espelho legado: o motor antigo ainda lê os campos planos da regra.
-    // Por isso, derivamos os campos legados a partir do PRIMEIRO item de cálculo
-    // (fCalculations[0]) e mantemos o restante da lista em rule_calculations.
-    // Etapa B do plano remove esse espelhamento.
+    // Restritivos e parâmetros de cálculo vivem APENAS em rule_calculations.
+    // O nível Regra guarda só identificação, escopo e limiares.
     const head = fCalculations[0] ?? makeEmptyCalc();
     const effectiveCalc: RuleCalculationType =
       fNature === "informativo" ? "informativo" : head.calculation_type;
     const effectiveRuleType: RuleType = deriveRuleType(effectiveCalc);
-    const isPacote =
-      effectiveCalc === "pacote" ||
-      effectiveCalc === "pacote_fechado" ||
-      effectiveCalc === "pacote_com_extras" ||
-      effectiveCalc === "pacote_por_atendimento";
-    const isPacoteComExtras = isPacote && head.package_subtype === "com_extras";
-    const isTabela = effectiveCalc === "tabela_diferenciada";
     const payload: any = {
       active: fActive,
       name: fName, description: fDescription || null, rule_text: fRuleText,
@@ -984,59 +975,56 @@ const Rules = () => {
       target_name: isEspecifica ? (fTargetName || null) : null,
       rule_type: effectiveRuleType,
       calculation_type: effectiveCalc,
-      convenio_percentage: effectiveCalc === "percentual_sobre_convenio" ? num(head.convenio_percentage) : null,
-      fixed_amount: effectiveCalc === "valor_fixo" ? num(head.fixed_amount) : null,
-      extras_codes: isPacoteComExtras
-        ? head.extras_codes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
-        : null,
-      package_amount: isPacote ? num(head.package_amount) : null,
-      package_main_code: isPacote ? (head.package_main_code.trim() || null) : null,
-      package_included_codes: isPacote
-        ? head.package_included_codes.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean)
-        : null,
-      package_visits_count: isPacoteComExtras ? head.package_visits_count : false,
-      package_opinions_count: isPacoteComExtras ? head.package_opinions_count : false,
-      package_auxiliaries_included: isPacoteComExtras ? head.package_auxiliaries_included : false,
-      package_subtype: isPacote ? head.package_subtype : null,
-      exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
-      allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
-      bonus_amount: effectiveCalc === "bonus" ? num(head.bonus_amount) : null,
-      bonus_pct: effectiveCalc === "bonus" ? num(head.bonus_pct) : null,
-      target_amount: effectiveCalc === "complemento" ? num(head.target_amount) : null,
-      multiplier: isTabela ? num(head.multiplier) : null,
-      deflator_pct: isTabela ? num(head.deflator_pct) : null,
-      reference_table_id: isTabela ? (head.reference_table_id || null) : null,
-      exception_table_ids: fExceptionTableIds,
-      allowed_access_routes: head.allowed_access_routes.length > 0 ? head.allowed_access_routes : null,
-      include_auxiliaries: isTabela ? head.include_auxiliaries : false,
-      auxiliary_pct: isTabela ? num(head.auxiliary_pct) : null,
-      aux_first_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_first_pct) ?? 30) : null,
-      aux_second_pct: (isTabela && head.include_auxiliaries) ? (num(head.aux_second_pct) ?? 20) : null,
-      instrumentador_pct: (isTabela && head.include_auxiliaries) ? (num(head.instrumentador_pct) ?? 10) : null,
-      repasse_pct: isTabela ? num(head.repasse_pct) : null,
-      apply_access_route: isTabela ? head.apply_access_route : false,
-      // Restritivos (códigos, setores, especialidades, convênios) vivem por Cálculo agora.
+      // ===== Campos de cálculo: TODOS nulos no nível Regra =====
+      convenio_percentage: null,
+      fixed_amount: null,
+      extras_codes: null,
+      package_amount: null,
+      package_main_code: null,
+      package_included_codes: null,
+      package_visits_count: false,
+      package_opinions_count: false,
+      package_auxiliaries_included: false,
+      package_subtype: null,
+      bonus_amount: null,
+      bonus_pct: null,
+      target_amount: null,
+      multiplier: null,
+      deflator_pct: null,
+      reference_table_id: null,
+      include_auxiliaries: false,
+      auxiliary_pct: null,
+      aux_first_pct: null,
+      aux_second_pct: null,
+      instrumentador_pct: null,
+      repasse_pct: null,
+      apply_access_route: false,
       procedure_codes: null,
-      payment_term: paymentTerm,
-      applies_payment_types: appliesTypes.length ? appliesTypes : null,
       sectors: [],
       specialties: [],
       agreement_name: null,
       agreement_aliases: [],
       agreement_match_mode: "whitelist",
+      allowed_access_routes: null,
+      // ===== Campos próprios da Regra =====
+      exclusion_reason: effectiveCalc === "exclusao" ? (fExclusionReason || null) : null,
+      allows_authorized_exception: effectiveCalc === "exclusao" ? fAllowsAuthorizedException : false,
+      exception_table_ids: fExceptionTableIds,
+      payment_term: paymentTerm,
+      applies_payment_types: appliesTypes.length ? appliesTypes : null,
       valid_from: fValidFrom || null,
       valid_until: fValidUntil || null,
       doctors: fDoctors,
       group_company_links: scope === "grupo" ? fGroupLinks.filter((l) => !!l.company_id) : [],
       group_company_ids: scope === "grupo" ? fGroupLinks.map((l) => l.company_id).filter(Boolean) : [],
       group_doctors: scope === "grupo" ? fGroupDoctors : [],
-      time_mode: head.has_conditions ? head.time_mode : "qualquer",
-      weekdays: head.has_conditions && head.time_mode === "personalizado" ? head.weekdays : [],
-      includes_holidays: head.has_conditions ? head.includes_holidays : false,
-      time_start: head.has_conditions ? (head.time_start || null) : null,
-      time_end: head.has_conditions ? (head.time_end || null) : null,
-      elective_mode: head.has_conditions ? head.elective_mode : "qualquer",
-      has_conditions: head.has_conditions,
+      time_mode: "qualquer",
+      weekdays: [],
+      includes_holidays: false,
+      time_start: null,
+      time_end: null,
+      elective_mode: "qualquer",
+      has_conditions: false,
       limiar_alerta_tipo: fAlertInherit ? null : fAlertThresholdType,
       limiar_alerta_valor: fAlertInherit ? null : num(fAlertThresholdValue),
       limiar_bloqueio_tipo: fBlockInherit ? null : fBlockThresholdType,
