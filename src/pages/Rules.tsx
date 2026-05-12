@@ -867,18 +867,7 @@ const Rules = () => {
     setFPackageSubtype(legacySubtype);
     setFExclusionReason(r.exclusion_reason ?? "");
     setFAllowsAuthorizedException(!!r.allows_authorized_exception);
-    setFSectors(Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []));
-    setFSpecialties(Array.isArray(r.specialties) ? r.specialties : []);
-    // Mescla nome principal legado dentro da nova lista de tags.
-    {
-      const aliases = Array.isArray(r.agreement_aliases) ? [...r.agreement_aliases] : [];
-      if (r.agreement_name && r.agreement_name.trim() && !aliases.some((a) => a.trim().toLowerCase() === r.agreement_name.trim().toLowerCase())) {
-        aliases.unshift(r.agreement_name.trim());
-      }
-      setFAgreementAliases(aliases);
-      setFAgreementInput("");
-      setFAgreementMatchMode((r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist") as "whitelist" | "blacklist");
-    }
+    // sectors/specialties/agreement_* legados ignorados — restritivos vivem por Cálculo.
     setFValidFrom(r.valid_from ?? "");
     setFValidUntil(r.valid_until ?? "");
     setFDoctors(Array.isArray(r.doctors) ? r.doctors : []);
