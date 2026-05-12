@@ -147,12 +147,12 @@ const Rules = () => {
   const [fDescription, setFDescription] = useState("");
   const [fRuleText, setFRuleText] = useState("");
   const [fSeverity, setFSeverity] = useState<RuleSeverity>("aviso");
-  const [fSector, setFSector] = useState<RuleSector>("outro");
+  
   const [scope, setScope] = useState<RuleScope>("master");
   const [targetType, setTargetType] = useState<RuleTargetType>("medico");
   const [fTargetIdentifier, setFTargetIdentifier] = useState("");
   const [fTargetName, setFTargetName] = useState("");
-  const [ruleType, setRuleType] = useState<LegacyRuleType>("informativo");
+  
   // Nova abordagem: Natureza da regra (Calculável vs Informativa/bloqueio)
   const [fNature, setFNature] = useState<"calculavel" | "informativo">("informativo");
   // === Novo motor (Fase 4) ===
@@ -165,8 +165,6 @@ const Rules = () => {
   const [fExceptionTableIds, setFExceptionTableIds] = useState<string[]>([]);
   // codesInput / fSectors / fSpecialties / fAgreement* removidos do nível Regra.
   // Todos os filtros restritivos vivem agora dentro de cada item de Cálculo.
-  const [paymentTerm, setPaymentTerm] = useState<PaymentTerm>("qualquer");
-  const [appliesTypes, setAppliesTypes] = useState<PaymentType[]>([]);
   const [fPackageAmount, setFPackageAmount] = useState<string>("");
   const [fBonusAmount, setFBonusAmount] = useState<string>("");
   const [fBonusPct, setFBonusPct] = useState<string>("");
@@ -310,17 +308,13 @@ const Rules = () => {
     fNature, fCalculations,
   ]);
 
-  // bulk update
+  // seleção em lote (atualmente sem ações em massa disponíveis após cleanup)
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkPaymentTerm, setBulkPaymentTerm] = useState<PaymentTerm | "">("");
-  const [bulkAppliesTypes, setBulkAppliesTypes] = useState<PaymentType[]>([]);
-  const [bulkRefTableId, setBulkRefTableId] = useState<string>("");
 
   // filters
   const [filterScope, setFilterScope] = useState<"todos" | RuleScope>("todos");
   const [filterSector, setFilterSector] = useState<"todos" | RuleSector>("todos");
-  const [filterType, setFilterType] = useState<"todos" | LegacyRuleType>("todos");
+  
   const [filterTarget, setFilterTarget] = useState("");
   const [filterCompany, setFilterCompany] = useState<CompanyOption | null>(null);
   const [filterDoctor, setFilterDoctor] = useState<DoctorOption | null>(null);
@@ -415,11 +409,10 @@ const Rules = () => {
       ["Campo", "Valor"],
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
-      ["Tipo de Regra", RULE_TYPE_LABELS[r.rule_type as LegacyRuleType] ?? r.rule_type ?? "Informativo"],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
-      ["Setor / Item", Array.isArray(r.sectors) && r.sectors.length > 0 
+      ["Setores", Array.isArray(r.sectors) && r.sectors.length > 0
         ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
-        : (RULE_SECTOR_LABELS[r.sector as RuleSector] ?? r.sector ?? "Todos")],
+        : "Todos"],
       ["Especialidades", Array.isArray(r.specialties) && r.specialties.length > 0 ? r.specialties.join(", ") : "Todas"],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
       ["Status", (() => {
@@ -498,10 +491,6 @@ const Rules = () => {
 
     const payInfo = [
       ["Configuração", "Valor"],
-      ["Prazo de Pagamento", PAYMENT_TERM_LABELS[r.payment_term as PaymentTerm] ?? "Qualquer"],
-      ["Tipos Aplicáveis", Array.isArray(r.applies_payment_types) && r.applies_payment_types.length > 0
-        ? r.applies_payment_types.map((t: any) => PAYMENT_TYPE_LABELS[t as PaymentType]).join(", ")
-        : "Qualquer"],
       ["Natureza", r.calculation_type === 'informativo' ? "Informativa" : "Calculável"],
       ["Tipo de Cálculo", RULE_CALCULATION_TYPE_LABELS[r.calculation_type as RuleCalculationType] ?? r.calculation_type ?? "N/A"]
     ];
