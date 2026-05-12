@@ -1119,6 +1119,14 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
 
 
 
+export interface ExpectedCalc {
+  expected: number | null;
+  explanation: string;
+  alerts: string[];
+  breakdown?: CalculationBreakdownEntry[];
+  force_totalized?: boolean;
+}
+
 export function applyCalculation(
   rule: RuleInput,
   item: ItemInput,
