@@ -2252,6 +2252,7 @@ const Rules = () => {
       }
     />
       <div className="p-8 space-y-4">
+        <RulesHealthPanel onSelectRule={(id) => { startEdit(id); }} />
         {/* Banner de regras incompletas */}
         {incompleteCount > 0 && (
           <Card className="border-warning/50 bg-warning/5">
