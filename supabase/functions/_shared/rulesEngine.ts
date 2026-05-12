@@ -1080,6 +1080,13 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // Códigos de procedimento (whitelist/blacklist/any)
   const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes.filter(Boolean) : [];
   const codeMode = (c.code_match_mode ?? "whitelist") as "whitelist" | "blacklist" | "any";
+  // DEFESA: whitelist explícita SEM códigos é misconfiguração — não pode capturar tudo.
+  // Exceção: tabela_diferenciada/tabela_referencia usam a tabela vinculada como whitelist
+  // implícita (o lookup falha para códigos fora da tabela e o motor segue para o próximo cálculo).
+  const tableBasedTypes = new Set(["tabela_diferenciada", "tabela_referencia"]);
+  if (codeMode === "whitelist" && codes.length === 0 && !tableBasedTypes.has(c.calculation_type as string)) {
+    return { ok: false, reason: "whitelist_sem_codigos" };
+  }
   if (codeMode !== "any" && codes.length > 0) {
     const ic = (item.procedure_code ?? "").trim();
     const inList = !!ic && codes.includes(ic);
@@ -1088,6 +1095,10 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   }
   // Convênios (mesmo padrão da regra)
   const ags = Array.isArray(c.agreement_aliases) ? c.agreement_aliases.filter(Boolean) : [];
+  // DEFESA: whitelist de convênios sem aliases é misconfiguração.
+  if ((c.agreement_match_mode === "whitelist") && ags.length === 0 && c.agreement_match_mode != null) {
+    return { ok: false, reason: "agreement_whitelist_vazia" };
+  }
   if (ags.length > 0) {
     const mode = c.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
     const itemAg = normAgreement(item.agreement_name);
