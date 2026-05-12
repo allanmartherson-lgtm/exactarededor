@@ -1,0 +1,5 @@
+COMMENT ON COLUMN public.rules.procedure_codes IS 'DEPRECATED (refator filtros-por-cálculo): use rule_calculations.procedure_codes. Mantido para leitura legada — não usar em novas regras.';
+COMMENT ON COLUMN public.rules.sectors IS 'DEPRECATED (refator filtros-por-cálculo): use rule_calculations.sectors. Mantido para leitura legada — não usar em novas regras.';
+COMMENT ON COLUMN public.rules.specialties IS 'DEPRECATED (refator filtros-por-cálculo): use rule_calculations.specialties. Mantido para leitura legada — não usar em novas regras.';
+COMMENT ON COLUMN public.rules.agreement_aliases IS 'DEPRECATED (refator filtros-por-cálculo): use rule_calculations.agreement_aliases. Mantido para leitura legada — não usar em novas regras.';
+COMMENT ON COLUMN public.rules.allowed_access_routes IS 'DEPRECATED (refator filtros-por-cálculo): use rule_calculations.allowed_access_routes. Mantido para leitura legada — não usar em novas regras.';
