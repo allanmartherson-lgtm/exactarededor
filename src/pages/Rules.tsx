@@ -1653,7 +1653,7 @@ const Rules = () => {
                               <div className="flex items-center justify-between gap-4">
                                 <div>
                                   <Label className="text-sm font-semibold">Vínculos por empresa</Label>
-                                  <p className="text-xs text-muted-foreground">Cada linha = uma empresa. Sem médicos selecionados → aplica a todos da empresa.</p>
+                                  <p className="text-xs text-muted-foreground">Use quando o acordo é com a PJ. Cada linha = uma empresa. Deixe os médicos vazios para aplicar a toda a equipe da PJ, ou selecione médicos específicos dentro daquela PJ.</p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                   {fGroupLinks.length > 1 && (
