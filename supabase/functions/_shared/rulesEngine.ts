@@ -1078,15 +1078,19 @@ export interface EngineCtx extends PaymentContext {
 export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: true } | { ok: false; reason: string } {
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
+  // Convenção pós-refactor: lista vazia = sem filtro de código (fallback).
+  // Quando o usuário quer restringir, a UI grava `code_match_mode = "whitelist"`
+  // E preenche `procedure_codes`. A UI normaliza para "any" quando a lista está vazia,
+  // garantindo que não exista whitelist sem códigos.
   const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes.filter(Boolean) : [];
-  const codeMode = (c.code_match_mode ?? "whitelist") as "whitelist" | "blacklist" | "any";
+  const codeMode = (c.code_match_mode ?? "any") as "whitelist" | "blacklist" | "any";
   if (codeMode !== "any" && codes.length > 0) {
     const ic = (item.procedure_code ?? "").trim();
     const inList = !!ic && codes.includes(ic);
     if (codeMode === "whitelist" && !inList) return { ok: false, reason: "codigo_nao_listado" };
     if (codeMode === "blacklist" && inList) return { ok: false, reason: "codigo_excluido" };
   }
-  // Convênios (mesmo padrão da regra)
+  // Convênios
   const ags = Array.isArray(c.agreement_aliases) ? c.agreement_aliases.filter(Boolean) : [];
   if (ags.length > 0) {
     const mode = c.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist";
