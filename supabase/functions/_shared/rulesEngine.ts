@@ -1191,10 +1191,35 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     bonus_amount: c.bonus_amount ?? rule.bonus_amount,
     bonus_pct: c.bonus_pct ?? rule.bonus_pct,
     target_amount: c.target_amount ?? rule.target_amount,
-    allowed_access_routes: c.allowed_access_routes ?? rule.allowed_access_routes,
+    // Filtros restritivos vivem APENAS no item de Cálculo. Não herda da Regra
+    // — se o cálculo não declarou, o filtro não se aplica (vazio = qualquer).
+    procedure_codes: Array.isArray(c.procedure_codes) ? c.procedure_codes : [],
+    sectors: Array.isArray(c.sectors) ? c.sectors : [],
+    specialties: [],
+    agreement_aliases: Array.isArray(c.agreement_aliases) ? c.agreement_aliases : [],
+    agreement_match_mode: (c.agreement_match_mode ?? "whitelist") as any,
+    allowed_access_routes: Array.isArray(c.allowed_access_routes) ? c.allowed_access_routes : [],
     // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
     application_unit: c.application_unit ?? rule.application_unit ?? null,
   } as RuleInput & { application_unit?: string | null };
+}
+
+/**
+ * Validador: garante que filtros restritivos vivem apenas dentro de Cálculos.
+ * Retorna lista de avisos quando a Regra ainda carrega filtros no nível raiz
+ * (legado pré-refactor). Use em ferramentas de diagnóstico/import.
+ */
+export function validateCalcOnlyFilters(
+  rule: RuleInput & { calculations?: RuleCalculationItem[] | null },
+): string[] {
+  const warnings: string[] = [];
+  const has = (v: unknown) => Array.isArray(v) && v.length > 0;
+  if (has(rule.procedure_codes)) warnings.push("procedure_codes no nível Regra (mover para Cálculo)");
+  if (has(rule.sectors)) warnings.push("sectors no nível Regra (mover para Cálculo)");
+  if (has(rule.specialties)) warnings.push("specialties no nível Regra (informativo apenas)");
+  if (has(rule.agreement_aliases)) warnings.push("agreement_aliases no nível Regra (mover para Cálculo)");
+  if (has(rule.allowed_access_routes)) warnings.push("allowed_access_routes no nível Regra (mover para Cálculo)");
+  return warnings;
 }
 
 
