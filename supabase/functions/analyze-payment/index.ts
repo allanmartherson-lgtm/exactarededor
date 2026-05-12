@@ -405,7 +405,6 @@ serve(async (req) => {
       ...rules
         .filter((r) =>
           r.reference_table_id && (
-            r.rule_type === "tabela_diferenciada" ||
             r.calculation_type === "tabela_diferenciada" ||
             r.calculation_type === "tabela_referencia"
           ),
