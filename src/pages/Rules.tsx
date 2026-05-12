@@ -316,6 +316,27 @@ const Rules = () => {
       if (fCalculations.length === 0) e.calculo++;
       const calcErrorsCount = fCalculations.reduce((acc, c) => acc + calcItemErrors(c), 0);
       e.calculo += calcErrorsCount;
+      // Validação cruzada: 2+ cálculos tabela_diferenciada na MESMA tabela onde
+      // algum cálculo não-primeiro tem code_match_mode='any' e sem códigos →
+      // engole tudo e nunca cai nas regras posteriores. Restritivo deve estar
+      // no próprio cálculo (não na regra geral).
+      const tabByRef = new Map<string, number[]>();
+      fCalculations.forEach((c, idx) => {
+        if (c.calculation_type === "tabela_diferenciada" && c.reference_table_id) {
+          const arr = tabByRef.get(c.reference_table_id) ?? [];
+          arr.push(idx);
+          tabByRef.set(c.reference_table_id, arr);
+        }
+      });
+      tabByRef.forEach((idxs) => {
+        if (idxs.length < 2) return;
+        for (let i = 1; i < idxs.length; i++) {
+          const c = fCalculations[idxs[i]];
+          if (c.code_match_mode === "any" && (c.procedure_codes?.length ?? 0) === 0) {
+            e.calculo++;
+          }
+        }
+      });
     }
     return e;
   }, [
