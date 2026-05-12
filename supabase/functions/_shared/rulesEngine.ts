@@ -1209,7 +1209,8 @@ export function applyCalculation(
           ...r, 
           label, 
           id: c.id ?? null,
-          force_totalized: c.force_totalized ?? false
+          force_totalized: c.force_totalized ?? false,
+          application_unit: c.application_unit ?? rule.application_unit ?? "por_item",
         };
         
         breakdown.push({
