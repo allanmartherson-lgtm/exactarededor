@@ -39,6 +39,7 @@ const EXPECTED_ORDER = [
   "KPIs",
   "Regras de Pagamento",
   "Regras de Validação",
+  "Simulador de Regras",
   "Tabelas de referência",
   "Empresas",
   "Apelidos aprendidos",
@@ -51,7 +52,7 @@ const EXPECTED_ORDER = [
   "Anomalias de status",
 ];
 
-const EXPECTED_COUNT = 16;
+const EXPECTED_COUNT = 17;
 
 function renderLayout() {
   return render(

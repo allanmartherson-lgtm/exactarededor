@@ -36,6 +36,7 @@ const EXPECTED = [
   "KPIs",
   "Regras de Pagamento",
   "Regras de Validação",
+  "Simulador de Regras",
   "Tabelas de referência",
   "Empresas",
   "Apelidos aprendidos",
