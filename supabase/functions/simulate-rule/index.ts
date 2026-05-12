@@ -27,6 +27,7 @@ interface SimInput {
   procedure_name?: string | null;
   agreement_name?: string | null;
   doctor_name?: string | null;
+  doctor_document?: string | null;
   doctor_role?: string | null;
   access_route?: string | null;
   sector?: string | null;
@@ -62,7 +63,7 @@ serve(async (req) => {
     const item: ItemInput = {
       id: "sim-1",
       doctor_name: body.doctor_name ?? null,
-      doctor_document: null,
+      doctor_document: body.doctor_document ?? null,
       company_name: body.company_name ?? null,
       company_id: body.company_id ?? null,
       company_document: null,
