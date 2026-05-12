@@ -105,7 +105,7 @@ serve(async (req) => {
     };
 
     // ---- 3. Carrega regras ativas + cálculos ----
-    const { data: rulesRaw } = await supabase
+    const { data: rulesRaw, error: rulesErr } = await supabase
       .from("rules")
       .select(`
         id,name,rule_text,description,active,severity,scope,
