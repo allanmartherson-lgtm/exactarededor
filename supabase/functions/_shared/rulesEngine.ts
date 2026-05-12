@@ -858,7 +858,7 @@ export function doctorRoleFactor(raw: string | null | undefined): number {
 }
 
 // ---------- calculadores ----------
-interface ExpectedCalc { expected: number | null; explanation: string; alerts: string[]; breakdown?: CalculationBreakdownEntry[]; }
+// ExpectedCalc interface moved to export section to avoid duplication and conflicts.
 
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
@@ -1143,7 +1143,7 @@ export function applyCalculation(
     .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
-    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null } | null = null;
+    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null; force_totalized?: boolean } | null = null;
     let anyMatched = false;
 
     for (const c of list) {
@@ -1178,7 +1178,8 @@ export function applyCalculation(
         winnerCalc = { 
           ...r, 
           label, 
-          id: c.id ?? null 
+          id: c.id ?? null,
+          force_totalized: c.force_totalized ?? false
         };
         
         breakdown.push({
