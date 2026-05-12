@@ -573,7 +573,7 @@ export function ItemsDataGrid({
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Médico</th>
                 {colVis.funcao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
-                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Valor</th>
+                <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Valor Repasse</th>
                 <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Esperado</th>
                 {colVis.diferenca && <th className={cn(headPad, TEXT_LABEL, "text-right border-b bg-muted whitespace-nowrap")}>Diferença</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Status</th>
@@ -1271,7 +1271,7 @@ function ItemDetailsRow({
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                     <div className="min-w-0">
-                      <Label>Valor informado</Label>
+                      <Label>Valor Repasse</Label>
                       <p className="tabular-nums font-medium mt-0.5">{formatCurrency(Number(it.gross_amount ?? 0))}</p>
                     </div>
                     <div className="min-w-0">

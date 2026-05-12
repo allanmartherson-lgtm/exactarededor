@@ -489,7 +489,7 @@ export function PaymentReportModal({
                             <TableHead className="text-[10px] h-8 uppercase">Data</TableHead>
                             <TableHead className="text-[10px] h-8 uppercase">Paciente / Médico</TableHead>
                             <TableHead className="text-[10px] h-8 uppercase">Procedimento</TableHead>
-                            <TableHead className="text-[10px] h-8 uppercase text-right">Valor</TableHead>
+                            <TableHead className="text-[10px] h-8 uppercase text-right">Valor Repasse</TableHead>
                             <TableHead className="text-[10px] h-8 uppercase">Status / Motivo</TableHead>
                           </TableRow>
                         </TableHeader>

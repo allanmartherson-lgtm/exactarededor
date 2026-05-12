@@ -49,7 +49,7 @@ self.onmessage = async (e) => {
     // Aba 3: Detalhe dos Itens
     const detailHeaders = [
       "Atendimento", "Data", "Empresa", "Paciente", "Médico", "Especialidade", 
-      "Código", "Procedimento", "Valor Recebido", "Valor Esperado", 
+      "Código", "Procedimento", "Valor Repasse", "Valor Esperado", 
       "Divergência (R$)", "Status", "Regra", "Motivo"
     ];
     
