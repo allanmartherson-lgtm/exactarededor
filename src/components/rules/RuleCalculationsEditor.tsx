@@ -87,6 +87,7 @@ export function makeEmptyCalc(): CalcItem {
     time_start: "", time_end: "", includes_holidays: false, elective_mode: "qualquer",
     sectors: [], specialties: [],
     force_totalized: false,
+    application_unit: "por_item",
   };
 }
 
