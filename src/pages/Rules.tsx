@@ -47,6 +47,21 @@ import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
+// Tipos legados — usados só para renderizar regras antigas que ainda têm esses campos
+// (read-only). Nunca são gravados no payload de submitRule/saveDrafts.
+type LegacyRuleType = string;
+type PaymentTerm = string;
+const RULE_TYPE_LABELS: Record<string, string> = {
+  informativo: "Informativa / bloqueio",
+  pacote: "Pacote (valor fixo)",
+  tabela_diferenciada: "Tabela diferenciada",
+  bonus: "Bônus",
+  complemento: "Complemento",
+};
+const PAYMENT_TERM_LABELS: Record<string, string> = {
+  qualquer: "Qualquer prazo", prioridade: "Empresa Prioridade", habitual: "Prazo Habitual",
+};
+
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type TimeMode = "qualquer" | "comercial" | "fora_comercial" | "fim_de_semana" | "feriado" | "personalizado";
