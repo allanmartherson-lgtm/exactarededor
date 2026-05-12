@@ -406,15 +406,49 @@ function intersectsAll(a: string[] | null | undefined, b: string[] | null | unde
   return A.some((x) => B.includes(x));
 }
 
+/** Coleta de códigos a partir dos cálculos da regra (nível raiz é legado).
+ *  - hasAnyCodes: existe pelo menos um cálculo com whitelist/blacklist de códigos
+ *  - hasFallback: existe pelo menos um cálculo SEM restrição de código (aceita qualquer)
+ *  - allCodes: união dos códigos declarados em modo whitelist nos cálculos
+ */
+function collectCalcCodes(r: RuleInput): { hasAnyCodes: boolean; hasFallback: boolean; allCodes: string[] } {
+  const calcs = (Array.isArray((r as any).calculations) ? (r as any).calculations : []) as RuleCalculationItem[];
+  let hasAnyCodes = false;
+  let hasFallback = false;
+  const allCodes = new Set<string>();
+  // Legado nível raiz (deve estar vazio após migração; mantido por defesa)
+  if (Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0) {
+    hasAnyCodes = true;
+    r.procedure_codes.forEach((c) => allCodes.add(c));
+  }
+  if (calcs.length === 0) {
+    if (!Array.isArray(r.procedure_codes) || r.procedure_codes.length === 0) hasFallback = true;
+    return { hasAnyCodes, hasFallback, allCodes: Array.from(allCodes) };
+  }
+  for (const c of calcs) {
+    const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes : [];
+    const mode = c.code_match_mode ?? "whitelist";
+    if (codes.length === 0 || mode === "any") {
+      hasFallback = true;
+    } else {
+      hasAnyCodes = true;
+      if (mode !== "blacklist") codes.forEach((x) => allCodes.add(x));
+    }
+  }
+  return { hasAnyCodes, hasFallback, allCodes: Array.from(allCodes) };
+}
+
 function matchesProcedureCode(r: RuleInput, item: ItemInput): boolean {
-  const codes = r.procedure_codes ?? [];
-  if (codes.length === 0) return true;
+  const info = collectCalcCodes(r);
+  if (!info.hasAnyCodes) return true;          // sem restrição → aceita
+  if (info.hasFallback) return true;           // tem cálculo "qualquer" → aceita
   if (!item.procedure_code) return false;
-  return codes.includes(item.procedure_code);
+  return info.allCodes.includes(item.procedure_code);
 }
 
 function hasCodeRestriction(r: RuleInput): boolean {
-  return Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0;
+  const info = collectCalcCodes(r);
+  return info.hasAnyCodes && !info.hasFallback;
 }
 
 function targetsDoctor(r: RuleInput, item: ItemInput): boolean {
