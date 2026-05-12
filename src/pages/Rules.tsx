@@ -2424,13 +2424,7 @@ const Rules = () => {
                                     {(r.applies_payment_types as PaymentType[]).map((t) => PAYMENT_TYPE_LABELS[t]).join(" · ")}
                                   </span>
                                 )}
-                                {r.reference_table_id && r.rule_type !== "tabela_diferenciada" && (() => {
-                                  const ref = refTables.find((t) => t.id === r.reference_table_id);
-                                  return ref ? <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5">📋 {ref.name}</span> : null;
-                                })()}
-                                {r.procedure_codes && r.procedure_codes.length > 0 && (
-                                  <span className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{r.procedure_codes.join(", ")}</span>
-                                )}
+                                {/* Tabela vinculada e códigos agora vivem por Cálculo, não na regra. */}
                                 {incomplete && (
                                   <span className="text-xs rounded-full border border-warning/50 bg-warning/10 text-warning-foreground px-2 py-0.5 flex items-center gap-1">
                                     <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
