@@ -406,10 +406,6 @@ const Rules = () => {
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
-      ["Setores", Array.isArray(r.sectors) && r.sectors.length > 0
-        ? r.sectors.map((s: any) => RULE_SECTOR_LABELS[s as RuleSector] ?? s).join(" · ")
-        : "Todos"],
-      ["Especialidades", Array.isArray(r.specialties) && r.specialties.length > 0 ? r.specialties.join(", ") : "Todas"],
       ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
       ["Status", (() => {
         const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
@@ -419,9 +415,7 @@ const Rules = () => {
       })()]
     ];
 
-    if (r.agreement_aliases && r.agreement_aliases.length > 0) {
-      basicInfo.push(["Apelidos Convênio", r.agreement_aliases.join(", ")]);
-    }
+    // Restritivos (setores, especialidades, convênios) vivem por Cálculo — não exibir aqui.
 
     if (r.time_mode && r.time_mode !== 'qualquer') {
         const mode = r.time_mode === 'comercial' ? 'Horário Comercial' : r.time_mode === 'plantao' ? 'Horário Plantão' : 'Personalizado';
