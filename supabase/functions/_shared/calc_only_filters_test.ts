@@ -83,5 +83,6 @@ Deno.test("motor: códigos restritivos no nível Regra não filtram — só os d
     specialties: [],
   };
   const out = analyzePaymentItems([item] as any, rules as any, ctx as any);
-  assert(out.items[0].matched_rule_id === "r1", `esperava r1, recebeu ${out.items[0].matched_rule_id}`);
+  const first: any = Array.isArray(out) ? out[0] : (out as any).items?.[0];
+  assert(first?.matched_rule_id === "r1", `esperava r1, recebeu ${first?.matched_rule_id}`);
 });
