@@ -1695,102 +1695,11 @@ const Rules = () => {
                           </Select>
                         </div>
                       </div>
-                      <div className="space-y-1.5"><Label>Setor / Item Pagamento (multi)</Label>
-                        <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                          {(Object.keys(RULE_SECTOR_LABELS) as RuleSector[]).map((k) => {
-                            const checked = fSectors.includes(k);
-                            return (
-                              <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                onClick={() => setFSectors((p) => checked ? p.filter((x) => x !== k) : [...p, k])}>
-                                {RULE_SECTOR_LABELS[k]}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          <strong>Aviso:</strong> O campo Setor agora é apenas um atributo informativo e estatístico. 
-                          Regras Master (Gerais) serão aplicadas a todos os itens, independente dos setores marcados aqui.
-                        </p>
-                      </div>
-                      {/*
-                        Especialidade médica é metadado de relatório/busca/filtro
-                        e NÃO faz parte dos eixos do motor. Campo removido do
-                        formulário para evitar configuração incorreta. O dado
-                        permanece em `rules.specialties` para histórico, mas o
-                        motor ignora.
-                      */}
-                      <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-                        <Label className="text-sm font-semibold">Convênio (eixo determinístico)</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Defina o modo e adicione os convênios como tags livres. A comparação ignora caixa, acentos e espaços (ex.: "Sul América" = "SULAMERICA"). <strong>Sem tags</strong> = aplica a todos os convênios.
-                        </p>
-
-                        <RadioGroup
-                          value={fAgreementMatchMode}
-                          onValueChange={(v) => setFAgreementMatchMode(v as "whitelist" | "blacklist")}
-                          className="grid gap-1.5 pt-1"
-                        >
-                          <label className="flex items-start gap-2 cursor-pointer text-sm">
-                            <RadioGroupItem value="whitelist" id="agmode-wl" className="mt-0.5" />
-                            <span>
-                              <span className="font-medium">Aplicar somente aos convênios informados</span>
-                              <span className="block text-xs text-muted-foreground">A regra só vale quando o convênio do item estiver na lista.</span>
-                            </span>
-                          </label>
-                          <label className="flex items-start gap-2 cursor-pointer text-sm">
-                            <RadioGroupItem value="blacklist" id="agmode-bl" className="mt-0.5" />
-                            <span>
-                              <span className="font-medium">Não aplicar aos convênios informados</span>
-                              <span className="block text-xs text-muted-foreground">A regra vale para todos, exceto os convênios listados.</span>
-                            </span>
-                          </label>
-                        </RadioGroup>
-
-                        <div className="space-y-1 pt-1">
-                          <Label className="text-xs text-muted-foreground">Convênios</Label>
-                          <Input
-                            value={fAgreementInput}
-                            onChange={(e) => setFAgreementInput(e.target.value)}
-                            placeholder="Digite e pressione Enter (ex.: Sul América, Bradesco, SUS)"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === ",") {
-                                e.preventDefault();
-                                const v = fAgreementInput.trim();
-                                if (v && !fAgreementAliases.some((a) => a.trim().toLowerCase() === v.toLowerCase())) {
-                                  setFAgreementAliases((p) => [...p, v]);
-                                }
-                                setFAgreementInput("");
-                              } else if (e.key === "Backspace" && !fAgreementInput && fAgreementAliases.length > 0) {
-                                setFAgreementAliases((p) => p.slice(0, -1));
-                              }
-                            }}
-                            onBlur={() => {
-                              const v = fAgreementInput.trim();
-                              if (v && !fAgreementAliases.some((a) => a.trim().toLowerCase() === v.toLowerCase())) {
-                                setFAgreementAliases((p) => [...p, v]);
-                                setFAgreementInput("");
-                              }
-                            }}
-                          />
-                          {fAgreementAliases.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5 pt-1">
-                              {fAgreementAliases.map((a) => (
-                                <button
-                                  key={a}
-                                  type="button"
-                                  onClick={() => setFAgreementAliases((p) => p.filter((x) => x !== a))}
-                                  className="text-xs rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-destructive-foreground"
-                                  title="Remover"
-                                >
-                                  {a} ✕
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground italic">Nenhum convênio listado — a regra se aplica a todos.</p>
-                          )}
-                        </div>
-                      </div>
+                      {/* Setor (multi) e Convênio (eixo determinístico) removidos do nível Regra.
+                          Toda restrição (setor, convênio, código, especialidade, horário, via, função)
+                          agora é configurada dentro de cada item de Cálculo, na seção
+                          "Quando aplicar este cálculo". Isso permite múltiplos cálculos por regra
+                          com escopos completamente diferentes. */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5"><Label>Vigência — início</Label>
                           <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
@@ -1802,25 +1711,8 @@ const Rules = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="setores" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">
-                      Especialidades vinculadas
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-1 pb-3">
-                      <div className="space-y-1.5">
-                        <Label>Especialidades (opcional)</Label>
-                        <MultiSelectChips
-                          values={fSpecialties}
-                          onChange={setFSpecialties}
-                          options={[]} // lista de sugestões pode ser carregada via DB se necessário
-                          placeholder="Selecionar ou digitar especialidade..."
-                          allowCustom={true}
-                          emptyHint="Vazio = aplica a todas as especialidades."
-                        />
-                        <p className="text-xs text-muted-foreground">A regra será filtrada apenas para atendimentos marcados com estas especialidades no arquivo.</p>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  {/* Accordion "Especialidades vinculadas" removido —
+                      especialidade é apenas metadado de relatório/filtro e nunca afeta cálculo. */}
 
                   {/* Aplicação da regra */}
                   <AccordionItem value="aplicacao" className="rounded-md border border-border bg-card px-3">
@@ -2093,30 +1985,21 @@ const Rules = () => {
                           <p className="text-xs text-muted-foreground">Restrinja esta regra a tipos de pagamento ou setores específicos informados no arquivo.</p>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5"><Label>Setores específicos</Label>
-                            <MultiSelectChips
-                              values={fSectors}
-                              onChange={setFSectors}
-                              options={Object.keys(RULE_SECTOR_LABELS)}
-                              placeholder="Todos os setores"
-                              allowCustom={true}
-                              emptyHint="Vazio = todos os setores."
-                            />
+                        <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
+                          <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
+                            {PAYMENT_TYPE_KEYS.map((k) => {
+                              const checked = appliesTypes.includes(k);
+                              return (
+                                <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
+                                  onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
+                                  {PAYMENT_TYPE_LABELS[k]}
+                                </Button>
+                              );
+                            })}
                           </div>
-                          <div className="space-y-1.5"><Label>Tipos de pagamento</Label>
-                            <div className="flex flex-wrap gap-1.5 rounded-md border border-input bg-background p-2 min-h-10">
-                              {PAYMENT_TYPE_KEYS.map((k) => {
-                                const checked = appliesTypes.includes(k);
-                                return (
-                                  <Button key={k} type="button" size="sm" variant={checked ? "default" : "outline"}
-                                    onClick={() => setAppliesTypes((prev) => checked ? prev.filter((x) => x !== k) : [...prev, k])}>
-                                    {PAYMENT_TYPE_LABELS[k]}
-                                  </Button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Setores, códigos, convênios, especialidades e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.
+                          </p>
                         </div>
 
                         <div className="space-y-1.5"><Label>Prazo de pagamento</Label>
@@ -2192,26 +2075,9 @@ const Rules = () => {
                             enabled={true}
                           />
                           
-                          {fCalculations.some(c => c.calculation_type === "bonus") && (
-                            <div className="rounded-md border border-info/30 bg-info-soft/10 p-3 space-y-2">
-                              <h4 className="text-xs font-bold text-info flex items-center gap-1.5">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                CONFIGURAÇÃO DE BÔNUS
-                              </h4>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                Você adicionou um item de <strong>Bônus</strong>. Para que este bônus seja aplicado apenas a determinados procedimentos, informe os códigos na seção <strong>Códigos específicos</strong> abaixo. Se deixado vazio, o bônus será aplicado a todos os itens que casarem com os filtros de Convênio e Escopo.
-                              </p>
-                              <Button 
-                                type="button" 
-                                variant="link" 
-                                size="sm" 
-                                className="h-auto p-0 text-xs font-semibold text-info"
-                                onClick={() => setAccordionValue(prev => Array.from(new Set([...prev, "codigos"])))}
-                              >
-                                Ir para Códigos específicos →
-                              </Button>
-                            </div>
-                          )}
+                          {/* Hint antigo de "Códigos específicos" removido —
+                              os códigos do bônus são definidos dentro do próprio item de cálculo
+                              (seção "Quando aplicar este cálculo"). */}
                         </div>
                       )}
 
@@ -2400,26 +2266,7 @@ const Rules = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* Códigos específicos */}
-                  <AccordionItem value="codigos" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">Códigos específicos</AccordionTrigger>
-                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                      <div className="space-y-1.5"><Label>Códigos de procedimento (opcional)</Label>
-                        <Input placeholder="Ex: 31005497, 31005470; 31002390"
-                          value={codesInput} onChange={(e) => setCodesInput(e.target.value)} />
-                        <p className="text-xs text-muted-foreground">
-                          Separe por vírgula <code>,</code>, ponto e vírgula <code>;</code> ou espaço.
-                        </p>
-                        {parsedCodes.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {parsedCodes.map((c, i) => (
-                              <span key={`${c}-${i}`} className="text-xs rounded-full border border-border bg-muted/60 px-2 py-0.5 font-mono">{c}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                  {/* Códigos específicos: removido — agora dentro de cada cálculo. */}
                 </Accordion>
 
             </form>

@@ -317,7 +317,7 @@ function CalcCard({
                 </RadioGroup>
               </div>
               <p className="text-[11px] text-muted-foreground italic">
-                Nota: Os códigos específicos para este bônus devem ser informados na seção <strong>Códigos específicos</strong> do formulário principal.
+                Nota: Os códigos específicos deste bônus são informados acima, na seção <strong>Quando aplicar este cálculo</strong>.
               </p>
             </div>
           )}
