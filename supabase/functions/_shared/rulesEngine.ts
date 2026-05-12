@@ -1059,16 +1059,30 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   if (!ruleAcceptsAccessRoute(c, item)) {
     return { ok: false, reason: "via_de_acesso" };
   }
-  // Dia da semana
-  const wds = Array.isArray(c.weekdays) ? c.weekdays : [];
-  if (wds.length > 0 && item.procedure_date) {
+  // Dia da semana — preferimos o array `weekdays` (modo personalizado) e,
+  // quando vazio, derivamos do `time_mode` (fim_de_semana / comercial / fora_comercial).
+  const tm = (c.time_mode ?? "qualquer") as string;
+  let effectiveWeekdays: number[] | null = Array.isArray(c.weekdays) && c.weekdays.length > 0
+    ? c.weekdays
+    : null;
+  if (!effectiveWeekdays) {
+    if (tm === "fim_de_semana") effectiveWeekdays = [0, 6];
+    else if (tm === "comercial" || tm === "fora_comercial") effectiveWeekdays = [1, 2, 3, 4, 5];
+  }
+  if (effectiveWeekdays && item.procedure_date) {
     const d = new Date(item.procedure_date);
     if (!Number.isNaN(d.getTime())) {
-      // Ajuste para considerar o timezone local ou UTC conforme necessário
-      // O Date() de uma string YYYY-MM-DD pode cair no dia anterior em alguns timezones
-      // Aqui usamos a data pura da string se disponível para evitar deslocamento
+      // Para fim_de_semana: usamos a DATA do procedimento (sem carry-over de sexta→sábado).
+      // Pegamos sempre o dia exato registrado em procedure_date.
       const day = item.procedure_date.includes('T') ? d.getDay() : new Date(item.procedure_date + 'T12:00:00').getDay();
-      if (!wds.includes(day)) return { ok: false, reason: "dia_da_semana" };
+      const inSet = effectiveWeekdays.includes(day);
+      if (tm === "fora_comercial") {
+        // Fora comercial = (sáb/dom) OU (seg-sex fora 07-19h). Aqui validamos só o dia
+        // quando não há janela horária; o filtro de horário restante cai no bloco abaixo.
+        if (inSet && !c.time_start && !c.time_end) return { ok: false, reason: "fora_comercial_dia_util" };
+      } else if (!inSet) {
+        return { ok: false, reason: tm === "fim_de_semana" ? "fim_de_semana" : "dia_da_semana" };
+      }
     }
   }
   // Janela horária
