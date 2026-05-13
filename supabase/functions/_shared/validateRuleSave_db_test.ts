@@ -97,7 +97,7 @@ async function insertRule(
 
 // =========================== T1 ===========================
 Deno.test("2D/T1 — doctor_already_bound: novo cadastro p/ médico já vinculado", async () => {
-  await withAuthenticatedTx(newUuid(), "admin", async (tx) => {
+  await withAuthenticatedTx("admin", async (tx) => {
     const crm = "999" + Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0");
     await insertRule(tx, {
       name: `Regra existente CRM ${crm}`,
@@ -119,7 +119,7 @@ Deno.test("2D/T1 — doctor_already_bound: novo cadastro p/ médico já vinculad
 
 // =========================== T2 ===========================
 Deno.test("2D/T2 — validity_overlap: vigências sobrepostas com suggested_valid_until", async () => {
-  await withAuthenticatedTx(newUuid(), "admin", async (tx) => {
+  await withAuthenticatedTx("admin", async (tx) => {
     const crm = "888" + Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0");
     await insertRule(tx, {
       name: `Regra anterior CRM ${crm}`,
@@ -143,7 +143,7 @@ Deno.test("2D/T2 — validity_overlap: vigências sobrepostas com suggested_vali
 
 // =========================== T3 ===========================
 Deno.test("2D/T3 — company_already_bound: novo cadastro p/ empresa (CNPJ) já vinculada", async () => {
-  await withAuthenticatedTx(newUuid(), "admin", async (tx) => {
+  await withAuthenticatedTx("admin", async (tx) => {
     const cnpj = "33" + Math.floor(Math.random() * 1e12).toString().padStart(12, "0");
     await insertRule(tx, {
       name: `Regra empresa CNPJ ${cnpj}`,
@@ -165,7 +165,7 @@ Deno.test("2D/T3 — company_already_bound: novo cadastro p/ empresa (CNPJ) já 
 
 // =========================== T7 ===========================
 Deno.test("2D/T7 — self-edit: passar rule_id da própria regra → sem conflito consigo mesma", async () => {
-  await withAuthenticatedTx(newUuid(), "admin", async (tx) => {
+  await withAuthenticatedTx("admin", async (tx) => {
     const crm = "777" + Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0");
     const ruleId = await insertRule(tx, {
       name: `Regra editável CRM ${crm}`,
@@ -192,7 +192,7 @@ Deno.test("2D/T7 — self-edit: passar rule_id da própria regra → sem conflit
 
 // =========================== T8 ===========================
 Deno.test("2D/T8 — master_already_exists: nova master quando já há master ativa", async () => {
-  await withAuthenticatedTx(newUuid(), "admin", async (tx) => {
+  await withAuthenticatedTx("admin", async (tx) => {
     // Garante uma master conhecida (existem outras em DB; o teste só exige
     // que pelo menos uma seja reportada com sugestão correta).
     const existingId = await insertRule(tx, {
