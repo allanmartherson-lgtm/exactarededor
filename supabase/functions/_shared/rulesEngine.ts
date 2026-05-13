@@ -1249,6 +1249,19 @@ export function validateCalcOnlyFilters(
 
 
 
+export interface CalcDuplicityInfo {
+  rule_id: string;
+  rule_name: string;
+  matched_calculations: Array<{
+    calc_id: string | null;
+    label: string;
+    calculation_type: CalculationType;
+    expected: number;
+  }>;
+  /** Quando true: a resolução prévia referenciava um calc_id que não existe mais na regra. */
+  resolution_stale?: boolean;
+}
+
 export interface ExpectedCalc {
   expected: number | null;
   explanation: string;
@@ -1261,6 +1274,8 @@ export interface ExpectedCalc {
   qty_already_applied?: boolean;
   /** Onda 1 — Trace passo-a-passo do cálculo (com arredondamento por etapa). */
   steps?: { label: string; value: number }[];
+  /** Sub-Onda 2C — 2+ cálculos da mesma regra retornaram VÁLIDO. Bloqueia o item. */
+  calc_duplicity?: CalcDuplicityInfo;
 }
 
 export function applyCalculation(
