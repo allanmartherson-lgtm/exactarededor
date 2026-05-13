@@ -1722,13 +1722,17 @@ export function analyzeItem(
 
   // REGRA DE COMPETÊNCIA (Onda 1): a vigência é checada contra a data do
   // procedimento do item, NÃO contra ctx.reference_date (data do lote).
-  // Se procedure_date estiver ausente/ inválida, nenhuma regra é considerada
-  // (item segue para `sem_regra` -> alerta no fluxo existente).
+  // Regras SEM datas (valid_from e valid_until ambos nulos) são "sempre vigentes"
+  // — não dependem de procedure_date. Para regras com datas, procedure_date é
+  // obrigatória; se ausente/inválida, a regra é descartada para este item.
   const procDateRaw = item.procedure_date;
   const procDateValid = !!procDateRaw && !Number.isNaN(Date.parse(procDateRaw));
-  const rulesForItem = procDateValid
-    ? preFilteredRules.filter((r) => isInValidity(r, procDateRaw!))
-    : [];
+  const rulesForItem = preFilteredRules.filter((r) => {
+    const hasDates = !!r.valid_from || !!r.valid_until;
+    if (!hasDates) return true;
+    if (!procDateValid) return false;
+    return isInValidity(r, procDateRaw!);
+  });
   const outcome = selectWinningRule(item, rulesForItem, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
   let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
