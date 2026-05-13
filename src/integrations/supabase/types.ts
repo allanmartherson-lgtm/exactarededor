@@ -2011,6 +2011,10 @@ export type Database = {
         Args: { _item_id: string; _justification: string }
         Returns: Json
       }
+      apply_rule_save_with_corrections: {
+        Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
+        Returns: Json
+      }
       backfill_payment_items_engine_columns: {
         Args: { _dry_run?: boolean }
         Returns: Json
@@ -2024,6 +2028,20 @@ export type Database = {
           _procedure_date: string
         }
         Returns: string
+      }
+      extract_rule_targets: {
+        Args: {
+          _group_company_links: Json
+          _group_doctors: Json
+          _scope: Database["public"]["Enums"]["rule_scope"]
+          _target_company_id: string
+          _target_identifier: string
+          _target_type: Database["public"]["Enums"]["rule_target_type"]
+        }
+        Returns: {
+          company_keys: string[]
+          doctor_crms: string[]
+        }[]
       }
       has_role: {
         Args: {
@@ -2083,6 +2101,20 @@ export type Database = {
         Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      validate_rule_save: {
+        Args: {
+          _group_company_links: Json
+          _group_doctors: Json
+          _rule_id: string
+          _scope: Database["public"]["Enums"]["rule_scope"]
+          _target_company_id: string
+          _target_identifier: string
+          _target_type: Database["public"]["Enums"]["rule_target_type"]
+          _valid_from: string
+          _valid_until: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "diretor" | "validador" | "analista"
