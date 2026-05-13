@@ -343,3 +343,68 @@ Deno.test("2C/10 — 2 restritivos + 1 catch-all → bloqueia, matched_calculati
   const ids = out.calc_duplicity!.matched_calculations.map((m) => m.calc_id).sort();
   assertEquals(ids, ["rest-cod", "rest-func"]);
 });
+
+// ============================================================================
+// Sub-Onda 2C — Rodada 3 (revisão final, Opção A uniforme):
+// Filtro compartilhado por TODOS os peers é contexto da regra, não restritivo.
+// Diferenciação por eixo é o que torna o calc restritivo.
+// ============================================================================
+
+// --- Teste 11: Convênio uniforme entre peers é contexto, não filtro ---
+Deno.test("2C/11 — Filtro de convênio idêntico entre peers vira contexto; quem diferencia por roles vence", () => {
+  const rule: RuleInput = {
+    ...makeRuleWithTwoCalcs(),
+    calculations: [
+      {
+        id: "calc-cir",
+        sort_order: 0,
+        label: "Convênio Bradesco + Cirurgião",
+        calculation_type: "valor_fixo",
+        fixed_amount: 800,
+        agreement_aliases: ["Bradesco"],
+        agreement_match_mode: "whitelist",
+        doctor_roles: ["cirurgiao"],
+        code_match_mode: "any",
+      },
+      {
+        id: "calc-fb",
+        sort_order: 1,
+        label: "Convênio Bradesco — fallback (sem role)",
+        calculation_type: "valor_fixo",
+        fixed_amount: 300,
+        agreement_aliases: ["Bradesco"],
+        agreement_match_mode: "whitelist",
+        code_match_mode: "any",
+      },
+    ],
+  } as any;
+  // Item bate em ambos; mas como agreement é contexto compartilhado e só
+  // calc-cir tem doctor_roles, calc-fb é catch-all → vence calc-cir.
+  const item = makeItem({ agreement_name: "Bradesco", doctor_role: "Cirurgião Principal" });
+  const out = applyCalculation(rule, item);
+  assertEquals(out.expected, 800, "calc-cir restritivo vence catch-all (calc-fb)");
+  assertEquals(out.calc_duplicity, undefined, "Sem bloqueio: filtro shared = contexto");
+});
+
+// --- Teste 12: Único cálculo com filtro vs múltiplos sem filtro ---
+Deno.test("2C/12 — 1 cálculo com whitelist + 1 catch-all puro → restritivo vence sem duplicidade", () => {
+  const rule: RuleInput = {
+    ...makeRuleWithTwoCalcs(),
+    calculations: [
+      {
+        id: "calc-X", sort_order: 0, label: "Whitelist X",
+        calculation_type: "valor_fixo", fixed_amount: 600,
+        procedure_codes: ["40101010"], code_match_mode: "whitelist",
+      },
+      {
+        id: "calc-any", sort_order: 1, label: "Catch-all puro",
+        calculation_type: "valor_fixo", fixed_amount: 100,
+        code_match_mode: "any",
+      },
+    ],
+  } as any;
+  const item = makeItem({ procedure_code: "40101010" });
+  const out = applyCalculation(rule, item);
+  assertEquals(out.expected, 600);
+  assertEquals(out.calc_duplicity, undefined);
+});

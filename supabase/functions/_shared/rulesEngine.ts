@@ -1291,37 +1291,95 @@ export interface ExpectedCalc {
 }
 
 /**
- * Sub-Onda 2C — Rodada 3.
- * Cálculo é "restritivo" se tem ao menos um filtro preenchido em algum dos 9 eixos:
- *  1) procedure_codes / code_match_mode
- *  2) extras_codes
- *  3) agreement_aliases
- *  4) doctor_roles
- *  5) dia/horário (time_mode ≠ 'qualquer' | weekdays | time_start | time_end)
- *  6) elective_mode ≠ 'qualquer' (modalidade)
- *  7) vias de acesso (apply_access_route === true E lista preenchida)
- *  8) sectors
- *  9) specialties
- * Caso contrário é "catch-all" e só vence quando NÃO há restritivo válido.
+ * Sub-Onda 2C — Rodada 3 (revisão final, Opção A uniforme).
+ *
+ * Um cálculo é "restritivo" iff existe pelo menos um eixo onde:
+ *   (a) o próprio calc tem filtro NÃO-default nesse eixo, E
+ *   (b) o valor desse eixo NÃO é compartilhado por TODOS os peers da regra.
+ *
+ * Filtros que TODOS os cálculos da mesma regra compartilham igualmente são
+ * **contexto da regra**, não diferenciadores entre cálculos. Por isso não
+ * marcam o calc como restritivo (caso contrário, padrões legítimos como
+ * "regra inteira só vale no fim de semana, com 3 cálculos por código"
+ * gerariam falsa duplicidade).
+ *
+ * Eixos avaliados (1..9):
+ *   1) procedure_codes + code_match_mode
+ *   2) extras_codes
+ *   3) agreement_aliases (+ agreement_match_mode no comparativo, mas não
+ *      conta como filtro sozinho — só restringe se houver lista)
+ *   4) doctor_roles
+ *   5) dia/horário (time_mode ≠ 'qualquer' | weekdays | time_start | time_end)
+ *   6) elective_mode ≠ 'qualquer' (modalidade)
+ *   7) vias de acesso (apply_access_route === true E lista preenchida)
+ *   8) sectors
+ *   9) specialties
+ *
+ * Casos limite:
+ *  - Regra com 1 único cálculo → não há peer com quem comparar → catch-all
+ *    (o loop de seleção já aplica esse cálculo: 0 restritivos + 1 catch-all).
+ *  - Igualdade de arrays é por conjunto (ordem ignorada).
+ *  - apply_access_route === false desliga o eixo "vias" semanticamente,
+ *    independente do conteúdo de allowed_access_routes.
  */
-export function isRestrictiveCalculation(c: RuleCalculationItem): boolean {
-  if (Array.isArray(c.procedure_codes) && c.procedure_codes.length > 0) return true;
-  if (c.code_match_mode && c.code_match_mode !== "any") return true;
-  if (Array.isArray(c.extras_codes) && c.extras_codes.length > 0) return true;
-  if (Array.isArray(c.agreement_aliases) && c.agreement_aliases.length > 0) return true;
-  if (Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0) return true;
-  if (c.time_mode && c.time_mode !== "qualquer") return true;
-  if (Array.isArray(c.weekdays) && c.weekdays.length > 0) return true;
-  if (c.time_start != null) return true;
-  if (c.time_end != null) return true;
-  if (c.elective_mode && c.elective_mode !== "qualquer") return true;
-  if (
-    c.apply_access_route === true &&
-    Array.isArray(c.allowed_access_routes) &&
-    c.allowed_access_routes.length > 0
-  ) return true;
-  if (Array.isArray(c.sectors) && c.sectors.length > 0) return true;
-  if (Array.isArray(c.specialties) && c.specialties.length > 0) return true;
+function _arrSig(a: unknown): string {
+  if (!Array.isArray(a) || a.length === 0) return "[]";
+  return JSON.stringify([...a].map((x) => String(x)).sort());
+}
+function _axisHasFilter(c: RuleCalculationItem, axis: number): boolean {
+  switch (axis) {
+    case 1:
+      return (Array.isArray(c.procedure_codes) && c.procedure_codes.length > 0) ||
+        (c.code_match_mode != null && c.code_match_mode !== "any");
+    case 2: return Array.isArray(c.extras_codes) && c.extras_codes.length > 0;
+    case 3: return Array.isArray(c.agreement_aliases) && c.agreement_aliases.length > 0;
+    case 4: return Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0;
+    case 5:
+      return (c.time_mode != null && c.time_mode !== "qualquer") ||
+        (Array.isArray(c.weekdays) && c.weekdays.length > 0) ||
+        c.time_start != null || c.time_end != null;
+    case 6: return c.elective_mode != null && c.elective_mode !== "qualquer";
+    case 7:
+      return c.apply_access_route === true &&
+        Array.isArray(c.allowed_access_routes) &&
+        c.allowed_access_routes.length > 0;
+    case 8: return Array.isArray(c.sectors) && c.sectors.length > 0;
+    case 9: return Array.isArray(c.specialties) && c.specialties.length > 0;
+  }
+  return false;
+}
+function _axisSig(c: RuleCalculationItem, axis: number): string {
+  switch (axis) {
+    case 1: return `${_arrSig(c.procedure_codes)}|${c.code_match_mode ?? "any"}`;
+    case 2: return _arrSig(c.extras_codes);
+    case 3: return `${_arrSig(c.agreement_aliases)}|${c.agreement_match_mode ?? "any"}`;
+    case 4: return _arrSig(c.doctor_roles);
+    case 5:
+      return `${c.time_mode ?? "qualquer"}|${_arrSig(c.weekdays)}|${c.time_start ?? ""}|${c.time_end ?? ""}`;
+    case 6: return String(c.elective_mode ?? "qualquer");
+    case 7:
+      return c.apply_access_route === true
+        ? `ON|${_arrSig(c.allowed_access_routes)}`
+        : "OFF";
+    case 8: return _arrSig(c.sectors);
+    case 9: return _arrSig(c.specialties);
+  }
+  return "";
+}
+export function isRestrictiveCalculation(
+  c: RuleCalculationItem,
+  peers: RuleCalculationItem[],
+): boolean {
+  // Único cálculo da regra → sem diferenciação possível → catch-all.
+  if (!Array.isArray(peers) || peers.length <= 1) return false;
+  for (let axis = 1; axis <= 9; axis++) {
+    if (!_axisHasFilter(c, axis)) continue;
+    const me = _axisSig(c, axis);
+    // Filtro compartilhado entre TODOS os peers = contexto da regra,
+    // não diferenciador entre cálculos.
+    const allSame = peers.every((p) => _axisSig(p, axis) === me);
+    if (!allSame) return true;
+  }
   return false;
 }
 
@@ -1387,7 +1445,7 @@ export function applyCalculation(
           steps: r.steps,
           calculation_type: c.calculation_type,
           sort_order: c.sort_order ?? Number.MAX_SAFE_INTEGER,
-          restrictive: isRestrictiveCalculation(c),
+          restrictive: isRestrictiveCalculation(c, list),
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
