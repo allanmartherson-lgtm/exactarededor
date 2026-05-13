@@ -1376,6 +1376,8 @@ export function applyCalculation(
       breakdown,
       force_totalized: finalForceTotalized,
       application_unit: (winnerCalc.application_unit as any) ?? rule.application_unit ?? "por_item",
+      qty_already_applied: winnerCalc.qty_already_applied,
+      steps: winnerCalc.steps,
     };
   }
   // ---- LEGADO: campos diretos na regra ----
