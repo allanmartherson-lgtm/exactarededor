@@ -769,6 +769,90 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const itemsRawById: Record<string, any> = {};
     for (const it of (itemsRaw ?? []) as any[]) itemsRawById[it.id] = it;
 
+    // ===== Sub-Onda 2B — Detecção de duplicidade entre lotes =====
+    // Busca itens com o MESMO item_hash em OUTROS pagamentos e classifica
+    // por status do lote-fonte (block / warn / none). Override prévio
+    // (ai_findings.duplicate_detection.override) é respeitado.
+    type DupMatch = {
+      other_item_id: string;
+      other_payment_id: string;
+      other_payment_reference: string;
+      other_payment_status: string;
+      other_attendance_number: string | null;
+      other_patient_name: string | null;
+      other_procedure_date: string | null;
+      other_doctor_name: string | null;
+      other_doctor_role: string | null;
+      other_expected_amount: number | null;
+      severity: "block" | "warn";
+    };
+    const dupByItemId: Record<string, {
+      severity: "block" | "warn" | "override";
+      matches: DupMatch[];
+      override: { by: string; at: string; justification: string } | null;
+    }> = {};
+
+    const hashesPresent = Array.from(new Set(
+      (itemsRaw ?? []).map((it: any) => it.item_hash).filter(Boolean) as string[],
+    ));
+    if (hashesPresent.length > 0) {
+      const { data: dupRows } = await supabase
+        .from("payment_items")
+        .select(`
+          id,payment_id,item_hash,attendance_number,patient_name,procedure_date,
+          doctor_name,doctor_role,expected_amount,
+          payment:payments!inner(id,reference,status)
+        `)
+        .in("item_hash", hashesPresent)
+        .neq("payment_id", payment_id);
+
+      const byHash: Record<string, any[]> = {};
+      for (const row of (dupRows ?? []) as any[]) {
+        (byHash[row.item_hash as string] ||= []).push(row);
+      }
+
+      for (const it of (itemsRaw ?? []) as any[]) {
+        const hash = it.item_hash as string | null;
+        if (!hash) continue;
+        const candidates = byHash[hash] ?? [];
+        if (candidates.length === 0) continue;
+
+        const matches: DupMatch[] = [];
+        let worst: "warn" | "block" | "none" = "none";
+        for (const c of candidates) {
+          const st = String(c.payment?.status ?? "");
+          const sev = classifyDuplicateMatch(st);
+          if (sev === "none") continue;
+          matches.push({
+            other_item_id: c.id,
+            other_payment_id: c.payment_id,
+            other_payment_reference: String(c.payment?.reference ?? ""),
+            other_payment_status: st,
+            other_attendance_number: c.attendance_number ?? null,
+            other_patient_name: c.patient_name ?? null,
+            other_procedure_date: c.procedure_date ?? null,
+            other_doctor_name: c.doctor_name ?? null,
+            other_doctor_role: c.doctor_role ?? null,
+            other_expected_amount: c.expected_amount != null ? Number(c.expected_amount) : null,
+            severity: sev,
+          });
+          if (sev === "block") worst = "block";
+          else if (worst !== "block") worst = "warn";
+        }
+        if (matches.length === 0) continue;
+
+        const existingOverride =
+          it.ai_findings?.duplicate_detection?.override ?? null;
+        dupByItemId[it.id] = {
+          severity: existingOverride ? "override" : (worst as "block" | "warn"),
+          matches,
+          override: existingOverride,
+        };
+      }
+    }
+    // ===== fim 2B =====
+
+
     type ItemUpdate = {
       id: string;
       ai_status: string;
