@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.backfill_payment_items_engine_columns(boolean) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.map_calculation_type_to_method(text) FROM PUBLIC, anon, authenticated;

@@ -12,6 +12,10 @@ import {
   type PaymentContext,
   type AnalysisResult,
 } from "../_shared/rulesEngine.ts";
+import {
+  mapCalculationTypeToMethod,
+  type AppliedCalcMethod,
+} from "../_shared/calcMethodMapping.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -763,7 +767,21 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const itemsRawById: Record<string, any> = {};
     for (const it of (itemsRaw ?? []) as any[]) itemsRawById[it.id] = it;
 
-    type ItemUpdate = { id: string; ai_status: string; ai_findings: any; attendance_group_key: string | null; specialty: string | null; sector: string | null };
+    type ItemUpdate = {
+      id: string;
+      ai_status: string;
+      ai_findings: any;
+      attendance_group_key: string | null;
+      specialty: string | null;
+      sector: string | null;
+      // Sub-Onda 2A — colunas SQL nativas espelhando o motor de regras.
+      applied_rule_id: string | null;
+      applied_rule_label: string | null;
+      applied_calc_id: string | null;
+      applied_calc_method: AppliedCalcMethod | null;
+      expected_amount: number | null;
+      applied_at: string | null;
+    };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
 
@@ -823,6 +841,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         decision_fields: decisionFields,
       };
 
+      // Sub-Onda 2A — derivar colunas estruturadas a partir do mesmo resultado do motor.
+      // O mapeamento 13 → 8 está documentado em _shared/calcMethodMapping.ts e é
+      // espelhado pela função SQL public.map_calculation_type_to_method().
+      const appliedCalcMethod = mapCalculationTypeToMethod(r.calculation_type_used);
+      const appliedCalcId =
+        (r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null;
+
       itemUpdates.push({
         id: r.item_id,
         ai_status: r.status,
@@ -830,6 +855,12 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
         sector: r.selection_trace?.item_sector ?? null,
+        applied_rule_id: r.matched_rule_id ?? null,
+        applied_rule_label: r.matched_rule_name ?? null,
+        applied_calc_id: appliedCalcId,
+        applied_calc_method: appliedCalcMethod,
+        expected_amount: r.expected_amount ?? null,
+        applied_at: new Date().toISOString(),
       });
 
       if (r.status === "alerta") alerts++;
@@ -906,6 +937,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         attendance_group_key: u.attendance_group_key,
         specialty: u.specialty,
         sector: u.sector,
+        // Sub-Onda 2A — colunas SQL nativas (espelham ai_findings)
+        applied_rule_id: u.applied_rule_id,
+        applied_rule_label: u.applied_rule_label,
+        applied_calc_id: u.applied_calc_id,
+        applied_calc_method: u.applied_calc_method,
+        expected_amount: u.expected_amount,
+        applied_at: u.applied_at,
       }).eq("id", u.id);
     });
 

@@ -750,6 +750,11 @@ export type Database = {
           agreement_text: string | null
           ai_findings: Json | null
           ai_status: Database["public"]["Enums"]["item_ai_status"]
+          applied_at: string | null
+          applied_calc_id: string | null
+          applied_calc_method: string | null
+          applied_rule_id: string | null
+          applied_rule_label: string | null
           attendance_group_key: string | null
           attendance_number: string | null
           authorized_exception: boolean
@@ -770,6 +775,7 @@ export type Database = {
           exception_marked_by: string | null
           exception_note: string | null
           exception_reason: string | null
+          expected_amount: number | null
           gross_amount: number
           id: string
           patient_name: string | null
@@ -790,6 +796,11 @@ export type Database = {
           agreement_text?: string | null
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          applied_at?: string | null
+          applied_calc_id?: string | null
+          applied_calc_method?: string | null
+          applied_rule_id?: string | null
+          applied_rule_label?: string | null
           attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
@@ -810,6 +821,7 @@ export type Database = {
           exception_marked_by?: string | null
           exception_note?: string | null
           exception_reason?: string | null
+          expected_amount?: number | null
           gross_amount?: number
           id?: string
           patient_name?: string | null
@@ -830,6 +842,11 @@ export type Database = {
           agreement_text?: string | null
           ai_findings?: Json | null
           ai_status?: Database["public"]["Enums"]["item_ai_status"]
+          applied_at?: string | null
+          applied_calc_id?: string | null
+          applied_calc_method?: string | null
+          applied_rule_id?: string | null
+          applied_rule_label?: string | null
           attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
@@ -850,6 +867,7 @@ export type Database = {
           exception_marked_by?: string | null
           exception_note?: string | null
           exception_reason?: string | null
+          expected_amount?: number | null
           gross_amount?: number
           id?: string
           patient_name?: string | null
@@ -866,6 +884,20 @@ export type Database = {
           tipo_linha?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_items_applied_calc_id_fkey"
+            columns: ["applied_calc_id"]
+            isOneToOne: false
+            referencedRelation: "rule_calculations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_applied_rule_id_fkey"
+            columns: ["applied_rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_items_company_id_fkey"
             columns: ["company_id"]
@@ -1964,6 +1996,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      backfill_payment_items_engine_columns: {
+        Args: { _dry_run?: boolean }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1998,6 +2034,10 @@ export type Database = {
           _to: Database["public"]["Enums"]["payment_status"]
         }
         Returns: boolean
+      }
+      map_calculation_type_to_method: {
+        Args: { _ctype: string }
+        Returns: string
       }
       only_digits: { Args: { txt: string }; Returns: string }
       recompute_payment_status_from_groups: {
