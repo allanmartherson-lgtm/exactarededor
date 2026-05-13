@@ -391,3 +391,60 @@ Deno.test("ONDA 1 — Tabela Diferenciada: ordem (base→mult→repasse→via→
   const results = analyzePaymentItems([item], [rule], baseCtx, { referenceLookup: lookup });
   assertEquals(results[0].expected_amount, 47.88);
 });
+
+// --- ONDA 1 BUGFIX — Tabela Diferenciada via rule.calculations[] não duplica quantidade ---
+
+Deno.test("ONDA 1 BUGFIX — Tabela Diferenciada via rule.calculations[] não duplica quantidade", () => {
+  const tableId = "table-bugfix";
+  const code = "30715091";
+  const lookup = (tid: string, c: string, _role?: string | null, roleSpecific?: boolean) => {
+    if (tid !== tableId || c !== code) return null;
+    if (roleSpecific === true) return null;
+    return 1525.45;
+  };
+
+  // Caminho MODERNO: TD declarada DENTRO de rule.calculations[], não nos campos legados.
+  const rule = makeRule({
+    id: "rule-bugfix-td-modern",
+    name: "TD via calculations[] — bugfix",
+    calculation_type: "tabela_diferenciada",
+    reference_table_id: null as any,
+    multiplier: null as any,
+    repasse_pct: null as any,
+    calculations: [
+      {
+        id: "calc-td-1",
+        sort_order: 0,
+        label: "TD Outra Via",
+        calculation_type: "tabela_diferenciada",
+        reference_table_id: tableId,
+        multiplier: 1.5,
+        apply_access_route: true,
+      },
+    ],
+  });
+
+  const item = makeItem({
+    id: "item-bugfix",
+    procedure_code: code,
+    doctor_role: "Cirurgião Principal",
+    access_route: "Via de acesso diferente", // 0.7 (outra via)
+    quantity: 3,
+    procedure_amount: 1525.45,
+    gross_amount: 0,
+  });
+
+  const results = analyzePaymentItems([item], [rule], baseCtx, { referenceLookup: lookup });
+  assertEquals(results.length, 1);
+
+  // 1525.45 × 1.5 = 2288.18 → × 0.7 = 1601.73 → × 3 = 4805.18
+  // (sem deflator, sem repasse, cirurgião principal)
+  // Cálculo esperado correto, NÃO 14415.53 (que seria com qtd duplicada).
+  // Recalculando com round2 por etapa: 1525.45 → 2288.18 → 1601.73 → 1601.73 → 4805.19
+  assertEquals(results[0].expected_amount, 4805.19);
+
+  const explanation = results[0].calculation_explanation ?? "";
+  // Garante que "× qtd 3" aparece exatamente UMA vez (não duplicada)
+  const matches = explanation.match(/× qtd 3/g) ?? [];
+  assertEquals(matches.length, 1, `Explicação deveria ter exatamente 1 "× qtd 3", encontrou ${matches.length}: ${explanation}`);
+});
