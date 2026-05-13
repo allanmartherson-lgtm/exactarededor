@@ -1290,6 +1290,41 @@ export interface ExpectedCalc {
   calc_duplicity?: CalcDuplicityInfo;
 }
 
+/**
+ * Sub-Onda 2C — Rodada 3.
+ * Cálculo é "restritivo" se tem ao menos um filtro preenchido em algum dos 9 eixos:
+ *  1) procedure_codes / code_match_mode
+ *  2) extras_codes
+ *  3) agreement_aliases
+ *  4) doctor_roles
+ *  5) dia/horário (time_mode ≠ 'qualquer' | weekdays | time_start | time_end)
+ *  6) elective_mode ≠ 'qualquer' (modalidade)
+ *  7) vias de acesso (apply_access_route === true E lista preenchida)
+ *  8) sectors
+ *  9) specialties
+ * Caso contrário é "catch-all" e só vence quando NÃO há restritivo válido.
+ */
+export function isRestrictiveCalculation(c: RuleCalculationItem): boolean {
+  if (Array.isArray(c.procedure_codes) && c.procedure_codes.length > 0) return true;
+  if (c.code_match_mode && c.code_match_mode !== "any") return true;
+  if (Array.isArray(c.extras_codes) && c.extras_codes.length > 0) return true;
+  if (Array.isArray(c.agreement_aliases) && c.agreement_aliases.length > 0) return true;
+  if (Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0) return true;
+  if (c.time_mode && c.time_mode !== "qualquer") return true;
+  if (Array.isArray(c.weekdays) && c.weekdays.length > 0) return true;
+  if (c.time_start != null) return true;
+  if (c.time_end != null) return true;
+  if (c.elective_mode && c.elective_mode !== "qualquer") return true;
+  if (
+    c.apply_access_route === true &&
+    Array.isArray(c.allowed_access_routes) &&
+    c.allowed_access_routes.length > 0
+  ) return true;
+  if (Array.isArray(c.sectors) && c.sectors.length > 0) return true;
+  if (Array.isArray(c.specialties) && c.specialties.length > 0) return true;
+  return false;
+}
+
 export function applyCalculation(
   rule: RuleInput,
   item: ItemInput,
