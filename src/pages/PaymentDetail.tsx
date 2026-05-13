@@ -919,7 +919,7 @@ const PaymentDetail = () => {
       acc[s] = (acc[s] ?? 0) + 1;
       return acc;
     },
-    { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0 } as Record<ItemAiStatus, number>,
+    { pendente: 0, aprovado: 0, alerta: 0, reprovado: 0, erro_duplicidade_pagamento: 0 } as Record<ItemAiStatus, number>,
   );
   const topAlerts: { item: PaymentItemRowType; alerts: string[] }[] = items
     .filter((it) => it.ai_findings?.alerts?.length && !itemAnalystDone(it))
