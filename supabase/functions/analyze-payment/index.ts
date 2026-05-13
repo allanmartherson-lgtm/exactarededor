@@ -790,7 +790,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const dupByItemId: Record<string, {
       severity: "block" | "warn" | "override";
       matches: DupMatch[];
-      override: { by: string; at: string; justification: string } | null;
+      uncovered: DupMatch[];
+      override: DuplicateOverridePayload | null;
     }> = {};
 
     const hashesPresent = Array.from(new Set(
@@ -819,7 +820,6 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         if (candidates.length === 0) continue;
 
         const matches: DupMatch[] = [];
-        let worst: "warn" | "block" | "none" = "none";
         for (const c of candidates) {
           const st = String(c.payment?.status ?? "");
           const sev = classifyDuplicateMatch(st);
@@ -837,16 +837,20 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             other_expected_amount: c.expected_amount != null ? Number(c.expected_amount) : null,
             severity: sev,
           });
-          if (sev === "block") worst = "block";
-          else if (worst !== "block") worst = "warn";
         }
         if (matches.length === 0) continue;
 
         const existingOverride =
-          it.ai_findings?.duplicate_detection?.override ?? null;
+          (it.ai_findings?.duplicate_detection?.override ?? null) as DuplicateOverridePayload | null;
+        // BUGFIX 2B — escopo restrito: cada colisão precisa estar individualmente
+        // coberta pelo paired_with_*; matches novos NÃO são liberados pelo override antigo.
+        const evaluated = evaluateDuplicate(matches, existingOverride);
+        const finalSev: "block" | "warn" | "override" =
+          evaluated.severity === "none" ? "warn" : evaluated.severity;
         dupByItemId[it.id] = {
-          severity: existingOverride ? "override" : (worst as "block" | "warn"),
+          severity: finalSev,
           matches,
+          uncovered: evaluated.uncovered,
           override: existingOverride,
         };
       }
