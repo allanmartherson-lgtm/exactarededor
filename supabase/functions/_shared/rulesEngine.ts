@@ -1306,22 +1306,30 @@ export function applyCalculation(
     .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
-    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null; force_totalized?: boolean; application_unit?: string | null; qty_already_applied?: boolean; steps?: { label: string; value: number }[] } | null = null;
+    type ValidCalc = {
+      expected: number;
+      explanation: string;
+      alerts: string[];
+      label: string;
+      id: string | null;
+      force_totalized?: boolean;
+      application_unit?: string | null;
+      qty_already_applied?: boolean;
+      steps?: { label: string; value: number }[];
+      calculation_type: CalculationType;
+    };
+    const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
 
     for (const c of list) {
       const label = (c.label && c.label.trim()) || c.calculation_type;
       const m = calcItemMatches(c, item);
-      
+
       if (!m.ok) {
         const reason = (m as any).reason || "condicao_nao_satisfeita";
         breakdown.push({
-          calc_id: c.id ?? null,
-          label,
-          calculation_type: c.calculation_type,
-          matched: false,
-          skip_reason: reason,
-          expected: null,
+          calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
+          matched: false, skip_reason: reason, expected: null,
           explanation: `Não aplicado — condição "${reason}" não satisfeita.`,
           alerts: [],
         });
@@ -1331,60 +1339,33 @@ export function applyCalculation(
       anyMatched = true;
       const eff = ruleFromCalcItem(rule, c);
       const r = applyCalculationSingle(eff, item, ctx);
-      
-      // REGRA DE PROJETO: "Exclusividade de Item de Cálculo". 
-      // Em vez de somar (comportamento de pacote), o motor agora usa o PRIMEIRO 
-      // item de cálculo que der match e RESULTAR EM VALOR (expected != null)
-      // como a regra definitiva para este item. Se o primeiro der match mas 
-      // falhar no cálculo (ex: código não encontrado na tabela), ele tenta o próximo.
-      if (!winnerCalc && r.expected !== null) {
-        winnerCalc = { 
-          ...r, 
-          label, 
-          id: c.id ?? null,
+
+      if (r.expected !== null) {
+        validCalcs.push({
+          expected: r.expected, explanation: r.explanation, alerts: r.alerts,
+          label, id: c.id ?? null,
           force_totalized: c.force_totalized ?? false,
           application_unit: c.application_unit ?? rule.application_unit ?? "por_item",
-        };
-        
-        breakdown.push({
-          calc_id: c.id ?? null,
-          label,
+          qty_already_applied: r.qty_already_applied,
+          steps: r.steps,
           calculation_type: c.calculation_type,
-          matched: true,
-          expected: r.expected,
-          explanation: r.explanation,
+        });
+        breakdown.push({
+          calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
+          matched: true, expected: r.expected, explanation: r.explanation,
           alerts: r.alerts.map((a) => `[${label}] ${a}`),
         });
-      } else if (!winnerCalc && r.expected === null) {
-        // Deu match na condição (ex: via), mas falhou no cálculo interno (ex: tabela).
-        // Registramos como match=false (falha técnica) para permitir que o próximo item de cálculo tente.
+      } else {
         breakdown.push({
-          calc_id: c.id ?? null,
-          label,
-          calculation_type: c.calculation_type,
-          matched: false,
-          skip_reason: "calculo_sem_resultado",
-          expected: null,
+          calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
+          matched: false, skip_reason: "calculo_sem_resultado", expected: null,
           explanation: `Tentativa falhou: ${r.explanation}. Seguindo para próximo cálculo disponível.`,
           alerts: r.alerts.map((a) => `[${label}] ${a}`),
-        });
-        // anyMatched = false; // Removido para manter anyMatched=true se houve match de condição
-      } else if (winnerCalc) {
-        // Itens de cálculo posteriores que também dariam match são ignorados (exclusividade)
-        breakdown.push({
-          calc_id: c.id ?? null,
-          label,
-          calculation_type: c.calculation_type,
-          matched: false,
-          skip_reason: "item_calculo_ja_atendido",
-          expected: null,
-          explanation: `Ignorado — o item já foi atendido pelo cálculo anterior "${winnerCalc.label}".`,
-          alerts: [],
         });
       }
     }
 
-    if (!anyMatched || !winnerCalc) {
+    if (!anyMatched || validCalcs.length === 0) {
       return {
         expected: null,
         explanation: `Regra "${rule.name}" possui ${list.length} cálculo(s), mas nenhum satisfez as condições deste item.`,
@@ -1393,9 +1374,45 @@ export function applyCalculation(
       };
     }
 
+    // Sub-Onda 2C — resolução prévia escolhe um cálculo entre os válidos.
+    const resolutionId = item.calc_duplicity_resolution?.chosen_calc_id ?? null;
+    let chosen: ValidCalc | null = null;
+    let resolutionStale = false;
+    if (resolutionId) {
+      chosen = validCalcs.find((v) => v.id === resolutionId) ?? null;
+      if (!chosen) resolutionStale = true;
+    }
+
+    // Sub-Onda 2C — 2+ válidos sem resolução utilizável → bloqueio por ambiguidade de cadastro.
+    if (!chosen && validCalcs.length >= 2) {
+      return {
+        expected: null,
+        explanation: `Regra "${rule.name}" possui ${validCalcs.length} cálculos válidos simultaneamente para este item — ambiguidade de cadastro.`,
+        alerts: [`Cadastro com ambiguidade: ${validCalcs.length} cálculos da regra retornaram valor para este item. Defina manualmente qual aplicar.`],
+        breakdown,
+        calc_duplicity: {
+          rule_id: rule.id,
+          rule_name: rule.name,
+          matched_calculations: validCalcs.map((v) => ({
+            calc_id: v.id, label: v.label, calculation_type: v.calculation_type, expected: v.expected,
+          })),
+          ...(resolutionStale ? { resolution_stale: true } : {}),
+        },
+      };
+    }
+
+    const winnerCalc = chosen ?? validCalcs[0];
+    if (chosen) {
+      // Marca os demais válidos como ignorados (substituídos pela escolha do analista).
+      for (const b of breakdown) {
+        if (b.matched && b.calc_id !== winnerCalc.id) {
+          b.matched = false;
+          b.skip_reason = "item_calculo_ja_atendido";
+        }
+      }
+    }
+
     const expected = winnerCalc.expected != null ? Number(winnerCalc.expected.toFixed(2)) : null;
-    
-    // Propaga a flag force_totalized do item de cálculo ou da regra pai
     const finalForceTotalized = winnerCalc.force_totalized ?? rule.force_totalized ?? false;
 
     return {
@@ -1407,6 +1424,15 @@ export function applyCalculation(
       application_unit: (winnerCalc.application_unit as any) ?? rule.application_unit ?? "por_item",
       qty_already_applied: winnerCalc.qty_already_applied,
       steps: winnerCalc.steps,
+      ...(resolutionStale ? {
+        calc_duplicity: {
+          rule_id: rule.id, rule_name: rule.name,
+          matched_calculations: validCalcs.map((v) => ({
+            calc_id: v.id, label: v.label, calculation_type: v.calculation_type, expected: v.expected,
+          })),
+          resolution_stale: true,
+        },
+      } : {}),
     };
   }
   // ---- LEGADO: campos diretos na regra ----
@@ -2062,6 +2088,7 @@ function finalizeAnalysis(
     ...(conflict ? { conflict } : {}),
     ...(calc.breakdown ? { calculation_breakdown: calc.breakdown } : {}),
     ...(calc.application_unit ? { application_unit_used: calc.application_unit } : {}),
+    ...(calc.calc_duplicity ? { calc_duplicity: calc.calc_duplicity } : {}),
   };
 }
 

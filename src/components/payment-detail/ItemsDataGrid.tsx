@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { SafeCard } from "@/components/ui/SafeCard";
+import { CalcDuplicityResolverPanel } from "./CalcDuplicityResolverPanel";
 import {
   AlertTriangle,
   Columns3,
@@ -1297,6 +1298,16 @@ function ItemDetailsRow({
                   )}
                 </SafeCard>
               )}
+
+
+              {it.ai_status === "erro_duplicidade_calculo" &&
+                Array.isArray((it.ai_findings as any)?.calc_duplicity?.matched_calculations) && (
+                  <CalcDuplicityResolverPanel
+                    itemId={it.id}
+                    matchedCalculations={(it.ai_findings as any).calc_duplicity.matched_calculations}
+                    resolutionStale={(it.ai_findings as any)?.calc_duplicity?.resolution_stale === true}
+                  />
+                )}
 
               {diff != null && Math.abs(diff) > 0.01 && expected != null && (
                 <SafeCard className="border-warning/30 bg-warning-soft/40">

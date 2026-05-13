@@ -336,6 +336,10 @@ serve(async (req) => {
       specialty: resolved.value,
       sector: it.sector ?? null,
       convenio_value_totalized: it.convenio_value_totalized ?? false,
+      // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
+      calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
+        ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
+        : null,
     });
     });
 
@@ -976,9 +980,50 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         }
       }
 
-      const appliedCalcMethod = mapCalculationTypeToMethod(r.calculation_type_used);
-      const appliedCalcId =
-        (r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null;
+      // ===== Sub-Onda 2C — duplicidade entre cálculos da mesma regra =====
+      const priorCalcDup = itRaw?.ai_findings?.calc_duplicity ?? null;
+      const priorResolution = priorCalcDup?.resolution ?? null;
+      const isCalcDuplicityBlock = !!(r.calc_duplicity && r.expected_amount === null);
+      const isResolutionStaleSingle = !!(r.calc_duplicity?.resolution_stale && r.expected_amount !== null);
+
+      if (isCalcDuplicityBlock) {
+        finalStatus = "erro_duplicidade_calculo" as any;
+        findings.calc_duplicity = {
+          rule_id: r.calc_duplicity!.rule_id,
+          rule_name: r.calc_duplicity!.rule_name,
+          matched_calculations: r.calc_duplicity!.matched_calculations,
+          ...(priorResolution ? { resolution: priorResolution } : {}),
+          ...(r.calc_duplicity!.resolution_stale ? { resolution_stale: true } : {}),
+        };
+        findings.alerts = [
+          ...findings.alerts,
+          `Cadastro com ambiguidade: a regra "${r.calc_duplicity!.rule_name}" possui ${r.calc_duplicity!.matched_calculations.length} cálculos válidos para este item. Defina manualmente qual aplicar.`,
+        ];
+      } else if (isResolutionStaleSingle) {
+        // Resolveu para um único cálculo válido, mas a escolha anterior do analista
+        // referenciava um calc removido — preserva resolution para auditoria mas marca stale.
+        findings.calc_duplicity = {
+          rule_id: r.calc_duplicity!.rule_id,
+          rule_name: r.calc_duplicity!.rule_name,
+          matched_calculations: r.calc_duplicity!.matched_calculations,
+          resolution_stale: true,
+          ...(priorResolution ? { resolution: priorResolution } : {}),
+        };
+      } else if (priorResolution) {
+        // Aplicou normalmente um cálculo cuja escolha continua válida — preserva resolution.
+        findings.calc_duplicity = {
+          ...(priorCalcDup ?? {}),
+          resolution: priorResolution,
+        };
+      }
+      // ===== fim 2C =====
+
+      const appliedCalcMethod = isCalcDuplicityBlock
+        ? null
+        : mapCalculationTypeToMethod(r.calculation_type_used);
+      const appliedCalcId = isCalcDuplicityBlock
+        ? null
+        : ((r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null);
 
       itemUpdates.push({
         id: r.item_id,
@@ -991,12 +1036,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_rule_label: r.matched_rule_name ?? null,
         applied_calc_id: appliedCalcId,
         applied_calc_method: appliedCalcMethod,
-        expected_amount: r.expected_amount ?? null,
-        applied_at: new Date().toISOString(),
+        expected_amount: isCalcDuplicityBlock ? null : (r.expected_amount ?? null),
+        applied_at: isCalcDuplicityBlock ? null : new Date().toISOString(),
       });
 
       if (finalStatus === "alerta") alerts++;
-      if (finalStatus === "reprovado" || finalStatus === "erro_duplicidade_pagamento") blocks++;
+      if (
+        finalStatus === "reprovado" ||
+        finalStatus === "erro_duplicidade_pagamento" ||
+        finalStatus === "erro_duplicidade_calculo"
+      ) blocks++;
 
       const prev = prevByItem[r.item_id];
       const nextVersion = (prev?.version ?? 0) + 1;
