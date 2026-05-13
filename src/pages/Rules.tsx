@@ -2459,6 +2459,13 @@ const Rules = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RuleConflictModal
+        open={conflictOpen}
+        problems={conflictProblems}
+        onCancel={() => { setConflictOpen(false); setConflictProblems([]); setPendingRuleData(null); setPendingCalcs([]); }}
+        onApplyAndSave={handleConflictApply}
+      />
     </>
   );
 };
