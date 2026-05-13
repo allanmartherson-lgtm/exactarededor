@@ -313,6 +313,18 @@ export interface AnalysisResult {
   application_unit_used?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
   /** Se este resultado foi suprimido por dedup (já contado em outro item do mesmo atendimento). */
   suppressed_by_dedup?: boolean;
+  /** Sub-Onda 2C — quando preenchido, a regra vencedora tem 2+ cálculos válidos para este item. */
+  calc_duplicity?: {
+    rule_id: string;
+    rule_name: string;
+    matched_calculations: Array<{
+      calc_id: string | null;
+      label: string;
+      calculation_type: CalculationType;
+      expected: number;
+    }>;
+    resolution_stale?: boolean;
+  };
 }
 
 export interface CalculationBreakdownEntry {
