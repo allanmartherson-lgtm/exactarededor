@@ -887,8 +887,71 @@ const Rules = () => {
     toast({ title: "Copiando regra", description: "Ajuste os campos e salve para criar a nova regra." });
   };
 
+  /**
+   * Sub-Onda 2D / Rodada 3 — chamada única à RPC `apply_rule_save_with_corrections`.
+   * Substitui o caminho antigo (insert/update + runCalcSync). A RPC é
+   * atômica: aplica correções, faz upsert da regra e re-sincroniza
+   * rule_calculations em uma transação só. Auditoria adicional fica no
+   * cliente para preservar o `buildDiff` rico (a RPC já loga via
+   * `update_via_rpc`/`create_via_rpc`).
+   */
+  const applyRuleSaveRpc = async (
+    ruleData: Record<string, unknown>,
+    calcs: Record<string, unknown>[],
+    corrections: ConflictCorrection[],
+    meta: { wasEditing: boolean; auditCompany: { id: string | null; name: string | null; document: string | null } | null },
+  ) => {
+    const before = meta.wasEditing && ruleData.id
+      ? rules.find((r) => r.id === ruleData.id) ?? null
+      : null;
+    const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
+      _rule_data: ruleData as any,
+      _calculations: calcs as any,
+      _corrections: corrections as any,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    const result = data as { rule_id?: string; is_update?: boolean; corrections_applied?: number } | null;
+    const savedId = (result?.rule_id as string | undefined) ?? (ruleData.id as string | undefined) ?? null;
+    if (savedId) {
+      await recordAudit({
+        entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
+        actorId: user!.id, company: meta.auditCompany,
+        diff: buildDiff(before as any, ruleData as any),
+      });
+    }
+    if ((result?.corrections_applied ?? 0) > 0) {
+      toast({
+        title: meta.wasEditing ? "Regra atualizada com correções" : "Regra criada com correções",
+        description: `${result?.corrections_applied} regra(s) anterior(es) foram encerradas automaticamente.`,
+      });
+    } else {
+      toast({ title: meta.wasEditing ? "Regra atualizada" : "Regra criada" });
+    }
+    setOpen(false);
+    resetForm();
+    load();
+    setConflictOpen(false);
+    setConflictProblems([]);
+    setPendingRuleData(null);
+    setPendingCalcs([]);
+  };
 
-  const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
+  /** Handler do modal: aplica correções escolhidas + grava via RPC. */
+  const handleConflictApply = async (corrections: ConflictCorrection[]) => {
+    if (!pendingRuleData) throw new Error("Estado de save perdido — reabra o formulário.");
+    const auditCompany = (pendingRuleData.target_type === "empresa" && pendingRuleData.target_identifier)
+      ? { id: (pendingRuleData.target_company_id as string | null) ?? null,
+          name: (pendingRuleData.target_name as string | null) ?? null,
+          document: (pendingRuleData.target_identifier as string | null) ?? null }
+      : null;
+    await applyRuleSaveRpc(pendingRuleData, pendingCalcs, corrections, {
+      wasEditing: pendingIsUpdate, auditCompany,
+    });
+  };
+
+
     e.preventDefault();
     setSaving(true);
     try {
