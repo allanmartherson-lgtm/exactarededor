@@ -246,6 +246,8 @@ export interface ItemInput {
   specialty?: string | null;
   /** Setor informado na planilha (opcional). */
   sector?: string | null;
+  /** Sub-Onda 2C — resolução manual de duplicidade entre cálculos da mesma regra (analista escolheu qual cálculo aplicar). */
+  calc_duplicity_resolution?: { chosen_calc_id: string } | null;
 }
 
 export interface PaymentContext {
