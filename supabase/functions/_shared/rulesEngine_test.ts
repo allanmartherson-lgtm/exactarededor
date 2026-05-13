@@ -15,7 +15,8 @@ import {
   type ItemInput,
   type PaymentContext,
   type RuleInput,
-  _test_only
+  _test_only,
+  calcTabelaDiferenciadaForTest,
 } from "./rulesEngine.ts";
 
 const { classifyDoctorRole, normAgreement, normName, normAccessRoute } = _test_only;
