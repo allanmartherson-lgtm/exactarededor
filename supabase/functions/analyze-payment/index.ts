@@ -162,7 +162,9 @@ serve(async (req) => {
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,
         convenio_value_totalized,
-        ai_status
+        ai_status,
+        item_hash,
+        ai_findings
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
