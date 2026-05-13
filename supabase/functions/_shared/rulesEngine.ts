@@ -1223,6 +1223,7 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     multiplier: c.multiplier ?? rule.multiplier,
     deflator_pct: c.deflator_pct ?? rule.deflator_pct,
     repasse_pct: c.repasse_pct ?? rule.repasse_pct,
+    acrescimo_pct: c.acrescimo_pct ?? rule.acrescimo_pct,
     apply_access_route: c.apply_access_route ?? rule.apply_access_route,
     include_auxiliaries: c.include_auxiliaries ?? rule.include_auxiliaries,
     auxiliary_pct: c.auxiliary_pct ?? rule.auxiliary_pct,
