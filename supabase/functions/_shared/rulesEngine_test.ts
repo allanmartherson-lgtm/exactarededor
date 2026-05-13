@@ -282,3 +282,111 @@ Deno.test("applyCalculation ordena calculations defensivamente por sort_order me
   assertEquals(r[0].expected_amount, 4000);
 });
 
+
+// --- ONDA 1 — Correção 1: Vigência por procedure_date (regra de competência) ---
+
+Deno.test("ONDA 1 — vigência da regra é determinada pela procedure_date do item, não pela data do lote", () => {
+  const ruleA = makeRule({
+    id: "rule-A",
+    name: "Regra A (vigência 2026-01-01 → 2026-03-31)",
+    valid_from: "2026-01-01",
+    valid_until: "2026-03-31",
+    convenio_percentage: 80,
+  });
+  const ruleB = makeRule({
+    id: "rule-B",
+    name: "Regra B (vigência 2026-04-01 → null)",
+    valid_from: "2026-04-01",
+    valid_until: null,
+    convenio_percentage: 95,
+  });
+
+  // Lote tem due_date em 2026-05-01 (Regra B vigente nessa data),
+  // mas o procedimento foi realizado em 2026-02-15 (Regra A vigente).
+  const item = makeItem({
+    id: "item-comp",
+    procedure_date: "2026-02-15",
+    procedure_amount: 100,
+    gross_amount: 80,
+  });
+
+  const ctxLote: PaymentContext = {
+    sectors: ["outro"],
+    specialties: [],
+    payment_type: null,
+    reference_date: "2026-05-01", // data do lote — NÃO deve influenciar
+  };
+
+  const results = analyzePaymentItems([item], [ruleA, ruleB], ctxLote);
+  assertEquals(results.length, 1);
+  assertEquals(
+    results[0].matched_rule_id,
+    "rule-A",
+    "Deve aplicar Regra A (vigente em 2026-02-15), não Regra B (data do lote)",
+  );
+  assertEquals(results[0].expected_amount, 80);
+});
+
+// --- ONDA 1 — Correção 2: Ordem fiscal e arredondamento por etapa na Tabela Diferenciada ---
+
+Deno.test("ONDA 1 — Tabela Diferenciada: ordem (base→mult→repasse→via→função→qtd→deflator) com arredondamento por etapa", () => {
+  const tableId = "table-onda1";
+  const code = "99999999";
+  // Lookup: retorna 100 SEMPRE que NÃO for a chamada role-specific (4º arg true);
+  // a chamada role-specific retorna null para garantir que NÃO seja considerado
+  // "valor específico para o papel" (e o % de função seja aplicado).
+  const lookup = (tid: string, c: string, _role?: string | null, roleSpecific?: boolean) => {
+    if (tid !== tableId || c !== code) return null;
+    if (roleSpecific === true) return null;
+    return 100;
+  };
+
+  const rule = makeRule({
+    id: "rule-onda1-td",
+    name: "Tabela Diferenciada — Onda 1",
+    calculation_type: "tabela_diferenciada",
+    reference_table_id: tableId,
+    multiplier: 1.5,
+    repasse_pct: 80,
+    apply_access_route: true,
+    include_auxiliaries: true,
+    aux_first_pct: 30,
+    deflator_pct: 5,
+  });
+
+  const item = makeItem({
+    id: "item-onda1-td",
+    procedure_code: code,
+    doctor_role: "1º Auxiliar",
+    access_route: "Via de acesso diferente", // accessRouteFactor → 0.7
+    quantity: 2,
+    procedure_amount: 100,
+    gross_amount: 0,
+  });
+
+  // Acesso direto ao calculador para validar steps com arredondamento por etapa.
+  const calc = (calcTabelaDiferenciadaForTest as any)(rule, item, lookup);
+  const steps: { label: string; value: number }[] = calc.steps;
+
+  // 1) base                                 = 100,00
+  assertEquals(steps.find((s) => s.label === "base")!.value, 100.00);
+  // 2) × 1,5                                = 150,00
+  assertEquals(steps.find((s) => s.label === "multiplicador")!.value, 150.00);
+  // 3) × 80%  (repasse antes da via)        = 120,00
+  assertEquals(steps.find((s) => s.label === "repasse")!.value, 120.00);
+  // 4) × 70%  (via antes da função)         =  84,00
+  assertEquals(steps.find((s) => s.label === "via_acesso")!.value, 84.00);
+  // 5) × 30%  (função 1º aux)               =  25,20
+  assertEquals(steps.find((s) => s.label === "funcao")!.value, 25.20);
+  // 6) × 2    (quantidade dentro da TD)     =  50,40
+  assertEquals(steps.find((s) => s.label === "quantidade")!.value, 50.40);
+  // 7) × (1 − 0,05)                          =  47,88
+  assertEquals(steps.find((s) => s.label === "deflator")!.value, 47.88);
+
+  assertEquals(calc.expected, 47.88);
+  assertEquals(calc.qty_already_applied, true);
+
+  // Sanity-check via fluxo público: finalizeAnalysis NÃO deve multiplicar qtd de novo.
+  const results = analyzePaymentItems([item], [rule], baseCtx, { referenceLookup: lookup });
+  assertEquals(results[0].expected_amount, 47.88);
+});
