@@ -44,6 +44,7 @@ import {
   type CalcItem,
 } from "@/components/rules/RuleCalculationsEditor";
 import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
+import { RuleConflictModal, type Problem as ConflictProblem, type Correction as ConflictCorrection } from "@/components/rules/RuleConflictModal";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
