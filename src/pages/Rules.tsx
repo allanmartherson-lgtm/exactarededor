@@ -951,7 +951,7 @@ const Rules = () => {
     });
   };
 
-
+  const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     try {
