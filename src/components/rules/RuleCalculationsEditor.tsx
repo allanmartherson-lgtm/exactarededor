@@ -412,7 +412,14 @@ function CalcCard({
                       <Input type="number" step="0.01" value={c.deflator_pct} onChange={(e) => onChange({ deflator_pct: e.target.value })} />
                     </div>
                     <div className="space-y-1.5"><Label className="text-xs">% de repasse</Label>
-                      <Input type="number" step="0.01" value={c.repasse_pct} onChange={(e) => onChange({ repasse_pct: e.target.value })} />
+                      <Input type="number" step="0.01" placeholder="100" value={c.repasse_pct} onChange={(e) => onChange({ repasse_pct: e.target.value })} />
+                      <p className="text-[10px] text-muted-foreground leading-tight">Multiplicativo. Ex.: 70 = paga 70% do valor. Vazio = 100%.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5"><Label className="text-xs">Acréscimo (%)</Label>
+                      <Input type="number" step="0.01" placeholder="0" value={c.acrescimo_pct} onChange={(e) => onChange({ acrescimo_pct: e.target.value })} />
+                      <p className="text-[10px] text-muted-foreground leading-tight">Aditivo. Ex.: 20 = +20% sobre o valor calculado, antes do deflator.</p>
                     </div>
                   </div>
                   <label className="flex items-start gap-2">
