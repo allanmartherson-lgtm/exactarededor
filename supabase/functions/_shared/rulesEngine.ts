@@ -1445,7 +1445,7 @@ export function applyCalculation(
           steps: r.steps,
           calculation_type: c.calculation_type,
           sort_order: c.sort_order ?? Number.MAX_SAFE_INTEGER,
-          restrictive: isRestrictiveCalculation(c),
+          restrictive: isRestrictiveCalculation(c, list),
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
