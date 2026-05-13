@@ -37,6 +37,8 @@ export type CalcItem = {
   bonus_pct: string;
   reference_table_id: string;
   repasse_pct: string;
+  /** Acréscimo aditivo (%) aplicado no final, antes do deflator. Só em tabela_diferenciada. */
+  acrescimo_pct: string;
   convenio_percentage: string;
   auxiliary_pct: string;
   aux_first_pct: string;
@@ -85,7 +87,7 @@ export function makeEmptyCalc(): CalcItem {
   return {
     calculation_type: "informativo",
     fixed_amount: "", target_amount: "", multiplier: "", deflator_pct: "",
-    bonus_amount: "", bonus_pct: "", reference_table_id: "", repasse_pct: "",
+    bonus_amount: "", bonus_pct: "", reference_table_id: "", repasse_pct: "", acrescimo_pct: "",
     convenio_percentage: "", auxiliary_pct: "",
     aux_first_pct: "30", aux_second_pct: "20", instrumentador_pct: "10",
     include_auxiliaries: false,
@@ -410,7 +412,14 @@ function CalcCard({
                       <Input type="number" step="0.01" value={c.deflator_pct} onChange={(e) => onChange({ deflator_pct: e.target.value })} />
                     </div>
                     <div className="space-y-1.5"><Label className="text-xs">% de repasse</Label>
-                      <Input type="number" step="0.01" value={c.repasse_pct} onChange={(e) => onChange({ repasse_pct: e.target.value })} />
+                      <Input type="number" step="0.01" placeholder="100" value={c.repasse_pct} onChange={(e) => onChange({ repasse_pct: e.target.value })} />
+                      <p className="text-[10px] text-muted-foreground leading-tight">Multiplicativo. Ex.: 70 = paga 70% do valor. Vazio = 100%.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5"><Label className="text-xs">Acréscimo (%)</Label>
+                      <Input type="number" step="0.01" placeholder="0" value={c.acrescimo_pct} onChange={(e) => onChange({ acrescimo_pct: e.target.value })} />
+                      <p className="text-[10px] text-muted-foreground leading-tight">Aditivo. Ex.: 20 = +20% sobre o valor calculado, antes do deflator.</p>
                     </div>
                   </div>
                   <label className="flex items-start gap-2">
@@ -873,6 +882,7 @@ export function calcFromDb(r: any): CalcItem {
     bonus_pct: r.bonus_pct != null ? String(r.bonus_pct) : "",
     reference_table_id: r.reference_table_id ?? "",
     repasse_pct: r.repasse_pct != null ? String(r.repasse_pct) : "",
+    acrescimo_pct: r.acrescimo_pct != null ? String(r.acrescimo_pct) : "",
     convenio_percentage: r.convenio_percentage != null ? String(r.convenio_percentage) : "",
     auxiliary_pct: r.auxiliary_pct != null ? String(r.auxiliary_pct) : "",
     aux_first_pct: r.aux_first_pct != null ? String(r.aux_first_pct) : "30",
@@ -937,6 +947,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     bonus_pct: c.calculation_type === "bonus" ? numOrNull(c.bonus_pct) : null,
     reference_table_id: isTabela ? (c.reference_table_id || null) : null,
     repasse_pct: isTabela ? numOrNull(c.repasse_pct) : null,
+    acrescimo_pct: isTabela ? numOrNull(c.acrescimo_pct) : null,
     convenio_percentage: c.calculation_type === "percentual_sobre_convenio" ? numOrNull(c.convenio_percentage) : null,
     auxiliary_pct: isTabela ? numOrNull(c.auxiliary_pct) : null,
     aux_first_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_first_pct) ?? 30) : null,

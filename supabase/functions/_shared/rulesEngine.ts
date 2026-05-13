@@ -67,6 +67,8 @@ export interface RuleInput {
   multiplier?: number | null;
   deflator_pct?: number | null;
   repasse_pct?: number | null;
+  /** Acréscimo aditivo aplicado no final da tabela diferenciada, ANTES do deflator. Ex.: 20 = +20%. */
+  acrescimo_pct?: number | null;
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
@@ -172,6 +174,8 @@ export interface RuleCalculationItem {
   multiplier?: number | null;
   deflator_pct?: number | null;
   repasse_pct?: number | null;
+  /** Acréscimo aditivo (override por cálculo) aplicado antes do deflator. */
+  acrescimo_pct?: number | null;
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
@@ -1219,6 +1223,7 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     multiplier: c.multiplier ?? rule.multiplier,
     deflator_pct: c.deflator_pct ?? rule.deflator_pct,
     repasse_pct: c.repasse_pct ?? rule.repasse_pct,
+    acrescimo_pct: c.acrescimo_pct ?? rule.acrescimo_pct,
     apply_access_route: c.apply_access_route ?? rule.apply_access_route,
     include_auxiliaries: c.include_auxiliaries ?? rule.include_auxiliaries,
     auxiliary_pct: c.auxiliary_pct ?? rule.auxiliary_pct,
@@ -1674,14 +1679,17 @@ function calcTabelaDiferenciada(
   const mult = rule.multiplier ?? 1;
   const defl = rule.deflator_pct ?? 0;
   const rep  = rule.repasse_pct ?? 100;
+  const acrescimo = rule.acrescimo_pct ?? 0;
 
   // Onda 1 — Ordem fiscal da Tabela Diferenciada (com arredondamento por etapa):
   //   1) base
   //   2) × multiplicador
-  //   3) × repasse
+  //   3) × repasse  (share multiplicativo, ex.: 70% = paga 70%)
   //   4) × via de acesso
   //   5) × função (auxiliares/instrumentador)
   //   6) × quantidade
+  //   6.5) × (1 + acréscimo)  (aditivo, ex.: 20 = +20% sobre o calculado)
+  //   7) × (1 − deflator)
   //   7) × (1 − deflator)
   // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor
   // para 1º Auxiliar), NÃO aplicamos novamente o percentual de auxiliar.
@@ -1744,6 +1752,13 @@ function calcTabelaDiferenciada(
   value = round2(value * qtyToApply);
   steps.push({ label: "quantidade", value });
   if (qtyToApply !== 1) parts.push(`× qtd ${qtyToApply} = R$ ${value.toFixed(2)}`);
+
+  // 6.5) × (1 + acréscimo) — aditivo, antes do deflator
+  if (acrescimo !== 0) {
+    value = round2(value * (1 + acrescimo / 100));
+    steps.push({ label: "acrescimo", value });
+    parts.push(`× (1 + acréscimo ${acrescimo}%) = R$ ${value.toFixed(2)}`);
+  }
 
   // 7) × (1 − deflator)
   value = round2(value * (1 - (defl ?? 0) / 100));

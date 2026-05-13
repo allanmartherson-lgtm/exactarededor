@@ -1422,6 +1422,7 @@ export type Database = {
       }
       rule_calculations: {
         Row: {
+          acrescimo_pct: number | null
           agreement_aliases: string[] | null
           agreement_match_mode: string | null
           allowed_access_routes: string[] | null
@@ -1471,6 +1472,7 @@ export type Database = {
           weekdays: number[]
         }
         Insert: {
+          acrescimo_pct?: number | null
           agreement_aliases?: string[] | null
           agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
@@ -1520,6 +1522,7 @@ export type Database = {
           weekdays?: number[]
         }
         Update: {
+          acrescimo_pct?: number | null
           agreement_aliases?: string[] | null
           agreement_match_mode?: string | null
           allowed_access_routes?: string[] | null
