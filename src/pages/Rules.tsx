@@ -44,6 +44,7 @@ import {
   type CalcItem,
 } from "@/components/rules/RuleCalculationsEditor";
 import { RulesHealthPanel } from "@/components/rules/RulesHealthPanel";
+import { RuleConflictModal, type Problem as ConflictProblem, type Correction as ConflictCorrection } from "@/components/rules/RuleConflictModal";
 
 const sevTone: Record<RuleSeverity, keyof typeof TONE_CLASSES> = { info: "info", aviso: "warning", bloqueio: "destructive" };
 
@@ -244,6 +245,14 @@ const Rules = () => {
   const [calcSyncRuleId, setCalcSyncRuleId] = useState<string | null>(null);
   const [calcSyncAttempt, setCalcSyncAttempt] = useState(0);
   const [calcSyncRetrying, setCalcSyncRetrying] = useState(false);
+
+  // Sub-Onda 2D / Rodada 3 — modal de conflitos (validate-rule-save)
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictProblems, setConflictProblems] = useState<ConflictProblem[]>([]);
+  // Snapshot do payload em validação para o handler "aplicar e salvar"
+  const [pendingRuleData, setPendingRuleData] = useState<Record<string, unknown> | null>(null);
+  const [pendingCalcs, setPendingCalcs] = useState<Record<string, unknown>[]>([]);
+  const [pendingIsUpdate, setPendingIsUpdate] = useState(false);
   const STEP_LABELS: Record<CalcSyncError["step"], string> = {
     "delete-calculavel": "Remover cálculos antigos (regra calculável)",
     "insert-calculavel": "Inserir novos cálculos",
@@ -878,6 +887,69 @@ const Rules = () => {
     toast({ title: "Copiando regra", description: "Ajuste os campos e salve para criar a nova regra." });
   };
 
+  /**
+   * Sub-Onda 2D / Rodada 3 — chamada única à RPC `apply_rule_save_with_corrections`.
+   * Substitui o caminho antigo (insert/update + runCalcSync). A RPC é
+   * atômica: aplica correções, faz upsert da regra e re-sincroniza
+   * rule_calculations em uma transação só. Auditoria adicional fica no
+   * cliente para preservar o `buildDiff` rico (a RPC já loga via
+   * `update_via_rpc`/`create_via_rpc`).
+   */
+  const applyRuleSaveRpc = async (
+    ruleData: Record<string, unknown>,
+    calcs: Record<string, unknown>[],
+    corrections: ConflictCorrection[],
+    meta: { wasEditing: boolean; auditCompany: { id: string | null; name: string | null; document: string | null } | null },
+  ) => {
+    const before = meta.wasEditing && ruleData.id
+      ? rules.find((r) => r.id === ruleData.id) ?? null
+      : null;
+    const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
+      _rule_data: ruleData as any,
+      _calculations: calcs as any,
+      _corrections: corrections as any,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    const result = data as { rule_id?: string; is_update?: boolean; corrections_applied?: number } | null;
+    const savedId = (result?.rule_id as string | undefined) ?? (ruleData.id as string | undefined) ?? null;
+    if (savedId) {
+      await recordAudit({
+        entityType: "rule", entityId: savedId, action: meta.wasEditing ? "update" : "create",
+        actorId: user!.id, company: meta.auditCompany,
+        diff: buildDiff(before as any, ruleData as any),
+      });
+    }
+    if ((result?.corrections_applied ?? 0) > 0) {
+      toast({
+        title: meta.wasEditing ? "Regra atualizada com correções" : "Regra criada com correções",
+        description: `${result?.corrections_applied} regra(s) anterior(es) foram encerradas automaticamente.`,
+      });
+    } else {
+      toast({ title: meta.wasEditing ? "Regra atualizada" : "Regra criada" });
+    }
+    setOpen(false);
+    resetForm();
+    load();
+    setConflictOpen(false);
+    setConflictProblems([]);
+    setPendingRuleData(null);
+    setPendingCalcs([]);
+  };
+
+  /** Handler do modal: aplica correções escolhidas + grava via RPC. */
+  const handleConflictApply = async (corrections: ConflictCorrection[]) => {
+    if (!pendingRuleData) throw new Error("Estado de save perdido — reabra o formulário.");
+    const auditCompany = (pendingRuleData.target_type === "empresa" && pendingRuleData.target_identifier)
+      ? { id: (pendingRuleData.target_company_id as string | null) ?? null,
+          name: (pendingRuleData.target_name as string | null) ?? null,
+          document: (pendingRuleData.target_identifier as string | null) ?? null }
+      : null;
+    await applyRuleSaveRpc(pendingRuleData, pendingCalcs, corrections, {
+      wasEditing: pendingIsUpdate, auditCompany,
+    });
+  };
 
   const submitRule = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -990,49 +1062,63 @@ const Rules = () => {
       document: payload.target_identifier ?? linkedCompany?.document ?? null,
     } : null;
 
-    let savedRuleId: string | null = null;
-    if (editingId) {
-      const before = rules.find((r) => r.id === editingId) ?? null;
-      const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
-      if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-      savedRuleId = editingId;
-      await recordAudit({
-        entityType: "rule", entityId: editingId, action: "update",
-        actorId: user!.id, company: auditCompany,
-        diff: buildDiff(before as any, payload),
-      });
-      toast({ title: "Regra atualizada" });
-    } else {
-      payload.created_by = user!.id;
-      const { data: created, error } = await supabase.from("rules").insert(payload).select("id").single();
-      if (error || !created) return toast({ title: "Erro", description: error?.message ?? "Falha ao criar", variant: "destructive" });
-      savedRuleId = created.id;
-      await recordAudit({
-        entityType: "rule", entityId: created.id, action: "create",
-        actorId: user!.id, company: auditCompany,
-        diff: buildDiff(null, payload),
-      });
-      toast({ title: "Regra criada" });
+    // === Sub-Onda 2D / Rodada 3 ===
+    // O caminho antigo (insert/update direto + runCalcSync) foi removido.
+    // Toda a persistência passa pela RPC `apply_rule_save_with_corrections`
+    // (atomic: regra + cálculos + correções de regras anteriores).
+    // Antes da RPC, chamamos a edge function `validate-rule-save` para
+    // detectar conflitos. Se houver, abrimos o modal e o save real só
+    // acontece quando o usuário clica "Aplicar correções e salvar".
+    const ruleData: Record<string, unknown> = {
+      ...payload,
+      ...(editingId ? { id: editingId } : {}),
+    };
+    const calcsForRpc: Record<string, unknown>[] =
+      fNature === "calculavel"
+        ? fCalculations.map((c, i) => {
+            const row = calcToDbPayload(c, "00000000-0000-0000-0000-000000000000", i);
+            // RPC seta rule_id internamente; remove para evitar redundância.
+            const { rule_id: _omit, ...rest } = row as { rule_id?: string };
+            return rest;
+          })
+        : [];
+
+    // 1) Validação preventiva via edge function
+    const { data: validation, error: valErr } = await supabase.functions.invoke(
+      "validate-rule-save",
+      {
+        body: {
+          rule_id: editingId ?? null,
+          scope,
+          target_type: payload.target_type,
+          target_identifier: payload.target_identifier,
+          target_company_id: payload.target_company_id,
+          group_doctors: payload.group_doctors,
+          group_company_links: payload.group_company_links,
+          valid_from: payload.valid_from,
+          valid_until: payload.valid_until,
+          calculations: calcsForRpc,
+        },
+      },
+    );
+    if (valErr) {
+      toast({ title: "Erro na validação", description: valErr.message, variant: "destructive" });
+      return;
     }
+    const problems = (validation?.problems ?? []) as ConflictProblem[];
 
-    // === Persiste rule_calculations (1:N) ===
-    setCalcSyncErrors([]);
-    setCalcSyncRuleId(savedRuleId);
-    setCalcSyncAttempt(1);
-    const syncErrors = await runCalcSync(savedRuleId, fNature, fCalculations, 1);
-
-    if (syncErrors.length > 0) {
-      setCalcSyncErrors(syncErrors);
-      toast({
-        title: `Falha em ${syncErrors.length} etapa(s) da sincronização`,
-        description: "Veja os detalhes no topo do modal e use “Tentar novamente”.",
-        variant: "destructive",
-      });
-      load();
+    // 2) Sem problemas → save direto via RPC
+    if (problems.length === 0) {
+      await applyRuleSaveRpc(ruleData, calcsForRpc, [], { wasEditing: !!editingId, auditCompany });
       return;
     }
 
-    setOpen(false); resetForm(); load();
+    // 3) Com problemas → guarda payload e abre modal
+    setPendingRuleData(ruleData);
+    setPendingCalcs(calcsForRpc);
+    setPendingIsUpdate(!!editingId);
+    setConflictProblems(problems);
+    setConflictOpen(true);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     } finally {
@@ -1193,10 +1279,15 @@ const Rules = () => {
         variant: "destructive",
       });
     }
-    const toInsert = sel.map((d) => {
-      // Strip campos que não existem mais em public.rules (vivem por Cálculo)
+    // Sub-Onda 2D / Rodada 3 — batch via RPC com validação por item.
+    // UX: não abrir modal por item (ruim com 30 regras seguidas). Em vez
+    // disso, validamos cada draft, pulamos os que tiverem conflitos e
+    // mostramos relatório consolidado ao final.
+    const skipped: { name: string; reasons: string[] }[] = [];
+    let savedCount = 0;
+    for (const d of sel) {
       const { procedure_codes: _pc, sectors: _s, specialties: _sp, ...rest } = d;
-      return {
+      const ruleData: Record<string, unknown> = {
         ...rest,
         description: d.description || null,
         target_type: d.scope === "especifica" ? d.target_type : null,
@@ -1204,31 +1295,87 @@ const Rules = () => {
           ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
           : null,
         target_name: d.scope === "especifica" ? d.target_name : null,
-        reference_table_id: null,
-        created_by: user!.id,
         target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
           ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
           : null,
       };
-    });
-    const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
-    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    // Registra auditoria por regra criada
-    await Promise.all((insertedRows ?? []).map((row, idx) => {
-      const d = sel[idx];
-      const company = (d?.scope === "especifica" && d?.target_type === "empresa") ? {
-        id: companies.find((c) => c.name === d.target_name || (c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier)))?.id ?? null,
-        name: d.target_name ?? null,
-        document: d.target_identifier ?? null,
-      } : null;
-      return recordAudit({
-        entityType: "rule", entityId: row.id, action: "create",
-        actorId: user!.id, company,
-        diff: buildDiff(null, toInsert[idx] as any),
+
+      // 1) Validação preventiva (drafts não têm cálculos — array vazio)
+      const { data: validation, error: valErr } = await supabase.functions.invoke(
+        "validate-rule-save",
+        {
+          body: {
+            rule_id: null,
+            scope: d.scope,
+            target_type: ruleData.target_type,
+            target_identifier: ruleData.target_identifier,
+            target_company_id: ruleData.target_company_id,
+            group_doctors: null,
+            group_company_links: null,
+            valid_from: d.valid_from ?? null,
+            valid_until: d.valid_until ?? null,
+            calculations: [],
+          },
+        },
+      );
+      if (valErr) {
+        skipped.push({ name: d.name || "(sem nome)", reasons: [valErr.message] });
+        continue;
+      }
+      const probs = (validation?.problems ?? []) as ConflictProblem[];
+      if (probs.length > 0) {
+        skipped.push({
+          name: d.name || "(sem nome)",
+          reasons: probs.map((p) => {
+            switch (p.type) {
+              case "doctor_already_bound": return `médico CRM ${p.doctor_crm} já vinculado a "${p.existing_rule_name}"`;
+              case "company_already_bound": return `empresa ${p.company_key} já vinculada a "${p.existing_rule_name}"`;
+              case "validity_overlap": return `vigência sobreposta a "${p.existing_rule_name}"`;
+              case "master_already_exists": return `já existe master vigente: "${p.existing_rule_name}"`;
+              case "calc_overlap": return `sobreposição entre cálculos ${p.calc_a_label} e ${p.calc_b_label}`;
+            }
+          }),
+        });
+        continue;
+      }
+
+      // 2) Save via RPC (batch não aplica correções — pula em conflito)
+      const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
+        _rule_data: ruleData as any,
+        _calculations: [] as any,
+        _corrections: [] as any,
       });
-    }));
+      if (error) {
+        skipped.push({ name: d.name || "(sem nome)", reasons: [error.message] });
+        continue;
+      }
+      const result = data as { rule_id?: string } | null;
+      if (result?.rule_id) {
+        const company = (d.scope === "especifica" && d.target_type === "empresa") ? {
+          id: (ruleData.target_company_id as string | null) ?? null,
+          name: d.target_name ?? null,
+          document: d.target_identifier ?? null,
+        } : null;
+        await recordAudit({
+          entityType: "rule", entityId: result.rule_id, action: "create",
+          actorId: user!.id, company,
+          diff: buildDiff(null, ruleData as any),
+        });
+      }
+      savedCount += 1;
+    }
+
     setReviewOpen(false); setDrafts([]); load();
-    toast({ title: `${toInsert.length} regra(s) salva(s)` });
+    if (skipped.length === 0) {
+      toast({ title: `${savedCount} regra(s) salva(s)` });
+    } else {
+      const detail = skipped.map((s) => `• ${s.name}: ${s.reasons.join("; ")}`).join("\n");
+      toast({
+        title: `${savedCount} salva(s), ${skipped.length} pulada(s) por conflito`,
+        description: detail.length > 400 ? detail.slice(0, 400) + "…" : detail,
+        variant: skipped.length > 0 ? "destructive" : "default",
+      });
+    }
   };
 
   const remove = async (id: string) => {
@@ -2312,6 +2459,13 @@ const Rules = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RuleConflictModal
+        open={conflictOpen}
+        problems={conflictProblems}
+        onCancel={() => { setConflictOpen(false); setConflictProblems([]); setPendingRuleData(null); setPendingCalcs([]); }}
+        onApplyAndSave={handleConflictApply}
+      />
     </>
   );
 };
