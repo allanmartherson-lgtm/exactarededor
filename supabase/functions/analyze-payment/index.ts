@@ -16,7 +16,7 @@ import {
   mapCalculationTypeToMethod,
   type AppliedCalcMethod,
 } from "../_shared/calcMethodMapping.ts";
-import { classifyDuplicateMatch } from "../_shared/itemHash.ts";
+import { classifyDuplicateMatch, evaluateDuplicate, type DuplicateOverridePayload } from "../_shared/itemHash.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
