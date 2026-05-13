@@ -937,6 +937,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         attendance_group_key: u.attendance_group_key,
         specialty: u.specialty,
         sector: u.sector,
+        // Sub-Onda 2A — colunas SQL nativas (espelham ai_findings)
+        applied_rule_id: u.applied_rule_id,
+        applied_rule_label: u.applied_rule_label,
+        applied_calc_id: u.applied_calc_id,
+        applied_calc_method: u.applied_calc_method,
+        expected_amount: u.expected_amount,
+        applied_at: u.applied_at,
       }).eq("id", u.id);
     });
 
