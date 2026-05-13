@@ -336,6 +336,10 @@ serve(async (req) => {
       specialty: resolved.value,
       sector: it.sector ?? null,
       convenio_value_totalized: it.convenio_value_totalized ?? false,
+      // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
+      calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id
+        ? { chosen_calc_id: String(it.ai_findings.calc_duplicity.resolution.chosen_calc_id) }
+        : null,
     });
     });
 
