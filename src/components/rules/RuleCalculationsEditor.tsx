@@ -875,6 +875,7 @@ export function calcFromDb(r: any): CalcItem {
     bonus_pct: r.bonus_pct != null ? String(r.bonus_pct) : "",
     reference_table_id: r.reference_table_id ?? "",
     repasse_pct: r.repasse_pct != null ? String(r.repasse_pct) : "",
+    acrescimo_pct: r.acrescimo_pct != null ? String(r.acrescimo_pct) : "",
     convenio_percentage: r.convenio_percentage != null ? String(r.convenio_percentage) : "",
     auxiliary_pct: r.auxiliary_pct != null ? String(r.auxiliary_pct) : "",
     aux_first_pct: r.aux_first_pct != null ? String(r.aux_first_pct) : "30",
