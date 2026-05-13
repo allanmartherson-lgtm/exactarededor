@@ -64,6 +64,10 @@ serve(async (req) => {
       sectors: payment?.sectors ?? [],
       specialties: payment?.specialties ?? [],
       payment_type: payment?.payment_type ?? null,
+      // Onda 1 — Regra de competência: a vigência é determinada pela
+      // `procedure_date` de CADA item dentro do motor (analyzeItem).
+      // `reference_date` aqui é apenas informativo e NÃO é usado para
+      // selecionar regra. Mantido por compat com o tipo PaymentContext.
       reference_date: payment?.payment_due_date
         ?? payment?.competence_month
         ?? new Date().toISOString().slice(0, 10),

@@ -653,7 +653,9 @@ export function ruleAcceptsItemAgreement(r: RuleInput, item: ItemInput): boolean
 export function preFilterRules(rules: RuleInput[], ctx: PaymentContext): RuleInput[] {
   return rules.filter((r) => {
     if (!r.active) return false;
-    if (!isInValidity(r, ctx.reference_date)) return false;
+    // VIGÊNCIA: NÃO checa aqui. A vigência da regra depende da `procedure_date`
+    // de cada item (regra de competência fiscal — Onda 1). Filtro de vigência
+    // ocorre por item dentro de `analyzeItem`. ctx.reference_date é informativo.
 
     // SEGUNDA CAMADA: Filtro por setor do lote (payments.sectors).
     // REGRA DE PROJETO: Se a regra é vinculada (específica ou grupo), ela IGNRORA
@@ -1252,6 +1254,11 @@ export interface ExpectedCalc {
   breakdown?: CalculationBreakdownEntry[];
   force_totalized?: boolean;
   application_unit?: "por_item" | "por_atendimento" | "por_paciente_dia" | null;
+  /** Onda 1 — Tabela diferenciada já multiplica por quantidade internamente,
+   *  então finalizeAnalysis NÃO deve multiplicar de novo. */
+  qty_already_applied?: boolean;
+  /** Onda 1 — Trace passo-a-passo do cálculo (com arredondamento por etapa). */
+  steps?: { label: string; value: number }[];
 }
 
 export function applyCalculation(
@@ -1493,64 +1500,88 @@ function calcTabelaDiferenciada(
   const defl = rule.deflator_pct ?? 0;
   const rep  = rule.repasse_pct ?? 100;
 
-  // 1) base × multiplicador
-  let value = base * mult;
-  const parts: string[] = [
-    `${baseLabel} R$ ${base.toFixed(2)}${baseSource}`,
-    `× mult ${mult}`,
-  ];
+  // Onda 1 — Ordem fiscal da Tabela Diferenciada (com arredondamento por etapa):
+  //   1) base
+  //   2) × multiplicador
+  //   3) × repasse
+  //   4) × via de acesso
+  //   5) × função (auxiliares/instrumentador)
+  //   6) × quantidade
+  //   7) × (1 − deflator)
+  // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor
+  // para 1º Auxiliar), NÃO aplicamos novamente o percentual de auxiliar.
+  const roleInTableMatchesRoleInItem = !!(lookup && rule.reference_table_id && item.doctor_role
+    && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role, true) !== null);
 
-  // 2) função do médico (auxiliar/instrumentador) e via de acesso são fatores
-  //    INDEPENDENTES — quando ambos os checkboxes estão ativos, multiplicam juntos.
-  // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor para 1º Auxiliar),
-  // NÃO aplicamos novamente o percentual de auxiliar para evitar bitributação/cálculo em cascata.
-  const roleInTableMatchesRoleInItem = lookup && rule.reference_table_id && item.doctor_role && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role, true) !== null;
-  
-  // LOGICA DE REJEIÇÃO POR VIA: Se a regra de tabela diferenciada (Cálculo 1) exige "Única ou Principal"
-  // e o item é "Mesma Via" ou "Diferente", o lookup deve falhar para este item de cálculo específico
-  // se ele estiver dentro de um container que valida a via.
-  // No entanto, o motor está dando MATCH no item de cálculo porque a normalização de "Única ou Principal"
-  // está sendo muito permissiva ou o item de cálculo não está filtrando corretamente.
+  const round2 = (n: number) => Number(n.toFixed(2));
+  const steps: { label: string; value: number }[] = [];
+  const parts: string[] = [];
 
+  // 1) base
+  let value = round2(base);
+  steps.push({ label: "base", value });
+  parts.push(`${baseLabel} R$ ${value.toFixed(2)}${baseSource}`);
+
+  // 2) × multiplicador
+  value = round2(value * (mult ?? 1));
+  steps.push({ label: "multiplicador", value });
+  parts.push(`× mult ${mult} = R$ ${value.toFixed(2)}`);
+
+  // 3) × repasse
+  value = round2(value * ((rep ?? 100) / 100));
+  steps.push({ label: "repasse", value });
+  if (rep !== 100) parts.push(`× repasse ${rep}% = R$ ${value.toFixed(2)}`);
+
+  // 4) × via de acesso
+  let viaFactor = 1;
+  if (rule.apply_access_route) viaFactor = accessRouteFactor(item.access_route);
+  value = round2(value * viaFactor);
+  steps.push({ label: "via_acesso", value });
+  if (rule.apply_access_route) parts.push(`× via(${(viaFactor * 100).toFixed(0)}%) = R$ ${value.toFixed(2)}`);
+
+  // 5) × função
+  let funcFactor = 1;
+  let funcLabel = "";
   if (rule.include_auxiliaries && !roleInTableMatchesRoleInItem) {
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
-      const pct = (rule.instrumentador_pct ?? 10) / 100;
-      value *= pct;
-      parts.push(`× instrumentador ${(pct * 100).toFixed(0)}%`);
+      funcFactor = (rule.instrumentador_pct ?? 10) / 100;
+      funcLabel = `× instrumentador ${(funcFactor * 100).toFixed(0)}%`;
     } else if (role === "primeiro_aux") {
-      const pct = (rule.aux_first_pct ?? 30) / 100;
-      value *= pct;
-      parts.push(`× 1º aux ${(pct * 100).toFixed(0)}%`);
+      funcFactor = (rule.aux_first_pct ?? 30) / 100;
+      funcLabel = `× 1º aux ${(funcFactor * 100).toFixed(0)}%`;
     } else if (role === "demais_aux") {
-      const pct = (rule.aux_second_pct ?? 20) / 100;
-      value *= pct;
-      parts.push(`× aux 2+ ${(pct * 100).toFixed(0)}%`);
+      funcFactor = (rule.aux_second_pct ?? 20) / 100;
+      funcLabel = `× aux 2+ ${(funcFactor * 100).toFixed(0)}%`;
     }
   } else if (roleInTableMatchesRoleInItem) {
     parts.push(`(valor específico para papel "${item.doctor_role}")`);
   }
+  value = round2(value * funcFactor);
+  steps.push({ label: "funcao", value });
+  if (funcLabel) parts.push(`${funcLabel} = R$ ${value.toFixed(2)}`);
 
-  if (rule.apply_access_route) {
-    const f = accessRouteFactor(item.access_route);
-    value *= f;
-    parts.push(`× via(${(f * 100).toFixed(0)}%)`);
-  }
+  // 6) × quantidade (Onda 1: quantidade entra DENTRO da Tabela Diferenciada)
+  const qtyRaw = Number(item.quantity ?? 1);
+  const qtyValid = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+  const isTotalized = item.convenio_value_totalized === true;
+  const qtyToApply = isTotalized ? 1 : qtyValid;
+  value = round2(value * qtyToApply);
+  steps.push({ label: "quantidade", value });
+  if (qtyToApply !== 1) parts.push(`× qtd ${qtyToApply} = R$ ${value.toFixed(2)}`);
 
-  // 3) repasse (% do convênio repassado), se configurado < 100
-  if (rep !== 100) {
-    value *= (rep / 100);
-    parts.push(`× repasse ${rep}%`);
-  }
+  // 7) × (1 − deflator)
+  value = round2(value * (1 - (defl ?? 0) / 100));
+  steps.push({ label: "deflator", value });
+  if (defl !== 0) parts.push(`× (1 − deflator ${defl}%) = R$ ${value.toFixed(2)}`);
 
-  // 4) deflator/glosa por último
-  if (defl !== 0) {
-    value *= (1 - defl / 100);
-    parts.push(`× (1 − deflator ${defl}%)`);
-  }
-
-  const expected = Number(value.toFixed(2));
-  return { expected, explanation: `${parts.join(" ")} = R$ ${expected.toFixed(2)}`, alerts: [] };
+  return {
+    expected: value,
+    explanation: parts.join(" "),
+    alerts: [],
+    steps,
+    qty_already_applied: true,
+  };
 }
 
 function classifyDiff(
@@ -1689,7 +1720,20 @@ export function analyzeItem(
     };
   }
 
-  const outcome = selectWinningRule(item, preFilteredRules, ctx, { collectTrace: true });
+  // REGRA DE COMPETÊNCIA (Onda 1): a vigência é checada contra a data do
+  // procedimento do item, NÃO contra ctx.reference_date (data do lote).
+  // Regras SEM datas (valid_from e valid_until ambos nulos) são "sempre vigentes"
+  // — não dependem de procedure_date. Para regras com datas, procedure_date é
+  // obrigatória; se ausente/inválida, a regra é descartada para este item.
+  const procDateRaw = item.procedure_date;
+  const procDateValid = !!procDateRaw && !Number.isNaN(Date.parse(procDateRaw));
+  const rulesForItem = preFilteredRules.filter((r) => {
+    const hasDates = !!r.valid_from || !!r.valid_until;
+    if (!hasDates) return true;
+    if (!procDateValid) return false;
+    return isInValidity(r, procDateRaw!);
+  });
+  const outcome = selectWinningRule(item, rulesForItem, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
   let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
   let priority: RuleMatchPriority = "sem_regra";
@@ -1939,8 +1983,10 @@ function finalizeAnalysis(
   // PULA se o item já veio com valor totalizado (convenio_value_totalized) OU se a regra forçar totalização.
   const qty = Number(item.quantity ?? 1);
   const isTotalized = item.convenio_value_totalized === true || calc.force_totalized === true;
-
-  if (isTotalized) {
+  // Onda 1 — Tabela Diferenciada já aplica quantidade internamente; pula aqui.
+  if (calc.qty_already_applied === true) {
+    // no-op: não multiplica de novo
+  } else if (isTotalized) {
     if (qty > 1 && calc.explanation) {
       const reason = item.convenio_value_totalized === true ? "importação" : "regra";
       calc.explanation = `${calc.explanation} (qtd ${qty} ignorada no cálculo pois valor já é totalizado via ${reason})`;
@@ -2262,6 +2308,8 @@ export const _test_only = {
   normAgreement,
   normName,
   normAccessRoute,
-  onlyDigits
+  onlyDigits,
+  calcTabelaDiferenciada,
 };
+export const calcTabelaDiferenciadaForTest = calcTabelaDiferenciada;
 
