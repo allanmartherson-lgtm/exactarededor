@@ -106,3 +106,68 @@ export function classifyDuplicateMatch(otherPaymentStatus: string): DuplicateSev
   if (WARN_PAYMENT_STATUSES.has(otherPaymentStatus)) return "warn";
   return "none";
 }
+
+/* ---------- Sub-Onda 2B BUGFIX — Override com escopo ---------- */
+
+export interface DuplicateOverridePayload {
+  by: string;
+  at: string;
+  justification: string;
+  /** IDs dos itens colididos no momento em que o diretor autorizou. */
+  paired_with_item_ids?: string[];
+  /** IDs dos lotes (payments) colididos no momento da autorização. */
+  paired_with_payment_ids?: string[];
+}
+
+export interface DupMatchLite {
+  other_item_id: string;
+  other_payment_id: string;
+  severity: "block" | "warn";
+}
+
+/**
+ * Verifica se uma colisão específica está coberta pelo override.
+ * Cobre quando o item OU o lote colidido está na lista pareada.
+ */
+export function isMatchCoveredByOverride(
+  match: { other_item_id: string; other_payment_id: string },
+  override: DuplicateOverridePayload | null | undefined,
+): boolean {
+  if (!override) return false;
+  const items = override.paired_with_item_ids ?? [];
+  const payments = override.paired_with_payment_ids ?? [];
+  return items.includes(match.other_item_id) || payments.includes(match.other_payment_id);
+}
+
+export type EvaluatedDuplicateSeverity = "block" | "warn" | "override" | "none";
+
+export interface EvaluatedDuplicate {
+  severity: EvaluatedDuplicateSeverity;
+  uncovered_matches: DupMatchLite[];
+}
+
+/**
+ * Avalia o estado final de duplicidade de um item, aplicando o override
+ * de escopo restrito: cada match precisa estar individualmente coberto.
+ *
+ *  - sem matches → "none"
+ *  - todos os matches cobertos pelo override → "override"
+ *  - algum match não coberto → "block"/"warn" pela pior severidade
+ *    entre os NÃO cobertos (ignora o override para esses casos).
+ */
+export function evaluateDuplicate<T extends DupMatchLite>(
+  matches: T[],
+  override: DuplicateOverridePayload | null | undefined,
+): { severity: EvaluatedDuplicateSeverity; uncovered: T[] } {
+  if (matches.length === 0) return { severity: "none", uncovered: [] };
+  const uncovered: T[] = [];
+  let worst: "warn" | "block" | "none" = "none";
+  for (const m of matches) {
+    if (isMatchCoveredByOverride(m, override)) continue;
+    uncovered.push(m);
+    if (m.severity === "block") worst = "block";
+    else if (worst !== "block") worst = "warn";
+  }
+  if (uncovered.length === 0) return { severity: "override", uncovered: [] };
+  return { severity: worst === "none" ? "warn" : worst, uncovered };
+}
