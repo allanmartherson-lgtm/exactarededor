@@ -1279,10 +1279,15 @@ const Rules = () => {
         variant: "destructive",
       });
     }
-    const toInsert = sel.map((d) => {
-      // Strip campos que não existem mais em public.rules (vivem por Cálculo)
+    // Sub-Onda 2D / Rodada 3 — batch via RPC com validação por item.
+    // UX: não abrir modal por item (ruim com 30 regras seguidas). Em vez
+    // disso, validamos cada draft, pulamos os que tiverem conflitos e
+    // mostramos relatório consolidado ao final.
+    const skipped: { name: string; reasons: string[] }[] = [];
+    let savedCount = 0;
+    for (const d of sel) {
       const { procedure_codes: _pc, sectors: _s, specialties: _sp, ...rest } = d;
-      return {
+      const ruleData: Record<string, unknown> = {
         ...rest,
         description: d.description || null,
         target_type: d.scope === "especifica" ? d.target_type : null,
@@ -1290,31 +1295,87 @@ const Rules = () => {
           ? (d.target_type === "empresa" && d.target_identifier ? formatCNPJ(d.target_identifier) : d.target_identifier)
           : null,
         target_name: d.scope === "especifica" ? d.target_name : null,
-        reference_table_id: null,
-        created_by: user!.id,
         target_company_id: (d.scope === "especifica" && d.target_type === "empresa")
           ? (companies.find((c) => c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier))?.id ?? null)
           : null,
       };
-    });
-    const { data: insertedRows, error } = await supabase.from("rules").insert(toInsert).select("id");
-    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    // Registra auditoria por regra criada
-    await Promise.all((insertedRows ?? []).map((row, idx) => {
-      const d = sel[idx];
-      const company = (d?.scope === "especifica" && d?.target_type === "empresa") ? {
-        id: companies.find((c) => c.name === d.target_name || (c.document && d.target_identifier && onlyDigits(c.document) === onlyDigits(d.target_identifier)))?.id ?? null,
-        name: d.target_name ?? null,
-        document: d.target_identifier ?? null,
-      } : null;
-      return recordAudit({
-        entityType: "rule", entityId: row.id, action: "create",
-        actorId: user!.id, company,
-        diff: buildDiff(null, toInsert[idx] as any),
+
+      // 1) Validação preventiva (drafts não têm cálculos — array vazio)
+      const { data: validation, error: valErr } = await supabase.functions.invoke(
+        "validate-rule-save",
+        {
+          body: {
+            rule_id: null,
+            scope: d.scope,
+            target_type: ruleData.target_type,
+            target_identifier: ruleData.target_identifier,
+            target_company_id: ruleData.target_company_id,
+            group_doctors: null,
+            group_company_links: null,
+            valid_from: d.valid_from ?? null,
+            valid_until: d.valid_until ?? null,
+            calculations: [],
+          },
+        },
+      );
+      if (valErr) {
+        skipped.push({ name: d.name || "(sem nome)", reasons: [valErr.message] });
+        continue;
+      }
+      const probs = (validation?.problems ?? []) as ConflictProblem[];
+      if (probs.length > 0) {
+        skipped.push({
+          name: d.name || "(sem nome)",
+          reasons: probs.map((p) => {
+            switch (p.type) {
+              case "doctor_already_bound": return `médico CRM ${p.doctor_crm} já vinculado a "${p.existing_rule_name}"`;
+              case "company_already_bound": return `empresa ${p.company_key} já vinculada a "${p.existing_rule_name}"`;
+              case "validity_overlap": return `vigência sobreposta a "${p.existing_rule_name}"`;
+              case "master_already_exists": return `já existe master vigente: "${p.existing_rule_name}"`;
+              case "calc_overlap": return `sobreposição entre cálculos ${p.calc_a_label} e ${p.calc_b_label}`;
+            }
+          }),
+        });
+        continue;
+      }
+
+      // 2) Save via RPC (batch não aplica correções — pula em conflito)
+      const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
+        _rule_data: ruleData as any,
+        _calculations: [] as any,
+        _corrections: [] as any,
       });
-    }));
+      if (error) {
+        skipped.push({ name: d.name || "(sem nome)", reasons: [error.message] });
+        continue;
+      }
+      const result = data as { rule_id?: string } | null;
+      if (result?.rule_id) {
+        const company = (d.scope === "especifica" && d.target_type === "empresa") ? {
+          id: (ruleData.target_company_id as string | null) ?? null,
+          name: d.target_name ?? null,
+          document: d.target_identifier ?? null,
+        } : null;
+        await recordAudit({
+          entityType: "rule", entityId: result.rule_id, action: "create",
+          actorId: user!.id, company,
+          diff: buildDiff(null, ruleData as any),
+        });
+      }
+      savedCount += 1;
+    }
+
     setReviewOpen(false); setDrafts([]); load();
-    toast({ title: `${toInsert.length} regra(s) salva(s)` });
+    if (skipped.length === 0) {
+      toast({ title: `${savedCount} regra(s) salva(s)` });
+    } else {
+      const detail = skipped.map((s) => `• ${s.name}: ${s.reasons.join("; ")}`).join("\n");
+      toast({
+        title: `${savedCount} salva(s), ${skipped.length} pulada(s) por conflito`,
+        description: detail.length > 400 ? detail.slice(0, 400) + "…" : detail,
+        variant: skipped.length > 0 ? "destructive" : "default",
+      });
+    }
   };
 
   const remove = async (id: string) => {
