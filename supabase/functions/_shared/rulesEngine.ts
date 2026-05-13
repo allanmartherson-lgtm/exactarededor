@@ -2304,6 +2304,8 @@ export const _test_only = {
   normAgreement,
   normName,
   normAccessRoute,
-  onlyDigits
+  onlyDigits,
+  calcTabelaDiferenciada,
 };
+export const calcTabelaDiferenciadaForTest = calcTabelaDiferenciada;
 
