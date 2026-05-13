@@ -767,7 +767,21 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const itemsRawById: Record<string, any> = {};
     for (const it of (itemsRaw ?? []) as any[]) itemsRawById[it.id] = it;
 
-    type ItemUpdate = { id: string; ai_status: string; ai_findings: any; attendance_group_key: string | null; specialty: string | null; sector: string | null };
+    type ItemUpdate = {
+      id: string;
+      ai_status: string;
+      ai_findings: any;
+      attendance_group_key: string | null;
+      specialty: string | null;
+      sector: string | null;
+      // Sub-Onda 2A — colunas SQL nativas espelhando o motor de regras.
+      applied_rule_id: string | null;
+      applied_rule_label: string | null;
+      applied_calc_id: string | null;
+      applied_calc_method: AppliedCalcMethod | null;
+      expected_amount: number | null;
+      applied_at: string | null;
+    };
     type VersionRow = Record<string, unknown>;
     type ObsRow = Record<string, unknown>;
 
