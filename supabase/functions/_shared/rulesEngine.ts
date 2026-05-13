@@ -1679,14 +1679,17 @@ function calcTabelaDiferenciada(
   const mult = rule.multiplier ?? 1;
   const defl = rule.deflator_pct ?? 0;
   const rep  = rule.repasse_pct ?? 100;
+  const acrescimo = rule.acrescimo_pct ?? 0;
 
   // Onda 1 — Ordem fiscal da Tabela Diferenciada (com arredondamento por etapa):
   //   1) base
   //   2) × multiplicador
-  //   3) × repasse
+  //   3) × repasse  (share multiplicativo, ex.: 70% = paga 70%)
   //   4) × via de acesso
   //   5) × função (auxiliares/instrumentador)
   //   6) × quantidade
+  //   6.5) × (1 + acréscimo)  (aditivo, ex.: 20 = +20% sobre o calculado)
+  //   7) × (1 − deflator)
   //   7) × (1 − deflator)
   // IMPORTANTE: Se o valor da tabela já for específico para o papel (ex: valor
   // para 1º Auxiliar), NÃO aplicamos novamente o percentual de auxiliar.
