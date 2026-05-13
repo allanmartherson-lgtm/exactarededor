@@ -999,49 +999,63 @@ const Rules = () => {
       document: payload.target_identifier ?? linkedCompany?.document ?? null,
     } : null;
 
-    let savedRuleId: string | null = null;
-    if (editingId) {
-      const before = rules.find((r) => r.id === editingId) ?? null;
-      const { error } = await supabase.from("rules").update(payload).eq("id", editingId);
-      if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
-      savedRuleId = editingId;
-      await recordAudit({
-        entityType: "rule", entityId: editingId, action: "update",
-        actorId: user!.id, company: auditCompany,
-        diff: buildDiff(before as any, payload),
-      });
-      toast({ title: "Regra atualizada" });
-    } else {
-      payload.created_by = user!.id;
-      const { data: created, error } = await supabase.from("rules").insert(payload).select("id").single();
-      if (error || !created) return toast({ title: "Erro", description: error?.message ?? "Falha ao criar", variant: "destructive" });
-      savedRuleId = created.id;
-      await recordAudit({
-        entityType: "rule", entityId: created.id, action: "create",
-        actorId: user!.id, company: auditCompany,
-        diff: buildDiff(null, payload),
-      });
-      toast({ title: "Regra criada" });
+    // === Sub-Onda 2D / Rodada 3 ===
+    // O caminho antigo (insert/update direto + runCalcSync) foi removido.
+    // Toda a persistência passa pela RPC `apply_rule_save_with_corrections`
+    // (atomic: regra + cálculos + correções de regras anteriores).
+    // Antes da RPC, chamamos a edge function `validate-rule-save` para
+    // detectar conflitos. Se houver, abrimos o modal e o save real só
+    // acontece quando o usuário clica "Aplicar correções e salvar".
+    const ruleData: Record<string, unknown> = {
+      ...payload,
+      ...(editingId ? { id: editingId } : {}),
+    };
+    const calcsForRpc: Record<string, unknown>[] =
+      fNature === "calculavel"
+        ? fCalculations.map((c, i) => {
+            const row = calcToDbPayload(c, "00000000-0000-0000-0000-000000000000", i);
+            // RPC seta rule_id internamente; remove para evitar redundância.
+            const { rule_id: _omit, ...rest } = row as { rule_id?: string };
+            return rest;
+          })
+        : [];
+
+    // 1) Validação preventiva via edge function
+    const { data: validation, error: valErr } = await supabase.functions.invoke(
+      "validate-rule-save",
+      {
+        body: {
+          rule_id: editingId ?? null,
+          scope,
+          target_type: payload.target_type,
+          target_identifier: payload.target_identifier,
+          target_company_id: payload.target_company_id,
+          group_doctors: payload.group_doctors,
+          group_company_links: payload.group_company_links,
+          valid_from: payload.valid_from,
+          valid_until: payload.valid_until,
+          calculations: calcsForRpc,
+        },
+      },
+    );
+    if (valErr) {
+      toast({ title: "Erro na validação", description: valErr.message, variant: "destructive" });
+      return;
     }
+    const problems = (validation?.problems ?? []) as ConflictProblem[];
 
-    // === Persiste rule_calculations (1:N) ===
-    setCalcSyncErrors([]);
-    setCalcSyncRuleId(savedRuleId);
-    setCalcSyncAttempt(1);
-    const syncErrors = await runCalcSync(savedRuleId, fNature, fCalculations, 1);
-
-    if (syncErrors.length > 0) {
-      setCalcSyncErrors(syncErrors);
-      toast({
-        title: `Falha em ${syncErrors.length} etapa(s) da sincronização`,
-        description: "Veja os detalhes no topo do modal e use “Tentar novamente”.",
-        variant: "destructive",
-      });
-      load();
+    // 2) Sem problemas → save direto via RPC
+    if (problems.length === 0) {
+      await applyRuleSaveRpc(ruleData, calcsForRpc, [], { wasEditing: !!editingId, auditCompany });
       return;
     }
 
-    setOpen(false); resetForm(); load();
+    // 3) Com problemas → guarda payload e abre modal
+    setPendingRuleData(ruleData);
+    setPendingCalcs(calcsForRpc);
+    setPendingIsUpdate(!!editingId);
+    setConflictProblems(problems);
+    setConflictOpen(true);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     } finally {
