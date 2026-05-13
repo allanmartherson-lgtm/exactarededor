@@ -59,14 +59,14 @@ Deno.serve(async (req) => {
   });
 
   const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims?.sub) {
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user?.id) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  const userId = claimsData.claims.sub as string;
+  const userId = userData.user.id;
 
   // Defesa em profundidade: confere role admin/diretor antes do RPC.
   const { data: roles, error: roleErr } = await supabase
