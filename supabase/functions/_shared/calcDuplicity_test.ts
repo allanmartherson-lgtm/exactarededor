@@ -48,16 +48,19 @@ function makeRuleWithTwoCalcs(): RuleInput {
       {
         id: "calc-A",
         sort_order: 0,
-        label: "Cálculo A — 50% convênio",
+        label: "Cálculo A — 50% convênio (whitelist Bradesco)",
         calculation_type: "percentual_sobre_convenio",
         convenio_percentage: 50,
+        agreement_aliases: ["Bradesco"],
+        agreement_match_mode: "whitelist",
       },
       {
         id: "calc-B",
         sort_order: 1,
-        label: "Cálculo B — valor fixo R$ 200",
+        label: "Cálculo B — valor fixo R$ 200 (cirurgião)",
         calculation_type: "valor_fixo",
         fixed_amount: 200,
+        doctor_roles: ["cirurgiao"],
       },
     ],
   } as RuleInput;
