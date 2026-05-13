@@ -1753,6 +1753,13 @@ function calcTabelaDiferenciada(
   steps.push({ label: "quantidade", value });
   if (qtyToApply !== 1) parts.push(`× qtd ${qtyToApply} = R$ ${value.toFixed(2)}`);
 
+  // 6.5) × (1 + acréscimo) — aditivo, antes do deflator
+  if (acrescimo !== 0) {
+    value = round2(value * (1 + acrescimo / 100));
+    steps.push({ label: "acrescimo", value });
+    parts.push(`× (1 + acréscimo ${acrescimo}%) = R$ ${value.toFixed(2)}`);
+  }
+
   // 7) × (1 − deflator)
   value = round2(value * (1 - (defl ?? 0) / 100));
   steps.push({ label: "deflator", value });
