@@ -940,6 +940,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     bonus_pct: c.calculation_type === "bonus" ? numOrNull(c.bonus_pct) : null,
     reference_table_id: isTabela ? (c.reference_table_id || null) : null,
     repasse_pct: isTabela ? numOrNull(c.repasse_pct) : null,
+    acrescimo_pct: isTabela ? numOrNull(c.acrescimo_pct) : null,
     convenio_percentage: c.calculation_type === "percentual_sobre_convenio" ? numOrNull(c.convenio_percentage) : null,
     auxiliary_pct: isTabela ? numOrNull(c.auxiliary_pct) : null,
     aux_first_pct: (isTabela && c.include_auxiliaries) ? (numOrNull(c.aux_first_pct) ?? 30) : null,
