@@ -1290,6 +1290,41 @@ export interface ExpectedCalc {
   calc_duplicity?: CalcDuplicityInfo;
 }
 
+/**
+ * Sub-Onda 2C — Rodada 3.
+ * Cálculo é "restritivo" se tem ao menos um filtro preenchido em algum dos 9 eixos:
+ *  1) procedure_codes / code_match_mode
+ *  2) extras_codes
+ *  3) agreement_aliases
+ *  4) doctor_roles
+ *  5) dia/horário (time_mode ≠ 'qualquer' | weekdays | time_start | time_end)
+ *  6) elective_mode ≠ 'qualquer' (modalidade)
+ *  7) vias de acesso (apply_access_route === true E lista preenchida)
+ *  8) sectors
+ *  9) specialties
+ * Caso contrário é "catch-all" e só vence quando NÃO há restritivo válido.
+ */
+export function isRestrictiveCalculation(c: RuleCalculationItem): boolean {
+  if (Array.isArray(c.procedure_codes) && c.procedure_codes.length > 0) return true;
+  if (c.code_match_mode && c.code_match_mode !== "any") return true;
+  if (Array.isArray(c.extras_codes) && c.extras_codes.length > 0) return true;
+  if (Array.isArray(c.agreement_aliases) && c.agreement_aliases.length > 0) return true;
+  if (Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0) return true;
+  if (c.time_mode && c.time_mode !== "qualquer") return true;
+  if (Array.isArray(c.weekdays) && c.weekdays.length > 0) return true;
+  if (c.time_start != null) return true;
+  if (c.time_end != null) return true;
+  if (c.elective_mode && c.elective_mode !== "qualquer") return true;
+  if (
+    c.apply_access_route === true &&
+    Array.isArray(c.allowed_access_routes) &&
+    c.allowed_access_routes.length > 0
+  ) return true;
+  if (Array.isArray(c.sectors) && c.sectors.length > 0) return true;
+  if (Array.isArray(c.specialties) && c.specialties.length > 0) return true;
+  return false;
+}
+
 export function applyCalculation(
   rule: RuleInput,
   item: ItemInput,
@@ -1317,6 +1352,8 @@ export function applyCalculation(
       qty_already_applied?: boolean;
       steps?: { label: string; value: number }[];
       calculation_type: CalculationType;
+      sort_order: number;
+      restrictive: boolean;
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
@@ -1349,6 +1386,8 @@ export function applyCalculation(
           qty_already_applied: r.qty_already_applied,
           steps: r.steps,
           calculation_type: c.calculation_type,
+          sort_order: c.sort_order ?? Number.MAX_SAFE_INTEGER,
+          restrictive: isRestrictiveCalculation(c),
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
@@ -1374,7 +1413,8 @@ export function applyCalculation(
       };
     }
 
-    // Sub-Onda 2C — resolução prévia escolhe um cálculo entre os válidos.
+    // Sub-Onda 2C — resolução prévia escolhe um cálculo entre TODOS os válidos
+    // (restritivos ou catch-all — analista pode ter escolhido qualquer um).
     const resolutionId = item.calc_duplicity_resolution?.chosen_calc_id ?? null;
     let chosen: ValidCalc | null = null;
     let resolutionStale = false;
@@ -1383,17 +1423,24 @@ export function applyCalculation(
       if (!chosen) resolutionStale = true;
     }
 
-    // Sub-Onda 2C — 2+ válidos sem resolução utilizável → bloqueio por ambiguidade de cadastro.
-    if (!chosen && validCalcs.length >= 2) {
+    // Sub-Onda 2C — Rodada 3: carve-out catch-all.
+    // Cálculo restritivo (algum filtro preenchido) compete na detecção de
+    // duplicidade. Cálculo catch-all (nenhum filtro) é fallback interno e
+    // só vence quando NÃO há restritivo válido.
+    const restritivos = validCalcs.filter((v) => v.restrictive);
+    const catchAll = validCalcs.filter((v) => !v.restrictive);
+
+    // 2+ restritivos sem resolução utilizável → bloqueio por ambiguidade.
+    if (!chosen && restritivos.length >= 2) {
       return {
         expected: null,
-        explanation: `Regra "${rule.name}" possui ${validCalcs.length} cálculos válidos simultaneamente para este item — ambiguidade de cadastro.`,
-        alerts: [`Cadastro com ambiguidade: ${validCalcs.length} cálculos da regra retornaram valor para este item. Defina manualmente qual aplicar.`],
+        explanation: `Regra "${rule.name}" possui ${restritivos.length} cálculos restritivos válidos simultaneamente para este item — ambiguidade de cadastro.`,
+        alerts: [`Cadastro com ambiguidade: ${restritivos.length} cálculos restritivos da regra retornaram valor para este item. Defina manualmente qual aplicar.`],
         breakdown,
         calc_duplicity: {
           rule_id: rule.id,
           rule_name: rule.name,
-          matched_calculations: validCalcs.map((v) => ({
+          matched_calculations: restritivos.map((v) => ({
             calc_id: v.id, label: v.label, calculation_type: v.calculation_type, expected: v.expected,
           })),
           ...(resolutionStale ? { resolution_stale: true } : {}),
@@ -1401,9 +1448,22 @@ export function applyCalculation(
       };
     }
 
-    const winnerCalc = chosen ?? validCalcs[0];
+    // Seleção do vencedor:
+    //   - Resolução prévia válida → cálculo escolhido.
+    //   - Senão, se há ≥1 restritivo → primeiro restritivo (já está em sort_order).
+    //   - Senão (só catch-alls) → primeiro catch-all (sort_order).
+    let winnerCalc: ValidCalc;
     if (chosen) {
-      // Marca os demais válidos como ignorados (substituídos pela escolha do analista).
+      winnerCalc = chosen;
+    } else if (restritivos.length === 1) {
+      winnerCalc = restritivos[0];
+    } else {
+      // 0 restritivos, ≥1 catch-all
+      winnerCalc = catchAll[0];
+    }
+
+    if (chosen || restritivos.length >= 1 || catchAll.length >= 1) {
+      // Marca os demais válidos como ignorados (substituídos pelo vencedor).
       for (const b of breakdown) {
         if (b.matched && b.calc_id !== winnerCalc.id) {
           b.matched = false;
@@ -1427,7 +1487,7 @@ export function applyCalculation(
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
-          matched_calculations: validCalcs.map((v) => ({
+          matched_calculations: restritivos.map((v) => ({
             calc_id: v.id, label: v.label, calculation_type: v.calculation_type, expected: v.expected,
           })),
           resolution_stale: true,
