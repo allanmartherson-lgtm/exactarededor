@@ -67,6 +67,8 @@ export interface RuleInput {
   multiplier?: number | null;
   deflator_pct?: number | null;
   repasse_pct?: number | null;
+  /** Acréscimo aditivo aplicado no final da tabela diferenciada, ANTES do deflator. Ex.: 20 = +20%. */
+  acrescimo_pct?: number | null;
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
