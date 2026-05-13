@@ -37,6 +37,8 @@ export type CalcItem = {
   bonus_pct: string;
   reference_table_id: string;
   repasse_pct: string;
+  /** Acréscimo aditivo (%) aplicado no final, antes do deflator. Só em tabela_diferenciada. */
+  acrescimo_pct: string;
   convenio_percentage: string;
   auxiliary_pct: string;
   aux_first_pct: string;
