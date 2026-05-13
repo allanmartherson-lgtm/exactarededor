@@ -245,6 +245,14 @@ const Rules = () => {
   const [calcSyncRuleId, setCalcSyncRuleId] = useState<string | null>(null);
   const [calcSyncAttempt, setCalcSyncAttempt] = useState(0);
   const [calcSyncRetrying, setCalcSyncRetrying] = useState(false);
+
+  // Sub-Onda 2D / Rodada 3 — modal de conflitos (validate-rule-save)
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictProblems, setConflictProblems] = useState<ConflictProblem[]>([]);
+  // Snapshot do payload em validação para o handler "aplicar e salvar"
+  const [pendingRuleData, setPendingRuleData] = useState<Record<string, unknown> | null>(null);
+  const [pendingCalcs, setPendingCalcs] = useState<Record<string, unknown>[]>([]);
+  const [pendingIsUpdate, setPendingIsUpdate] = useState(false);
   const STEP_LABELS: Record<CalcSyncError["step"], string> = {
     "delete-calculavel": "Remover cálculos antigos (regra calculável)",
     "insert-calculavel": "Inserir novos cálculos",
