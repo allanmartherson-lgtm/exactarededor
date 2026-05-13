@@ -174,6 +174,8 @@ export interface RuleCalculationItem {
   multiplier?: number | null;
   deflator_pct?: number | null;
   repasse_pct?: number | null;
+  /** Acréscimo aditivo (override por cálculo) aplicado antes do deflator. */
+  acrescimo_pct?: number | null;
   apply_access_route?: boolean | null;
   include_auxiliaries?: boolean | null;
   auxiliary_pct?: number | null;
