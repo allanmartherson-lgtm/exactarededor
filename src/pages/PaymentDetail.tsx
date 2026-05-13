@@ -112,6 +112,7 @@ const ObservationTypeSelector = ({
 
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
+  erro_duplicidade_pagamento: "destructive",
 };
 
 const PaymentDetail = () => {
