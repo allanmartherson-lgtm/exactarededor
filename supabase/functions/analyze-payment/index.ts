@@ -932,7 +932,11 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         decision_fields: decisionFields,
       } as any;
 
-      // Sub-Onda 2B — aplica duplicate_detection (mantém override existente).
+      // Sub-Onda 2B — aplica duplicate_detection com escopo restrito do override.
+      // BUGFIX: matches não cobertos pelo paired_with_* derrubam o override
+      // e voltam a bloquear/alertar. matched_items mostra TODAS as colisões
+      // (cobertas e não-cobertas) para visibilidade; uncovered_matches lista
+      // exatamente as que ainda exigem decisão.
       const dup = dupByItemId[r.item_id];
       let finalStatus = r.status;
       if (dup) {
@@ -940,28 +944,33 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           findings.duplicate_detection = {
             status: "override_applied",
             matched_items: dup.matches,
+            uncovered_matches: [],
             override: dup.override,
           };
         } else if (dup.severity === "block") {
+          const head = dup.uncovered[0];
           findings.duplicate_detection = {
             status: "blocked",
             matched_items: dup.matches,
-            override: null,
+            uncovered_matches: dup.uncovered,
+            override: dup.override, // mantém override prévio para auditoria
           };
           finalStatus = "erro_duplicidade_pagamento";
           findings.alerts = [
             ...findings.alerts,
-            `Duplicidade de pagamento bloqueada: item já registrado em lote ${dup.matches[0].other_payment_reference} (status ${dup.matches[0].other_payment_status}).`,
+            `Duplicidade de pagamento bloqueada: item já registrado em lote ${head.other_payment_reference} (status ${head.other_payment_status})${dup.override ? " — override prévio não cobre esta colisão" : ""}.`,
           ];
         } else {
+          const head = dup.uncovered[0];
           findings.duplicate_detection = {
             status: "warned",
             matched_items: dup.matches,
-            override: null,
+            uncovered_matches: dup.uncovered,
+            override: dup.override,
           };
           findings.alerts = [
             ...findings.alerts,
-            `Possível duplicidade: item também consta no lote ${dup.matches[0].other_payment_reference} (status ${dup.matches[0].other_payment_status}).`,
+            `Possível duplicidade: item também consta no lote ${head.other_payment_reference} (status ${head.other_payment_status}).`,
           ];
           if (finalStatus === "aprovado") finalStatus = "alerta";
         }
