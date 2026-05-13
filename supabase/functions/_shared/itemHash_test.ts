@@ -16,6 +16,8 @@ import {
   computeItemHash,
   classifyDuplicateMatch,
   normForHash,
+  evaluateDuplicate,
+  isMatchCoveredByOverride,
   BLOCK_PAYMENT_STATUSES,
   WARN_PAYMENT_STATUSES,
   IGNORE_PAYMENT_STATUSES,
