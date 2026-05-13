@@ -47,7 +47,14 @@ export async function withAuthenticatedTx<T>(
   try {
     await client.queryArray("BEGIN");
     try {
-      // Seed isolado: role no escopo da transação (rollback remove).
+      // Seed isolado: cria usuário em auth.users (FK obrigatória) + role.
+      // Como tudo roda em transação com ROLLBACK, nada persiste.
+      // Trigger handle_new_user já cria profiles + role default; em seguida
+      // garantimos a role solicitada (admin/diretor/etc.) por upsert.
+      await client.queryArray(
+        `INSERT INTO auth.users (id, email) VALUES ($1, $2)`,
+        [userId, `test-${userId}@lovable-test.local`],
+      );
       await client.queryArray(
         "INSERT INTO public.user_roles (user_id, role) VALUES ($1, $2::app_role) ON CONFLICT DO NOTHING",
         [userId, role],
