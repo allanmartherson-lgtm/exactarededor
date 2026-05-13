@@ -87,7 +87,7 @@ export function makeEmptyCalc(): CalcItem {
   return {
     calculation_type: "informativo",
     fixed_amount: "", target_amount: "", multiplier: "", deflator_pct: "",
-    bonus_amount: "", bonus_pct: "", reference_table_id: "", repasse_pct: "",
+    bonus_amount: "", bonus_pct: "", reference_table_id: "", repasse_pct: "", acrescimo_pct: "",
     convenio_percentage: "", auxiliary_pct: "",
     aux_first_pct: "30", aux_second_pct: "20", instrumentador_pct: "10",
     include_auxiliaries: false,
