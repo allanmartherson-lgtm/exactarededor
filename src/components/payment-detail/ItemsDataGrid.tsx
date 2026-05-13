@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { SafeCard } from "@/components/ui/SafeCard";
+import { CalcDuplicityResolverPanel } from "./CalcDuplicityResolverPanel";
 import {
   AlertTriangle,
   Columns3,
