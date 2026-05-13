@@ -225,3 +225,116 @@ Deno.test("2C/6 — Guardas SQL: justificativa<20, chosen_calc_id inválido, rol
     "42501",
   );
 });
+
+// ============================================================================
+// Sub-Onda 2C — Rodada 3: carve-out para cálculo catch-all (Opção B)
+// Cálculo restritivo (≥1 filtro preenchido) compete na detecção de duplicidade.
+// Cálculo catch-all (nenhum filtro) é fallback interno e não dispara erro.
+// ============================================================================
+
+// --- Teste 7: Catch-all puro não conta como duplicidade (restritivo vence) ---
+Deno.test("2C/7 — Restritivo + catch-all → aplica restritivo, sem calc_duplicity", () => {
+  const rule: RuleInput = {
+    ...makeRuleWithTwoCalcs(),
+    calculations: [
+      {
+        id: "calc-restrito",
+        sort_order: 0,
+        label: "Restritivo whitelist",
+        calculation_type: "valor_fixo",
+        fixed_amount: 700,
+        procedure_codes: ["40101010"],
+        code_match_mode: "whitelist",
+      },
+      {
+        id: "calc-catchall",
+        sort_order: 1,
+        label: "Catch-all",
+        calculation_type: "valor_fixo",
+        fixed_amount: 100,
+        code_match_mode: "any",
+      },
+    ],
+  } as any;
+  const item = makeItem({ procedure_code: "40101010" });
+  const out = applyCalculation(rule, item);
+  assertEquals(out.expected, 700, "Restritivo vence catch-all");
+  assertEquals(out.calc_duplicity, undefined, "Sem bloqueio de duplicidade");
+});
+
+// --- Teste 8: Só catch-alls — primeiro por sort_order vence ---
+Deno.test("2C/8 — 0 restritivos + 2 catch-alls → vence menor sort_order, sem duplicidade", () => {
+  const rule: RuleInput = {
+    ...makeRuleWithTwoCalcs(),
+    calculations: [
+      {
+        id: "ca-0", sort_order: 0, label: "Catch-all A",
+        calculation_type: "valor_fixo", fixed_amount: 50, code_match_mode: "any",
+      },
+      {
+        id: "ca-1", sort_order: 1, label: "Catch-all B",
+        calculation_type: "valor_fixo", fixed_amount: 999, code_match_mode: "any",
+      },
+    ],
+  } as any;
+  const out = applyCalculation(rule, makeItem());
+  assertEquals(out.expected, 50);
+  assertEquals(out.calc_duplicity, undefined);
+});
+
+// --- Teste 9: 2 restritivos seguem bloqueando ---
+Deno.test("2C/9 — 2 cálculos restritivos válidos → erro_duplicidade_calculo (matched.length === 2)", () => {
+  const rule: RuleInput = {
+    ...makeRuleWithTwoCalcs(),
+    calculations: [
+      {
+        id: "rest-cod", sort_order: 0, label: "Restritivo por código",
+        calculation_type: "valor_fixo", fixed_amount: 300,
+        procedure_codes: ["40101010"], code_match_mode: "whitelist",
+      },
+      {
+        id: "rest-conv", sort_order: 1, label: "Restritivo por convênio",
+        calculation_type: "valor_fixo", fixed_amount: 400,
+        agreement_aliases: ["Bradesco"], agreement_match_mode: "whitelist",
+        code_match_mode: "any",
+      },
+    ],
+  } as any;
+  const item = makeItem({ procedure_code: "40101010", agreement_name: "Bradesco" });
+  const out = applyCalculation(rule, item);
+  assertEquals(out.expected, null);
+  assertExists(out.calc_duplicity);
+  assertEquals(out.calc_duplicity!.matched_calculations.length, 2);
+  assertEquals(out.calc_duplicity!.matched_calculations[0].calc_id, "rest-cod");
+  assertEquals(out.calc_duplicity!.matched_calculations[1].calc_id, "rest-conv");
+});
+
+// --- Teste 10: 2 restritivos + 1 catch-all → bloqueia, catch-all NÃO entra na lista ---
+Deno.test("2C/10 — 2 restritivos + 1 catch-all → bloqueia, matched_calculations exclui catch-all", () => {
+  const rule: RuleInput = {
+    ...makeRuleWithTwoCalcs(),
+    calculations: [
+      {
+        id: "rest-cod", sort_order: 0, label: "Restritivo por código",
+        calculation_type: "valor_fixo", fixed_amount: 300,
+        procedure_codes: ["40101010"], code_match_mode: "whitelist",
+      },
+      {
+        id: "rest-func", sort_order: 1, label: "Restritivo por função",
+        calculation_type: "valor_fixo", fixed_amount: 400,
+        doctor_roles: ["cirurgiao"], code_match_mode: "any",
+      },
+      {
+        id: "catchall", sort_order: 2, label: "Catch-all fallback",
+        calculation_type: "valor_fixo", fixed_amount: 50, code_match_mode: "any",
+      },
+    ],
+  } as any;
+  const item = makeItem({ procedure_code: "40101010", doctor_role: "Cirurgião Principal" });
+  const out = applyCalculation(rule, item);
+  assertEquals(out.expected, null);
+  assertExists(out.calc_duplicity);
+  assertEquals(out.calc_duplicity!.matched_calculations.length, 2, "Catch-all fora da lista");
+  const ids = out.calc_duplicity!.matched_calculations.map((m) => m.calc_id).sort();
+  assertEquals(ids, ["rest-cod", "rest-func"]);
+});
