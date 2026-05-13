@@ -12,6 +12,10 @@ import {
   type PaymentContext,
   type AnalysisResult,
 } from "../_shared/rulesEngine.ts";
+import {
+  mapCalculationTypeToMethod,
+  type AppliedCalcMethod,
+} from "../_shared/calcMethodMapping.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
