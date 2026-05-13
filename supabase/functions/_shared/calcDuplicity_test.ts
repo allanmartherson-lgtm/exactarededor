@@ -85,7 +85,7 @@ function makeItem(overrides: Partial<ItemInput> = {}): ItemInput {
     patient_name: "X",
     procedure_date: "2026-05-01",
     quantity: 1,
-    agreement_name: null,
+    agreement_name: "Bradesco",
     specialty: null,
     ...overrides,
   } as ItemInput;
