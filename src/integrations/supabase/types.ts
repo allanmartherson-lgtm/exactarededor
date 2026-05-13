@@ -778,6 +778,7 @@ export type Database = {
           expected_amount: number | null
           gross_amount: number
           id: string
+          item_hash: string | null
           patient_name: string | null
           payment_id: string
           procedure_amount: number | null
@@ -824,6 +825,7 @@ export type Database = {
           expected_amount?: number | null
           gross_amount?: number
           id?: string
+          item_hash?: string | null
           patient_name?: string | null
           payment_id: string
           procedure_amount?: number | null
@@ -870,6 +872,7 @@ export type Database = {
           expected_amount?: number | null
           gross_amount?: number
           id?: string
+          item_hash?: string | null
           patient_name?: string | null
           payment_id?: string
           procedure_amount?: number | null
@@ -1996,9 +1999,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_duplicate_override: {
+        Args: { _item_id: string; _justification: string }
+        Returns: Json
+      }
       backfill_payment_items_engine_columns: {
         Args: { _dry_run?: boolean }
         Returns: Json
+      }
+      compute_payment_item_hash: {
+        Args: {
+          _agreement: string
+          _attendance: string
+          _doctor_role: string
+          _procedure_code: string
+          _procedure_date: string
+        }
+        Returns: string
       }
       has_role: {
         Args: {
@@ -2039,6 +2056,7 @@ export type Database = {
         Args: { _ctype: string }
         Returns: string
       }
+      norm_for_hash: { Args: { s: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
       recompute_payment_status_from_groups: {
         Args: { _payment_id: string }
@@ -2061,7 +2079,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "diretor" | "validador" | "analista"
       invoice_status: "aguardando" | "recebida" | "conciliada" | "divergente"
-      item_ai_status: "pendente" | "aprovado" | "alerta" | "reprovado"
+      item_ai_status:
+        | "pendente"
+        | "aprovado"
+        | "alerta"
+        | "reprovado"
+        | "erro_duplicidade_pagamento"
       observation_author:
         | "ia"
         | "analista"
@@ -2271,7 +2294,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "diretor", "validador", "analista"],
       invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
-      item_ai_status: ["pendente", "aprovado", "alerta", "reprovado"],
+      item_ai_status: [
+        "pendente",
+        "aprovado",
+        "alerta",
+        "reprovado",
+        "erro_duplicidade_pagamento",
+      ],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
       observation_type: [
         "informativo",

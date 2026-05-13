@@ -16,6 +16,7 @@ import {
   mapCalculationTypeToMethod,
   type AppliedCalcMethod,
 } from "../_shared/calcMethodMapping.ts";
+import { classifyDuplicateMatch } from "../_shared/itemHash.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -162,7 +163,9 @@ serve(async (req) => {
         tipo_linha,complement_reason,
         agreement_text,specialty,tipo_item,sector,
         convenio_value_totalized,
-        ai_status
+        ai_status,
+        item_hash,
+        ai_findings
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -767,6 +770,90 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const itemsRawById: Record<string, any> = {};
     for (const it of (itemsRaw ?? []) as any[]) itemsRawById[it.id] = it;
 
+    // ===== Sub-Onda 2B — Detecção de duplicidade entre lotes =====
+    // Busca itens com o MESMO item_hash em OUTROS pagamentos e classifica
+    // por status do lote-fonte (block / warn / none). Override prévio
+    // (ai_findings.duplicate_detection.override) é respeitado.
+    type DupMatch = {
+      other_item_id: string;
+      other_payment_id: string;
+      other_payment_reference: string;
+      other_payment_status: string;
+      other_attendance_number: string | null;
+      other_patient_name: string | null;
+      other_procedure_date: string | null;
+      other_doctor_name: string | null;
+      other_doctor_role: string | null;
+      other_expected_amount: number | null;
+      severity: "block" | "warn";
+    };
+    const dupByItemId: Record<string, {
+      severity: "block" | "warn" | "override";
+      matches: DupMatch[];
+      override: { by: string; at: string; justification: string } | null;
+    }> = {};
+
+    const hashesPresent = Array.from(new Set(
+      (itemsRaw ?? []).map((it: any) => it.item_hash).filter(Boolean) as string[],
+    ));
+    if (hashesPresent.length > 0) {
+      const { data: dupRows } = await supabase
+        .from("payment_items")
+        .select(`
+          id,payment_id,item_hash,attendance_number,patient_name,procedure_date,
+          doctor_name,doctor_role,expected_amount,
+          payment:payments!inner(id,reference,status)
+        `)
+        .in("item_hash", hashesPresent)
+        .neq("payment_id", payment_id);
+
+      const byHash: Record<string, any[]> = {};
+      for (const row of (dupRows ?? []) as any[]) {
+        (byHash[row.item_hash as string] ||= []).push(row);
+      }
+
+      for (const it of (itemsRaw ?? []) as any[]) {
+        const hash = it.item_hash as string | null;
+        if (!hash) continue;
+        const candidates = byHash[hash] ?? [];
+        if (candidates.length === 0) continue;
+
+        const matches: DupMatch[] = [];
+        let worst: "warn" | "block" | "none" = "none";
+        for (const c of candidates) {
+          const st = String(c.payment?.status ?? "");
+          const sev = classifyDuplicateMatch(st);
+          if (sev === "none") continue;
+          matches.push({
+            other_item_id: c.id,
+            other_payment_id: c.payment_id,
+            other_payment_reference: String(c.payment?.reference ?? ""),
+            other_payment_status: st,
+            other_attendance_number: c.attendance_number ?? null,
+            other_patient_name: c.patient_name ?? null,
+            other_procedure_date: c.procedure_date ?? null,
+            other_doctor_name: c.doctor_name ?? null,
+            other_doctor_role: c.doctor_role ?? null,
+            other_expected_amount: c.expected_amount != null ? Number(c.expected_amount) : null,
+            severity: sev,
+          });
+          if (sev === "block") worst = "block";
+          else if (worst !== "block") worst = "warn";
+        }
+        if (matches.length === 0) continue;
+
+        const existingOverride =
+          it.ai_findings?.duplicate_detection?.override ?? null;
+        dupByItemId[it.id] = {
+          severity: existingOverride ? "override" : (worst as "block" | "warn"),
+          matches,
+          override: existingOverride,
+        };
+      }
+    }
+    // ===== fim 2B =====
+
+
     type ItemUpdate = {
       id: string;
       ai_status: string;
@@ -839,18 +926,50 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         calculation_breakdown: r.calculation_breakdown ?? null,
         selection_trace: r.selection_trace ?? null,
         decision_fields: decisionFields,
-      };
+      } as any;
 
-      // Sub-Onda 2A — derivar colunas estruturadas a partir do mesmo resultado do motor.
-      // O mapeamento 13 → 8 está documentado em _shared/calcMethodMapping.ts e é
-      // espelhado pela função SQL public.map_calculation_type_to_method().
+      // Sub-Onda 2B — aplica duplicate_detection (mantém override existente).
+      const dup = dupByItemId[r.item_id];
+      let finalStatus = r.status;
+      if (dup) {
+        if (dup.severity === "override") {
+          findings.duplicate_detection = {
+            status: "override_applied",
+            matched_items: dup.matches,
+            override: dup.override,
+          };
+        } else if (dup.severity === "block") {
+          findings.duplicate_detection = {
+            status: "blocked",
+            matched_items: dup.matches,
+            override: null,
+          };
+          finalStatus = "erro_duplicidade_pagamento";
+          findings.alerts = [
+            ...findings.alerts,
+            `Duplicidade de pagamento bloqueada: item já registrado em lote ${dup.matches[0].other_payment_reference} (status ${dup.matches[0].other_payment_status}).`,
+          ];
+        } else {
+          findings.duplicate_detection = {
+            status: "warned",
+            matched_items: dup.matches,
+            override: null,
+          };
+          findings.alerts = [
+            ...findings.alerts,
+            `Possível duplicidade: item também consta no lote ${dup.matches[0].other_payment_reference} (status ${dup.matches[0].other_payment_status}).`,
+          ];
+          if (finalStatus === "aprovado") finalStatus = "alerta";
+        }
+      }
+
       const appliedCalcMethod = mapCalculationTypeToMethod(r.calculation_type_used);
       const appliedCalcId =
         (r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null;
 
       itemUpdates.push({
         id: r.item_id,
-        ai_status: r.status,
+        ai_status: finalStatus,
         ai_findings: findings,
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
@@ -863,8 +982,8 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: new Date().toISOString(),
       });
 
-      if (r.status === "alerta") alerts++;
-      if (r.status === "reprovado") blocks++;
+      if (finalStatus === "alerta") alerts++;
+      if (finalStatus === "reprovado" || finalStatus === "erro_duplicidade_pagamento") blocks++;
 
       const prev = prevByItem[r.item_id];
       const nextVersion = (prev?.version ?? 0) + 1;
