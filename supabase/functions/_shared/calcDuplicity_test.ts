@@ -172,9 +172,11 @@ Deno.test("2C/5 — Cálculo escolhido removido → resolution_stale + volta a b
     {
       id: "calc-C",
       sort_order: 2,
-      label: "Cálculo C — 25% convênio",
+      label: "Cálculo C — 25% convênio (whitelist Bradesco)",
       calculation_type: "percentual_sobre_convenio",
       convenio_percentage: 25,
+      agreement_aliases: ["Bradesco"],
+      agreement_match_mode: "whitelist",
     },
   ];
   const item = makeItem({
