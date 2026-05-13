@@ -1277,7 +1277,7 @@ export function applyCalculation(
     .map((x) => x.c);
   if (list.length > 0) {
     const breakdown: CalculationBreakdownEntry[] = [];
-    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null; force_totalized?: boolean; application_unit?: string | null } | null = null;
+    let winnerCalc: { expected: number | null; explanation: string; alerts: string[]; label: string; id: string | null; force_totalized?: boolean; application_unit?: string | null; qty_already_applied?: boolean; steps?: { label: string; value: number }[] } | null = null;
     let anyMatched = false;
 
     for (const c of list) {
