@@ -1999,6 +1999,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_calc_duplicity_resolution: {
+        Args: {
+          _chosen_calc_id: string
+          _item_id: string
+          _justification: string
+        }
+        Returns: Json
+      }
       apply_duplicate_override: {
         Args: { _item_id: string; _justification: string }
         Returns: Json
@@ -2085,6 +2093,7 @@ export type Database = {
         | "alerta"
         | "reprovado"
         | "erro_duplicidade_pagamento"
+        | "erro_duplicidade_calculo"
       observation_author:
         | "ia"
         | "analista"
@@ -2300,6 +2309,7 @@ export const Constants = {
         "alerta",
         "reprovado",
         "erro_duplicidade_pagamento",
+        "erro_duplicidade_calculo",
       ],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
       observation_type: [
