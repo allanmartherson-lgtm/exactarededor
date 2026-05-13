@@ -2043,6 +2043,7 @@ export type Database = {
         }
         Returns: {
           company_keys: string[]
+          company_keys_all_doctors: string[]
           doctor_crms: string[]
         }[]
       }
