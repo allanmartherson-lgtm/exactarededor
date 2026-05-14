@@ -359,7 +359,7 @@ export default function CompanyAnalysis() {
   const [deleteItem, setDeleteItem] = useState<PaymentItemRow | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  const [reimportConfirm, setReimportConfirm] = useState<File | null>(null);
+  const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -744,27 +744,39 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const doReimport = async (file: File) => {
+  const doReimport = async (files: File[]) => {
     if (!id || !payment || !user) return;
     setReimporting(true);
     try {
       const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
       const { data: companiesData } = await supabase.from("companies").select("id,name,aliases").limit(5000);
       const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
-      const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
-      if (bucket.rows.length === 0) {
-        toast.error("Arquivo vazio", { description: "Nenhuma linha válida encontrada." });
+      
+      let allRows: any[] = [];
+      let fileNames: string[] = [];
+
+      for (const file of files) {
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
+        if (bucket.rows.length > 0) {
+          allRows = [...allRows, ...bucket.rows];
+          fileNames.push(file.name);
+          
+          // Upload do arquivo para histórico
+          const path = `${user.id}/${Date.now()}-${file.name}`;
+          await supabase.storage.from("payment-files").upload(path, file);
+        }
+      }
+
+      if (allRows.length === 0) {
+        toast.error("Arquivos vazios", { description: "Nenhuma linha válida encontrada nos arquivos selecionados." });
         return;
       }
       
-      const path = `${user.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("payment-files").upload(path, file);
-      if (upErr) throw upErr;
-
+      // Limpa itens e grupos existentes
       await supabase.from("payment_items").delete().eq("payment_id", id);
       await supabase.from("payment_company_groups").delete().eq("payment_id", id);
 
-      const newItems = bucket.rows.map((r) => ({
+      const newItems = allRows.map((r) => ({
         payment_id: id,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,
@@ -788,27 +800,31 @@ export default function CompanyAnalysis() {
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
       }));
-      const { error: insErr } = await supabase.from("payment_items").insert(newItems);
-      if (insErr) throw insErr;
 
-      const total = bucket.rows.reduce((s, r) => s + r.gross_amount, 0);
+      // Inserção em lotes de 1000 para evitar limites do Supabase
+      const chunkSize = 1000;
+      for (let i = 0; i < newItems.length; i += chunkSize) {
+        const chunk = newItems.slice(i, i + chunkSize);
+        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
+        if (insErr) throw insErr;
+      }
+
+      const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
       await supabase.from("payments").update({
-        source_file_path: path,
         total_amount: total,
-        items_count: bucket.rows.length,
+        items_count: allRows.length,
         status: "em_analise_ia",
       }).eq("id", id);
 
       await recordObservation({
         payment_id: id, author_type: "analista", author_id: user.id,
-        message: `Base reimportada pelo analista (${bucket.rows.length} itens, total ${total.toFixed(2)}). Arquivo: ${file.name}.`,
+        message: `Base reimportada pelo analista (${allRows.length} itens, total ${total.toFixed(2)}). Arquivos: ${fileNames.join(", ")}.`,
         status_from: payment.status, status_to: "em_analise_ia",
       });
 
       supabase.functions.invoke("analyze-payment", { body: { payment_id: id } });
       toast.success("Base reimportada", { description: "Reanalisando itens..." });
       
-      // Como o grupo antigo sumiu, voltamos para a página do lote
       navigate(`/pagamentos/${id}`);
     } catch (e) {
       toast.error("Erro ao reimportar", { description: String(e) });
@@ -1050,11 +1066,12 @@ export default function CompanyAnalysis() {
               <input
                 ref={reimportInputRef}
                 type="file"
+                multiple
                 accept=".xlsx,.xls"
                 className="hidden"
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setReimportConfirm(f);
+                  const files = e.target.files;
+                  if (files && files.length > 0) setReimportConfirm(Array.from(files));
                 }}
               />
               <Button
@@ -1070,7 +1087,7 @@ export default function CompanyAnalysis() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.name}</strong> e reinicia a análise. Não pode ser desfeita.
+                      Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.length === 1 ? reimportConfirm[0].name : `${reimportConfirm?.length} arquivos`}</strong> e reinicia a análise. Não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
