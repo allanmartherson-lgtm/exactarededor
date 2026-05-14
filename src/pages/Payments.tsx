@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, PAYMENT_STATUS_LABELS, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentStatus, type PaymentType, type PaymentKind } from "@/lib/status";
-import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope } from "lucide-react";
+import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, RefreshCcw, Sparkles, Archive, Inbox, MessageCircleQuestion, ChevronDown, Stethoscope, Trash2 } from "lucide-react";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
@@ -107,6 +108,9 @@ const PaymentRiskBadgeInline = ({ paymentId, compact = false }: { paymentId: str
 
 const Payments = () => {
   const { roles, user } = useAuth();
+  const isAnalista = roles.includes("analista") || roles.includes("admin");
+  const isDiretor = roles.includes("diretor") || roles.includes("admin");
+  const isAdmin = roles.includes("admin");
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
@@ -198,6 +202,21 @@ const Payments = () => {
     setReprocessProgress(null);
     setSelected(new Set());
     toast.success(`Reanálise concluída: ${ok} ok${fail ? `, ${fail} com falha` : ""}`);
+  };
+
+  const deletePayment = async (id: string) => {
+    if (!confirm("Deseja realmente excluir este lote e todos os seus itens? Esta ação não pode ser desfeita.")) return;
+    try {
+      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      const { error } = await supabase.from("payments").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Lote excluído com sucesso.");
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao excluir lote: " + e.message);
+    }
   };
 
   const load = useCallback(async () => {
@@ -480,7 +499,6 @@ const Payments = () => {
     if (openQuestionOnly && !(openQuestionCount[r.id] > 0)) return false;
     return true;
   }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount]);
-  const isAnalista = roles.includes("analista") || roles.includes("admin");
 
   const analystOptions = useMemo(() => {
     const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
@@ -713,7 +731,24 @@ const Payments = () => {
             {" · criado em "}{formatDate(p.created_at)}
           </p>
         </div>
-        <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
+          {(isAnalista || isDiretor || isAdmin) && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(p.status) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                deletePayment(p.id);
+              }}
+              title="Excluir lote"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         </Link>
       </div>
     );

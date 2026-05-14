@@ -896,9 +896,9 @@ const PaymentDetail = () => {
   const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
   const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
-  const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
-  const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
-  const canDelete = (isOwner || isDiretor) && editableStatuses.includes(payment.status as PaymentStatus);
+  const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
+  const canCancel = (isOwner || isDiretor || isAnalista) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
+  const canDelete = (isOwner || isDiretor || isAnalista) && editableStatuses.includes(payment.status as PaymentStatus);
   const canEditMeta = canEditBatch(payment.status as PaymentStatus, {
     isOwner,
     isAnalista,
@@ -1456,7 +1456,11 @@ const PaymentDetail = () => {
                       className="hidden"
                       onChange={(e) => {
                         const files = e.target.files;
-                        if (files && files.length > 0) setReimportConfirm(Array.from(files));
+                        if (files && files.length > 0) {
+                          setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
+                          // Reset input value so same file can be selected again if needed
+                          e.target.value = "";
+                        }
                       }}
                     />
                   <Button
@@ -1471,8 +1475,28 @@ const PaymentDetail = () => {
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.length === 1 ? reimportConfirm[0].name : `${reimportConfirm?.length} arquivos`}</strong> e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.
+                        <AlertDialogDescription className="space-y-3">
+                          <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
+                          <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                            <ul className="text-xs space-y-1">
+                              {reimportConfirm?.map((f, i) => (
+                                <li key={i} className="flex items-center justify-between gap-2 group">
+                                  <span className="truncate flex-1">• {f.name}</span>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
+                                    className="text-muted-foreground hover:text-destructive p-0.5"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                            Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Reimportar base" novamente para adicionar mais antes de confirmar.
+                          </p>
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

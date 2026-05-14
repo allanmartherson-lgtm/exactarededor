@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1071,7 +1071,10 @@ export default function CompanyAnalysis() {
                 className="hidden"
                 onChange={(e) => {
                   const files = e.target.files;
-                  if (files && files.length > 0) setReimportConfirm(Array.from(files));
+                  if (files && files.length > 0) {
+                    setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
+                    e.target.value = "";
+                  }
                 }}
               />
               <Button
@@ -1086,8 +1089,28 @@ export default function CompanyAnalysis() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.length === 1 ? reimportConfirm[0].name : `${reimportConfirm?.length} arquivos`}</strong> e reinicia a análise. Não pode ser desfeita.
+                    <AlertDialogDescription className="space-y-3">
+                      <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Não pode ser desfeita.</p>
+                      <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                        <ul className="text-xs space-y-1">
+                          {reimportConfirm?.map((f, i) => (
+                            <li key={i} className="flex items-center justify-between gap-2 group">
+                              <span className="truncate flex-1">• {f.name}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
+                                className="text-muted-foreground hover:text-destructive p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                        Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Reimportar base" novamente para adicionar mais antes de confirmar.
+                      </p>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
