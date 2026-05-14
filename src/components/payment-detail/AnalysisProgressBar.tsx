@@ -95,7 +95,15 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
   
   const cancelJob = async () => {
     if (!job || job.status !== "em_andamento") return;
-    if (!confirm("Tem certeza que deseja cancelar a reanálise? As empresas já processadas manterão os novos valores, mas o restante será interrompido.")) return;
+    
+    // Confirmação dupla para evitar cliques acidentais
+    const confirmed = window.confirm(
+      "Tem certeza que deseja cancelar a reanálise em andamento? " +
+      "As empresas que já foram processadas manterão os novos valores, " +
+      "mas o processamento das demais será interrompido imediatamente."
+    );
+    
+    if (!confirmed) return;
     
     setCancelling(true);
     try {
