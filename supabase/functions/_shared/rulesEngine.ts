@@ -13,6 +13,9 @@
  *   9. setor_master_geral (master absoluto de fallback)
  */
 
+/** Arredonda para 2 casas decimais. */
+const round2 = (n: number) => Number(n.toFixed(2));
+
 // ReferenceTableLookup e ExceptionTableLookup movidos para EngineCtx para evitar duplicidade
 
 
@@ -1804,7 +1807,7 @@ function calcTabelaDiferenciada(
   const roleInTableMatchesRoleInItem = !!(lookup && rule.reference_table_id && item.doctor_role
     && lookup(rule.reference_table_id, (item.procedure_code ?? "").toString().trim(), item.doctor_role, true) !== null);
 
-  const round2 = (n: number) => Number(n.toFixed(2));
+  // round2 removed - now at top of file
   const steps: { label: string; value: number }[] = [];
   const parts: string[] = [];
 

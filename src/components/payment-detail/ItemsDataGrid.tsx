@@ -64,6 +64,7 @@ type OptionalColKey =
   | "via"
   | "funcao"
   | "procedimento"
+  | "setor"
   | "regra"
   | "diferenca"
   | "observacao";
@@ -74,6 +75,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "via", label: "Via de acesso" },
   { key: "funcao", label: "Função" },
   { key: "procedimento", label: "Procedimento" },
+  { key: "setor", label: "Setor" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -85,6 +87,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   via: false,
   funcao: false,
   procedimento: true,
+  setor: true,
   regra: false,
   diferenca: false,
   observacao: false,
@@ -553,6 +556,7 @@ export function ItemsDataGrid({
               {colVis.via && <col style={{ width: 140 }} />}
               <col style={{ width: 96 }} />
               <col style={{ width: 240 }} />
+              {colVis.setor && <col style={{ width: 140 }} />}
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
@@ -571,6 +575,7 @@ export function ItemsDataGrid({
                 {colVis.via && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>TUSS</th>
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
+                {colVis.setor && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Médico</th>
                 {colVis.funcao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
@@ -612,6 +617,7 @@ export function ItemsDataGrid({
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
+                  (colVis.setor ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
@@ -655,6 +661,7 @@ export function ItemsDataGrid({
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
                 1 /* procedimento */ +
+                (colVis.setor ? 1 : 0) +
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
@@ -836,6 +843,9 @@ function RowMain({
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
+        {colVis.setor && (
+          <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{it.sector ?? "—"}</td>
+        )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
         </td>
