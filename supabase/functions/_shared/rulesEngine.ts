@@ -1528,6 +1528,7 @@ export function applyCalculation(
       calculation_type: CalculationType;
       sort_order: number;
       restrictive: boolean;
+      inferred_sector: string;
     };
     const validCalcs: ValidCalc[] = [];
     let anyMatched = false;
