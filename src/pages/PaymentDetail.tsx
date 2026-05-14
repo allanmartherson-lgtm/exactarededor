@@ -170,6 +170,7 @@ const PaymentDetail = () => {
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
   const [toleranceValue, setToleranceValue] = useState<number>(0.01);
 
@@ -1640,24 +1641,46 @@ const PaymentDetail = () => {
         )}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative max-w-md flex-1">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
-                className="pl-9 pr-9"
-              />
-              {itemSearch && (
-                <button
-                  type="button"
-                  onClick={() => setItemSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                  aria-label="Limpar busca"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
+              <div className="relative w-full sm:w-[280px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  placeholder="Filtrar empresa (PJ)..."
+                  className="pl-9 pr-9"
+                />
+                {companySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCompanySearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar filtro de empresa"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex-1 min-w-[280px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Buscar médico, paciente, atendimento, CC..."
+                  className="pl-9 pr-9"
+                />
+                {itemSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setItemSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
@@ -1739,10 +1762,11 @@ const PaymentDetail = () => {
                 variant="link" 
                 size="sm" 
                 className="h-auto p-0 text-xs ml-auto" 
-                onClick={() => {
-                  setCriticalFilter("all");
-                  setItemSearch("");
-                }}
+                 onClick={() => {
+                   setCriticalFilter("all");
+                   setItemSearch("");
+                   setCompanySearch("");
+                 }}
               >
                 Limpar filtros
               </Button>
@@ -1795,11 +1819,14 @@ const PaymentDetail = () => {
 
           <TooltipProvider delayDuration={150}>
             {(() => {
-              const sq = itemSearch.trim().toLowerCase();
+              const sqItem = itemSearch.trim().toLowerCase();
+              const sqCompany = companySearch.trim().toLowerCase();
+              
               const itemMatches = (it: PaymentItemRowType) => {
-                const sq = itemSearch.trim().toLowerCase();
-                const matchesSearch = !sq || [
-                  it.company_name,
+                const matchesCompany = !sqCompany || (it.company_name ?? "").toLowerCase().includes(sqCompany);
+                if (!matchesCompany) return false;
+
+                const matchesSearch = !sqItem || [
                   it.doctor_name,
                   it.doctor_role,
                   it.attendance_number,
@@ -1813,7 +1840,7 @@ const PaymentDetail = () => {
                   .filter(Boolean)
                   .join(" \u2022 ")
                   .toLowerCase()
-                  .includes(sq);
+                  .includes(sqItem);
 
                 if (!matchesSearch) return false;
 
@@ -1841,9 +1868,14 @@ const PaymentDetail = () => {
 
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
               const visibleGroups = groups.filter((g) => {
-                const sq = itemSearch.trim().toLowerCase();
-                const nameMatches = !sq || g.company_name?.toLowerCase().includes(sq);
-                const specMatches = !sq || paymentSpec.includes(sq);
+                const sqItem = itemSearch.trim().toLowerCase();
+                const sqComp = companySearch.trim().toLowerCase();
+                
+                const nameMatchesCompanySearch = !sqComp || g.company_name?.toLowerCase().includes(sqComp);
+                if (!nameMatchesCompanySearch) return false;
+
+                const nameMatchesItemSearch = !sqItem || g.company_name?.toLowerCase().includes(sqItem);
+                const specMatchesItemSearch = !sqItem || paymentSpec.includes(sqItem);
 
                 // Pegamos todos os itens deste grupo específico para validações agregadas
                 const groupItems = items.filter(
@@ -1863,10 +1895,10 @@ const PaymentDetail = () => {
                 }
 
                 // Sem filtro de status (Todos): decide pela busca no nome ou nos itens
-                return nameMatches || specMatches || groupItems.some((it) => itemMatches(it));
+                return nameMatchesItemSearch || specMatchesItemSearch || groupItems.some((it) => itemMatches(it));
               });
               
-              const finalSearchTerm = itemSearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
+              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
               if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
                   <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
@@ -1892,7 +1924,7 @@ const PaymentDetail = () => {
               const groupItemsAll = items.filter(
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
-              const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
+              const groupNameMatches = sqCompany && g.company_name?.toLowerCase().includes(sqCompany);
               const isErrorOnly = payment.analysis_mode === "empresa_prioritaria" || criticalFilter !== "all";
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
@@ -1912,7 +1944,7 @@ const PaymentDetail = () => {
                 return st === "alerta" || st === "reprovado";
               };
               // Filtro só decide se o card aparece (busca / modo erro-apenas / filtros críticos).
-              const matchedItems = (itemSearch.trim() && !groupNameMatches)
+              const matchedItems = (itemSearch.trim() && !groupNameMatches) || sqCompany
                 ? groupItemsAll.filter(itemMatches)
                 : groupItemsAll;
               const visibleByFilters = isErrorOnly
@@ -1926,7 +1958,7 @@ const PaymentDetail = () => {
                   <PaymentGroupCard
                     g={g}
                     groupItems={groupItemsAll}
-                    searchActive={!!sq}
+                    searchActive={!!sqCompany}
                     obs={obs}
                     invoices={invoices}
                     isExpanded={expandedGroups.has(g.id)}
