@@ -784,12 +784,9 @@ const Dashboard = () => {
       pipelineOwner === "all"
         ? true
         : ACTION_QUEUE[pipelineOwner].has(p.status);
-    const c = {
-      pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
-      pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
-      pipeDivergente: 0,
-    };
+    const c = { ...initialCounts };
     for (const p of allPayments) {
+      if (deletingIds.has(p.id)) continue;
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
       if (!matchesOwner(p)) continue;
       switch (p.status) {
