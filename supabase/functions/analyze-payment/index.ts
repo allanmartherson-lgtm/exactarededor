@@ -1238,7 +1238,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     const groupsMap = new Map<string, { company_id: string | null; company_name: string; items: ItemInput[] }>();
     for (const it of items) {
       const name = (it.company_name ?? "Sem empresa").trim() || "Sem empresa";
-      const key = name.toLowerCase();
+      const key = normName(name);
       const cur = groupsMap.get(key);
       if (cur) cur.items.push(it);
       else groupsMap.set(key, { company_id: it.company_id, company_name: name, items: [it] });
