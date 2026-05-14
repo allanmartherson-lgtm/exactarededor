@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
@@ -516,20 +517,71 @@ function CalcCard({
               </div>
               {c.code_match_mode !== "any" && (
                 <>
-                  <Input
-                    placeholder="Digite um código e pressione Enter (ex: 31005497)"
-                    className="h-8 text-xs"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === ",") {
-                        e.preventDefault();
-                        const t = e.target as HTMLInputElement;
-                        const vals = t.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
-                        const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
-                        if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
-                        t.value = "";
-                      }
-                    }}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Digite um código e pressione Enter (ex: 31005497)"
+                      className="h-8 text-xs flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const t = e.target as HTMLInputElement;
+                          const vals = t.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                          const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
+                          if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
+                          t.value = "";
+                        }
+                      }}
+                    />
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      id={`import-codes-${c.id ?? c.label}`}
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const XLSX = await import("xlsx");
+                          const buf = await file.arrayBuffer();
+                          const wb = XLSX.read(buf, { type: "array" });
+                          const found = new Set<string>();
+                          for (const sheetName of wb.SheetNames) {
+                            const sh = wb.Sheets[sheetName];
+                            const rows = XLSX.utils.sheet_to_json<any>(sh, { header: 1, raw: false, defval: "" });
+                            for (const row of rows as any[][]) {
+                              for (const cell of row) {
+                                const s = String(cell ?? "").trim();
+                                // TUSS / CBHPM: exatamente 8 dígitos
+                                const matches = s.match(/\b\d{8}\b/g);
+                                if (matches) matches.forEach(m => found.add(m));
+                              }
+                            }
+                          }
+                          if (found.size === 0) {
+                            toast.error("Nenhum código TUSS (8 dígitos) encontrado na planilha");
+                          } else {
+                            const merged = Array.from(new Set([...c.procedure_codes, ...found]));
+                            const added = merged.length - c.procedure_codes.length;
+                            onChange({ procedure_codes: merged });
+                            toast.success(`${found.size} códigos detectados • ${added} novos adicionados`);
+                          }
+                        } catch (err) {
+                          toast.error("Falha ao ler a planilha: " + (err as Error).message);
+                        } finally {
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs whitespace-nowrap"
+                      onClick={() => document.getElementById(`import-codes-${c.id ?? c.label}`)?.click()}
+                    >
+                      📎 Importar planilha
+                    </Button>
+                  </div>
                   {c.procedure_codes.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {c.procedure_codes.map(code => (
