@@ -741,19 +741,43 @@ const Payments = () => {
         <div className="flex flex-col items-end gap-2">
           <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
           {(isAnalista || isDiretor || isAdmin) && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(p.status) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                deletePayment(p.id);
-              }}
-              title="Excluir lote"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  title="Excluir lote"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação remove o lote <strong>{p.reference}</strong>, todos os seus itens e histórico permanentemente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      deletePayment(p.id);
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Excluir definitivamente
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
         </Link>
