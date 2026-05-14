@@ -1944,7 +1944,7 @@ const PaymentDetail = () => {
                 return st === "alerta" || st === "reprovado";
               };
               // Filtro só decide se o card aparece (busca / modo erro-apenas / filtros críticos).
-              const matchedItems = (itemSearch.trim() && !groupNameMatches)
+              const matchedItems = (itemSearch.trim() && !groupNameMatches) || sqCompany
                 ? groupItemsAll.filter(itemMatches)
                 : groupItemsAll;
               const visibleByFilters = isErrorOnly
