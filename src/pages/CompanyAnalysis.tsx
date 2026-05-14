@@ -1246,6 +1246,9 @@ export default function CompanyAnalysis() {
               <CardTitle className="text-base">Itens</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
+                {payment?.processing_timeout_occurred && (
+                  <span className="ml-2 text-destructive font-medium">⚠️ Algumas justificativas da IA podem estar ausentes por timeout.</span>
+                )}
               </p>
             </CardHeader>
             <CardContent className="p-0">
