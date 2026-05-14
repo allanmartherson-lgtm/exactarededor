@@ -25,13 +25,36 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Buscamos a lista COMPLETA de empresas vinculadas ao lote a partir de payment_company_groups.
-    // Isso evita o limite de 1000 linhas da tabela de itens e garante que todas as empresas sejam vistas.
-    const { data: groups, error: groupsErr } = await supabase
+    // Buscamos a lista COMPLETA de empresas vinculadas ao lote. 
+    // Tentamos primeiro por payment_company_groups (mais rápido).
+    // Se estiver vazio (ex: após reimportação), buscamos direto nos itens.
+    let { data: groups, error: groupsErr } = await supabase
       .from("payment_company_groups")
       .select("company_name, items_count")
       .eq("payment_id", payment_id);
+    
     if (groupsErr) throw groupsErr;
+
+    if (!groups || groups.length === 0) {
+      console.log(`[dispatch] payment_company_groups vazio para ${payment_id}, buscando em payment_items...`);
+      const { data: itemCompanies, error: itemsErr } = await supabase
+        .from("payment_items")
+        .select("company_name")
+        .eq("payment_id", payment_id);
+      
+      if (itemsErr) throw itemsErr;
+      
+      const counts: Record<string, number> = {};
+      for (const it of (itemCompanies ?? [])) {
+        const name = (it.company_name ?? "").trim() || "Sem empresa";
+        counts[name] = (counts[name] ?? 0) + 1;
+      }
+      
+      groups = Object.entries(counts).map(([name, count]) => ({
+        company_name: name,
+        items_count: count
+      }));
+    }
 
     // Se houver filtro de status (alerta, reprovado), precisamos descobrir quais dessas empresas
     // possuem itens com esses status. Buscamos com um limite alto para cobrir lotes grandes.

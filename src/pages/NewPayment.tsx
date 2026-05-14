@@ -326,9 +326,16 @@ const NewPayment = () => {
       
       const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
-      // === Lógica de Setor por Linha (Setor Multi-Lote) ===
-      // Se a planilha tiver uma coluna de setor, respeitamos o valor de CADA linha.
-      // Se o usuário mapeou um setor global para o arquivo (sectorMapping), ele tem precedência.
+      // Tenta identificar empresa por linha (Multi-empresa)
+      const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
+      let rowMatchedCompany = null;
+      if (rowCompanyNameRaw) {
+        const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
+        if (s >= 0.85) {
+          rowMatchedCompany = matched;
+        }
+      }
+
       const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
 
       const base = {
@@ -338,8 +345,8 @@ const NewPayment = () => {
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
         valor_invalido,
-        company_name: score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null),
-        company_id: score >= 0.9 ? (company?.id ?? null) : null,
+        company_name: rowMatchedCompany?.name || rowCompanyNameRaw || (score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null)),
+        company_id: rowMatchedCompany?.id || (score >= 0.9 ? (company?.id ?? null) : null),
         attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
         procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss"])),
         procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
@@ -731,8 +738,8 @@ const NewPayment = () => {
         doctor_email: r.doctor_email,
         description: r.description,
         gross_amount: r.gross_amount,
-        company_name: r.company_name,
-        company_id: r.company_id,
+        company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
+        company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
         attendance_number: r.attendance_number,
         procedure_code: r.procedure_code,
         procedure_name: r.procedure_name,
@@ -1012,7 +1019,11 @@ const NewPayment = () => {
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge variant="outline" className="gap-1">
                           <Building2 className="h-3 w-3" />
-                          {b.matchedCompany?.name ?? b.rawCompanyName}
+                          {(() => {
+                            const seen = new Set();
+                            b.rows.forEach(r => { if (r.company_id) seen.add(r.company_id); else if (r.company_name) seen.add(r.company_name); });
+                            return seen.size > 1 ? `Múltiplas empresas (${seen.size})` : (b.matchedCompany?.name ?? b.rawCompanyName);
+                          })()}
                         </Badge>
                         {b.manualOverride ? (
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
