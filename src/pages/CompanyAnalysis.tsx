@@ -1093,7 +1093,7 @@ export default function CompanyAnalysis() {
     canDelete,
     isAdmin,
     isAnalista,
-    userRole: roles
+    userRole: user?.role
   });
 
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
