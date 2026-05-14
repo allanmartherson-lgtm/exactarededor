@@ -1326,8 +1326,15 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     agreement_aliases: Array.isArray(c.agreement_aliases) ? c.agreement_aliases : [],
     agreement_match_mode: (c.agreement_match_mode ?? "whitelist") as any,
     allowed_access_routes: Array.isArray(c.allowed_access_routes) ? c.allowed_access_routes : [],
+    // HERANÇA CRÍTICA: se o cálculo não define doctor_roles, HERDA da regra (se houver).
+    // Isso garante que se a regra 'Hemodinâmica - 88%' cadastrar Cirurgião Principal,
+    // o cálculo 'Repasse 88%' também só aplique para Cirurgião Principal.
+    doctor_roles: Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0 
+      ? c.doctor_roles 
+      : (Array.isArray((rule as any).doctor_roles) ? (rule as any).doctor_roles : []),
     // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
     application_unit: c.application_unit ?? rule.application_unit ?? null,
+  } as RuleInput & { application_unit?: string | null };
   } as RuleInput & { application_unit?: string | null };
 }
 
