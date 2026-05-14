@@ -81,12 +81,15 @@ function fmtDate(d: string | null | undefined): string {
   return `${day}/${m}/${y}`;
 }
 
-function titleFor(p: Problem): string {
+function titleFor(p: Problem, nameMap: Record<string, string>): string {
   switch (p.type) {
     case "doctor_already_bound":
       return `Médico CRM ${p.doctor_crm ?? "—"} já vinculado`;
-    case "company_already_bound":
-      return `Empresa ${p.company_key ?? "—"} já vinculada`;
+    case "company_already_bound": {
+      const k = p.company_key ?? "";
+      const label = nameMap[k] ?? k ?? "—";
+      return `Empresa ${label} já vinculada`;
+    }
     case "validity_overlap":
       return "Sobreposição de vigência";
     case "master_already_exists":
