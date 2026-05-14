@@ -108,12 +108,15 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       { data: as },
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
-      (() => {
-        let q = supabase.from("payment_items").select("*").eq("payment_id", id);
-        if (options?.companyName) {
-          q = q.eq("company_name", options.companyName);
+      (async () => {
+        if (options?.groupId) {
+          // Busca o nome da empresa do grupo primeiro para filtrar itens
+          const { data: g } = await supabase.from("payment_company_groups").select("company_name").eq("id", options.groupId).single();
+          if (g?.company_name) {
+            return supabase.from("payment_items").select("*").eq("payment_id", id).eq("company_name", g.company_name).order("created_at").limit(5000).abortSignal(ac.signal);
+          }
         }
-        return q.order("created_at").limit(5000).abortSignal(ac.signal);
+        return supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").limit(5000).abortSignal(ac.signal);
       })(),
       supabase
         .from("payment_observations")
