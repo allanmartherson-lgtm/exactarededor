@@ -900,8 +900,15 @@ export default function CompanyAnalysis() {
     setDeletingItem(true);
     try {
       const gross = Number(deleteItem.gross_amount ?? 0);
+      const previousItems = [...items];
+      // Optimistic update
+      setItems(prev => prev.filter(it => it.id !== deleteItem.id));
+      
       const { error } = await supabase.from("payment_items").delete().eq("id", deleteItem.id);
-      if (error) throw error;
+      if (error) {
+        setItems(previousItems);
+        throw error;
+      }
       const remaining = items.length - 1;
       if (remaining <= 0) {
         await supabase.from("payment_company_groups").delete().eq("id", group.id);
