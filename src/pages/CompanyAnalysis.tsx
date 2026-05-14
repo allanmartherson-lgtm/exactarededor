@@ -1015,9 +1015,9 @@ export default function CompanyAnalysis() {
       }).catch((e) => console.warn("notify-analyst-event failed", e));
     }
     setGroupDraft("");
-    setBusy(false);
     toast.success(actionLabel);
     await load();
+    setBusy(false);
   };
 
   if (loading) {
