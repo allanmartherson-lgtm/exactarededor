@@ -326,6 +326,11 @@ const NewPayment = () => {
       
       const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
+      // === Lógica de Setor por Linha (Setor Multi-Lote) ===
+      // Se a planilha tiver uma coluna de setor, respeitamos o valor de CADA linha.
+      // Se o usuário mapeou um setor global para o arquivo (sectorMapping), ele tem precedência.
+      const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
+
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
         doctor_document: toStr(pick(row, ["cpf", "cnpj", "documento", "doc"])) ?? "",
@@ -346,7 +351,7 @@ const NewPayment = () => {
         quantity: quantity,
         procedure_date: excelDateToISO(pick(row, ["data"])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
-        sector: toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"])),
+        sector: rawSector,
         raw_data: row,
         source_file: f.name,
         source_row_number: rowIndex + 2,
