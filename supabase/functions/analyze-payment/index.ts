@@ -610,7 +610,7 @@ serve(async (req) => {
 
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
-    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 100);
+    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
