@@ -1641,24 +1641,46 @@ const PaymentDetail = () => {
         )}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative max-w-md flex-1">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                placeholder="Buscar PJ, médico, atendimento, CC, especialidade…"
-                className="pl-9 pr-9"
-              />
-              {itemSearch && (
-                <button
-                  type="button"
-                  onClick={() => setItemSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
-                  aria-label="Limpar busca"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
+              <div className="relative w-full sm:w-[280px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  placeholder="Filtrar empresa (PJ)..."
+                  className="pl-9 pr-9"
+                />
+                {companySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCompanySearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar filtro de empresa"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex-1 min-w-[280px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Buscar médico, paciente, atendimento, CC..."
+                  className="pl-9 pr-9"
+                />
+                {itemSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setItemSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
