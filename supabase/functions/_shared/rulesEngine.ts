@@ -988,18 +988,35 @@ export function doctorRoleFactor(raw: string | null | undefined): number {
 
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
+  const factor = doctorRoleFactor(item.doctor_role);
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: `${pct}% do convênio — valor base ausente.`, alerts: ["procedure_amount ausente."] };
-  const expected = Number((base * (pct / 100)).toFixed(2));
-  return { expected, explanation: `${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [] };
+  
+  const unitValue = round2(base * (pct / 100));
+  const expected = round2(unitValue * factor);
+  
+  let explanation = `${pct}% × R$ ${base.toFixed(2)}`;
+  if (factor !== 1) {
+    explanation += ` × fator função(${(factor * 100).toFixed(0)}%) = R$ ${expected.toFixed(2)}`;
+  } else {
+    explanation += ` = R$ ${expected.toFixed(2)}`;
+  }
+  
+  return { expected, explanation, alerts: [] };
 }
 
-function calcRegraVias(_rule: RuleInput, item: ItemInput): ExpectedCalc {
-  const factor = accessRouteFactor(item.access_route);
+function calcRegraVias(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  const viaFactor = accessRouteFactor(item.access_route);
+  const funcFactor = doctorRoleFactor(item.doctor_role);
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: "regra_vias: valor base ausente.", alerts: ["procedure_amount ausente."] };
-  const expected = Number((base * factor).toFixed(2));
-  return { expected, explanation: `Via "${item.access_route ?? "—"}" → fator ${factor} × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [] };
+  
+  const expected = round2(base * viaFactor * funcFactor);
+  let explanation = `Via "${item.access_route ?? "—"}" → fator ${viaFactor}`;
+  if (funcFactor !== 1) explanation += ` × fator função ${funcFactor}`;
+  explanation += ` × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`;
+  
+  return { expected, explanation, alerts: [] };
 }
 
 const isVisita  = (it: ItemInput) => /visita/.test(normName(`${it.procedure_name ?? ""} ${it.description ?? ""}`));
