@@ -333,6 +333,7 @@ const Payments = () => {
       .channel("payments-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); loadAncillaryData(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { loadAncillaryData(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => { loadAncillaryData(); })
       .subscribe();
