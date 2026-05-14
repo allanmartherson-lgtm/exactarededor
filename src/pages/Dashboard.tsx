@@ -813,7 +813,7 @@ const Dashboard = () => {
       }
     }
     return c;
-  }, [allPayments, pipelineOwner, pipelineWindow]);
+  }, [allPayments, pipelineOwner, pipelineWindow, deletingIds]);
 
   const pipelineQuery = useMemo(() => {
     const parts: string[] = [];
