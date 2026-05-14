@@ -24,6 +24,7 @@ import Companies from "./pages/Companies.tsx";
 import CompanyAliases from "./pages/CompanyAliases.tsx";
 import Doctors from "./pages/Doctors.tsx";
 import ProcedureSpecialtyMap from "./pages/ProcedureSpecialtyMap.tsx";
+import Sectors from "./pages/Sectors.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
 import StatusAnomalies from "./pages/StatusAnomalies.tsx";
