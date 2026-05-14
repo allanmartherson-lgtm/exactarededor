@@ -75,6 +75,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Busca as preferências de notificação do analista
+    const { data: settings } = await supabase
+      .from("user_notification_settings")
+      .select("email_enabled, whatsapp_enabled")
+      .eq("user_id", payment.created_by)
+      .eq("event_type", eventType)
+      .maybeSingle();
+
+    const emailEnabled = settings ? settings.email_enabled : true;
+    const whatsappEnabled = settings ? settings.whatsapp_enabled : true;
+
+    if (!emailEnabled && !whatsappEnabled) {
+      return new Response(JSON.stringify({ ok: true, message: "Notificações desativadas para este evento" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const link = `${APP_BASE_URL}/pagamentos/${paymentId}`;
     const greeting = greetingForBrazil();
     const name = firstName(analyst.full_name);
