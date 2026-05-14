@@ -1352,7 +1352,6 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
     application_unit: c.application_unit ?? rule.application_unit ?? null,
   } as RuleInput & { application_unit?: string | null };
-  } as RuleInput & { application_unit?: string | null };
 }
 
 /**
