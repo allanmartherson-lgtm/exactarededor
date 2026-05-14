@@ -896,9 +896,9 @@ const PaymentDetail = () => {
   const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
   const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
-  const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "aguardando_validacao", "devolvido_analista", "cancelado"];
-  const canCancel = (isOwner || isDiretor) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
-  const canDelete = (isOwner || isDiretor) && editableStatuses.includes(payment.status as PaymentStatus);
+  const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
+  const canCancel = (isOwner || isDiretor || isAnalista) && payment.status !== "cancelado" && editableStatuses.includes(payment.status as PaymentStatus);
+  const canDelete = (isOwner || isDiretor || isAnalista) && editableStatuses.includes(payment.status as PaymentStatus);
   const canEditMeta = canEditBatch(payment.status as PaymentStatus, {
     isOwner,
     isAnalista,
