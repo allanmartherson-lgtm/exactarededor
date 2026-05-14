@@ -661,6 +661,7 @@ export function ItemsDataGrid({
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
                 1 /* procedimento */ +
+                (colVis.setor ? 1 : 0) +
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
