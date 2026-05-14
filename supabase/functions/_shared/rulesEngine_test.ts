@@ -283,6 +283,45 @@ Deno.test("applyCalculation ordena calculations defensivamente por sort_order me
   assertEquals(r[0].expected_amount, 4000);
 });
 
+Deno.test("regra sem filtro de setor não gera alerta exigindo cadastro de setor quando cálculo não casa", () => {
+  const groupRule = makeRule({
+    id: "rule-grupo-sem-setor",
+    name: "Regra grupo sem setor",
+    scope: "grupo",
+    target_type: null,
+    target_company_id: null,
+    group_company_links: [{ company_id: "company-1", doctors: [] }],
+    calculations: [
+      {
+        id: "calc-cirurgiao",
+        label: "Somente cirurgião",
+        calculation_type: "percentual_sobre_convenio",
+        convenio_percentage: 200,
+        procedure_codes: ["40813541"],
+        code_match_mode: "whitelist",
+        doctor_roles: ["cirurgiao"],
+        sectors: [],
+      },
+    ],
+  });
+
+  const item = makeItem({
+    procedure_code: "40813541",
+    procedure_name: "Embolização cerebral",
+    doctor_role: "Primeiro Auxiliar",
+    sector: "hemodinamica",
+    gross_amount: 100,
+    procedure_amount: 100,
+  });
+
+  const [result] = analyzePaymentItems([item], [groupRule], { ...baseCtx, sectors: [] });
+
+  assertEquals(result.matched_priority, "sem_regra");
+  assertEquals(result.matched_rule_id, null);
+  assertEquals(result.expected_amount, null);
+  assertEquals(result.alerts.some((a) => /cadastre.*setor|setor:/.test(a.toLowerCase())), false);
+});
+
 
 // --- ONDA 1 — Correção 1: Vigência por procedure_date (regra de competência) ---
 
