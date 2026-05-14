@@ -17,6 +17,7 @@ import {
   Sparkles,
   AlertTriangle,
   FlaskConical,
+  Layers,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
