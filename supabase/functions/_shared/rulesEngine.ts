@@ -13,6 +13,9 @@
  *   9. setor_master_geral (master absoluto de fallback)
  */
 
+/** Arredonda para 2 casas decimais. */
+const round2 = (n: number) => Number(n.toFixed(2));
+
 // ReferenceTableLookup e ExceptionTableLookup movidos para EngineCtx para evitar duplicidade
 
 
