@@ -251,6 +251,11 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
         { event: "*", schema: "public", table: "payment_company_groups", filter: `payment_id=eq.${id}` },
         () => { load(); },
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
+        () => { load(); },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
