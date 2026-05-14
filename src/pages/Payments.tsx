@@ -207,21 +207,21 @@ const Payments = () => {
 
   const deletePayment = async (id: string) => {
     try {
-      // Optimistic update
-      const previousRows = [...rows];
-      setRows(prev => prev.filter(r => r.id !== id));
-
+      setDeletingIds(prev => new Set(prev).add(id));
+      
       const { error } = await supabase.from("payments").delete().eq("id", id);
       
       if (error) {
-        setRows(previousRows);
+        setDeletingIds(prev => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        });
         throw error;
       }
       
       toast.success("Lote excluído com sucesso.");
-      // We don't necessarily need to call load() here if we trust the delete was successful
-      // and we have realtime, but calling it ensures ancillary data is also refreshed.
-      loadAncillaryData();
+      // load() será chamado via Realtime, mas o item já está escondido via deletingIds
     } catch (e: any) {
       toast.error("Erro ao excluir lote: " + e.message);
     }
