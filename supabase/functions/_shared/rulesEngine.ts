@@ -1563,6 +1563,7 @@ export function applyCalculation(
           calculation_type: c.calculation_type,
           sort_order: c.sort_order ?? Number.MAX_SAFE_INTEGER,
           restrictive: isRestrictiveCalculation(c, list),
+          inferred_sector: inferItemSector(item, ctx as any),
         });
         breakdown.push({
           calc_id: c.id ?? null, label, calculation_type: c.calculation_type,
@@ -1659,6 +1660,7 @@ export function applyCalculation(
       application_unit: (winnerCalc.application_unit as any) ?? rule.application_unit ?? "por_item",
       qty_already_applied: winnerCalc.qty_already_applied,
       steps: winnerCalc.steps,
+      inferred_sector: (winnerCalc as any).inferred_sector,
       ...(resolutionStale ? {
         calc_duplicity: {
           rule_id: rule.id, rule_name: rule.name,
