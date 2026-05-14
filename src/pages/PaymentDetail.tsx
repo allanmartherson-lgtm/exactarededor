@@ -829,6 +829,7 @@ const PaymentDetail = () => {
     setReprocessingAi(true);
     try {
       const isBatch = !statuses || statuses.length === 0;
+      // Se for lote completo, sempre usamos o dispatcher para processamento paralelo exaustivo
       const fnName = isBatch ? "dispatch-payment-analysis" : "analyze-payment";
       
       let jobId = null;

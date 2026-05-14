@@ -1,17 +1,23 @@
-The "Explicação sugerida (IA)" correctly identified that the rule engine (motor determinístico) failed to apply the correct 200% rule for certain cranial procedures, falling back to a 100% calculation. This happened because some procedure codes were missing from the specific 200% rule whitelists, or because of subtle mismatches in sector naming between the spreadsheet and the rule configuration.
+O problema relatado indica que a reanálise do lote não está processando todos os itens das empresas (especificamente, parece ignorar itens que não foram filtrados ou que a IA julga não precisar de revisão), enquanto a reanálise individual da empresa força o processamento total. Além disso, existe uma discrepância entre o que foi importado e o que é exibido, possivelmente devido à falta de sincronização manual ou triggers durante o processamento em lote.
 
-I will perform the following actions:
-1.  **Update Rule "Neurocirurgia - Regra 200% Crânio" (6ed63183-9a7d-4b0b-8422-ef36e8b4c06e):** Add missing procedure codes like `31401155` (Microcirurgia para tumores intracranianos) and `31401031` (Cirurgia intracraniana endoscópica) to the 200% calculation.
-2.  **Update Rule "Neurovascular - Repasse 200% Procedimentos Hemodinâmica" (3755c64c-79d6-49dc-9c36-59b3c8dc5264):** Ensure all relevant codes are in the 200% whitelist and verify sector associations.
-3.  **Refactor `rulesEngine.ts`:**
-    *   Make sector matching more robust by splitting space/comma-separated strings in rule configurations and trimming them.
-    *   Normalize and trim procedure codes in whitelists during comparison to prevent failures due to hidden spaces.
-    *   Improve the sector inference to better handle combined names like "Hemodinâmica Cirurgia".
-4.  **Database Correction:** Run a script to normalize existing `rule_calculations.sectors` and `procedure_codes` to ensure they are clean arrays.
+### Alterações propostas
 
-These changes will ensure the deterministic engine selects the 200% rule correctly, eliminating the "improcedente" alerts from the AI auditor.
+#### 1. Edge Function `dispatch-payment-analysis`
+- Modificar a consulta inicial de itens para garantir que **todos** os itens de cada empresa do lote sejam considerados, independente do status da IA, a menos que um filtro específico seja passado.
+- Garantir que o `companyNames` represente a realidade total do lote.
 
-**Technical Details:**
-- Edit `supabase/functions/_shared/rulesEngine.ts` to improve `calcItemMatches` and `inferItemSector`.
-- Execute SQL to update the specific rules for DF Neuro.
-- Execute SQL to clean up potentially malformed arrays in `rule_calculations`.
+#### 2. Edge Function `analyze-payment`
+- Refinar a lógica de seleção de itens: quando `company_name` é fornecido (como no caso do dispatch paralelo), garantir que o motor processe **todos** os itens daquela empresa para manter a paridade com a reanálise individual.
+- Adicionar um log informativo no histórico do lote (`payment_observations`) detalhando o total de itens reanalisados por empresa para dar transparência ao usuário.
+
+#### 3. Frontend: `PaymentDetail.tsx` e `CompanyAnalysis.tsx`
+- No `PaymentDetail.tsx`, garantir que a função `reprocessAi` passe os parâmetros corretos para o `dispatch-payment-analysis` para que ele saiba se deve resetar o status de todos os itens ou apenas os filtrados.
+- Unificar o comportamento de "Reanalisar" para que ambos os botões (lote e empresa) utilizem a mesma lógica de processamento total por padrão, evitando "visões fantasmas" de dados que estão na base mas não foram processados.
+
+#### 4. Sincronização de Dados
+- Garantir que ao final de cada `analyze-payment`, os totais e contagens na tabela `payment_company_groups` sejam recalculados e salvos, forçando a atualização da UI do usuário.
+
+### Detalhes técnicos
+- `supabase/functions/analyze-payment/index.ts`: Ajustar a query de `payment_items` para remover filtros implícitos quando operando por empresa.
+- `supabase/functions/dispatch-payment-analysis/index.ts`: Ajustar a coleta de nomes de empresas para ser exaustiva.
+- Verificação de triggers de banco de dados que possam estar atrasando a atualização de `payment_company_groups`.

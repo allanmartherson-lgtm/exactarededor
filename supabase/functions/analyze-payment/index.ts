@@ -192,7 +192,10 @@ serve(async (req) => {
     if (company_name && typeof company_name === "string") {
       itemsQuery.eq("company_name", company_name);
     }
-    if (Array.isArray(ai_statuses) && ai_statuses.length > 0) {
+    // IMPORTANTE: Se estamos analisando uma empresa específica, processamos TODOS os itens dela
+    // para garantir que a visão do usuário reflita a planilha original.
+    // O filtro ai_statuses só deve ser aplicado na reanálise global filtrada.
+    if (!company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0) {
       itemsQuery.in("ai_status", ai_statuses);
     }
     const { data: itemsRaw } = await itemsQuery;

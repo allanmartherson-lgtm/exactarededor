@@ -25,7 +25,8 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Buscamos os itens para calcular empresas e total de itens
+    // Buscamos TODOS os itens do lote para identificar as empresas e garantir
+    // que o processamento paralelo cubra 100% da base importada.
     const { data: rows, error: itemsErr } = await supabase
       .from("payment_items")
       .select("company_name, ai_status")
