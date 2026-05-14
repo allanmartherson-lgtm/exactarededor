@@ -59,6 +59,12 @@ serve(async (req) => {
     );
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
+    // Hidrata aliases de setor a partir do cadastro (tabela `sectors`)
+    try {
+      const { data: secs } = await supabase.from("sectors").select("slug,name,aliases").eq("active", true);
+      if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
+
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
