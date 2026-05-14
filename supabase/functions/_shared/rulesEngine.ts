@@ -379,6 +379,13 @@ export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
     const s = normName(item.sector);
     // "Outros" ou similar é ignorado para permitir que heurísticas/TUSS/Pagamento encontrem o setor real
     if (s !== "outro" && s !== "outros") {
+      // Caso o setor venha com nomes compostos como "Hemodinâmica Cirurgia" ou "CC/Hemodin"
+      // Tentamos encontrar o primeiro match válido no SECTOR_MAP
+      const parts = s.split(/[\s,/;]+/).filter(Boolean);
+      for (const p of parts) {
+        if (SECTOR_MAP[p]) return SECTOR_MAP[p];
+      }
+      
       if (SECTOR_MAP[s]) return SECTOR_MAP[s];
       for (const [k, v] of Object.entries(SECTOR_MAP)) {
         if (s.includes(k)) return v;
