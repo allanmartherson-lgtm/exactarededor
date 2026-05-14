@@ -832,6 +832,14 @@ const PaymentDetail = () => {
       if (!isBatch) {
         // Se for por filtro (ex: apenas alertas), o analyze-payment processa o lote todo em uma única chamada.
         // Criamos um job de "1 unidade" para representar esse processamento atômico na barra.
+        const filteredItems = statuses && statuses.length > 0
+          ? items.filter(it => statuses.includes(it.ai_status as string))
+          : items;
+        
+        const filteredCompanies = Array.from(new Set(
+          filteredItems.map(it => (it.company_name ?? "").trim() || "Sem empresa")
+        ));
+
         const { data: job, error: jobErr } = await supabase
           .from("payment_processing_jobs")
           .insert({
@@ -839,6 +847,8 @@ const PaymentDetail = () => {
             total_companies: 1,
             processed_companies: 0,
             status: "em_andamento",
+            company_list: filteredCompanies,
+            total_items: filteredItems.length,
           })
           .select()
           .single();
