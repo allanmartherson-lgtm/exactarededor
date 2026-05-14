@@ -209,6 +209,8 @@ export interface RuleCalculationItem {
   sectors?: string[] | null;
   /** Especialidades aplicáveis (vazio = qualquer). */
   specialties?: string[] | null;
+  /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
+  procedure_keywords?: string[] | null;
 }
 
 export interface ItemInput {
