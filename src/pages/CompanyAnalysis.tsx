@@ -509,9 +509,15 @@ export default function CompanyAnalysis() {
         toast.success("Regras reaplicadas");
         load();
       } else {
-        toast.error("Falha ao reaplicar regras", {
-          description: e instanceof Error ? e.message : String(e),
-        });
+        const { data: finalCheck } = await supabase.from("payments").select("processing_timeout_occurred").eq("id", id).maybeSingle();
+        if (finalCheck?.processing_timeout_occurred) {
+          toast.warning("Análise parcial", { description: "O motor processou tudo, mas a IA excedeu o tempo limite." });
+          load();
+        } else {
+          toast.error("Falha ao reaplicar regras", {
+            description: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     } finally {
       setReanalyzing(false);
