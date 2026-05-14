@@ -56,7 +56,7 @@ import {
   type AiFindings,
 } from "@/hooks/usePaymentDetailData";
 import { calculateFinancialRisk } from "@/lib/riskScore";
-import { cn } from "@/lib/utils";
+import { cn, normalizeString } from "@/lib/utils";
 
 import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 
