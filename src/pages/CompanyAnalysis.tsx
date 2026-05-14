@@ -958,18 +958,34 @@ export default function CompanyAnalysis() {
   const handleDeletePayment = async () => {
     if (!id) return;
     setBusy(true);
+    console.log("handleDeletePayment called for id:", id);
     try {
       // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
-      await supabase.from("payment_items").delete().eq("payment_id", id);
-      await supabase.from("payment_observations").delete().eq("payment_id", id);
-      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
-      const { error } = await supabase.from("payments").delete().eq("id", id);
+      const { error: err1 } = await supabase.from("payment_items").delete().eq("payment_id", id);
+      if (err1) throw err1;
       
-      if (error) throw error;
+      const { error: err2 } = await supabase.from("payment_observations").delete().eq("payment_id", id);
+      if (err2) throw err2;
+      
+      const { error: err3 } = await supabase.from("payment_company_groups").delete().eq("id", group.id);
+      if (err3) throw err3;
+
+      // Se não houver mais grupos para este pagamento, deletamos o pagamento
+      const { data: otherGroups } = await supabase
+        .from("payment_company_groups")
+        .select("id")
+        .eq("payment_id", id)
+        .neq("id", group.id);
+      
+      if (!otherGroups || otherGroups.length === 0) {
+        const { error: err4 } = await supabase.from("payments").delete().eq("id", id);
+        if (err4) throw err4;
+      }
       
       toast.success("Lote excluído");
       navigate("/pagamentos", { replace: true });
     } catch (e: any) {
+      console.error("handleDeletePayment error:", e);
       toast.error("Erro ao excluir", { description: e.message });
     } finally {
       setBusy(false);
@@ -1070,6 +1086,16 @@ export default function CompanyAnalysis() {
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const canDelete = isAdmin || (isAnalista && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(payment.status as string));
+  
+  console.log("Render Info:", {
+    id,
+    paymentStatus: payment.status,
+    canDelete,
+    isAdmin,
+    isAnalista,
+    userRole: user?.role
+  });
+
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
@@ -1200,7 +1226,13 @@ export default function CompanyAnalysis() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <AlertDialogAction 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDeletePayment();
+                    }} 
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
                     Excluir definitivamente
                   </AlertDialogAction>
                 </AlertDialogFooter>
