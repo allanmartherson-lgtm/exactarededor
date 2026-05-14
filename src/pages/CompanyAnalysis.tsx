@@ -56,7 +56,7 @@ import {
   type AiFindings,
 } from "@/hooks/usePaymentDetailData";
 import { calculateFinancialRisk } from "@/lib/riskScore";
-import { cn } from "@/lib/utils";
+import { cn, normalizeString } from "@/lib/utils";
 
 import { Info, ShieldAlert, Pencil, MessageSquarePlus as MessageSquarePlusIcon } from "lucide-react";
 
@@ -334,9 +334,9 @@ export default function CompanyAnalysis() {
 
   const items = useMemo(() => {
     if (!group) return [] as PaymentItemRow[];
-    const companyName = (group.company_name ?? "").trim().toLowerCase();
+    const companyNorm = normalizeString(group.company_name);
     return allItems.filter(
-      (x) => (x.company_name ?? "Sem empresa").trim().toLowerCase() === companyName,
+      (x) => normalizeString(x.company_name ?? "Sem empresa") === companyNorm,
     );
   }, [allItems, group]);
 

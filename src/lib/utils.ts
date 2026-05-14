@@ -70,3 +70,15 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
   const invalid = isNaN(n) || n < 0;
   return { value: isNaN(n) ? 0 : n, invalid };
 };
+
+/**
+ * Normaliza uma string para comparação: minúscula, sem acentos e sem espaços extras.
+ */
+export function normalizeString(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
