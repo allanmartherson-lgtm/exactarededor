@@ -955,8 +955,12 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const handleDeletePayment = async () => {
-    if (!id) return;
+  const handleDeletePayment = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!id || !group) return;
     setBusy(true);
     console.log("handleDeletePayment called for id:", id);
     try {
