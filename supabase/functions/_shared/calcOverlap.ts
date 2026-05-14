@@ -235,3 +235,54 @@ export function detectCalcOverlap(
   }
   return out;
 }
+
+/**
+ * Cross-rule variant: dado dois conjuntos de cálculos (de regras DIFERENTES),
+ * retorna pares (A∈rule1, B∈rule2) cujos filtros se sobrepõem em todos os 9 eixos.
+ *
+ * Usado por `validate-rule-save` para reabrir `company_already_bound`: se
+ * NENHUM par cruzado se sobrepõe, as duas regras nunca disputam o mesmo item
+ * em runtime → o conflito de empresa é falso-positivo e deve ser descartado.
+ *
+ * Catch-all (não-restritivo) entra como "universo total" pelo lado dele —
+ * isto é, casa com qualquer cálculo restritivo do outro lado. Isso é
+ * intencional: catch-all é um curinga que pega TUDO o que sobra.
+ */
+export function detectCrossRuleOverlap(
+  calcsA: RuleCalculationItem[] | null | undefined,
+  calcsB: RuleCalculationItem[] | null | undefined,
+): CalcOverlapProblem[] {
+  const A = Array.isArray(calcsA) ? calcsA : [];
+  const B = Array.isArray(calcsB) ? calcsB : [];
+  if (A.length === 0 || B.length === 0) {
+    // Sem cálculos de algum lado → comportamento histórico de catch-all.
+    // Conservador: tratar como overlap (uma regra "vazia" pega qualquer item).
+    return [{
+      type: "calc_overlap",
+      calc_a_id: "",
+      calc_a_label: "(regra sem cálculos)",
+      calc_b_id: "",
+      calc_b_label: "(regra sem cálculos)",
+      intersection_description: "qualquer item",
+    }];
+  }
+  const out: CalcOverlapProblem[] = [];
+  for (const a of A) {
+    for (const b of B) {
+      const r = evaluatePair(a, b);
+      if (!r.conflicts) continue;
+      const desc = r.pieces.length > 0
+        ? r.pieces.join(", ")
+        : "qualquer item satisfaz ambos os cálculos";
+      out.push({
+        type: "calc_overlap",
+        calc_a_id: a.id ?? "",
+        calc_a_label: a.label ?? "(sem rótulo)",
+        calc_b_id: b.id ?? "",
+        calc_b_label: b.label ?? "(sem rótulo)",
+        intersection_description: desc,
+      });
+    }
+  }
+  return out;
+}
