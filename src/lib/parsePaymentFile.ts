@@ -219,26 +219,33 @@ export const parsePaymentFile = async (
   const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
   const rawCompanyName = extractCompanyFromFilename(f.name);
-  const { company, score } = matchCompany(rawCompanyName, companies);
+  const { company: fileMatchedCompany, score: fileMatchScore } = matchCompany(rawCompanyName, companies);
 
   const rows: ParsedRow[] = json.map((row) => {
     const role = toStr(pick(row, ["funcao","função","papel"]));
     const repasse = toNumber(pick(row, ["vl repasse","valor repasse","vlrepasse","repasse","vl. repasse"]));
     const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce","valor convenio","valor convênio","vl convenio","vl. convenio"]));
     const grossFromAny = repasse || toNumber(pick(row, ["valor bruto","valor","vlrbruto","bruto"])) || procVal;
-    // Fallback: quando a planilha não traz coluna separada de "valor convênio/procedimento",
-    // usamos o próprio valor de repasse como base do convênio. Em bases assim,
-    // repasse == convênio == valor pago, e o motor consegue casar a regra de % do convênio.
     const procedureAmountFinal = procVal || grossFromAny || null;
 
+    // Tenta identificar empresa por linha (Multi-empresa)
+    const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
+    let rowMatchedCompany = null;
+    if (rowCompanyNameRaw) {
+      const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
+      if (s >= 0.85) {
+        rowMatchedCompany = matched;
+      }
+    }
+
     const base = {
-      doctor_name: toStr(pick(row, ["medico","médico","nome","prestador","fornecedor"])) ?? "",
+      doctor_name: toStr(pick(row, ["medico","médico","nome","prestador"])) ?? "",
       doctor_document: toStr(pick(row, ["cpf","cnpj","documento","doc"])) ?? "",
       doctor_email: toStr(pick(row, ["email","e-mail"])) ?? "",
       description: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento","descricao","descrição","servico","serviço"])) ?? "",
       gross_amount: grossFromAny,
-      company_name: company?.name ?? rawCompanyName ?? null,
-      company_id: company?.id ?? null,
+      company_name: rowMatchedCompany?.name || rowCompanyNameRaw || fileMatchedCompany?.name || rawCompanyName || null,
+      company_id: rowMatchedCompany?.id || fileMatchedCompany?.id || null,
       attendance_number: toStr(pick(row, ["nr atendimento","n atendimento","atendimento","nratendim"])),
       procedure_code: toStr(pick(row, ["codigo procedimento","código procedimento","codigoproc","codproc","cod. tuss","tuss"])),
       procedure_name: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento"])),
@@ -259,5 +266,5 @@ export const parsePaymentFile = async (
     return { ...withType, line_issues } as ParsedRow;
   }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
 
-  return { file: f, rows, rawCompanyName, matchedCompany: company ? { id: company.id, name: company.name } : null, matchScore: score };
+  return { file: f, rows, rawCompanyName, matchedCompany: fileMatchedCompany ? { id: fileMatchedCompany.id, name: fileMatchedCompany.name } : null, matchScore: fileMatchScore };
 };
