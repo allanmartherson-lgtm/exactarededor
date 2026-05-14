@@ -476,6 +476,7 @@ export default function CompanyAnalysis() {
     if (!id || !group) return;
     await autoClaim();
     setReanalyzing(true);
+    const startedAt = Date.now();
     try {
       const { error } = await supabase.functions.invoke("analyze-payment", {
         body: { payment_id: id, company_name: group.company_name },
@@ -492,12 +493,61 @@ export default function CompanyAnalysis() {
       toast.success("Regras reaplicadas");
       load();
     } catch (e) {
-      toast.error("Falha ao reaplicar regras", {
-        description: e instanceof Error ? e.message : String(e),
-      });
+      // O cliente Supabase pode encerrar a conexão antes da função terminar
+      // (timeout em pagamentos grandes com IA). Verificamos no banco se o
+      // processamento concluiu mesmo assim antes de mostrar erro.
+      const completed = await waitForProcessingCompletion(id, startedAt);
+      if (completed) {
+        await recordObservation({
+          payment_id: id,
+          author_type: myAuthorType,
+          author_id: user!.id,
+          message: `[${group.company_name}] Regras reaplicadas pelo analista (reanálise da IA).`,
+          status_from: group.status,
+          status_to: group.status,
+        });
+        toast.success("Regras reaplicadas");
+        load();
+      } else {
+        toast.error("Falha ao reaplicar regras", {
+          description: e instanceof Error ? e.message : String(e),
+        });
+      }
     } finally {
       setReanalyzing(false);
     }
+  };
+
+  /**
+   * Faz polling em `payments.processing_diagnostics` para detectar conclusão
+   * da reanálise quando a conexão HTTP cai antes do response final.
+   * Retorna true se diagnostics.status === "success" e foi atualizado após `since`.
+   */
+  const waitForProcessingCompletion = async (
+    paymentId: string,
+    since: number,
+    timeoutMs = 90_000,
+  ): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const { data } = await supabase
+          .from("payments")
+          .select("processing_diagnostics, processing_timeout_occurred, updated_at")
+          .eq("id", paymentId)
+          .maybeSingle();
+        const diag = (data?.processing_diagnostics ?? null) as { status?: string; finished_at?: string } | null;
+        const updatedAt = data?.updated_at ? new Date(data.updated_at).getTime() : 0;
+        if (diag?.status === "success" && updatedAt >= since - 5_000) {
+          return true;
+        }
+        if (data?.processing_timeout_occurred) return false;
+      } catch {
+        // ignore e tenta de novo
+      }
+      await new Promise((r) => setTimeout(r, 3_000));
+    }
+    return false;
   };
 
   const sendForValidation = async () => {
