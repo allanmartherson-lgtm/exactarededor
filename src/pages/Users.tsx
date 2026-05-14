@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type AppRole } from "@/lib/status";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History } from "lucide-react";
+import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
@@ -47,6 +47,9 @@ const Users = () => {
   const [confirmReset, setConfirmReset] = useState<{ id: string; email: string; full_name: string | null } | null>(null);
   const [manualLink, setManualLink] = useState<{ email: string; link: string; kind: "invite" | "recovery" } | null>(null);
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; full_name: string; phone: string; role_title: string; department: string; birth_date: string } | null>(null);
+  const [notifyingUser, setNotifyingUser] = useState<{ id: string; name: string } | null>(null);
+  const [userSettings, setUserSettings] = useState<any[]>([]);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
   const [historyUser, setHistoryUser] = useState<{ id: string; label: string } | null>(null);
   const [historyEntries, setHistoryEntries] = useState<any[] | null>(null);
@@ -128,6 +131,60 @@ const Users = () => {
     toast({ title: "Usuário atualizado" });
     setEditingUser(null);
     load();
+  };
+
+  const loadUserSettings = async (userId: string, userName: string) => {
+    setNotifyingUser({ id: userId, name: userName });
+    setLoadingSettings(true);
+    const { data, error } = await supabase
+      .from("user_notification_settings")
+      .select("*")
+      .eq("user_id", userId);
+    
+    if (error) {
+      toast({ title: "Erro ao carregar configurações", description: error.message, variant: "destructive" });
+      setLoadingSettings(false);
+      return;
+    }
+
+    const events = ["returned", "ia_concluded", "nf_received"];
+    const existing = data || [];
+    const complete = events.map(evt => {
+      const s = existing.find(x => x.event_type === evt);
+      return s || { event_type: evt, email_enabled: true, whatsapp_enabled: true };
+    });
+
+    setUserSettings(complete);
+    setLoadingSettings(false);
+  };
+
+  const toggleUserSetting = async (eventType: string, field: string, value: boolean) => {
+    if (!notifyingUser) return;
+    
+    const newSettings = userSettings.map(s => 
+      s.event_type === eventType ? { ...s, [field]: value } : s
+    );
+    setUserSettings(newSettings);
+
+    const { error } = await supabase
+      .from("user_notification_settings")
+      .upsert({
+        user_id: notifyingUser.id,
+        event_type: eventType,
+        [field]: value,
+        updated_at: new Date().toISOString()
+      } as any, { onConflict: 'user_id,event_type' });
+
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      setUserSettings(userSettings);
+    }
+  };
+
+  const EVENT_LABELS: Record<string, string> = {
+    returned: "Lote devolvido",
+    ia_concluded: "Análise IA concluída",
+    nf_received: "Nota Fiscal recebida",
   };
 
 
@@ -531,6 +588,17 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => loadUserSettings(u.id, u.full_name || u.email)}
+                      title="Configurar notificações por e-mail/WhatsApp para este usuário"
+                    >
+                      <Bell className="h-3.5 w-3.5 mr-1.5" />
+                      Notificações
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => setConfirmReset({ id: u.id, email: u.email, full_name: u.full_name })}
                       disabled={resettingId === u.id}
                       title="Envia e-mail com link para o usuário definir uma nova senha"
@@ -808,6 +876,51 @@ const Users = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingReq(null)} disabled={savingReq}>Cancelar</Button>
             <Button onClick={saveEditedRequest} disabled={savingReq}>{savingReq ? "Salvando..." : "Salvar alterações"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!notifyingUser} onOpenChange={(o) => !o && setNotifyingUser(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Notificações — {notifyingUser?.name}</DialogTitle>
+            <DialogDescription>
+              Configure quais avisos este usuário deve receber.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingSettings ? (
+            <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : (
+            <div className="space-y-4 py-2">
+              {userSettings.map((s) => (
+                <div key={s.event_type} className="p-3 border rounded-lg space-y-3">
+                  <h4 className="text-sm font-medium">{EVENT_LABELS[s.event_type] || s.event_type}</h4>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`${s.event_type}-email`} 
+                        checked={s.email_enabled} 
+                        onCheckedChange={(val) => toggleUserSetting(s.event_type, 'email_enabled', !!val)} 
+                      />
+                      <Label htmlFor={`${s.event_type}-email`} className="text-xs font-normal cursor-pointer">E-mail</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`${s.event_type}-whatsapp`} 
+                        checked={s.whatsapp_enabled} 
+                        onCheckedChange={(val) => toggleUserSetting(s.event_type, 'whatsapp_enabled', !!val)} 
+                      />
+                      <Label htmlFor={`${s.event_type}-whatsapp`} className="text-xs font-normal cursor-pointer">WhatsApp</Label>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setNotifyingUser(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
