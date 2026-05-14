@@ -1472,7 +1472,7 @@ const PaymentDetail = () => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.name}</strong> e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.
+                          Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo de <strong>{reimportConfirm?.length === 1 ? reimportConfirm[0].name : `${reimportConfirm?.length} arquivos`}</strong> e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
