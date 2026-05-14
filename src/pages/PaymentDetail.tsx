@@ -1819,11 +1819,14 @@ const PaymentDetail = () => {
 
           <TooltipProvider delayDuration={150}>
             {(() => {
-              const sq = itemSearch.trim().toLowerCase();
+              const sqItem = itemSearch.trim().toLowerCase();
+              const sqCompany = companySearch.trim().toLowerCase();
+              
               const itemMatches = (it: PaymentItemRowType) => {
-                const sq = itemSearch.trim().toLowerCase();
-                const matchesSearch = !sq || [
-                  it.company_name,
+                const matchesCompany = !sqCompany || (it.company_name ?? "").toLowerCase().includes(sqCompany);
+                if (!matchesCompany) return false;
+
+                const matchesSearch = !sqItem || [
                   it.doctor_name,
                   it.doctor_role,
                   it.attendance_number,
@@ -1837,7 +1840,7 @@ const PaymentDetail = () => {
                   .filter(Boolean)
                   .join(" \u2022 ")
                   .toLowerCase()
-                  .includes(sq);
+                  .includes(sqItem);
 
                 if (!matchesSearch) return false;
 
