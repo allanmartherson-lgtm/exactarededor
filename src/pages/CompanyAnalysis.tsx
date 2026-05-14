@@ -193,6 +193,7 @@ export default function CompanyAnalysis() {
     profiles,
     assignments,
     load,
+    setItems,
   } = usePaymentDetailData(id, { groupId });
 
   const handleExport = async (format: "pdf" | "excel") => {
