@@ -1762,10 +1762,11 @@ const PaymentDetail = () => {
                 variant="link" 
                 size="sm" 
                 className="h-auto p-0 text-xs ml-auto" 
-                onClick={() => {
-                  setCriticalFilter("all");
-                  setItemSearch("");
-                }}
+                 onClick={() => {
+                   setCriticalFilter("all");
+                   setItemSearch("");
+                   setCompanySearch("");
+                 }}
               >
                 Limpar filtros
               </Button>
