@@ -7,6 +7,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzePaymentItems,
+  extendSectorMap,
   type ItemInput,
   type RuleInput,
   type PaymentContext,
@@ -57,6 +58,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    // Hidrata aliases de setor a partir do cadastro (tabela `sectors`)
+    try {
+      const { data: secs } = await supabase.from("sectors").select("slug,name,aliases").eq("active", true);
+      if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
+    } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
 
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase

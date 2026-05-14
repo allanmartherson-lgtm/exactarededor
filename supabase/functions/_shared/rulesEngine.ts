@@ -357,23 +357,54 @@ export const onlyDigits = (s: string | null | undefined): string => (s ?? "").re
 export const normName = (s: string | null | undefined): string =>
   (String(s ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
+// Mapeamento estático de fallback. Fonte de verdade real é a tabela `public.sectors`
+// (slug + aliases) — quando o motor é chamado pelo edge function, a normalização
+// já vem feita via `normalize_sector()` no banco. Este map serve como rede de segurança
+// para casos sem cadastro e para os testes unitários.
 export const SECTOR_MAP: Record<string, string> = {
+  // Centro Cirúrgico
   "cirurgia": "cirurgia",
   "centro cirurgico": "cirurgia",
+  "centro cirurgico (dfstar)": "cirurgia",
   "cc": "cirurgia",
+  "bloco cirurgico": "cirurgia",
+  "sala cirurgica": "cirurgia",
+  "unidade cirurgica": "cirurgia",
+  "unidade": "cirurgia",
+  // Hemodinâmica
   "hemodinamica": "hemodinamica",
+  "hemodinamica (dfstar)": "hemodinamica",
   "hemodin": "hemodinamica",
+  "sala de hemodinamica": "hemodinamica",
+  // SADT Endoscopia
+  "sadt endoscopia": "sadt_endoscopia",
+  "sadt endoscopia (dfstar)": "sadt_endoscopia",
+  "sadt": "sadt_endoscopia",
+  "endoscopia": "sadt_endoscopia",
+  "endo": "sadt_endoscopia",
+  // Outros tipos (mantidos para heurísticas legadas)
   "parecer": "parecer",
   "visita": "visita",
   "consulta": "consulta",
   "procedimento": "procedimento",
   "ambulatorial": "procedimento",
-  "sadt": "cirurgia",
-  "endoscopia": "cirurgia",
   "bioimagem": "procedimento",
   "diagnostico": "procedimento",
-  "unidade": "cirurgia",
 };
+
+/** Mescla aliases dinâmicos vindos do banco (tabela `sectors`). Chamado pelo analyze-payment. */
+export function extendSectorMap(entries: Array<{ slug: string; aliases: string[]; name?: string }>) {
+  for (const e of entries) {
+    const slug = (e.slug || "").trim();
+    if (!slug) continue;
+    SECTOR_MAP[normName(slug)] = slug;
+    if (e.name) SECTOR_MAP[normName(e.name)] = slug;
+    for (const a of e.aliases || []) {
+      const k = normName(a);
+      if (k) SECTOR_MAP[k] = slug;
+    }
+  }
+}
 
 export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
   // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
