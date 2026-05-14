@@ -72,7 +72,7 @@ export type RuleLite = {
  * - Expõe os setters para que o componente continue podendo aplicar otimismo
  *   local em ações pontuais (ex.: limpar drafts ao salvar).
  */
-export function usePaymentDetailData(id: string | undefined) {
+export function usePaymentDetailData(id: string | undefined, options?: { groupId?: string }) {
   const [payment, setPayment] = useState<PaymentRow | null>(null);
   const [items, setItems] = useState<PaymentItemRow[]>([]);
   const [obs, setObs] = useState<ObservationRow[]>([]);
@@ -108,7 +108,16 @@ export function usePaymentDetailData(id: string | undefined) {
       { data: as },
     ] = await Promise.all([
       supabase.from("payments").select("*").eq("id", id).abortSignal(ac.signal).single(),
-      supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").limit(5000).abortSignal(ac.signal),
+      (async () => {
+        if (options?.groupId) {
+          // Busca o nome da empresa do grupo primeiro para filtrar itens
+          const { data: g } = await supabase.from("payment_company_groups").select("company_name").eq("id", options.groupId).single();
+          if (g?.company_name) {
+            return supabase.from("payment_items").select("*").eq("payment_id", id).eq("company_name", g.company_name).order("created_at").limit(5000).abortSignal(ac.signal);
+          }
+        }
+        return supabase.from("payment_items").select("*").eq("payment_id", id).order("created_at").limit(5000).abortSignal(ac.signal);
+      })(),
       supabase
         .from("payment_observations")
         .select("*")

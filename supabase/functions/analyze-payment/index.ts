@@ -610,7 +610,7 @@ serve(async (req) => {
 
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
-    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 100);
+    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
@@ -657,23 +657,12 @@ serve(async (req) => {
           history.map((h: any) => `- (${h.author_type}) ${h.message}`).join("\n");
       })();
 
-      const systemPrompt = `Você é um auditor financeiro sênior de pagamentos médicos.
-O MOTOR DETERMINÍSTICO já decidiu a regra vencedora e o valor esperado. Sua missão crítica é REVISAR essa decisão e apontar falhas de lógica.
-FOCO ESPECIAL EM "VÍNCULOS DIVERGENTES":
-- O médico realmente pertence a essa empresa?
-- O procedimento faz sentido para a especialidade ou para o contexto do atendimento?
-- Há suspeita de que a regra selecionada pelo motor seja genérica demais para um caso específico?
-- Identifique duplicidades de cobrança entre itens do mesmo atendimento.
-
-      IMPORTANTE: Se o motor aplicou uma regra porque o código do procedimento está explicitamente listado nela (whitelist), confie nessa decisão a menos que haja uma incoerência gritante (ex: cobrança duplicada ou médico de especialidade totalmente diferente). Se a regra vencedora foi por "Setor", "Empresa" ou "Médico" sem restrição de código, seja mais criterioso na revisão.
-
-      REGRA DE PROJETO: setor é filtro opcional do cálculo, não obrigação cadastral. Nunca diga para "cadastrar setor" nem para criar regra por setor quando o cálculo foi deixado sem filtro de setor. Em casos sem_regra, explique apenas qual filtro operacional impediu o cálculo (código TUSS, função, convênio, via de acesso ou tabela vinculada), se isso estiver claro nos dados do motor.
-
-      SUA FUNÇÃO:
-      1) Explicar de forma assertiva por que o item gerou alerta/reprovação.
-      2) Adicionar alertas EXTRAS (extra_alerts) sempre que notar inconsistências de vínculos, duplicidades ou suspeitas de erro que o motor determinístico (limitado a códigos) não pegou.
-      3) Seja rigoroso, mas evite falsos positivos se a regra for específica para o código.
-
+      const systemPrompt = `Você é um auditor de pagamentos médicos. 
+MOTOR DETERMINÍSTICO já decidiu a regra e o valor. Sua missão é APONTAR FALHAS DE LÓGICA ou VÍNCULOS DIVERGENTES.
+- O médico pertence à empresa? 
+- O procedimento faz sentido para o contexto?
+- Identifique duplicidades de cobrança no mesmo atendimento.
+- Setor é filtro OPCIONAL. Nunca peça para cadastrar setor se a regra não o exige.
 NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
 

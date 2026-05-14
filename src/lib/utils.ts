@@ -76,9 +76,10 @@ export const normalizeNumericValue = (v: unknown): { value: number; invalid: boo
  */
 export function normalizeString(s: string | null | undefined): string {
   if (!s) return "";
-  return s
-    .trim()
-    .toLowerCase()
+  return String(s)
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
