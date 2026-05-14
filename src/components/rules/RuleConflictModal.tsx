@@ -205,7 +205,7 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
               >
                 <div className="flex items-center gap-2 pb-2 border-b-[0.5px] border-neutral-200">
                   <span style={{ color: accent }}><IconFor type={p.type} /></span>
-                  <span className="text-sm font-medium text-neutral-900">{titleFor(p)}</span>
+                  <span className="text-sm font-medium text-neutral-900">{titleFor(p, companyNames)}</span>
                 </div>
                 <div className="pt-2 text-xs text-neutral-700 space-y-1">
                   {"existing_rule_name" in p && (
