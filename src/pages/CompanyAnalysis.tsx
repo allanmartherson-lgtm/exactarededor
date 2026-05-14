@@ -960,33 +960,38 @@ export default function CompanyAnalysis() {
     setBusy(true);
     console.log("handleDeletePayment called for id:", id);
     try {
-      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
-      const { error: err1 } = await supabase.from("payment_items").delete().eq("payment_id", id);
-      if (err1) throw err1;
+      // 1. Deletar observações
+      await supabase.from("payment_observations").delete().eq("payment_id", id);
       
-      const { error: err2 } = await supabase.from("payment_observations").delete().eq("payment_id", id);
-      if (err2) throw err2;
+      // 2. Deletar atribuições (usando unknown cast pois a tabela pode ser nova ou não estar no tipo principal)
+      await (supabase.from as any)("payment_assignments").delete().eq("payment_id", id);
       
-      const { error: err3 } = await supabase.from("payment_company_groups").delete().eq("id", group.id);
-      if (err3) throw err3;
+      // 3. Deletar itens
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      
+      // 4. Deletar o grupo atual (para garantir que ele sumiu antes de checar outros)
+      await supabase.from("payment_company_groups").delete().eq("id", group.id);
 
-      // Se não houver mais grupos para este pagamento, deletamos o pagamento
+      // 5. Checar se restam outros grupos
       const { data: otherGroups } = await supabase
         .from("payment_company_groups")
         .select("id")
-        .eq("payment_id", id)
-        .neq("id", group.id);
+        .eq("payment_id", id);
       
       if (!otherGroups || otherGroups.length === 0) {
-        const { error: err4 } = await supabase.from("payments").delete().eq("id", id);
-        if (err4) throw err4;
+        // 6. Deletar o pagamento se for o último grupo
+        const { error: pErr } = await supabase.from("payments").delete().eq("id", id);
+        if (pErr) throw pErr;
+        toast.success("Lote excluído com sucesso");
+        navigate("/pagamentos", { replace: true });
+      } else {
+        // Restam outros grupos, volta para a visão do lote
+        toast.success("Empresa excluída do lote");
+        navigate(`/pagamentos/${id}`, { replace: true });
       }
-      
-      toast.success("Lote excluído");
-      navigate("/pagamentos", { replace: true });
     } catch (e: any) {
       console.error("handleDeletePayment error:", e);
-      toast.error("Erro ao excluir", { description: e.message });
+      toast.error("Erro ao excluir", { description: e.message || "Erro desconhecido" });
     } finally {
       setBusy(false);
     }
@@ -1085,7 +1090,7 @@ export default function CompanyAnalysis() {
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
-  const canDelete = isAdmin || (isAnalista && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(payment.status as string));
+  const canDelete = isAdmin || (isAnalistaRole && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(payment.status as string));
   
   console.log("Render Info:", {
     id,
@@ -1227,13 +1232,14 @@ export default function CompanyAnalysis() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
                   <AlertDialogAction 
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.preventDefault();
-                      handleDeletePayment();
+                      await handleDeletePayment();
                     }} 
+                    disabled={busy}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Excluir definitivamente
+                    {busy ? "Excluindo..." : "Excluir definitivamente"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
