@@ -1404,6 +1404,7 @@ export interface ExpectedCalc {
   steps?: { label: string; value: number }[];
   /** Sub-Onda 2C — 2+ cálculos da mesma regra retornaram VÁLIDO. Bloqueia o item. */
   calc_duplicity?: CalcDuplicityInfo;
+  inferred_sector?: string | null;
 }
 
 /**
