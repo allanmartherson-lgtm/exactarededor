@@ -502,7 +502,7 @@ function collectCalcCodes(r: RuleInput): {
 
   for (const c of calcs) {
     const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes : [];
-    const keywords = Array.isArray((c as any).procedure_keywords) ? (c as any).procedure_keywords : [];
+    const keywords: string[] = Array.isArray((c as any).procedure_keywords) ? (c as any).procedure_keywords.map(String) : [];
     const mode = c.code_match_mode ?? "whitelist";
     
     if (mode === "any" || (codes.length === 0 && keywords.length === 0)) {
@@ -1224,8 +1224,8 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   }
 
   // Novo: Suporte a palavras-chave no item de cálculo
-  const keywords = Array.isArray((c as any).procedure_keywords) 
-    ? (c as any).procedure_keywords.filter(Boolean) 
+  const keywords: string[] = Array.isArray((c as any).procedure_keywords) 
+    ? (c as any).procedure_keywords.filter(Boolean).map(String) 
     : [];
   if (keywords.length > 0) {
     const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
