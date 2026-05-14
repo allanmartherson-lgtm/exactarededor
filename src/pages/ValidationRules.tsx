@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -146,21 +146,46 @@ export default function ValidationRules() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [companies, setCompanies] = useState<Record<string, CompanyOption>>({});
+  const [allCompaniesMap, setAllCompaniesMap] = useState<Record<string, string>>({});
+  const [filterText, setFilterText] = useState("");
   const [companyPicker, setCompanyPicker] = useState<CompanyOption | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
 
   const load = async () => {
     setLoading(true);
-    const [{ data: vr }, { data: ag }] = await Promise.all([
+    const [{ data: vr }, { data: ag }, { data: co }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
+      supabase.from("companies").select("id, name"),
     ]);
     setRules(vr ?? []);
     setGroups(ag ?? []);
+    
+    if (co) {
+      const map: Record<string, string> = {};
+      co.forEach(c => map[c.id] = c.name);
+      setAllCompaniesMap(map);
+    }
+    
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  const filteredRules = useMemo(() => {
+    const q = filterText.toLowerCase().trim();
+    if (!q) return rules;
+    return rules.filter(r => {
+      const name = r.name.toLowerCase();
+      const desc = (r.description ?? "").toLowerCase();
+      const kind = KIND_LABELS[r.kind].toLowerCase();
+      
+      // Busca pelo nome das empresas vinculadas (PJ)
+      const companyNames = (r.company_ids as string[] ?? []).map(id => allCompaniesMap[id]?.toLowerCase() ?? "").join(" ");
+      
+      return name.includes(q) || desc.includes(q) || kind.includes(q) || companyNames.includes(q);
+    });
+  }, [rules, filterText, allCompaniesMap]);
 
   const openNew = () => { setForm(emptyForm()); setCompanyPicker(null); setOpen(true); };
   const openEdit = (r: ValidationRule) => {
