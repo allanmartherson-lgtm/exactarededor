@@ -559,7 +559,8 @@ export function ItemsDataGrid({
               {colVis.via && <col style={{ width: 140 }} />}
               <col style={{ width: 96 }} />
               <col style={{ width: 240 }} />
-              {colVis.setor && <col style={{ width: 140 }} />}
+              {colVis.setor_lido && <col style={{ width: 140 }} />}
+              {colVis.setor_inferido && <col style={{ width: 140 }} />}
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
@@ -578,7 +579,8 @@ export function ItemsDataGrid({
                 {colVis.via && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Via</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>TUSS</th>
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Procedimento</th>
-                {colVis.setor && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor</th>}
+                {colVis.setor_lido && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Planilha)</th>}
+                {colVis.setor_inferido && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Setor (Sistema)</th>}
                 <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Médico</th>
                 {colVis.funcao && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Função</th>}
                 {colVis.regra && <th className={cn(headPad, TEXT_LABEL, "text-left border-b bg-muted whitespace-nowrap")}>Regra</th>}
@@ -852,8 +854,8 @@ function RowMain({
           <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{it.sector ?? "—"}</td>
         )}
         {colVis.setor_inferido && (
-          <td className={cn(cell, TEXT_META)} title={it.ai_findings?.engine?.inferred_sector ?? ""}>
-            {it.ai_findings?.engine?.inferred_sector ?? "—"}
+          <td className={cn(cell, TEXT_META)} title={(it.ai_findings?.engine as any)?.inferred_sector ?? ""}>
+            {(it.ai_findings?.engine as any)?.inferred_sector ?? "—"}
           </td>
         )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
