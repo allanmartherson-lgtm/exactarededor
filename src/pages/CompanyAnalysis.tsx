@@ -950,6 +950,7 @@ export default function CompanyAnalysis() {
     } finally {
       setBusy(false);
     }
+  };
 
   // Transições de fluxo do validador/diretor para esta empresa.
   const transitionGroupStatus = async (
