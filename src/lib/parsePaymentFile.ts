@@ -37,6 +37,7 @@ export interface ParsedRow {
   quantity: number | null;
   procedure_date: string | null;
   patient_name: string | null;
+  sector: string | null;
   raw_data: Record<string, unknown>;
   tipo_linha: LineType;
   line_issues: LineIssue[];
@@ -249,6 +250,7 @@ export const parsePaymentFile = async (
       quantity: toNumber(pick(row, ["qtd","quantidade"])) || null,
       procedure_date: excelDateToISO(pick(row, ["data"])),
       patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
+      sector: toStr(pick(row, ["setor","unidade","departamento","servico","serviço"])),
       raw_data: row,
     };
     const tipo_linha = classifyLine(base, paymentKind || null);
