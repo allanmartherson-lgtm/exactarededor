@@ -13,11 +13,14 @@
  * Estética DF Star: light-only, weight 400/500, bordas 0.5px, ícones
  * outline. Não usar dark mode.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle, Calendar, User, Building2, Star, Hand } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type Problem =
   | {
@@ -78,12 +81,15 @@ function fmtDate(d: string | null | undefined): string {
   return `${day}/${m}/${y}`;
 }
 
-function titleFor(p: Problem): string {
+function titleFor(p: Problem, nameMap: Record<string, string>): string {
   switch (p.type) {
     case "doctor_already_bound":
       return `Médico CRM ${p.doctor_crm ?? "—"} já vinculado`;
-    case "company_already_bound":
-      return `Empresa ${p.company_key ?? "—"} já vinculada`;
+    case "company_already_bound": {
+      const k = p.company_key ?? "";
+      const label = nameMap[k] ?? k ?? "—";
+      return `Empresa ${label} já vinculada`;
+    }
     case "validity_overlap":
       return "Sobreposição de vigência";
     case "master_already_exists":
@@ -136,6 +142,26 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
     return Array.from(map.values());
   }, [problems]);
 
+  // Resolve UUIDs de empresa para nome legível
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      problems
+        .filter((p): p is Extract<Problem, { type: "company_already_bound" }> => p.type === "company_already_bound")
+        .map((p) => p.company_key ?? "")
+        .filter((k) => UUID_RE.test(k)),
+    ));
+    if (ids.length === 0) return;
+    (async () => {
+      const { data } = await supabase.from("companies").select("id,name,document").in("id", ids);
+      const map: Record<string, string> = {};
+      for (const c of (data ?? []) as { id: string; name: string; document: string | null }[]) {
+        map[c.id] = c.document ? `${c.name} · ${c.document}` : c.name;
+      }
+      setCompanyNames(map);
+    })();
+  }, [problems]);
+
   const canApply = !hasCalcOverlap && !submitting;
 
   const handleApply = async () => {
@@ -179,7 +205,7 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
               >
                 <div className="flex items-center gap-2 pb-2 border-b-[0.5px] border-neutral-200">
                   <span style={{ color: accent }}><IconFor type={p.type} /></span>
-                  <span className="text-sm font-medium text-neutral-900">{titleFor(p)}</span>
+                  <span className="text-sm font-medium text-neutral-900">{titleFor(p, companyNames)}</span>
                 </div>
                 <div className="pt-2 text-xs text-neutral-700 space-y-1">
                   {"existing_rule_name" in p && (
