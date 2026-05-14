@@ -1797,6 +1797,39 @@ export type Database = {
           },
         ]
       }
+      sectors: {
+        Row: {
+          active: boolean
+          aliases: string[]
+          created_at: string
+          name: string
+          notes: string | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          aliases?: string[]
+          created_at?: string
+          name: string
+          notes?: string | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          aliases?: string[]
+          created_at?: string
+          name?: string
+          notes?: string | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sla_settings: {
         Row: {
           active: boolean
@@ -2090,6 +2123,7 @@ export type Database = {
         Returns: string
       }
       norm_for_hash: { Args: { s: string }; Returns: string }
+      normalize_sector: { Args: { input: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
       recompute_payment_status_from_groups: {
         Args: { _payment_id: string }
@@ -2108,6 +2142,7 @@ export type Database = {
         Returns: string
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      unaccent: { Args: { "": string }; Returns: string }
       validate_rule_save: {
         Args: {
           _group_company_links: Json
@@ -2195,6 +2230,7 @@ export type Database = {
         | "procedimento"
         | "consulta"
         | "outro"
+        | "sadt_endoscopia"
       rule_severity: "info" | "aviso" | "bloqueio"
       rule_target_type: "medico" | "empresa"
       threshold_type: "percentual" | "absoluto"
@@ -2411,6 +2447,7 @@ export const Constants = {
         "procedimento",
         "consulta",
         "outro",
+        "sadt_endoscopia",
       ],
       rule_severity: ["info", "aviso", "bloqueio"],
       rule_target_type: ["medico", "empresa"],
