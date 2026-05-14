@@ -663,7 +663,7 @@ MOTOR DETERMINÍSTICO já decidiu a regra e o valor. Sua missão é APONTAR FALH
 - O procedimento faz sentido para o contexto?
 - Identifique duplicidades de cobrança no mesmo atendimento.
 - Setor é filtro OPCIONAL. Nunca peça para cadastrar setor se a regra não o exige.
-NUNCA mude status ou valores. Sua saída auxilia a decisão humana.`;
+NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
 
       const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
