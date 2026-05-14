@@ -1131,10 +1131,9 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // ---- Filtros restritivos por cálculo ----
   // Códigos de procedimento (whitelist/blacklist/any)
   // Convenção pós-refactor: lista vazia = sem filtro de código (fallback).
-  // Quando o usuário quer restringir, a UI grava `code_match_mode = "whitelist"`
-  // E preenche `procedure_codes`. A UI normaliza para "any" quando a lista está vazia,
-  // garantindo que não exista whitelist sem códigos.
-  const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes.filter(Boolean) : [];
+  const codes = Array.isArray(c.procedure_codes) 
+    ? c.procedure_codes.map(c => String(c).trim()).filter(Boolean) 
+    : [];
   const codeMode = (c.code_match_mode ?? "any") as "whitelist" | "blacklist" | "any";
   if (codeMode !== "any" && codes.length > 0) {
     const ic = (item.procedure_code ?? "").trim();
@@ -1164,9 +1163,13 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
   if (cSectors.length > 0) {
     const itemSector = inferItemSector(item);
-    const normSectors = cSectors.map((s) => {
-      const n = normName(String(s));
-      return SECTOR_MAP[n] || n;
+    const normSectors = cSectors.flatMap((s) => {
+      // Divide por espaços ou vírgulas caso o usuário tenha colocado múltiplos setores em um único item do array
+      const parts = String(s).split(/[\s,/;]+/).filter(Boolean);
+      return parts.map(p => {
+        const n = normName(p);
+        return SECTOR_MAP[n] || n;
+      });
     });
     const normItemSector = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
     
