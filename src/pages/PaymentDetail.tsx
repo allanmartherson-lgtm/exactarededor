@@ -396,6 +396,8 @@ const PaymentDetail = () => {
           total_companies: 1,
           processed_companies: 0,
           status: "em_andamento",
+          company_list: [g.company_name],
+          total_items: g.items_count || 0,
         })
         .select()
         .single();
