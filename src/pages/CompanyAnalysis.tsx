@@ -1232,10 +1232,7 @@ export default function CompanyAnalysis() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
                   <AlertDialogAction 
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      await handleDeletePayment();
-                    }} 
+                    onClick={handleDeletePayment} 
                     disabled={busy}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
