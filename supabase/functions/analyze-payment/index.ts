@@ -102,6 +102,13 @@ serve(async (req) => {
     ]);
 
     const configs = (configRes.data ?? []) as any[];
+    if (rulesRes.error) {
+      console.error("[analyze-payment] rules query error:", rulesRes.error);
+      throw new Error(`Falha ao carregar regras ativas: ${rulesRes.error.message}`);
+    }
+    if (configRes.error) {
+      console.warn("[analyze-payment] system_configurations query warning:", configRes.error);
+    }
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
 
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
@@ -140,6 +147,9 @@ serve(async (req) => {
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
+      if (calcRows == null) {
+        console.warn("[analyze-payment] nenhum cálculo retornado para regras ativas; verifique rule_calculations se todas as regras ficarem sem cálculo.");
+      }
       const byRule: Record<string, any[]> = {};
       for (const c of (calcRows ?? []) as any[]) {
         (byRule[c.rule_id as string] ||= []).push(c);
