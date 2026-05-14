@@ -1968,12 +1968,21 @@ function findFallbackGeneralRule(
 ): { rule: RuleInput; priority: RuleMatchPriority } | null {
   // Filtra apenas regras master (gerais)
   const masterRules = rules.filter(r => r.scope === "master" && r.calculation_type !== "exclusao");
+
+  const hasApplicableCalculation = (r: RuleInput): boolean => {
+    const calcs = Array.isArray(r.calculations) ? r.calculations : [];
+    if (calcs.length === 0) return true;
+    return calcs.some((c) => calcItemMatches(c, item).ok);
+  };
   
   // Tenta encontrar uma regra master que não tenha nenhuma restrição de via
-  // e que aceite o convênio do item.
+  // e que aceite o convênio do item. Também respeita filtros operacionais
+  // declarados no item de cálculo (setor, função, código etc.), para não usar
+  // uma regra geral de um setor como fallback de outro.
   const genericMaster = masterRules.find(r => 
     (!r.allowed_access_routes || r.allowed_access_routes.length === 0) &&
-    ruleAcceptsItemAgreement(r, item)
+    ruleAcceptsItemAgreement(r, item) &&
+    hasApplicableCalculation(r)
   );
 
   if (genericMaster) {
