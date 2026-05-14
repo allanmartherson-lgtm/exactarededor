@@ -886,7 +886,7 @@ export function selectWinningRule(
   const doctorRules  = filterBySpecialty(rules.filter((r) => targetsDoctor(r, item)), "medico");
   const companyRules = filterBySpecialty(rules.filter((r) => targetsCompany(r, item)), "empresa");
   const groupRules   = filterBySpecialty(rules.filter((r) => targetsGroup(r, item)), "grupo");
-  const sectorRules   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length > 0 && intersectsAll(ruleSectors(r), [itemSector])), "setor");
+  const sectorRules   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length > 0 && intersectsAll(ruleSectors(r).map(s => SECTOR_MAP[normName(s)] || normName(s)), [itemSectorNorm])), "setor");
   const hemoMaster    = isHemo ? filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica")), "setor_hemodinamica_master") : [];
   const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length === 0), "setor_master_geral");
 
@@ -929,6 +929,7 @@ export function selectWinningRule(
   };
 
   const bucketProcessed = new Set<string>();
+  const itemSectorNorm = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
 
   for (const lvl of levels) {
     if (lvl.enabled === false) continue;
@@ -1255,16 +1256,15 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   if (cSectors.length > 0) {
     const itemSector = inferItemSector(item);
     const normSectors = cSectors.flatMap((s) => {
-      // Divide por espaços ou vírgulas caso o usuário tenha colocado múltiplos setores em um único item do array
       const parts = String(s).split(/[\s,/;]+/).filter(Boolean);
       return parts.map(p => {
         const n = normName(p);
         return SECTOR_MAP[n] || n;
       });
     });
-    const normItemSector = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
+    const itemSectorNorm = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
     
-    if (!normSectors.includes(normItemSector)) {
+    if (!normSectors.includes(itemSectorNorm)) {
       return { ok: false, reason: "setor" };
     }
   }
