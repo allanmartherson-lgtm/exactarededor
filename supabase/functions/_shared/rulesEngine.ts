@@ -351,11 +351,11 @@ export type MainReason =
   | "ambiguo";
 
 // ---------- helpers ----------
-const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
-const normName = (s: string | null | undefined): string =>
+export const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
+export const normName = (s: string | null | undefined): string =>
   (String(s ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-const SECTOR_MAP: Record<string, string> = {
+export const SECTOR_MAP: Record<string, string> = {
   "cirurgia": "cirurgia",
   "centro cirurgico": "cirurgia",
   "cc": "cirurgia",
@@ -798,9 +798,9 @@ export function selectWinningRule(
   const doctorRules  = filterBySpecialty(rules.filter((r) => targetsDoctor(r, item)), "medico");
   const companyRules = filterBySpecialty(rules.filter((r) => targetsCompany(r, item)), "empresa");
   const groupRules   = filterBySpecialty(rules.filter((r) => targetsGroup(r, item)), "grupo");
-    const sectorRules  = [];
-    const hemoMaster   = [];
-    const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master"), "setor_master_geral");
+  const sectorRules   = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length > 0 && intersectsAll(ruleSectors(r), [itemSector])), "setor");
+  const hemoMaster    = isHemo ? filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).includes("hemodinamica")), "setor_hemodinamica_master") : [];
+  const generalMaster = filterBySpecialty(rules.filter((r) => r.scope === "master" && ruleSectors(r).length === 0), "setor_master_geral");
 
   const levels: Array<{
     bucket: RuleInput[];
@@ -811,6 +811,8 @@ export function selectWinningRule(
     { bucket: doctorRules,    withCodePriority: "medico_codigo",  withoutCodePriority: "medico" },
     { bucket: companyRules,   withCodePriority: "empresa_codigo", withoutCodePriority: "empresa" },
     { bucket: groupRules,     withCodePriority: "grupo_codigo",   withoutCodePriority: "grupo" },
+    { bucket: sectorRules,    withCodePriority: "setor_codigo",   withoutCodePriority: "setor" },
+    { bucket: hemoMaster,     withCodePriority: "setor_codigo",   withoutCodePriority: "setor_hemodinamica_master", enabled: isHemo },
     { bucket: generalMaster,  withCodePriority: "setor_codigo",   withoutCodePriority: "setor_master_geral" },
   ];
 
@@ -1148,8 +1150,14 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // Setores
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
   if (cSectors.length > 0) {
-    const itemSector = (item as any).sector ?? null;
-    if (!itemSector || !cSectors.map((s) => normName(String(s))).includes(normName(String(itemSector)))) {
+    const itemSector = inferItemSector(item);
+    const normSectors = cSectors.map((s) => {
+      const n = normName(String(s));
+      return SECTOR_MAP[n] || n;
+    });
+    const normItemSector = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
+    
+    if (!normSectors.includes(normItemSector)) {
       return { ok: false, reason: "setor" };
     }
   }
