@@ -172,6 +172,7 @@ const Payments = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
