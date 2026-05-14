@@ -931,6 +931,26 @@ export default function CompanyAnalysis() {
     }
   };
 
+  const handleDeletePayment = async () => {
+    if (!id) return;
+    setBusy(true);
+    try {
+      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      const { error } = await supabase.from("payments").delete().eq("id", id);
+      
+      if (error) throw error;
+      
+      toast.success("Lote excluído");
+      navigate("/pagamentos", { replace: true });
+    } catch (e: any) {
+      toast.error("Erro ao excluir", { description: e.message });
+    } finally {
+      setBusy(false);
+    }
+
   // Transições de fluxo do validador/diretor para esta empresa.
   const transitionGroupStatus = async (
     nextStatus: PaymentStatus,
