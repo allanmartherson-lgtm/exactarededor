@@ -12,7 +12,6 @@ import {
   Settings,
   ScrollText,
   Bell,
-  
   Timer,
   BadgeDollarSign,
   Stethoscope,
@@ -20,8 +19,6 @@ import {
   AlertTriangle,
   FlaskConical,
   Layers,
-  Settings,
-  Bell,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
