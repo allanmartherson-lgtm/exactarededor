@@ -539,15 +539,34 @@ export default function ValidationRules() {
         }
       />
 
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-lg border border-border">
+        <div className="flex items-center gap-2 text-muted-foreground mr-2">
+          <Filter className="h-4 w-4" />
+          <span className="text-xs font-medium uppercase tracking-wider">Filtros</span>
+        </div>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input 
+            placeholder="Buscar por nome, PJ (empresa) ou tipo…" 
+            className="pl-9 bg-background"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground ml-auto">
+          {filteredRules.length} de {rules.length} regra{rules.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      <div className="mt-4 space-y-2">
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
-        ) : rules.length === 0 ? (
+        ) : filteredRules.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
-            Nenhuma validação cadastrada. Comece criando duplicidade exata e por atendimento.
+            {filterText ? "Nenhuma validação encontrada para esta busca." : "Nenhuma validação cadastrada. Comece criando duplicidade exata e por atendimento."}
           </div>
         ) : (
-          rules.map((r) => (
+          filteredRules.map((r) => (
             <div key={r.id} className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
               <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -564,6 +583,15 @@ export default function ValidationRules() {
                   {r.require_justification && " · Justificativa obrigatória"}
                   {r.allows_authorized_exception && " · Permite exceção autorizada"}
                 </p>
+                {r.company_ids && (r.company_ids as string[]).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {(r.company_ids as string[]).map(id => (
+                      <Badge key={id} variant="secondary" className="text-[10px] py-0 px-1 font-normal opacity-80">
+                        {allCompaniesMap[id] || id.slice(0, 8)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
@@ -682,7 +710,7 @@ export default function ValidationRules() {
                     <div className="flex flex-wrap gap-1 mt-1">
                       {form.company_ids.map((id) => (
                         <Badge key={id} variant="outline" className="gap-1">
-                          {companies[id]?.name ?? id.slice(0, 8)}
+                          {allCompaniesMap[id] || id.slice(0, 8)}
                           <button onClick={() => setForm({ ...form, company_ids: form.company_ids.filter((x) => x !== id) })} className="ml-1">×</button>
                         </Badge>
                       ))}
@@ -691,7 +719,6 @@ export default function ValidationRules() {
                       <CompanyCombobox value={companyPicker} onChange={(c) => {
                         if (!c) return;
                         if (!form.company_ids.includes(c.id)) {
-                          setCompanies({ ...companies, [c.id]: c });
                           setForm({ ...form, company_ids: [...form.company_ids, c.id] });
                         }
                         setCompanyPicker(null);
