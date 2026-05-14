@@ -205,15 +205,22 @@ const Payments = () => {
   };
 
   const deletePayment = async (id: string) => {
-    if (!confirm("Deseja realmente excluir este lote e todos os seus itens? Esta ação não pode ser desfeita.")) return;
     try {
-      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
-      await supabase.from("payment_items").delete().eq("payment_id", id);
-      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      // Optimistic update
+      const previousRows = [...rows];
+      setRows(prev => prev.filter(r => r.id !== id));
+
       const { error } = await supabase.from("payments").delete().eq("id", id);
-      if (error) throw error;
+      
+      if (error) {
+        setRows(previousRows);
+        throw error;
+      }
+      
       toast.success("Lote excluído com sucesso.");
-      load();
+      // We don't necessarily need to call load() here if we trust the delete was successful
+      // and we have realtime, but calling it ensures ancillary data is also refreshed.
+      loadAncillaryData();
     } catch (e: any) {
       toast.error("Erro ao excluir lote: " + e.message);
     }
