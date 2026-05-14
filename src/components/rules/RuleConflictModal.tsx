@@ -142,6 +142,26 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
     return Array.from(map.values());
   }, [problems]);
 
+  // Resolve UUIDs de empresa para nome legível
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      problems
+        .filter((p): p is Extract<Problem, { type: "company_already_bound" }> => p.type === "company_already_bound")
+        .map((p) => p.company_key ?? "")
+        .filter((k) => UUID_RE.test(k)),
+    ));
+    if (ids.length === 0) return;
+    (async () => {
+      const { data } = await supabase.from("companies").select("id,name,document").in("id", ids);
+      const map: Record<string, string> = {};
+      for (const c of (data ?? []) as { id: string; name: string; document: string | null }[]) {
+        map[c.id] = c.document ? `${c.name} · ${c.document}` : c.name;
+      }
+      setCompanyNames(map);
+    })();
+  }, [problems]);
+
   const canApply = !hasCalcOverlap && !submitting;
 
   const handleApply = async () => {
