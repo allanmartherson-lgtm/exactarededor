@@ -351,11 +351,11 @@ export type MainReason =
   | "ambiguo";
 
 // ---------- helpers ----------
-const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
-const normName = (s: string | null | undefined): string =>
+export const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
+export const normName = (s: string | null | undefined): string =>
   (String(s ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-const SECTOR_MAP: Record<string, string> = {
+export const SECTOR_MAP: Record<string, string> = {
   "cirurgia": "cirurgia",
   "centro cirurgico": "cirurgia",
   "cc": "cirurgia",
@@ -1148,8 +1148,14 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   // Setores
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
   if (cSectors.length > 0) {
-    const itemSector = (item as any).sector ?? null;
-    if (!itemSector || !cSectors.map((s) => normName(String(s))).includes(normName(String(itemSector)))) {
+    const itemSector = inferItemSector(item);
+    const normSectors = cSectors.map((s) => {
+      const n = normName(String(s));
+      return SECTOR_MAP[n] || n;
+    });
+    const normItemSector = SECTOR_MAP[normName(itemSector)] || normName(itemSector);
+    
+    if (!normSectors.includes(normItemSector)) {
       return { ok: false, reason: "setor" };
     }
   }
