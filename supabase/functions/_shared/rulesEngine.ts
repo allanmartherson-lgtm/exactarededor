@@ -209,6 +209,8 @@ export interface RuleCalculationItem {
   sectors?: string[] | null;
   /** Especialidades aplicáveis (vazio = qualquer). */
   specialties?: string[] | null;
+  /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
+  procedure_keywords?: string[] | null;
 }
 
 export interface ItemInput {
@@ -436,49 +438,88 @@ function intersectsAll(a: string[] | null | undefined, b: string[] | null | unde
   return A.some((x) => B.includes(x));
 }
 
-/** Coleta de códigos a partir dos cálculos da regra (nível raiz é legado).
+/** Coleta de códigos e palavras-chave a partir dos cálculos da regra.
  *  - hasAnyCodes: existe pelo menos um cálculo com whitelist/blacklist de códigos
- *  - hasFallback: existe pelo menos um cálculo SEM restrição de código (aceita qualquer)
- *  - allCodes: união dos códigos declarados em modo whitelist nos cálculos
+ *  - hasAnyKeywords: existe pelo menos um cálculo com palavras-chave
+ *  - hasFallback: existe pelo menos um cálculo SEM restrição (aceita qualquer)
+ *  - allCodes/allKeywords: união dos códigos/palavras declarados nos cálculos
  */
-function collectCalcCodes(r: RuleInput): { hasAnyCodes: boolean; hasFallback: boolean; allCodes: string[] } {
+function collectCalcCodes(r: RuleInput): { 
+  hasAnyCodes: boolean; 
+  hasAnyKeywords: boolean;
+  hasFallback: boolean; 
+  allCodes: string[];
+  allKeywords: string[];
+} {
   const calcs = (Array.isArray((r as any).calculations) ? (r as any).calculations : []) as RuleCalculationItem[];
   let hasAnyCodes = false;
+  let hasAnyKeywords = false;
   let hasFallback = false;
   const allCodes = new Set<string>();
-  // Legado nível raiz (deve estar vazio após migração; mantido por defesa)
+  const allKeywords = new Set<string>();
+
+  // Legado nível raiz (mantido por defesa)
   if (Array.isArray(r.procedure_codes) && r.procedure_codes.length > 0) {
     hasAnyCodes = true;
     r.procedure_codes.forEach((c) => allCodes.add(c));
   }
+
   if (calcs.length === 0) {
-    if (!Array.isArray(r.procedure_codes) || r.procedure_codes.length === 0) hasFallback = true;
-    return { hasAnyCodes, hasFallback, allCodes: Array.from(allCodes) };
+    if (!hasAnyCodes) hasFallback = true;
+    return { hasAnyCodes, hasAnyKeywords, hasFallback, allCodes: Array.from(allCodes), allKeywords: [] };
   }
+
   for (const c of calcs) {
     const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes : [];
+    const keywords = Array.isArray((c as any).procedure_keywords) ? (c as any).procedure_keywords : [];
     const mode = c.code_match_mode ?? "whitelist";
-    if (codes.length === 0 || mode === "any") {
+    
+    if (mode === "any" || (codes.length === 0 && keywords.length === 0)) {
       hasFallback = true;
     } else {
-      hasAnyCodes = true;
-      if (mode !== "blacklist") codes.forEach((x) => allCodes.add(x));
+      if (codes.length > 0) {
+        hasAnyCodes = true;
+        if (mode !== "blacklist") codes.forEach((x) => allCodes.add(x));
+      }
+      if (keywords.length > 0) {
+        hasAnyKeywords = true;
+        keywords.forEach((x) => allKeywords.add(x));
+      }
     }
   }
-  return { hasAnyCodes, hasFallback, allCodes: Array.from(allCodes) };
+  return { 
+    hasAnyCodes, 
+    hasAnyKeywords,
+    hasFallback, 
+    allCodes: Array.from(allCodes), 
+    allKeywords: Array.from(allKeywords) 
+  };
 }
 
 function matchesProcedureCode(r: RuleInput, item: ItemInput): boolean {
   const info = collectCalcCodes(r);
-  if (!info.hasAnyCodes) return true;          // sem restrição → aceita
-  if (info.hasFallback) return true;           // tem cálculo "qualquer" → aceita
-  if (!item.procedure_code) return false;
-  return info.allCodes.includes(item.procedure_code);
+  if (info.hasFallback) return true;
+  if (!info.hasAnyCodes && !info.hasAnyKeywords) return true;
+
+  const itemCode = item.procedure_code;
+  const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
+
+  // 1) Match por código
+  if (info.hasAnyCodes && itemCode && info.allCodes.includes(itemCode)) return true;
+
+  // 2) Match por palavra-chave
+  if (info.hasAnyKeywords) {
+    for (const kw of info.allKeywords) {
+      if (itemText.includes(normName(kw))) return true;
+    }
+  }
+
+  return false;
 }
 
 function hasCodeRestriction(r: RuleInput): boolean {
   const info = collectCalcCodes(r);
-  return info.hasAnyCodes && !info.hasFallback;
+  return (info.hasAnyCodes || info.hasAnyKeywords) && !info.hasFallback;
 }
 
 function targetsDoctor(r: RuleInput, item: ItemInput): boolean {
