@@ -40,7 +40,7 @@ serve(async (req) => {
   let diagnostics = {
     total_items: 0,
     ai_processed_items: 0,
-    chunk_size: 50, // Limite configurado
+    chunk_size: 100, // Limite configurado
     execution_time_ms: 0,
     status: "processing"
   };
