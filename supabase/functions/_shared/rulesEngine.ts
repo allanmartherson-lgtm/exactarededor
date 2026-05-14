@@ -353,7 +353,7 @@ export type MainReason =
 // ---------- helpers ----------
 const onlyDigits = (s: string | null | undefined): string => (s ?? "").replace(/\D/g, "");
 const normName = (s: string | null | undefined): string =>
-  (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  (String(s ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 const SECTOR_MAP: Record<string, string> = {
   "cirurgia": "cirurgia",
@@ -532,7 +532,7 @@ function targetsGroup(r: RuleInput, item: ItemInput): boolean {
   // médicos do link estiver vazia, vale para toda a equipe da PJ.
   for (const link of links) {
     if (!link?.company_id) continue;
-    if (item.company_id !== link.company_id) continue;
+    if (String(item.company_id) !== String(link.company_id)) continue;
     const ds = link.doctors ?? [];
     if (ds.length === 0) return true;
     if (matchDoctorList(ds)) return true;
@@ -1149,7 +1149,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
   if (cSectors.length > 0) {
     const itemSector = (item as any).sector ?? null;
-    if (!itemSector || !cSectors.map((s) => normName(s)).includes(normName(itemSector))) {
+    if (!itemSector || !cSectors.map((s) => normName(String(s))).includes(normName(String(itemSector)))) {
       return { ok: false, reason: "setor" };
     }
   }
