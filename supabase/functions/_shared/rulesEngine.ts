@@ -361,36 +361,7 @@ export const normName = (s: string | null | undefined): string =>
 // (slug + aliases) — quando o motor é chamado pelo edge function, a normalização
 // já vem feita via `normalize_sector()` no banco. Este map serve como rede de segurança
 // para casos sem cadastro e para os testes unitários.
-export const SECTOR_MAP: Record<string, string> = {
-  // Centro Cirúrgico
-  "cirurgia": "cirurgia",
-  "centro cirurgico": "cirurgia",
-  "centro cirurgico (dfstar)": "cirurgia",
-  "cc": "cirurgia",
-  "bloco cirurgico": "cirurgia",
-  "sala cirurgica": "cirurgia",
-  "unidade cirurgica": "cirurgia",
-  "unidade": "cirurgia",
-  // Hemodinâmica
-  "hemodinamica": "hemodinamica",
-  "hemodinamica (dfstar)": "hemodinamica",
-  "hemodin": "hemodinamica",
-  "sala de hemodinamica": "hemodinamica",
-  // SADT Endoscopia
-  "sadt endoscopia": "sadt_endoscopia",
-  "sadt endoscopia (dfstar)": "sadt_endoscopia",
-  "sadt": "sadt_endoscopia",
-  "endoscopia": "sadt_endoscopia",
-  "endo": "sadt_endoscopia",
-  // Outros tipos (mantidos para heurísticas legadas)
-  "parecer": "parecer",
-  "visita": "visita",
-  "consulta": "consulta",
-  "procedimento": "procedimento",
-  "ambulatorial": "procedimento",
-  "bioimagem": "procedimento",
-  "diagnostico": "procedimento",
-};
+export const SECTOR_MAP: Record<string, string> = {};
 
 /** Mescla aliases dinâmicos vindos do banco (tabela `sectors`). Chamado pelo analyze-payment. */
 export function extendSectorMap(entries: Array<{ slug: string; aliases: string[]; name?: string }>) {
@@ -410,16 +381,15 @@ export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
   // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
   if (item.sector) {
     const s = normName(item.sector);
-    // "Outros" ou similar é ignorado para permitir que heurísticas/TUSS/Pagamento encontrem o setor real
     if (s !== "outro" && s !== "outros") {
-      // Caso o setor venha com nomes compostos como "Hemodinâmica Cirurgia" ou "CC/Hemodin"
-      // Tentamos encontrar o primeiro match válido no SECTOR_MAP
+      const resolved = SECTOR_MAP[s];
+      if (resolved) return resolved;
+
       const parts = s.split(/[\s,/;]+/).filter(Boolean);
       for (const p of parts) {
         if (SECTOR_MAP[p]) return SECTOR_MAP[p];
       }
       
-      if (SECTOR_MAP[s]) return SECTOR_MAP[s];
       for (const [k, v] of Object.entries(SECTOR_MAP)) {
         if (s.includes(k)) return v;
       }
