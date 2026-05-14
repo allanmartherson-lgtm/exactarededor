@@ -1159,6 +1159,30 @@ export default function CompanyAnalysis() {
               </AlertDialog>
             </>
           )}
+
+          {canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" disabled={busy}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Excluir lote
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação remove o lote <strong>{payment.reference}</strong>, todos os itens (incluindo esta empresa) e o histórico permanentemente. Não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Excluir definitivamente
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {canEdit && (
