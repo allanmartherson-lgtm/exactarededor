@@ -505,7 +505,10 @@ function matchesProcedureCode(r: RuleInput, item: ItemInput): boolean {
   const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
 
   // 1) Match por código
-  if (info.hasAnyCodes && itemCode && info.allCodes.includes(itemCode)) return true;
+  if (info.hasAnyCodes && itemCode && info.allCodes.some(pattern => {
+    if (pattern.endsWith("*")) return itemCode.startsWith(pattern.slice(0, -1));
+    return itemCode === pattern;
+  })) return true;
 
   // 2) Match por palavra-chave
   if (info.hasAnyKeywords) {
