@@ -81,8 +81,9 @@ export const RULE_SCOPE_LABELS: Record<RuleScope, string> = {
 };
 
 export const RULE_SECTOR_LABELS: Record<RuleSector, string> = {
-  cirurgia: "Cirurgia",
+  cirurgia: "Centro Cirúrgico",
   hemodinamica: "Hemodinâmica",
+  sadt_endoscopia: "SADT Endoscopia",
   parecer: "Parecer",
   visita: "Visita",
   procedimento: "Procedimento",
