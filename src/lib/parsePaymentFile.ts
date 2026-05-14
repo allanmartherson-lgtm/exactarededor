@@ -250,7 +250,7 @@ export const parsePaymentFile = async (
       quantity: toNumber(pick(row, ["qtd","quantidade"])) || null,
       procedure_date: excelDateToISO(pick(row, ["data"])),
       patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
-      sector: toStr(pick(row, ["setor","unidade","departamento","servico","serviço"])),
+      sector: toStr(pick(row, ["setor do pagamento", "setor", "unidade de atendimento", "unidade", "departamento", "servico", "serviço", "localizacao", "localização"])),
       raw_data: row,
     };
     const tipo_linha = classifyLine(base, paymentKind || null);
