@@ -556,6 +556,7 @@ export function ItemsDataGrid({
               {colVis.via && <col style={{ width: 140 }} />}
               <col style={{ width: 96 }} />
               <col style={{ width: 240 }} />
+              {colVis.setor && <col style={{ width: 140 }} />}
               <col style={{ width: 180 }} />
               {colVis.funcao && <col style={{ width: 120 }} />}
               {colVis.regra && <col style={{ width: 180 }} />}
