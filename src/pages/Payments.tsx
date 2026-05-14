@@ -448,6 +448,7 @@ const Payments = () => {
   const activeCount = rows.length - archivedCount;
 
   const filtered = useMemo(() => rows.filter((r) => {
+    if (deletingIds.has(r.id)) return false;
     // Arquivamento: por default escondemos lotes em estado terminal das
     // listagens de trabalho. Toggle "Ver arquivados" inverte o filtro.
     const isTerminal = TERMINAL_STATUSES.has(r.status);
