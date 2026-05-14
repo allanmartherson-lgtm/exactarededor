@@ -137,11 +137,17 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
             {job.status === "cancelado" && <XCircle className="h-4 w-4 text-destructive" />}
             <div className="flex flex-col">
               <span>
-                {job.status === "em_andamento" && `Analisando ${job.processed_companies}/${job.total_companies} empresas…`}
-                {job.status === "concluido" && `Análise concluída — ${job.total_companies} empresa(s) processada(s).`}
-                {job.status === "parcial" && `Análise parcial — ${failed} empresa(s) com erro.`}
-                {job.status === "cancelado" && `Análise interrompida — processadas ${job.processed_companies} de ${job.total_companies}.`}
-                {job.total_items && <span className="ml-1 text-xs text-muted-foreground font-normal">({job.total_items} itens no total)</span>}
+                {job.status === "em_andamento" && (
+                  <>
+                    Analisando {job.total_companies} empresas no filtro 
+                    <span className="mx-1 text-muted-foreground">·</span>
+                    {job.processed_companies} concluídas
+                  </>
+                )}
+                {job.status === "concluido" && `Análise concluída — ${job.total_companies} empresas processadas.`}
+                {job.status === "parcial" && `Análise parcial — ${failed} empresas com erro.`}
+                {job.status === "cancelado" && `Análise interrompida — ${job.processed_companies} de ${job.total_companies} concluídas.`}
+                {job.total_items && <span className="ml-1 text-xs text-muted-foreground font-normal">({job.total_items} itens)</span>}
               </span>
               {job.status === "em_andamento" && job.company_list && job.company_list.length > 0 && (
                 <span className="text-[10px] text-muted-foreground font-normal max-w-md truncate" title={job.company_list.join(", ")}>
