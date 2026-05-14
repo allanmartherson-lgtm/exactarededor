@@ -35,9 +35,17 @@ Deno.serve(async (req) => {
 
     let filteredRows = rows ?? [];
     
-    // Filtro por status de IA (se fornecido)
+    // Filtro por status de IA (se fornecido).
+    // Se ai_statuses for passado, filtramos as empresas que possuem AO MENOS UM item com esse status.
     if (ai_statuses && ai_statuses.length > 0) {
-      filteredRows = filteredRows.filter((r: any) => ai_statuses.includes(r.ai_status));
+      const companiesWithStatus = new Set(
+        rows?.filter((r: any) => ai_statuses.includes(r.ai_status))
+            .map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
+      );
+      filteredRows = filteredRows.filter((r: any) => {
+        const name = (r.company_name ?? "").trim() || "Sem empresa";
+        return companiesWithStatus.has(name);
+      });
     }
     
     // Filtro por empresas específicas (se fornecido - ex: reprocessar falhas)
