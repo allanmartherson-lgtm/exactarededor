@@ -1216,7 +1216,13 @@ export default function CompanyAnalysis() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <AlertDialogAction 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDeletePayment();
+                    }} 
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
                     Excluir definitivamente
                   </AlertDialogAction>
                 </AlertDialogFooter>
