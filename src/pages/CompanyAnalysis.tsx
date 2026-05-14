@@ -923,7 +923,7 @@ export default function CompanyAnalysis() {
       toast.success("Item excluído");
       setDeleteItem(null);
       if (remaining <= 0) navigate(`/pagamentos/${id}`);
-      else load();
+      else await load();
     } catch (e) {
       toast.error("Falha ao excluir", { description: e instanceof Error ? e.message : String(e) });
     } finally {
