@@ -1021,6 +1021,16 @@ const NewPayment = () => {
                           <Building2 className="h-3 w-3" />
                           {b.matchedCompany?.name ?? b.rawCompanyName}
                         </Badge>
+                        {(() => {
+                          const seen = new Set();
+                          b.rows.forEach(r => { if (r.company_id) seen.add(r.company_id); else if (r.company_name) seen.add(r.company_name); });
+                          if (seen.size > 1) return (
+                            <Badge variant="secondary" className="gap-1 text-primary border-primary/30 bg-primary/10">
+                              <Building2 className="h-3 w-3" /> multi-empresa ({seen.size})
+                            </Badge>
+                          );
+                          return null;
+                        })()}
                         {b.manualOverride ? (
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
