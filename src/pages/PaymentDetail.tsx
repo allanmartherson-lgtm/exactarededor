@@ -1919,7 +1919,7 @@ const PaymentDetail = () => {
               const groupItemsAll = items.filter(
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
               );
-              const groupNameMatches = sq && g.company_name?.toLowerCase().includes(sq);
+              const groupNameMatches = sqCompany && g.company_name?.toLowerCase().includes(sqCompany);
               const isErrorOnly = payment.analysis_mode === "empresa_prioritaria" || criticalFilter !== "all";
               const errorOnlyFilter = (it: typeof groupItemsAll[number]) => {
                 if (criticalFilter === "no_rule") return it.ai_findings?.matched_priority === "sem_regra";
