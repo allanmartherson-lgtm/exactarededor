@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, AlertTriangle, RefreshCcw } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, RefreshCcw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProcessingJob {
@@ -12,7 +12,7 @@ interface ProcessingJob {
   payment_id: string;
   total_companies: number;
   processed_companies: number;
-  status: "em_andamento" | "concluido" | "parcial";
+  status: "em_andamento" | "concluido" | "parcial" | "cancelado";
   failed_companies: Array<{ company_name: string; error: string; at: string }>;
   started_at: string;
   finished_at: string | null;
@@ -21,6 +21,7 @@ interface ProcessingJob {
 export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
   const [job, setJob] = useState<ProcessingJob | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -71,8 +72,28 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
       toast.success(`Reprocessamento iniciado: ${data?.total_companies ?? 0} empresa(s).`);
     } catch (e: any) {
       toast.error(`Falha ao reprocessar: ${e?.message ?? e}`);
+  };
+  
+  const cancelJob = async () => {
+    if (!job || job.status !== "em_andamento") return;
+    if (!confirm("Tem certeza que deseja cancelar a reanálise? As empresas já processadas manterão os novos valores, mas o restante será interrompido.")) return;
+    
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from("payment_processing_jobs")
+        .update({ 
+          status: "cancelado",
+          finished_at: new Date().toISOString()
+        })
+        .eq("id", job.id);
+        
+      if (error) throw error;
+      toast.success("Reanálise cancelada com sucesso.");
+    } catch (e: any) {
+      toast.error(`Falha ao cancelar: ${e?.message ?? e}`);
     } finally {
-      setRetrying(false);
+      setCancelling(false);
     }
   };
 
@@ -84,10 +105,12 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
             {job.status === "em_andamento" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
             {job.status === "concluido" && <CheckCircle2 className="h-4 w-4 text-success" />}
             {job.status === "parcial" && <AlertTriangle className="h-4 w-4 text-warning" />}
+            {job.status === "cancelado" && <XCircle className="h-4 w-4 text-destructive" />}
             <span>
               {job.status === "em_andamento" && `Analisando ${job.processed_companies}/${job.total_companies} empresas…`}
               {job.status === "concluido" && `Análise concluída — ${job.total_companies} empresa(s) processada(s).`}
               {job.status === "parcial" && `Análise parcial — ${failed} empresa(s) com erro.`}
+              {job.status === "cancelado" && `Análise interrompida — processadas ${job.processed_companies} de ${job.total_companies}.`}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -96,6 +119,12 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
               <Button size="sm" variant="outline" onClick={retryFailed} disabled={retrying}>
                 {retrying ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCcw className="h-3 w-3 mr-1" />}
                 Reprocessar {failed} com falha
+              </Button>
+            )}
+            {job.status === "em_andamento" && (
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8" onClick={cancelJob} disabled={cancelling}>
+                {cancelling ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <XCircle className="h-3 w-3 mr-1" />}
+                Cancelar reanálise
               </Button>
             )}
           </div>
