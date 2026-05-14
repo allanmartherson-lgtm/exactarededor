@@ -14,6 +14,8 @@ interface ProcessingJob {
   processed_companies: number;
   status: "em_andamento" | "concluido" | "parcial" | "cancelado";
   failed_companies: Array<{ company_name: string; error: string; at: string }>;
+  company_list: string[] | null;
+  total_items: number | null;
   started_at: string;
   finished_at: string | null;
 }
@@ -133,12 +135,20 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
             {job.status === "concluido" && <CheckCircle2 className="h-4 w-4 text-success" />}
             {job.status === "parcial" && <AlertTriangle className="h-4 w-4 text-warning" />}
             {job.status === "cancelado" && <XCircle className="h-4 w-4 text-destructive" />}
-            <span>
-              {job.status === "em_andamento" && `Analisando ${job.processed_companies}/${job.total_companies} empresas…`}
-              {job.status === "concluido" && `Análise concluída — ${job.total_companies} empresa(s) processada(s).`}
-              {job.status === "parcial" && `Análise parcial — ${failed} empresa(s) com erro.`}
-              {job.status === "cancelado" && `Análise interrompida — processadas ${job.processed_companies} de ${job.total_companies}.`}
-            </span>
+            <div className="flex flex-col">
+              <span>
+                {job.status === "em_andamento" && `Analisando ${job.processed_companies}/${job.total_companies} empresas…`}
+                {job.status === "concluido" && `Análise concluída — ${job.total_companies} empresa(s) processada(s).`}
+                {job.status === "parcial" && `Análise parcial — ${failed} empresa(s) com erro.`}
+                {job.status === "cancelado" && `Análise interrompida — processadas ${job.processed_companies} de ${job.total_companies}.`}
+                {job.total_items && <span className="ml-1 text-xs text-muted-foreground font-normal">({job.total_items} itens no total)</span>}
+              </span>
+              {job.status === "em_andamento" && job.company_list && job.company_list.length > 0 && (
+                <span className="text-[10px] text-muted-foreground font-normal max-w-md truncate" title={job.company_list.join(", ")}>
+                  Empresas: {job.company_list.join(", ")}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline">{pct}%</Badge>

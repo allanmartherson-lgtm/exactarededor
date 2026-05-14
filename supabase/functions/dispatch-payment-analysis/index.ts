@@ -25,23 +25,36 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    let companyNames: string[];
+    // Buscamos os itens para calcular empresas e total de itens
+    const { data: rows, error: itemsErr } = await supabase
+      .from("payment_items")
+      .select("company_name, ai_status")
+      .eq("payment_id", payment_id);
+    if (itemsErr) throw itemsErr;
+
+    let filteredRows = rows ?? [];
+    
+    // Filtro por status de IA (se fornecido)
+    if (ai_statuses && ai_statuses.length > 0) {
+      filteredRows = filteredRows.filter((r: any) => ai_statuses.includes(r.ai_status));
+    }
+    
+    // Filtro por empresas específicas (se fornecido - ex: reprocessar falhas)
     if (Array.isArray(only_companies) && only_companies.length > 0) {
-      companyNames = Array.from(new Set(only_companies.map((s: any) => String(s).trim() || "Sem empresa")));
-    } else {
-      // Distinct company_name no lote (inclui "Sem empresa" para itens sem company_name)
-      const { data: rows, error: itemsErr } = await supabase
-        .from("payment_items")
-        .select("company_name")
-        .eq("payment_id", payment_id);
-      if (itemsErr) throw itemsErr;
-      companyNames = Array.from(new Set(
-        (rows ?? []).map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
-      ));
+      const normalizedOnly = only_companies.map((s: any) => String(s).trim().toLowerCase());
+      filteredRows = filteredRows.filter((r: any) => {
+        const name = (r.company_name ?? "").trim() || "Sem empresa";
+        return normalizedOnly.includes(name.toLowerCase());
+      });
     }
 
+    const companyNames = Array.from(new Set(
+      filteredRows.map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
+    ));
+    const totalItems = filteredRows.length;
+
     if (companyNames.length === 0) {
-      return new Response(JSON.stringify({ ok: true, total_companies: 0, message: "lote sem itens" }), {
+      return new Response(JSON.stringify({ ok: true, total_companies: 0, total_items: 0, message: "lote sem itens" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -54,6 +67,8 @@ Deno.serve(async (req) => {
         total_companies: companyNames.length,
         processed_companies: 0,
         status: "em_andamento",
+        company_list: companyNames,
+        total_items: totalItems,
       })
       .select()
       .single();
@@ -120,7 +135,8 @@ Deno.serve(async (req) => {
         ok: true,
         job_id: job.id,
         total_companies: companyNames.length,
-        message: `Análise iniciada para ${companyNames.length} empresa(s).`,
+        total_items: totalItems,
+        message: `Análise iniciada para ${companyNames.length} empresa(s) e ${totalItems} itens.`,
       }),
       { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

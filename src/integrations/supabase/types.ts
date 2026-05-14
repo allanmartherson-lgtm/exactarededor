@@ -995,6 +995,7 @@ export type Database = {
       }
       payment_processing_jobs: {
         Row: {
+          company_list: string[] | null
           created_at: string
           failed_companies: Json
           finished_at: string | null
@@ -1004,9 +1005,11 @@ export type Database = {
           started_at: string
           status: string
           total_companies: number
+          total_items: number | null
           updated_at: string
         }
         Insert: {
+          company_list?: string[] | null
           created_at?: string
           failed_companies?: Json
           finished_at?: string | null
@@ -1016,9 +1019,11 @@ export type Database = {
           started_at?: string
           status?: string
           total_companies?: number
+          total_items?: number | null
           updated_at?: string
         }
         Update: {
+          company_list?: string[] | null
           created_at?: string
           failed_companies?: Json
           finished_at?: string | null
@@ -1028,6 +1033,7 @@ export type Database = {
           started_at?: string
           status?: string
           total_companies?: number
+          total_items?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -2123,6 +2129,7 @@ export type Database = {
       increment_processing_progress: {
         Args: { _company_name: string; _error?: string; _job_id: string }
         Returns: {
+          company_list: string[] | null
           created_at: string
           failed_companies: Json
           finished_at: string | null
@@ -2132,6 +2139,7 @@ export type Database = {
           started_at: string
           status: string
           total_companies: number
+          total_items: number | null
           updated_at: string
         }
         SetofOptions: {
