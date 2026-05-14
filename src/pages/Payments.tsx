@@ -108,6 +108,9 @@ const PaymentRiskBadgeInline = ({ paymentId, compact = false }: { paymentId: str
 
 const Payments = () => {
   const { roles, user } = useAuth();
+  const isAnalista = roles.includes("analista") || roles.includes("admin");
+  const isDiretor = roles.includes("diretor") || roles.includes("admin");
+  const isAdmin = roles.includes("admin");
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
