@@ -125,12 +125,55 @@ Deno.serve(async (req) => {
     );
   }
 
-  const sqlProblems: unknown[] = Array.isArray((sqlOut as { problems?: unknown[] })?.problems)
-    ? (sqlOut as { problems: unknown[] }).problems
-    : [];
+  const sqlProblemsRaw: Array<Record<string, unknown>> =
+    Array.isArray((sqlOut as { problems?: unknown[] })?.problems)
+      ? ((sqlOut as { problems: Array<Record<string, unknown>> }).problems)
+      : [];
 
-  // 2) Helper TS — Verificação D (calc_overlap)
-  const calcProblems = detectCalcOverlap(body.calculations ?? []);
+  // 2) Refina `company_already_bound`: confirma com detectCrossRuleOverlap.
+  // Se os cálculos da regra nova e da regra peer NÃO se sobrepõem em nenhum
+  // par, não há disputa real em runtime → o conflito de empresa é descartado.
+  const newCalcs: RuleCalculationItem[] = body.calculations ?? [];
+  const cabIds = new Set<string>();
+  for (const p of sqlProblemsRaw) {
+    if (p.type === "company_already_bound" && typeof p.existing_rule_id === "string") {
+      cabIds.add(p.existing_rule_id);
+    }
+  }
+  const overlapByPeer = new Map<string, boolean>();
+  if (cabIds.size > 0) {
+    const { data: peerCalcs, error: peerErr } = await supabase
+      .from("rule_calculations")
+      .select("*")
+      .in("rule_id", Array.from(cabIds));
+    if (peerErr) {
+      return new Response(
+        JSON.stringify({ error: "Falha ao carregar cálculos das regras peers", detail: peerErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const byRule = new Map<string, RuleCalculationItem[]>();
+    for (const row of (peerCalcs ?? []) as Array<RuleCalculationItem & { rule_id: string }>) {
+      const list = byRule.get(row.rule_id) ?? [];
+      list.push(row);
+      byRule.set(row.rule_id, list);
+    }
+    for (const peerId of cabIds) {
+      const peerList = byRule.get(peerId) ?? [];
+      const cross = detectCrossRuleOverlap(newCalcs, peerList);
+      overlapByPeer.set(peerId, cross.length > 0);
+    }
+  }
+
+  const sqlProblems = sqlProblemsRaw.filter((p) => {
+    if (p.type !== "company_already_bound") return true;
+    const peerId = typeof p.existing_rule_id === "string" ? p.existing_rule_id : "";
+    // Mantém o problema apenas se houver overlap real de cálculos.
+    return overlapByPeer.get(peerId) === true;
+  });
+
+  // 3) Helper TS — Verificação D (calc_overlap intra-regra)
+  const calcProblems = detectCalcOverlap(newCalcs);
 
   const allProblems = [...sqlProblems, ...calcProblems];
   return new Response(
