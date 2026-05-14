@@ -82,7 +82,7 @@ const Profile = () => {
         event_type: eventType,
         [field]: value,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,event_type' });
+      } as any, { onConflict: 'user_id,event_type' });
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
