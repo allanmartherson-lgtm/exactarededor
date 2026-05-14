@@ -1045,10 +1045,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       itemUpdates.push({
         id: r.item_id,
         ai_status: finalStatus,
-        ai_findings: findings,
+        ai_findings: {
+          ...findings,
+          engine: {
+            ...(findings.engine || {}),
+            inferred_sector: (r as any).inferred_sector ?? null,
+          }
+        },
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
-        sector: r.selection_trace?.item_sector ?? null,
+        sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
         applied_rule_id: r.matched_rule_id ?? null,
         applied_rule_label: r.matched_rule_name ?? null,
         applied_calc_id: appliedCalcId,
