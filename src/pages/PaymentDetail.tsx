@@ -1898,7 +1898,7 @@ const PaymentDetail = () => {
                 return nameMatchesItemSearch || specMatchesItemSearch || groupItems.some((it) => itemMatches(it));
               });
               
-              const finalSearchTerm = itemSearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
+              const finalSearchTerm = itemSearch.trim() || companySearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
               if (finalSearchTerm && visibleGroups.length === 0) {
                 return (
                   <Card className="shadow-card"><CardContent className="p-8 text-center text-sm text-muted-foreground">
