@@ -830,7 +830,8 @@ const PaymentDetail = () => {
       
       let jobId = null;
       if (!isBatch) {
-        // Se for individual (filtrado), cria um job manual para a barra de status
+        // Se for por filtro (ex: apenas alertas), o analyze-payment processa o lote todo em uma única chamada.
+        // Criamos um job de "1 unidade" para representar esse processamento atômico na barra.
         const { data: job, error: jobErr } = await supabase
           .from("payment_processing_jobs")
           .insert({
@@ -851,7 +852,7 @@ const PaymentDetail = () => {
           ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
           tolerance_pct: toleranceValue,
           _job_id: jobId,
-          _company_label: !isBatch ? "Filtro personalizado" : undefined
+          _company_label: !isBatch ? "Processamento por filtro" : undefined
         },
       });
       if (error) throw error;
