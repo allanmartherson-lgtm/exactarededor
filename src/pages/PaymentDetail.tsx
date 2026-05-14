@@ -1456,7 +1456,11 @@ const PaymentDetail = () => {
                       className="hidden"
                       onChange={(e) => {
                         const files = e.target.files;
-                        if (files && files.length > 0) setReimportConfirm(Array.from(files));
+                        if (files && files.length > 0) {
+                          setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
+                          // Reset input value so same file can be selected again if needed
+                          e.target.value = "";
+                        }
                       }}
                     />
                   <Button

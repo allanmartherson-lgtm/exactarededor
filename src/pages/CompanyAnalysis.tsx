@@ -1071,7 +1071,10 @@ export default function CompanyAnalysis() {
                 className="hidden"
                 onChange={(e) => {
                   const files = e.target.files;
-                  if (files && files.length > 0) setReimportConfirm(Array.from(files));
+                  if (files && files.length > 0) {
+                    setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
+                    e.target.value = "";
+                  }
                 }}
               />
               <Button
