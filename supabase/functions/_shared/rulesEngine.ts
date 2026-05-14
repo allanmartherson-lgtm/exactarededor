@@ -360,11 +360,17 @@ export const SECTOR_MAP: Record<string, string> = {
   "centro cirurgico": "cirurgia",
   "cc": "cirurgia",
   "hemodinamica": "hemodinamica",
+  "hemodin": "hemodinamica",
   "parecer": "parecer",
   "visita": "visita",
   "consulta": "consulta",
   "procedimento": "procedimento",
   "ambulatorial": "procedimento",
+  "sadt": "procedimento",
+  "endoscopia": "procedimento",
+  "bioimagem": "procedimento",
+  "diagnostico": "procedimento",
+  "unidade": "cirurgia",
 };
 
 export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
