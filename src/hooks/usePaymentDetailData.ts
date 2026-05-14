@@ -72,7 +72,7 @@ export type RuleLite = {
  * - Expõe os setters para que o componente continue podendo aplicar otimismo
  *   local em ações pontuais (ex.: limpar drafts ao salvar).
  */
-export function usePaymentDetailData(id: string | undefined, options?: { companyName?: string }) {
+export function usePaymentDetailData(id: string | undefined, options?: { groupId?: string }) {
   const [payment, setPayment] = useState<PaymentRow | null>(null);
   const [items, setItems] = useState<PaymentItemRow[]>([]);
   const [obs, setObs] = useState<ObservationRow[]>([]);
