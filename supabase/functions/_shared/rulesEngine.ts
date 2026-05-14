@@ -988,18 +988,35 @@ export function doctorRoleFactor(raw: string | null | undefined): number {
 
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
+  const factor = doctorRoleFactor(item.doctor_role);
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: `${pct}% do convênio — valor base ausente.`, alerts: ["procedure_amount ausente."] };
-  const expected = Number((base * (pct / 100)).toFixed(2));
-  return { expected, explanation: `${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [] };
+  
+  const unitValue = round2(base * (pct / 100));
+  const expected = round2(unitValue * factor);
+  
+  let explanation = `${pct}% × R$ ${base.toFixed(2)}`;
+  if (factor !== 1) {
+    explanation += ` × fator função(${(factor * 100).toFixed(0)}%) = R$ ${expected.toFixed(2)}`;
+  } else {
+    explanation += ` = R$ ${expected.toFixed(2)}`;
+  }
+  
+  return { expected, explanation, alerts: [] };
 }
 
-function calcRegraVias(_rule: RuleInput, item: ItemInput): ExpectedCalc {
-  const factor = accessRouteFactor(item.access_route);
+function calcRegraVias(rule: RuleInput, item: ItemInput): ExpectedCalc {
+  const viaFactor = accessRouteFactor(item.access_route);
+  const funcFactor = doctorRoleFactor(item.doctor_role);
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: "regra_vias: valor base ausente.", alerts: ["procedure_amount ausente."] };
-  const expected = Number((base * factor).toFixed(2));
-  return { expected, explanation: `Via "${item.access_route ?? "—"}" → fator ${factor} × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [] };
+  
+  const expected = round2(base * viaFactor * funcFactor);
+  let explanation = `Via "${item.access_route ?? "—"}" → fator ${viaFactor}`;
+  if (funcFactor !== 1) explanation += ` × fator função ${funcFactor}`;
+  explanation += ` × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`;
+  
+  return { expected, explanation, alerts: [] };
 }
 
 const isVisita  = (it: ItemInput) => /visita/.test(normName(`${it.procedure_name ?? ""} ${it.description ?? ""}`));
@@ -1219,7 +1236,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   const roles = Array.isArray(c.doctor_roles) ? c.doctor_roles.filter(Boolean) : [];
   if (roles.length > 0) {
     const itemRole = classifyDoctorRole(item.doctor_role);
-    if (!roles.includes(itemRole)) return { ok: false, reason: "funcao_medico" };
+    if (!roles.includes(itemRole)) return { ok: false, reason: `funcao_medico (item: ${itemRole}, esperado: ${roles.join(", ")})` };
   }
   // Setores
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
@@ -1326,6 +1343,12 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     agreement_aliases: Array.isArray(c.agreement_aliases) ? c.agreement_aliases : [],
     agreement_match_mode: (c.agreement_match_mode ?? "whitelist") as any,
     allowed_access_routes: Array.isArray(c.allowed_access_routes) ? c.allowed_access_routes : [],
+    // HERANÇA CRÍTICA: se o cálculo não define doctor_roles, HERDA da regra (se houver).
+    // Isso garante que se a regra 'Hemodinâmica - 88%' cadastrar Cirurgião Principal,
+    // o cálculo 'Repasse 88%' também só aplique para Cirurgião Principal.
+    doctor_roles: Array.isArray(c.doctor_roles) && c.doctor_roles.length > 0 
+      ? c.doctor_roles 
+      : (Array.isArray((rule as any).doctor_roles) ? (rule as any).doctor_roles : []),
     // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
     application_unit: c.application_unit ?? rule.application_unit ?? null,
   } as RuleInput & { application_unit?: string | null };
