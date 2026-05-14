@@ -2265,14 +2265,17 @@ export function analyzeItem(
 
   if (!calc || calc.expected === null) {
     // Sem regra cadastrada (nem específica, nem geral por setor)
-    const sector = inferItemSector(item, ctx);
+    const triedRule = winner?.name ? ` A regra "${winner.name}" foi avaliada, mas nenhum cálculo aplicável retornou valor.` : "";
     calc = {
       expected: null,
-      explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
-      alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
+      explanation: `Sem regra calculável para este item.${triedRule} Revise os filtros operacionais da regra (código TUSS, função, convênio, via de acesso ou tabela vinculada).`,
+      alerts: ["Sem regra calculável para este item — revise os filtros operacionais da regra, não o setor."],
     };
     priority = "sem_regra";
     calculation_type_used = "informativo";
+    winner = null;
+    matched_rule_id = null;
+    matched_rule_name = null;
   }
 
   const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);
