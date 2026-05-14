@@ -72,6 +72,9 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
       toast.success(`Reprocessamento iniciado: ${data?.total_companies ?? 0} empresa(s).`);
     } catch (e: any) {
       toast.error(`Falha ao reprocessar: ${e?.message ?? e}`);
+    } finally {
+      setRetrying(false);
+    }
   };
   
   const cancelJob = async () => {
