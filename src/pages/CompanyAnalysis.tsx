@@ -1090,7 +1090,8 @@ export default function CompanyAnalysis() {
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
-  const canDelete = isAdmin || (isAnalistaRole && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aguardando_validacao", "aguardando_aprovacao"].includes(payment.status as string));
+  const isTerminal = ["pago", "rejeitado", "cancelado", "lancado"].includes(payment.status as string);
+  const canDelete = isAdmin || (isAnalistaRole && !isTerminal);
   
   console.log("Render Info:", {
     id,

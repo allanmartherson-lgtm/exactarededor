@@ -209,20 +209,31 @@ const Payments = () => {
     try {
       setDeletingIds(prev => new Set(prev).add(id));
       
+      // 1. Deletar observações
+      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      
+      // 2. Deletar atribuições
+      await (supabase.from as any)("payment_assignments").delete().eq("payment_id", id);
+      
+      // 3. Deletar itens
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      
+      // 4. Deletar grupos
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      
+      // 5. Deletar o pagamento principal
       const { error } = await supabase.from("payments").delete().eq("id", id);
       
-      if (error) {
-        setDeletingIds(prev => {
-          const n = new Set(prev);
-          n.delete(id);
-          return n;
-        });
-        throw error;
-      }
+      if (error) throw error;
       
       toast.success("Lote excluído com sucesso.");
-      // load() será chamado via Realtime, mas o item já está escondido via deletingIds
+      // O filtro "deletingIds" esconde o item enquanto o Realtime ou o load() não concluem
     } catch (e: any) {
+      setDeletingIds(prev => {
+        const n = new Set(prev);
+        n.delete(id);
+        return n;
+      });
       toast.error("Erro ao excluir lote: " + e.message);
     }
   };
