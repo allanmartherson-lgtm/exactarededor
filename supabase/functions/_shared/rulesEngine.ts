@@ -392,6 +392,20 @@ export const SECTOR_MAP: Record<string, string> = {
   "diagnostico": "procedimento",
 };
 
+/** Mescla aliases dinâmicos vindos do banco (tabela `sectors`). Chamado pelo analyze-payment. */
+export function extendSectorMap(entries: Array<{ slug: string; aliases: string[]; name?: string }>) {
+  for (const e of entries) {
+    const slug = (e.slug || "").trim();
+    if (!slug) continue;
+    SECTOR_MAP[normName(slug)] = slug;
+    if (e.name) SECTOR_MAP[normName(e.name)] = slug;
+    for (const a of e.aliases || []) {
+      const k = normName(a);
+      if (k) SECTOR_MAP[k] = slug;
+    }
+  }
+}
+
 export function inferItemSector(item: ItemInput, ctx?: PaymentContext): string {
   // 1. Prioridade máxima: setor informado na planilha (se for um valor útil)
   if (item.sector) {
