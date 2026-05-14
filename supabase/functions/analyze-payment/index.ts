@@ -1295,11 +1295,30 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // Reporta progresso ao job de dispatch (se houver)
     if (_job_id) {
       try {
-        await supabase.rpc("increment_processing_progress", {
+        const { data: jobStatus, error: jobErr } = await supabase.rpc("increment_processing_progress", {
           _job_id,
           _company_name: _company_label ?? company_name ?? "Sem empresa",
           _error: null,
         });
+
+        if (!jobErr && jobStatus && (jobStatus.status === "concluido" || jobStatus.status === "parcial")) {
+          const successCount = jobStatus.processed_companies - (jobStatus.failed_companies?.length ?? 0);
+          const failCount = jobStatus.failed_companies?.length ?? 0;
+          const reason = `${successCount} sucesso(s), ${failCount} falha(s).`;
+          
+          fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-analyst-event`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ 
+              paymentId: payment_id, 
+              eventType: "ia_concluded",
+              reason
+            }),
+          }).catch(e => console.error("Failed to notify analyst (job_finished):", e));
+        }
       } catch (e) {
         console.error("Falha ao reportar progresso", e);
       }

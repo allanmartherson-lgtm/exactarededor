@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
         break;
       case "ia_concluded":
         subject = `Análise IA concluída - Lote ${reference}`;
-        bodyText = `${greeting}, ${name}.\n\nA análise da IA para o lote ${reference} foi concluída e o lote aguarda sua revisão.\n\nAcessar: ${link}`;
+        const summary = reason ? `\nResumo: ${reason}\n` : "";
+        bodyText = `${greeting}, ${name}.\n\nA análise da IA para o lote ${reference} foi concluída e o lote aguarda sua revisão.${summary}\n\nAcessar: ${link}`;
         break;
       case "nf_received":
         subject = `Nota Fiscal recebida - Lote ${reference}`;

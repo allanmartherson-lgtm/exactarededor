@@ -44,7 +44,23 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
         { event: "*", schema: "public", table: "payment_processing_jobs", filter: `payment_id=eq.${paymentId}` },
         (payload) => {
           if (payload.eventType === "DELETE") return;
-          setJob(payload.new as any);
+          const newJob = payload.new as ProcessingJob;
+          
+          // Se o status mudou para concluído, parcial ou cancelado, dispara o toast
+          if (job && job.status === "em_andamento" && (newJob.status === "concluido" || newJob.status === "parcial" || newJob.status === "cancelado")) {
+            const successCount = newJob.processed_companies - (newJob.failed_companies?.length ?? 0);
+            const failCount = newJob.failed_companies?.length ?? 0;
+            
+            if (newJob.status === "concluido") {
+              toast.success(`Análise concluída: ${successCount} empresa(s) processada(s) com sucesso.`);
+            } else if (newJob.status === "parcial") {
+              toast.warning(`Análise finalizada com erros: ${successCount} sucesso(s), ${failCount} falha(s).`);
+            } else if (newJob.status === "cancelado") {
+              toast.info(`Análise interrompida pelo usuário: ${newJob.processed_companies} empresa(s) processada(s).`);
+            }
+          }
+          
+          setJob(newJob as any);
         },
       )
       .subscribe();
@@ -53,7 +69,7 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [paymentId]);
+  }, [paymentId, job?.id, job?.status]);
 
   if (!job) return null;
 
