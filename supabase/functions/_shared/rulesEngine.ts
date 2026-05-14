@@ -502,7 +502,7 @@ function collectCalcCodes(r: RuleInput): {
 
   for (const c of calcs) {
     const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes : [];
-    const keywords = Array.isArray((c as any).procedure_keywords) ? (c as any).procedure_keywords : [];
+    const keywords: string[] = Array.isArray((c as any).procedure_keywords) ? (c as any).procedure_keywords.map(String) : [];
     const mode = c.code_match_mode ?? "whitelist";
     
     if (mode === "any" || (codes.length === 0 && keywords.length === 0)) {
@@ -1224,8 +1224,8 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   }
 
   // Novo: Suporte a palavras-chave no item de cálculo
-  const keywords = Array.isArray((c as any).procedure_keywords) 
-    ? (c as any).procedure_keywords.filter(Boolean) 
+  const keywords: string[] = Array.isArray((c as any).procedure_keywords) 
+    ? (c as any).procedure_keywords.filter(Boolean).map(String) 
     : [];
   if (keywords.length > 0) {
     const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
@@ -1968,12 +1968,21 @@ function findFallbackGeneralRule(
 ): { rule: RuleInput; priority: RuleMatchPriority } | null {
   // Filtra apenas regras master (gerais)
   const masterRules = rules.filter(r => r.scope === "master" && r.calculation_type !== "exclusao");
+
+  const hasApplicableCalculation = (r: RuleInput): boolean => {
+    const calcs = Array.isArray(r.calculations) ? r.calculations : [];
+    if (calcs.length === 0) return true;
+    return calcs.some((c) => calcItemMatches(c, item).ok);
+  };
   
   // Tenta encontrar uma regra master que não tenha nenhuma restrição de via
-  // e que aceite o convênio do item.
+  // e que aceite o convênio do item. Também respeita filtros operacionais
+  // declarados no item de cálculo (setor, função, código etc.), para não usar
+  // uma regra geral de um setor como fallback de outro.
   const genericMaster = masterRules.find(r => 
     (!r.allowed_access_routes || r.allowed_access_routes.length === 0) &&
-    ruleAcceptsItemAgreement(r, item)
+    ruleAcceptsItemAgreement(r, item) &&
+    hasApplicableCalculation(r)
   );
 
   if (genericMaster) {
@@ -2256,14 +2265,17 @@ export function analyzeItem(
 
   if (!calc || calc.expected === null) {
     // Sem regra cadastrada (nem específica, nem geral por setor)
-    const sector = inferItemSector(item, ctx);
+    const triedRule = winner?.name ? ` A regra "${winner.name}" foi avaliada, mas nenhum cálculo aplicável retornou valor.` : "";
     calc = {
       expected: null,
-      explanation: `Sem regra cadastrada para este item (setor: ${sector}). Cadastre a regra correspondente em Regras de Repasse.`,
-      alerts: [`Sem regra aplicável (setor: ${sector}) — cadastre uma regra específica ou geral para este caso.`],
+      explanation: `Sem regra calculável para este item.${triedRule} Revise os filtros operacionais da regra (código TUSS, função, convênio, via de acesso ou tabela vinculada).`,
+      alerts: ["Sem regra calculável para este item — revise os filtros operacionais da regra, não o setor."],
     };
     priority = "sem_regra";
     calculation_type_used = "informativo";
+    winner = null;
+    matched_rule_id = null;
+    matched_rule_name = null;
   }
 
   const res = finalizeAnalysis(item, calc, winner, priority, ctx, conflict);

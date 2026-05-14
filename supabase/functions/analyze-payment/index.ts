@@ -610,7 +610,7 @@ serve(async (req) => {
 
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
-    const itemsToReview = results.filter((r) => r.needs_ai_review).slice(0, 50);
+    const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 50);
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
@@ -666,6 +666,8 @@ FOCO ESPECIAL EM "VÍNCULOS DIVERGENTES":
 - Identifique duplicidades de cobrança entre itens do mesmo atendimento.
 
       IMPORTANTE: Se o motor aplicou uma regra porque o código do procedimento está explicitamente listado nela (whitelist), confie nessa decisão a menos que haja uma incoerência gritante (ex: cobrança duplicada ou médico de especialidade totalmente diferente). Se a regra vencedora foi por "Setor", "Empresa" ou "Médico" sem restrição de código, seja mais criterioso na revisão.
+
+      REGRA DE PROJETO: setor é filtro opcional do cálculo, não obrigação cadastral. Nunca diga para "cadastrar setor" nem para criar regra por setor quando o cálculo foi deixado sem filtro de setor. Em casos sem_regra, explique apenas qual filtro operacional impediu o cálculo (código TUSS, função, convênio, via de acesso ou tabela vinculada), se isso estiver claro nos dados do motor.
 
       SUA FUNÇÃO:
       1) Explicar de forma assertiva por que o item gerou alerta/reprovação.
