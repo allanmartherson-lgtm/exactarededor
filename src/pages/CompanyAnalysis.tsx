@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -193,6 +193,7 @@ export default function CompanyAnalysis() {
     profiles,
     assignments,
     load,
+    setItems,
   } = usePaymentDetailData(id, { groupId });
 
   const handleExport = async (format: "pdf" | "excel") => {
@@ -900,8 +901,15 @@ export default function CompanyAnalysis() {
     setDeletingItem(true);
     try {
       const gross = Number(deleteItem.gross_amount ?? 0);
+      const previousItems = [...items];
+      // Optimistic update
+      setItems(prev => prev.filter(it => it.id !== deleteItem.id));
+      
       const { error } = await supabase.from("payment_items").delete().eq("id", deleteItem.id);
-      if (error) throw error;
+      if (error) {
+        setItems(previousItems);
+        throw error;
+      }
       const remaining = items.length - 1;
       if (remaining <= 0) {
         await supabase.from("payment_company_groups").delete().eq("id", group.id);
@@ -923,11 +931,32 @@ export default function CompanyAnalysis() {
       toast.success("Item excluído");
       setDeleteItem(null);
       if (remaining <= 0) navigate(`/pagamentos/${id}`);
-      else load();
+      else await load();
     } catch (e) {
       toast.error("Falha ao excluir", { description: e instanceof Error ? e.message : String(e) });
     } finally {
       setDeletingItem(false);
+    }
+  };
+
+  const handleDeletePayment = async () => {
+    if (!id) return;
+    setBusy(true);
+    try {
+      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      const { error } = await supabase.from("payments").delete().eq("id", id);
+      
+      if (error) throw error;
+      
+      toast.success("Lote excluído");
+      navigate("/pagamentos", { replace: true });
+    } catch (e: any) {
+      toast.error("Erro ao excluir", { description: e.message });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -994,9 +1023,9 @@ export default function CompanyAnalysis() {
       }).catch((e) => console.warn("notify-analyst-event failed", e));
     }
     setGroupDraft("");
-    setBusy(false);
     toast.success(actionLabel);
-    load();
+    await load();
+    setBusy(false);
   };
 
   if (loading) {
@@ -1024,6 +1053,7 @@ export default function CompanyAnalysis() {
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
+  const canDelete = isAdmin || (isAnalista && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(payment.status as string));
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
@@ -1092,8 +1122,18 @@ export default function CompanyAnalysis() {
                     <AlertDialogDescription className="space-y-3">
                       <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Não pode ser desfeita.</p>
                       <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                        <ul className="text-xs space-y-1">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 text-[10px] px-2"
+                            onClick={() => reimportInputRef.current?.click()}
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                          </Button>
+                        </div>
+                        <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
                           {reimportConfirm?.map((f, i) => (
                             <li key={i} className="flex items-center justify-between gap-2 group">
                               <span className="truncate flex-1">• {f.name}</span>
@@ -1109,7 +1149,7 @@ export default function CompanyAnalysis() {
                         </ul>
                       </div>
                       <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                        Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Reimportar base" novamente para adicionar mais antes de confirmar.
+                        Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
                       </p>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -1126,6 +1166,30 @@ export default function CompanyAnalysis() {
                 </AlertDialogContent>
               </AlertDialog>
             </>
+          )}
+
+          {canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" disabled={busy}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Excluir lote
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação remove o lote <strong>{payment.reference}</strong>, todos os itens (incluindo esta empresa) e o histórico permanentemente. Não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Excluir definitivamente
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
         <div className="flex items-center gap-2">

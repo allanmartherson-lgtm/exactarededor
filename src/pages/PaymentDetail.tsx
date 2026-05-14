@@ -53,7 +53,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3, TestTube2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 
 const ObservationTypeSelector = ({
   value,
@@ -939,13 +939,22 @@ const PaymentDetail = () => {
   const deletePayment = async () => {
     if (!id) return;
     setBusy(true);
-    await supabase.from("payment_items").delete().eq("payment_id", id);
-    await supabase.from("payment_observations").delete().eq("payment_id", id);
-    const { error } = await supabase.from("payments").delete().eq("id", id);
-    setBusy(false);
-    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Lote excluído" });
-    navigate("/pagamentos");
+    try {
+      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      const { error } = await supabase.from("payments").delete().eq("id", id);
+      
+      if (error) throw error;
+      
+      toast({ title: "Lote excluído" });
+      navigate("/pagamentos", { replace: true });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   // Resumo objetivo a partir dos itens
@@ -1478,8 +1487,18 @@ const PaymentDetail = () => {
                         <AlertDialogDescription className="space-y-3">
                           <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
                           <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                            <ul className="text-xs space-y-1">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-[10px] px-2"
+                                onClick={() => reimportInputRef.current?.click()}
+                              >
+                                <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                              </Button>
+                            </div>
+                            <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
                               {reimportConfirm?.map((f, i) => (
                                 <li key={i} className="flex items-center justify-between gap-2 group">
                                   <span className="truncate flex-1">• {f.name}</span>
@@ -1495,7 +1514,7 @@ const PaymentDetail = () => {
                             </ul>
                           </div>
                           <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                            Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Reimportar base" novamente para adicionar mais antes de confirmar.
+                            Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
                           </p>
                         </AlertDialogDescription>
                       </AlertDialogHeader>
