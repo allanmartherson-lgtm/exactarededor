@@ -172,6 +172,7 @@ const Payments = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -206,21 +207,21 @@ const Payments = () => {
 
   const deletePayment = async (id: string) => {
     try {
-      // Optimistic update
-      const previousRows = [...rows];
-      setRows(prev => prev.filter(r => r.id !== id));
-
+      setDeletingIds(prev => new Set(prev).add(id));
+      
       const { error } = await supabase.from("payments").delete().eq("id", id);
       
       if (error) {
-        setRows(previousRows);
+        setDeletingIds(prev => {
+          const n = new Set(prev);
+          n.delete(id);
+          return n;
+        });
         throw error;
       }
       
       toast.success("Lote excluído com sucesso.");
-      // We don't necessarily need to call load() here if we trust the delete was successful
-      // and we have realtime, but calling it ensures ancillary data is also refreshed.
-      loadAncillaryData();
+      // load() será chamado via Realtime, mas o item já está escondido via deletingIds
     } catch (e: any) {
       toast.error("Erro ao excluir lote: " + e.message);
     }
@@ -333,6 +334,7 @@ const Payments = () => {
       .channel("payments-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); loadAncillaryData(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { loadAncillaryData(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => { loadAncillaryData(); })
       .subscribe();
@@ -446,6 +448,7 @@ const Payments = () => {
   const activeCount = rows.length - archivedCount;
 
   const filtered = useMemo(() => rows.filter((r) => {
+    if (deletingIds.has(r.id)) return false;
     // Arquivamento: por default escondemos lotes em estado terminal das
     // listagens de trabalho. Toggle "Ver arquivados" inverte o filtro.
     const isTerminal = TERMINAL_STATUSES.has(r.status);
@@ -505,7 +508,7 @@ const Payments = () => {
     }
     if (openQuestionOnly && !(openQuestionCount[r.id] > 0)) return false;
     return true;
-  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount]);
+  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount, deletingIds]);
 
   const analystOptions = useMemo(() => {
     const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];

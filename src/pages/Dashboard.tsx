@@ -533,6 +533,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
@@ -758,6 +759,7 @@ const Dashboard = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [load]);
@@ -782,12 +784,9 @@ const Dashboard = () => {
       pipelineOwner === "all"
         ? true
         : ACTION_QUEUE[pipelineOwner].has(p.status);
-    const c = {
-      pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
-      pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
-      pipeDivergente: 0,
-    };
+    const c = { ...initialCounts };
     for (const p of allPayments) {
+      if (deletingIds.has(p.id)) continue;
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
       if (!matchesOwner(p)) continue;
       switch (p.status) {
@@ -814,7 +813,7 @@ const Dashboard = () => {
       }
     }
     return c;
-  }, [allPayments, pipelineOwner, pipelineWindow]);
+  }, [allPayments, pipelineOwner, pipelineWindow, deletingIds]);
 
   const pipelineQuery = useMemo(() => {
     const parts: string[] = [];

@@ -899,40 +899,56 @@ export default function CompanyAnalysis() {
   const confirmDeleteItem = async () => {
     if (!deleteItem || !id || !group) return;
     setDeletingItem(true);
+    const previousItems = [...allItems]; // Use allItems from the hook
     try {
       const gross = Number(deleteItem.gross_amount ?? 0);
-      const previousItems = [...items];
+      
       // Optimistic update
       setItems(prev => prev.filter(it => it.id !== deleteItem.id));
       
       const { error } = await supabase.from("payment_items").delete().eq("id", deleteItem.id);
-      if (error) {
-        setItems(previousItems);
-        throw error;
-      }
-      const remaining = items.length - 1;
-      if (remaining <= 0) {
+      if (error) throw error;
+      
+      // Calculate remaining items for this group specifically
+      const remainingItemsInGroup = allItems.filter(it => 
+        it.id !== deleteItem.id && 
+        normalizeString(it.company_name ?? "") === normalizeString(group.company_name)
+      );
+      
+      const remainingCount = remainingItemsInGroup.length;
+
+      if (remainingCount <= 0) {
+        // Deletou o último item da empresa, remove o grupo
         await supabase.from("payment_company_groups").delete().eq("id", group.id);
       } else {
+        // Atualiza totais do grupo
+        const newTotal = Math.max(0, Number(group.total_amount ?? 0) - gross);
         await supabase
           .from("payment_company_groups")
           .update({
-            items_count: remaining,
-            total_amount: Math.max(0, Number(group.total_amount ?? 0) - gross),
+            items_count: remainingCount,
+            total_amount: newTotal,
           })
           .eq("id", group.id);
       }
+      
       await recordObservation({
         payment_id: id,
         author_type: "analista",
         author_id: user!.id,
         message: `[${group.company_name}] Item excluído pelo analista (${deleteItem.doctor_name} · ${formatCurrency(gross)}).`,
       });
-      toast.success("Item excluído");
+      
+      toast.success("Item excluído com sucesso");
       setDeleteItem(null);
-      if (remaining <= 0) navigate(`/pagamentos/${id}`);
-      else await load();
+      
+      if (remainingCount <= 0) {
+        navigate(`/pagamentos/${id}`);
+      }
+      // load() será chamado via Realtime automaticamente, não precisamos chamar aqui
     } catch (e) {
+      // Rollback
+      setItems(previousItems);
       toast.error("Falha ao excluir", { description: e instanceof Error ? e.message : String(e) });
     } finally {
       setDeletingItem(false);
@@ -1171,7 +1187,7 @@ export default function CompanyAnalysis() {
           {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" disabled={busy}>
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10" disabled={busy}>
                   <Trash2 className="h-4 w-4 mr-1" /> Excluir lote
                 </Button>
               </AlertDialogTrigger>
