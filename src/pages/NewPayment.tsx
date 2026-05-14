@@ -326,9 +326,16 @@ const NewPayment = () => {
       
       const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
-      // === Lógica de Setor por Linha (Setor Multi-Lote) ===
-      // Se a planilha tiver uma coluna de setor, respeitamos o valor de CADA linha.
-      // Se o usuário mapeou um setor global para o arquivo (sectorMapping), ele tem precedência.
+      // Tenta identificar empresa por linha (Multi-empresa)
+      const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
+      let rowMatchedCompany = null;
+      if (rowCompanyNameRaw) {
+        const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
+        if (s >= 0.85) {
+          rowMatchedCompany = matched;
+        }
+      }
+
       const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
 
       const base = {
@@ -338,8 +345,8 @@ const NewPayment = () => {
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
         valor_invalido,
-        company_name: score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null),
-        company_id: score >= 0.9 ? (company?.id ?? null) : null,
+        company_name: rowMatchedCompany?.name || rowCompanyNameRaw || (score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null)),
+        company_id: rowMatchedCompany?.id || (score >= 0.9 ? (company?.id ?? null) : null),
         attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
         procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss"])),
         procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
