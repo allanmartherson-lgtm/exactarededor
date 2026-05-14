@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     const whatsappResults: unknown[] = [];
 
     // Email
-    if (analyst.email && LOVABLE_API_KEY && RESEND_API_KEY) {
+    if (analyst.email && LOVABLE_API_KEY && RESEND_API_KEY && emailEnabled) {
       try {
         const r = await fetch(`${RESEND_GATEWAY}/emails`, {
           method: "POST",
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
 
     // WhatsApp
     const phoneDigits = onlyDigits(analyst.phone ?? "");
-    if (phoneDigits && LOVABLE_API_KEY && TWILIO_API_KEY) {
+    if (phoneDigits && LOVABLE_API_KEY && TWILIO_API_KEY && whatsappEnabled) {
       try {
         const e164 = phoneDigits.length === 11 ? `+55${phoneDigits}` : `+${phoneDigits}`;
         const params = new URLSearchParams({
