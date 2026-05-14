@@ -505,7 +505,10 @@ function matchesProcedureCode(r: RuleInput, item: ItemInput): boolean {
   const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
 
   // 1) Match por código
-  if (info.hasAnyCodes && itemCode && info.allCodes.includes(itemCode)) return true;
+  if (info.hasAnyCodes && itemCode && info.allCodes.some(pattern => {
+    if (pattern.endsWith("*")) return itemCode.startsWith(pattern.slice(0, -1));
+    return itemCode === pattern;
+  })) return true;
 
   // 2) Match por palavra-chave
   if (info.hasAnyKeywords) {
@@ -1178,9 +1181,25 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   const codeMode = (c.code_match_mode ?? "any") as "whitelist" | "blacklist" | "any";
   if (codeMode !== "any" && codes.length > 0) {
     const ic = (item.procedure_code ?? "").trim();
-    const inList = !!ic && codes.includes(ic);
-    if (codeMode === "whitelist" && !inList) return { ok: false, reason: "codigo_nao_listado" };
-    if (codeMode === "blacklist" && inList) return { ok: false, reason: "codigo_excluido" };
+    const match = !!ic && codes.some(pattern => {
+      if (pattern.endsWith("*")) {
+        return ic.startsWith(pattern.slice(0, -1));
+      }
+      return ic === pattern;
+    });
+    
+    if (codeMode === "whitelist" && !match) return { ok: false, reason: "codigo_nao_listado" };
+    if (codeMode === "blacklist" && match) return { ok: false, reason: "codigo_excluido" };
+  }
+
+  // Novo: Suporte a palavras-chave no item de cálculo
+  const keywords = Array.isArray((c as any).procedure_keywords) 
+    ? (c as any).procedure_keywords.filter(Boolean) 
+    : [];
+  if (keywords.length > 0) {
+    const itemText = normName(`${item.procedure_name ?? ""} ${item.description ?? ""}`);
+    const match = keywords.some(kw => itemText.includes(normName(kw)));
+    if (!match) return { ok: false, reason: "palavra_chave" };
   }
   // Convênios
   const ags = Array.isArray(c.agreement_aliases) ? c.agreement_aliases.filter(Boolean) : [];
