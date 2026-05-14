@@ -32,31 +32,38 @@ Deno.serve(async (req) => {
       // Distinct company_name no lote (inclui "Sem empresa" para itens sem company_name)
       const { data: rows, error: itemsErr } = await supabase
         .from("payment_items")
-        .select("company_name")
+        .select("company_name, ai_status")
         .eq("payment_id", payment_id);
       if (itemsErr) throw itemsErr;
+      
+      const filteredRows = ai_statuses && ai_statuses.length > 0
+        ? (rows ?? []).filter((r: any) => ai_statuses.includes(r.ai_status))
+        : (rows ?? []);
+
       companyNames = Array.from(new Set(
-        (rows ?? []).map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
+        filteredRows.map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
       ));
-    }
+      const totalItems = filteredRows.length;
 
-    if (companyNames.length === 0) {
-      return new Response(JSON.stringify({ ok: true, total_companies: 0, message: "lote sem itens" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      if (companyNames.length === 0) {
+        return new Response(JSON.stringify({ ok: true, total_companies: 0, total_items: 0, message: "lote sem itens" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    // Cria job de processamento
-    const { data: job, error: jobErr } = await supabase
-      .from("payment_processing_jobs")
-      .insert({
-        payment_id,
-        total_companies: companyNames.length,
-        processed_companies: 0,
-        status: "em_andamento",
-      })
-      .select()
-      .single();
+      // Cria job de processamento
+      const { data: job, error: jobErr } = await supabase
+        .from("payment_processing_jobs")
+        .insert({
+          payment_id,
+          total_companies: companyNames.length,
+          processed_companies: 0,
+          status: "em_andamento",
+          company_list: companyNames,
+          total_items: totalItems,
+        })
+        .select()
+        .single();
     if (jobErr) throw jobErr;
 
     // Dispara workers em background. fire-and-forget: não aguardamos as respostas
