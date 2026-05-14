@@ -1234,44 +1234,69 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         `Detalhe por item em ai_findings.decision_fields.`,
     });
 
-    // ---------- 10. Grupos por empresa ----------
+    // ---------- 10. Grupos por empresa (Consolidação via normName) ----------
+    // Carrega todos os grupos atuais do lote para decidir entre UPDATE, INSERT ou DELETE (limpeza).
+    const { data: existingGroups } = await supabase
+      .from("payment_company_groups")
+      .select("id,company_name,status")
+      .eq("payment_id", payment_id);
+
     const groupsMap = new Map<string, { company_id: string | null; company_name: string; items: ItemInput[] }>();
     for (const it of items) {
       const name = (it.company_name ?? "Sem empresa").trim() || "Sem empresa";
       const key = normName(name);
       const cur = groupsMap.get(key);
-      if (cur) cur.items.push(it);
+      if (cur) {
+        cur.items.push(it);
+        // Prioriza o nome que tem acentos/case original se houver diferença
+        if (name !== cur.company_name && name.length > cur.company_name.length) {
+           cur.company_name = name;
+        }
+      }
       else groupsMap.set(key, { company_id: it.company_id, company_name: name, items: [it] });
     }
-    await Promise.all(Array.from(groupsMap.values()).map(async (g) => {
+
+    const processedGroupIds = new Set<string>();
+
+    for (const [key, g] of groupsMap.entries()) {
       const total = g.items.reduce((s, x) => s + Number(x.gross_amount), 0);
-      const { data: existing } = await supabase
-        .from("payment_company_groups")
-        .select("id,status")
-        .eq("payment_id", payment_id)
-        .ilike("company_name", g.company_name)
-        .maybeSingle();
+      
+      // Busca grupo existente que bata com o nome normalizado
+      const existing = (existingGroups ?? []).find(eg => normName(eg.company_name) === key);
+
       if (existing) {
+        processedGroupIds.add(existing.id);
         const groupUpd: Record<string, unknown> = {
           items_count: g.items.length,
           total_amount: total,
           company_id: g.company_id,
+          // Atualiza o nome para o "mais completo/correto" encontrado nos itens
+          company_name: g.company_name,
         };
         if (ANALYST_OWNED_FOR_REWRITE.has((existing as any).status as string)) {
           groupUpd.status = "revisao_analista";
         }
         await supabase.from("payment_company_groups").update(groupUpd).eq("id", existing.id);
       } else {
-        await supabase.from("payment_company_groups").insert({
+        const { data: newG } = await supabase.from("payment_company_groups").insert({
           payment_id,
           company_id: g.company_id,
           company_name: g.company_name,
           status: "revisao_analista",
           items_count: g.items.length,
           total_amount: total,
-        });
+        }).select("id").single();
+        if (newG) processedGroupIds.add(newG.id);
       }
-    }));
+    }
+
+    // Limpeza: remove grupos que não existem mais neste lote (ex: itens foram movidos ou excluídos)
+    const groupsToRemove = (existingGroups ?? []).filter(eg => !processedGroupIds.has(eg.id));
+    if (groupsToRemove.length > 0) {
+      const idsToRemove = groupsToRemove.map(eg => eg.id);
+      console.log(`Limpando ${idsToRemove.length} grupos órfãos do lote ${payment_id}`);
+      await supabase.from("payment_company_groups").delete().in("id", idsToRemove);
+    }
 
     // Notifica o analista que a IA concluiu (Evento 2)
     if (obsTransition) {
