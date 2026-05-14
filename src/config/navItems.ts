@@ -9,8 +9,9 @@ import {
   Network,
   Users,
   History,
+  Settings,
   ScrollText,
-  
+  Bell,
   Timer,
   BadgeDollarSign,
   Stethoscope,
@@ -52,6 +53,7 @@ export const ALL_ROLES = ["analista", "validador", "diretor", "admin"] as const;
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, iconName: "LayoutDashboard", roles: ALL_ROLES },
+  { to: "/perfil", label: "Meu Perfil", icon: Settings, iconName: "Settings", roles: ALL_ROLES },
   {
     label: "Financeiro",
     icon: Wallet,
@@ -102,6 +104,7 @@ export const NAV_ITEMS: NavItem[] = [
  */
 export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: string }> = [
   { label: "Dashboard", iconName: "LayoutDashboard" },
+  { label: "Meu Perfil", iconName: "Settings" },
   { label: "Pagamentos", iconName: "Wallet" },
   { label: "Notas Fiscais", iconName: "Receipt" },
   { label: "KPIs", iconName: "BarChart2" },

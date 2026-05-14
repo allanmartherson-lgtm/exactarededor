@@ -75,6 +75,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Busca as preferências de notificação do analista
+    const { data: settings } = await supabase
+      .from("user_notification_settings")
+      .select("email_enabled, whatsapp_enabled")
+      .eq("user_id", payment.created_by)
+      .eq("event_type", eventType)
+      .maybeSingle();
+
+    const emailEnabled = settings ? settings.email_enabled : true;
+    const whatsappEnabled = settings ? settings.whatsapp_enabled : true;
+
+    if (!emailEnabled && !whatsappEnabled) {
+      return new Response(JSON.stringify({ ok: true, message: "Notificações desativadas para este evento" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const link = `${APP_BASE_URL}/pagamentos/${paymentId}`;
     const greeting = greetingForBrazil();
     const name = firstName(analyst.full_name);
@@ -109,7 +126,7 @@ Deno.serve(async (req) => {
     const whatsappResults: unknown[] = [];
 
     // Email
-    if (analyst.email && LOVABLE_API_KEY && RESEND_API_KEY) {
+    if (analyst.email && LOVABLE_API_KEY && RESEND_API_KEY && emailEnabled) {
       try {
         const r = await fetch(`${RESEND_GATEWAY}/emails`, {
           method: "POST",
@@ -135,7 +152,7 @@ Deno.serve(async (req) => {
 
     // WhatsApp
     const phoneDigits = onlyDigits(analyst.phone ?? "");
-    if (phoneDigits && LOVABLE_API_KEY && TWILIO_API_KEY) {
+    if (phoneDigits && LOVABLE_API_KEY && TWILIO_API_KEY && whatsappEnabled) {
       try {
         const e164 = phoneDigits.length === 11 ? `+55${phoneDigits}` : `+${phoneDigits}`;
         const params = new URLSearchParams({

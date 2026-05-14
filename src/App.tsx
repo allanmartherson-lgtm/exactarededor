@@ -26,6 +26,7 @@ import Doctors from "./pages/Doctors.tsx";
 import ProcedureSpecialtyMap from "./pages/ProcedureSpecialtyMap.tsx";
 import Sectors from "./pages/Sectors.tsx";
 import CostCenters from "./pages/CostCenters.tsx";
+import Profile from "./pages/Profile.tsx";
 import AuditLog from "./pages/AuditLog.tsx";
 import StatusAnomalies from "./pages/StatusAnomalies.tsx";
 import SlaSettings from "./pages/SlaSettings.tsx";
@@ -61,6 +62,7 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/pagamentos" element={<Payments />} />
+              <Route path="/perfil" element={<Profile />} />
               <Route path="/pagamentos/novo" element={<ProtectedRoute roles={["analista", "admin", "diretor"]}><NewPayment /></ProtectedRoute>} />
               <Route path="/pagamentos/:id" element={<PaymentDetail />} />
               <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
