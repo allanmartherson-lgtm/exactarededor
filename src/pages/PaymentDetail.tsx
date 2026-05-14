@@ -939,13 +939,22 @@ const PaymentDetail = () => {
   const deletePayment = async () => {
     if (!id) return;
     setBusy(true);
-    await supabase.from("payment_items").delete().eq("payment_id", id);
-    await supabase.from("payment_observations").delete().eq("payment_id", id);
-    const { error } = await supabase.from("payments").delete().eq("id", id);
-    setBusy(false);
-    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Lote excluído" });
-    navigate("/pagamentos");
+    try {
+      // Deletar itens primeiro (Cascade should handle this if defined in DB, but explicit is safer)
+      await supabase.from("payment_items").delete().eq("payment_id", id);
+      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+      const { error } = await supabase.from("payments").delete().eq("id", id);
+      
+      if (error) throw error;
+      
+      toast({ title: "Lote excluído" });
+      navigate("/pagamentos", { replace: true });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   // Resumo objetivo a partir dos itens
