@@ -64,7 +64,8 @@ type OptionalColKey =
   | "via"
   | "funcao"
   | "procedimento"
-  | "setor"
+  | "setor_lido"
+  | "setor_inferido"
   | "regra"
   | "diferenca"
   | "observacao";
@@ -75,7 +76,8 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "via", label: "Via de acesso" },
   { key: "funcao", label: "Função" },
   { key: "procedimento", label: "Procedimento" },
-  { key: "setor", label: "Setor" },
+  { key: "setor_lido", label: "Setor (Planilha)" },
+  { key: "setor_inferido", label: "Setor (Sistema)" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -87,7 +89,8 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   via: false,
   funcao: false,
   procedimento: true,
-  setor: true,
+  setor_lido: true,
+  setor_inferido: true,
   regra: false,
   diferenca: false,
   observacao: false,
@@ -617,7 +620,8 @@ export function ItemsDataGrid({
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
-                  (colVis.setor ? 1 : 0) +
+                  (colVis.setor_lido ? 1 : 0) +
+                  (colVis.setor_inferido ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
@@ -661,7 +665,8 @@ export function ItemsDataGrid({
                 (colVis.via ? 1 : 0) +
                 1 /* tuss */ +
                 1 /* procedimento */ +
-                (colVis.setor ? 1 : 0) +
+                (colVis.setor_lido ? 1 : 0) +
+                (colVis.setor_inferido ? 1 : 0) +
                 1 /* medico */ +
                 (colVis.funcao ? 1 : 0) +
                 (colVis.regra ? 1 : 0);
@@ -843,8 +848,13 @@ function RowMain({
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        {colVis.setor && (
+        {colVis.setor_lido && (
           <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{it.sector ?? "—"}</td>
+        )}
+        {colVis.setor_inferido && (
+          <td className={cn(cell, TEXT_META)} title={it.ai_findings?.engine?.inferred_sector ?? ""}>
+            {it.ai_findings?.engine?.inferred_sector ?? "—"}
+          </td>
         )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
@@ -1006,6 +1016,8 @@ function ItemDetailsRow({
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
+    { label: "Setor (Planilha)", value: it.sector ?? "—" },
+    { label: "Setor (Sistema)", value: (it.ai_findings?.engine as any)?.inferred_sector ?? "—" },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
