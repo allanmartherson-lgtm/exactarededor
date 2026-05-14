@@ -1086,6 +1086,16 @@ export default function CompanyAnalysis() {
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const canDelete = isAdmin || (isAnalista && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(payment.status as string));
+  
+  console.log("Render Info:", {
+    id,
+    paymentStatus: payment.status,
+    canDelete,
+    isAdmin,
+    isAnalista,
+    userRole: roles
+  });
+
   const canActAsVD = canActAsValidatorOrDirector(payment.created_by, user?.id);
   // Governança: analista só atua se for o dono do lote (ou admin).
   // Validador/diretor só atuam se NÃO forem o criador (segregação de funções).
