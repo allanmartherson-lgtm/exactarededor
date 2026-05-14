@@ -1219,7 +1219,7 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   const roles = Array.isArray(c.doctor_roles) ? c.doctor_roles.filter(Boolean) : [];
   if (roles.length > 0) {
     const itemRole = classifyDoctorRole(item.doctor_role);
-    if (!roles.includes(itemRole)) return { ok: false, reason: "funcao_medico" };
+    if (!roles.includes(itemRole)) return { ok: false, reason: `funcao_medico (item: ${itemRole}, esperado: ${roles.join(", ")})` };
   }
   // Setores
   const cSectors = Array.isArray(c.sectors) ? c.sectors.filter(Boolean) : [];
