@@ -617,6 +617,7 @@ export function ItemsDataGrid({
                   (colVis.atendimento ? 1 : 0) +
                   (colVis.convenio ? 1 : 0) +
                   (colVis.via ? 1 : 0) +
+                  (colVis.setor ? 1 : 0) +
                   (colVis.funcao ? 1 : 0) +
                   (colVis.regra ? 1 : 0) +
                   (colVis.diferenca ? 1 : 0) +
