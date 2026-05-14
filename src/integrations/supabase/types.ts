@@ -1458,6 +1458,7 @@ export type Database = {
           package_subtype: string | null
           package_visits_count: boolean
           procedure_codes: string[] | null
+          procedure_keywords: string[] | null
           reference_table_id: string | null
           repasse_pct: number | null
           rule_id: string
@@ -1508,6 +1509,7 @@ export type Database = {
           package_subtype?: string | null
           package_visits_count?: boolean
           procedure_codes?: string[] | null
+          procedure_keywords?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_id: string
@@ -1558,6 +1560,7 @@ export type Database = {
           package_subtype?: string | null
           package_visits_count?: boolean
           procedure_codes?: string[] | null
+          procedure_keywords?: string[] | null
           reference_table_id?: string | null
           repasse_pct?: number | null
           rule_id?: string
