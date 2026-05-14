@@ -1187,7 +1187,7 @@ export default function CompanyAnalysis() {
           {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" disabled={busy}>
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10" disabled={busy}>
                   <Trash2 className="h-4 w-4 mr-1" /> Excluir lote
                 </Button>
               </AlertDialogTrigger>
