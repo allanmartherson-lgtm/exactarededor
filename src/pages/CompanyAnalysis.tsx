@@ -955,8 +955,12 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const handleDeletePayment = async () => {
-    if (!id) return;
+  const handleDeletePayment = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!id || !group) return;
     setBusy(true);
     console.log("handleDeletePayment called for id:", id);
     try {
@@ -1090,7 +1094,7 @@ export default function CompanyAnalysis() {
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
-  const canDelete = isAdmin || (isAnalistaRole && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(payment.status as string));
+  const canDelete = isAdmin || (isAnalistaRole && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista", "aguardando_validacao", "aguardando_aprovacao"].includes(payment.status as string));
   
   console.log("Render Info:", {
     id,
@@ -1232,10 +1236,7 @@ export default function CompanyAnalysis() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
                   <AlertDialogAction 
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      await handleDeletePayment();
-                    }} 
+                    onClick={handleDeletePayment} 
                     disabled={busy}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
