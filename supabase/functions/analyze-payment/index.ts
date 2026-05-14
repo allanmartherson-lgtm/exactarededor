@@ -89,7 +89,7 @@ serve(async (req) => {
         valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,package_subtype,
-        reference_table_id,multiplier,deflator_pct,repasse_pct,acrescimo_pct,
+        reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
         exclusion_reason,allows_authorized_exception,
         agreement_name,agreement_match_mode,
@@ -102,6 +102,13 @@ serve(async (req) => {
     ]);
 
     const configs = (configRes.data ?? []) as any[];
+    if (rulesRes.error) {
+      console.error("[analyze-payment] rules query error:", rulesRes.error);
+      throw new Error(`Falha ao carregar regras ativas: ${rulesRes.error.message}`);
+    }
+    if (configRes.error) {
+      console.warn("[analyze-payment] system_configurations query warning:", configRes.error);
+    }
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
 
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
@@ -122,7 +129,7 @@ serve(async (req) => {
     // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
     if (rules.length > 0) {
       const ruleIds = rules.map((r) => r.id);
-      const { data: calcRows } = await supabase
+      const { data: calcRows, error: calcRowsErr } = await supabase
         .from("rule_calculations")
         .select(`
           id,rule_id,label,sort_order,calculation_type,
@@ -140,6 +147,13 @@ serve(async (req) => {
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
+      if (calcRowsErr) {
+        console.error("[analyze-payment] rule_calculations query error:", calcRowsErr);
+        throw new Error(`Falha ao carregar cálculos das regras: ${calcRowsErr.message}`);
+      }
+      if (calcRows == null) {
+        console.warn("[analyze-payment] nenhum cálculo retornado para regras ativas; verifique rule_calculations se todas as regras ficarem sem cálculo.");
+      }
       const byRule: Record<string, any[]> = {};
       for (const c of (calcRows ?? []) as any[]) {
         (byRule[c.rule_id as string] ||= []).push(c);

@@ -114,7 +114,7 @@ serve(async (req) => {
         valid_from,valid_until,
         calculation_type,convenio_percentage,fixed_amount,package_amount,extras_codes,
         package_main_code,package_included_codes,package_visits_count,package_opinions_count,package_auxiliaries_included,package_subtype,
-        reference_table_id,multiplier,deflator_pct,repasse_pct,acrescimo_pct,
+        reference_table_id,multiplier,deflator_pct,repasse_pct,
         apply_access_route,include_auxiliaries,auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
         exclusion_reason,allows_authorized_exception,
         agreement_name,agreement_match_mode,
