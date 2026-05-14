@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -509,9 +509,15 @@ export default function CompanyAnalysis() {
         toast.success("Regras reaplicadas");
         load();
       } else {
-        toast.error("Falha ao reaplicar regras", {
-          description: e instanceof Error ? e.message : String(e),
-        });
+        const { data: finalCheck } = await supabase.from("payments").select("processing_timeout_occurred").eq("id", id).maybeSingle();
+        if (finalCheck?.processing_timeout_occurred) {
+          toast.warning("Análise parcial", { description: "O motor processou tudo, mas a IA excedeu o tempo limite." });
+          load();
+        } else {
+          toast.error("Falha ao reaplicar regras", {
+            description: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     } finally {
       setReanalyzing(false);
@@ -1215,12 +1221,34 @@ export default function CompanyAnalysis() {
 
         {/* ABA 1 — Análise */}
         <TabsContent value="analise" className="space-y-3">
+          {payment?.processing_timeout_occurred && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Clock className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-destructive leading-tight">
+                  Análise Incompleta (Timeout detectado)
+                </p>
+                <p className="text-[11px] text-destructive/80 leading-snug">
+                  O motor de regras processou todos os itens, mas a IA excedeu o tempo limite ao gerar as justificativas. 
+                  {payment.processing_diagnostics && typeof payment.processing_diagnostics === 'object' && (
+                    <>
+                      {" "}Apenas <strong>{(payment.processing_diagnostics as any).ai_processed_items ?? 0}</strong> de <strong>{(payment.processing_diagnostics as any).total_items ?? 0}</strong> alertas foram revisados.
+                    </>
+                  )}
+                  {" "}Você pode clicar em "Reaplicar regras" para tentar processar o restante.
+                </p>
+              </div>
+            </div>
+          )}
           <HighlightBanner observations={obs} profiles={profiles} />
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Itens</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {items.length} itens · use os filtros do grid para focar em status, convênio, médico ou alertas.
+                {payment?.processing_timeout_occurred && (
+                  <span className="ml-2 text-destructive font-medium">⚠️ Algumas justificativas da IA podem estar ausentes por timeout.</span>
+                )}
               </p>
             </CardHeader>
             <CardContent className="p-0">
