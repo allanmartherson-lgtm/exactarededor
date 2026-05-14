@@ -828,37 +828,13 @@ const PaymentDetail = () => {
     if (!id || !user) return;
     setReprocessingAi(true);
     try {
+      // Sempre usamos o dispatcher para reanálise do lote para garantir processamento paralelo por empresa.
+      const fnName = "dispatch-payment-analysis";
       const isBatch = !statuses || statuses.length === 0;
-      // Para reanálise completa do lote, usamos o dispatcher para garantir processamento paralelo.
-      const fnName = isBatch ? "dispatch-payment-analysis" : "analyze-payment";
       
       let jobId = null;
-      if (!isBatch) {
-        // Se for por filtro (ex: apenas alertas), o analyze-payment processa o lote todo em uma única chamada.
-        // Criamos um job de "1 unidade" para representar esse processamento atômico na barra.
-        const filteredItems = statuses && statuses.length > 0
-          ? items.filter(it => statuses.includes(it.ai_status as string))
-          : items;
-        
-        const filteredCompanies = Array.from(new Set(
-          filteredItems.map(it => (it.company_name ?? "").trim() || "Sem empresa")
-        ));
-
-        const { data: job, error: jobErr } = await supabase
-          .from("payment_processing_jobs")
-          .insert({
-            payment_id: id,
-            total_companies: 1,
-            processed_companies: 0,
-            status: "em_andamento",
-            company_list: filteredCompanies,
-            total_items: filteredItems.length,
-          })
-          .select()
-          .single();
-        if (jobErr) throw jobErr;
-        jobId = job.id;
-      }
+      // Removido a criação manual de job no frontend para operações de lote, 
+      // o dispatch-payment-analysis cuidará disso internamente de forma exaustiva.
 
       const { error } = await supabase.functions.invoke(fnName, {
         body: {

@@ -198,7 +198,7 @@ serve(async (req) => {
     if (!company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0) {
       itemsQuery.in("ai_status", ai_statuses);
     }
-    const { data: itemsRaw } = await itemsQuery;
+    const { data: itemsRaw } = await itemsQuery.limit(20000);
 
     // ---------- 3.1 Classificação determinística por código TUSS ----------
     // Roda ANTES da seleção de regras de pagamento.

@@ -25,45 +25,54 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Buscamos TODOS os itens do lote para identificar as empresas e garantir
-    // que o processamento paralelo cubra 100% da base importada.
-    const { data: rows, error: itemsErr } = await supabase
-      .from("payment_items")
-      .select("company_name, ai_status")
+    // Buscamos a lista COMPLETA de empresas vinculadas ao lote a partir de payment_company_groups.
+    // Isso evita o limite de 1000 linhas da tabela de itens e garante que todas as empresas sejam vistas.
+    const { data: groups, error: groupsErr } = await supabase
+      .from("payment_company_groups")
+      .select("company_name, items_count")
       .eq("payment_id", payment_id);
-    if (itemsErr) throw itemsErr;
+    if (groupsErr) throw groupsErr;
 
-    let filteredRows = rows ?? [];
-    
-    // Filtro por status de IA (se fornecido).
-    // Se ai_statuses for passado, filtramos as empresas que possuem AO MENOS UM item com esse status.
+    // Se houver filtro de status (alerta, reprovado), precisamos descobrir quais dessas empresas
+    // possuem itens com esses status. Buscamos com um limite alto para cobrir lotes grandes.
+    let companyNames: string[] = [];
+    let totalItems = 0;
+
     if (ai_statuses && ai_statuses.length > 0) {
-      const companiesWithStatus = new Set(
-        rows?.filter((r: any) => ai_statuses.includes(r.ai_status))
-            .map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
+      const { data: itemsWithStatus, error: filterErr } = await supabase
+        .from("payment_items")
+        .select("company_name")
+        .eq("payment_id", payment_id)
+        .in("ai_status", ai_statuses)
+        .limit(20000); // Limite alto para identificar empresas em lotes densos
+      
+      if (filterErr) throw filterErr;
+      
+      const filteredSet = new Set(
+        (itemsWithStatus ?? []).map(r => (r.company_name ?? "").trim() || "Sem empresa")
       );
-      filteredRows = filteredRows.filter((r: any) => {
-        const name = (r.company_name ?? "").trim() || "Sem empresa";
-        return companiesWithStatus.has(name);
+      
+      const targetGroups = (groups ?? []).filter(g => {
+        const name = (g.company_name ?? "").trim() || "Sem empresa";
+        return filteredSet.has(name);
       });
+      
+      companyNames = targetGroups.map(g => (g.company_name ?? "").trim() || "Sem empresa");
+      totalItems = targetGroups.reduce((acc, g) => acc + (g.items_count || 0), 0);
+    } else {
+      // Sem filtro: todas as empresas do lote
+      companyNames = (groups ?? []).map(g => (g.company_name ?? "").trim() || "Sem empresa");
+      totalItems = (groups ?? []).reduce((acc, g) => acc + (g.items_count || 0), 0);
     }
     
-    // Filtro por empresas específicas (se fornecido - ex: reprocessar falhas)
+    // Filtro por empresas específicas (se fornecido - ex: reprocessar falhas ou uma empresa específica)
     if (Array.isArray(only_companies) && only_companies.length > 0) {
-      const normalizedOnly = only_companies.map((s: any) => String(s).trim().toLowerCase());
-      filteredRows = filteredRows.filter((r: any) => {
-        const name = (r.company_name ?? "").trim() || "Sem empresa";
-        return normalizedOnly.includes(name.toLowerCase());
-      });
+      const normalizedOnly = new Set(only_companies.map((s: any) => String(s).trim().toLowerCase()));
+      companyNames = companyNames.filter(name => normalizedOnly.has(name.toLowerCase()));
     }
-
-    const companyNames = Array.from(new Set(
-      filteredRows.map((r: any) => (r.company_name ?? "").trim() || "Sem empresa")
-    ));
-    const totalItems = filteredRows.length;
 
     if (companyNames.length === 0) {
-      return new Response(JSON.stringify({ ok: true, total_companies: 0, total_items: 0, message: "lote sem itens" }), {
+      return new Response(JSON.stringify({ ok: true, total_companies: 0, total_items: 0, message: "nenhuma empresa para processar com os filtros aplicados" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
