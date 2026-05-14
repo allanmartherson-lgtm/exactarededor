@@ -64,6 +64,7 @@ type OptionalColKey =
   | "via"
   | "funcao"
   | "procedimento"
+  | "setor"
   | "regra"
   | "diferenca"
   | "observacao";
@@ -74,6 +75,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "via", label: "Via de acesso" },
   { key: "funcao", label: "Função" },
   { key: "procedimento", label: "Procedimento" },
+  { key: "setor", label: "Setor" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -85,6 +87,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   via: false,
   funcao: false,
   procedimento: true,
+  setor: true,
   regra: false,
   diferenca: false,
   observacao: false,
