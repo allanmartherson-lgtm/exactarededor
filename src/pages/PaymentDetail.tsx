@@ -156,7 +156,7 @@ const PaymentDetail = () => {
   const [savingMeta, setSavingMeta] = useState(false);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
   const [reimporting, setReimporting] = useState(false);
-  const [reimportConfirm, setReimportConfirm] = useState<File | null>(null);
+  const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
@@ -747,31 +747,40 @@ const PaymentDetail = () => {
   // apenas enquanto o lote está editável pelo analista (mesma regra do
   // botão "Editar lote"). Útil quando a planilha original tinha erro de
   // formato e o analista refez a base.
-  const doReimport = async (file: File) => {
+  const doReimport = async (files: File[]) => {
     if (!id || !payment || !user) return;
     setReimporting(true);
     try {
       const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
       const { data: companiesData } = await supabase.from("companies").select("id,name,aliases").limit(5000);
       const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
-      const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
-      if (bucket.rows.length === 0) {
-        toast({ title: "Arquivo vazio", description: "Nenhuma linha válida encontrada.", variant: "destructive" });
+      
+      let allRows: any[] = [];
+      let fileNames: string[] = [];
+
+      for (const file of files) {
+        const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
+        if (bucket.rows.length > 0) {
+          allRows = [...allRows, ...bucket.rows];
+          fileNames.push(file.name);
+          
+          // Upload do arquivo para histórico
+          const path = `${user.id}/${Date.now()}-${file.name}`;
+          await supabase.storage.from("payment-files").upload(path, file);
+        }
+      }
+
+      if (allRows.length === 0) {
+        toast({ title: "Arquivos vazios", description: "Nenhuma linha válida encontrada nos arquivos selecionados.", variant: "destructive" });
         return;
       }
-      // Upload do novo arquivo
-      const path = `${user.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage.from("payment-files").upload(path, file);
-      if (upErr) {
-        toast({ title: "Falha no upload", description: upErr.message, variant: "destructive" });
-        return;
-      }
+
       // Limpa itens e grupos existentes
       const { error: delItemsErr } = await supabase.from("payment_items").delete().eq("payment_id", id);
       if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
       await supabase.from("payment_company_groups").delete().eq("payment_id", id);
 
-      const items = bucket.rows.map((r) => ({
+      const itemsToInsert = allRows.map((r) => ({
         payment_id: id,
         doctor_name: r.doctor_name,
         doctor_document: r.doctor_document,
@@ -795,20 +804,25 @@ const PaymentDetail = () => {
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
       }));
-      const { error: insErr } = await supabase.from("payment_items").insert(items);
-      if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
 
-      const total = bucket.rows.reduce((s, r) => s + r.gross_amount, 0);
+      // Inserção em lotes de 1000 para evitar limites do Supabase
+      const chunkSize = 1000;
+      for (let i = 0; i < itemsToInsert.length; i += chunkSize) {
+        const chunk = itemsToInsert.slice(i, i + chunkSize);
+        const { error: insErr } = await supabase.from("payment_items").insert(chunk);
+        if (insErr) { toast({ title: "Falha ao inserir itens", description: insErr.message, variant: "destructive" }); return; }
+      }
+
+      const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
       await supabase.from("payments").update({
-        source_file_path: path,
         total_amount: total,
-        items_count: bucket.rows.length,
+        items_count: allRows.length,
         status: "em_analise_ia",
       }).eq("id", id);
 
       await recordObservation({
         payment_id: id, author_type: "analista", author_id: user.id,
-        message: `Base reimportada pelo analista (${bucket.rows.length} itens, total ${total.toFixed(2)}). Arquivo: ${file.name}.`,
+        message: `Base reimportada pelo analista (${allRows.length} itens, total ${total.toFixed(2)}). Arquivos: ${fileNames.join(", ")}.`,
         status_from: payment.status, status_to: "em_analise_ia",
       });
 
@@ -1434,16 +1448,17 @@ const PaymentDetail = () => {
               )}
               {canReimport && (
                 <div className="flex gap-2">
-                  <input
-                    ref={reimportInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) setReimportConfirm(f);
-                    }}
-                  />
+                    <input
+                      ref={reimportInputRef}
+                      type="file"
+                      multiple
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) setReimportConfirm(Array.from(files));
+                      }}
+                    />
                   <Button
                     variant="outline"
                     size="sm"
