@@ -667,6 +667,8 @@ FOCO ESPECIAL EM "VÍNCULOS DIVERGENTES":
 
       IMPORTANTE: Se o motor aplicou uma regra porque o código do procedimento está explicitamente listado nela (whitelist), confie nessa decisão a menos que haja uma incoerência gritante (ex: cobrança duplicada ou médico de especialidade totalmente diferente). Se a regra vencedora foi por "Setor", "Empresa" ou "Médico" sem restrição de código, seja mais criterioso na revisão.
 
+      REGRA DE PROJETO: setor é filtro opcional do cálculo, não obrigação cadastral. Nunca diga para "cadastrar setor" nem para criar regra por setor quando o cálculo foi deixado sem filtro de setor. Em casos sem_regra, explique apenas qual filtro operacional impediu o cálculo (código TUSS, função, convênio, via de acesso ou tabela vinculada), se isso estiver claro nos dados do motor.
+
       SUA FUNÇÃO:
       1) Explicar de forma assertiva por que o item gerou alerta/reprovação.
       2) Adicionar alertas EXTRAS (extra_alerts) sempre que notar inconsistências de vínculos, duplicidades ou suspeitas de erro que o motor determinístico (limitado a códigos) não pegou.
