@@ -638,152 +638,144 @@ const Payments = () => {
             aria-label={`Selecionar ${p.reference} para reprocessamento`}
           />
         </div>
-        <Link to={`/pagamentos/${p.id}`} className="flex items-start justify-between gap-4 flex-1 min-w-0">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="font-medium text-sm truncate">{p.reference}</p>
-            <PaymentRiskBadgeInline paymentId={p.id} />
+        <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
+          <Link to={`/pagamentos/${p.id}`} className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="font-medium text-sm truncate">{p.reference}</p>
+              <PaymentRiskBadgeInline paymentId={p.id} />
 
-            {openQuestionCount[p.id] > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-foreground"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <AlertTriangle className="h-3 w-3" /> Questionamento ({openQuestionCount[p.id]})
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{openQuestionCount[p.id]} questionamento{openQuestionCount[p.id] > 1 ? "s" : ""} aguardando resposta</TooltipContent>
-              </Tooltip>
-            )}
-
-            {p.processing_timeout_occurred && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-semibold border border-destructive/20 cursor-help">
-                    <Clock className="h-3 w-3" />
-                    Limite IA
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-[280px] space-y-2 text-xs">
-                  <p className="font-bold flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 text-destructive" /> Diagnóstico de Performance
-                  </p>
-                  <p>O lote original excedeu o tempo limite de análise da IA.</p>
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/20 mt-1">
-                    <div>
-                      <p className="text-muted-foreground">Itens IA:</p>
-                      <p className="font-medium text-foreground">{p.processing_diagnostics?.ai_processed_items || "—"} / {p.processing_diagnostics?.total_items || p.items_count}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Chunk Size:</p>
-                      <p className="font-medium text-foreground">{p.processing_diagnostics?.chunk_size || 50} itens</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Tempo Total:</p>
-                      <p className="font-medium text-foreground">{( (p.processing_diagnostics?.execution_time_ms || 0) / 1000 ).toFixed(1)}s</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Status:</p>
-                      <p className="font-medium text-destructive">Timeout</p>
-                    </div>
-                  </div>
-                  <p className="italic text-[10px] pt-1">O motor determinístico concluiu 100% dos cálculos; apenas as justificativas de IA foram limitadas aos itens mais críticos.</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-              <User className="h-3 w-3" /> {analystName}
-            </Badge>
-            {p.payment_type && (
-              <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                <Tag className="h-3 w-3" /> {PAYMENT_TYPE_LABELS[p.payment_type]}
-              </Badge>
-            )}
-            {companies > 0 && (
-              <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
-              </Badge>
-            )}
-            <Badge
-              variant="outline"
-              className={cn(
-                "gap-1 font-normal",
-                finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
-                finalLvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
-                finalLvl === "none" && "text-muted-foreground",
+              {openQuestionCount[p.id] > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-foreground"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <AlertTriangle className="h-3 w-3" /> Questionamento ({openQuestionCount[p.id]})
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{openQuestionCount[p.id]} questionamento{openQuestionCount[p.id] > 1 ? "s" : ""} aguardando resposta</TooltipContent>
+                </Tooltip>
               )}
-            >
-              <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
-            </Badge>
-            {sla && (
+
+              {p.processing_timeout_occurred && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-semibold border border-destructive/20 cursor-help">
+                      <Clock className="h-3 w-3" />
+                      Limite IA
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[280px] space-y-2 text-xs">
+                    <p className="font-bold flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 text-destructive" /> Diagnóstico de Performance
+                    </p>
+                    <p>O lote original excedeu o tempo limite de análise da IA.</p>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/20 mt-1">
+                      <div>
+                        <p className="text-muted-foreground">Itens IA:</p>
+                        <p className="font-medium text-foreground">{p.processing_diagnostics?.ai_processed_items || "—"} / {p.processing_diagnostics?.total_items || p.items_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Chunk Size:</p>
+                        <p className="font-medium text-foreground">{p.processing_diagnostics?.chunk_size || 50} itens</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Tempo Total:</p>
+                        <p className="font-medium text-foreground">{( (p.processing_diagnostics?.execution_time_ms || 0) / 1000 ).toFixed(1)}s</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status:</p>
+                        <p className="font-medium text-destructive">Timeout</p>
+                      </div>
+                    </div>
+                    <p className="italic text-[10px] pt-1">O motor determinístico concluiu 100% dos cálculos; apenas as justificativas de IA foram limitadas aos itens mais críticos.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                <User className="h-3 w-3" /> {analystName}
+              </Badge>
+              {p.payment_type && (
+                <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                  <Tag className="h-3 w-3" /> {PAYMENT_TYPE_LABELS[p.payment_type]}
+                </Badge>
+              )}
+              {companies > 0 && (
+                <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                  <Building2 className="h-3 w-3" /> {companies} empresa{companies > 1 ? "s" : ""}
+                </Badge>
+              )}
               <Badge
                 variant="outline"
-                title={`${sla.reason} · vence ${sla.dueAt.toLocaleDateString("pt-BR")} · ${sla.source === "empresa" ? "regra da empresa" : "SLA padrão"}`}
                 className={cn(
                   "gap-1 font-normal",
-                  sla.level === "vencido" && "bg-destructive-soft text-destructive border-destructive/30",
-                  sla.level === "preventivo" && "bg-warning-soft text-warning-foreground border-warning/30",
-                  sla.level === "ok" && "text-muted-foreground",
+                  finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
+                  finalLvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
+                  finalLvl === "none" && "text-muted-foreground",
                 )}
               >
-                {sla.level === "vencido" ? "Vencido" : sla.level === "preventivo" ? "Perto do prazo" : `Vence ${sla.dueAt.toLocaleDateString("pt-BR")}`}
+                <Clock className="h-3 w-3" /> {formatDuration(elapsedMs)} no status
               </Badge>
+              {sla && (
+                <Badge
+                  variant="outline"
+                  title={`${sla.reason} · vence ${sla.dueAt.toLocaleDateString("pt-BR")} · ${sla.source === "empresa" ? "regra da empresa" : "SLA padrão"}`}
+                  className={cn(
+                    "gap-1 font-normal",
+                    sla.level === "vencido" && "bg-destructive-soft text-destructive border-destructive/30",
+                    sla.level === "preventivo" && "bg-warning-soft text-warning-foreground border-warning/30",
+                    sla.level === "ok" && "text-muted-foreground",
+                  )}
+                >
+                  {sla.level === "vencido" ? "Vencido" : sla.level === "preventivo" ? "Perto do prazo" : `Vence ${sla.dueAt.toLocaleDateString("pt-BR")}`}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
+              {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
+              {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
+              {" · criado em "}{formatDate(p.created_at)}
+            </p>
+          </Link>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
+            {(isAnalista || isDiretor || isAdmin) && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(p.status) && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    title="Excluir lote"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação remove o lote <strong>{p.reference}</strong>, todos os seus itens e histórico permanentemente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => deletePayment(p.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Excluir definitivamente
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
-            {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
-            {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
-            {" · criado em "}{formatDate(p.created_at)}
-          </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <StatusBadge status={p.status} className={cn(finalLvl === "critico" && "ring-2 ring-destructive/40")} />
-          {(isAnalista || isDiretor || isAdmin) && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(p.status) && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  title="Excluir lote"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação remove o lote <strong>{p.reference}</strong>, todos os seus itens e histórico permanentemente.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      deletePayment(p.id);
-                    }}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Excluir definitivamente
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-        </Link>
       </div>
     );
   };

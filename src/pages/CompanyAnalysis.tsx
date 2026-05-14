@@ -955,11 +955,7 @@ export default function CompanyAnalysis() {
     }
   };
 
-  const handleDeletePayment = async (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const handleDeletePayment = async () => {
     if (!id || !group) return;
     setBusy(true);
     console.log("handleDeletePayment called for id:", id);
@@ -1147,13 +1143,15 @@ export default function CompanyAnalysis() {
               <input
                 ref={reimportInputRef}
                 type="file"
-                multiple
-                accept=".xlsx,.xls"
+                multiple={true}
+                accept=".xlsx,.xls,.csv"
                 className="hidden"
                 onChange={(e) => {
                   const files = e.target.files;
                   if (files && files.length > 0) {
-                    setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
+                    const newFiles = Array.from(files);
+                    setReimportConfirm(prev => prev ? [...prev, ...newFiles] : newFiles);
+                    // Reset input value to allow selecting same file again
                     e.target.value = "";
                   }
                 }}
