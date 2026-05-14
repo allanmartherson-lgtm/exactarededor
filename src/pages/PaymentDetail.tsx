@@ -1868,9 +1868,14 @@ const PaymentDetail = () => {
 
               const paymentSpec = ((payment.specialties ?? []) as string[]).join(" ").toLowerCase();
               const visibleGroups = groups.filter((g) => {
-                const sq = itemSearch.trim().toLowerCase();
-                const nameMatches = !sq || g.company_name?.toLowerCase().includes(sq);
-                const specMatches = !sq || paymentSpec.includes(sq);
+                const sqItem = itemSearch.trim().toLowerCase();
+                const sqComp = companySearch.trim().toLowerCase();
+                
+                const nameMatchesCompanySearch = !sqComp || g.company_name?.toLowerCase().includes(sqComp);
+                if (!nameMatchesCompanySearch) return false;
+
+                const nameMatchesItemSearch = !sqItem || g.company_name?.toLowerCase().includes(sqItem);
+                const specMatchesItemSearch = !sqItem || paymentSpec.includes(sqItem);
 
                 // Pegamos todos os itens deste grupo específico para validações agregadas
                 const groupItems = items.filter(
