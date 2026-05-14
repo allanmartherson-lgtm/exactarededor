@@ -14,6 +14,8 @@ interface ProcessingJob {
   processed_companies: number;
   status: "em_andamento" | "concluido" | "parcial" | "cancelado";
   failed_companies: Array<{ company_name: string; error: string; at: string }>;
+  company_list: string[] | null;
+  total_items: number | null;
   started_at: string;
   finished_at: string | null;
 }
