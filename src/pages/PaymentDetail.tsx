@@ -1895,7 +1895,7 @@ const PaymentDetail = () => {
                 }
 
                 // Sem filtro de status (Todos): decide pela busca no nome ou nos itens
-                return nameMatches || specMatches || groupItems.some((it) => itemMatches(it));
+                return nameMatchesItemSearch || specMatchesItemSearch || groupItems.some((it) => itemMatches(it));
               });
               
               const finalSearchTerm = itemSearch.trim() || (criticalFilter !== "all" ? criticalFilter : "");
