@@ -1953,7 +1953,7 @@ const PaymentDetail = () => {
                   <PaymentGroupCard
                     g={g}
                     groupItems={groupItemsAll}
-                    searchActive={!!sq}
+                    searchActive={!!sqCompany}
                     obs={obs}
                     invoices={invoices}
                     isExpanded={expandedGroups.has(g.id)}
