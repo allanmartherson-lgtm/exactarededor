@@ -322,6 +322,10 @@ export const AppLayout = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/perfil")}>
+                    <Settings className="h-4 w-4 mr-2" /> Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="h-4 w-4 mr-2" /> Sair
                   </DropdownMenuItem>
