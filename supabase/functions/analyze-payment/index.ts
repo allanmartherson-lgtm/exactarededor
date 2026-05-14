@@ -655,10 +655,12 @@ FOCO ESPECIAL EM "VÍNCULOS DIVERGENTES":
 - Há suspeita de que a regra selecionada pelo motor seja genérica demais para um caso específico?
 - Identifique duplicidades de cobrança entre itens do mesmo atendimento.
 
-SUA FUNÇÃO:
-1) Explicar de forma assertiva por que o item gerou alerta/reprovação.
-2) Adicionar alertas EXTRAS (extra_alerts) sempre que notar inconsistências de vínculos, duplicidades ou suspeitas de erro que o motor determinístico (limitado a códigos) não pegou.
-3) Seja rigoroso. Se o vínculo parecer estranho ou divergente, alerte o analista.
+      IMPORTANTE: Se o motor aplicou uma regra porque o código do procedimento está explicitamente listado nela (whitelist), confie nessa decisão a menos que haja uma incoerência gritante (ex: cobrança duplicada ou médico de especialidade totalmente diferente). Se a regra vencedora foi por "Setor", "Empresa" ou "Médico" sem restrição de código, seja mais criterioso na revisão.
+
+      SUA FUNÇÃO:
+      1) Explicar de forma assertiva por que o item gerou alerta/reprovação.
+      2) Adicionar alertas EXTRAS (extra_alerts) sempre que notar inconsistências de vínculos, duplicidades ou suspeitas de erro que o motor determinístico (limitado a códigos) não pegou.
+      3) Seja rigoroso, mas evite falsos positivos se a regra for específica para o código.
 
 NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
