@@ -533,6 +533,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
