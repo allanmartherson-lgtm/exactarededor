@@ -758,6 +758,7 @@ const Dashboard = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [load]);
