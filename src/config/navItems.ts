@@ -114,6 +114,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Apelidos aprendidos", iconName: "Sparkles" },
   { label: "Médicos", iconName: "Stethoscope" },
   { label: "Mapa Especialidades", iconName: "Stethoscope" },
+  { label: "Setores", iconName: "Layers" },
   { label: "Centros de custo", iconName: "Network" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
