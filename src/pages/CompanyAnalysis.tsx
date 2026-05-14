@@ -1017,7 +1017,7 @@ export default function CompanyAnalysis() {
     setGroupDraft("");
     setBusy(false);
     toast.success(actionLabel);
-    load();
+    await load();
   };
 
   if (loading) {
