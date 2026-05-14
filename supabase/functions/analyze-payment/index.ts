@@ -129,7 +129,7 @@ serve(async (req) => {
     // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
     if (rules.length > 0) {
       const ruleIds = rules.map((r) => r.id);
-      const { data: calcRows } = await supabase
+      const { data: calcRows, error: calcRowsErr } = await supabase
         .from("rule_calculations")
         .select(`
           id,rule_id,label,sort_order,calculation_type,
@@ -147,6 +147,10 @@ serve(async (req) => {
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
+      if (calcRowsErr) {
+        console.error("[analyze-payment] rule_calculations query error:", calcRowsErr);
+        throw new Error(`Falha ao carregar cálculos das regras: ${calcRowsErr.message}`);
+      }
       if (calcRows == null) {
         console.warn("[analyze-payment] nenhum cálculo retornado para regras ativas; verifique rule_calculations se todas as regras ficarem sem cálculo.");
       }
