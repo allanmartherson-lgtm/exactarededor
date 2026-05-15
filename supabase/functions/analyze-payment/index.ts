@@ -676,10 +676,10 @@ MOTOR DETERMINÍSTICO já decidiu a regra e o valor. Sua missão é APONTAR FALH
 NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
 
-      // Aborta a IA se passar de 110s — assim a função retorna o resultado
-      // determinístico em vez de morrer com IDLE_TIMEOUT (150s) do edge.
+      // A IA é apenas justificativa textual; o motor determinístico já decidiu.
+      // Mantemos timeout curto para nunca prender a consolidação da empresa.
       const aiAbort = new AbortController();
-      const aiTimer = setTimeout(() => aiAbort.abort(), 110_000);
+      const aiTimer = setTimeout(() => aiAbort.abort(), 35_000);
       let aiResp: Response | null = null;
       try {
         aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -687,7 +687,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         signal: aiAbort.signal,
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Itens marcados pelo motor (JSON):\n${JSON.stringify(itemsForAi, null, 2)}` },
