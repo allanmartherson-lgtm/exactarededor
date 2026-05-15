@@ -209,25 +209,29 @@ const Payments = () => {
     try {
       setDeletingIds(prev => new Set(prev).add(id));
       
-      // 1. Deletar observações
-      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      // O banco de dados agora possui ON DELETE CASCADE para:
+      // - payment_observations
+      // - payment_items
+      // - payment_company_groups (Adicionado agora)
+      // - invoices
+      // - payment_assignments (cascade via payment_observations se for o caso, 
+      //   mas vamos garantir as atribuições diretas se existirem)
       
-      // 2. Deletar atribuições
+      // 1. Deletar atribuições diretas (caso existam fora do cascade)
       await (supabase.from as any)("payment_assignments").delete().eq("payment_id", id);
       
-      // 3. Deletar itens
-      await supabase.from("payment_items").delete().eq("payment_id", id);
-      
-      // 4. Deletar grupos
-      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
-      
-      // 5. Deletar o pagamento principal
+      // 2. Deletar o pagamento principal (o cascade cuidará do resto de forma atômica)
       const { error } = await supabase.from("payments").delete().eq("id", id);
       
       if (error) throw error;
       
       toast.success("Lote excluído com sucesso.");
       // O filtro "deletingIds" esconde o item enquanto o Realtime ou o load() não concluem
+      setSelected(prev => {
+        const n = new Set(prev);
+        n.delete(id);
+        return n;
+      });
     } catch (e: any) {
       setDeletingIds(prev => {
         const n = new Set(prev);
