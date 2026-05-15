@@ -1131,6 +1131,117 @@ export type Database = {
           },
         ]
       }
+      payment_unmatched_items: {
+        Row: {
+          access_route: string | null
+          agreement_text: string | null
+          attendance_number: string | null
+          convenio_value_totalized: boolean
+          created_at: string
+          description: string | null
+          doctor_document: string | null
+          doctor_email: string | null
+          doctor_name: string | null
+          doctor_role: string | null
+          gross_amount: number
+          id: string
+          ignored_reason: string | null
+          match_score: number
+          match_suggestion_id: string | null
+          match_suggestion_name: string | null
+          patient_name: string | null
+          payment_id: string
+          procedure_amount: number | null
+          procedure_code: string | null
+          procedure_date: string | null
+          procedure_name: string | null
+          quantity: number | null
+          raw_company_name: string
+          raw_data: Json
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_company_id: string | null
+          sector: string | null
+          source_file: string | null
+          specialty: string | null
+          status: string
+          tipo_linha: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_route?: string | null
+          agreement_text?: string | null
+          attendance_number?: string | null
+          convenio_value_totalized?: boolean
+          created_at?: string
+          description?: string | null
+          doctor_document?: string | null
+          doctor_email?: string | null
+          doctor_name?: string | null
+          doctor_role?: string | null
+          gross_amount?: number
+          id?: string
+          ignored_reason?: string | null
+          match_score?: number
+          match_suggestion_id?: string | null
+          match_suggestion_name?: string | null
+          patient_name?: string | null
+          payment_id: string
+          procedure_amount?: number | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          quantity?: number | null
+          raw_company_name: string
+          raw_data?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_company_id?: string | null
+          sector?: string | null
+          source_file?: string | null
+          specialty?: string | null
+          status?: string
+          tipo_linha?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_route?: string | null
+          agreement_text?: string | null
+          attendance_number?: string | null
+          convenio_value_totalized?: boolean
+          created_at?: string
+          description?: string | null
+          doctor_document?: string | null
+          doctor_email?: string | null
+          doctor_name?: string | null
+          doctor_role?: string | null
+          gross_amount?: number
+          id?: string
+          ignored_reason?: string | null
+          match_score?: number
+          match_suggestion_id?: string | null
+          match_suggestion_name?: string | null
+          patient_name?: string | null
+          payment_id?: string
+          procedure_amount?: number | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          quantity?: number | null
+          raw_company_name?: string
+          raw_data?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_company_id?: string | null
+          sector?: string | null
+          source_file?: string | null
+          specialty?: string | null
+          status?: string
+          tipo_linha?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           ai_summary: string | null
@@ -2202,6 +2313,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      ignore_unmatched_items: {
+        Args: {
+          _payment_id: string
+          _raw_company_name: string
+          _reason?: string
+        }
+        Returns: number
+      }
       increment_processing_progress: {
         Args: { _company_name: string; _error?: string; _job_id: string }
         Returns: {
@@ -2232,6 +2351,19 @@ export type Database = {
           _to: Database["public"]["Enums"]["payment_status"]
         }
         Returns: boolean
+      }
+      learn_company_alias: {
+        Args: { _company_id: string; _raw_name: string }
+        Returns: undefined
+      }
+      link_unmatched_items_to_company: {
+        Args: {
+          _company_id: string
+          _learn_alias?: boolean
+          _payment_id: string
+          _raw_company_name: string
+        }
+        Returns: number
       }
       map_calculation_type_to_method: {
         Args: { _ctype: string }
