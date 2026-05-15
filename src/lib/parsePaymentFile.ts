@@ -291,6 +291,9 @@ export const parsePaymentFile = async (
 
   const rawCompanyName = extractCompanyFromFilename(f.name);
   const { company: fileMatchedCompany, score: fileMatchScore } = matchCompany(rawCompanyName, companies);
+  // Quando o filename casou com alta confiança, ele é a verdade — a coluna empresa
+  // da linha vira ruído (analista frequentemente preenche com hospital/cliente, não PJ).
+  const filenameTrusted = fileMatchScore >= MATCH_AUTO_THRESHOLD && !!fileMatchedCompany;
 
   const rows: ParsedRow[] = json.map((row) => {
     const role = toStr(pick(row, ["funcao","função","papel"]));
@@ -299,15 +302,20 @@ export const parsePaymentFile = async (
     const grossFromAny = repasse || toNumber(pick(row, ["valor bruto","valor","vlrbruto","bruto"])) || procVal;
     const procedureAmountFinal = procVal || grossFromAny || null;
 
-    // Tenta identificar empresa por linha (Multi-empresa)
+    // Identificação por linha — só ativa se filename NÃO foi confiável
     const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
-    let rowMatchedCompany = null;
-    if (rowCompanyNameRaw) {
+    let rowMatchedCompany: CompanyRow | null = null;
+    if (!filenameTrusted && rowCompanyNameRaw) {
       const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
-      if (s >= 0.85) {
-        rowMatchedCompany = matched;
-      }
+      if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
     }
+
+    const resolvedCompany = filenameTrusted
+      ? fileMatchedCompany
+      : (rowMatchedCompany || fileMatchedCompany);
+    const resolvedName = resolvedCompany?.name
+      || (filenameTrusted ? fileMatchedCompany!.name : (rowCompanyNameRaw || rawCompanyName))
+      || null;
 
     const base = {
       doctor_name: toStr(pick(row, ["medico","médico","nome","prestador"])) ?? "",
@@ -315,8 +323,8 @@ export const parsePaymentFile = async (
       doctor_email: toStr(pick(row, ["email","e-mail"])) ?? "",
       description: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento","descricao","descrição","servico","serviço"])) ?? "",
       gross_amount: grossFromAny,
-      company_name: rowMatchedCompany?.name || rowCompanyNameRaw || fileMatchedCompany?.name || rawCompanyName || null,
-      company_id: rowMatchedCompany?.id || fileMatchedCompany?.id || null,
+      company_name: resolvedName,
+      company_id: resolvedCompany?.id || null,
       attendance_number: toStr(pick(row, ["nr atendimento","n atendimento","atendimento","nratendim"])),
       procedure_code: toStr(pick(row, ["codigo procedimento","código procedimento","codigoproc","codproc","cod. tuss","tuss"])),
       procedure_name: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento"])),
