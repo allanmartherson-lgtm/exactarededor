@@ -203,6 +203,9 @@ const Rules = () => {
   const [fGroupMode, setFGroupMode] = useState<"empresa" | "medico">("empresa");
   // Novo modelo: vínculos por empresa em linhas (cada linha = empresa + médicos opcionais).
   const [fGroupLinks, setFGroupLinks] = useState<{ company_id: string; doctors: { name: string; crm?: string }[] }[]>([]);
+  // UI local: empresas colapsadas (por company_id) e filtro de busca.
+  const [collapsedCompanies, setCollapsedCompanies] = useState<Set<string>>(new Set());
+  const [companyLinksFilter, setCompanyLinksFilter] = useState("");
   // Sugestões de médicos por empresa (mapa company_id → médicos encontrados em payment_items).
   const [companyDoctorsMap, setCompanyDoctorsMap] = useState<Record<string, { name: string; crm?: string }[]>>({});
   const [loadingCompanyDoctorsIds, setLoadingCompanyDoctorsIds] = useState<Set<string>>(new Set());
