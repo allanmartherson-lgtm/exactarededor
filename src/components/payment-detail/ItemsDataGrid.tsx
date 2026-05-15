@@ -944,6 +944,7 @@ function RowMain({
               Validação ({(it as any).validation_findings.length})
             </span>
           )}
+          </div>
         </td>
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
