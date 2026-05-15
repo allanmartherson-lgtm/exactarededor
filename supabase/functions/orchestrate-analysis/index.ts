@@ -56,6 +56,31 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 2.1 Guarda de idempotência: claim atômico da página.
+    // Só prossegue se conseguir avançar current_page para o page_index recebido.
+    // Se outra execução já reivindicou esta página (ou superior), aborta sem disparar workers.
+    const { data: claimed, error: claimErr } = await supabase
+      .from("payment_processing_jobs")
+      .update({ current_page: page_index })
+      .eq("id", job_id)
+      .lt("current_page", page_index)
+      .select("id");
+
+    if (claimErr) {
+      console.error("[orchestrate] erro no claim de página", claimErr);
+      return new Response(JSON.stringify({ error: "claim_failed" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!claimed || claimed.length === 0) {
+      console.log(`[orchestrate] página ${page_index} do job ${job_id} já foi reivindicada — skip`);
+      return new Response(
+        JSON.stringify({ skipped: true, reason: "page_already_processed", page_index }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const companyList: string[] = Array.isArray(job.company_list) ? job.company_list : [];
     const total = companyList.length;
 
