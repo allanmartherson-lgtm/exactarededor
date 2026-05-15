@@ -373,6 +373,12 @@ const Payments = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { loadAncillaryData(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => { loadAncillaryData(); })
+      // NOVO: detecta conclusão/falha do job de análise
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "payment_processing_jobs",
+          filter: "status=in.(concluido,parcial,cancelado)" },
+        () => { load(); loadAncillaryData(); }
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [load, loadAncillaryData]);
