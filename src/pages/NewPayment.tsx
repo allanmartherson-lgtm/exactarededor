@@ -1068,11 +1068,11 @@ const NewPayment = () => {
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
                           </Badge>
-                        ) : b.matchScore >= 0.9 ? (
+                        ) : b.matchScore >= MATCH_AUTO_THRESHOLD ? (
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> match {Math.round(b.matchScore * 100)}%
                           </Badge>
-                        ) : b.matchScore >= 0.7 ? (
+                        ) : b.matchScore >= MATCH_REVIEW_THRESHOLD ? (
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="gap-1 text-amber-600 border-amber-200 bg-amber-50">
                               <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
@@ -1088,7 +1088,7 @@ const NewPayment = () => {
                           </div>
                         ) : (
                           <Badge variant="secondary" className="gap-1 text-destructive border-destructive/30 bg-destructive/10">
-                            <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
+                            <AlertCircle className="h-3 w-3" /> sem PJ — itens ficam isolados ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
                         <div className="flex items-center gap-2 flex-wrap flex-1">
