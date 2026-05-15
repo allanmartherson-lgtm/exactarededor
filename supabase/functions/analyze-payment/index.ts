@@ -1312,12 +1312,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
-    // Limpeza: remove grupos que não existem mais neste lote (ex: itens foram movidos ou excluídos)
-    const groupsToRemove = (existingGroups ?? []).filter(eg => !processedGroupIds.has(eg.id));
-    if (groupsToRemove.length > 0) {
-      const idsToRemove = groupsToRemove.map(eg => eg.id);
-      console.log(`Limpando ${idsToRemove.length} grupos órfãos do lote ${payment_id}`);
-      await supabase.from("payment_company_groups").delete().in("id", idsToRemove);
+    // Limpeza: só é segura em análise global. Em análise por empresa, cada worker
+    // enxerga apenas seus próprios itens; apagar os "não processados" removeria
+    // grupos de empresas que já finalizaram e faria a tela mostrar só 1 empresa.
+    if (!company_name) {
+      const groupsToRemove = (existingGroups ?? []).filter(eg => !processedGroupIds.has(eg.id));
+      if (groupsToRemove.length > 0) {
+        const idsToRemove = groupsToRemove.map(eg => eg.id);
+        console.log(`Limpando ${idsToRemove.length} grupos órfãos do lote ${payment_id}`);
+        await supabase.from("payment_company_groups").delete().in("id", idsToRemove);
+      }
     }
     console.timeEnd(`${__t} upsert_company_groups`);
 
