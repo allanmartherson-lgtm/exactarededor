@@ -1515,12 +1515,21 @@ export default function CompanyAnalysis() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Textarea
+             <Textarea
                 placeholder="Anote uma observação para esta empresa…"
                 value={groupDraft}
                 onChange={(e) => setGroupDraft(e.target.value)}
                 rows={3}
+                className={cn(
+                  items.some((i) => i.ai_status === "acatado") && groupDraft.trim().length < 20
+                    && "border-amber-500/70 focus-visible:ring-amber-500/40"
+                )}
               />
+              {items.some((i) => i.ai_status === "acatado") && groupDraft.trim().length < 20 && (
+                <p className="text-xs text-amber-600">
+                  Há itens acatados nesta empresa. Preencha a observação (mín. 20 caracteres) para liberar o envio para validação.
+                </p>
+              )}
               <div className="flex flex-col gap-3">
                 <ObservationTypeSelector
                   value={groupCommentType}
