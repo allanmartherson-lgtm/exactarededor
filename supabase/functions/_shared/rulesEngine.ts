@@ -979,12 +979,15 @@ export function accessRouteFactor(raw: string | null | undefined): number {
 
 /**
  * Fator de função do médico baseado EXCLUSIVAMENTE nos percentuais cadastrados
- * na regra. NUNCA aplica defaults hardcoded (10/20/30) — se a regra não definir
- * o percentual da função, retorna 1 (100%, sem desconto).
+ * na regra. NUNCA aplica defaults hardcoded — se a regra não definir o
+ * percentual da função (mesmo com include_auxiliaries=true), retorna 1
+ * (100%, sem desconto inferido). Memória de projeto:
+ * "Motor nunca aplica default hardcoded — sem regra cadastrada = sem regra,
+ *  jamais valor inferido."
  *
- * Antes este helper aplicava 0.1/0.2/0.3 hardcoded, o que fazia a "Regra Geral
- * 100% Convênio" pagar apenas 10% para Instrumentador (bug reportado pelo
- * usuário em 15/05/2026). Memória: "Motor nunca aplica default hardcoded".
+ * O caller (calcPercentual / calcRegraVias / calcTabelaDiferenciada) é
+ * responsável por emitir alerta quando include_auxiliaries=true mas o pct
+ * específico não foi cadastrado.
  */
 export function doctorRoleFactor(
   raw: string | null | undefined,
@@ -993,20 +996,14 @@ export function doctorRoleFactor(
   const t = normName(raw);
   if (!t) return 1;
   if (!rule) return 1;
-  // Só aplica fator de função quando a regra explicitamente opta por isso
-  // (include_auxiliaries) OU define o percentual específico daquela função.
-  const optedIn = rule.include_auxiliaries === true;
   if (/(instrumentador)/.test(t)) {
-    if (rule.instrumentador_pct != null) return rule.instrumentador_pct / 100;
-    return optedIn ? 0.1 : 1;
+    return rule.instrumentador_pct != null ? rule.instrumentador_pct / 100 : 1;
   }
   if (/(2.*auxili|segundo auxili)/.test(t)) {
-    if (rule.aux_second_pct != null) return rule.aux_second_pct / 100;
-    return optedIn ? 0.2 : 1;
+    return rule.aux_second_pct != null ? rule.aux_second_pct / 100 : 1;
   }
   if (/(1.*auxili|primeiro auxili|auxili)/.test(t)) {
-    if (rule.aux_first_pct != null) return rule.aux_first_pct / 100;
-    return optedIn ? 0.3 : 1;
+    return rule.aux_first_pct != null ? rule.aux_first_pct / 100 : 1;
   }
   return 1;
 }
@@ -1177,17 +1174,11 @@ function calcInformativo(): ExpectedCalc {
   return { expected: null, explanation: "Regra informativa.", alerts: [] };
 }
 
-function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "default_hemodinamica" | "default_geral" } {
-  const sector = inferItemSector(item);
-  const pct = sector === "hemodinamica" ? 88 : 100;
-  const base = item.procedure_amount;
-  const ctu = sector === "hemodinamica" ? "default_hemodinamica" as const : "default_geral" as const;
-  if (base == null) {
-    return { expected: null, explanation: `Default ${sector} (${pct}%) — valor base ausente.`, alerts: ["Sem regra e sem procedure_amount."], calculation_type_used: ctu };
-  }
-  const expected = Number((base * (pct / 100)).toFixed(2));
-  return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
-}
+// calcDefault removido — o motor não aplica mais defaults por setor (88% / 100%).
+// Princípio: sem regra cadastrada = "sem_regra" + alerta, jamais valor inferido.
+// Os literais "default_geral" / "default_hemodinamica" permanecem no type union
+// apenas para compatibilidade histórica com payment_items legados e mapeamento
+// em calcMethodMapping.ts (mapeiam para null no banco).
 
 export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string, role?: string | null, forceSpecific?: boolean) => number | null;
 
@@ -1863,19 +1854,36 @@ function calcTabelaDiferenciada(
   if (rule.apply_access_route) parts.push(`× via(${(viaFactor * 100).toFixed(0)}%) = R$ ${value.toFixed(2)}`);
 
   // 5) × função
+  // PRINCÍPIO: nunca aplicar percentual hardcoded. Só aplica desconto de função
+  // quando a regra cadastrou o pct específico daquela função. Se include_auxiliaries
+  // estiver marcado mas o pct não estiver cadastrado, mantém fator 1 e emite alerta
+  // para o analista cadastrar o valor.
   let funcFactor = 1;
   let funcLabel = "";
+  const tdAlerts: string[] = [];
   if (rule.include_auxiliaries && !roleInTableMatchesRoleInItem) {
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
-      funcFactor = (rule.instrumentador_pct ?? 10) / 100;
-      funcLabel = `× instrumentador ${(funcFactor * 100).toFixed(0)}%`;
+      if (rule.instrumentador_pct != null) {
+        funcFactor = rule.instrumentador_pct / 100;
+        funcLabel = `× instrumentador ${(funcFactor * 100).toFixed(0)}%`;
+      } else {
+        tdAlerts.push(`Regra "${rule.name}" inclui auxiliares mas não cadastrou instrumentador_pct — pago 100% (sem desconto inferido).`);
+      }
     } else if (role === "primeiro_aux") {
-      funcFactor = (rule.aux_first_pct ?? 30) / 100;
-      funcLabel = `× 1º aux ${(funcFactor * 100).toFixed(0)}%`;
+      if (rule.aux_first_pct != null) {
+        funcFactor = rule.aux_first_pct / 100;
+        funcLabel = `× 1º aux ${(funcFactor * 100).toFixed(0)}%`;
+      } else {
+        tdAlerts.push(`Regra "${rule.name}" inclui auxiliares mas não cadastrou aux_first_pct — pago 100% (sem desconto inferido).`);
+      }
     } else if (role === "demais_aux") {
-      funcFactor = (rule.aux_second_pct ?? 20) / 100;
-      funcLabel = `× aux 2+ ${(funcFactor * 100).toFixed(0)}%`;
+      if (rule.aux_second_pct != null) {
+        funcFactor = rule.aux_second_pct / 100;
+        funcLabel = `× aux 2+ ${(funcFactor * 100).toFixed(0)}%`;
+      } else {
+        tdAlerts.push(`Regra "${rule.name}" inclui auxiliares mas não cadastrou aux_second_pct — pago 100% (sem desconto inferido).`);
+      }
     }
   } else if (roleInTableMatchesRoleInItem) {
     parts.push(`(valor específico para papel "${item.doctor_role}")`);
@@ -1908,7 +1916,7 @@ function calcTabelaDiferenciada(
   return {
     expected: value,
     explanation: parts.join(" "),
-    alerts: [],
+    alerts: tdAlerts,
     steps,
     qty_already_applied: true,
   };
