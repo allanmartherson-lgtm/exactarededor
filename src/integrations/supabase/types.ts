@@ -841,6 +841,7 @@ export type Database = {
           specialty: string | null
           tipo_item: string | null
           tipo_linha: string | null
+          validation_findings: Json
         }
         Insert: {
           acatado_at?: string | null
@@ -891,6 +892,7 @@ export type Database = {
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
+          validation_findings?: Json
         }
         Update: {
           acatado_at?: string | null
@@ -941,6 +943,7 @@ export type Database = {
           specialty?: string | null
           tipo_item?: string | null
           tipo_linha?: string | null
+          validation_findings?: Json
         }
         Relationships: [
           {

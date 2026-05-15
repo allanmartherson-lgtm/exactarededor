@@ -54,7 +54,7 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
 
 const ObservationTypeSelector = ({
   value,
@@ -163,6 +163,7 @@ const PaymentDetail = () => {
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [reprocessingAi, setReprocessingAi] = useState(false);
+  const [validatingRules, setValidatingRules] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
@@ -1390,6 +1391,48 @@ const PaymentDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
+            {(isAnalista || isValidador || isDiretor) && (() => {
+              const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
+              const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
+              return (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={validatingRules}
+                  className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  title="Aplicar regras de validação assistencial nos itens deste lote"
+                  onClick={async () => {
+                    if (!id) return;
+                    setValidatingRules(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke("validate-payment", { body: { payment_id: id } });
+                      if (error) throw error;
+                      const flaggedNow = (data as any)?.items_flagged ?? 0;
+                      const totalNow = (data as any)?.total_findings ?? 0;
+                      toast({
+                        title: "Validação concluída",
+                        description: totalNow > 0
+                          ? `${totalNow} alerta(s) em ${flaggedNow} item(ns).`
+                          : "Nenhuma inconsistência detectada.",
+                      });
+                      await load();
+                    } catch (e: unknown) {
+                      const msg = e instanceof Error ? e.message : String(e);
+                      toast({ title: "Falha ao validar", description: msg, variant: "destructive" });
+                    } finally {
+                      setValidatingRules(false);
+                    }
+                  }}
+                >
+                  <ShieldCheck className={cn("h-4 w-4 mr-1.5", validatingRules && "animate-spin")} />
+                  {validatingRules
+                    ? "Validando..."
+                    : flagged > 0
+                      ? `Validar regras (${totalFindings} alerta${totalFindings > 1 ? "s" : ""})`
+                      : "Validar regras assistenciais"}
+                </Button>
+              );
+            })()}
             <StatusBadge status={payment.status} />
           </div>
         }

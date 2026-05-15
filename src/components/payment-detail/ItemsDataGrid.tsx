@@ -912,6 +912,7 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
+          <div className="flex flex-col items-start gap-0.5">
           {it.ai_status === "acatado" ? (
             <span
               className={cn(
@@ -934,6 +935,16 @@ function RowMain({
               {eff}
             </span>
           )}
+          {Array.isArray((it as any).validation_findings) && (it as any).validation_findings.length > 0 && (
+            <span
+              className="mt-1 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800"
+              title={(it as any).validation_findings.map((f: any) => `${f.rule_name}: ${f.message}`).join("\n")}
+            >
+              <ShieldAlert className="h-2.5 w-2.5" />
+              Validação ({(it as any).validation_findings.length})
+            </span>
+          )}
+          </div>
         </td>
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
