@@ -22,20 +22,33 @@ interface ProcessingJob {
 
 export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
   const [job, setJob] = useState<ProcessingJob | null>(null);
+  const [lotStats, setLotStats] = useState<{ companies: number; items: number | null }>({ companies: 0, items: null });
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const { data } = await supabase
-        .from("payment_processing_jobs")
-        .select("*")
-        .eq("payment_id", paymentId)
-        .order("started_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const [{ data }, groupCountRes, paymentRes] = await Promise.all([
+        supabase
+          .from("payment_processing_jobs")
+          .select("*")
+          .eq("payment_id", paymentId)
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("payment_company_groups")
+          .select("id", { count: "exact", head: true })
+          .eq("payment_id", paymentId),
+        supabase
+          .from("payments")
+          .select("items_count")
+          .eq("id", paymentId)
+          .maybeSingle(),
+      ]);
       if (mounted) setJob(data as any);
+      if (mounted) setLotStats({ companies: groupCountRes.count ?? 0, items: paymentRes.data?.items_count ?? null });
     };
     load();
 
@@ -77,6 +90,7 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
 
   const pct = job.total_companies > 0 ? Math.round((job.processed_companies / job.total_companies) * 100) : 0;
   const failed = job.failed_companies?.length ?? 0;
+  const isSubsetJob = lotStats.companies > job.total_companies;
 
   const retryFailed = async () => {
     if (!failed) return;
@@ -144,11 +158,20 @@ export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
                     {job.processed_companies} concluídas
                   </>
                 )}
-                {job.status === "concluido" && `Análise concluída — ${job.total_companies} empresas processadas.`}
-                {job.status === "parcial" && `Análise parcial — ${failed} empresas com erro.`}
+                {job.status === "concluido" && (isSubsetJob
+                  ? `Reprocessamento concluído — ${job.total_companies} de ${lotStats.companies} empresas do lote.`
+                  : `Análise concluída — ${job.total_companies} empresas processadas.`)}
+                {job.status === "parcial" && (isSubsetJob
+                  ? `Reprocessamento parcial — ${failed} empresas com erro de ${lotStats.companies} no lote.`
+                  : `Análise parcial — ${failed} empresas com erro de ${job.total_companies} processadas.`)}
                 {job.status === "cancelado" && `Análise interrompida — ${job.processed_companies} de ${job.total_companies} concluídas.`}
-                {job.total_items && <span className="ml-1 text-xs text-muted-foreground font-normal">({job.total_items} itens)</span>}
+                {job.total_items && <span className="ml-1 text-xs text-muted-foreground font-normal">({job.total_items} itens no processamento)</span>}
               </span>
+              {lotStats.companies > 0 && (
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  Lote: {lotStats.companies} empresas{lotStats.items != null ? ` · ${lotStats.items} itens` : ""}
+                </span>
+              )}
               {job.status === "em_andamento" && job.company_list && job.company_list.length > 0 && (
                 <span className="text-[10px] text-muted-foreground font-normal max-w-md truncate" title={job.company_list.join(", ")}>
                   Empresas: {job.company_list.join(", ")}

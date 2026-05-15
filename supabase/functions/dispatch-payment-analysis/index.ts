@@ -26,36 +26,33 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Buscamos a lista COMPLETA de empresas vinculadas ao lote. 
-    // Tentamos primeiro por payment_company_groups (mais rápido).
-    // Se estiver vazio (ex: após reimportação), buscamos direto nos itens.
-    let { data: groups, error: groupsErr } = await supabase
-      .from("payment_company_groups")
-      .select("company_name, items_count")
-      .eq("payment_id", payment_id);
-    
-    if (groupsErr) throw groupsErr;
-
-    if (!groups || groups.length === 0) {
-      console.log(`[dispatch] payment_company_groups vazio para ${payment_id}, buscando em payment_items...`);
-      const { data: itemCompanies, error: itemsErr } = await supabase
+    // Fonte da verdade para quais empresas processar é payment_items.
+    // payment_company_groups pode estar parcial quando algum worker falha ou
+    // quando uma importação antiga ainda não consolidou todos os grupos.
+    const itemCompanies: Array<{ company_name: string | null }> = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data: page, error: itemsErr } = await supabase
         .from("payment_items")
         .select("company_name")
-        .eq("payment_id", payment_id);
-      
+        .eq("payment_id", payment_id)
+        .range(from, from + pageSize - 1);
+
       if (itemsErr) throw itemsErr;
-      
-      const counts: Record<string, number> = {};
-      for (const it of (itemCompanies ?? [])) {
-        const name = (it.company_name ?? "").trim() || "Sem empresa";
-        counts[name] = (counts[name] ?? 0) + 1;
-      }
-      
-      groups = Object.entries(counts).map(([name, count]) => ({
-        company_name: name,
-        items_count: count
-      }));
+      itemCompanies.push(...(page ?? []));
+      if (!page || page.length < pageSize) break;
     }
+
+    const counts: Record<string, number> = {};
+    for (const it of (itemCompanies ?? [])) {
+      const name = (it.company_name ?? "").trim() || "Sem empresa";
+      counts[name] = (counts[name] ?? 0) + 1;
+    }
+
+    const groups = Object.entries(counts).map(([name, count]) => ({
+      company_name: name,
+      items_count: count,
+    }));
 
     // Se houver filtro de status (alerta, reprovado), precisamos descobrir quais dessas empresas
     // possuem itens com esses status. Buscamos com um limite alto para cobrir lotes grandes.
@@ -93,6 +90,10 @@ Deno.serve(async (req) => {
     if (Array.isArray(only_companies) && only_companies.length > 0) {
       const normalizedOnly = new Set(only_companies.map((s: any) => String(s).trim().toLowerCase()));
       companyNames = companyNames.filter(name => normalizedOnly.has(name.toLowerCase()));
+      const allowed = new Set(companyNames.map((s) => s.toLowerCase()));
+      totalItems = (groups ?? [])
+        .filter((g) => allowed.has(((g.company_name ?? "").trim() || "Sem empresa").toLowerCase()))
+        .reduce((acc, g) => acc + (g.items_count || 0), 0);
     }
 
     if (companyNames.length === 0) {

@@ -676,10 +676,10 @@ MOTOR DETERMINÍSTICO já decidiu a regra e o valor. Sua missão é APONTAR FALH
 NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
 ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
 
-      // Aborta a IA se passar de 110s — assim a função retorna o resultado
-      // determinístico em vez de morrer com IDLE_TIMEOUT (150s) do edge.
+      // A IA é apenas justificativa textual; o motor determinístico já decidiu.
+      // Mantemos timeout curto para nunca prender a consolidação da empresa.
       const aiAbort = new AbortController();
-      const aiTimer = setTimeout(() => aiAbort.abort(), 110_000);
+      const aiTimer = setTimeout(() => aiAbort.abort(), 35_000);
       let aiResp: Response | null = null;
       try {
         aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -687,7 +687,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         signal: aiAbort.signal,
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `Itens marcados pelo motor (JSON):\n${JSON.stringify(itemsForAi, null, 2)}` },
@@ -1312,12 +1312,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
-    // Limpeza: remove grupos que não existem mais neste lote (ex: itens foram movidos ou excluídos)
-    const groupsToRemove = (existingGroups ?? []).filter(eg => !processedGroupIds.has(eg.id));
-    if (groupsToRemove.length > 0) {
-      const idsToRemove = groupsToRemove.map(eg => eg.id);
-      console.log(`Limpando ${idsToRemove.length} grupos órfãos do lote ${payment_id}`);
-      await supabase.from("payment_company_groups").delete().in("id", idsToRemove);
+    // Limpeza: só é segura em análise global. Em análise por empresa, cada worker
+    // enxerga apenas seus próprios itens; apagar os "não processados" removeria
+    // grupos de empresas que já finalizaram e faria a tela mostrar só 1 empresa.
+    if (!company_name) {
+      const groupsToRemove = (existingGroups ?? []).filter(eg => !processedGroupIds.has(eg.id));
+      if (groupsToRemove.length > 0) {
+        const idsToRemove = groupsToRemove.map(eg => eg.id);
+        console.log(`Limpando ${idsToRemove.length} grupos órfãos do lote ${payment_id}`);
+        await supabase.from("payment_company_groups").delete().in("id", idsToRemove);
+      }
     }
     console.timeEnd(`${__t} upsert_company_groups`);
 
