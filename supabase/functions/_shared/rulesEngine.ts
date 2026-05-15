@@ -1016,7 +1016,7 @@ export function doctorRoleFactor(
 
 function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const pct = rule.convenio_percentage ?? 100;
-  const factor = doctorRoleFactor(item.doctor_role);
+  const factor = doctorRoleFactor(item.doctor_role, rule);
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: `${pct}% do convênio — valor base ausente.`, alerts: ["procedure_amount ausente."] };
   
@@ -1035,7 +1035,7 @@ function calcPercentual(rule: RuleInput, item: ItemInput): ExpectedCalc {
 
 function calcRegraVias(rule: RuleInput, item: ItemInput): ExpectedCalc {
   const viaFactor = accessRouteFactor(item.access_route);
-  const funcFactor = doctorRoleFactor(item.doctor_role);
+  const funcFactor = doctorRoleFactor(item.doctor_role, rule);
   const base = item.procedure_amount;
   if (base == null) return { expected: null, explanation: "regra_vias: valor base ausente.", alerts: ["procedure_amount ausente."] };
   
