@@ -408,11 +408,11 @@ export function PaymentReportModal({
                         <p className="text-xl font-bold text-primary">{auditData.summary.processed_total}</p>
                       </div>
                     </div>
-                    {auditData.summary.missing_items > 0 ? (
+                    {auditData.summary.missing_total > 0 ? (
                       <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-3">
                         <AlertTriangle className="h-5 w-5 text-destructive" />
                         <div>
-                          <p className="text-sm font-bold text-destructive">Atenção: {auditData.summary.missing_items} itens não processados</p>
+                          <p className="text-sm font-bold text-destructive">Atenção: {auditData.summary.missing_total} itens não processados</p>
                           <p className="text-[11px] text-destructive/80">O total de itens no banco é inferior ao esperado pelo cabeçalho do lote.</p>
                         </div>
                       </div>
