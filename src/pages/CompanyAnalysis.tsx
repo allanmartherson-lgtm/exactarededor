@@ -1201,7 +1201,7 @@ export default function CompanyAnalysis() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
                     <AlertDialogDescription className="space-y-3">
-                      <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Não pode ser desfeita.</p>
+                      <p>Esta ação <strong>substitui apenas os itens desta empresa</strong> ({group.company_name}) pelo conteúdo dos arquivos selecionados e reinicia a análise <strong>somente desta PJ</strong>. As demais empresas do lote não são afetadas. Os arquivos devem conter apenas linhas desta empresa. Não pode ser desfeita.</p>
                       <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
                         <div className="flex items-center justify-between mb-1.5">
                           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
