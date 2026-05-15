@@ -1680,13 +1680,23 @@ export default function CompanyAnalysis() {
                         const tooltip = !podeEnviar
                           ? "Preencha a observação da empresa (mín. 20 caracteres) para enviar itens acatados"
                           : undefined;
+                        const handleClick = () => {
+                          if (!podeEnviar) {
+                            toast.error("Observação obrigatória", {
+                              description:
+                                "Há itens acatados nesta empresa. Preencha o comentário geral da empresa com no mínimo 20 caracteres antes de enviar para validação.",
+                            });
+                            return;
+                          }
+                          sendForValidation();
+                        };
                         return returner ? (
-                          <Button size="sm" onClick={() => sendForValidation()} disabled={busy || !podeEnviar} title={tooltip}>
+                          <Button size="sm" onClick={handleClick} disabled={busy} title={tooltip} variant={podeEnviar ? "default" : "secondary"}>
                             <Send className="h-4 w-4 mr-2" />
                             Reencaminhar ao {returner}
                           </Button>
                         ) : (
-                          <Button size="sm" onClick={() => sendForValidation()} disabled={busy || !podeEnviar} title={tooltip}>
+                          <Button size="sm" onClick={handleClick} disabled={busy} title={tooltip} variant={podeEnviar ? "default" : "secondary"}>
                             <Send className="h-4 w-4 mr-2" />
                             Enviar para validação
                           </Button>
