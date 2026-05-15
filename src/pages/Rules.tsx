@@ -1838,8 +1838,44 @@ const Rules = () => {
                                 <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em “Adicionar empresa” ou use médicos avulsos abaixo.</p>
                               )}
 
+                              {fGroupLinks.length > 0 && (
+                                <div className="flex items-center gap-2 pt-1">
+                                  <span className="text-xs font-normal text-muted-foreground shrink-0">
+                                    {fGroupLinks.length} {fGroupLinks.length === 1 ? "empresa adicionada" : "empresas adicionadas"}
+                                  </span>
+                                  <div className="relative flex-1 max-w-xs ml-auto">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                      value={companyLinksFilter}
+                                      onChange={(e) => setCompanyLinksFilter(e.target.value)}
+                                      placeholder="Filtrar empresas adicionadas..."
+                                      className="h-8 pl-7 text-xs font-normal"
+                                      style={{ borderWidth: "0.5px" }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
                               <div className="space-y-2">
-                                {fGroupLinks.map((link, idx) => {
+                                {(() => {
+                                  const qFilter = norm(companyLinksFilter);
+                                  const visible = fGroupLinks
+                                    .map((l, i) => ({ link: l, idx: i }))
+                                    .filter(({ link }) => {
+                                      if (!qFilter) return true;
+                                      if ((link as any)._isNew) return true;
+                                      const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
+                                      const name = co?.name || (link as any).company_name || "";
+                                      return norm(name).includes(qFilter);
+                                    });
+                                  if (qFilter && visible.length === 0) {
+                                    return (
+                                      <p className="text-xs text-muted-foreground italic px-1">
+                                        Nenhuma empresa encontrada para “{companyLinksFilter}”.
+                                      </p>
+                                    );
+                                  }
+                                  return visible.map(({ link, idx }) => {
                                   const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
                                   const isDup = link.company_id && dupIds.has(link.company_id);
                                   const noCompany = !link.company_id;
@@ -1848,117 +1884,174 @@ const Rules = () => {
                                   const allowedSet = new Set(allowedDocs.map((d) => norm(d.name)));
                                   const invalidPicked: { name: string; crm?: string }[] = []; // validação removida — médicos manuais são aceitos
                                   const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+                                  const isNew = !!(link as any)._isNew;
+                                  const isCollapsed = !isNew && !!link.company_id && collapsedCompanies.has(link.company_id);
+                                  const toggleCollapsed = () => {
+                                    if (!link.company_id) return;
+                                    setCollapsedCompanies((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(link.company_id)) next.delete(link.company_id);
+                                      else next.add(link.company_id);
+                                      return next;
+                                    });
+                                  };
+                                  const displayName = co?.name || (link as any).company_name || "Empresa não selecionada";
+                                  const displayDoc = co?.document || (link as any).company_document || "";
+                                  const doctorsSummary = link.doctors.length === 0 ? "Todos os médicos" : `${link.doctors.length} ${link.doctors.length === 1 ? "médico" : "médicos"}`;
                                   return (
                                     <div key={idx} className={cn(
-                                      "rounded-md border bg-card p-3 space-y-2 animate-fade-in transition-all duration-500",
-                                      (link as any)._isNew ? "ring-2 ring-primary/20 border-primary/50 shadow-sm" : "border-border",
-                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : ""
-                                    )}>
-                                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
-                                        <div className="space-y-1 min-w-0">
-                                          <Label className="text-xs">Empresa/PJ</Label>
-                                          <CompanyCombobox
-                                             value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
-                                             onChange={(c) => {
-                                               if (!c) return;
-                                               if (usedIds.has(c.id) && c.id !== link.company_id) {
-                                                 toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
-                                                 return;
-                                               }
-                                               // Garante que a empresa selecionada apareça no cache local mesmo se não veio na primeira página
-                                               setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
-                                               updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
-                                             }}
-                                            placeholder="Selecionar empresa…"
-                                            className="w-full"
-                                            autoOpen={(link as any)._isNew}
-                                          />
-                                          {isDup && <p className="text-xs text-destructive">Empresa repetida em outra linha.</p>}
-                                          {noCompany && <p className="text-xs text-destructive">Selecione uma empresa.</p>}
-                                        </div>
-                                        <div className="flex sm:flex-col gap-1 sm:items-end">
-                                          <Button
-                                            type="button" size="sm" variant="ghost"
-                                            onClick={() => setFGroupLinks((prev) => prev.filter((_, i) => i !== idx))}
-                                            aria-label="Remover linha"
+                                      "rounded-md bg-card animate-fade-in transition-all duration-300",
+                                      isNew ? "ring-2 ring-primary/20 border-primary/50 shadow-sm border" : "border",
+                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "",
+                                      !isCollapsed && link.company_id ? "border-l-2" : ""
+                                    )}
+                                    style={{
+                                      borderWidth: noCompany || isDup || invalidPicked.length > 0 || isNew ? undefined : "0.5px",
+                                      borderLeftWidth: !isCollapsed && link.company_id ? "2px" : undefined,
+                                      borderLeftColor: !isCollapsed && link.company_id ? "#9A6B3A" : undefined,
+                                    }}>
+                                      {isCollapsed ? (
+                                        <button
+                                          type="button"
+                                          onClick={toggleCollapsed}
+                                          className="w-full flex items-center gap-2 p-3 text-left hover:bg-muted/40 transition-colors rounded-md min-w-0"
+                                        >
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                          <div className="flex-1 min-w-0 flex items-center gap-2 text-sm">
+                                            <span className="font-medium truncate">{displayName}</span>
+                                            {displayDoc && (
+                                              <span className="text-xs text-muted-foreground font-normal cell-mono shrink-0">· {displayDoc}</span>
+                                            )}
+                                            <span className="text-xs text-muted-foreground font-normal truncate">· {doctorsSummary}</span>
+                                          </div>
+                                          <span
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={(e) => { e.stopPropagation(); setFGroupLinks((prev) => prev.filter((_, i) => i !== idx)); }}
+                                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setFGroupLinks((prev) => prev.filter((_, i) => i !== idx)); } }}
+                                            className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+                                            aria-label="Remover empresa"
                                           >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      </div>
-
-                                      {link.company_id && (
-                                        <div className="space-y-1.5 animate-fade-in">
-                                          <div className="flex items-center justify-between">
-                                            <Label className="text-xs">Médicos desta empresa — opcional</Label>
-                                            <div className="flex gap-1">
-                                              <Button
-                                                type="button" size="sm" variant={link.doctors.length === 0 ? "default" : "outline"}
-                                                onClick={() => updateLink({ doctors: [] })}
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </span>
+                                        </button>
+                                      ) : (
+                                        <div className="p-3 space-y-2">
+                                          <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
+                                            {link.company_id && !isNew ? (
+                                              <button
+                                                type="button"
+                                                onClick={toggleCollapsed}
+                                                className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted text-muted-foreground mt-5 shrink-0"
+                                                aria-label="Recolher empresa"
                                               >
-                                                Todos os médicos
+                                                <ChevronDown className="h-4 w-4" />
+                                              </button>
+                                            ) : <span className="hidden sm:block w-7" />}
+                                            <div className="space-y-1 min-w-0">
+                                              <Label className="text-xs font-medium">Empresa/PJ</Label>
+                                              <CompanyCombobox
+                                                 value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
+                                                 onChange={(c) => {
+                                                   if (!c) return;
+                                                   if (usedIds.has(c.id) && c.id !== link.company_id) {
+                                                     toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
+                                                     return;
+                                                   }
+                                                   setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
+                                                   updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
+                                                 }}
+                                                placeholder="Selecionar empresa…"
+                                                className="w-full"
+                                                autoOpen={(link as any)._isNew}
+                                              />
+                                              {isDup && <p className="text-xs text-destructive">Empresa repetida em outra linha.</p>}
+                                              {noCompany && <p className="text-xs text-destructive">Selecione uma empresa.</p>}
+                                            </div>
+                                            <div className="flex sm:flex-col gap-1 sm:items-end">
+                                              <Button
+                                                type="button" size="sm" variant="ghost"
+                                                onClick={() => setFGroupLinks((prev) => prev.filter((_, i) => i !== idx))}
+                                                aria-label="Remover linha"
+                                              >
+                                                <Trash2 className="h-4 w-4" />
                                               </Button>
                                             </div>
                                           </div>
-                                          <p className="text-xs text-muted-foreground">
-                                            {loadingDocs
-                                              ? "Carregando médicos…"
-                                              : allowedDocs.length === 0
-                                                ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
-                                                : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
-                                          </p>
-                                          {allowedDocs.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                              {allowedDocs.map((d, di) => {
-                                                const checked = link.doctors.some((x) => norm(x.name) === norm(d.name));
-                                                return (
+
+                                          {link.company_id && (
+                                            <div className="space-y-1.5 animate-fade-in">
+                                              <div className="flex items-center justify-between">
+                                                <Label className="text-xs">Médicos desta empresa — opcional</Label>
+                                                <div className="flex gap-1">
                                                   <Button
-                                                    key={`${d.name}-${di}`} type="button" size="sm"
-                                                    variant={checked ? "default" : "outline"}
-                                                    onClick={() => updateLink({
-                                                      doctors: checked
-                                                        ? link.doctors.filter((x) => norm(x.name) !== norm(d.name))
-                                                        : [...link.doctors, d],
-                                                    })}
+                                                    type="button" size="sm" variant={link.doctors.length === 0 ? "default" : "outline"}
+                                                    onClick={() => updateLink({ doctors: [] })}
                                                   >
-                                                    {d.name}{d.crm ? ` · ${d.crm}` : ""}
+                                                    Todos os médicos
                                                   </Button>
-                                                );
-                                              })}
+                                                </div>
+                                              </div>
+                                              <p className="text-xs text-muted-foreground">
+                                                {loadingDocs
+                                                  ? "Carregando médicos…"
+                                                  : allowedDocs.length === 0
+                                                    ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
+                                                    : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
+                                              </p>
+                                              {allowedDocs.length > 0 && (
+                                                <div className="flex flex-wrap gap-1">
+                                                  {allowedDocs.map((d, di) => {
+                                                    const checked = link.doctors.some((x) => norm(x.name) === norm(d.name));
+                                                    return (
+                                                      <Button
+                                                        key={`${d.name}-${di}`} type="button" size="sm"
+                                                        variant={checked ? "default" : "outline"}
+                                                        onClick={() => updateLink({
+                                                          doctors: checked
+                                                            ? link.doctors.filter((x) => norm(x.name) !== norm(d.name))
+                                                            : [...link.doctors, d],
+                                                        })}
+                                                      >
+                                                        {d.name}{d.crm ? ` · ${d.crm}` : ""}
+                                                      </Button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              )}
+                                              <DoctorsEditor
+                                                value={link.doctors}
+                                                onChange={(next) => updateLink({ doctors: next })}
+                                              />
+                                              {link.doctors.length > 0 && (
+                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                  <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
+                                                  <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
+                                                    Limpar
+                                                  </Button>
+                                                </div>
+                                              )}
+                                              {invalidPicked.length > 0 && (
+                                                <div className="text-xs text-destructive">
+                                                  {invalidPicked.length} médico(s) não pertence(m) a esta empresa.
+                                                </div>
+                                              )}
                                             </div>
                                           )}
-                                          {/* Editor manual: sempre disponível para adicionar médicos não listados */}
-                                          <DoctorsEditor
-                                            value={link.doctors}
-                                            onChange={(next) => updateLink({ doctors: next })}
-                                          />
-                                          {link.doctors.length > 0 && (
-                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                              <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
-                                              <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
-                                                Limpar
-                                              </Button>
-                                            </div>
-                                          )}
-                                          {invalidPicked.length > 0 && (
-                                            <div className="text-xs text-destructive">
-                                              {invalidPicked.length} médico(s) não pertence(m) a esta empresa.
-                                            </div>
-                                          )}
+
+                                          <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
+                                            <span className="font-medium">{co?.name ?? "—"}</span>
+                                            {" | "}
+                                            {link.doctors.length === 0
+                                              ? "Todos os médicos"
+                                              : link.doctors.map((d) => d.name).join(", ")}
+                                          </div>
                                         </div>
                                       )}
-
-                                      {/* Resumo da linha */}
-                                      <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
-                                        <span className="font-medium">{co?.name ?? "—"}</span>
-                                        {" | "}
-                                        {link.doctors.length === 0
-                                          ? "Todos os médicos"
-                                          : link.doctors.map((d) => d.name).join(", ")}
-                                      </div>
                                     </div>
                                   );
-                                })}
+                                  });
+                                })()}
                               </div>
                             </div>
 
