@@ -435,23 +435,33 @@ export function PaymentReportModal({
                           <TableRow className="bg-muted/30">
                              <TableHead className="text-[10px] h-7">PJ / Empresa</TableHead>
                              <TableHead className="text-[10px] h-7 text-center">Itens (Proc/Esp)</TableHead>
+                             <TableHead className="text-[10px] h-7 text-center">Status / Motivo</TableHead>
                              <TableHead className="text-[10px] h-7 text-right">Diferença Fin.</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {auditData.by_company?.map((comp: any) => (
                             <TableRow key={comp.company_name} className="h-7 hover:bg-muted/10">
-                               <TableCell className="text-[11px] py-1 font-medium">{comp.company_name}</TableCell>
+                               <TableCell className="text-[11px] py-1 font-medium truncate max-w-[150px]" title={comp.company_name}>
+                                 {comp.company_name}
+                               </TableCell>
                                <TableCell className="text-[11px] py-1 text-center font-mono">
-                                 <span className={comp.missing_in_company > 0 ? "text-destructive font-bold" : "text-muted-foreground"}>
+                                 <span className={comp.missing_items > 0 ? "text-destructive font-bold" : "text-muted-foreground"}>
                                    {comp.processed_items}/{comp.expected_items}
                                  </span>
                                </TableCell>
+                               <TableCell className="text-[10px] py-1 text-center">
+                                 <div className="flex flex-col">
+                                   <Badge variant="outline" className={cn("text-[8px] h-3 px-1 mx-auto", comp.missing_items > 0 ? "text-destructive border-destructive/30" : "text-success border-success/30")}>
+                                     {comp.reason}
+                                   </Badge>
+                                 </div>
+                               </TableCell>
                                <TableCell className={cn(
                                  "text-[11px] py-1 text-right font-mono",
-                                 Math.abs(comp.discrepancy) > 0.01 ? (comp.discrepancy > 0 ? "text-destructive" : "text-success") : "text-muted-foreground"
+                                 Math.abs(comp.discrepancy_amount) > 0.01 ? (comp.discrepancy_amount > 0 ? "text-destructive" : "text-success") : "text-muted-foreground"
                                )}>
-                                 {formatCurrency(comp.discrepancy)}
+                                 {formatCurrency(comp.discrepancy_amount)}
                                </TableCell>
                             </TableRow>
                           ))}
