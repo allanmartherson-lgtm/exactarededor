@@ -854,9 +854,12 @@ function RowMain({
           <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{it.sector ?? "—"}</td>
         )}
         {colVis.setor_inferido && (
-          <td className={cn(cell, TEXT_META)} title={(it.ai_findings?.engine as any)?.inferred_sector ?? ""}>
-            {(it.ai_findings?.engine as any)?.inferred_sector ?? "—"}
-          </td>
+          (() => {
+            const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? null;
+            return (
+              <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{inf ?? "—"}</td>
+            );
+          })()
         )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
