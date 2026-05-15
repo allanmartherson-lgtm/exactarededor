@@ -231,46 +231,16 @@ const excelDateToISO = (v: unknown): string | null => {
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
-// Levenshtein simples
-const lev = (a: string, b: string): number => {
-  const m = a.length, n = b.length;
-  if (!m) return n; if (!n) return m;
-  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
-    dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-  return dp[m][n];
-};
-const similarity = (a: string, b: string): number => {
-  const an = norm(a), bn = norm(b);
-  if (!an || !bn) return 0;
-  if (an === bn) return 1;
-  if (an.includes(bn) || bn.includes(an)) return 0.9;
-  const d = lev(an, bn);
-  return 1 - d / Math.max(an.length, bn.length);
-};
-
-const extractCompanyFromFilename = (filename: string): string => {
-  let name = filename.replace(/\.[^.]+$/, "");
-  // remove sufixos comuns: " - Centro Cirurgico", "Maio 2026", etc
-  name = name.replace(/\s*-\s*(centro\s*cirurgico|cc|hemodin[âa]mica|consultas?|pareceres?|ambulatorial)\b.*$/i, "");
-  name = name.replace(/\s+\d{1,2}[-_/]\d{2,4}.*$/, "");
-  name = name.replace(/\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b.*/i, "");
-  return name.trim();
-};
-
-const matchCompany = (rawName: string, companies: CompanyRow[]): { company: CompanyRow | null; score: number } => {
-  if (!companies.length) return { company: null, score: 0 };
-  let best: { company: CompanyRow | null; score: number } = { company: null, score: 0 };
-  for (const c of companies) {
-    const candidates = [c.name, ...(c.aliases || [])];
-    for (const cand of candidates) {
-      const s = similarity(rawName, cand);
-      if (s > best.score) best = { company: c, score: s };
-    }
-  }
-  return best;
-};
+// Matching de empresa centralizado em src/lib/parsePaymentFile.ts (tokens + jaccard + lev,
+// stopwords jurídicas, extração agressiva do nome do arquivo). Reutilizamos para manter
+// a tela de novo lote e o reimport por empresa em sincronia.
+import {
+  similarity,
+  extractCompanyFromFilename,
+  matchCompany,
+  MATCH_AUTO_THRESHOLD,
+  MATCH_REVIEW_THRESHOLD,
+} from "@/lib/parsePaymentFile";
 
 const NewPayment = () => {
   const { user } = useAuth();
