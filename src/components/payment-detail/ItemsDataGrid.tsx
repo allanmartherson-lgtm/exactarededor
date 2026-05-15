@@ -1022,7 +1022,7 @@ function ItemDetailsRow({
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
     { label: "Setor (Planilha)", value: it.sector ?? "—" },
-    { label: "Setor (Sistema)", value: (it.ai_findings?.engine as any)?.inferred_sector ?? "—" },
+    { label: "Setor (Sistema)", value: (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? "—" },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
