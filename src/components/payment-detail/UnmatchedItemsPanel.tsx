@@ -343,7 +343,7 @@ export function UnmatchedItemsPanel({
       <Dialog open={!!linkOpen} onOpenChange={(o) => !o && setLinkOpen(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Vincular "{linkOpen?.raw_company_name}" a empresa</DialogTitle>
+            <DialogTitle className="pr-8 break-words">Vincular "{linkOpen?.raw_company_name}" a empresa</DialogTitle>
           </DialogHeader>
           <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
@@ -405,7 +405,7 @@ export function UnmatchedItemsPanel({
       <Dialog open={!!ignoreOpen} onOpenChange={(o) => !o && setIgnoreOpen(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Descartar "{ignoreOpen?.raw_company_name}"</DialogTitle>
+            <DialogTitle className="pr-8 break-words">Descartar "{ignoreOpen?.raw_company_name}"</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {ignoreOpen?.items_count} item(ns) ·{" "}
