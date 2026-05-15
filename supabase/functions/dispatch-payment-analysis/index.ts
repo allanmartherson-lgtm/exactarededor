@@ -84,6 +84,10 @@ Deno.serve(async (req) => {
     if (Array.isArray(only_companies) && only_companies.length > 0) {
       const normalizedOnly = new Set(only_companies.map((s: any) => String(s).trim().toLowerCase()));
       companyNames = companyNames.filter(name => normalizedOnly.has(name.toLowerCase()));
+      const allowed = new Set(companyNames.map((s) => s.toLowerCase()));
+      totalItems = (groups ?? [])
+        .filter((g) => allowed.has(((g.company_name ?? "").trim() || "Sem empresa").toLowerCase()))
+        .reduce((acc, g) => acc + (g.items_count || 0), 0);
     }
 
     if (companyNames.length === 0) {
