@@ -15,8 +15,10 @@ import {
   AlertTriangle,
   Columns3,
   ChevronRight,
+  CheckCircle2,
   FileText,
   Pencil,
+  RotateCcw,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -116,6 +118,10 @@ export type ItemsDataGridProps = {
   canEdit?: boolean;
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
+  /** Acatar divergência (item reprovado/alerta com observação ≥ 20 chars). */
+  onAcceptItem?: (item: PaymentItemRowData) => void;
+  /** Desfazer acate (volta ao status original). */
+  onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   className?: string;
 };
 
@@ -132,6 +138,8 @@ export function ItemsDataGrid({
   canEdit = false,
   onEditItem,
   onDeleteItem,
+  onAcceptItem,
+  onUndoAcceptItem,
   className,
 }: ItemsDataGridProps) {
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
@@ -655,6 +663,8 @@ export function ItemsDataGrid({
                     canEdit={canEdit}
                     onEditItem={onEditItem}
                     onDeleteItem={onDeleteItem}
+                    onAcceptItem={onAcceptItem}
+                    onUndoAcceptItem={onUndoAcceptItem}
                   />
                 );
               })}
@@ -747,6 +757,8 @@ function RowMain({
   canEdit,
   onEditItem,
   onDeleteItem,
+  onAcceptItem,
+  onUndoAcceptItem,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -770,6 +782,8 @@ function RowMain({
   canEdit?: boolean;
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
+  onAcceptItem?: (item: PaymentItemRowData) => void;
+  onUndoAcceptItem?: (item: PaymentItemRowData) => void;
 }) {
   const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
@@ -898,10 +912,28 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
-          <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
-            {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
-            {eff}
-          </span>
+          {it.ai_status === "acatado" ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
+                TEXT_META,
+              )}
+              style={{ backgroundColor: "#166534", color: "#fff", borderColor: "#166534" }}
+              title={
+                it.acatado_status_original
+                  ? `Acatado (era ${it.acatado_status_original})`
+                  : "Acatado"
+              }
+            >
+              <CheckCircle2 className="h-2.5 w-2.5" />
+              ACATADO
+            </span>
+          ) : (
+            <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
+              {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+              {eff}
+            </span>
+          )}
         </td>
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
@@ -914,6 +946,40 @@ function RowMain({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="inline-flex gap-0.5">
+              {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (() => {
+                const justif = (observations.find(
+                  (o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 20,
+                )?.message ?? "").trim();
+                const enabled = justif.length >= 20;
+                return (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    style={enabled ? { color: "#166534" } : undefined}
+                    title={
+                      enabled
+                        ? "Acatar divergência (status acatado)"
+                        : "Preencha uma observação no item com no mínimo 20 caracteres antes de acatar"
+                    }
+                    disabled={!enabled}
+                    onClick={() => onAcceptItem(it)}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  </Button>
+                );
+              })()}
+              {onUndoAcceptItem && it.ai_status === "acatado" && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
+                  onClick={() => onUndoAcceptItem(it)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              )}
               {onEditItem && (
                 <Button
                   size="icon"
