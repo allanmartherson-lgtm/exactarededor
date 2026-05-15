@@ -753,7 +753,12 @@ export default function CompanyAnalysis() {
       const { data: companiesData } = await supabase.from("companies").select("id,name,aliases").limit(5000);
       const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
 
-      const targetNorm = normalizeString(group.company_name);
+      // Matching tolerante: ignora hífens/pontuação/espaços e também aceita
+      // company_id quando o parser conseguiu vincular pelo CNPJ/alias.
+      const looseKey = (s: string | null | undefined) =>
+        normalizeString(s ?? "").replace(/[^a-z0-9]/g, "");
+      const targetLoose = looseKey(group.company_name);
+      const targetId = group.company_id ?? null;
       let parsedRows: any[] = [];
       let fileNames: string[] = [];
 
@@ -777,9 +782,10 @@ export default function CompanyAnalysis() {
       // Reimportação no escopo da empresa: mantém somente as linhas desta PJ.
       // Linhas de outras empresas presentes no arquivo são ignoradas — a tela
       // do lote é o lugar para reimportar tudo.
-      const companyRows = parsedRows.filter(
-        (r) => normalizeString(r.company_name ?? "Sem empresa") === targetNorm,
-      );
+      const companyRows = parsedRows.filter((r) => {
+        if (targetId && r.company_id && r.company_id === targetId) return true;
+        return looseKey(r.company_name ?? "Sem empresa") === targetLoose;
+      });
       const ignoredCount = parsedRows.length - companyRows.length;
 
       if (companyRows.length === 0) {
