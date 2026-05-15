@@ -701,49 +701,98 @@ const NewPayment = () => {
       return null;
     };
 
-    const items = allRows.map((r, i) => {
-      // Encontra a qual bucket esta linha pertence para aplicar o mapeamento de setor se houver
-      let currentBucket: FileBucket | undefined;
-      let offset = 0;
-      for (const b of buckets) {
-        if (i >= offset && i < offset + b.rows.length) {
-          currentBucket = b;
-          break;
-        }
-        offset += b.rows.length;
-      }
-
-      return {
-        payment_id: payment.id,
-        doctor_name: r.doctor_name,
-        doctor_document: r.doctor_document,
-        doctor_email: r.doctor_email,
-        description: r.description,
-        gross_amount: r.gross_amount,
-        company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
-        company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
-        attendance_number: r.attendance_number,
-        procedure_code: r.procedure_code,
-        procedure_name: r.procedure_name,
-        access_route: r.access_route,
-        doctor_role: r.doctor_role,
-        agreement_text: r.agreement_text,
-        specialty: resolveSpecialty(r),
-        procedure_amount: r.procedure_amount,
-        quantity: r.quantity,
-        procedure_date: r.procedure_date,
-        patient_name: r.patient_name,
-        sector: currentBucket?.sectorMapping || r.sector,
-        raw_data: r.raw_data as never,
-        tipo_linha: r.tipo_linha,
-        convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
-      };
+    // Constrói uma linha de payment_items para uma row "matched"
+    const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => ({
+      payment_id: payment.id,
+      doctor_name: r.doctor_name,
+      doctor_document: r.doctor_document,
+      doctor_email: r.doctor_email,
+      description: r.description,
+      gross_amount: r.gross_amount,
+      company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
+      company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
+      attendance_number: r.attendance_number,
+      procedure_code: r.procedure_code,
+      procedure_name: r.procedure_name,
+      access_route: r.access_route,
+      doctor_role: r.doctor_role,
+      agreement_text: r.agreement_text,
+      specialty: resolveSpecialty(r),
+      procedure_amount: r.procedure_amount,
+      quantity: r.quantity,
+      procedure_date: r.procedure_date,
+      patient_name: r.patient_name,
+      sector: currentBucket?.sectorMapping || r.sector,
+      raw_data: r.raw_data as never,
+      tipo_linha: r.tipo_linha,
+      convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
     });
-    const { error: itemsErr } = await supabase.from("payment_items").insert(items);
-    if (itemsErr) {
-      setSubmitting(false);
-      toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
-      return;
+
+    // Constrói uma linha de payment_unmatched_items (quarentena — não entra no motor)
+    const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
+      payment_id: payment.id,
+      source_file: b.file.name,
+      raw_company_name: (b.rawCompanyName || r.company_name || "—").trim(),
+      match_score: b.matchScore || 0,
+      match_suggestion_id: b.matchedCompany?.id ?? null,
+      match_suggestion_name: b.matchedCompany?.name ?? null,
+      doctor_name: r.doctor_name,
+      doctor_document: r.doctor_document,
+      doctor_email: r.doctor_email,
+      description: r.description,
+      gross_amount: r.gross_amount,
+      attendance_number: r.attendance_number,
+      procedure_code: r.procedure_code,
+      procedure_name: r.procedure_name,
+      access_route: r.access_route,
+      doctor_role: r.doctor_role,
+      agreement_text: r.agreement_text,
+      specialty: resolveSpecialty(r),
+      procedure_amount: r.procedure_amount,
+      quantity: r.quantity,
+      procedure_date: r.procedure_date,
+      patient_name: r.patient_name,
+      sector: b.sectorMapping || r.sector,
+      raw_data: r.raw_data as never,
+      tipo_linha: r.tipo_linha,
+      convenio_value_totalized: b.convenioValueTotalized || false,
+    });
+
+    const matchedItems: ReturnType<typeof buildItemRow>[] = [];
+    const unmatchedItems: ReturnType<typeof buildUnmatchedRow>[] = [];
+    let offset = 0;
+    for (const b of buckets) {
+      const isUnmatched = isUnmatchedBucket(b);
+      for (let j = 0; j < b.rows.length; j++) {
+        const r = allRows[offset + j];
+        if (isUnmatched) unmatchedItems.push(buildUnmatchedRow(r, b));
+        else matchedItems.push(buildItemRow(r, b));
+      }
+      offset += b.rows.length;
+    }
+
+    if (matchedItems.length > 0) {
+      const { error: itemsErr } = await supabase.from("payment_items").insert(matchedItems);
+      if (itemsErr) {
+        setSubmitting(false);
+        toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
+        return;
+      }
+    }
+    if (unmatchedItems.length > 0) {
+      const { error: unErr } = await supabase.from("payment_unmatched_items").insert(unmatchedItems);
+      if (unErr) {
+        toast({
+          title: "Aviso: itens órfãos não registrados",
+          description: `${unmatchedItems.length} item(ns) sem PJ identificada não foram salvos: ${unErr.message}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `${unmatchedItems.length} item(ns) em "Empresas não vinculadas"`,
+          description: "Esses itens NÃO entram na análise. Resolva pela tela do lote.",
+        });
+      }
     }
 
     const fileSummary = buckets.map((b) =>
