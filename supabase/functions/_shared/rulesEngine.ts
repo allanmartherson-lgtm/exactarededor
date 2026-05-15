@@ -979,12 +979,15 @@ export function accessRouteFactor(raw: string | null | undefined): number {
 
 /**
  * Fator de função do médico baseado EXCLUSIVAMENTE nos percentuais cadastrados
- * na regra. NUNCA aplica defaults hardcoded (10/20/30) — se a regra não definir
- * o percentual da função, retorna 1 (100%, sem desconto).
+ * na regra. NUNCA aplica defaults hardcoded — se a regra não definir o
+ * percentual da função (mesmo com include_auxiliaries=true), retorna 1
+ * (100%, sem desconto inferido). Memória de projeto:
+ * "Motor nunca aplica default hardcoded — sem regra cadastrada = sem regra,
+ *  jamais valor inferido."
  *
- * Antes este helper aplicava 0.1/0.2/0.3 hardcoded, o que fazia a "Regra Geral
- * 100% Convênio" pagar apenas 10% para Instrumentador (bug reportado pelo
- * usuário em 15/05/2026). Memória: "Motor nunca aplica default hardcoded".
+ * O caller (calcPercentual / calcRegraVias / calcTabelaDiferenciada) é
+ * responsável por emitir alerta quando include_auxiliaries=true mas o pct
+ * específico não foi cadastrado.
  */
 export function doctorRoleFactor(
   raw: string | null | undefined,
@@ -993,20 +996,14 @@ export function doctorRoleFactor(
   const t = normName(raw);
   if (!t) return 1;
   if (!rule) return 1;
-  // Só aplica fator de função quando a regra explicitamente opta por isso
-  // (include_auxiliaries) OU define o percentual específico daquela função.
-  const optedIn = rule.include_auxiliaries === true;
   if (/(instrumentador)/.test(t)) {
-    if (rule.instrumentador_pct != null) return rule.instrumentador_pct / 100;
-    return optedIn ? 0.1 : 1;
+    return rule.instrumentador_pct != null ? rule.instrumentador_pct / 100 : 1;
   }
   if (/(2.*auxili|segundo auxili)/.test(t)) {
-    if (rule.aux_second_pct != null) return rule.aux_second_pct / 100;
-    return optedIn ? 0.2 : 1;
+    return rule.aux_second_pct != null ? rule.aux_second_pct / 100 : 1;
   }
   if (/(1.*auxili|primeiro auxili|auxili)/.test(t)) {
-    if (rule.aux_first_pct != null) return rule.aux_first_pct / 100;
-    return optedIn ? 0.3 : 1;
+    return rule.aux_first_pct != null ? rule.aux_first_pct / 100 : 1;
   }
   return 1;
 }
