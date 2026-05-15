@@ -2165,6 +2165,7 @@ export type Database = {
         Args: { _dry_run?: boolean }
         Returns: Json
       }
+      calculate_payment_audit: { Args: { p_payment_id: string }; Returns: Json }
       compute_payment_item_hash: {
         Args: {
           _agreement: string
