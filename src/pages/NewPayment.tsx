@@ -795,6 +795,14 @@ const NewPayment = () => {
       }
     }
 
+    // Recalibra payments para refletir apenas itens que entram no motor.
+    if (unmatchedItems.length > 0) {
+      const matchedTotal = matchedItems.reduce((s, it) => s + (Number(it.gross_amount) || 0), 0);
+      await supabase.from("payments")
+        .update({ items_count: matchedItems.length, total_amount: matchedTotal })
+        .eq("id", payment.id);
+    }
+
     const fileSummary = buckets.map((b) =>
       `${b.file.name} → ${b.matchedCompany ? `${b.matchedCompany.name} (match ${Math.round(b.matchScore * 100)}%)` : `empresa nova: ${b.rawCompanyName}`} · ${b.rows.length} itens`
     ).join(" | ");
