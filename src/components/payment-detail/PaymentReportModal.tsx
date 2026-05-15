@@ -91,7 +91,7 @@ export function PaymentReportModal({
   const [statusFilter, setStatusFilter] = useState({
     aprovado: true,
     alerta: true,
-    reprovaro: true,
+    reprovado: true,
   });
   const [isExporting, setIsExporting] = useState(false);
   const [auditData, setAuditData] = useState<any>(null);
@@ -111,8 +111,13 @@ export function PaymentReportModal({
       });
       if (error) throw error;
       setAuditData(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao carregar auditoria:", err);
+      toast({
+        title: "Erro ao carregar auditoria",
+        description: err.message || "Não foi possível calcular os dados de auditoria do lote.",
+        variant: "destructive"
+      });
     } finally {
       setLoadingAudit(false);
     }
@@ -146,7 +151,7 @@ export function PaymentReportModal({
       const matchesStatus = 
         (status === "aprovado" && statusFilter.aprovado) ||
         (status === "alerta" && statusFilter.alerta) ||
-        (status === "reprovado" && statusFilter.reprovaro);
+        (status === "reprovado" && statusFilter.reprovado);
 
       return matchesSearch && matchesCompany && matchesDoctor && matchesSpecialty && matchesStatus;
     });
@@ -428,20 +433,26 @@ export function PaymentReportModal({
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/30">
-                            <TableHead className="text-[10px] h-7">PJ / Empresa</TableHead>
-                            <TableHead className="text-[10px] h-7 text-right">Diferença</TableHead>
+                             <TableHead className="text-[10px] h-7">PJ / Empresa</TableHead>
+                             <TableHead className="text-[10px] h-7 text-center">Itens (Proc/Esp)</TableHead>
+                             <TableHead className="text-[10px] h-7 text-right">Diferença Fin.</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {auditData.by_company?.map((comp: any) => (
                             <TableRow key={comp.company_name} className="h-7 hover:bg-muted/10">
-                              <TableCell className="text-[11px] py-1 font-medium">{comp.company_name}</TableCell>
-                              <TableCell className={cn(
-                                "text-[11px] py-1 text-right font-mono",
-                                Math.abs(comp.discrepancy) > 0.01 ? (comp.discrepancy > 0 ? "text-destructive" : "text-success") : "text-muted-foreground"
-                              )}>
-                                {formatCurrency(comp.discrepancy)}
-                              </TableCell>
+                               <TableCell className="text-[11px] py-1 font-medium">{comp.company_name}</TableCell>
+                               <TableCell className="text-[11px] py-1 text-center font-mono">
+                                 <span className={comp.missing_in_company > 0 ? "text-destructive font-bold" : "text-muted-foreground"}>
+                                   {comp.processed_items}/{comp.expected_items}
+                                 </span>
+                               </TableCell>
+                               <TableCell className={cn(
+                                 "text-[11px] py-1 text-right font-mono",
+                                 Math.abs(comp.discrepancy) > 0.01 ? (comp.discrepancy > 0 ? "text-destructive" : "text-success") : "text-muted-foreground"
+                               )}>
+                                 {formatCurrency(comp.discrepancy)}
+                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -496,8 +507,8 @@ export function PaymentReportModal({
                   </label>
                   <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <Checkbox 
-                      checked={statusFilter.reprovaro}
-                      onCheckedChange={(c) => setStatusFilter(prev => ({ ...prev, reprovaro: !!c }))}
+                      checked={statusFilter.reprovado}
+                      onCheckedChange={(c) => setStatusFilter(prev => ({ ...prev, reprovado: !!c }))}
                     /> ✗ Reprovado
                   </label>
                 </div>
