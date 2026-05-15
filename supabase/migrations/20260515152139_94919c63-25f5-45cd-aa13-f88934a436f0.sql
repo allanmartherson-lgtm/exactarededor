@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_processing_jobs ADD COLUMN IF NOT EXISTS current_page integer NOT NULL DEFAULT -1;
