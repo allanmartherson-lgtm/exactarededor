@@ -29,13 +29,19 @@ Deno.serve(async (req) => {
     // Fonte da verdade para quais empresas processar é payment_items.
     // payment_company_groups pode estar parcial quando algum worker falha ou
     // quando uma importação antiga ainda não consolidou todos os grupos.
-    const { data: itemCompanies, error: itemsErr } = await supabase
-      .from("payment_items")
-      .select("company_name")
-      .eq("payment_id", payment_id)
-      .limit(20000);
+    const itemCompanies: Array<{ company_name: string | null }> = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data: page, error: itemsErr } = await supabase
+        .from("payment_items")
+        .select("company_name")
+        .eq("payment_id", payment_id)
+        .range(from, from + pageSize - 1);
 
-    if (itemsErr) throw itemsErr;
+      if (itemsErr) throw itemsErr;
+      itemCompanies.push(...(page ?? []));
+      if (!page || page.length < pageSize) break;
+    }
 
     const counts: Record<string, number> = {};
     for (const it of (itemCompanies ?? [])) {
