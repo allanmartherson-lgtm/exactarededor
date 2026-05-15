@@ -775,6 +775,7 @@ const Rules = () => {
     setFValidFrom(""); setFValidUntil(""); setFDoctors([]);
     
     setFGroupCompanyIds([]); setFGroupDoctors([]); setFGroupMode("empresa"); setFGroupLinks([]);
+    setCollapsedCompanies(new Set()); setCompanyLinksFilter("");
     setFHasConditions(false);
     setFTimeMode("qualquer"); setFWeekdays([]); setFIncludesHolidays(false);
     setFTimeStart(""); setFTimeEnd(""); setFElectiveMode("qualquer");
