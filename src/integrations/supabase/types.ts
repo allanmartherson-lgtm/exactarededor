@@ -793,6 +793,9 @@ export type Database = {
       }
       payment_items: {
         Row: {
+          acatado_at: string | null
+          acatado_by: string | null
+          acatado_status_original: string | null
           access_route: string | null
           agreement_text: string | null
           ai_findings: Json | null
@@ -840,6 +843,9 @@ export type Database = {
           tipo_linha: string | null
         }
         Insert: {
+          acatado_at?: string | null
+          acatado_by?: string | null
+          acatado_status_original?: string | null
           access_route?: string | null
           agreement_text?: string | null
           ai_findings?: Json | null
@@ -887,6 +893,9 @@ export type Database = {
           tipo_linha?: string | null
         }
         Update: {
+          acatado_at?: string | null
+          acatado_by?: string | null
+          acatado_status_original?: string | null
           access_route?: string | null
           agreement_text?: string | null
           ai_findings?: Json | null
@@ -2259,6 +2268,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_payment_item: {
+        Args: { _item_id: string; _justification: string }
+        Returns: Json
+      }
       apply_calc_duplicity_resolution: {
         Args: {
           _chosen_calc_id: string
@@ -2390,6 +2403,7 @@ export type Database = {
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
       unaccent: { Args: { "": string }; Returns: string }
+      undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       validate_rule_save: {
         Args: {
           _group_company_links: Json
@@ -2415,6 +2429,7 @@ export type Database = {
         | "reprovado"
         | "erro_duplicidade_pagamento"
         | "erro_duplicidade_calculo"
+        | "acatado"
       observation_author:
         | "ia"
         | "analista"
@@ -2632,6 +2647,7 @@ export const Constants = {
         "reprovado",
         "erro_duplicidade_pagamento",
         "erro_duplicidade_calculo",
+        "acatado",
       ],
       observation_author: ["ia", "analista", "validador", "diretor", "sistema"],
       observation_type: [
