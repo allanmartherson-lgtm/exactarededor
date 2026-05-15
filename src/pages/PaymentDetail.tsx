@@ -25,6 +25,7 @@ import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
+import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1850,6 +1851,7 @@ const PaymentDetail = () => {
             );
           })()}
 
+          {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
 
           <TooltipProvider delayDuration={150}>
