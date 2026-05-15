@@ -1,7 +1,8 @@
 // dispatch-payment-analysis
-// Lê todas as empresas distintas do lote e dispara analyze-payment em paralelo
-// (uma invocação por empresa). Retorna 202 imediatamente; o cliente acompanha
-// progresso via realtime na tabela payment_processing_jobs.
+// Cria o job de processamento e delega a orquestração das empresas para
+// `orchestrate-analysis`, que processa em páginas auto-encadeadas (cada
+// página numa execução independente com seu próprio timeout de 60s).
+// Esta função retorna em <2s: não orquestra workers diretamente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -9,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const CONCURRENCY = 10; // invocações simultâneas
+const PAGE_SIZE = 8; // empresas processadas em paralelo por página do orquestrador
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -115,61 +116,24 @@ Deno.serve(async (req) => {
       .single();
     if (jobErr) throw jobErr;
 
-    // Dispara workers em background. fire-and-forget: não aguardamos as respostas
-    // para retornar rápido ao cliente. Cada worker reporta progresso via RPC.
-    const dispatch = async () => {
-      const invokeOne = async (companyName: string) => {
-        try {
-          const resp = await fetch(`${SUPABASE_URL}/functions/v1/analyze-payment`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${SERVICE_KEY}`,
-            },
-            body: JSON.stringify({
-              payment_id,
-              company_name: companyName === "Sem empresa" ? null : companyName,
-              ai_statuses,
-              tolerance_pct,
-              _job_id: job.id,
-              _company_label: companyName,
-            }),
-          });
-          if (!resp.ok) {
-            const txt = await resp.text();
-            // Reporta falha — analyze-payment não terá conseguido reportar.
-            await supabase.rpc("increment_processing_progress", {
-              _job_id: job.id,
-              _company_name: companyName,
-              _error: `HTTP ${resp.status}: ${txt.slice(0, 300)}`,
-            });
-          }
-          // Sucesso: analyze-payment já chamou a RPC ao final.
-        } catch (e: any) {
-          await supabase.rpc("increment_processing_progress", {
-            _job_id: job.id,
-            _company_name: companyName,
-            _error: String(e?.message ?? e).slice(0, 300),
-          });
-        }
-      };
-
-      // Chunks de CONCURRENCY paralelos
-      for (let i = 0; i < companyNames.length; i += CONCURRENCY) {
-        const slice = companyNames.slice(i, i + CONCURRENCY);
-        await Promise.all(slice.map(invokeOne));
-      }
-    };
-
-    // EdgeRuntime.waitUntil mantém o processo vivo para o fire-and-forget
-    // @ts-ignore — disponível em Deno Deploy / Supabase Edge
-    if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
-      // @ts-ignore
-      (EdgeRuntime as any).waitUntil(dispatch());
-    } else {
-      // Fallback — dispara sem aguardar
-      dispatch().catch((e) => console.error("dispatch error", e));
-    }
+    // Delega orquestração para `orchestrate-analysis` (página 0).
+    // Fire-and-forget: dispatch retorna imediatamente sem aguardar.
+    const orchestratorUrl = `${SUPABASE_URL}/functions/v1/orchestrate-analysis`;
+    fetch(orchestratorUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SERVICE_KEY}`,
+      },
+      body: JSON.stringify({
+        job_id: job.id,
+        payment_id,
+        page_index: 0,
+        page_size: PAGE_SIZE,
+        ai_statuses,
+        tolerance_pct,
+      }),
+    }).catch((e) => console.error("[dispatch] falha ao disparar orquestrador", e));
 
     return new Response(
       JSON.stringify({
@@ -177,6 +141,7 @@ Deno.serve(async (req) => {
         job_id: job.id,
         total_companies: companyNames.length,
         total_items: totalItems,
+        status: "dispatched",
         message: `Análise iniciada para ${companyNames.length} empresa(s) e ${totalItems} itens.`,
       }),
       { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
