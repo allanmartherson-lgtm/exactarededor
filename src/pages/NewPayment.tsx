@@ -26,6 +26,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { AlertTriangle } from "lucide-react";
+import {
+  similarity,
+  extractCompanyFromFilename,
+  matchCompany,
+  MATCH_AUTO_THRESHOLD,
+  MATCH_REVIEW_THRESHOLD,
+} from "@/lib/parsePaymentFile";
 
 interface ParsedRow {
   doctor_name: string;
