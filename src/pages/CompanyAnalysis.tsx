@@ -467,13 +467,7 @@ export default function CompanyAnalysis() {
   };
 
   const acceptItem = async (it: PaymentItemRow) => {
-    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 20)?.message ?? "").trim();
-    if (justif.length < 20) {
-      toast.error("Observação obrigatória", {
-        description: "Adicione uma observação no item com no mínimo 20 caracteres antes de acatar.",
-      });
-      return;
-    }
+    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
       _item_id: it.id,
