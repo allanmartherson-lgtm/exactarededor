@@ -209,16 +209,46 @@ const Payments = () => {
     try {
       setDeletingIds(prev => new Set(prev).add(id));
       
-      // O banco de dados agora possui ON DELETE CASCADE para todas as tabelas dependentes
-      // A exclusão do pagamento principal agora remove automaticamente:
-      // histórico, atribuições, perguntas, itens, observações, grupos e faturas.
-      const { error } = await supabase.from("payments").delete().eq("id", id);
+      console.log(`Iniciando exclusão do lote ${id}...`);
       
+      // 1. Executa a exclusão
+      const { error } = await supabase.from("payments").delete().eq("id", id);
       if (error) throw error;
       
-      toast.success("Lote excluído com sucesso.");
+      // 2. Validação profunda pós-exclusão:
+      // Verificamos se o registro ainda existe no banco após o comando de delete.
+      // Adicionamos um pequeno retry ou verificação imediata para garantir a consistência no Supabase.
+      let exists = true;
+      let attempts = 0;
+      const maxAttempts = 3;
       
-      // Atualiza o estado local para remoção imediata da UI
+      while (exists && attempts < maxAttempts) {
+        attempts++;
+        const { data: verifyData } = await supabase
+          .from("payments")
+          .select("id")
+          .eq("id", id)
+          .maybeSingle();
+        
+        if (!verifyData) {
+          exists = false;
+          console.log(`Confirmação: Lote ${id} não existe mais no banco.`);
+        } else {
+          console.warn(`Tentativa ${attempts}: Lote ${id} ainda visível no banco após delete.`);
+          if (attempts < maxAttempts) {
+            // Pequena espera antes da próxima verificação
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+
+      if (exists) {
+        throw new Error("O servidor confirmou a exclusão, mas o registro ainda está visível. Por favor, tente recarregar a página.");
+      }
+      
+      toast.success("Lote excluído permanentemente.");
+      
+      // 3. Atualiza o estado local apenas após a confirmação real do banco
       setRows(prev => prev.filter(r => r.id !== id));
       setSelected(prev => {
         const n = new Set(prev);
@@ -226,6 +256,7 @@ const Payments = () => {
         return n;
       });
     } catch (e: any) {
+      console.error("Erro na exclusão profunda:", e);
       toast.error("Erro ao excluir lote: " + e.message);
     } finally {
       setDeletingIds(prev => {
