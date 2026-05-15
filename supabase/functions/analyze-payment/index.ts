@@ -8,6 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzePaymentItems,
   extendSectorMap,
+  normName,
   type ItemInput,
   type RuleInput,
   type PaymentContext,
