@@ -1673,17 +1673,25 @@ export default function CompanyAnalysis() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                      {returner ? (
-                        <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                          <Send className="h-4 w-4 mr-2" />
-                          Reencaminhar ao {returner}
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                          <Send className="h-4 w-4 mr-2" />
-                          Enviar para validação
-                        </Button>
-                      )}
+                      {(() => {
+                        const temItemAcatado = items.some((i) => i.ai_status === "acatado");
+                        const observacaoOk = groupDraft.trim().length >= 20;
+                        const podeEnviar = !temItemAcatado || observacaoOk;
+                        const tooltip = !podeEnviar
+                          ? "Preencha a observação da empresa (mín. 20 caracteres) para enviar itens acatados"
+                          : undefined;
+                        return returner ? (
+                          <Button size="sm" onClick={() => sendForValidation()} disabled={busy || !podeEnviar} title={tooltip}>
+                            <Send className="h-4 w-4 mr-2" />
+                            Reencaminhar ao {returner}
+                          </Button>
+                        ) : (
+                          <Button size="sm" onClick={() => sendForValidation()} disabled={busy || !podeEnviar} title={tooltip}>
+                            <Send className="h-4 w-4 mr-2" />
+                            Enviar para validação
+                          </Button>
+                        );
+                      })()}
                     </>
                   )}
                   {gStatus === "aprovado_em_revisao" && (
