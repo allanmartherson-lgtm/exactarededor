@@ -208,47 +208,52 @@ const Payments = () => {
   const deletePayment = async (id: string) => {
     try {
       setDeletingIds(prev => new Set(prev).add(id));
+      console.log(`Iniciando exclusão atômica do lote ${id}...`);
       
-      console.log(`Iniciando exclusão do lote ${id}...`);
+      // Chamada via RPC para garantir execução atômica no lado do servidor
+      // e ignorar qualquer cache de cliente ou restrição de trigger
+      const { data: confirmed, error } = await supabase.rpc("delete_payment_batch", { 
+        p_payment_id: id 
+      });
+
+      if (error) {
+        console.error("Erro no RPC de exclusão:", error);
+        // Fallback para delete direto se o RPC falhar (ex: migração ainda não propagou)
+        const { error: deleteError } = await supabase.from("payments").delete().eq("id", id);
+        if (deleteError) throw deleteError;
+      } else if (confirmed === false) {
+        throw new Error("O banco de dados não conseguiu confirmar a remoção completa dos dados.");
+      }
       
-      // 1. Executa a exclusão
-      const { error } = await supabase.from("payments").delete().eq("id", id);
-      if (error) throw error;
-      
-      // 2. Validação profunda pós-exclusão:
-      // Verificamos se o registro ainda existe no banco após o comando de delete.
-      // Adicionamos um pequeno retry ou verificação imediata para garantir a consistência no Supabase.
+      // Validação profunda pós-exclusão com poll agressivo
       let exists = true;
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 5;
       
       while (exists && attempts < maxAttempts) {
         attempts++;
-        const { data: verifyData } = await supabase
+        const { data: verifyData, error: verifyError } = await supabase
           .from("payments")
           .select("id")
           .eq("id", id)
           .maybeSingle();
         
-        if (!verifyData) {
+        if (!verifyData && !verifyError) {
           exists = false;
-          console.log(`Confirmação: Lote ${id} não existe mais no banco.`);
+          console.log(`Sucesso: Lote ${id} confirmado como removido.`);
         } else {
-          console.warn(`Tentativa ${attempts}: Lote ${id} ainda visível no banco após delete.`);
-          if (attempts < maxAttempts) {
-            // Pequena espera antes da próxima verificação
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
+          console.warn(`Verificação ${attempts}/${maxAttempts}: Lote ${id} ainda visível.`);
+          await new Promise(resolve => setTimeout(resolve, 300 * attempts)); // Backoff progressivo
         }
       }
 
       if (exists) {
-        throw new Error("O servidor confirmou a exclusão, mas o registro ainda está visível. Por favor, tente recarregar a página.");
+        throw new Error("O registro ainda está visível no banco após a exclusão. Por favor, limpe o cache ou recarregue a página.");
       }
       
       toast.success("Lote excluído permanentemente.");
       
-      // 3. Atualiza o estado local apenas após a confirmação real do banco
+      // Atualiza o estado local e remove da seleção
       setRows(prev => prev.filter(r => r.id !== id));
       setSelected(prev => {
         const n = new Set(prev);
@@ -256,7 +261,7 @@ const Payments = () => {
         return n;
       });
     } catch (e: any) {
-      console.error("Erro na exclusão profunda:", e);
+      console.error("Falha crítica na exclusão:", e);
       toast.error("Erro ao excluir lote: " + e.message);
     } finally {
       setDeletingIds(prev => {
