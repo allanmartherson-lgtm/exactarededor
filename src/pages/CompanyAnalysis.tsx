@@ -958,34 +958,33 @@ export default function CompanyAnalysis() {
   const handleDeletePayment = async () => {
     if (!id || !group) return;
     setBusy(true);
-    console.log("handleDeletePayment called for id:", id);
     try {
-      // 1. Deletar observações
-      await supabase.from("payment_observations").delete().eq("payment_id", id);
+      // O banco de dados agora possui ON DELETE CASCADE para todas as tabelas relacionadas
+      // ao deletar da tabela 'payments'.
       
-      // 2. Deletar atribuições (usando unknown cast pois a tabela pode ser nova ou não estar no tipo principal)
-      await (supabase.from as any)("payment_assignments").delete().eq("payment_id", id);
+      // Se houver mais de um grupo, o usuário pode querer deletar apenas este grupo (empresa) do lote,
+      // ou o lote inteiro se for o único.
       
-      // 3. Deletar itens
-      await supabase.from("payment_items").delete().eq("payment_id", id);
-      
-      // 4. Deletar o grupo atual (para garantir que ele sumiu antes de checar outros)
-      await supabase.from("payment_company_groups").delete().eq("id", group.id);
-
-      // 5. Checar se restam outros grupos
       const { data: otherGroups } = await supabase
         .from("payment_company_groups")
         .select("id")
-        .eq("payment_id", id);
+        .eq("payment_id", id)
+        .neq("id", group.id);
       
       if (!otherGroups || otherGroups.length === 0) {
-        // 6. Deletar o pagamento se for o último grupo
-        const { error: pErr } = await supabase.from("payments").delete().eq("id", id);
-        if (pErr) throw pErr;
+        // É o último grupo, deleta o lote inteiro (cascade deleta o grupo)
+        const { error } = await supabase.from("payments").delete().eq("id", id);
+        if (error) throw error;
         toast.success("Lote excluído com sucesso");
         navigate("/pagamentos", { replace: true });
       } else {
-        // Restam outros grupos, volta para a visão do lote
+        // Existem outros grupos, deleta apenas este grupo e seus itens
+        // Cascade delete em payment_items deve ser verificado para groups, 
+        // mas como a relação principal de itens é com o lote, deletamos manualmente os itens do grupo aqui.
+        await supabase.from("payment_items").delete().eq("payment_id", id).eq("company_name", group.company_name);
+        const { error } = await supabase.from("payment_company_groups").delete().eq("id", group.id);
+        if (error) throw error;
+        
         toast.success("Empresa excluída do lote");
         navigate(`/pagamentos/${id}`, { replace: true });
       }
