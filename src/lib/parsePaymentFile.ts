@@ -245,6 +245,8 @@ export const similarity = (a: string, b: string): number => {
 // Remove tokens de período, prefixos de cópia/versão, sufixos de setor e separadores.
 export const extractCompanyFromFilename = (filename: string): string => {
   let name = filename.replace(/\.[^.]+$/, ""); // remove extensão
+  // normaliza underscores em espaços ANTES de aplicar regras (analistas usam "_" como separador)
+  name = name.replace(/_+/g, " ");
   // remove prefixos comuns de gestão de arquivo
   name = name.replace(/^(c[oó]pia\s+(de\s+)?|copy\s+of\s+|final\s*[-_]?\s*|v\d+\s*[-_]?\s*)/i, "");
   // remove sufixos de versão/contador
@@ -257,8 +259,8 @@ export const extractCompanyFromFilename = (filename: string): string => {
   name = name.replace(/\s*[-_]?\s*(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zçé]*[\s_\-./]*\d{2,4}\s*$/i, "");
   name = name.replace(/\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b.*/i, "");
   name = name.replace(/\s*[-_]?\s*\d{4}\s*$/g, ""); // ano isolado no final
-  // normaliza separadores em espaço
-  name = name.replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  // colapsa espaços
+  name = name.replace(/\s+/g, " ").trim();
   return name;
 };
 
