@@ -840,6 +840,9 @@ const Rules = () => {
     setFGroupDoctors(Array.isArray((r as any).group_doctors) ? (r as any).group_doctors : []);
     setFGroupMode("empresa");
     setFGroupLinks(glinks.map((l: any) => ({ company_id: l.company_id, doctors: Array.isArray(l.doctors) ? l.doctors : [] })));
+    // Colapsa todas as empresas pré-existentes ao carregar uma regra.
+    setCollapsedCompanies(new Set(glinks.map((l: any) => l.company_id).filter(Boolean)));
+    setCompanyLinksFilter("");
     const tMode = (r.time_mode as TimeMode) ?? "qualquer";
     const wdays = Array.isArray(r.weekdays) ? r.weekdays.map((n: any) => Number(n)) : [];
     const tStart = r.time_start ? String(r.time_start).slice(0, 5) : "";
