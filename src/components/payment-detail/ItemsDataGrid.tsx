@@ -15,8 +15,10 @@ import {
   AlertTriangle,
   Columns3,
   ChevronRight,
+  CheckCircle2,
   FileText,
   Pencil,
+  RotateCcw,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -116,6 +118,10 @@ export type ItemsDataGridProps = {
   canEdit?: boolean;
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
+  /** Acatar divergência (item reprovado/alerta com observação ≥ 20 chars). */
+  onAcceptItem?: (item: PaymentItemRowData) => void;
+  /** Desfazer acate (volta ao status original). */
+  onUndoAcceptItem?: (item: PaymentItemRowData) => void;
   className?: string;
 };
 
@@ -132,6 +138,8 @@ export function ItemsDataGrid({
   canEdit = false,
   onEditItem,
   onDeleteItem,
+  onAcceptItem,
+  onUndoAcceptItem,
   className,
 }: ItemsDataGridProps) {
   const COLUMN_PREFS_KEY = `${storageKey}.columnVisibility.v1`;
@@ -655,6 +663,8 @@ export function ItemsDataGrid({
                     canEdit={canEdit}
                     onEditItem={onEditItem}
                     onDeleteItem={onDeleteItem}
+                    onAcceptItem={onAcceptItem}
+                    onUndoAcceptItem={onUndoAcceptItem}
                   />
                 );
               })}
@@ -747,6 +757,8 @@ function RowMain({
   canEdit,
   onEditItem,
   onDeleteItem,
+  onAcceptItem,
+  onUndoAcceptItem,
 }: {
   it: PaymentItemRowData;
   paciente: string;
@@ -770,6 +782,8 @@ function RowMain({
   canEdit?: boolean;
   onEditItem?: (item: PaymentItemRowData) => void;
   onDeleteItem?: (item: PaymentItemRowData) => void;
+  onAcceptItem?: (item: PaymentItemRowData) => void;
+  onUndoAcceptItem?: (item: PaymentItemRowData) => void;
 }) {
   const convenio = getAgreement(it);
   const grossN = Number(it.gross_amount ?? 0);
