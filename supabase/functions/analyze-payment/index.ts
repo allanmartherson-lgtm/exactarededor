@@ -724,7 +724,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         }),
       });
 
-      if (aiResp.ok) {
+      if (aiResp && aiResp.ok) {
         const aiData = await aiResp.json();
         const tc = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (tc) {
@@ -737,10 +737,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           }
           (aiJustifications as any).__summary = parsed.summary ?? "";
         }
-      } else {
+      } else if (aiResp) {
         const txt = await aiResp.text();
         console.error("AI justification error", aiResp.status, txt);
         // Falha de IA não derruba a análise — motor já decidiu tudo.
+      }
+      } catch (aiErr: any) {
+        // Timeout/abort ou erro de rede — segue só com o motor determinístico.
+        console.error(`${__t} chamada_ia falhou:`, aiErr?.message ?? aiErr);
+      } finally {
+        clearTimeout(aiTimer);
       }
     }
     console.timeEnd(`${__t} chamada_ia`);
