@@ -1851,6 +1851,7 @@ const PaymentDetail = () => {
             );
           })()}
 
+          {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
 
           <TooltipProvider delayDuration={150}>
