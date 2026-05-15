@@ -117,7 +117,15 @@ export type Database = {
           triggered_by?: string | null
           version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_versions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assistance_groups: {
         Row: {
@@ -773,7 +781,15 @@ export type Database = {
           payment_id?: string
           whatsapp_results?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_director_notifications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_items: {
         Row: {
@@ -1067,7 +1083,15 @@ export type Database = {
           total_items?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_processing_jobs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_status_history: {
         Row: {
@@ -1954,7 +1978,15 @@ export type Database = {
           status_to?: Database["public"]["Enums"]["payment_status"] | null
           triggered_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "status_anomalies_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_configurations: {
         Row: {
