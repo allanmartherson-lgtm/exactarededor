@@ -2267,6 +2267,10 @@ export type Database = {
         }
         Returns: Json
       }
+      verify_payment_batch_deleted: {
+        Args: { p_payment_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "diretor" | "validador" | "analista"
