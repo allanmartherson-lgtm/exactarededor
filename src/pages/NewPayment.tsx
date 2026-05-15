@@ -26,6 +26,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { AlertTriangle } from "lucide-react";
+import {
+  similarity,
+  extractCompanyFromFilename,
+  matchCompany,
+  MATCH_AUTO_THRESHOLD,
+  MATCH_REVIEW_THRESHOLD,
+} from "@/lib/parsePaymentFile";
 
 interface ParsedRow {
   doctor_name: string;
@@ -231,46 +238,7 @@ const excelDateToISO = (v: unknown): string | null => {
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
-// Levenshtein simples
-const lev = (a: string, b: string): number => {
-  const m = a.length, n = b.length;
-  if (!m) return n; if (!n) return m;
-  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
-    dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-  return dp[m][n];
-};
-const similarity = (a: string, b: string): number => {
-  const an = norm(a), bn = norm(b);
-  if (!an || !bn) return 0;
-  if (an === bn) return 1;
-  if (an.includes(bn) || bn.includes(an)) return 0.9;
-  const d = lev(an, bn);
-  return 1 - d / Math.max(an.length, bn.length);
-};
-
-const extractCompanyFromFilename = (filename: string): string => {
-  let name = filename.replace(/\.[^.]+$/, "");
-  // remove sufixos comuns: " - Centro Cirurgico", "Maio 2026", etc
-  name = name.replace(/\s*-\s*(centro\s*cirurgico|cc|hemodin[âa]mica|consultas?|pareceres?|ambulatorial)\b.*$/i, "");
-  name = name.replace(/\s+\d{1,2}[-_/]\d{2,4}.*$/, "");
-  name = name.replace(/\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b.*/i, "");
-  return name.trim();
-};
-
-const matchCompany = (rawName: string, companies: CompanyRow[]): { company: CompanyRow | null; score: number } => {
-  if (!companies.length) return { company: null, score: 0 };
-  let best: { company: CompanyRow | null; score: number } = { company: null, score: 0 };
-  for (const c of companies) {
-    const candidates = [c.name, ...(c.aliases || [])];
-    for (const cand of candidates) {
-      const s = similarity(rawName, cand);
-      if (s > best.score) best = { company: c, score: s };
-    }
-  }
-  return best;
-};
+// Matching de empresa centralizado em src/lib/parsePaymentFile.ts (ver imports no topo).
 
 const NewPayment = () => {
   const { user } = useAuth();
@@ -309,6 +277,8 @@ const NewPayment = () => {
 
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companies);
+    // Filename é fonte primária quando confiança >= MATCH_AUTO_THRESHOLD.
+    const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
 
     const rows: ParsedRow[] = json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
@@ -326,17 +296,25 @@ const NewPayment = () => {
       
       const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
-      // Tenta identificar empresa por linha (Multi-empresa)
+      // Tenta identificar empresa por linha (Multi-empresa) — só ativa se filename NÃO foi confiável
       const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
-      let rowMatchedCompany = null;
-      if (rowCompanyNameRaw) {
+      let rowMatchedCompany: CompanyRow | null = null;
+      if (!filenameTrusted && rowCompanyNameRaw) {
         const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
-        if (s >= 0.85) {
+        if (s >= MATCH_AUTO_THRESHOLD) {
           rowMatchedCompany = matched;
         }
       }
 
       const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
+
+      // Resolução final da empresa por linha:
+      //  - filename confiável: sempre usa a empresa do filename
+      //  - senão: row match (>= AUTO) > filename match (qualquer score) > nome cru
+      const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
+      const resolvedName = resolvedCompany?.name
+        ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
+        ?? null;
 
       const base = {
         doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
@@ -345,8 +323,8 @@ const NewPayment = () => {
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
         valor_invalido,
-        company_name: rowMatchedCompany?.name || rowCompanyNameRaw || (score >= 0.9 ? (company?.name ?? rawCompanyName ?? null) : (rawCompanyName ?? null)),
-        company_id: rowMatchedCompany?.id || (score >= 0.9 ? (company?.id ?? null) : null),
+        company_name: resolvedName,
+        company_id: resolvedCompany?.id ?? null,
         attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
         procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss"])),
         procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
@@ -619,14 +597,18 @@ const NewPayment = () => {
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
-    const unconfirmed = buckets.filter((b) => !b.manualOverride && b.matchScore < 0.9);
-    if (unconfirmed.length > 0) {
-      toast({
-        title: "Confirmação de empresa pendente",
-        description: `Existem ${unconfirmed.length} arquivo(s) com empresa não confirmada (match < 90%). Por favor, confirme ou selecione a empresa correta.`,
-        variant: "destructive",
-      });
-      return;
+    // Buckets sem identificação confiável (e sem override manual) viram itens órfãos
+    // em payment_unmatched_items: NÃO entram no motor até serem resolvidos.
+    const isUnmatchedBucket = (b: FileBucket) =>
+      !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD);
+    const unmatchedBuckets = buckets.filter(isUnmatchedBucket);
+    if (unmatchedBuckets.length > 0) {
+      const ok = confirm(
+        `${unmatchedBuckets.length} arquivo(s) sem PJ identificada com confiança suficiente.\n\n` +
+        `Esses itens ficarão isolados em "Empresas não vinculadas" e NÃO entrarão na análise. ` +
+        `Você poderá vincular/cadastrar a empresa depois pela tela do lote.\n\nProsseguir mesmo assim?`,
+      );
+      if (!ok) return;
     }
 
     if (preValidation.critical > 0) {
@@ -719,49 +701,106 @@ const NewPayment = () => {
       return null;
     };
 
-    const items = allRows.map((r, i) => {
-      // Encontra a qual bucket esta linha pertence para aplicar o mapeamento de setor se houver
-      let currentBucket: FileBucket | undefined;
-      let offset = 0;
-      for (const b of buckets) {
-        if (i >= offset && i < offset + b.rows.length) {
-          currentBucket = b;
-          break;
-        }
-        offset += b.rows.length;
-      }
-
-      return {
-        payment_id: payment.id,
-        doctor_name: r.doctor_name,
-        doctor_document: r.doctor_document,
-        doctor_email: r.doctor_email,
-        description: r.description,
-        gross_amount: r.gross_amount,
-        company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
-        company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
-        attendance_number: r.attendance_number,
-        procedure_code: r.procedure_code,
-        procedure_name: r.procedure_name,
-        access_route: r.access_route,
-        doctor_role: r.doctor_role,
-        agreement_text: r.agreement_text,
-        specialty: resolveSpecialty(r),
-        procedure_amount: r.procedure_amount,
-        quantity: r.quantity,
-        procedure_date: r.procedure_date,
-        patient_name: r.patient_name,
-        sector: currentBucket?.sectorMapping || r.sector,
-        raw_data: r.raw_data as never,
-        tipo_linha: r.tipo_linha,
-        convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
-      };
+    // Constrói uma linha de payment_items para uma row "matched"
+    const buildItemRow = (r: ParsedRow, currentBucket: FileBucket | undefined) => ({
+      payment_id: payment.id,
+      doctor_name: r.doctor_name,
+      doctor_document: r.doctor_document,
+      doctor_email: r.doctor_email,
+      description: r.description,
+      gross_amount: r.gross_amount,
+      company_name: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.name || r.company_name) : r.company_name,
+      company_id: currentBucket?.manualOverride ? (currentBucket?.matchedCompany?.id || r.company_id) : r.company_id,
+      attendance_number: r.attendance_number,
+      procedure_code: r.procedure_code,
+      procedure_name: r.procedure_name,
+      access_route: r.access_route,
+      doctor_role: r.doctor_role,
+      agreement_text: r.agreement_text,
+      specialty: resolveSpecialty(r),
+      procedure_amount: r.procedure_amount,
+      quantity: r.quantity,
+      procedure_date: r.procedure_date,
+      patient_name: r.patient_name,
+      sector: currentBucket?.sectorMapping || r.sector,
+      raw_data: r.raw_data as never,
+      tipo_linha: r.tipo_linha,
+      convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
     });
-    const { error: itemsErr } = await supabase.from("payment_items").insert(items);
-    if (itemsErr) {
-      setSubmitting(false);
-      toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
-      return;
+
+    // Constrói uma linha de payment_unmatched_items (quarentena — não entra no motor)
+    const buildUnmatchedRow = (r: ParsedRow, b: FileBucket) => ({
+      payment_id: payment.id,
+      source_file: b.file.name,
+      raw_company_name: (b.rawCompanyName || r.company_name || "—").trim(),
+      match_score: b.matchScore || 0,
+      match_suggestion_id: b.matchedCompany?.id ?? null,
+      match_suggestion_name: b.matchedCompany?.name ?? null,
+      doctor_name: r.doctor_name,
+      doctor_document: r.doctor_document,
+      doctor_email: r.doctor_email,
+      description: r.description,
+      gross_amount: r.gross_amount,
+      attendance_number: r.attendance_number,
+      procedure_code: r.procedure_code,
+      procedure_name: r.procedure_name,
+      access_route: r.access_route,
+      doctor_role: r.doctor_role,
+      agreement_text: r.agreement_text,
+      specialty: resolveSpecialty(r),
+      procedure_amount: r.procedure_amount,
+      quantity: r.quantity,
+      procedure_date: r.procedure_date,
+      patient_name: r.patient_name,
+      sector: b.sectorMapping || r.sector,
+      raw_data: r.raw_data as never,
+      tipo_linha: r.tipo_linha,
+      convenio_value_totalized: b.convenioValueTotalized || false,
+    });
+
+    const matchedItems: ReturnType<typeof buildItemRow>[] = [];
+    const unmatchedItems: ReturnType<typeof buildUnmatchedRow>[] = [];
+    let offset = 0;
+    for (const b of buckets) {
+      const isUnmatched = isUnmatchedBucket(b);
+      for (let j = 0; j < b.rows.length; j++) {
+        const r = allRows[offset + j];
+        if (isUnmatched) unmatchedItems.push(buildUnmatchedRow(r, b));
+        else matchedItems.push(buildItemRow(r, b));
+      }
+      offset += b.rows.length;
+    }
+
+    if (matchedItems.length > 0) {
+      const { error: itemsErr } = await supabase.from("payment_items").insert(matchedItems);
+      if (itemsErr) {
+        setSubmitting(false);
+        toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
+        return;
+      }
+    }
+    if (unmatchedItems.length > 0) {
+      const { error: unErr } = await supabase.from("payment_unmatched_items").insert(unmatchedItems);
+      if (unErr) {
+        toast({
+          title: "Aviso: itens órfãos não registrados",
+          description: `${unmatchedItems.length} item(ns) sem PJ identificada não foram salvos: ${unErr.message}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `${unmatchedItems.length} item(ns) em "Empresas não vinculadas"`,
+          description: "Esses itens NÃO entram na análise. Resolva pela tela do lote.",
+        });
+      }
+    }
+
+    // Recalibra payments para refletir apenas itens que entram no motor.
+    if (unmatchedItems.length > 0) {
+      const matchedTotal = matchedItems.reduce((s, it) => s + (Number(it.gross_amount) || 0), 0);
+      await supabase.from("payments")
+        .update({ items_count: matchedItems.length, total_amount: matchedTotal })
+        .eq("id", payment.id);
     }
 
     const fileSummary = buckets.map((b) =>
@@ -1029,11 +1068,11 @@ const NewPayment = () => {
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> empresa confirmada
                           </Badge>
-                        ) : b.matchScore >= 0.9 ? (
+                        ) : b.matchScore >= MATCH_AUTO_THRESHOLD ? (
                           <Badge variant="secondary" className="gap-1 text-success border-success/30 bg-success/10">
                             <CheckCircle2 className="h-3 w-3" /> match {Math.round(b.matchScore * 100)}%
                           </Badge>
-                        ) : b.matchScore >= 0.7 ? (
+                        ) : b.matchScore >= MATCH_REVIEW_THRESHOLD ? (
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="gap-1 text-amber-600 border-amber-200 bg-amber-50">
                               <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
@@ -1049,7 +1088,7 @@ const NewPayment = () => {
                           </div>
                         ) : (
                           <Badge variant="secondary" className="gap-1 text-destructive border-destructive/30 bg-destructive/10">
-                            <AlertCircle className="h-3 w-3" /> não identificada ({Math.round(b.matchScore * 100)}%)
+                            <AlertCircle className="h-3 w-3" /> sem PJ — itens ficam isolados ({Math.round(b.matchScore * 100)}%)
                           </Badge>
                         )}
                         <div className="flex items-center gap-2 flex-wrap flex-1">
