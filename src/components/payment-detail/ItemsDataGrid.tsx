@@ -577,7 +577,7 @@ export function ItemsDataGrid({
               {colVis.diferenca && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
-              {canEdit && <col style={{ width: 80 }} />}
+              {canEdit && <col style={{ width: 120 }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
