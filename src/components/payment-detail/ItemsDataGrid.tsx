@@ -945,7 +945,7 @@ function RowMain({
             className={cn(cellPad, "text-center border-b whitespace-nowrap", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="inline-flex gap-0.5">
+            <div className="flex justify-end items-center gap-1">
               {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
                 <Button
                   size="icon"
