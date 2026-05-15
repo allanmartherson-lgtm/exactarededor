@@ -577,7 +577,7 @@ export function ItemsDataGrid({
               {colVis.diferenca && <col style={{ width: 110 }} />}
               <col style={{ width: 110 }} />
               {colVis.observacao && <col style={{ width: 70 }} />}
-              {canEdit && <col style={{ width: 80 }} />}
+              {canEdit && <col style={{ width: 120 }} />}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-muted text-muted-foreground">
               <tr>
@@ -945,7 +945,7 @@ function RowMain({
             className={cn(cellPad, "text-center border-b whitespace-nowrap", baseCellBg)}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="inline-flex gap-0.5">
+            <div className="flex justify-end items-center gap-1">
               {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
                 <Button
                   size="icon"
