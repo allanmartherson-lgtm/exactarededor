@@ -2175,6 +2175,7 @@ export type Database = {
         }
         Returns: string
       }
+      delete_payment_batch: { Args: { p_payment_id: string }; Returns: boolean }
       extract_rule_targets: {
         Args: {
           _group_company_links: Json
