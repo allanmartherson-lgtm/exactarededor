@@ -212,52 +212,18 @@ const Payments = () => {
       
       // Chamada via RPC para garantir execução atômica no lado do servidor
       // e ignorar qualquer cache de cliente ou restrição de trigger
-      const { data: confirmed, error } = await supabase.rpc("delete_payment_batch", { 
-        p_payment_id: id 
+      const { data, error } = await supabase.rpc("delete_payment_batch", {
+        p_payment_id: id
       });
 
-      if (error) {
-        console.error("Erro no RPC de exclusão:", error);
-        // Fallback para delete direto se o RPC falhar (ex: migração ainda não propagou)
-        const { error: deleteError } = await supabase.from("payments").delete().eq("id", id);
-        if (deleteError) throw deleteError;
-      } else if (confirmed === false) {
-        // Se retornar false, significa que o NOT EXISTS falhou (o registro ainda existe)
-        // Tentamos uma última vez via delete direto com bypass de triggers se possível
-        console.warn("RPC retornou falso, tentando delete direto como fallback...");
-        const { error: finalDeleteError } = await supabase.from("payments").delete().eq("id", id);
-        if (finalDeleteError) {
-          console.error("Erro no delete de fallback:", finalDeleteError);
-          throw new Error(`O banco de dados recusou a exclusão: ${finalDeleteError.message}`);
-        }
-      }
-      
-      // Validação profunda pós-exclusão com RPC de verificação rigorosa
-      let isActuallyDeleted = false;
-      let attempts = 0;
-      const maxAttempts = 3; // Reduzido para ser mais rápido
-      
-      while (!isActuallyDeleted && attempts < maxAttempts) {
-        attempts++;
-        if (attempts > 1) await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const { data: verification, error: verifyError } = await supabase.rpc("verify_payment_batch_deleted", { 
-          p_payment_id: id 
-        });
-        
-        if (!verifyError && (verification as any)?.is_deleted) {
-          isActuallyDeleted = true;
-        } else if (verifyError) {
-          console.error("Erro ao verificar exclusão:", verifyError);
-        }
-      }
+      const result = data as { ok: boolean; error?: string } | null;
 
-      if (!isActuallyDeleted) {
-        // Se chegamos aqui, buscamos os detalhes do que restou para reportar ao log
-        const { data: vDetail } = await supabase.rpc("verify_payment_batch_deleted", { p_payment_id: id });
-        console.error("Falha na confirmação de exclusão. Restante:", vDetail);
-        throw new Error("A exclusão foi solicitada, mas alguns registros ainda constam no banco. Por favor, recarregue a página.");
+      if (error || !result?.ok) {
+        const message = result?.error ?? error?.message ?? "Erro desconhecido ao excluir lote";
+        throw new Error(message);
       }
+      
+      toast.success("Lote excluído permanentemente.");
       
       toast.success("Lote excluído permanentemente.");
       
