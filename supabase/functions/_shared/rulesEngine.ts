@@ -1922,7 +1922,7 @@ function calcTabelaDiferenciada(
   return {
     expected: value,
     explanation: parts.join(" "),
-    alerts: [],
+    alerts: tdAlerts,
     steps,
     qty_already_applied: true,
   };
