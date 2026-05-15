@@ -1044,6 +1044,7 @@ export type Database = {
         Row: {
           company_list: string[] | null
           created_at: string
+          current_page: number
           failed_companies: Json
           finished_at: string | null
           id: string
@@ -1058,6 +1059,7 @@ export type Database = {
         Insert: {
           company_list?: string[] | null
           created_at?: string
+          current_page?: number
           failed_companies?: Json
           finished_at?: string | null
           id?: string
@@ -1072,6 +1074,7 @@ export type Database = {
         Update: {
           company_list?: string[] | null
           created_at?: string
+          current_page?: number
           failed_companies?: Json
           finished_at?: string | null
           id?: string
@@ -2204,6 +2207,7 @@ export type Database = {
         Returns: {
           company_list: string[] | null
           created_at: string
+          current_page: number
           failed_companies: Json
           finished_at: string | null
           id: string
