@@ -48,6 +48,8 @@ serve(async (req) => {
 
   try {
     const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = await req.json();
+    // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
+    const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -89,6 +91,7 @@ serve(async (req) => {
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
     // ---------- 2. carrega configurações globais e regras ----------
+    console.time(`${__t} carregar_regras`);
     const [configRes, rulesRes] = await Promise.all([
       supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
       supabase.from("rules").select(`
@@ -173,8 +176,10 @@ serve(async (req) => {
       // Coleta reference_table_ids dos itens de cálculo p/ pré-carregamento adiante
       // (já tratado em refTableIds via filter sobre rules — atualizamos abaixo)
     }
+    console.timeEnd(`${__t} carregar_regras`);
 
     // ---------- 3. carrega itens (filtra por empresa se aplicável) ----------
+    console.time(`${__t} carregar_itens`);
     const itemsQuery = supabase
       .from("payment_items")
       .select(`
@@ -200,6 +205,7 @@ serve(async (req) => {
       itemsQuery.in("ai_status", ai_statuses);
     }
     const { data: itemsRaw } = await itemsQuery.limit(20000);
+    console.timeEnd(`${__t} carregar_itens`);
 
     // ---------- 3.1 Classificação determinística por código TUSS ----------
     // Roda ANTES da seleção de regras de pagamento.
@@ -504,7 +510,9 @@ serve(async (req) => {
     };
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
+    console.time(`${__t} motor_analise`);
     const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup, exceptionLookup });
+    console.timeEnd(`${__t} motor_analise`);
 
     // CAMADAS 1 e 2 — Gating por-regra (convênio whitelist/blacklist e
     // tabelas de exceção vinculadas) são aplicadas DENTRO do motor
@@ -614,6 +622,7 @@ serve(async (req) => {
     const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
+    console.time(`${__t} chamada_ia`);
     if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
       const itemsForAi = itemsToReview.map((r) => {
         const it = items.find((i) => i.id === r.item_id)!;
@@ -727,6 +736,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         // Falha de IA não derruba a análise — motor já decidiu tudo.
       }
     }
+    console.timeEnd(`${__t} chamada_ia`);
 
     // ---------- 6. Caller (para snapshots) ----------
     let triggeredBy: string | null = null;
@@ -1135,6 +1145,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
     // Updates por id em paralelo (chunks de 50). Não dá para fazer um único
     // UPDATE porque cada item tem um ai_findings diferente.
+    console.time(`${__t} writes_payment_items`);
     await runChunked(itemUpdates, 50, async (u) => {
       await supabase.from("payment_items").update({
         ai_status: u.ai_status,
@@ -1151,6 +1162,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         applied_at: u.applied_at,
       }).eq("id", u.id);
     });
+    console.timeEnd(`${__t} writes_payment_items`);
 
     // Inserts em bulk (uma chamada por tabela; chunked por segurança em lotes grandes).
     if (versionRows.length) {
@@ -1232,6 +1244,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
 
     // ---------- 10. Grupos por empresa (Consolidação via normName) ----------
     // Carrega todos os grupos atuais do lote para decidir entre UPDATE, INSERT ou DELETE (limpeza).
+    console.time(`${__t} upsert_company_groups`);
     const { data: existingGroups } = await supabase
       .from("payment_company_groups")
       .select("id,company_name,status")
@@ -1293,6 +1306,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       console.log(`Limpando ${idsToRemove.length} grupos órfãos do lote ${payment_id}`);
       await supabase.from("payment_company_groups").delete().in("id", idsToRemove);
     }
+    console.timeEnd(`${__t} upsert_company_groups`);
 
     // Notifica o analista que a IA concluiu (Evento 2)
     if (obsTransition) {
@@ -1313,19 +1327,23 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     diagnostics.total_items = results.length;
     diagnostics.ai_processed_items = itemsToReview.length;
 
+    console.time(`${__t} update_payments_diagnostics`);
     await supabase.from("payments").update({
       processing_diagnostics: diagnostics,
       processing_timeout_occurred: false
     }).eq("id", payment_id);
+    console.timeEnd(`${__t} update_payments_diagnostics`);
 
     // Reporta progresso ao job de dispatch (se houver)
     if (_job_id) {
       try {
+        console.time(`${__t} increment_progress`);
         const { data: jobStatus, error: jobErr } = await supabase.rpc("increment_processing_progress", {
           _job_id,
           _company_name: _company_label ?? company_name ?? "Sem empresa",
           _error: null,
         });
+        console.timeEnd(`${__t} increment_progress`);
 
         if (!jobErr && jobStatus && (jobStatus.status === "concluido" || jobStatus.status === "parcial")) {
           const successCount = jobStatus.processed_companies - (jobStatus.failed_companies?.length ?? 0);

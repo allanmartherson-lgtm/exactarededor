@@ -10,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PAGE_SIZE = 8; // empresas processadas em paralelo por página do orquestrador
+const PAGE_SIZE = 4; // empresas processadas em paralelo por página do orquestrador (reduzido de 8 para mitigar contenção de lock em payments)
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS pcg_detect_status_desync ON public.payment_company_groups;

@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
       job_id,
       payment_id,
       page_index = 0,
-      page_size = 8,
+      page_size = 4,
       ai_statuses,
       tolerance_pct,
     } = body ?? {};
