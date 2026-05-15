@@ -169,6 +169,7 @@ const excelDateToISO = (v: unknown): string | null => {
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
+// ===== Levenshtein normalizado =====
 const lev = (a: string, b: string): number => {
   const m = a.length, n = b.length;
   if (!m) return n; if (!n) return m;
@@ -178,7 +179,7 @@ const lev = (a: string, b: string): number => {
     dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
   return dp[m][n];
 };
-export const similarity = (a: string, b: string): number => {
+const levSim = (a: string, b: string): number => {
   const an = norm(a), bn = norm(b);
   if (!an || !bn) return 0;
   if (an === bn) return 1;
@@ -187,16 +188,82 @@ export const similarity = (a: string, b: string): number => {
   return 1 - d / Math.max(an.length, bn.length);
 };
 
+// ===== Tokenização + stopwords =====
+// Stopwords jurídicas, organizacionais e palavras de baixo valor para identificar PJs hospitalares.
+const STOPWORDS = new Set([
+  "ltda","me","epp","eireli","sa","s","s.a","s.a.","ss","s.s","s.s.","sc","s.c",
+  "hospital","hospitalar","instituto","clinica","clínica","centro","cirurgico","cirúrgico",
+  "saude","saúde","servicos","serviços","servico","serviço","medico","médico","medica","médica",
+  "consultorio","consultório","de","da","do","das","dos","e","&","cia","grupo","unidade",
+  "ltd","comercio","comércio","empresarial","cnpj",
+]);
+
+const stripDiacritics = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const tokenize = (s: string): string[] => {
+  if (!s) return [];
+  const cleaned = stripDiacritics(s)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return [];
+  return cleaned
+    .split(" ")
+    .filter((t) => t.length >= 2 && !STOPWORDS.has(t) && !/^\d+$/.test(t));
+};
+
+const jaccard = (a: string[], b: string[]): number => {
+  if (!a.length && !b.length) return 0;
+  const sa = new Set(a), sb = new Set(b);
+  let inter = 0;
+  for (const x of sa) if (sb.has(x)) inter++;
+  const union = sa.size + sb.size - inter;
+  return union === 0 ? 0 : inter / union;
+};
+
+// Score híbrido: 0.65 Jaccard de tokens + 0.35 Levenshtein normalizado.
+// Bônus quando todos os tokens significativos do nome curto cabem no longo.
+export const similarity = (a: string, b: string): number => {
+  if (!a || !b) return 0;
+  const ta = tokenize(a), tb = tokenize(b);
+  const j = jaccard(ta, tb);
+  const l = levSim(a, b);
+  let score = 0.65 * j + 0.35 * l;
+  // bônus contenção de tokens (raro caso curto/longo)
+  if (ta.length && tb.length) {
+    const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+    const setLong = new Set(longer);
+    const allIn = shorter.every((t) => setLong.has(t));
+    if (allIn && shorter.length >= 2) score = Math.max(score, 0.92);
+  }
+  return Math.min(1, score);
+};
+
+// ===== Extração de empresa do nome do arquivo =====
+// Remove tokens de período, prefixos de cópia/versão, sufixos de setor e separadores.
 export const extractCompanyFromFilename = (filename: string): string => {
-  let name = filename.replace(/\.[^.]+$/, "");
-  name = name.replace(/\s*-\s*(centro\s*cirurgico|cc|hemodin[âa]mica|consultas?|pareceres?|ambulatorial)\b.*$/i, "");
-  name = name.replace(/\s+\d{1,2}[-_/]\d{2,4}.*$/, "");
+  let name = filename.replace(/\.[^.]+$/, ""); // remove extensão
+  // remove prefixos comuns de gestão de arquivo
+  name = name.replace(/^(c[oó]pia\s+(de\s+)?|copy\s+of\s+|final\s*[-_]?\s*|v\d+\s*[-_]?\s*)/i, "");
+  // remove sufixos de versão/contador
+  name = name.replace(/\s*\(\d+\)\s*$/g, "");
+  name = name.replace(/[\s_\-]+v\d+\s*$/i, "");
+  // remove sufixos de setor/conteúdo
+  name = name.replace(/\s*[-_]\s*(centro\s*cirurgico|cc|hemodin[âa]mica|consultas?|pareceres?|ambulatorial|visitas?|cirurgi[ao]s?|ambulat[oó]rio|uti|enfermaria|interna[cç][aã]o)\b.*$/i, "");
+  // remove referência a período (mes/ano) em vários formatos
+  name = name.replace(/\s*[-_]?\s*\d{1,2}[-_./]\d{2,4}\s*$/g, "");
+  name = name.replace(/\s*[-_]?\s*(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zçé]*[\s_\-./]*\d{2,4}\s*$/i, "");
   name = name.replace(/\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b.*/i, "");
-  return name.trim();
+  name = name.replace(/\s*[-_]?\s*\d{4}\s*$/g, ""); // ano isolado no final
+  // normaliza separadores em espaço
+  name = name.replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  return name;
 };
 
 export const matchCompany = (rawName: string, companies: CompanyRow[]): { company: CompanyRow | null; score: number } => {
-  if (!companies.length) return { company: null, score: 0 };
+  if (!companies.length || !rawName) return { company: null, score: 0 };
   let best: { company: CompanyRow | null; score: number } = { company: null, score: 0 };
   for (const c of companies) {
     const candidates = [c.name, ...(c.aliases || [])];
@@ -207,6 +274,10 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
   }
   return best;
 };
+
+// Limites de decisão. Centralizados para manter UI e parser em sincronia.
+export const MATCH_AUTO_THRESHOLD = 0.92;
+export const MATCH_REVIEW_THRESHOLD = 0.75;
 
 export const parsePaymentFile = async (
   f: File,
