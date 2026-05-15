@@ -225,30 +225,31 @@ const Payments = () => {
         throw new Error("O banco de dados não conseguiu confirmar a remoção completa dos dados.");
       }
       
-      // Validação profunda pós-exclusão com poll agressivo
-      let exists = true;
+      // Validação profunda pós-exclusão com RPC de verificação rigorosa
+      let isActuallyDeleted = false;
       let attempts = 0;
       const maxAttempts = 5;
       
-      while (exists && attempts < maxAttempts) {
+      while (!isActuallyDeleted && attempts < maxAttempts) {
         attempts++;
-        const { data: verifyData, error: verifyError } = await supabase
-          .from("payments")
-          .select("id")
-          .eq("id", id)
-          .maybeSingle();
+        console.log(`Verificação profunda ${attempts}/${maxAttempts} para o lote ${id}...`);
         
-        if (!verifyData && !verifyError) {
-          exists = false;
-          console.log(`Sucesso: Lote ${id} confirmado como removido.`);
+        const { data: verification, error: verifyError } = await supabase.rpc("verify_payment_batch_deleted", { 
+          p_payment_id: id 
+        });
+        
+        if (!verifyError && (verification as any)?.is_deleted) {
+          isActuallyDeleted = true;
+          console.log(`Sucesso: Lote ${id} e todos os seus vínculos foram confirmados como removidos do banco.`);
         } else {
-          console.warn(`Verificação ${attempts}/${maxAttempts}: Lote ${id} ainda visível.`);
-          await new Promise(resolve => setTimeout(resolve, 300 * attempts)); // Backoff progressivo
+          console.warn(`Aviso: O lote ${id} ou seus vínculos ainda estão visíveis no banco. Detalhes:`, verification);
+          // Espera um pouco antes de tentar novamente para dar tempo ao banco de processar o commit/cascateamento
+          await new Promise(resolve => setTimeout(resolve, 500 * attempts));
         }
       }
 
-      if (exists) {
-        throw new Error("O registro ainda está visível no banco após a exclusão. Por favor, limpe o cache ou recarregue a página.");
+      if (!isActuallyDeleted) {
+        throw new Error("Não foi possível confirmar a exclusão total no banco de dados. O lote pode retornar ao atualizar a página.");
       }
       
       toast.success("Lote excluído permanentemente.");
