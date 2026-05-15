@@ -946,29 +946,18 @@ function RowMain({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="inline-flex gap-0.5">
-              {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (() => {
-                const justif = (observations.find(
-                  (o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 20,
-                )?.message ?? "").trim();
-                const enabled = justif.length >= 20;
-                return (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    style={enabled ? { color: "#166534" } : undefined}
-                    title={
-                      enabled
-                        ? "Acatar divergência (status acatado)"
-                        : "Preencha uma observação no item com no mínimo 20 caracteres antes de acatar"
-                    }
-                    disabled={!enabled}
-                    onClick={() => onAcceptItem(it)}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  </Button>
-                );
-              })()}
+              {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  style={{ color: "#166534" }}
+                  title="Acatar divergência (status acatado)"
+                  onClick={() => onAcceptItem(it)}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
               {onUndoAcceptItem && it.ai_status === "acatado" && (
                 <Button
                   size="icon"

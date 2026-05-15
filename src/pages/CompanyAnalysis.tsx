@@ -467,13 +467,7 @@ export default function CompanyAnalysis() {
   };
 
   const acceptItem = async (it: PaymentItemRow) => {
-    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 20)?.message ?? "").trim();
-    if (justif.length < 20) {
-      toast.error("Observação obrigatória", {
-        description: "Adicione uma observação no item com no mínimo 20 caracteres antes de acatar.",
-      });
-      return;
-    }
+    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
       _item_id: it.id,
@@ -1521,12 +1515,21 @@ export default function CompanyAnalysis() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Textarea
+             <Textarea
                 placeholder="Anote uma observação para esta empresa…"
                 value={groupDraft}
                 onChange={(e) => setGroupDraft(e.target.value)}
                 rows={3}
+                className={cn(
+                  items.some((i) => i.ai_status === "acatado") && groupDraft.trim().length < 20
+                    && "border-amber-500/70 focus-visible:ring-amber-500/40"
+                )}
               />
+              {items.some((i) => i.ai_status === "acatado") && groupDraft.trim().length < 20 && (
+                <p className="text-xs text-amber-600">
+                  Há itens acatados nesta empresa. Preencha a observação (mín. 20 caracteres) para liberar o envio para validação.
+                </p>
+              )}
               <div className="flex flex-col gap-3">
                 <ObservationTypeSelector
                   value={groupCommentType}
@@ -1670,17 +1673,25 @@ export default function CompanyAnalysis() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                      {returner ? (
-                        <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                          <Send className="h-4 w-4 mr-2" />
-                          Reencaminhar ao {returner}
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => sendForValidation()} disabled={busy}>
-                          <Send className="h-4 w-4 mr-2" />
-                          Enviar para validação
-                        </Button>
-                      )}
+                      {(() => {
+                        const temItemAcatado = items.some((i) => i.ai_status === "acatado");
+                        const observacaoOk = groupDraft.trim().length >= 20;
+                        const podeEnviar = !temItemAcatado || observacaoOk;
+                        const tooltip = !podeEnviar
+                          ? "Preencha a observação da empresa (mín. 20 caracteres) para enviar itens acatados"
+                          : undefined;
+                        return returner ? (
+                          <Button size="sm" onClick={() => sendForValidation()} disabled={busy || !podeEnviar} title={tooltip}>
+                            <Send className="h-4 w-4 mr-2" />
+                            Reencaminhar ao {returner}
+                          </Button>
+                        ) : (
+                          <Button size="sm" onClick={() => sendForValidation()} disabled={busy || !podeEnviar} title={tooltip}>
+                            <Send className="h-4 w-4 mr-2" />
+                            Enviar para validação
+                          </Button>
+                        );
+                      })()}
                     </>
                   )}
                   {gStatus === "aprovado_em_revisao" && (
