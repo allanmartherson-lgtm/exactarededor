@@ -912,10 +912,28 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
-          <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
-            {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
-            {eff}
-          </span>
+          {it.ai_status === "acatado" ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
+                TEXT_META,
+              )}
+              style={{ backgroundColor: "#166534", color: "#fff", borderColor: "#166534" }}
+              title={
+                it.acatado_status_original
+                  ? `Acatado (era ${it.acatado_status_original})`
+                  : "Acatado"
+              }
+            >
+              <CheckCircle2 className="h-2.5 w-2.5" />
+              ACATADO
+            </span>
+          ) : (
+            <span className={cn("inline-flex rounded-full border px-1 py-0.5", TEXT_META, "uppercase tracking-wide", TONE_CLASSES[tone])}>
+              {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+              {eff}
+            </span>
+          )}
         </td>
         {colVis.observacao && (
           <td className={cn(cellPad, "text-center border-b", TEXT_META, baseCellBg)}>
@@ -928,6 +946,40 @@ function RowMain({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="inline-flex gap-0.5">
+              {onAcceptItem && (it.ai_status === "reprovado" || it.ai_status === "alerta") && (() => {
+                const justif = (observations.find(
+                  (o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 20,
+                )?.message ?? "").trim();
+                const enabled = justif.length >= 20;
+                return (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    style={enabled ? { color: "#166534" } : undefined}
+                    title={
+                      enabled
+                        ? "Acatar divergência (status acatado)"
+                        : "Preencha uma observação no item com no mínimo 20 caracteres antes de acatar"
+                    }
+                    disabled={!enabled}
+                    onClick={() => onAcceptItem(it)}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  </Button>
+                );
+              })()}
+              {onUndoAcceptItem && it.ai_status === "acatado" && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  title={`Desfazer acate — volta para ${it.acatado_status_original ?? "reprovado"}`}
+                  onClick={() => onUndoAcceptItem(it)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              )}
               {onEditItem && (
                 <Button
                   size="icon"
