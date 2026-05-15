@@ -259,7 +259,7 @@ export function UnregisteredCompaniesPanel({
       <Dialog open={!!linkOpen} onOpenChange={(o) => !o && setLinkOpen(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Vincular "{linkOpen}" a uma empresa existente</DialogTitle>
+            <DialogTitle className="pr-8 break-words">Vincular "{linkOpen}" a uma empresa existente</DialogTitle>
           </DialogHeader>
           <CompanyCombobox value={picked} onChange={setPicked} placeholder="Buscar empresa..." />
           <p className="text-xs text-muted-foreground">
