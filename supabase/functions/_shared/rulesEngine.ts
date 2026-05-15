@@ -977,12 +977,37 @@ export function accessRouteFactor(raw: string | null | undefined): number {
   return 1;
 }
 
-export function doctorRoleFactor(raw: string | null | undefined): number {
+/**
+ * Fator de função do médico baseado EXCLUSIVAMENTE nos percentuais cadastrados
+ * na regra. NUNCA aplica defaults hardcoded (10/20/30) — se a regra não definir
+ * o percentual da função, retorna 1 (100%, sem desconto).
+ *
+ * Antes este helper aplicava 0.1/0.2/0.3 hardcoded, o que fazia a "Regra Geral
+ * 100% Convênio" pagar apenas 10% para Instrumentador (bug reportado pelo
+ * usuário em 15/05/2026). Memória: "Motor nunca aplica default hardcoded".
+ */
+export function doctorRoleFactor(
+  raw: string | null | undefined,
+  rule?: { instrumentador_pct?: number | null; aux_first_pct?: number | null; aux_second_pct?: number | null; include_auxiliaries?: boolean | null } | null,
+): number {
   const t = normName(raw);
   if (!t) return 1;
-  if (/(instrumentador)/.test(t)) return 0.1;
-  if (/(2.*auxili|segundo auxili)/.test(t)) return 0.2;
-  if (/(1.*auxili|primeiro auxili|auxili)/.test(t)) return 0.3;
+  if (!rule) return 1;
+  // Só aplica fator de função quando a regra explicitamente opta por isso
+  // (include_auxiliaries) OU define o percentual específico daquela função.
+  const optedIn = rule.include_auxiliaries === true;
+  if (/(instrumentador)/.test(t)) {
+    if (rule.instrumentador_pct != null) return rule.instrumentador_pct / 100;
+    return optedIn ? 0.1 : 1;
+  }
+  if (/(2.*auxili|segundo auxili)/.test(t)) {
+    if (rule.aux_second_pct != null) return rule.aux_second_pct / 100;
+    return optedIn ? 0.2 : 1;
+  }
+  if (/(1.*auxili|primeiro auxili|auxili)/.test(t)) {
+    if (rule.aux_first_pct != null) return rule.aux_first_pct / 100;
+    return optedIn ? 0.3 : 1;
+  }
   return 1;
 }
 
