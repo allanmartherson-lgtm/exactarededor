@@ -254,6 +254,8 @@ export const extractCompanyFromFilename = (filename: string): string => {
   name = name.replace(/[\s_\-]+v\d+\s*$/i, "");
   // remove sufixos de setor/conteúdo
   name = name.replace(/\s*[-_]\s*(centro\s*cirurgico|cc|hemodin[âa]mica|consultas?|pareceres?|ambulatorial|visitas?|cirurgi[ao]s?|ambulat[oó]rio|uti|enfermaria|interna[cç][aã]o)\b.*$/i, "");
+  // Também remove setor colado sem hífen depois de "LTDA/SA" (ex.: Empresa Ltda Centro Cirurgico)
+  name = name.replace(/\b(ltda|eireli|me|epp|s\.?a\.?)\s+(centro\s*cirurgico|cc|hemodin[âa]mica|consultas?|pareceres?|ambulatorial|visitas?|cirurgi[ao]s?|ambulat[oó]rio|uti|enfermaria|interna[cç][aã]o)\b.*$/i, "$1");
   // remove referência a período (mes/ano) em vários formatos
   name = name.replace(/\s*[-_]?\s*\d{1,2}[-_./]\d{2,4}\s*$/g, "");
   name = name.replace(/\s*[-_]?\s*(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-zçé]*[\s_\-./]*\d{2,4}\s*$/i, "");
