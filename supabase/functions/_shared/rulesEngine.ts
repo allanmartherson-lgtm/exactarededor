@@ -1860,19 +1860,36 @@ function calcTabelaDiferenciada(
   if (rule.apply_access_route) parts.push(`× via(${(viaFactor * 100).toFixed(0)}%) = R$ ${value.toFixed(2)}`);
 
   // 5) × função
+  // PRINCÍPIO: nunca aplicar percentual hardcoded. Só aplica desconto de função
+  // quando a regra cadastrou o pct específico daquela função. Se include_auxiliaries
+  // estiver marcado mas o pct não estiver cadastrado, mantém fator 1 e emite alerta
+  // para o analista cadastrar o valor.
   let funcFactor = 1;
   let funcLabel = "";
+  const tdAlerts: string[] = [];
   if (rule.include_auxiliaries && !roleInTableMatchesRoleInItem) {
     const role = classifyDoctorRole(item.doctor_role);
     if (role === "instrumentador") {
-      funcFactor = (rule.instrumentador_pct ?? 10) / 100;
-      funcLabel = `× instrumentador ${(funcFactor * 100).toFixed(0)}%`;
+      if (rule.instrumentador_pct != null) {
+        funcFactor = rule.instrumentador_pct / 100;
+        funcLabel = `× instrumentador ${(funcFactor * 100).toFixed(0)}%`;
+      } else {
+        tdAlerts.push(`Regra "${rule.name}" inclui auxiliares mas não cadastrou instrumentador_pct — pago 100% (sem desconto inferido).`);
+      }
     } else if (role === "primeiro_aux") {
-      funcFactor = (rule.aux_first_pct ?? 30) / 100;
-      funcLabel = `× 1º aux ${(funcFactor * 100).toFixed(0)}%`;
+      if (rule.aux_first_pct != null) {
+        funcFactor = rule.aux_first_pct / 100;
+        funcLabel = `× 1º aux ${(funcFactor * 100).toFixed(0)}%`;
+      } else {
+        tdAlerts.push(`Regra "${rule.name}" inclui auxiliares mas não cadastrou aux_first_pct — pago 100% (sem desconto inferido).`);
+      }
     } else if (role === "demais_aux") {
-      funcFactor = (rule.aux_second_pct ?? 20) / 100;
-      funcLabel = `× aux 2+ ${(funcFactor * 100).toFixed(0)}%`;
+      if (rule.aux_second_pct != null) {
+        funcFactor = rule.aux_second_pct / 100;
+        funcLabel = `× aux 2+ ${(funcFactor * 100).toFixed(0)}%`;
+      } else {
+        tdAlerts.push(`Regra "${rule.name}" inclui auxiliares mas não cadastrou aux_second_pct — pago 100% (sem desconto inferido).`);
+      }
     }
   } else if (roleInTableMatchesRoleInItem) {
     parts.push(`(valor específico para papel "${item.doctor_role}")`);
