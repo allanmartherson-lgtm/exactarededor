@@ -1,5 +1,5 @@
 import { useToast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -44,6 +44,7 @@ import {
   ChevronRight,
   Filter,
   Loader2,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -60,6 +61,7 @@ import type {
   GroupRow,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentReportModalProps {
   open: boolean;
@@ -92,6 +94,29 @@ export function PaymentReportModal({
     reprovaro: true,
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [auditData, setAuditData] = useState<any>(null);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  useEffect(() => {
+    if (open && payment.id) {
+      loadAudit();
+    }
+  }, [open, payment.id]);
+
+  const loadAudit = async () => {
+    setLoadingAudit(true);
+    try {
+      const { data, error } = await supabase.rpc('calculate_payment_audit', {
+        p_payment_id: payment.id
+      });
+      if (error) throw error;
+      setAuditData(data);
+    } catch (err) {
+      console.error("Erro ao carregar auditoria:", err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
 
   // --- Opções para Filtros ---
   const companyOptions = useMemo(() => 
