@@ -1506,6 +1506,8 @@ export default function CompanyAnalysis() {
                 canEdit={canEdit}
                 onEditItem={openEditItem}
                 onDeleteItem={(it) => setDeleteItem(it)}
+                onAcceptItem={acceptItem}
+                onUndoAcceptItem={undoAcceptItem}
               />
             </CardContent>
           </Card>
