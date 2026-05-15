@@ -533,7 +533,15 @@ export type Database = {
           payment_id?: string
           read_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoice_questions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
@@ -661,7 +669,15 @@ export type Database = {
           previous_analyst_id?: string | null
           source?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_assignments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_company_groups: {
         Row: {
@@ -1078,7 +1094,15 @@ export type Database = {
           status_from?: Database["public"]["Enums"]["payment_status"] | null
           status_to?: Database["public"]["Enums"]["payment_status"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_status_history_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
