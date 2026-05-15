@@ -276,6 +276,23 @@ const Payments = () => {
       });
       const counts: Record<string, number> = {};
       Object.entries(cmap).forEach(([k, v]) => { counts[k] = v.size; });
+
+      // Fallback: se um job de processamento registrou mais empresas que os
+      // grupos efetivamente criados (ex.: empresa travou em timeout e não
+      // gerou grupo), usa o total do job para refletir o volume real do lote.
+      const { data: jobs } = await supabase
+        .from("payment_processing_jobs")
+        .select("payment_id,total_companies,started_at")
+        .in("payment_id", ids)
+        .order("started_at", { ascending: false });
+      const jobMax: Record<string, number> = {};
+      (jobs ?? []).forEach((j: any) => {
+        const cur = jobMax[j.payment_id] ?? 0;
+        if ((j.total_companies ?? 0) > cur) jobMax[j.payment_id] = j.total_companies;
+      });
+      Object.entries(jobMax).forEach(([k, v]) => {
+        if ((counts[k] ?? 0) < v) counts[k] = v;
+      });
       setCompaniesPerPayment(counts);
 
       // Histórico: pega entrada mais recente por pagamento
