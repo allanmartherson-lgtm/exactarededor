@@ -1073,7 +1073,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           ...findings,
           engine: {
             ...(findings.engine || {}),
-            inferred_sector: (r as any).inferred_sector ?? null,
+            inferred_sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
           }
         },
         attendance_group_key: r.attendance_group_key ?? null,
