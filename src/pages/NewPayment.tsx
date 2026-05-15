@@ -597,14 +597,18 @@ const NewPayment = () => {
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
     }
-    const unconfirmed = buckets.filter((b) => !b.manualOverride && b.matchScore < 0.9);
-    if (unconfirmed.length > 0) {
-      toast({
-        title: "Confirmação de empresa pendente",
-        description: `Existem ${unconfirmed.length} arquivo(s) com empresa não confirmada (match < 90%). Por favor, confirme ou selecione a empresa correta.`,
-        variant: "destructive",
-      });
-      return;
+    // Buckets sem identificação confiável (e sem override manual) viram itens órfãos
+    // em payment_unmatched_items: NÃO entram no motor até serem resolvidos.
+    const isUnmatchedBucket = (b: FileBucket) =>
+      !b.manualOverride && (!b.matchedCompany || b.matchScore < MATCH_AUTO_THRESHOLD);
+    const unmatchedBuckets = buckets.filter(isUnmatchedBucket);
+    if (unmatchedBuckets.length > 0) {
+      const ok = confirm(
+        `${unmatchedBuckets.length} arquivo(s) sem PJ identificada com confiança suficiente.\n\n` +
+        `Esses itens ficarão isolados em "Empresas não vinculadas" e NÃO entrarão na análise. ` +
+        `Você poderá vincular/cadastrar a empresa depois pela tela do lote.\n\nProsseguir mesmo assim?`,
+      );
+      if (!ok) return;
     }
 
     if (preValidation.critical > 0) {
