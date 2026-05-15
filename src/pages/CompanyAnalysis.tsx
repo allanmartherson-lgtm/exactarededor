@@ -764,10 +764,27 @@ export default function CompanyAnalysis() {
       let parsedRows: any[] = [];
       let fileNames: string[] = [];
 
+      const matchesTarget = (raw: string | null | undefined, rid: string | null | undefined) => {
+        if (targetId && rid && rid === targetId) return true;
+        const lk = looseKey(raw ?? "Sem empresa");
+        if (lk === targetLoose) return true;
+        if (lk && targetLoose && (lk.includes(targetLoose) || targetLoose.includes(lk))) return true;
+        return similarity(raw ?? "", group.company_name) >= 0.85;
+      };
+
       for (const file of files) {
         const bucket = await parsePaymentFile(file, companies, payment.payment_kind);
         if (bucket.rows.length > 0) {
-          parsedRows = [...parsedRows, ...bucket.rows];
+          const fileMatchesGroup = matchesTarget(bucket.rawCompanyName, bucket.matchedCompany?.id ?? null)
+            || matchesTarget(bucket.matchedCompany?.name ?? null, bucket.matchedCompany?.id ?? null);
+
+          // Se o nome do arquivo identifica a PJ atual, ele prevalece sobre colunas
+          // como hospital/unidade/setor dentro da planilha, que frequentemente não são a PJ.
+          const scopedRows = fileMatchesGroup
+            ? bucket.rows.map((r) => ({ ...r, company_name: group.company_name, company_id: targetId ?? r.company_id }))
+            : bucket.rows;
+
+          parsedRows = [...parsedRows, ...scopedRows];
           fileNames.push(file.name);
 
           // Upload do arquivo para histórico
@@ -784,13 +801,6 @@ export default function CompanyAnalysis() {
       // Reimportação no escopo da empresa: mantém somente as linhas desta PJ.
       // Linhas de outras empresas presentes no arquivo são ignoradas — a tela
       // do lote é o lugar para reimportar tudo.
-      const matchesTarget = (raw: string | null | undefined, rid: string | null | undefined) => {
-        if (targetId && rid && rid === targetId) return true;
-        const lk = looseKey(raw ?? "Sem empresa");
-        if (lk === targetLoose) return true;
-        if (lk && targetLoose && (lk.includes(targetLoose) || targetLoose.includes(lk))) return true;
-        return similarity(raw ?? "", group.company_name) >= 0.85;
-      };
       const companyRows = parsedRows.filter((r) => matchesTarget(r.company_name, r.company_id));
       const ignoredCount = parsedRows.length - companyRows.length;
 
@@ -816,8 +826,8 @@ export default function CompanyAnalysis() {
         doctor_email: r.doctor_email,
         description: r.description,
         gross_amount: r.gross_amount,
-        company_name: r.company_name,
-        company_id: r.company_id,
+        company_name: group.company_name,
+        company_id: group.company_id ?? r.company_id,
         attendance_number: r.attendance_number,
         procedure_code: r.procedure_code,
         procedure_name: r.procedure_name,
