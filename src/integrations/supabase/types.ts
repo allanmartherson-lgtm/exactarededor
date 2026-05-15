@@ -2176,7 +2176,7 @@ export type Database = {
         }
         Returns: string
       }
-      delete_payment_batch: { Args: { p_payment_id: string }; Returns: boolean }
+      delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
       extract_rule_targets: {
         Args: {
           _group_company_links: Json
@@ -2266,10 +2266,6 @@ export type Database = {
           _valid_from: string
           _valid_until: string
         }
-        Returns: Json
-      }
-      verify_payment_batch_deleted: {
-        Args: { p_payment_id: string }
         Returns: Json
       }
     }
