@@ -216,8 +216,10 @@ const Payments = () => {
         p_payment_id: id
       });
 
-      if (error || !data?.ok) {
-        const message = data?.error ?? error?.message ?? "Erro desconhecido ao excluir lote";
+      const result = data as { ok: boolean; error?: string } | null;
+
+      if (error || !result?.ok) {
+        const message = result?.error ?? error?.message ?? "Erro desconhecido ao excluir lote";
         throw new Error(message);
       }
       
