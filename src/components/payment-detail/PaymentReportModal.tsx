@@ -1,5 +1,5 @@
 import { useToast } from "@/hooks/use-toast";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -44,6 +44,7 @@ import {
   ChevronRight,
   Filter,
   Loader2,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   formatCurrency,
@@ -60,6 +61,7 @@ import type {
   GroupRow,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentReportModalProps {
   open: boolean;
@@ -92,6 +94,29 @@ export function PaymentReportModal({
     reprovaro: true,
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [auditData, setAuditData] = useState<any>(null);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  useEffect(() => {
+    if (open && payment.id) {
+      loadAudit();
+    }
+  }, [open, payment.id]);
+
+  const loadAudit = async () => {
+    setLoadingAudit(true);
+    try {
+      const { data, error } = await supabase.rpc('calculate_payment_audit', {
+        p_payment_id: payment.id
+      });
+      if (error) throw error;
+      setAuditData(data);
+    } catch (err) {
+      console.error("Erro ao carregar auditoria:", err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
 
   // --- Opções para Filtros ---
   const companyOptions = useMemo(() => 
@@ -352,6 +377,86 @@ export function PaymentReportModal({
               </CardContent>
             </Card>
           </div>
+
+          {/* Painel de Auditoria Automática */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                <ClipboardCheck className="h-4 w-4" /> Auditoria Automática de Processamento
+              </div>
+              {loadingAudit && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+            </CardHeader>
+            <CardContent className="p-4">
+              {auditData ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                      Resumo da Importação
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-background border rounded-lg">
+                        <p className="text-[10px] text-muted-foreground uppercase">Esperado (Planilha)</p>
+                        <p className="text-xl font-bold">{auditData.summary.expected_total}</p>
+                      </div>
+                      <div className="p-3 bg-background border rounded-lg">
+                        <p className="text-[10px] text-muted-foreground uppercase">Processado (Banco)</p>
+                        <p className="text-xl font-bold text-primary">{auditData.summary.processed_total}</p>
+                      </div>
+                    </div>
+                    {auditData.summary.missing_items > 0 ? (
+                      <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                        <div>
+                          <p className="text-sm font-bold text-destructive">Atenção: {auditData.summary.missing_items} itens não processados</p>
+                          <p className="text-[11px] text-destructive/80">O total de itens no banco é inferior ao esperado pelo cabeçalho do lote.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-success/10 border border-success/20 rounded-lg flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-success" />
+                        <div>
+                          <p className="text-sm font-bold text-success">Processamento Íntegro</p>
+                          <p className="text-[11px] text-success/80">Todos os itens esperados foram encontrados no banco de dados.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold uppercase text-muted-foreground">Discrepâncias Financeiras</h4>
+                    <div className="max-h-[140px] overflow-y-auto border rounded-lg bg-background">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30">
+                            <TableHead className="text-[10px] h-7">PJ / Empresa</TableHead>
+                            <TableHead className="text-[10px] h-7 text-right">Diferença</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {auditData.by_company?.map((comp: any) => (
+                            <TableRow key={comp.company_name} className="h-7 hover:bg-muted/10">
+                              <TableCell className="text-[11px] py-1 font-medium">{comp.company_name}</TableCell>
+                              <TableCell className={cn(
+                                "text-[11px] py-1 text-right font-mono",
+                                Math.abs(comp.discrepancy) > 0.01 ? (comp.discrepancy > 0 ? "text-destructive" : "text-success") : "text-muted-foreground"
+                              )}>
+                                {formatCurrency(comp.discrepancy)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-6 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                  <p className="text-xs italic">Calculando métricas de auditoria...</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Filtros Internos */}
           <Card>
