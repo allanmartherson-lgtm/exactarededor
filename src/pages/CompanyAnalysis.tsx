@@ -466,6 +466,38 @@ export default function CompanyAnalysis() {
     load();
   };
 
+  const acceptItem = async (it: PaymentItemRow) => {
+    const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 20)?.message ?? "").trim();
+    if (justif.length < 20) {
+      toast.error("Observação obrigatória", {
+        description: "Adicione uma observação no item com no mínimo 20 caracteres antes de acatar.",
+      });
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("accept_payment_item", {
+      _item_id: it.id,
+      _justification: justif,
+    });
+    setBusy(false);
+    if (error) return toast.error("Erro ao acatar", { description: error.message });
+    const res = data as { ok: boolean; error?: string } | null;
+    if (!res?.ok) return toast.error("Erro ao acatar", { description: res?.error ?? "Falha desconhecida" });
+    toast.success("Item acatado");
+    load();
+  };
+
+  const undoAcceptItem = async (it: PaymentItemRow) => {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("undo_accept_payment_item", { _item_id: it.id });
+    setBusy(false);
+    if (error) return toast.error("Erro ao desfazer", { description: error.message });
+    const res = data as { ok: boolean; error?: string } | null;
+    if (!res?.ok) return toast.error("Erro ao desfazer", { description: res?.error ?? "Falha desconhecida" });
+    toast.success("Acate desfeito");
+    load();
+  };
+
   // Ações de fluxo (paridade com o popup de análise por empresa).
   const autoClaim = async () => {
     if (!id || !user) return;
