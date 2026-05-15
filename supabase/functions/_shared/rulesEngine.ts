@@ -1174,17 +1174,11 @@ function calcInformativo(): ExpectedCalc {
   return { expected: null, explanation: "Regra informativa.", alerts: [] };
 }
 
-function calcDefault(item: ItemInput): ExpectedCalc & { calculation_type_used: "default_hemodinamica" | "default_geral" } {
-  const sector = inferItemSector(item);
-  const pct = sector === "hemodinamica" ? 88 : 100;
-  const base = item.procedure_amount;
-  const ctu = sector === "hemodinamica" ? "default_hemodinamica" as const : "default_geral" as const;
-  if (base == null) {
-    return { expected: null, explanation: `Default ${sector} (${pct}%) — valor base ausente.`, alerts: ["Sem regra e sem procedure_amount."], calculation_type_used: ctu };
-  }
-  const expected = Number((base * (pct / 100)).toFixed(2));
-  return { expected, explanation: `Sem regra → default ${sector} ${pct}% × R$ ${base.toFixed(2)} = R$ ${expected.toFixed(2)}`, alerts: [], calculation_type_used: ctu };
-}
+// calcDefault removido — o motor não aplica mais defaults por setor (88% / 100%).
+// Princípio: sem regra cadastrada = "sem_regra" + alerta, jamais valor inferido.
+// Os literais "default_geral" / "default_hemodinamica" permanecem no type union
+// apenas para compatibilidade histórica com payment_items legados e mapeamento
+// em calcMethodMapping.ts (mapeiam para null no banco).
 
 export type ReferenceTableLookup = (referenceTableId: string, procedureCode: string, role?: string | null, forceSpecific?: boolean) => number | null;
 
