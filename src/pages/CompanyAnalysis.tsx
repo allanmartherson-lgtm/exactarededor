@@ -749,12 +749,14 @@ export default function CompanyAnalysis() {
     if (!id || !payment || !user || !group) return;
     setReimporting(true);
     try {
-      const { parsePaymentFile } = await import("@/lib/parsePaymentFile");
+      const { parsePaymentFile, similarity } = await import("@/lib/parsePaymentFile");
       const { data: companiesData } = await supabase.from("companies").select("id,name,aliases").limit(5000);
       const companies = (companiesData ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] }));
 
-      // Matching tolerante: ignora hífens/pontuação/espaços e também aceita
-      // company_id quando o parser conseguiu vincular pelo CNPJ/alias.
+      // Matching tolerante em três camadas:
+      //   1. company_id direto (parser casou pelo CNPJ/alias);
+      //   2. chave alfanumérica (ignora hífens/pontuação/espaços);
+      //   3. similaridade tokenizada (cobre nomes com setor/sufixo extra colado).
       const looseKey = (s: string | null | undefined) =>
         normalizeString(s ?? "").replace(/[^a-z0-9]/g, "");
       const targetLoose = looseKey(group.company_name);
@@ -782,10 +784,14 @@ export default function CompanyAnalysis() {
       // Reimportação no escopo da empresa: mantém somente as linhas desta PJ.
       // Linhas de outras empresas presentes no arquivo são ignoradas — a tela
       // do lote é o lugar para reimportar tudo.
-      const companyRows = parsedRows.filter((r) => {
-        if (targetId && r.company_id && r.company_id === targetId) return true;
-        return looseKey(r.company_name ?? "Sem empresa") === targetLoose;
-      });
+      const matchesTarget = (raw: string | null | undefined, rid: string | null | undefined) => {
+        if (targetId && rid && rid === targetId) return true;
+        const lk = looseKey(raw ?? "Sem empresa");
+        if (lk === targetLoose) return true;
+        if (lk && targetLoose && (lk.includes(targetLoose) || targetLoose.includes(lk))) return true;
+        return similarity(raw ?? "", group.company_name) >= 0.85;
+      };
+      const companyRows = parsedRows.filter((r) => matchesTarget(r.company_name, r.company_id));
       const ignoredCount = parsedRows.length - companyRows.length;
 
       if (companyRows.length === 0) {
