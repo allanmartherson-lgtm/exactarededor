@@ -238,16 +238,7 @@ const excelDateToISO = (v: unknown): string | null => {
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
-// Matching de empresa centralizado em src/lib/parsePaymentFile.ts (tokens + jaccard + lev,
-// stopwords jurídicas, extração agressiva do nome do arquivo). Reutilizamos para manter
-// a tela de novo lote e o reimport por empresa em sincronia.
-import {
-  similarity,
-  extractCompanyFromFilename,
-  matchCompany,
-  MATCH_AUTO_THRESHOLD,
-  MATCH_REVIEW_THRESHOLD,
-} from "@/lib/parsePaymentFile";
+// Matching de empresa centralizado em src/lib/parsePaymentFile.ts (ver imports no topo).
 
 const NewPayment = () => {
   const { user } = useAuth();
