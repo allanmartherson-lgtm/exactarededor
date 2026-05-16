@@ -19,81 +19,19 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const AUTH_TIMEOUT_MS = 8000;
-
-const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number): Promise<T> => {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error("auth_timeout")), ms);
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-};
-
-const getStorageKey = (): string | null => {
-  try {
-    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    if (!url) return null;
-    const ref = new URL(url).hostname.split(".")[0];
-    return `sb-${ref}-auth-token`;
-  } catch {
-    return null;
-  }
-};
-
-const readCachedSession = (): Session | null => {
-  if (typeof window === "undefined") return null;
-  const key = getStorageKey();
-  if (!key) return null;
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Session & { expires_at?: number };
-    if (!parsed?.access_token) return null;
-    const expiresAt = parsed.expires_at ?? 0;
-    // Treat as expired if no expiry or already past (with 10s skew).
-    if (!expiresAt || expiresAt * 1000 <= Date.now() + 10_000) {
-      window.localStorage.removeItem(key);
-      return null;
-    }
-    return parsed as Session;
-  } catch {
-    try {
-      const k = getStorageKey();
-      if (k) window.localStorage.removeItem(k);
-    } catch { /* noop */ }
-    return null;
-  }
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
-  const cached = readCachedSession();
-  const [session, setSession] = useState<Session | null>(cached);
-  const [user, setUser] = useState<User | null>(cached?.user ?? null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
-  // If we already have a valid cached session, don't block UI on network.
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
 
   const loadRoles = async (userId: string) => {
     setRolesLoading(true);
-    try {
-      const { data } = await withTimeout(
-        supabase.from("user_roles").select("role").eq("user_id", userId),
-        8000,
-      );
-      setRoles((data ?? []).map((r) => r.role as AppRole));
-    } catch (error) {
-      console.error("[auth] Falha ao carregar papéis do usuário", error);
-      setRoles([]);
-    } finally {
-      setRolesLoading(false);
-    }
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    setRoles((data ?? []).map((r) => r.role as AppRole));
+    setRolesLoading(false);
   };
 
   useEffect(() => {
@@ -121,40 +59,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    const existing = readCachedSession();
-    setSession(existing);
-    setUser(existing?.user ?? null);
-    setLoading(false);
-    if (existing?.user) {
-      setTimeout(() => loadRoles(existing.user.id), 0);
-    } else {
-      setRoles([]);
-      setRolesLoading(false);
-    }
+    supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
+      setSession(existing);
+      setUser(existing?.user ?? null);
+      if (existing?.user) {
+        await loadRoles(existing.user.id);
+      } else {
+        setRoles([]);
+        setRolesLoading(false);
+      }
+      setLoading(false);
+    });
 
     return () => sub.subscription.unsubscribe();
   }, [location.pathname]);
 
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
-    try {
-      const { data, error } = await withTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
-        AUTH_TIMEOUT_MS,
-      );
-      if (data.session) {
-        setSession(data.session);
-        setUser(data.session.user);
-        setTimeout(() => loadRoles(data.session.user.id), 0);
-      }
-      return { error: error?.message ?? null };
-    } catch (error) {
-      console.error("[auth] Falha ao entrar", error);
-      return {
-        error: error instanceof Error && error.message === "auth_timeout"
-          ? "Tempo esgotado ao entrar. Verifique sua conexão e tente novamente."
-          : "Não foi possível entrar. Tente novamente.",
-      };
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error?.message ?? null };
   };
 
   const signUp: AuthContextValue["signUp"] = async (email, password, fullName) => {
