@@ -61,6 +61,10 @@ export type RuleLite = {
   calculation_type?: string | null;
   exclusion_reason?: string | null;
   allows_authorized_exception?: boolean | null;
+  // Severity/action vêm da config da regra — usados pela UI para colorir o
+  // badge de Validação por nível dominante.
+  severity?: string | null;
+  action?: string | null;
 };
 
 /**
