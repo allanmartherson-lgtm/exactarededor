@@ -489,13 +489,17 @@ export default function ValidationRules() {
           </div>
           <div>
             <Label className="text-xs">Tipo de lançamento</Label>
-            <Select value={p.entry_type || ""} onValueChange={(v) => set({ entry_type: v as SobreposParams["entry_type"] })}>
-              <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+            <Select value={p.entry_type || "qualquer"} onValueChange={(v) => set({ entry_type: v as SobreposParams["entry_type"] })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="visita">Visita</SelectItem>
                 <SelectItem value="parecer">Parecer</SelectItem>
+                <SelectItem value="qualquer">Visita ou Parecer</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Alguns convênios usam o mesmo código TUSS para visita e parecer sem distinção. Selecione "Visita ou Parecer" quando a regra deve se aplicar a ambos independentemente do tipo.
+            </p>
           </div>
           <div>
             <Label className="text-xs">Grupo assistencial correlato</Label>
