@@ -19,6 +19,19 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("auth_timeout")), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
@@ -29,9 +42,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loadRoles = async (userId: string) => {
     setRolesLoading(true);
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    setRoles((data ?? []).map((r) => r.role as AppRole));
-    setRolesLoading(false);
+    try {
+      const { data } = await withTimeout(
+        supabase.from("user_roles").select("role").eq("user_id", userId),
+        8000,
+      );
+      setRoles((data ?? []).map((r) => r.role as AppRole));
+    } catch (error) {
+      console.error("[auth] Falha ao carregar papéis do usuário", error);
+      setRoles([]);
+    } finally {
+      setRolesLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -59,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
+    withTimeout(supabase.auth.getSession(), 8000).then(async ({ data: { session: existing } }) => {
       setSession(existing);
       setUser(existing?.user ?? null);
       if (existing?.user) {
@@ -68,6 +90,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRoles([]);
         setRolesLoading(false);
       }
+    }).catch((error) => {
+      console.error("[auth] Falha ao inicializar sessão", error);
+      setSession(null);
+      setUser(null);
+      setRoles([]);
+      setRolesLoading(false);
+    }).finally(() => {
       setLoading(false);
     });
 
