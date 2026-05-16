@@ -211,9 +211,25 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
 }
 
 /* ============================================================
- *  Bloco "Valor fixo" com complementos (antiga "condições de contexto")
+ *  Bloco "Valor fixo" — apenas o campo de valor.
+ *  O bloco de complementos vai logo após "Quando aplicar este cálculo".
  * ============================================================ */
 function ValorFixoBlock({
+  c, onChange,
+}: { c: CalcItem; onChange: (patch: Partial<CalcItem>) => void }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">Valor fixo (R$)</Label>
+      <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
+    </div>
+  );
+}
+
+/* ============================================================
+ *  Bloco "Complementos" — exibido após "Quando aplicar este cálculo"
+ *  pois o código informado lá é a base à qual os complementos se ligam.
+ * ============================================================ */
+function ComplementosBlock({
   c, onChange,
 }: { c: CalcItem; onChange: (patch: Partial<CalcItem>) => void }) {
   const [hasComplementos, setHasComplementos] = useState<boolean>(
@@ -230,13 +246,7 @@ function ValorFixoBlock({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1">
-        <Label className="text-xs">Valor fixo (R$)</Label>
-        <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
-      </div>
-
-      <div className="rounded-md border border-border bg-card p-3 space-y-3">
+    <div className="rounded-md border border-border bg-card p-3 space-y-3">
         <label className="flex items-start gap-2 text-sm cursor-pointer">
           <Checkbox
             checked={hasComplementos}
