@@ -83,6 +83,27 @@ const SEVERITY_VARIANT: Record<Severity, string> = {
   bloquear: "bg-destructive/15 text-destructive",
 };
 
+const ACTION_BADGE_VARIANT: Record<Action, string> = {
+  informar: "bg-slate-100 text-slate-600 border-slate-200",
+  alerta: "bg-amber-100 text-amber-700 border-amber-200",
+  alerta_forte: "bg-orange-100 text-orange-700 border-orange-200",
+  bloquear: "bg-red-100 text-red-700 border-red-200",
+};
+
+const ACTION_BADGE_LABELS: Record<Action, string> = {
+  informar: "Informativo",
+  alerta: "Alerta",
+  alerta_forte: "Alerta crítico",
+  bloquear: "Bloqueio",
+};
+
+const ACTION_TO_SEVERITY: Record<Action, Severity> = {
+  informar: "informativo",
+  alerta: "alerta",
+  alerta_forte: "alerta_forte",
+  bloquear: "bloquear",
+};
+
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean };
