@@ -154,7 +154,7 @@ serve(async (req) => {
           bonus_amount,bonus_pct,target_amount,allowed_access_routes,
           force_totalized,application_unit,sectors,specialties,
           procedure_codes,code_match_mode,doctor_roles,
-          agreement_match_mode,agreement_aliases,procedure_keywords
+          agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions
         `)
         .in("rule_id", ruleIds)
         .order("sort_order", { ascending: true });
