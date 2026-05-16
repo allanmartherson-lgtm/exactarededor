@@ -1509,7 +1509,7 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-8 space-y-6">
-        {id && <AnalysisProgressBar paymentId={id} />}
+        {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
             <CardContent className="p-3 text-xs flex items-start gap-2">
