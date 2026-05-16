@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Receipt,
+  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import {
@@ -79,6 +80,12 @@ export const PaymentGroupCard = ({
   const groupAlerts = groupItems
     .filter((it) => (it.ai_findings?.alerts ?? []).length > 0)
     .map((it) => ({ item: it, alerts: it.ai_findings!.alerts as string[] }));
+  // Contagem de alertas assistenciais (regras de validação disparadas) na empresa.
+  // Lê `validation_findings` gravado pelo motor em payment_items.
+  const validationAlertCount = groupItems.reduce((count, it) => {
+    const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
+    return count + (Array.isArray(findings) ? findings.length : 0);
+  }, 0);
   const gCounts = groupItems.reduce(
     (acc, it) => {
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
@@ -159,6 +166,20 @@ export const PaymentGroupCard = ({
               <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>
                 ✕ {gCounts.reprovado}
               </span>
+            )}
+            {validationAlertCount > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] text-teal-700">
+                    <ShieldAlert className="h-3 w-3" /> Validação ({validationAlertCount})
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    {validationAlertCount} alerta(s) de regras assistenciais nesta empresa.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             )}
             {nfDivergent && (
               <Tooltip>
