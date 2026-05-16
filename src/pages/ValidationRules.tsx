@@ -106,7 +106,7 @@ const ACTION_TO_SEVERITY: Record<Action, Severity> = {
 
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
-type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean };
+type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean; compare_role: boolean; compare_access_route: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
 type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "qualquer" };
 
@@ -137,7 +137,7 @@ type RestricaoContratualParams = {
 const defaultParamsFor = (k: Kind): Record<string, unknown> => {
   switch (k) {
     case "duplicidade_exata":
-      return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, compare_doctor: true };
+      return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, compare_doctor: true, compare_role: false, compare_access_route: false };
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
@@ -442,6 +442,8 @@ export default function ValidationRules() {
       const opts: Array<[keyof DupExataParams, string]> = [
         ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"], ["compare_date", "Data"],
         ["compare_code", "Código / procedimento"],
+        ["compare_role", "Função (cirurgião, auxiliar, etc.)"],
+        ["compare_access_route", "Via de acesso"],
       ];
       // Toggle invertido: ON => ignora médico (compare_doctor=false). OFF => compara médico (compare_doctor=true).
       const ignoreDoctor = p.compare_doctor === false;
