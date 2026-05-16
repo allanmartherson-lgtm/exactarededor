@@ -799,7 +799,7 @@ const Rules = () => {
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     const calc = (r.calculation_type as RuleCalculationType) ?? "informativo";
     setFCalculationType(calc);
-    setFNature(calc === "informativo" ? "informativo" : "calculavel");
+    // fNature será derivado após carregar calcRows (abaixo).
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
     setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
