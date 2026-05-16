@@ -177,7 +177,7 @@ function applyDuplicidadeExata(
       kind: rule.kind,
       severity: rule.severity,
       action: rule.action,
-      message: `Item duplicado com item ${other.id} (mesmo ${reason}).`,
+      message: `Item duplicado: mesmo ${reason} do item de ${snapshot.patient_name ?? "paciente não informado"} — ${snapshot.procedure_name ?? "procedimento não informado"}${snapshot.procedure_code ? ` (${snapshot.procedure_code})` : ""}.`,
       conflicting_item_id: other.id,
       conflicting_item: snapshot,
       detected_at: now,
