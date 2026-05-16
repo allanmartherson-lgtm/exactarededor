@@ -867,6 +867,10 @@ function CalcCard({
             </div>
           </div>
 
+          {c.calculation_type === "valor_fixo" && (
+            <ComplementosBlock c={c} onChange={onChange} />
+          )}
+
           {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
           <div className="rounded-md border border-border bg-card p-3 space-y-3">
             <label className="flex items-start gap-2 text-sm cursor-pointer">
