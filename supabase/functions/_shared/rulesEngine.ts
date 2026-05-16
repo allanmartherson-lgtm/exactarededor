@@ -2443,7 +2443,7 @@ export function analyzePaymentItems(
 
   rules: RuleInput[],
   ctx: PaymentContext,
-  options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup },
+  options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup; siblingsSource?: ItemInput[] },
 ): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
   const ordered = [...items].sort((a, b) => {
@@ -2460,7 +2460,8 @@ export function analyzePaymentItems(
   // conjunto de códigos de procedimento dos demais itens do mesmo atendimento.
   // Usado por condições de contexto em valor_fixo.
   const attendanceSiblingCodes = new Map<string, Set<string>>();
-  for (const it of items) {
+  const siblingsSource = options?.siblingsSource ?? items;
+  for (const it of siblingsSource) {
     const key = (it as any).attendance_group_key ?? it.attendance_number ?? "";
     if (!key) continue;
     let set = attendanceSiblingCodes.get(key);
