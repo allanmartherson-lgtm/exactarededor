@@ -87,7 +87,7 @@ const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
-type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "" };
+type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "qualquer" };
 
 type OutlierLevel = "atendimento" | "procedimento" | "medico" | "tipo_atendimento";
 type OutlierCriterion = "media_pct" | "percentil" | "multiplo_media";
@@ -120,7 +120,7 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
-      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "" };
+      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer" };
     case "parecer_virou_cirurgia":
       return { prazo_horas: 48, mesmo_medico: false } satisfies ParecerCirurgiaParams;
     case "restricao_contratual":
@@ -489,13 +489,17 @@ export default function ValidationRules() {
           </div>
           <div>
             <Label className="text-xs">Tipo de lançamento</Label>
-            <Select value={p.entry_type || ""} onValueChange={(v) => set({ entry_type: v as SobreposParams["entry_type"] })}>
-              <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+            <Select value={p.entry_type || "qualquer"} onValueChange={(v) => set({ entry_type: v as SobreposParams["entry_type"] })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="visita">Visita</SelectItem>
                 <SelectItem value="parecer">Parecer</SelectItem>
+                <SelectItem value="qualquer">Visita ou Parecer</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Alguns convênios usam o mesmo código TUSS para visita e parecer sem distinção. Selecione "Visita ou Parecer" quando a regra deve se aplicar a ambos independentemente do tipo.
+            </p>
           </div>
           <div>
             <Label className="text-xs">Grupo assistencial correlato</Label>
