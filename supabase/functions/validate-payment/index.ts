@@ -156,7 +156,7 @@ function applyDuplicidadeExata(
     const list = findingsByItem.get(target.id) ?? [];
     const snapshot: ConflictingItemSnapshot = {
       attendance_number: other.attendance_number,
-      patient_name: other.patient_name,
+      patient_name: getPatient(other),
       procedure_code: other.procedure_code,
       procedure_name: other.procedure_name,
       doctor_name: other.doctor_name,
