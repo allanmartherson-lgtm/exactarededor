@@ -178,10 +178,10 @@ Deno.serve(async (req) => {
     // 1. Carrega lote (para filtros de escopo) e itens
     const [{ data: payment, error: payErr }, { data: itemsRaw, error: itErr }, { data: rulesRaw, error: rulesErr }] =
       await Promise.all([
-        supabase.from("payments").select("id, payment_type, sectors").eq("id", payment_id).single(),
+        supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
         supabase
           .from("payment_items")
-          .select("id, payment_id, attendance_number, procedure_code, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id")
+          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name")
           .eq("payment_id", payment_id)
           .limit(20000),
         supabase.from("validation_rules").select("*").eq("active", true),
@@ -192,6 +192,7 @@ Deno.serve(async (req) => {
 
     const items = (itemsRaw ?? []) as Item[];
     const rules = (rulesRaw ?? []) as ValidationRule[];
+    const paymentReference = (payment as any).reference ?? null;
 
     // 2. Idempotência: zera validation_findings de todos os itens do lote
     await supabase
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
         continue;
       }
       if (rule.kind === "duplicidade_exata") {
-        const hits = applyDuplicidadeExata(rule, items, findingsByItem);
+        const hits = applyDuplicidadeExata(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
         appliedRules.push(rule.name);
       } else {
