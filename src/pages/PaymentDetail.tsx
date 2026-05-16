@@ -1646,33 +1646,56 @@ const PaymentDetail = () => {
           onAssume={handleManualAssume}
         />
 
-        {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (
+        {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
+          // Detecta se o texto persistido em ai_summary ainda cita os mesmos
+          // contadores que vemos hoje. Não é prova de frescor, mas pega o
+          // caso comum: itens acatados/exceções/duplicidades resolvidas após
+          // a última reanálise completa mudam os counts em tempo real, e o
+          // texto antigo deixa de mencionar esses números.
+          const summaryMatchesCounts = !!payment.ai_summary &&
+            payment.ai_summary.includes(`${counts.aprovado}`) &&
+            payment.ai_summary.includes(`${counts.alerta}`) &&
+            payment.ai_summary.includes(`${counts.reprovado}`);
+          return (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
-            <CardContent className="p-3 flex items-center gap-3 flex-wrap">
-              <Sparkles className="h-4 w-4 shrink-0" />
-              <span className="text-sm font-semibold">Resumo da IA</span>
-              <div className="flex flex-wrap gap-1.5">
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovado(s)</span>
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} alerta(s)</span>
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} reprovado(s)</span>
-                {counts.pendente > 0 && (
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente} pendente(s)</span>
-                )}
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-semibold">Resumo da IA</span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {topAlerts.length > 0
+                    ? `${topAlerts.length} item(ns) com observação — veja por empresa abaixo.`
+                    : "Nenhum alerta gerado."}
+                </span>
               </div>
-              <span className="text-xs text-muted-foreground ml-auto">
-                {topAlerts.length > 0
-                  ? `${topAlerts.length} item(ns) com observação — veja por empresa abaixo.`
-                  : "Nenhum alerta gerado."}
-              </span>
+
               {payment.ai_summary && (
-                <details className="basis-full text-xs text-muted-foreground">
-                  <summary className="cursor-pointer hover:text-foreground">Resumo detalhado</summary>
-                  <p className="mt-2 whitespace-pre-wrap">{payment.ai_summary}</p>
-                </details>
+                <div className="text-xs">
+                  <p className="text-muted-foreground">Análise da última execução completa</p>
+                  <p className="mt-1 whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
+                  {!summaryMatchesCounts && (
+                    <p className="mt-1 italic text-muted-foreground">
+                      (resumo pode estar desatualizado — reanalise o lote para atualizar)
+                    </p>
+                  )}
+                </div>
               )}
+
+              <div className="border-t border-border/60 pt-2">
+                <p className="text-xs text-muted-foreground mb-1">Estado atual dos itens:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovado(s)</span>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} alerta(s)</span>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} reprovado(s)</span>
+                  {counts.pendente > 0 && (
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente} pendente(s)</span>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
-        )}
+          );
+        })()}
 
         {/* Banner de questionamento — destaque crítico no topo. Mostra a última
             pergunta do recebedor que ainda não recebeu resposta do analista. */}
