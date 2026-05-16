@@ -2099,6 +2099,41 @@ const PaymentDetail = () => {
             );
           })()}
 
+          <AlertDialog open={!!pendingSendState} onOpenChange={(o) => { if (!o) setPendingSendState(null); }}>
+            <AlertDialogContent className="max-w-lg">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Enviar lote com empresas pendentes?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      {pendingSendState?.pendentes.length} empresa(s) ainda não foram concluídas pelo analista:
+                    </p>
+                    <ul className="max-h-40 overflow-y-auto rounded border border-border bg-muted/30 p-2 text-xs space-y-1">
+                      {pendingSendState?.pendentes.map((g) => (
+                        <li key={g.id}>• {g.company_name}</li>
+                      ))}
+                    </ul>
+                    <p>
+                      Deseja enviar apenas as {pendingSendState?.prontos.length} empresa(s) prontas para o validador?
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    const prontos = pendingSendState?.prontos ?? [];
+                    setPendingSendState(null);
+                    await doSendForValidation(prontos);
+                  }}
+                >
+                  Enviar {pendingSendState?.prontos.length} empresa(s) prontas
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
 
