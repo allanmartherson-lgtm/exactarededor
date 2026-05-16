@@ -91,6 +91,7 @@ export type ContextConditionItem = {
   trigger_codes: string[];
   match_mode: "any" | "all";
   value: string;
+  complement_value: string;
 };
 
 /** Construtor de item vazio (default sensato). */
