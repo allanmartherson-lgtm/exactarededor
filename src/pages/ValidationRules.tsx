@@ -834,20 +834,9 @@ export default function ValidationRules() {
                 <Label>Descrição (opcional)</Label>
                 <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between rounded-md border border-border p-2">
-                  <Label className="text-sm">Ativa</Label>
-                  <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-                </div>
-                <div>
-                  <Label>Severidade</Label>
-                  <Select value={form.severity} onValueChange={(v) => setForm({ ...form, severity: v as Severity })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(SEVERITY_LABELS) as Severity[]).map((k) => <SelectItem key={k} value={k}>{SEVERITY_LABELS[k]}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex items-center justify-between rounded-md border border-border p-2">
+                <Label className="text-sm">Ativa</Label>
+                <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
               </div>
             </section>
 
