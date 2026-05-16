@@ -170,7 +170,7 @@ export const PaymentGroupCard = ({
             {validationAlertCount > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] text-teal-700">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-700">
                     <ShieldAlert className="h-3 w-3" /> Validação ({validationAlertCount})
                   </span>
                 </TooltipTrigger>
