@@ -195,6 +195,7 @@ const PaymentDetail = () => {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
@@ -1508,7 +1509,7 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-8 space-y-6">
-        {id && <AnalysisProgressBar paymentId={id} />}
+        {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
             <CardContent className="p-3 text-xs flex items-start gap-2">
@@ -1691,7 +1692,7 @@ const PaymentDetail = () => {
           </SheetContent>
         </Sheet>
 
-        {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
+        {analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
           const extractCount = (text: string, keyword: RegExp): number | null => {
             const m = text.match(keyword);
             return m ? Number(m[1]) : null;
@@ -1709,55 +1710,128 @@ const PaymentDetail = () => {
             (payment.status === "em_analise_ia" ||
               payment.status === "revisao_analista" ||
               payment.status === "devolvido_analista");
+          const jobConcluido = !!analysisJob;
+
+          // Pizza: aprovado / alerta / reprovado
+          const pieTotal = counts.aprovado + counts.alerta + counts.reprovado;
+          const pieAp = pieTotal > 0 ? (counts.aprovado / pieTotal) * 360 : 0;
+          const pieAl = pieTotal > 0 ? (counts.alerta / pieTotal) * 360 : 0;
+          const pieGradient = pieTotal === 0
+            ? "hsl(var(--muted))"
+            : `conic-gradient(hsl(var(--success)) 0 ${pieAp}deg, hsl(var(--warning)) ${pieAp}deg ${pieAp + pieAl}deg, hsl(var(--destructive)) ${pieAp + pieAl}deg 360deg)`;
+
+          // Alertas assistenciais agregados por nome de regra
+          const ruleCounts = new Map<string, number>();
+          items.forEach((it) => {
+            const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
+            if (!Array.isArray(findings)) return;
+            findings.forEach((f: any) => {
+              const name = String(f?.rule_name ?? "Regra sem nome");
+              ruleCounts.set(name, (ruleCounts.get(name) ?? 0) + 1);
+            });
+          });
+          const sortedRules = Array.from(ruleCounts.entries()).sort((a, b) => b[1] - a[1]);
+          const totalRuleAlerts = sortedRules.reduce((acc, [, n]) => acc + n, 0);
+
+          const gridCols = jobConcluido ? "md:grid-cols-3" : "md:grid-cols-2";
+
           return (
-            <Card className="shadow-card border-info/30 bg-info-soft/40">
-              <CardContent className="p-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Esquerda — narrativa colapsável */}
-                  <div className="text-xs space-y-1.5 min-w-0">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Análise da última execução completa</p>
-                    {payment.ai_summary ? (
-                      summaryExpanded ? (
-                        <div className="space-y-1.5">
-                          <p className="whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <button type="button" onClick={() => setSummaryExpanded(false)} className="text-[11px] text-primary hover:underline">Recolher</button>
-                            {!summaryMatchesCounts && (
-                              <>
-                                <span className="italic text-muted-foreground text-[11px]">(resumo pode estar desatualizado)</span>
-                                {canReanalyze && (
-                                  <Button size="sm" variant="outline" disabled={reprocessingAi} onClick={() => setReprocessConfirmOpen(true)} className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80">
-                                    <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
-                                    {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
+            <div className={cn("grid grid-cols-1 gap-3", gridCols)}>
+              {/* Card 1 — Pizza (apenas após análise concluída) */}
+              {jobConcluido && (
+                <Card className="shadow-card">
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div
+                      className="h-20 w-20 shrink-0 rounded-full border border-border/60"
+                      style={{ background: pieGradient }}
+                      aria-label="Distribuição de itens"
+                    />
+                    <div className="text-xs space-y-1 min-w-0 flex-1">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Distribuição dos itens</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full bg-success" />
+                        <span className="text-success font-medium">{counts.aprovado}</span>
+                        <span className="text-muted-foreground">aprovado(s)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full bg-warning" />
+                        <span className="text-warning font-medium">{counts.alerta}</span>
+                        <span className="text-muted-foreground">alerta(s)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-2 rounded-full bg-destructive" />
+                        <span className="text-destructive font-medium">{counts.reprovado}</span>
+                        <span className="text-muted-foreground">reprovado(s)</span>
+                      </div>
+                      {counts.pendente > 0 && (
+                        <div className="text-[10px] text-muted-foreground">• {counts.pendente} pendente(s)</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Card 2 — Análise da IA */}
+              <Card className="shadow-card border-info/30 bg-info-soft/40">
+                <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Análise da última execução completa</p>
+                  {payment.ai_summary ? (
+                    summaryExpanded ? (
+                      <div className="space-y-1.5">
+                        <p className="whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button type="button" onClick={() => setSummaryExpanded(false)} className="text-[11px] text-primary hover:underline">Recolher</button>
+                          {!summaryMatchesCounts && (
+                            <>
+                              <span className="italic text-muted-foreground text-[11px]">(resumo pode estar desatualizado)</span>
+                              {canReanalyze && (
+                                <Button size="sm" variant="outline" disabled={reprocessingAi} onClick={() => setReprocessConfirmOpen(true)} className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80">
+                                  <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
+                                  {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
+                                </Button>
+                              )}
+                            </>
+                          )}
                         </div>
-                      ) : (
-                        <button type="button" onClick={() => setSummaryExpanded(true)} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
-                          <ChevronRight className="h-3 w-3" /> Ver análise da IA
-                        </button>
-                      )
+                      </div>
                     ) : (
-                      <span className="italic text-muted-foreground">Sem análise persistida.</span>
+                      <button type="button" onClick={() => setSummaryExpanded(true)} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
+                        <ChevronRight className="h-3 w-3" /> Ver análise da IA
+                      </button>
+                    )
+                  ) : (
+                    <span className="italic text-muted-foreground">Sem análise persistida.</span>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Card 3 — Alertas assistenciais */}
+              <Card className="shadow-card">
+                <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas assistenciais</p>
+                    {totalRuleAlerts > 0 && (
+                      <span className="text-[10px] font-medium text-warning">{totalRuleAlerts} total</span>
                     )}
                   </div>
-
-                  {/* Direita — estado atual sempre visível */}
-                  <div className="text-xs space-y-1 min-w-0">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Estado atual dos itens</p>
-                    <div className="space-y-0.5">
-                      <div className="text-success font-medium">✓ {counts.aprovado} aprovado(s)</div>
-                      <div className="text-warning font-medium">⚠ {counts.alerta} alerta(s)</div>
-                      <div className="text-destructive font-medium">✕ {counts.reprovado} reprovado(s)</div>
-                      {counts.pendente > 0 && <div className="text-muted-foreground">• {counts.pendente} pendente(s)</div>}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  {sortedRules.length === 0 ? (
+                    <p className="italic text-muted-foreground">Nenhum alerta</p>
+                  ) : (
+                    <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                      {sortedRules.slice(0, 6).map(([name, n]) => (
+                        <li key={name} className="flex items-center justify-between gap-2">
+                          <span className="truncate" title={name}>{name}</span>
+                          <span className="font-medium text-warning shrink-0">{n}</span>
+                        </li>
+                      ))}
+                      {sortedRules.length > 6 && (
+                        <li className="text-[10px] text-muted-foreground italic">+ {sortedRules.length - 6} regra(s)</li>
+                      )}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           );
         })()}
 

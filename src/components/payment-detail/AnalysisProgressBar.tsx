@@ -20,8 +20,9 @@ interface ProcessingJob {
   finished_at: string | null;
 }
 
-export function AnalysisProgressBar({ paymentId }: { paymentId: string }) {
+export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: string; onJobChange?: (job: ProcessingJob | null) => void }) {
   const [job, setJob] = useState<ProcessingJob | null>(null);
+  useEffect(() => { onJobChange?.(job); }, [job, onJobChange]);
   const [lotStats, setLotStats] = useState<{ companies: number; items: number | null }>({ companies: 0, items: null });
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
