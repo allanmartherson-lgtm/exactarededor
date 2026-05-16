@@ -138,6 +138,7 @@ const PaymentDetail = () => {
     rulesByName,
     expandedGroups,
     setExpandedGroups,
+    setItems,
     load,
   } = usePaymentDetailData(id);
   const [comment, setComment] = useState("");
