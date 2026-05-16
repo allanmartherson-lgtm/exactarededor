@@ -1419,7 +1419,7 @@ const PaymentDetail = () => {
                   variant="outline"
                   size="sm"
                   disabled={validatingRules}
-                  className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
                   title="Aplicar regras de validação assistencial nos itens deste lote"
                   onClick={async () => {
                     if (!id) return;
@@ -1459,8 +1459,8 @@ const PaymentDetail = () => {
                   {validatingRules
                     ? "Validando..."
                     : flagged > 0
-                      ? `Validar regras (${totalFindings} alerta${totalFindings > 1 ? "s" : ""})`
-                      : "Validar regras assistenciais"}
+                      ? `➳ Validação assistencial (${totalFindings})`
+                      : "➳ Validação assistencial"}
                 </Button>
               );
             })()}
