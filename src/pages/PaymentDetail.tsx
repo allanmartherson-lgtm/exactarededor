@@ -55,7 +55,8 @@ import {
   resolveResendTarget,
   type ActorRole,
 } from "@/lib/paymentFlow";
-import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, RefreshCw, Search, Send, Sparkles, Trash2, Upload, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Ban, CalendarDays, ChevronDown, ChevronRight, FileDown, GitCompare, History, Mail, MessageCircleQuestion, MessageSquarePlus, MoreHorizontal, RefreshCw, Search, Send, Sparkles, Trash2, Upload, UserCheck, X, Info, ShieldAlert, ShieldCheck, Pencil, BarChart3, TestTube2, Plus } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const ObservationTypeSelector = ({
   value,
@@ -190,6 +191,10 @@ const PaymentDetail = () => {
   const [companySearch, setCompanySearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
   const [toleranceValue, setToleranceValue] = useState<number>(0.01);
+  const [assignmentsHistoryOpen, setAssignmentsHistoryOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
@@ -1458,6 +1463,46 @@ const PaymentDetail = () => {
                 </Button>
               );
             })()}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Mais ações">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {canReimport && (
+                  <DropdownMenuItem onSelect={() => setIsTestModalOpen(true)}>
+                    <TestTube2 className="h-4 w-4 mr-2" /> Teste de Regra
+                  </DropdownMenuItem>
+                )}
+                {canEditMeta && (
+                  <DropdownMenuItem onSelect={() => { openEditMeta(); setEditMetaOpen(true); }}>
+                    <Pencil className="h-4 w-4 mr-2" /> Editar lote
+                  </DropdownMenuItem>
+                )}
+                {canReimport && (
+                  <DropdownMenuItem disabled={busy || reimporting} onSelect={() => reimportInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" /> Reimportar base
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={() => setAssignmentsHistoryOpen(true)}>
+                  <UserCheck className="h-4 w-4 mr-2" /> Transferir / Histórico
+                </DropdownMenuItem>
+                {canCancel && (
+                  <DropdownMenuItem onSelect={() => setCancelOpen(true)}>
+                    <Ban className="h-4 w-4 mr-2" /> Cancelar
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <StatusBadge status={payment.status} />
           </div>
         }
@@ -1475,189 +1520,178 @@ const PaymentDetail = () => {
             </CardContent>
           </Card>
         )}
-        <Card className="shadow-card">
-          <CardContent className="p-4 flex flex-wrap gap-x-6 gap-y-2 items-center text-sm">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Competência:</span>
-              <span className="font-medium capitalize">{formatCompetence(payment.competence_months?.length ? payment.competence_months : payment.competence_month)}</span>
-            </div>
-            <div><span className="text-muted-foreground">Previsão pgto:</span> <span className="font-medium">{formatDateOnly(payment.payment_due_date)}</span></div>
-            {payment.payment_type && <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS]}</span></div>}
-            {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
-            {payment.cost_center_code && <div><span className="text-muted-foreground">Centro de custos:</span> <span className="font-mono text-xs font-medium">{payment.cost_center_code}</span></div>}
-            <div className="ml-auto flex flex-wrap gap-2">
-              {canReimport && (
-                <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => setIsTestModalOpen(true)}>
-                  <TestTube2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Teste de Regra</span>
-                </Button>
-              )}
-              {canEditMeta && (
-                <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={busy} onClick={openEditMeta}>
-                      <MessageSquarePlus className="h-4 w-4 mr-1" /> Editar lote
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Editar lote</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Referência</label>
-                        <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Descrição</label>
-                        <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
-                        <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
-                      </div>
+        {/* Linha compacta: metadados + responsável */}
+        {(() => {
+          const currentResponsibleId = assignments[0]?.analyst_id ?? null;
+          const currentResponsibleName = currentResponsibleId ? (profiles[currentResponsibleId] || "—") : null;
+          const initials = currentResponsibleName
+            ? currentResponsibleName.trim().split(/\s+/).slice(0, 2).map((s) => s[0]).join("").toUpperCase()
+            : "?";
+          const isMe = !!currentResponsibleId && currentResponsibleId === user?.id;
+          const cells: { label: string; value: React.ReactNode }[] = [
+            { label: "Competência", value: <span className="capitalize">{formatCompetence(payment.competence_months?.length ? payment.competence_months : payment.competence_month)}</span> },
+            { label: "Previsão", value: formatDateOnly(payment.payment_due_date) },
+          ];
+          if (payment.payment_type) cells.push({ label: "Tipo", value: PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS] });
+          if (payment.payment_kind) cells.push({ label: "Categoria", value: PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS] });
+          if (payment.cost_center_code) cells.push({ label: "Centro de custo", value: <span className="font-mono">{payment.cost_center_code}</span> });
+          return (
+            <Card className="shadow-card">
+              <CardContent className="p-3">
+                <div className="flex flex-wrap items-center text-xs">
+                  {cells.map((c, i) => (
+                    <div key={i} className="flex items-baseline gap-1.5 px-3 py-0.5 border-r border-border/60 first:pl-0">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
+                      <span className="font-medium">{c.value}</span>
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
-                      <Button onClick={saveMeta} disabled={savingMeta}>{savingMeta ? "Salvando…" : "Salvar"}</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-              {canReimport && (
-                <div className="flex gap-2">
-                    <input
-                      ref={reimportInputRef}
-                      type="file"
-                      multiple
-                      accept=".xlsx,.xls"
-                      className="hidden"
-                      onChange={(e) => {
-                        const files = e.target.files;
-                        if (files && files.length > 0) {
-                          setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
-                          // Reset input value so same file can be selected again if needed
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy || reimporting}
-                    onClick={() => reimportInputRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-1" /> {reimporting ? "Reimportando…" : "Reimportar base"}
-                  </Button>
-                  <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
-                        <AlertDialogDescription className="space-y-3">
-                          <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
-                          <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-6 text-[10px] px-2"
-                                onClick={() => reimportInputRef.current?.click()}
-                              >
-                                <Plus className="h-3 w-3 mr-1" /> Adicionar mais
-                              </Button>
-                            </div>
-                            <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
-                              {reimportConfirm?.map((f, i) => (
-                                <li key={i} className="flex items-center justify-between gap-2 group">
-                                  <span className="truncate flex-1">• {f.name}</span>
-                                  <button 
-                                    type="button" 
-                                    onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
-                                    className="text-muted-foreground hover:text-destructive p-0.5"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                            Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
-                          </p>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          disabled={reimporting}
-                          onClick={() => reimportConfirm && doReimport(reimportConfirm)}
-                        >
-                          {reimporting ? "Reimportando…" : "Confirmar"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  ))}
+                  <div className="flex items-center gap-1.5 px-3 py-0.5">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Responsável</span>
+                    {currentResponsibleName ? (
+                      <>
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-semibold">{initials}</span>
+                        <span className="font-medium">{currentResponsibleName}</span>
+                        {isMe && <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">você</span>}
+                      </>
+                    ) : (
+                      <span className="italic text-muted-foreground">Ninguém assumiu</span>
+                    )}
+                  </div>
                 </div>
-              )}
-              {canCancel && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={busy}><Ban className="h-4 w-4 mr-1" /> Cancelar</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
-                      <AlertDialogDescription>O lote ficará marcado como cancelado e sairá do fluxo. Use esta opção se anexou os arquivos errados.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Voltar</AlertDialogCancel>
-                      <AlertDialogAction onClick={cancelPayment}>Confirmar cancelamento</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-              {canDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" disabled={busy}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
-                      <AlertDialogDescription>Esta ação remove o lote, todos os itens e o histórico. Não pode ser desfeita. Use para refazer o anexo a partir do zero em <strong>Nova base</strong>.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Voltar</AlertDialogCancel>
-                      <AlertDialogAction onClick={deletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir definitivamente</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
-        <AssignmentCard
-          assignments={assignments}
-          profiles={profiles}
-          currentUserId={user?.id ?? null}
-          canAssume={canAssumeNow}
-          onAssume={handleManualAssume}
+        {/* Input + dialogs extraídos (acionados pelo menu ···) */}
+        <input
+          ref={reimportInputRef}
+          type="file"
+          multiple
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+              setReimportConfirm((prev) => (prev ? [...prev, ...Array.from(files)] : Array.from(files)));
+              e.target.value = "";
+            }
+          }}
         />
 
+        {canEditMeta && (
+          <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Editar lote</DialogTitle></DialogHeader>
+              <div className="space-y-3 py-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Referência</label>
+                  <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Descrição</label>
+                  <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
+                  <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
+                <Button onClick={saveMeta} disabled={savingMeta}>{savingMeta ? "Salvando…" : "Salvar"}</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {canReimport && (
+          <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3">
+                  <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
+                  <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => reimportInputRef.current?.click()}>
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                      </Button>
+                    </div>
+                    <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                      {reimportConfirm?.map((f, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 group">
+                          <span className="truncate flex-1">• {f.name}</span>
+                          <button type="button" onClick={() => setReimportConfirm((prev) => prev?.filter((_, idx) => idx !== i) || null)} className="text-muted-foreground hover:text-destructive p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                    Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction disabled={reimporting} onClick={() => reimportConfirm && doReimport(reimportConfirm)}>
+                  {reimporting ? "Reimportando…" : "Confirmar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {canCancel && (
+          <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                <AlertDialogDescription>O lote ficará marcado como cancelado e sairá do fluxo. Use esta opção se anexou os arquivos errados.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={cancelPayment}>Confirmar cancelamento</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {canDelete && (
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                <AlertDialogDescription>Esta ação remove o lote, todos os itens e o histórico. Não pode ser desfeita. Use para refazer o anexo a partir do zero em <strong>Nova base</strong>.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={deletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir definitivamente</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {/* Responsável e histórico de atribuições (transferir / ver histórico) */}
+        <Sheet open={assignmentsHistoryOpen} onOpenChange={setAssignmentsHistoryOpen}>
+          <SheetContent side="right" className="w-[480px] sm:max-w-md overflow-y-auto">
+            <SheetHeader><SheetTitle>Responsável e histórico</SheetTitle></SheetHeader>
+            <div className="mt-4">
+              <AssignmentCard
+                assignments={assignments}
+                profiles={profiles}
+                currentUserId={user?.id ?? null}
+                canAssume={canAssumeNow}
+                onAssume={handleManualAssume}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
-          // Detecta se o texto persistido em ai_summary ainda cita os mesmos
-          // contadores que vemos hoje. Não é prova de frescor, mas pega o
-          // caso comum: itens acatados/exceções/duplicidades resolvidas após
-          // a última reanálise completa mudam os counts em tempo real, e o
-          // texto antigo deixa de mencionar esses números.
-          // Detecta se o texto persistido em ai_summary ainda bate com os
-          // contadores atuais. Extrai os números via regex (\d+ próximo das
-          // palavras-chave) em vez de `includes` para evitar falsos positivos
-          // — ex.: "5 aprovados" no texto antigo ainda casaria com counts=15
-          // pelo `includes("5")`.
           const extractCount = (text: string, keyword: RegExp): number | null => {
             const m = text.match(keyword);
             return m ? Number(m[1]) : null;
@@ -1666,75 +1700,64 @@ const PaymentDetail = () => {
           const summaryAprovado = extractCount(sum, /(\d+)\s+aprovad/i);
           const summaryAlerta = extractCount(sum, /(\d+)\s+alerta/i);
           const summaryReprovado = extractCount(sum, /(\d+)\s+reprovad/i);
-          // Se algum não foi encontrado, consideramos defasado (texto não
-          // segue o formato esperado — provavelmente foi gerado pela IA com
-          // narrativa livre, ou está em formato antigo).
           const summaryMatchesCounts = !!payment.ai_summary &&
             summaryAprovado === counts.aprovado &&
             summaryAlerta === counts.alerta &&
             summaryReprovado === counts.reprovado;
+          const canReanalyze =
+            (isAnalista || isDiretor) &&
+            (payment.status === "em_analise_ia" ||
+              payment.status === "revisao_analista" ||
+              payment.status === "devolvido_analista");
           return (
-          <Card className="shadow-card border-info/30 bg-info-soft/40">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-semibold">Resumo da IA</span>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {topAlerts.length > 0
-                    ? `${topAlerts.length} item(ns) com observação — veja por empresa abaixo.`
-                    : "Nenhum alerta gerado."}
-                </span>
-              </div>
+            <Card className="shadow-card border-info/30 bg-info-soft/40">
+              <CardContent className="p-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Esquerda — narrativa colapsável */}
+                  <div className="text-xs space-y-1.5 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Análise da última execução completa</p>
+                    {payment.ai_summary ? (
+                      summaryExpanded ? (
+                        <div className="space-y-1.5">
+                          <p className="whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button type="button" onClick={() => setSummaryExpanded(false)} className="text-[11px] text-primary hover:underline">Recolher</button>
+                            {!summaryMatchesCounts && (
+                              <>
+                                <span className="italic text-muted-foreground text-[11px]">(resumo pode estar desatualizado)</span>
+                                {canReanalyze && (
+                                  <Button size="sm" variant="outline" disabled={reprocessingAi} onClick={() => setReprocessConfirmOpen(true)} className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80">
+                                    <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
+                                    {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setSummaryExpanded(true)} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
+                          <ChevronRight className="h-3 w-3" /> Ver análise da IA
+                        </button>
+                      )
+                    ) : (
+                      <span className="italic text-muted-foreground">Sem análise persistida.</span>
+                    )}
+                  </div>
 
-              {payment.ai_summary && (
-                <div className="text-xs">
-                  <p className="text-muted-foreground">Análise da última execução completa</p>
-                  <p className="mt-1 whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
-                  {!summaryMatchesCounts && (() => {
-                    // Mesmas regras do botão "Reanalisar lote" do header: só
-                    // analista/diretor e apenas em status onde a reanálise
-                    // faz sentido. Reusa o AlertDialog já existente.
-                    const canReanalyze =
-                      (isAnalista || isDiretor) &&
-                      (payment.status === "em_analise_ia" ||
-                        payment.status === "revisao_analista" ||
-                        payment.status === "devolvido_analista");
-                    return (
-                      <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <p className="italic text-muted-foreground">
-                          (resumo pode estar desatualizado)
-                        </p>
-                        {canReanalyze && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={reprocessingAi}
-                            onClick={() => setReprocessConfirmOpen(true)}
-                            className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
-                          >
-                            <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
-                            {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  {/* Direita — estado atual sempre visível */}
+                  <div className="text-xs space-y-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Estado atual dos itens</p>
+                    <div className="space-y-0.5">
+                      <div className="text-success font-medium">✓ {counts.aprovado} aprovado(s)</div>
+                      <div className="text-warning font-medium">⚠ {counts.alerta} alerta(s)</div>
+                      <div className="text-destructive font-medium">✕ {counts.reprovado} reprovado(s)</div>
+                      {counts.pendente > 0 && <div className="text-muted-foreground">• {counts.pendente} pendente(s)</div>}
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              <div className="border-t border-border/60 pt-2">
-                <p className="text-xs text-muted-foreground mb-1">Estado atual dos itens:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovado(s)</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} alerta(s)</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} reprovado(s)</span>
-                  {counts.pendente > 0 && (
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente} pendente(s)</span>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           );
         })()}
 
@@ -1943,7 +1966,6 @@ const PaymentDetail = () => {
         </div>
 
           {canSendForValidation && (() => {
-            // Calcula divergências NF para os grupos prontos para envio
             const divergentGroups = groupsReadyToSend.filter((g) => {
               const inv = invoices.filter((i) =>
                 i.received_amount != null &&
@@ -1955,31 +1977,29 @@ const PaymentDetail = () => {
               return Math.abs(Number((total - Number(g.total_amount)).toFixed(2))) > 0;
             });
             const blocked = divergentGroups.length > 0;
+            if (groupsReadyToSend.length === 0) return null;
             return (
-            <Card className="shadow-card border-primary/40 bg-primary/5">
-              <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                <div className="text-sm">
-                  <p className="font-medium">Revisão concluída pelo analista?</p>
-                  <p className="text-xs text-muted-foreground">
-                    {groupsReadyToSend.length} empresa(s) prontas para enviar ao validador. Você também pode enviar uma a uma no card de cada empresa.
-                  </p>
-                  {blocked && (
-                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      {divergentGroups.length} empresa(s) com NF divergente — resolva antes de enviar.
-                    </p>
-                  )}
-                </div>
+              <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
+                <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
+                <span className="text-success-foreground font-medium">Revisão concluída pelo analista</span>
+                <span className="text-muted-foreground text-xs">— {groupsReadyToSend.length} empresa(s) pronta(s) para enviar</span>
+                {blocked && (
+                  <span className="text-destructive text-xs flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {divergentGroups.length} com NF divergente
+                  </span>
+                )}
                 <Button
+                  size="sm"
                   disabled={busy || blocked}
                   onClick={() => sendForValidation()}
                   title={`${groupsReadyToSend.length} empresa(s) serão enviadas para validação.`}
+                  className="ml-auto h-7 px-3 text-xs"
                 >
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
                   Enviar todas para validação
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
             );
           })()}
 
