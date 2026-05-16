@@ -131,8 +131,31 @@ export const PaymentGroupCard = ({
 
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
+  // === Dot de risco (substitui badge colorido) ===
+  const riskDotColor: Record<string, string> = {
+    critico: "bg-red-500",
+    alto: "bg-amber-500",
+    medio: "bg-yellow-500",
+    baixo: "bg-green-500",
+  };
+  const riskLabel: Record<string, string> = {
+    critico: "Crítico", alto: "Alto", medio: "Médio", baixo: "Baixo",
+  };
+  const formatRiskValue = (value: number, pct: number): string => {
+    const formatted = value >= 1000
+      ? `R$ ${(value / 1000).toFixed(1).replace(".", ",")}k`
+      : `R$ ${value.toFixed(0)}`;
+    if (pct >= 99.9) return formatted;
+    return `${formatted} (${pct.toFixed(0)}%)`;
+  };
+
   return (
-    <SafeCard className="shadow-card p-0">
+    <SafeCard
+      className={cn(
+        "shadow-card p-0",
+        validationAlertCount > 0 && "border-l-2 border-indigo-400",
+      )}
+    >
       <button
         type="button"
         onClick={onToggleExpanded}
