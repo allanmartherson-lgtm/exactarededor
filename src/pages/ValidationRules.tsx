@@ -26,28 +26,53 @@ type Severity = Database["public"]["Enums"]["validation_severity"];
 type Action = Database["public"]["Enums"]["validation_action"];
 
 const KIND_LABELS: Record<Kind, string> = {
-  duplicidade_exata: "Duplicidade exata",
+  duplicidade_exata: "Cobrança duplicada",
   duplicidade_atendimento: "Duplicidade por atendimento/procedimento",
-  sobreposicao_assistencial: "Sobreposição assistencial",
+  sobreposicao_assistencial: "Sobreposição de grupo assistencial",
   codigo_sem_dobra: "Código sem dobra/acordo",
   codigo_nao_remuneravel: "Código não remunerável",
   item_em_pacote: "Item já incluído em pacote",
   particular_sem_excecao: "Particular sem exceção autorizada",
-  outlier_valor: "Valores fora da curva (outlier)",
+  outlier_valor: "Valor fora do padrão histórico",
+  parecer_virou_cirurgia: "Parecer absorvido pela cirurgia",
+  restricao_contratual: "Restrição contratual",
+};
+
+// Tipos visíveis no dropdown ao criar/editar (com descrição curta).
+// Tipos antigos não listados continuam sendo exibidos em regras já cadastradas.
+const VISIBLE_KINDS: Kind[] = [
+  "duplicidade_exata",
+  "sobreposicao_assistencial",
+  "parecer_virou_cirurgia",
+  "restricao_contratual",
+  "outlier_valor",
+];
+
+const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
+  duplicidade_exata:
+    "Mesmo código cobrado mais de uma vez no mesmo atendimento e data. Configurável: verificar apenas o mesmo médico ou também médicos diferentes.",
+  sobreposicao_assistencial:
+    "Especialidades afins (ex: Geriatria e Cuidados Paliativos) fizeram visita ou parecer para o mesmo paciente no mesmo dia. Apenas um é remunerado.",
+  parecer_virou_cirurgia:
+    "Parecer seguido de cirurgia dentro do prazo configurado — o parecer não é pago separadamente pois está incluído na cirurgia.",
+  restricao_contratual:
+    "Item pode estar coberto pelo contrato fixo do médico ou empresa. O sistema verifica horário, dia da semana e código TUSS conforme o acordo. Requer confirmação do analista consultando a evolução clínica.",
+  outlier_valor:
+    "Valor acima do percentil configurado em relação ao histórico do mesmo procedimento. Apenas sinaliza para investigação — não bloqueia.",
 };
 
 const SEVERITY_LABELS: Record<Severity, string> = {
-  informativo: "Informativo",
-  alerta: "Alerta",
-  alerta_forte: "Alerta forte",
-  bloquear: "Bloquear / sugerir retirada",
+  informativo: "Informativo — registra sem destaque",
+  alerta: "Alerta — sinaliza para revisão",
+  alerta_forte: "Alerta crítico — recomenda retirada",
+  bloquear: "Bloqueio — impede envio sem resolução",
 };
 
 const ACTION_LABELS: Record<Action, string> = {
-  informar: "Apenas informar",
-  alerta: "Gerar alerta",
-  alerta_forte: "Alerta forte (sugerir retirada)",
-  bloquear: "Bloquear automaticamente",
+  informar: "Registrar e informar",
+  alerta: "Sinalizar para revisão",
+  alerta_forte: "Recomendar retirada do item",
+  bloquear: "Bloquear envio até resolução",
 };
 
 const SEVERITY_VARIANT: Record<Severity, string> = {
