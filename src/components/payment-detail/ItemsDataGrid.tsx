@@ -1485,9 +1485,13 @@ function ValidationFindingsBadge({
       <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className="mt-1 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800 hover:bg-amber-100 cursor-pointer"
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded-full border px-1 py-0.5 uppercase tracking-wide cursor-pointer",
+            TEXT_META,
+            "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+          )}
         >
-          <ShieldAlert className="h-2.5 w-2.5" />
+          <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />
           Validação ({findings.length})
         </button>
       </PopoverTrigger>
