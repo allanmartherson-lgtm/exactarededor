@@ -255,16 +255,29 @@ export const PaymentGroupCard = ({
                 </TooltipContent>
               </Tooltip>
             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                  · {PAYMENT_STATUS_LABELS[gStatus]}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
-              </TooltipContent>
-            </Tooltip>
+            {gStatus === "concluida_analista" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 cursor-default whitespace-nowrap">
+                    ✓ Concluída
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Análise concluída pelo analista — aguardando envio do lote.</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
+                    · {PAYMENT_STATUS_LABELS[gStatus]}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
       </button>

@@ -30,6 +30,7 @@ export const ANALYST_DONE_STATUSES: ReadonlySet<PaymentStatus> = new Set<Payment
 /** Estados em que o grupo está com o analista (precisa de ação dele). */
  export const ANALYST_OWNED_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
    "revisao_analista",
+   "concluida_analista",
    "devolvido_analista",
    "aprovado_em_revisao",
  ]);
@@ -138,8 +139,9 @@ export const isTerminalStatus = (s: PaymentStatus): boolean => TERMINAL_STATUSES
  */
 const TRANSITIONS: Record<ActorRole, Partial<Record<PaymentStatus, PaymentStatus[]>>> = {
    analista: {
-     revisao_analista: ["aguardando_validacao"],
-     devolvido_analista: ["aguardando_validacao", "aguardando_aprovacao"],
+     revisao_analista: ["concluida_analista", "aguardando_validacao"],
+     concluida_analista: ["revisao_analista", "aguardando_validacao"],
+     devolvido_analista: ["concluida_analista", "aguardando_validacao", "aguardando_aprovacao"],
      aprovado_em_revisao: ["pedido_nf_enviado"],
      lancado: ["arquivado"],
    },

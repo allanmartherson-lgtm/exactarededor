@@ -180,6 +180,7 @@ const PaymentDetail = () => {
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [validatingRules, setValidatingRules] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
+  const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
@@ -458,16 +459,12 @@ const PaymentDetail = () => {
     }
   };
 
-  // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista).
-  // A validação é fila coletiva: qualquer validador pode assumir.
-  const sendForValidation = async (onlyGroupId?: string) => {
-    if (!id) return;
-    const targets = (onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups)
-      .filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
-    if (targets.length === 0) {
-      toast({ title: "Nada para enviar", description: "Nenhuma empresa pronta para validação." });
-      return;
-    }
+  // Analista envia o lote para validação.
+  // Grupos prontos = {concluida_analista, devolvido_analista}. Grupos pendentes
+  // (revisao_analista) ficam para trás e disparam modal de aviso. A validação
+  // é fila coletiva: qualquer validador pode assumir.
+  const doSendForValidation = async (targets: typeof groups) => {
+    if (!id || targets.length === 0) return;
     setBusy(true);
     await autoClaim();
     for (const g of targets) {
@@ -486,7 +483,6 @@ const PaymentDetail = () => {
       if (!obsRes.ok) {
         toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
       }
-      // Notifica todos os validadores (fila coletiva) + auditoria. Fire-and-forget.
       supabase.functions.invoke("notify-validator-assignment", {
         body: {
           payment_id: id,
@@ -497,7 +493,27 @@ const PaymentDetail = () => {
     }
     await load();
     setBusy(false);
-    toast({ title: "Enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+    toast({ title: "Lote enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+  };
+
+  const sendForValidation = async (onlyGroupId?: string) => {
+    if (!id) return;
+    const scope = onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups;
+    const prontos = scope.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
+    const pendentes = scope.filter((g) => g.status === "revisao_analista");
+    if (prontos.length === 0) {
+      toast({
+        title: "Nenhuma empresa concluída",
+        description: "Conclua a análise de ao menos uma empresa antes de enviar o lote.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (pendentes.length > 0) {
+      setPendingSendState({ prontos, pendentes });
+      return;
+    }
+    await doSendForValidation(prontos);
   };
 
   const toggleItemExpanded = (itemId: string) => {
@@ -915,8 +931,11 @@ const PaymentDetail = () => {
   // pagamento for aprovado (era restrito a diretor/admin antes).
   const canRequestNf =
     (isAnalista || isValidador || isDiretor) && payment.status === "aprovado";
-  // Para o botão "Enviar para validação" do analista no header
-  const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
+  // Para o botão "Enviar lote para validação" do analista no header.
+  // Prontas: empresas que o analista marcou como concluídas (ou foram devolvidas e estão prontas de novo).
+  // Pendentes: empresas que o analista ainda não concluiu.
+  const groupsReadyToSend = groups.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
+  const groupsPendingAnalyst = groups.filter((g) => g.status === "revisao_analista");
   const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
@@ -2055,8 +2074,11 @@ const PaymentDetail = () => {
             return (
               <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
                 <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                <span className="text-success-foreground font-medium">Revisão concluída pelo analista</span>
-                <span className="text-muted-foreground text-xs">— {groupsReadyToSend.length} empresa(s) pronta(s) para enviar</span>
+                <span className="text-success-foreground font-medium">Empresas concluídas pelo analista</span>
+                <span className="text-muted-foreground text-xs">
+                  — {groupsReadyToSend.length} pronta(s) para envio
+                  {groupsPendingAnalyst.length > 0 && ` · ${groupsPendingAnalyst.length} ainda pendente(s)`}
+                </span>
                 {blocked && (
                   <span className="text-destructive text-xs flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -2071,11 +2093,46 @@ const PaymentDetail = () => {
                   className="ml-auto h-7 px-3 text-xs"
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" />
-                  Enviar todas para validação
+                  Enviar lote para validação
                 </Button>
               </div>
             );
           })()}
+
+          <AlertDialog open={!!pendingSendState} onOpenChange={(o) => { if (!o) setPendingSendState(null); }}>
+            <AlertDialogContent className="max-w-lg">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Enviar lote com empresas pendentes?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      {pendingSendState?.pendentes.length} empresa(s) ainda não foram concluídas pelo analista:
+                    </p>
+                    <ul className="max-h-40 overflow-y-auto rounded border border-border bg-muted/30 p-2 text-xs space-y-1">
+                      {pendingSendState?.pendentes.map((g) => (
+                        <li key={g.id}>• {g.company_name}</li>
+                      ))}
+                    </ul>
+                    <p>
+                      Deseja enviar apenas as {pendingSendState?.prontos.length} empresa(s) prontas para o validador?
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    const prontos = pendingSendState?.prontos ?? [];
+                    setPendingSendState(null);
+                    await doSendForValidation(prontos);
+                  }}
+                >
+                  Enviar {pendingSendState?.prontos.length} empresa(s) prontas
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}

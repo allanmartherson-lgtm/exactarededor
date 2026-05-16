@@ -13,7 +13,7 @@ import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import { resolveResendTarget, canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
+import { canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
 import { claimPayment } from "@/lib/assignments";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
@@ -588,40 +588,28 @@ export default function CompanyAnalysis() {
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
     await autoClaim();
-    const target = resolveResendTarget(obs, group.company_name);
-    const next = target?.nextStatus ?? "aguardando_validacao";
     const { error } = await supabase
       .from("payment_company_groups")
-      .update({ status: next })
+      .update({ status: "concluida_analista" })
       .eq("id", group.id);
     if (error) {
       setBusy(false);
-      return toast.error("Erro ao enviar", { description: error.message });
+      return toast.error("Erro ao concluir análise", { description: error.message });
     }
     const text = groupDraft.trim();
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
-      message: target
-        ? `[${group.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`
-        : `[${group.company_name}] Enviado para validação pelo analista${text ? `: ${text}` : ""}.`,
+      message: `[${group.company_name}] Análise concluída pelo analista${text ? `: ${text}` : ""}.`,
       status_from: group.status,
-      status_to: next,
+      status_to: "concluida_analista",
     });
     setGroupDraft("");
-    // Notifica todos os validadores (fila coletiva) + auditoria, somente quando vai para validação.
-    if (next === "aguardando_validacao") {
-      supabase.functions.invoke("notify-validator-assignment", {
-        body: {
-          payment_id: id,
-          group_id: group.id,
-          sender_id: user!.id,
-        },
-      }).catch((e) => console.warn("notify-validator-assignment failed", group.id, e));
-    }
     setBusy(false);
-    toast.success(target ? `Reencaminhado ao ${target.role}` : "Enviado para validação");
+    toast.success("Análise concluída", {
+      description: "Esta empresa será incluída no próximo envio do lote.",
+    });
     load();
   };
 
@@ -1190,7 +1178,7 @@ export default function CompanyAnalysis() {
   const canActValidador = gStatus === "aguardando_validacao" && isValidador && canActAsVD;
   const canActDiretor = gStatus === "aguardando_aprovacao" && isDiretor && canActAsVD;
   const canAct = canActAnalista || canActValidador || canActDiretor;
-  const returner = gStatus === "devolvido_analista" ? resolveResendTarget(obs, group.company_name)?.role ?? null : null;
+  // (removido) returner: o fluxo unificado de "Concluir análise" não distingue mais reencaminhamento aqui — o envio ao validador é feito no lote inteiro.
 
   return (
     <div className="space-y-4 pb-32">
@@ -1690,15 +1678,17 @@ export default function CompanyAnalysis() {
                           }
                           sendForValidation();
                         };
-                        return returner ? (
-                          <Button size="sm" onClick={handleClick} disabled={busy} title={tooltip} variant={podeEnviar ? "default" : "secondary"}>
-                            <Send className="h-4 w-4 mr-2" />
-                            Reencaminhar ao {returner}
-                          </Button>
-                        ) : (
-                          <Button size="sm" onClick={handleClick} disabled={busy} title={tooltip} variant={podeEnviar ? "default" : "secondary"}>
-                            <Send className="h-4 w-4 mr-2" />
-                            Enviar para validação
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={handleClick}
+                            disabled={busy}
+                            title={tooltip}
+                            className={podeEnviar ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                            variant={podeEnviar ? "default" : "secondary"}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Concluir análise
                           </Button>
                         );
                       })()}
@@ -1767,7 +1757,6 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
-
       {/* Editar item */}
       <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
         <DialogContent>

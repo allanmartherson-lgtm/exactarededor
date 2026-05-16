@@ -2449,6 +2449,7 @@ export type Database = {
         | "rascunho"
         | "em_analise_ia"
         | "revisao_analista"
+        | "concluida_analista"
         | "aguardando_validacao"
         | "devolvido_analista"
         | "aguardando_aprovacao"
@@ -2666,6 +2667,7 @@ export const Constants = {
         "rascunho",
         "em_analise_ia",
         "revisao_analista",
+        "concluida_analista",
         "aguardando_validacao",
         "devolvido_analista",
         "aguardando_aprovacao",
