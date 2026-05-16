@@ -167,6 +167,20 @@ export const PaymentGroupCard = ({
                 ✕ {gCounts.reprovado}
               </span>
             )}
+            {validationAlertCount > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] text-teal-700">
+                    <ShieldAlert className="h-3 w-3" /> Validação ({validationAlertCount})
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    {validationAlertCount} alerta(s) de regras assistenciais nesta empresa.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             {nfDivergent && (
               <Tooltip>
                 <TooltipTrigger asChild>
