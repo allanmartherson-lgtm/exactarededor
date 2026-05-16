@@ -32,12 +32,50 @@ const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number): Promise<T> 
   }
 };
 
+const getStorageKey = (): string | null => {
+  try {
+    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    if (!url) return null;
+    const ref = new URL(url).hostname.split(".")[0];
+    return `sb-${ref}-auth-token`;
+  } catch {
+    return null;
+  }
+};
+
+const readCachedSession = (): Session | null => {
+  if (typeof window === "undefined") return null;
+  const key = getStorageKey();
+  if (!key) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Session & { expires_at?: number };
+    if (!parsed?.access_token) return null;
+    const expiresAt = parsed.expires_at ?? 0;
+    // Treat as expired if no expiry or already past (with 10s skew).
+    if (!expiresAt || expiresAt * 1000 <= Date.now() + 10_000) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+    return parsed as Session;
+  } catch {
+    try {
+      const k = getStorageKey();
+      if (k) window.localStorage.removeItem(k);
+    } catch { /* noop */ }
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const cached = readCachedSession();
+  const [session, setSession] = useState<Session | null>(cached);
+  const [user, setUser] = useState<User | null>(cached?.user ?? null);
   const [roles, setRoles] = useState<AppRole[]>([]);
-  const [loading, setLoading] = useState(true);
+  // If we already have a valid cached session, don't block UI on network.
+  const [loading, setLoading] = useState(!cached);
   const [rolesLoading, setRolesLoading] = useState(true);
 
   const loadRoles = async (userId: string) => {
