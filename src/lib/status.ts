@@ -10,6 +10,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   rascunho: "Rascunho",
   em_analise_ia: "Em análise por IA",
   revisao_analista: "Em revisão pelo analista",
+  concluida_analista: "Concluída pelo analista",
   aguardando_validacao: "Aguardando validação",
   devolvido_analista: "Devolvido ao analista",
   aguardando_aprovacao: "Aguardando aprovação",
