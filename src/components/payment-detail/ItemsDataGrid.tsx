@@ -1485,15 +1485,19 @@ function ValidationFindingsBadge({
       <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className="mt-1 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800 hover:bg-amber-100 cursor-pointer"
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded-full border px-1 py-0.5 uppercase tracking-wide cursor-pointer",
+            TEXT_META,
+            "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+          )}
         >
-          <ShieldAlert className="h-2.5 w-2.5" />
+          <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />
           Validação ({findings.length})
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-96 p-0 bg-[#FAF7F2] border-[0.5px] border-[#D9D2C5] shadow-md"
+        className="w-[360px] min-w-[320px] p-0 bg-[#FAF7F2] border-[0.5px] border-[#D9D2C5] shadow-md"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="max-h-[420px] overflow-y-auto">
@@ -1504,32 +1508,32 @@ function ValidationFindingsBadge({
               <div key={`${f.rule_id}-${idx}`} className={cn("p-3", idx > 0 && "border-t border-[#D9D2C5]")}>
                 <div className="flex items-start gap-1.5 mb-2">
                   <ShieldAlert className="h-3.5 w-3.5 text-[#9A6B3A] mt-0.5 shrink-0" />
-                  <div className="text-xs font-semibold text-[#9A6B3A] leading-tight">{f.rule_name}</div>
+                  <div className="text-xs font-semibold text-[#9A6B3A] leading-tight break-words">{f.rule_name}</div>
                 </div>
-                <div className="text-[11px] text-foreground/80 mb-2 leading-snug">{f.message}</div>
+                <div className="text-[11px] text-foreground/80 mb-2 leading-snug break-words">{f.message}</div>
                 {ci ? (
                   <>
                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Conflita com:</div>
-                    <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px]">
                       <dt className="text-muted-foreground">Atendimento:</dt>
-                      <dd className="font-mono">{ci.attendance_number ?? "—"}</dd>
+                      <dd className="font-mono break-all">{ci.attendance_number ?? "—"}</dd>
                       <dt className="text-muted-foreground">Paciente:</dt>
-                      <dd className="truncate">{ci.patient_name ?? "—"}</dd>
+                      <dd className="break-words whitespace-normal">{ci.patient_name ?? "—"}</dd>
                       <dt className="text-muted-foreground">Procedimento:</dt>
-                      <dd className="truncate">
+                      <dd className="break-words whitespace-normal">
                         {ci.procedure_name ?? "—"}
                         {ci.procedure_code && (
                           <span className="text-muted-foreground font-mono"> ({ci.procedure_code})</span>
                         )}
                       </dd>
                       <dt className="text-muted-foreground">Médico:</dt>
-                      <dd className="truncate">{ci.doctor_name ?? "—"}</dd>
+                      <dd className="break-words whitespace-normal">{ci.doctor_name ?? "—"}</dd>
                       <dt className="text-muted-foreground">Data:</dt>
                       <dd>{fmtDate(ci.procedure_date)}</dd>
                       <dt className="text-muted-foreground">Empresa:</dt>
-                      <dd className="truncate">{ci.company_name ?? "—"}</dd>
+                      <dd className="break-words whitespace-normal">{ci.company_name ?? "—"}</dd>
                       <dt className="text-muted-foreground">Lote:</dt>
-                      <dd className="truncate">{ci.payment_reference ?? "—"}</dd>
+                      <dd className="break-words whitespace-normal">{ci.payment_reference ?? "—"}</dd>
                     </dl>
                     <div className="mt-2.5 flex justify-end">
                       <button

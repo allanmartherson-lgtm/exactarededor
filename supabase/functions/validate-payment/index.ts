@@ -39,6 +39,7 @@ type Item = {
   sector: string | null;
   company_id: string | null;
   company_name: string | null;
+  raw_data: Record<string, unknown> | null;
 };
 
 type ConflictingItemSnapshot = {
@@ -67,6 +68,27 @@ type Finding = {
 
 const normName = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+
+const normKey = (s: string) =>
+  s.toString().toLowerCase().trim().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[\s_\-./]+/g, "");
+
+function rawPick(raw: Record<string, unknown> | null, keys: readonly string[]): string | null {
+  if (!raw) return null;
+  const wanted = keys.map(normKey);
+  for (const rk of Object.keys(raw)) {
+    if (wanted.includes(normKey(rk))) {
+      const v = raw[rk];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+  }
+  return null;
+}
+
+const PATIENT_ALIASES = ["paciente", "nome paciente", "nm paciente", "nome do paciente"];
+
+const getPatient = (it: Item): string | null =>
+  (it.patient_name && it.patient_name.trim() !== "") ? it.patient_name : rawPick(it.raw_data, PATIENT_ALIASES);
 
 function ruleAppliesToPayment(
   rule: ValidationRule,
@@ -134,7 +156,7 @@ function applyDuplicidadeExata(
     const list = findingsByItem.get(target.id) ?? [];
     const snapshot: ConflictingItemSnapshot = {
       attendance_number: other.attendance_number,
-      patient_name: other.patient_name,
+      patient_name: getPatient(other),
       procedure_code: other.procedure_code,
       procedure_name: other.procedure_name,
       doctor_name: other.doctor_name,
@@ -181,7 +203,7 @@ Deno.serve(async (req) => {
         supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
         supabase
           .from("payment_items")
-          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name")
+          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name, raw_data")
           .eq("payment_id", payment_id)
           .limit(20000),
         supabase.from("validation_rules").select("*").eq("active", true),
