@@ -48,9 +48,9 @@ describe("Validation badge — layout invariants", () => {
     );
   });
 
-  it("badge de Validação usa cor teal discreta (não conflita com status existentes)", () => {
+  it("badge de Validação usa cor índigo discreta (não conflita com status existentes)", () => {
     expect(SRC).toContain(
-      "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100",
+      "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100",
     );
   });
 
