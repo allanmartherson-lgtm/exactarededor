@@ -69,6 +69,27 @@ type Finding = {
 const normName = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
 
+const normKey = (s: string) =>
+  s.toString().toLowerCase().trim().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[\s_\-./]+/g, "");
+
+function rawPick(raw: Record<string, unknown> | null, keys: readonly string[]): string | null {
+  if (!raw) return null;
+  const wanted = keys.map(normKey);
+  for (const rk of Object.keys(raw)) {
+    if (wanted.includes(normKey(rk))) {
+      const v = raw[rk];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+  }
+  return null;
+}
+
+const PATIENT_ALIASES = ["paciente", "nome paciente", "nm paciente", "nome do paciente"];
+
+const getPatient = (it: Item): string | null =>
+  (it.patient_name && it.patient_name.trim() !== "") ? it.patient_name : rawPick(it.raw_data, PATIENT_ALIASES);
+
 function ruleAppliesToPayment(
   rule: ValidationRule,
   payment: { payment_type: string | null; sectors: string[] | null },
