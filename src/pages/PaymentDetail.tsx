@@ -1692,16 +1692,6 @@ const PaymentDetail = () => {
         </Sheet>
 
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
-          // Detecta se o texto persistido em ai_summary ainda cita os mesmos
-          // contadores que vemos hoje. Não é prova de frescor, mas pega o
-          // caso comum: itens acatados/exceções/duplicidades resolvidas após
-          // a última reanálise completa mudam os counts em tempo real, e o
-          // texto antigo deixa de mencionar esses números.
-          // Detecta se o texto persistido em ai_summary ainda bate com os
-          // contadores atuais. Extrai os números via regex (\d+ próximo das
-          // palavras-chave) em vez de `includes` para evitar falsos positivos
-          // — ex.: "5 aprovados" no texto antigo ainda casaria com counts=15
-          // pelo `includes("5")`.
           const extractCount = (text: string, keyword: RegExp): number | null => {
             const m = text.match(keyword);
             return m ? Number(m[1]) : null;
@@ -1710,75 +1700,64 @@ const PaymentDetail = () => {
           const summaryAprovado = extractCount(sum, /(\d+)\s+aprovad/i);
           const summaryAlerta = extractCount(sum, /(\d+)\s+alerta/i);
           const summaryReprovado = extractCount(sum, /(\d+)\s+reprovad/i);
-          // Se algum não foi encontrado, consideramos defasado (texto não
-          // segue o formato esperado — provavelmente foi gerado pela IA com
-          // narrativa livre, ou está em formato antigo).
           const summaryMatchesCounts = !!payment.ai_summary &&
             summaryAprovado === counts.aprovado &&
             summaryAlerta === counts.alerta &&
             summaryReprovado === counts.reprovado;
+          const canReanalyze =
+            (isAnalista || isDiretor) &&
+            (payment.status === "em_analise_ia" ||
+              payment.status === "revisao_analista" ||
+              payment.status === "devolvido_analista");
           return (
-          <Card className="shadow-card border-info/30 bg-info-soft/40">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-semibold">Resumo da IA</span>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {topAlerts.length > 0
-                    ? `${topAlerts.length} item(ns) com observação — veja por empresa abaixo.`
-                    : "Nenhum alerta gerado."}
-                </span>
-              </div>
+            <Card className="shadow-card border-info/30 bg-info-soft/40">
+              <CardContent className="p-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Esquerda — narrativa colapsável */}
+                  <div className="text-xs space-y-1.5 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Análise da última execução completa</p>
+                    {payment.ai_summary ? (
+                      summaryExpanded ? (
+                        <div className="space-y-1.5">
+                          <p className="whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button type="button" onClick={() => setSummaryExpanded(false)} className="text-[11px] text-primary hover:underline">Recolher</button>
+                            {!summaryMatchesCounts && (
+                              <>
+                                <span className="italic text-muted-foreground text-[11px]">(resumo pode estar desatualizado)</span>
+                                {canReanalyze && (
+                                  <Button size="sm" variant="outline" disabled={reprocessingAi} onClick={() => setReprocessConfirmOpen(true)} className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80">
+                                    <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
+                                    {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setSummaryExpanded(true)} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
+                          <ChevronRight className="h-3 w-3" /> Ver análise da IA
+                        </button>
+                      )
+                    ) : (
+                      <span className="italic text-muted-foreground">Sem análise persistida.</span>
+                    )}
+                  </div>
 
-              {payment.ai_summary && (
-                <div className="text-xs">
-                  <p className="text-muted-foreground">Análise da última execução completa</p>
-                  <p className="mt-1 whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
-                  {!summaryMatchesCounts && (() => {
-                    // Mesmas regras do botão "Reanalisar lote" do header: só
-                    // analista/diretor e apenas em status onde a reanálise
-                    // faz sentido. Reusa o AlertDialog já existente.
-                    const canReanalyze =
-                      (isAnalista || isDiretor) &&
-                      (payment.status === "em_analise_ia" ||
-                        payment.status === "revisao_analista" ||
-                        payment.status === "devolvido_analista");
-                    return (
-                      <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <p className="italic text-muted-foreground">
-                          (resumo pode estar desatualizado)
-                        </p>
-                        {canReanalyze && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={reprocessingAi}
-                            onClick={() => setReprocessConfirmOpen(true)}
-                            className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
-                          >
-                            <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
-                            {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  {/* Direita — estado atual sempre visível */}
+                  <div className="text-xs space-y-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Estado atual dos itens</p>
+                    <div className="space-y-0.5">
+                      <div className="text-success font-medium">✓ {counts.aprovado} aprovado(s)</div>
+                      <div className="text-warning font-medium">⚠ {counts.alerta} alerta(s)</div>
+                      <div className="text-destructive font-medium">✕ {counts.reprovado} reprovado(s)</div>
+                      {counts.pendente > 0 && <div className="text-muted-foreground">• {counts.pendente} pendente(s)</div>}
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              <div className="border-t border-border/60 pt-2">
-                <p className="text-xs text-muted-foreground mb-1">Estado atual dos itens:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.success}`}>✓ {counts.aprovado} aprovado(s)</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.warning}`}>⚠ {counts.alerta} alerta(s)</span>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.destructive}`}>✕ {counts.reprovado} reprovado(s)</span>
-                  {counts.pendente > 0 && (
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${TONE_CLASSES.muted}`}>• {counts.pendente} pendente(s)</span>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           );
         })()}
 
