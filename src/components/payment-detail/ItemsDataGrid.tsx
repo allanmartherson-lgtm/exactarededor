@@ -1414,3 +1414,143 @@ function ItemDetailsRow({
     </tr>
   );
 }
+
+// ====================================================================
+// Badge + popover dos achados do motor de validação assistencial.
+// Lê `validation_findings` (jsonb gravado por validate-payment) e mostra
+// detalhes do item conflitante. Botão "Ver item conflitante →":
+//  - mesmo lote: scroll + highlight amber temporário na linha alvo
+//  - lote diferente: abre /pagamentos/{id}/empresa/{company} em nova aba
+// ====================================================================
+type ValidationFinding = {
+  rule_id: string;
+  rule_name: string;
+  kind: string;
+  severity: string;
+  action: string;
+  message: string;
+  conflicting_item_id?: string;
+  conflicting_item?: {
+    attendance_number: string | null;
+    patient_name: string | null;
+    procedure_code: string | null;
+    procedure_name: string | null;
+    doctor_name: string | null;
+    procedure_date: string | null;
+    company_name: string | null;
+    payment_id: string;
+    payment_reference: string | null;
+  };
+  detected_at: string;
+};
+
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return "—";
+  const iso = d.slice(0, 10);
+  const [y, m, day] = iso.split("-");
+  return y && m && day ? `${day}/${m}/${y}` : iso;
+}
+
+function ValidationFindingsBadge({
+  findings,
+  currentPaymentId,
+}: {
+  findings: ValidationFinding[];
+  currentPaymentId: string;
+}) {
+  const goToConflict = (f: ValidationFinding, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const ci = f.conflicting_item;
+    const targetId = f.conflicting_item_id;
+    if (!targetId) return;
+    const sameBatch = !ci || ci.payment_id === currentPaymentId;
+    if (sameBatch) {
+      const el = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const prev = el.style.boxShadow;
+        el.style.boxShadow = "inset 0 0 0 2px hsl(38 92% 50%)";
+        el.style.transition = "box-shadow 0.3s ease";
+        window.setTimeout(() => { el.style.boxShadow = prev; }, 2000);
+      }
+    } else if (ci) {
+      const url = `/pagamentos/${ci.payment_id}/empresa/${encodeURIComponent(ci.company_name ?? "")}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="mt-1 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800 hover:bg-amber-100 cursor-pointer"
+        >
+          <ShieldAlert className="h-2.5 w-2.5" />
+          Validação ({findings.length})
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-96 p-0 bg-[#FAF7F2] border-[0.5px] border-[#D9D2C5] shadow-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="max-h-[420px] overflow-y-auto">
+          {findings.map((f, idx) => {
+            const ci = f.conflicting_item;
+            const sameBatch = !ci || ci.payment_id === currentPaymentId;
+            return (
+              <div key={`${f.rule_id}-${idx}`} className={cn("p-3", idx > 0 && "border-t border-[#D9D2C5]")}>
+                <div className="flex items-start gap-1.5 mb-2">
+                  <ShieldAlert className="h-3.5 w-3.5 text-[#9A6B3A] mt-0.5 shrink-0" />
+                  <div className="text-xs font-semibold text-[#9A6B3A] leading-tight">{f.rule_name}</div>
+                </div>
+                <div className="text-[11px] text-foreground/80 mb-2 leading-snug">{f.message}</div>
+                {ci ? (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Conflita com:</div>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
+                      <dt className="text-muted-foreground">Atendimento:</dt>
+                      <dd className="font-mono">{ci.attendance_number ?? "—"}</dd>
+                      <dt className="text-muted-foreground">Paciente:</dt>
+                      <dd className="truncate">{ci.patient_name ?? "—"}</dd>
+                      <dt className="text-muted-foreground">Procedimento:</dt>
+                      <dd className="truncate">
+                        {ci.procedure_name ?? "—"}
+                        {ci.procedure_code && (
+                          <span className="text-muted-foreground font-mono"> ({ci.procedure_code})</span>
+                        )}
+                      </dd>
+                      <dt className="text-muted-foreground">Médico:</dt>
+                      <dd className="truncate">{ci.doctor_name ?? "—"}</dd>
+                      <dt className="text-muted-foreground">Data:</dt>
+                      <dd>{fmtDate(ci.procedure_date)}</dd>
+                      <dt className="text-muted-foreground">Empresa:</dt>
+                      <dd className="truncate">{ci.company_name ?? "—"}</dd>
+                      <dt className="text-muted-foreground">Lote:</dt>
+                      <dd className="truncate">{ci.payment_reference ?? "—"}</dd>
+                    </dl>
+                    <div className="mt-2.5 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={(e) => goToConflict(f, e)}
+                        className="text-[11px] text-[#9A6B3A] hover:text-[#7A5530] hover:underline font-medium"
+                      >
+                        {sameBatch ? "Ver item conflitante →" : "Abrir lote do conflito ↗"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground italic">
+                    Detalhes do item conflitante indisponíveis. Rode a validação novamente para enriquecer.
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
