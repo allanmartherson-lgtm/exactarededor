@@ -9,6 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   loading: boolean;
+  rolesLoading: boolean;
   hasRole: (role: AppRole) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
@@ -24,10 +25,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   const loadRoles = async (userId: string) => {
+    setRolesLoading(true);
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     setRoles((data ?? []).map((r) => r.role as AppRole));
+    setRolesLoading(false);
   };
 
   useEffect(() => {
@@ -39,6 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(null);
       setUser(null);
       setRoles([]);
+      setRolesLoading(false);
       setLoading(false);
       return;
     }
@@ -50,13 +55,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => loadRoles(newSession.user.id), 0);
       } else {
         setRoles([]);
+        setRolesLoading(false);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: existing } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
       setSession(existing);
       setUser(existing?.user ?? null);
-      if (existing?.user) loadRoles(existing.user.id);
+      if (existing?.user) {
+        await loadRoles(existing.user.id);
+      } else {
+        setRoles([]);
+        setRolesLoading(false);
+      }
       setLoading(false);
     });
 
@@ -91,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, roles, loading, hasRole, signIn, signUp, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, session, roles, loading, rolesLoading, hasRole, signIn, signUp, signOut, refreshRoles }}>
       {children}
     </AuthContext.Provider>
   );
