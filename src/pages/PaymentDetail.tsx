@@ -1966,7 +1966,6 @@ const PaymentDetail = () => {
         </div>
 
           {canSendForValidation && (() => {
-            // Calcula divergências NF para os grupos prontos para envio
             const divergentGroups = groupsReadyToSend.filter((g) => {
               const inv = invoices.filter((i) =>
                 i.received_amount != null &&
@@ -1978,31 +1977,29 @@ const PaymentDetail = () => {
               return Math.abs(Number((total - Number(g.total_amount)).toFixed(2))) > 0;
             });
             const blocked = divergentGroups.length > 0;
+            if (groupsReadyToSend.length === 0) return null;
             return (
-            <Card className="shadow-card border-primary/40 bg-primary/5">
-              <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                <div className="text-sm">
-                  <p className="font-medium">Revisão concluída pelo analista?</p>
-                  <p className="text-xs text-muted-foreground">
-                    {groupsReadyToSend.length} empresa(s) prontas para enviar ao validador. Você também pode enviar uma a uma no card de cada empresa.
-                  </p>
-                  {blocked && (
-                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      {divergentGroups.length} empresa(s) com NF divergente — resolva antes de enviar.
-                    </p>
-                  )}
-                </div>
+              <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
+                <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
+                <span className="text-success-foreground font-medium">Revisão concluída pelo analista</span>
+                <span className="text-muted-foreground text-xs">— {groupsReadyToSend.length} empresa(s) pronta(s) para enviar</span>
+                {blocked && (
+                  <span className="text-destructive text-xs flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {divergentGroups.length} com NF divergente
+                  </span>
+                )}
                 <Button
+                  size="sm"
                   disabled={busy || blocked}
                   onClick={() => sendForValidation()}
                   title={`${groupsReadyToSend.length} empresa(s) serão enviadas para validação.`}
+                  className="ml-auto h-7 px-3 text-xs"
                 >
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
                   Enviar todas para validação
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
             );
           })()}
 
