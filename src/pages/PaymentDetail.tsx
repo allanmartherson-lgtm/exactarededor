@@ -195,6 +195,7 @@ const PaymentDetail = () => {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
