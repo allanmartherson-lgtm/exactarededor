@@ -87,7 +87,7 @@ const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean };
 type DupAtendParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; allow_different_doctors: boolean };
-type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "" };
+type SobreposParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; entry_type: "visita" | "parecer" | "qualquer" };
 
 type OutlierLevel = "atendimento" | "procedimento" | "medico" | "tipo_atendimento";
 type OutlierCriterion = "media_pct" | "percentil" | "multiplo_media";
