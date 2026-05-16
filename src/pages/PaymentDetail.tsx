@@ -191,6 +191,10 @@ const PaymentDetail = () => {
   const [companySearch, setCompanySearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
   const [toleranceValue, setToleranceValue] = useState<number>(0.01);
+  const [assignmentsHistoryOpen, setAssignmentsHistoryOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
