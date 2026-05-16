@@ -2014,17 +2014,31 @@ const PaymentDetail = () => {
               // Priorização por risco: ordena empresas pelo maior score de atendimento
               // (apenas reordena visualmente; não altera dados nem decisão).
               const groupItemsCache = new Map<string, typeof items>();
-              const groupMaxScore = (g: typeof visibleGroups[number]) => {
+              const getGroupItems = (g: typeof visibleGroups[number]) => {
                 const cached = groupItemsCache.get(g.id);
-                const all = cached ?? items.filter(
+                if (cached) return cached;
+                const all = items.filter(
                   (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
                 );
-                if (!cached) groupItemsCache.set(g.id, all);
-                return calculateFinancialRisk(all).score;
+                groupItemsCache.set(g.id, all);
+                return all;
               };
-              const sortedGroups = [...visibleGroups].sort(
-                (a, b) => groupMaxScore(b) - groupMaxScore(a),
-              );
+              const groupMaxScore = (g: typeof visibleGroups[number]) =>
+                calculateFinancialRisk(getGroupItems(g)).score;
+              // Conta alertas assistenciais (validation_findings) na empresa.
+              const groupValidationCount = (g: typeof visibleGroups[number]) =>
+                getGroupItems(g).reduce((acc, it) => {
+                  const f = (it as unknown as { validation_findings?: unknown }).validation_findings;
+                  return acc + (Array.isArray(f) ? f.length : 0);
+                }, 0);
+              // Empresas com >=1 alerta assistencial sobem acima das sem alerta.
+              // Dentro de cada bloco, ordena por risco financeiro (desc).
+              const sortedGroups = [...visibleGroups].sort((a, b) => {
+                const aHas = groupValidationCount(a) > 0 ? 1 : 0;
+                const bHas = groupValidationCount(b) > 0 ? 1 : 0;
+                if (aHas !== bHas) return bHas - aHas;
+                return groupMaxScore(b) - groupMaxScore(a);
+              });
               return sortedGroups.map((g) => {
               const groupItemsAll = items.filter(
                 (it) => (it.company_name ?? "Sem empresa").trim().toLowerCase() === g.company_name.toLowerCase(),
