@@ -26,28 +26,53 @@ type Severity = Database["public"]["Enums"]["validation_severity"];
 type Action = Database["public"]["Enums"]["validation_action"];
 
 const KIND_LABELS: Record<Kind, string> = {
-  duplicidade_exata: "Duplicidade exata",
+  duplicidade_exata: "Cobrança duplicada",
   duplicidade_atendimento: "Duplicidade por atendimento/procedimento",
-  sobreposicao_assistencial: "Sobreposição assistencial",
+  sobreposicao_assistencial: "Sobreposição de grupo assistencial",
   codigo_sem_dobra: "Código sem dobra/acordo",
   codigo_nao_remuneravel: "Código não remunerável",
   item_em_pacote: "Item já incluído em pacote",
   particular_sem_excecao: "Particular sem exceção autorizada",
-  outlier_valor: "Valores fora da curva (outlier)",
+  outlier_valor: "Valor fora do padrão histórico",
+  parecer_virou_cirurgia: "Parecer absorvido pela cirurgia",
+  restricao_contratual: "Restrição contratual",
+};
+
+// Tipos visíveis no dropdown ao criar/editar (com descrição curta).
+// Tipos antigos não listados continuam sendo exibidos em regras já cadastradas.
+const VISIBLE_KINDS: Kind[] = [
+  "duplicidade_exata",
+  "sobreposicao_assistencial",
+  "parecer_virou_cirurgia",
+  "restricao_contratual",
+  "outlier_valor",
+];
+
+const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
+  duplicidade_exata:
+    "Mesmo código cobrado mais de uma vez no mesmo atendimento e data. Configurável: verificar apenas o mesmo médico ou também médicos diferentes.",
+  sobreposicao_assistencial:
+    "Especialidades afins (ex: Geriatria e Cuidados Paliativos) fizeram visita ou parecer para o mesmo paciente no mesmo dia. Apenas um é remunerado.",
+  parecer_virou_cirurgia:
+    "Parecer seguido de cirurgia dentro do prazo configurado — o parecer não é pago separadamente pois está incluído na cirurgia.",
+  restricao_contratual:
+    "Item pode estar coberto pelo contrato fixo do médico ou empresa. O sistema verifica horário, dia da semana e código TUSS conforme o acordo. Requer confirmação do analista consultando a evolução clínica.",
+  outlier_valor:
+    "Valor acima do percentil configurado em relação ao histórico do mesmo procedimento. Apenas sinaliza para investigação — não bloqueia.",
 };
 
 const SEVERITY_LABELS: Record<Severity, string> = {
-  informativo: "Informativo",
-  alerta: "Alerta",
-  alerta_forte: "Alerta forte",
-  bloquear: "Bloquear / sugerir retirada",
+  informativo: "Informativo — registra sem destaque",
+  alerta: "Alerta — sinaliza para revisão",
+  alerta_forte: "Alerta crítico — recomenda retirada",
+  bloquear: "Bloqueio — impede envio sem resolução",
 };
 
 const ACTION_LABELS: Record<Action, string> = {
-  informar: "Apenas informar",
-  alerta: "Gerar alerta",
-  alerta_forte: "Alerta forte (sugerir retirada)",
-  bloquear: "Bloquear automaticamente",
+  informar: "Registrar e informar",
+  alerta: "Sinalizar para revisão",
+  alerta_forte: "Recomendar retirada do item",
+  bloquear: "Bloquear envio até resolução",
 };
 
 const SEVERITY_VARIANT: Record<Severity, string> = {
@@ -77,6 +102,16 @@ type OutlierParams = {
   same_procedure: boolean;
 };
 
+type ParecerCirurgiaParams = { prazo_horas: number; mesmo_medico: boolean };
+type RestricaoContratualParams = {
+  hora_inicio: string;
+  hora_fim: string;
+  dias_semana: number[];
+  incluir_feriados: boolean;
+  codigos_restritos: string[];
+  observacao_analista: string;
+};
+
 const defaultParamsFor = (k: Kind): Record<string, unknown> => {
   switch (k) {
     case "duplicidade_exata":
@@ -85,6 +120,17 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
       return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "" };
+    case "parecer_virou_cirurgia":
+      return { prazo_horas: 48, mesmo_medico: false } satisfies ParecerCirurgiaParams;
+    case "restricao_contratual":
+      return {
+        hora_inicio: "08:00",
+        hora_fim: "17:59",
+        dias_semana: [1, 2, 3, 4, 5],
+        incluir_feriados: false,
+        codigos_restritos: [],
+        observacao_analista: "",
+      } satisfies RestricaoContratualParams;
     case "outlier_valor":
       return {
         level: "procedimento",
@@ -373,16 +419,33 @@ export default function ValidationRules() {
       const set = (patch: Partial<DupExataParams>) => setForm({ ...form, params: { ...p, ...patch } });
       const opts: Array<[keyof DupExataParams, string]> = [
         ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"], ["compare_date", "Data"],
-        ["compare_code", "Código / procedimento"], ["compare_doctor", "Médico"],
+        ["compare_code", "Código / procedimento"],
       ];
+      // Toggle invertido: ON => ignora médico (compare_doctor=false). OFF => compara médico (compare_doctor=true).
+      const ignoreDoctor = p.compare_doctor === false;
       return (
-        <div className="grid grid-cols-2 gap-2">
-          {opts.map(([k2, label]) => (
-            <label key={k2} className="flex items-center gap-2 text-sm">
-              <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupExataParams>)} />
-              {label}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {opts.map(([k2, label]) => (
+              <label key={k2} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupExataParams>)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          <div className="rounded-md border border-border p-3 space-y-1">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox
+                checked={ignoreDoctor}
+                onCheckedChange={(v) => set({ compare_doctor: !v })}
+              />
+              Considerar duplicidade mesmo com médicos diferentes
             </label>
-          ))}
+            <p className="text-xs text-muted-foreground pl-6">
+              Quando ativado: mesmo código + atendimento + data com qualquer médico é considerado duplicata.
+              Quando desativado: apenas o mesmo médico.
+            </p>
+          </div>
         </div>
       );
     }
@@ -441,6 +504,114 @@ export default function ValidationRules() {
                 {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+        </div>
+      );
+    }
+    if (k === "parecer_virou_cirurgia") {
+      const p = form.params as ParecerCirurgiaParams;
+      const set = (patch: Partial<ParecerCirurgiaParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs">Prazo máximo entre o parecer e a cirurgia</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                min={1}
+                className="w-24"
+                value={p.prazo_horas ?? 48}
+                onChange={(e) => set({ prazo_horas: Number(e.target.value) || 0 })}
+              />
+              <span className="text-sm text-muted-foreground">horas</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cirurgia realizada dentro deste prazo após o parecer cancela o pagamento do parecer. Padrão: 48 horas.
+            </p>
+          </div>
+          <div className="rounded-md border border-border p-3 space-y-1">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox checked={!!p.mesmo_medico} onCheckedChange={(v) => set({ mesmo_medico: !!v })} />
+              Aplicar apenas ao mesmo médico
+            </label>
+            <p className="text-xs text-muted-foreground pl-6">
+              Quando ativado, só cancela o parecer se o mesmo médico realizou a cirurgia.
+              Quando desativado, qualquer cirurgia no atendimento dentro do prazo cancela o parecer.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    if (k === "restricao_contratual") {
+      const p = form.params as RestricaoContratualParams;
+      const set = (patch: Partial<RestricaoContratualParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      const dias: Array<[number, string]> = [
+        [1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "Sáb"], [0, "Dom"],
+      ];
+      const toggleDia = (n: number) => {
+        const cur = new Set(p.dias_semana ?? []);
+        if (cur.has(n)) cur.delete(n); else cur.add(n);
+        set({ dias_semana: Array.from(cur).sort((a, b) => a - b) });
+      };
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs">Horário restrito</Label>
+            <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Início</span>
+                <Input type="time" className="w-32" value={p.hora_inicio ?? "08:00"}
+                  onChange={(e) => set({ hora_inicio: e.target.value })} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Fim</span>
+                <Input type="time" className="w-32" value={p.hora_fim ?? "17:59"}
+                  onChange={(e) => set({ hora_fim: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Dias da semana</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {dias.map(([n, lbl]) => {
+                const checked = (p.dias_semana ?? []).includes(n);
+                return (
+                  <button key={n} type="button" onClick={() => toggleDia(n)}
+                    className={`text-xs px-3 py-1.5 rounded-md border ${checked ? "bg-primary text-primary-foreground border-primary" : "border-border bg-card"}`}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={!!p.incluir_feriados} onCheckedChange={(v) => set({ incluir_feriados: !!v })} />
+            Incluir feriados nesta restrição
+          </label>
+          <div>
+            <Label className="text-xs">Códigos TUSS restritos neste horário</Label>
+            <Textarea
+              rows={3}
+              value={(p.codigos_restritos ?? []).join("\n")}
+              onChange={(e) => set({
+                codigos_restritos: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+              })}
+              placeholder="Um código por linha"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe vazio para aplicar a todos os códigos. Ex: 40809170, 30804086
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Observação para o analista</Label>
+            <Textarea
+              rows={2}
+              value={p.observacao_analista ?? ""}
+              onChange={(e) => set({ observacao_analista: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Esta mensagem aparece no alerta gerado. Ex: Verificar se o paciente é do cirurgião intervencionista — consultar evolução clínica.
+            </p>
           </div>
         </div>
       );
@@ -527,7 +698,7 @@ export default function ValidationRules() {
       <PageHeader
         title="Regras de Validação"
         icon={ShieldCheck}
-        description="Validações 100% determinísticas. Não interferem no cálculo do valor esperado."
+        description="Regras assistenciais e contratuais aplicadas automaticamente pelo sistema. Complementam a análise financeira sem alterá-la — cada alerta requer avaliação do analista."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
@@ -655,24 +826,39 @@ export default function ValidationRules() {
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Tipo de validação</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Tipo de regra</h4>
               <Select value={form.kind} onValueChange={(v) => { const k = v as Kind; setForm({ ...form, kind: k, params: defaultParamsFor(k) }); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(KIND_LABELS) as Kind[]).map((k) => <SelectItem key={k} value={k}>{KIND_LABELS[k]}</SelectItem>)}
+                <SelectContent className="max-w-[640px]">
+                  {/* Mantém o tipo atual mesmo se for um tipo legado removido da UI */}
+                  {Array.from(new Set<Kind>([...VISIBLE_KINDS, form.kind])).map((k) => (
+                    <SelectItem key={k} value={k} className="items-start py-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-sm">{KIND_LABELS[k]}</span>
+                        {KIND_DESCRIPTIONS[k] && (
+                          <span className="text-xs text-muted-foreground whitespace-normal leading-snug">
+                            {KIND_DESCRIPTIONS[k]}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {KIND_DESCRIPTIONS[form.kind] && (
+                <p className="text-xs text-muted-foreground">{KIND_DESCRIPTIONS[form.kind]}</p>
+              )}
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Parâmetros</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Como identificar o conflito</h4>
               {showParams}
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Escopo de aplicação</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Quem esta regra afeta</h4>
               <div className="flex items-center justify-between rounded-md border border-border p-2">
-                <Label className="text-sm">Global (aplica a todos)</Label>
+                <Label className="text-sm">Aplicar a todos os médicos e empresas</Label>
                 <Switch checked={form.scope_global} onCheckedChange={(v) => setForm({ ...form, scope_global: v })} />
               </div>
               {!form.scope_global && (
@@ -739,7 +925,7 @@ export default function ValidationRules() {
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Ação</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">O que o sistema faz ao detectar</h4>
               <Select value={form.action} onValueChange={(v) => setForm({ ...form, action: v as Action })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -749,17 +935,17 @@ export default function ValidationRules() {
             </section>
 
             <section className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Comportamento adicional</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Configurações de auditoria</h4>
               <div className="flex items-center justify-between rounded-md border border-border p-2">
-                <Label className="text-sm">Exigir justificativa do analista</Label>
+                <Label className="text-sm">Analista deve justificar antes de acatar o alerta</Label>
                 <Switch checked={form.require_justification} onCheckedChange={(v) => setForm({ ...form, require_justification: v })} />
               </div>
               <div className="flex items-center justify-between rounded-md border border-border p-2">
-                <Label className="text-sm">Permitir exceção autorizada</Label>
+                <Label className="text-sm">Permitir que diretor autorize exceção</Label>
                 <Switch checked={form.allows_authorized_exception} onCheckedChange={(v) => setForm({ ...form, allows_authorized_exception: v })} />
               </div>
               {form.allows_authorized_exception && (
-                <p className="text-xs text-muted-foreground">A exceção exigirá justificativa e autorizador no momento do uso.</p>
+                <p className="text-xs text-muted-foreground">A exceção ficará registrada com nome do autorizador e justificativa.</p>
               )}
             </section>
           </div>
