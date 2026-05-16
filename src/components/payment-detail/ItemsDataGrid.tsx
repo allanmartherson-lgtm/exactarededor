@@ -25,6 +25,14 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  SEVERITY_TOKENS,
+  actionToLevel,
+  dominantLevel,
+  flashHighlight,
+  type SeverityLevel,
+} from "@/lib/uiSignals";
 import {
   formatCurrency,
   TONE_CLASSES,
