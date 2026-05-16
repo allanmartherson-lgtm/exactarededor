@@ -39,6 +39,8 @@ type Item = {
   sector: string | null;
   company_id: string | null;
   company_name: string | null;
+  doctor_role: string | null;
+  access_route: string | null;
   raw_data: Record<string, unknown> | null;
 };
 
@@ -114,6 +116,8 @@ function buildDupKey(it: Item, params: Json): string {
   if (params.compare_date) parts.push((it.procedure_date ?? "").slice(0, 10));
   if (params.compare_doctor) parts.push(normName(it.doctor_name ?? ""));
   if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
+  if (params.compare_role) parts.push(normName(it.doctor_role ?? ""));
+  if (params.compare_access_route) parts.push(normName(it.access_route ?? ""));
   return parts.join("|");
 }
 
@@ -126,7 +130,7 @@ function applyDuplicidadeExata(
   const params = (rule.params ?? {}) as Json;
   const anySelected =
     params.compare_attendance || params.compare_code || params.compare_date ||
-    params.compare_doctor || params.compare_patient;
+    params.compare_doctor || params.compare_patient || params.compare_role || params.compare_access_route;
   if (!anySelected) return 0;
 
   const groups = new Map<string, Item[]>();
@@ -144,6 +148,8 @@ function applyDuplicidadeExata(
   if (params.compare_date) reasonParts.push("data");
   if (params.compare_doctor) reasonParts.push("médico");
   if (params.compare_patient) reasonParts.push("paciente");
+  if (params.compare_role) reasonParts.push("função");
+  if (params.compare_access_route) reasonParts.push("via de acesso");
   const reason = reasonParts.join(" + ");
   const now = new Date().toISOString();
 
@@ -203,7 +209,7 @@ Deno.serve(async (req) => {
         supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
         supabase
           .from("payment_items")
-          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name, raw_data")
+          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name, doctor_role, access_route, raw_data")
           .eq("payment_id", payment_id)
           .limit(20000),
         supabase.from("validation_rules").select("*").eq("active", true),
