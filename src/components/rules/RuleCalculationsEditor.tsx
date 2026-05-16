@@ -81,6 +81,16 @@ export type CalcItem = {
   agreement_match_mode: "whitelist" | "blacklist";
   /** Funções do médico aplicáveis. */
   doctor_roles: string[];
+
+  /** Condições de contexto (somente para valor_fixo). */
+  context_conditions: ContextConditionItem[];
+};
+
+/** Condição de contexto editável (strings nos inputs, convertidas no salvar). */
+export type ContextConditionItem = {
+  trigger_codes: string[];
+  match_mode: "any" | "all";
+  value: string;
 };
 
 /** Construtor de item vazio (default sensato). */
@@ -107,6 +117,7 @@ export function makeEmptyCalc(): CalcItem {
     agreement_aliases: [],
     agreement_match_mode: "whitelist",
     doctor_roles: [],
+    context_conditions: [],
   };
 }
 
@@ -967,6 +978,13 @@ export function calcFromDb(r: any): CalcItem {
     agreement_aliases: Array.isArray(r.agreement_aliases) ? r.agreement_aliases : [],
     agreement_match_mode: r.agreement_match_mode === "blacklist" ? "blacklist" : "whitelist",
     doctor_roles: Array.isArray(r.doctor_roles) ? r.doctor_roles : [],
+    context_conditions: Array.isArray(r.context_conditions)
+      ? r.context_conditions.map((cc: any) => ({
+          trigger_codes: Array.isArray(cc?.trigger_codes) ? cc.trigger_codes.map((x: any) => String(x)) : [],
+          match_mode: cc?.match_mode === "all" ? "all" : "any",
+          value: cc?.value != null ? String(cc.value) : "",
+        }))
+      : [],
   };
 }
 
@@ -1034,6 +1052,15 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     agreement_aliases: c.agreement_aliases.length > 0 ? c.agreement_aliases : null,
     agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
     doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
+    context_conditions: c.calculation_type === "valor_fixo"
+      ? c.context_conditions
+          .filter((cc) => cc.trigger_codes.length > 0)
+          .map((cc) => ({
+            trigger_codes: cc.trigger_codes,
+            match_mode: cc.match_mode,
+            value: numOrNull(cc.value) ?? 0,
+          }))
+      : [],
   };
 }
 
