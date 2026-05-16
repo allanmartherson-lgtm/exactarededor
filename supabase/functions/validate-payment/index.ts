@@ -99,6 +99,7 @@ function applyDuplicidadeExata(
   rule: ValidationRule,
   items: Item[],
   findingsByItem: Map<string, Finding[]>,
+  paymentReference: string | null,
 ): number {
   const params = (rule.params ?? {}) as Json;
   const anySelected =
@@ -127,11 +128,21 @@ function applyDuplicidadeExata(
   let hits = 0;
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    // Marca o item de MENOR valor (convênio pagou menos). Empate → segundo da lista.
     const sorted = [...group].sort((a, b) => (a.gross_amount ?? 0) - (b.gross_amount ?? 0));
     const target = sorted[0].gross_amount === sorted[1].gross_amount ? group[1] : sorted[0];
     const other = group.find((x) => x.id !== target.id)!;
     const list = findingsByItem.get(target.id) ?? [];
+    const snapshot: ConflictingItemSnapshot = {
+      attendance_number: other.attendance_number,
+      patient_name: other.patient_name,
+      procedure_code: other.procedure_code,
+      procedure_name: other.procedure_name,
+      doctor_name: other.doctor_name,
+      procedure_date: other.procedure_date,
+      company_name: other.company_name,
+      payment_id: other.payment_id,
+      payment_reference: paymentReference,
+    };
     list.push({
       rule_id: rule.id,
       rule_name: rule.name,
@@ -140,6 +151,7 @@ function applyDuplicidadeExata(
       action: rule.action,
       message: `Item duplicado com item ${other.id} (mesmo ${reason}).`,
       conflicting_item_id: other.id,
+      conflicting_item: snapshot,
       detected_at: now,
     });
     findingsByItem.set(target.id, list);
