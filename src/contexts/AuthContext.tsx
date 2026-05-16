@@ -19,6 +19,8 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const AUTH_TIMEOUT_MS = 8000;
+
 const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -142,8 +144,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [location.pathname]);
 
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    try {
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        AUTH_TIMEOUT_MS,
+      );
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        setTimeout(() => loadRoles(data.session.user.id), 0);
+      }
+      return { error: error?.message ?? null };
+    } catch (error) {
+      console.error("[auth] Falha ao entrar", error);
+      return {
+        error: error instanceof Error && error.message === "auth_timeout"
+          ? "Tempo esgotado ao entrar. Verifique sua conexão e tente novamente."
+          : "Não foi possível entrar. Tente novamente.",
+      };
+    }
   };
 
   const signUp: AuthContextValue["signUp"] = async (email, password, fullName) => {
