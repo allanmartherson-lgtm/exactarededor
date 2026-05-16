@@ -23,6 +23,7 @@ import { PaymentReportModal } from "@/components/payment-detail/PaymentReportMod
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
+import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
@@ -1986,6 +1987,7 @@ const PaymentDetail = () => {
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
 
           <TooltipProvider delayDuration={150}>
+            <CompanyListLegend />
             {(() => {
               const sqItem = itemSearch.trim().toLowerCase();
               const sqCompany = companySearch.trim().toLowerCase();

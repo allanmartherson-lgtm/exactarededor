@@ -2,7 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link, useParams } from "react-router-dom";
-import { StatusBadge } from "@/components/StatusBadge";
 import {
   AlertTriangle,
   ArrowRight,
@@ -10,11 +9,11 @@ import {
   ChevronDown,
   ChevronRight,
   Receipt,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import {
   formatCurrency,
+  PAYMENT_STATUS_LABELS,
   TONE_CLASSES,
   type ItemAiStatus,
   type PaymentStatus,
@@ -132,8 +131,31 @@ export const PaymentGroupCard = ({
 
   const dedicatedHref = paymentId ? `/pagamentos/${paymentId}/empresa/${g.id}` : "#";
 
+  // === Dot de risco (substitui badge colorido) ===
+  const riskDotColor: Record<string, string> = {
+    critico: "bg-red-500",
+    alto: "bg-amber-500",
+    medio: "bg-yellow-500",
+    baixo: "bg-green-500",
+  };
+  const riskLabel: Record<string, string> = {
+    critico: "Crítico", alto: "Alto", medio: "Médio", baixo: "Baixo",
+  };
+  const formatRiskValue = (value: number, pct: number): string => {
+    const formatted = value >= 1000
+      ? `R$ ${(value / 1000).toFixed(1).replace(".", ",")}k`
+      : `R$ ${value.toFixed(0)}`;
+    if (pct >= 99.9) return formatted;
+    return `${formatted} (${pct.toFixed(0)}%)`;
+  };
+
   return (
-    <SafeCard className="shadow-card p-0">
+    <SafeCard
+      className={cn(
+        "shadow-card p-0",
+        validationAlertCount > 0 && "border-l-2 border-indigo-400",
+      )}
+    >
       <button
         type="button"
         onClick={onToggleExpanded}
@@ -170,13 +192,13 @@ export const PaymentGroupCard = ({
             {validationAlertCount > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-700">
-                    <ShieldAlert className="h-3 w-3" /> Validação ({validationAlertCount})
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">
+                    ⊛ {validationAlertCount}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-xs">
-                    {validationAlertCount} alerta(s) de regras assistenciais nesta empresa.
+                    {validationAlertCount} alerta(s) de validação assistencial — clique no card para ver detalhes.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -198,19 +220,53 @@ export const PaymentGroupCard = ({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {groupMaxScore > 0 && (
-            <RiskBadge 
-              level={groupRisk} 
-              score={groupMaxScore} 
-              title={`Score de impacto financeiro: ${groupMaxScore}`} 
-              reasons={groupMaxBreakdown?.reasons}
-              financialData={groupMaxBreakdown}
-            />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1.5 cursor-default">
+                    <span className={cn("w-2 h-2 rounded-full flex-shrink-0", riskDotColor[groupRisk] ?? "bg-gray-300")} />
+                    <span className="text-xs font-semibold text-foreground tabular-nums">{groupMaxScore}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    Risco financeiro {riskLabel[groupRisk] ?? groupRisk} — score {groupMaxScore}
+                  </p>
+                  {groupMaxBreakdown?.reasons?.length ? (
+                    <ul className="mt-1 text-[10px] opacity-90 space-y-0.5">
+                      {groupMaxBreakdown.reasons.map((r, i) => <li key={i}>• {r}</li>)}
+                    </ul>
+                  ) : null}
+                </TooltipContent>
+              </Tooltip>
             )}
-          <StatusBadge status={gStatus} />
+            {groupMaxBreakdown && groupMaxBreakdown.valorEmRisco > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[11px] text-muted-foreground tabular-nums cursor-default">
+                    {formatRiskValue(groupMaxBreakdown.valorEmRisco, groupMaxBreakdown.percentualRisco)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">
+                    Valor em risco: {formatCurrency(groupMaxBreakdown.valorEmRisco)} ({groupMaxBreakdown.percentualRisco.toFixed(1)}% do total)
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
+                  · {PAYMENT_STATUS_LABELS[gStatus]}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-      </div>
       </button>
 
       {groupExpandedEffective && nfDivergent && (
