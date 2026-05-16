@@ -912,7 +912,7 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
-          <div className="flex flex-col items-start gap-0.5">
+          <div className="flex flex-row flex-wrap items-center gap-1">
           {it.ai_status === "acatado" ? (
             <span
               className={cn(
@@ -1488,10 +1488,10 @@ function ValidationFindingsBadge({
           className={cn(
             "inline-flex items-center rounded-full border px-1 py-0.5 cursor-pointer",
             TEXT_META,
-            "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200",
+            "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100",
           )}
         >
-          <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />
+          <ShieldCheck className="h-2.5 w-2.5 mr-0.5 inline" />
           Validação ({findings.length})
         </button>
       </PopoverTrigger>
