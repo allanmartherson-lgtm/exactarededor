@@ -211,6 +211,181 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
 }
 
 /* ============================================================
+ *  Bloco "Valor fixo" com complementos (antiga "condições de contexto")
+ * ============================================================ */
+function ValorFixoBlock({
+  c, onChange,
+}: { c: CalcItem; onChange: (patch: Partial<CalcItem>) => void }) {
+  const [hasComplementos, setHasComplementos] = useState<boolean>(
+    (c.context_conditions?.length ?? 0) > 0,
+  );
+
+  const toggleComplementos = (v: boolean) => {
+    if (!v && c.context_conditions.length > 0) {
+      const ok = window.confirm("Remover todos os complementos deste cálculo?");
+      if (!ok) return;
+      onChange({ context_conditions: [] });
+    }
+    setHasComplementos(v);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Valor fixo (R$)</Label>
+        <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
+      </div>
+
+      <div className="rounded-md border border-border bg-card p-3 space-y-3">
+        <label className="flex items-start gap-2 text-sm cursor-pointer">
+          <Checkbox
+            checked={hasComplementos}
+            onCheckedChange={(v) => toggleComplementos(!!v)}
+            className="mt-0.5"
+          />
+          <span>
+            Este código possui complementos no mesmo atendimento?
+            <span className="block text-xs text-muted-foreground">
+              Marque quando outros procedimentos realizados no mesmo atendimento modificam o valor deste item. Exemplo: colonoscopia com polipectomia vale R$ 540 em vez de R$ 370.
+            </span>
+          </span>
+        </label>
+
+        {hasComplementos && (
+          <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div>
+              <Label className="text-xs font-semibold uppercase tracking-wide">Complementos</Label>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Quando os códigos abaixo estiverem no mesmo atendimento, o valor deste item e do complemento mudam conforme configurado.
+              </p>
+            </div>
+
+            {c.context_conditions.map((cond, ci) => (
+              <div key={ci} className="rounded border bg-background p-2 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium text-muted-foreground">Complemento #{ci + 1}</span>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-[11px]">Modo:</Label>
+                    <Select
+                      value={cond.match_mode}
+                      onValueChange={(v) => {
+                        const next = [...c.context_conditions];
+                        next[ci] = { ...cond, match_mode: v as "any" | "all" };
+                        onChange({ context_conditions: next });
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">qualquer um</SelectItem>
+                        <SelectItem value="all">todos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button" size="sm" variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive"
+                      onClick={() => {
+                        const next = c.context_conditions.filter((_, k) => k !== ci);
+                        onChange({ context_conditions: next });
+                      }}
+                      aria-label="Remover complemento"
+                    >✕</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Código(s) TUSS do complemento</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {cond.trigger_codes.map((code) => (
+                      <span key={code} className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+                        {code}
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            const next = [...c.context_conditions];
+                            next[ci] = { ...cond, trigger_codes: cond.trigger_codes.filter((x) => x !== code) };
+                            onChange({ context_conditions: next });
+                          }}
+                        >×</button>
+                      </span>
+                    ))}
+                    <Input
+                      className="h-7 w-32 text-xs"
+                      placeholder="código + Enter"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const raw = (e.currentTarget.value || "").trim();
+                          if (!raw) return;
+                          const codes = raw.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+                          const next = [...c.context_conditions];
+                          const merged = Array.from(new Set([...cond.trigger_codes, ...codes]));
+                          next[ci] = { ...cond, trigger_codes: merged };
+                          onChange({ context_conditions: next });
+                          e.currentTarget.value = "";
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Novo valor deste item quando o complemento estiver presente (R$)</Label>
+                    <Input
+                      type="number" step="0.01"
+                      className="h-8 text-xs"
+                      value={cond.value}
+                      onChange={(e) => {
+                        const next = [...c.context_conditions];
+                        next[ci] = { ...cond, value: e.target.value };
+                        onChange({ context_conditions: next });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Valor esperado do complemento (R$)</Label>
+                    <Input
+                      type="number" step="0.01"
+                      className="h-8 text-xs"
+                      value={cond.complement_value}
+                      onChange={(e) => {
+                        const next = [...c.context_conditions];
+                        next[ci] = { ...cond, complement_value: e.target.value };
+                        onChange({ context_conditions: next });
+                      }}
+                    />
+                    <p className="text-[10px] text-muted-foreground italic leading-snug">
+                      Informe o valor que o código complementar deve receber. Geralmente zero, pois o valor é absorvido por este item.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <Button
+              type="button" variant="outline" size="sm" className="text-xs h-7"
+              onClick={() => {
+                onChange({
+                  context_conditions: [
+                    ...c.context_conditions,
+                    { trigger_codes: [], match_mode: "any", value: "0", complement_value: "0" },
+                  ],
+                });
+              }}
+            >+ Adicionar complemento</Button>
+
+            <p className="text-[10px] text-muted-foreground italic leading-snug">
+              Os complementos são verificados em ordem. O primeiro que bater define o valor. Se nenhum bater, o valor padrão acima é usado.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
