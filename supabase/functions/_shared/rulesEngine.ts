@@ -227,6 +227,8 @@ export interface ContextCondition {
   trigger_codes: string[];
   match_mode: "any" | "all";
   value: number;
+  /** Valor esperado do código complementar quando detectado no atendimento. Informativo. */
+  complement_value?: number | null;
 }
 
 export interface ItemInput {
