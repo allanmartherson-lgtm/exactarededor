@@ -769,7 +769,7 @@ export default function ValidationRules() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{r.name}</span>
-                  <Badge variant="outline" className={SEVERITY_VARIANT[r.severity]}>{SEVERITY_LABELS[r.severity]}</Badge>
+                  <Badge variant="outline" className={ACTION_BADGE_VARIANT[r.action]}>{ACTION_BADGE_LABELS[r.action]}</Badge>
                   <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
                   {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
                   {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
