@@ -419,16 +419,33 @@ export default function ValidationRules() {
       const set = (patch: Partial<DupExataParams>) => setForm({ ...form, params: { ...p, ...patch } });
       const opts: Array<[keyof DupExataParams, string]> = [
         ["compare_attendance", "Atendimento"], ["compare_patient", "Paciente"], ["compare_date", "Data"],
-        ["compare_code", "Código / procedimento"], ["compare_doctor", "Médico"],
+        ["compare_code", "Código / procedimento"],
       ];
+      // Toggle invertido: ON => ignora médico (compare_doctor=false). OFF => compara médico (compare_doctor=true).
+      const ignoreDoctor = p.compare_doctor === false;
       return (
-        <div className="grid grid-cols-2 gap-2">
-          {opts.map(([k2, label]) => (
-            <label key={k2} className="flex items-center gap-2 text-sm">
-              <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupExataParams>)} />
-              {label}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {opts.map(([k2, label]) => (
+              <label key={k2} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={!!p[k2]} onCheckedChange={(v) => set({ [k2]: !!v } as Partial<DupExataParams>)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          <div className="rounded-md border border-border p-3 space-y-1">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox
+                checked={ignoreDoctor}
+                onCheckedChange={(v) => set({ compare_doctor: !v })}
+              />
+              Considerar duplicidade mesmo com médicos diferentes
             </label>
-          ))}
+            <p className="text-xs text-muted-foreground pl-6">
+              Quando ativado: mesmo código + atendimento + data com qualquer médico é considerado duplicata.
+              Quando desativado: apenas o mesmo médico.
+            </p>
+          </div>
         </div>
       );
     }
