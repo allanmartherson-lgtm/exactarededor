@@ -88,7 +88,8 @@ export function AnalysisProgressBar({ paymentId, onJobChange }: { paymentId: str
   }, [paymentId, job?.id, job?.status]);
 
   if (!job) return null;
-  if (job.status !== "em_andamento") return null;
+  const jobStatus: ProcessingJob["status"] = job.status;
+  if (jobStatus !== "em_andamento") return null;
 
   const pct = job.total_companies > 0 ? Math.round((job.processed_companies / job.total_companies) * 100) : 0;
   const failed = job.failed_companies?.length ?? 0;
