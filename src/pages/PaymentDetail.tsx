@@ -1710,7 +1710,7 @@ const PaymentDetail = () => {
             (payment.status === "em_analise_ia" ||
               payment.status === "revisao_analista" ||
               payment.status === "devolvido_analista");
-          const jobConcluido = !!analysisJob && analysisJob.status !== "em_andamento";
+          const jobConcluido = !!analysisJob;
 
           // Pizza: aprovado / alerta / reprovado
           const pieTotal = counts.aprovado + counts.alerta + counts.reprovado;
