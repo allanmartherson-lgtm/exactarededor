@@ -180,6 +180,7 @@ const PaymentDetail = () => {
   const [reprocessingAi, setReprocessingAi] = useState(false);
   const [validatingRules, setValidatingRules] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
+  const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
