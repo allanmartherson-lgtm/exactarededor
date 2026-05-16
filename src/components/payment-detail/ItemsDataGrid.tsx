@@ -912,7 +912,7 @@ function RowMain({
           </td>
         )}
         <td className={cn(cellPad, "border-b", baseCellBg)}>
-          <div className="flex flex-col items-start gap-0.5">
+          <div className="flex flex-row flex-wrap items-center gap-1">
           {it.ai_status === "acatado" ? (
             <span
               className={cn(
