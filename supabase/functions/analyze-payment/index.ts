@@ -205,6 +205,20 @@ serve(async (req) => {
       itemsQuery.in("ai_status", ai_statuses);
     }
     const { data: itemsRaw } = await itemsQuery.limit(20000);
+
+    // Quando há filtro por ai_statuses, o subset acima não inclui todos os itens
+    // do atendimento. Carregamos uma visão slim de TODOS os itens do payment
+    // exclusivamente para construir o índice de siblings (condições de contexto).
+    const filterApplied = !company_name && Array.isArray(ai_statuses) && ai_statuses.length > 0;
+    let siblingsRaw: Array<{ id: string; attendance_number: string | null; procedure_code: string | null }> | null = null;
+    if (filterApplied) {
+      const { data: allForSiblings } = await supabase
+        .from("payment_items")
+        .select("id, attendance_number, procedure_code")
+        .eq("payment_id", payment_id)
+        .limit(50000);
+      siblingsRaw = allForSiblings ?? [];
+    }
     console.timeEnd(`${__t} carregar_itens`);
 
     // ---------- 3.1 Classificação determinística por código TUSS ----------
