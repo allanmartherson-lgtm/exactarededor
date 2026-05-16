@@ -1190,8 +1190,36 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     }
 
     // ---------- 9. Resumo do pagamento ----------
-    const summary = (aiJustifications as any).__summary
-      || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
+    // Worker por empresa (company_name setado): consolida determinístico lendo
+    // ai_status de TODOS os itens do lote (não só da empresa), evitando que o
+    // ai_summary fique stale com dados parciais da última empresa processada.
+    // Worker global (sem company_name): mantém narrativa via IA como antes.
+    let summary: string;
+    if (company_name) {
+      const counts = { aprovado: 0, alerta: 0, reprovado: 0, pendente: 0 };
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data: page, error: cntErr } = await supabase
+          .from("payment_items")
+          .select("ai_status")
+          .eq("payment_id", payment_id)
+          .range(from, from + pageSize - 1);
+        if (cntErr) {
+          console.error(`${__t} consolidated_count_error`, cntErr);
+          break;
+        }
+        for (const r of (page ?? [])) {
+          const s = (r as any).ai_status as string;
+          if (s in counts) (counts as any)[s] += 1;
+        }
+        if (!page || page.length < pageSize) break;
+      }
+      const total = counts.aprovado + counts.alerta + counts.reprovado + counts.pendente;
+      summary = `Lote com ${total} item(ns): ${counts.aprovado} aprovado(s), ${counts.alerta} alerta(s), ${counts.reprovado} reprovado(s).`;
+    } else {
+      summary = (aiJustifications as any).__summary
+        || `Motor analisou ${results.length} item(ns): ${results.length - alerts - blocks} aprovado(s), ${alerts} alerta(s), ${blocks} reprovado(s).`;
+    }
 
     // IMPORTANTE: NÃO escrevemos `payments.status` aqui. O status do pagamento
     // é derivado dos statuses dos `payment_company_groups` pelo trigger
