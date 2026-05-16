@@ -1673,11 +1673,35 @@ const PaymentDetail = () => {
                 <div className="text-xs">
                   <p className="text-muted-foreground">Análise da última execução completa</p>
                   <p className="mt-1 whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
-                  {!summaryMatchesCounts && (
-                    <p className="mt-1 italic text-muted-foreground">
-                      (resumo pode estar desatualizado — reanalise o lote para atualizar)
-                    </p>
-                  )}
+                  {!summaryMatchesCounts && (() => {
+                    // Mesmas regras do botão "Reanalisar lote" do header: só
+                    // analista/diretor e apenas em status onde a reanálise
+                    // faz sentido. Reusa o AlertDialog já existente.
+                    const canReanalyze =
+                      (isAnalista || isDiretor) &&
+                      (payment.status === "em_analise_ia" ||
+                        payment.status === "revisao_analista" ||
+                        payment.status === "devolvido_analista");
+                    return (
+                      <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        <p className="italic text-muted-foreground">
+                          (resumo pode estar desatualizado)
+                        </p>
+                        {canReanalyze && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={reprocessingAi}
+                            onClick={() => setReprocessConfirmOpen(true)}
+                            className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
+                          >
+                            <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
+                            {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
