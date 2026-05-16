@@ -1233,6 +1233,7 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
             trigger_codes: cc.trigger_codes,
             match_mode: cc.match_mode,
             value: numOrNull(cc.value) ?? 0,
+            complement_value: numOrNull(cc.complement_value) ?? 0,
           }))
       : [],
   };
