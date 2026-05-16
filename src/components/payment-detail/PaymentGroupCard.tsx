@@ -2,7 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link, useParams } from "react-router-dom";
-import { StatusBadge } from "@/components/StatusBadge";
 import {
   AlertTriangle,
   ArrowRight,
@@ -10,11 +9,11 @@ import {
   ChevronDown,
   ChevronRight,
   Receipt,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import {
   formatCurrency,
+  PAYMENT_STATUS_LABELS,
   TONE_CLASSES,
   type ItemAiStatus,
   type PaymentStatus,
