@@ -1630,6 +1630,7 @@ export type Database = {
           bonus_pct: number | null
           calculation_type: Database["public"]["Enums"]["rule_calculation_type"]
           code_match_mode: string
+          context_conditions: Json
           convenio_percentage: number | null
           created_at: string
           deflator_pct: number | null
@@ -1681,6 +1682,7 @@ export type Database = {
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
           code_match_mode?: string
+          context_conditions?: Json
           convenio_percentage?: number | null
           created_at?: string
           deflator_pct?: number | null
@@ -1732,6 +1734,7 @@ export type Database = {
           bonus_pct?: number | null
           calculation_type?: Database["public"]["Enums"]["rule_calculation_type"]
           code_match_mode?: string
+          context_conditions?: Json
           convenio_percentage?: number | null
           created_at?: string
           deflator_pct?: number | null
