@@ -588,40 +588,28 @@ export default function CompanyAnalysis() {
     if (!(group.status === "revisao_analista" || group.status === "devolvido_analista")) return;
     setBusy(true);
     await autoClaim();
-    const target = resolveResendTarget(obs, group.company_name);
-    const next = target?.nextStatus ?? "aguardando_validacao";
     const { error } = await supabase
       .from("payment_company_groups")
-      .update({ status: next })
+      .update({ status: "concluida_analista" })
       .eq("id", group.id);
     if (error) {
       setBusy(false);
-      return toast.error("Erro ao enviar", { description: error.message });
+      return toast.error("Erro ao concluir análise", { description: error.message });
     }
     const text = groupDraft.trim();
     await recordObservation({
       payment_id: id,
       author_type: myAuthorType,
       author_id: user!.id,
-      message: target
-        ? `[${group.company_name}] Reencaminhado ao ${target.role} pelo analista${text ? `: ${text}` : ""}.`
-        : `[${group.company_name}] Enviado para validação pelo analista${text ? `: ${text}` : ""}.`,
+      message: `[${group.company_name}] Análise concluída pelo analista${text ? `: ${text}` : ""}.`,
       status_from: group.status,
-      status_to: next,
+      status_to: "concluida_analista",
     });
     setGroupDraft("");
-    // Notifica todos os validadores (fila coletiva) + auditoria, somente quando vai para validação.
-    if (next === "aguardando_validacao") {
-      supabase.functions.invoke("notify-validator-assignment", {
-        body: {
-          payment_id: id,
-          group_id: group.id,
-          sender_id: user!.id,
-        },
-      }).catch((e) => console.warn("notify-validator-assignment failed", group.id, e));
-    }
     setBusy(false);
-    toast.success(target ? `Reencaminhado ao ${target.role}` : "Enviado para validação");
+    toast.success("Análise concluída", {
+      description: "Esta empresa será incluída no próximo envio do lote.",
+    });
     load();
   };
 
