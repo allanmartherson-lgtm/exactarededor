@@ -39,6 +39,7 @@ type Item = {
   sector: string | null;
   company_id: string | null;
   company_name: string | null;
+  raw_data: Record<string, unknown> | null;
 };
 
 type ConflictingItemSnapshot = {
