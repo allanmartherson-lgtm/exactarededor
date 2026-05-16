@@ -925,7 +925,7 @@ export default function ValidationRules() {
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Ação</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">O que o sistema faz ao detectar</h4>
               <Select value={form.action} onValueChange={(v) => setForm({ ...form, action: v as Action })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -935,17 +935,17 @@ export default function ValidationRules() {
             </section>
 
             <section className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Comportamento adicional</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Configurações de auditoria</h4>
               <div className="flex items-center justify-between rounded-md border border-border p-2">
-                <Label className="text-sm">Exigir justificativa do analista</Label>
+                <Label className="text-sm">Analista deve justificar antes de acatar o alerta</Label>
                 <Switch checked={form.require_justification} onCheckedChange={(v) => setForm({ ...form, require_justification: v })} />
               </div>
               <div className="flex items-center justify-between rounded-md border border-border p-2">
-                <Label className="text-sm">Permitir exceção autorizada</Label>
+                <Label className="text-sm">Permitir que diretor autorize exceção</Label>
                 <Switch checked={form.allows_authorized_exception} onCheckedChange={(v) => setForm({ ...form, allows_authorized_exception: v })} />
               </div>
               {form.allows_authorized_exception && (
-                <p className="text-xs text-muted-foreground">A exceção exigirá justificativa e autorizador no momento do uso.</p>
+                <p className="text-xs text-muted-foreground">A exceção ficará registrada com nome do autorizador e justificativa.</p>
               )}
             </section>
           </div>
