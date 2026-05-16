@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check } from "lucide-react";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -795,9 +796,9 @@ export default function ValidationRules() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-8">
           <DialogHeader><DialogTitle>{form.id ? "Editar validação" : "Nova validação"}</DialogTitle></DialogHeader>
-          <div className="space-y-5">
+          <div className="space-y-6">
             <section className="space-y-3">
               <h4 className="text-xs font-semibold uppercase text-muted-foreground">Dados básicos</h4>
               <div>
@@ -830,18 +831,28 @@ export default function ValidationRules() {
               <Select value={form.kind} onValueChange={(v) => { const k = v as Kind; setForm({ ...form, kind: k, params: defaultParamsFor(k) }); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="max-w-[640px]">
-                  {/* Mantém o tipo atual mesmo se for um tipo legado removido da UI */}
                   {Array.from(new Set<Kind>([...VISIBLE_KINDS, form.kind])).map((k) => (
-                    <SelectItem key={k} value={k} className="items-start py-2">
+                    <SelectPrimitive.Item
+                      key={k}
+                      value={k}
+                      className="relative flex w-full cursor-default select-none items-start rounded-sm py-2 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-accent-foreground"
+                    >
+                      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+                        <SelectPrimitive.ItemIndicator>
+                          <Check className="h-4 w-4" />
+                        </SelectPrimitive.ItemIndicator>
+                      </span>
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium text-sm">{KIND_LABELS[k]}</span>
+                        <SelectPrimitive.ItemText>
+                          <span className="font-medium text-sm">{KIND_LABELS[k]}</span>
+                        </SelectPrimitive.ItemText>
                         {KIND_DESCRIPTIONS[k] && (
                           <span className="text-xs text-muted-foreground whitespace-normal leading-snug">
                             {KIND_DESCRIPTIONS[k]}
                           </span>
                         )}
                       </div>
-                    </SelectItem>
+                    </SelectPrimitive.Item>
                   ))}
                 </SelectContent>
               </Select>
