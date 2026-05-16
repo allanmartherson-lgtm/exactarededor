@@ -1986,6 +1986,7 @@ const PaymentDetail = () => {
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
 
           <TooltipProvider delayDuration={150}>
+            <CompanyListLegend />
             {(() => {
               const sqItem = itemSearch.trim().toLowerCase();
               const sqCompany = companySearch.trim().toLowerCase();
