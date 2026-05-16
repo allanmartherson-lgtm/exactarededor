@@ -838,7 +838,7 @@ export default function ValidationRules() {
                     <SelectValue />
                   </span>
                 </SelectTrigger>
-                <SelectContent className="max-w-[640px]">
+                <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-[640px]">
                   {Array.from(new Set<Kind>([...VISIBLE_KINDS, form.kind])).map((k) => (
                     <SelectPrimitive.Item
                       key={k}
