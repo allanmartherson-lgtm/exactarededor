@@ -220,19 +220,53 @@ export const PaymentGroupCard = ({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {groupMaxScore > 0 && (
-            <RiskBadge 
-              level={groupRisk} 
-              score={groupMaxScore} 
-              title={`Score de impacto financeiro: ${groupMaxScore}`} 
-              reasons={groupMaxBreakdown?.reasons}
-              financialData={groupMaxBreakdown}
-            />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1.5 cursor-default">
+                    <span className={cn("w-2 h-2 rounded-full flex-shrink-0", riskDotColor[groupRisk] ?? "bg-gray-300")} />
+                    <span className="text-xs font-semibold text-foreground tabular-nums">{groupMaxScore}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    Risco financeiro {riskLabel[groupRisk] ?? groupRisk} — score {groupMaxScore}
+                  </p>
+                  {groupMaxBreakdown?.reasons?.length ? (
+                    <ul className="mt-1 text-[10px] opacity-90 space-y-0.5">
+                      {groupMaxBreakdown.reasons.map((r, i) => <li key={i}>• {r}</li>)}
+                    </ul>
+                  ) : null}
+                </TooltipContent>
+              </Tooltip>
             )}
-          <StatusBadge status={gStatus} />
+            {groupMaxBreakdown && groupMaxBreakdown.valorEmRisco > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-[11px] text-muted-foreground tabular-nums cursor-default">
+                    {formatRiskValue(groupMaxBreakdown.valorEmRisco, groupMaxBreakdown.percentualRisco)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">
+                    Valor em risco: {formatCurrency(groupMaxBreakdown.valorEmRisco)} ({groupMaxBreakdown.percentualRisco.toFixed(1)}% do total)
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
+                  · {PAYMENT_STATUS_LABELS[gStatus]}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-      </div>
       </button>
 
       {groupExpandedEffective && nfDivergent && (
