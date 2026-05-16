@@ -83,6 +83,27 @@ const SEVERITY_VARIANT: Record<Severity, string> = {
   bloquear: "bg-destructive/15 text-destructive",
 };
 
+const ACTION_BADGE_VARIANT: Record<Action, string> = {
+  informar: "bg-slate-100 text-slate-600 border-slate-200",
+  alerta: "bg-amber-100 text-amber-700 border-amber-200",
+  alerta_forte: "bg-orange-100 text-orange-700 border-orange-200",
+  bloquear: "bg-red-100 text-red-700 border-red-200",
+};
+
+const ACTION_BADGE_LABELS: Record<Action, string> = {
+  informar: "Informativo",
+  alerta: "Alerta",
+  alerta_forte: "Alerta crítico",
+  bloquear: "Bloqueio",
+};
+
+const ACTION_TO_SEVERITY: Record<Action, Severity> = {
+  informar: "informativo",
+  alerta: "alerta",
+  alerta_forte: "alerta_forte",
+  bloquear: "bloquear",
+};
+
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean };
@@ -263,7 +284,7 @@ export default function ValidationRules() {
       name: form.name.trim(),
       description: form.description.trim() || null,
       active: form.active,
-      severity: form.severity,
+      severity: ACTION_TO_SEVERITY[form.action],
       kind: form.kind,
       action: form.action,
       scope_global: form.scope_global,
@@ -748,7 +769,7 @@ export default function ValidationRules() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{r.name}</span>
-                  <Badge variant="outline" className={SEVERITY_VARIANT[r.severity]}>{SEVERITY_LABELS[r.severity]}</Badge>
+                  <Badge variant="outline" className={ACTION_BADGE_VARIANT[r.action]}>{ACTION_BADGE_LABELS[r.action]}</Badge>
                   <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
                   {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
                   {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
@@ -813,20 +834,9 @@ export default function ValidationRules() {
                 <Label>Descrição (opcional)</Label>
                 <Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between rounded-md border border-border p-2">
-                  <Label className="text-sm">Ativa</Label>
-                  <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-                </div>
-                <div>
-                  <Label>Severidade</Label>
-                  <Select value={form.severity} onValueChange={(v) => setForm({ ...form, severity: v as Severity })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(SEVERITY_LABELS) as Severity[]).map((k) => <SelectItem key={k} value={k}>{SEVERITY_LABELS[k]}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex items-center justify-between rounded-md border border-border p-2">
+                <Label className="text-sm">Ativa</Label>
+                <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
               </div>
             </section>
 
