@@ -46,9 +46,9 @@ export const SEVERITY_TOKENS: Record<SeverityLevel, SeverityToken> = {
   info: {
     level: "info",
     label: "Informativo",
-    badge: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100",
-    banner: "border-teal-200 bg-teal-50 text-teal-800",
-    ring: "ring-teal-200",
+    badge: "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100",
+    banner: "border-indigo-200 bg-indigo-50 text-indigo-800",
+    ring: "ring-indigo-200",
     icon: Info,
   },
   warn: {
