@@ -1755,7 +1755,6 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
-
       {/* Editar item */}
       <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
         <DialogContent>
