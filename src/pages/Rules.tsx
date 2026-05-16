@@ -799,7 +799,7 @@ const Rules = () => {
     setFTargetIdentifier(r.target_identifier ?? ""); setFTargetName(r.target_name ?? "");
     const calc = (r.calculation_type as RuleCalculationType) ?? "informativo";
     setFCalculationType(calc);
-    setFNature(calc === "informativo" ? "informativo" : "calculavel");
+    // fNature será derivado após carregar calcRows (abaixo).
     setFConvenioPct(r.convenio_percentage != null ? String(r.convenio_percentage) : "");
     setFFixedAmount(r.fixed_amount != null ? String(r.fixed_amount) : "");
     setFExtrasCodes(Array.isArray(r.extras_codes) ? r.extras_codes.join(", ") : "");
@@ -867,6 +867,8 @@ const Rules = () => {
       .order("sort_order", { ascending: true });
     if (calcRows && calcRows.length > 0) {
       setFCalculations(calcRows.map(calcFromDb));
+      // Derivar natureza dos cálculos reais — se existem rule_calculations, é calculável.
+      setFNature("calculavel");
     } else {
       // monta 1 item a partir da própria regra (retrocompatibilidade)
       setFCalculations([calcFromDb({
@@ -875,6 +877,8 @@ const Rules = () => {
         time_mode: tMode, weekdays: wdays, time_start: tStart, time_end: tEnd,
         includes_holidays: r.includes_holidays, elective_mode: eMode,
       })]);
+      // Fallback para regras legadas sem rule_calculations: usa campo legado.
+      setFNature(calc === "informativo" ? "informativo" : "calculavel");
     }
     // Thresholds
     setFAlertThresholdType(r.limiar_alerta_tipo || "percentual");
