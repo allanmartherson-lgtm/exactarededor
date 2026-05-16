@@ -121,24 +121,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    withTimeout(supabase.auth.getSession(), 8000).then(async ({ data: { session: existing } }) => {
-      setSession(existing);
-      setUser(existing?.user ?? null);
-      if (existing?.user) {
-        await loadRoles(existing.user.id);
-      } else {
-        setRoles([]);
-        setRolesLoading(false);
-      }
-    }).catch((error) => {
-      console.error("[auth] Falha ao inicializar sessão", error);
-      setSession(null);
-      setUser(null);
+    const existing = readCachedSession();
+    setSession(existing);
+    setUser(existing?.user ?? null);
+    setLoading(false);
+    if (existing?.user) {
+      setTimeout(() => loadRoles(existing.user.id), 0);
+    } else {
       setRoles([]);
       setRolesLoading(false);
-    }).finally(() => {
-      setLoading(false);
-    });
+    }
 
     return () => sub.subscription.unsubscribe();
   }, [location.pathname]);
