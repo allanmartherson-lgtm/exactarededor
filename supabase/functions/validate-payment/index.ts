@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
         supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
         supabase
           .from("payment_items")
-          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name")
+          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name, raw_data")
           .eq("payment_id", payment_id)
           .limit(20000),
         supabase.from("validation_rules").select("*").eq("active", true),
