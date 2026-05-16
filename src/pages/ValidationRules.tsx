@@ -800,9 +800,9 @@ export default function ValidationRules() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-8">
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-8">
           <DialogHeader><DialogTitle>{form.id ? "Editar validação" : "Nova validação"}</DialogTitle></DialogHeader>
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <section className="space-y-3">
               <h4 className="text-xs font-semibold uppercase text-muted-foreground">Dados básicos</h4>
               <div>
