@@ -58,6 +58,8 @@ export interface RuleInput {
   fixed_amount: number | null;
   package_amount: number | null;
   extras_codes: string[] | null;
+  /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
+  context_conditions?: ContextCondition[] | null;
   // Configuração de pacote
   package_main_code?: string | null;
   package_included_codes?: string[] | null;
@@ -214,6 +216,17 @@ export interface RuleCalculationItem {
   specialties?: string[] | null;
   /** Palavras-chave para matching por texto no nome/descrição do procedimento. */
   procedure_keywords?: string[] | null;
+  /** Condições de contexto (lookup em outros itens do mesmo atendimento) — usado em valor_fixo. */
+  context_conditions?: ContextCondition[] | null;
+}
+
+/** Condição de contexto: substitui o valor padrão quando outros itens do
+ *  mesmo atendimento contêm determinados códigos. Avaliadas em ordem;
+ *  a primeira que bater vence. */
+export interface ContextCondition {
+  trigger_codes: string[];
+  match_mode: "any" | "all";
+  value: number;
 }
 
 export interface ItemInput {
@@ -1153,7 +1166,44 @@ function calcPacotePorAtendimento(
   };
 }
 
-function calcValorFixo(rule: RuleInput): ExpectedCalc {
+function evalContextConditions(
+  conditions: ContextCondition[] | null | undefined,
+  item: ItemInput,
+  ctx?: EngineCtx,
+): { matched: ContextCondition; index: number } | null {
+  const list = Array.isArray(conditions) ? conditions : [];
+  if (list.length === 0) return null;
+  const key = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+  const siblings = ctx?.attendanceSiblingCodes?.get(key) ?? new Set<string>();
+  const otherCodes = new Set(siblings);
+  otherCodes.delete(String(item.procedure_code ?? "").trim());
+  otherCodes.delete(String((item as any).tuss_code ?? "").trim());
+  otherCodes.delete("");
+  for (let i = 0; i < list.length; i++) {
+    const cond = list[i];
+    const triggers = (cond.trigger_codes ?? []).map((c) => String(c).trim()).filter(Boolean);
+    if (triggers.length === 0) continue;
+    const matched = cond.match_mode === "all"
+      ? triggers.every((c) => otherCodes.has(c))
+      : triggers.some((c) => otherCodes.has(c));
+    if (matched) return { matched: cond, index: i };
+  }
+  return null;
+}
+
+function calcValorFixo(rule: RuleInput, item?: ItemInput, ctx?: EngineCtx): ExpectedCalc {
+  if (item) {
+    const hit = evalContextConditions(rule.context_conditions, item, ctx);
+    if (hit) {
+      const v = Number(hit.matched.value ?? 0);
+      const trig = (hit.matched.trigger_codes ?? []).join(", ");
+      return {
+        expected: v,
+        explanation: `Valor fixo (condição de contexto #${hit.index + 1} bateu — atendimento contém ${hit.matched.match_mode === "all" ? "todos" : "algum"} de [${trig}]): R$ ${v.toFixed(2)}`,
+        alerts: [],
+      };
+    }
+  }
   if (rule.fixed_amount == null) return { expected: null, explanation: "valor_fixo sem fixed_amount.", alerts: ["Valor fixo não configurado."] };
   return { expected: Number(rule.fixed_amount), explanation: `Valor fixo: R$ ${rule.fixed_amount.toFixed(2)}`, alerts: [] };
 }
@@ -1193,6 +1243,8 @@ export type ExceptionTableLookup = (
 
 export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
+  /** Índice atendimento → códigos de procedimento dos itens do mesmo atendimento. */
+  attendanceSiblingCodes?: Map<string, Set<string>>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
   tolerance_pct?: number; // Tolerância customizada (ex.: 0.05 para 5%)
@@ -1354,6 +1406,7 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
     bonus_amount: c.bonus_amount ?? rule.bonus_amount,
     bonus_pct: c.bonus_pct ?? rule.bonus_pct,
     target_amount: c.target_amount ?? rule.target_amount,
+    context_conditions: c.context_conditions ?? rule.context_conditions ?? null,
     // Filtros restritivos vivem APENAS no item de Cálculo. Não herda da Regra
     // — se o cálculo não declarou, o filtro não se aplica (vazio = qualquer).
     procedure_codes: Array.isArray(c.procedure_codes) ? c.procedure_codes : [],
@@ -1726,7 +1779,7 @@ function applyCalculationSingle(
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
       return calcPacotePorAtendimento(rule, item, set);
     }
-    case "valor_fixo":                return calcValorFixo(rule);
+    case "valor_fixo":                return calcValorFixo(rule, item, ctx);
     case "exclusao":                  return calcExclusao(rule);
     case "informativo":               return calcInformativo();
     case "tabela_referencia":         return calcTabelaDiferenciada(rule, item, ctx?.referenceLookup);
@@ -2403,9 +2456,24 @@ export function analyzePaymentItems(
     if (aMain !== bMain) return aMain - bMain;
     return (a.procedure_code ?? "").localeCompare(b.procedure_code ?? "");
   });
+  // Índice: attendance (group_key se já marcado, senão attendance_number) →
+  // conjunto de códigos de procedimento dos demais itens do mesmo atendimento.
+  // Usado por condições de contexto em valor_fixo.
+  const attendanceSiblingCodes = new Map<string, Set<string>>();
+  for (const it of items) {
+    const key = (it as any).attendance_group_key ?? it.attendance_number ?? "";
+    if (!key) continue;
+    let set = attendanceSiblingCodes.get(key);
+    if (!set) { set = new Set<string>(); attendanceSiblingCodes.set(key, set); }
+    const pc = String(it.procedure_code ?? "").trim();
+    if (pc) set.add(pc);
+    const tc = String((it as any).tuss_code ?? "").trim();
+    if (tc) set.add(tc);
+  }
   const state: EngineCtx = {
     ...ctx,
     appliedAttendancesByRule: new Map<string, Set<string>>(),
+    attendanceSiblingCodes,
     referenceLookup: options?.referenceLookup,
     exceptionLookup: options?.exceptionLookup,
   };
