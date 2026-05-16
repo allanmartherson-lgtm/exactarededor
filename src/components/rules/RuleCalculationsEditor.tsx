@@ -1156,6 +1156,7 @@ export function calcFromDb(r: any): CalcItem {
           trigger_codes: Array.isArray(cc?.trigger_codes) ? cc.trigger_codes.map((x: any) => String(x)) : [],
           match_mode: cc?.match_mode === "all" ? "all" : "any",
           value: cc?.value != null ? String(cc.value) : "",
+          complement_value: cc?.complement_value != null ? String(cc.complement_value) : "0",
         }))
       : [],
   };
