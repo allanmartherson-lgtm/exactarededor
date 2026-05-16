@@ -931,8 +931,11 @@ const PaymentDetail = () => {
   // pagamento for aprovado (era restrito a diretor/admin antes).
   const canRequestNf =
     (isAnalista || isValidador || isDiretor) && payment.status === "aprovado";
-  // Para o botão "Enviar para validação" do analista no header
-  const groupsReadyToSend = groups.filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
+  // Para o botão "Enviar lote para validação" do analista no header.
+  // Prontas: empresas que o analista marcou como concluídas (ou foram devolvidas e estão prontas de novo).
+  // Pendentes: empresas que o analista ainda não concluiu.
+  const groupsReadyToSend = groups.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
+  const groupsPendingAnalyst = groups.filter((g) => g.status === "revisao_analista");
   const canSendForValidation = isAnalista && groupsReadyToSend.length > 0;
   const isOwner = payment.created_by === user?.id;
   const editableStatuses: PaymentStatus[] = ["rascunho", "em_analise_ia", "revisao_analista", "aguardando_validacao", "devolvido_analista", "cancelado"];
