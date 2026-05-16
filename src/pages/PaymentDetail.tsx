@@ -1416,7 +1416,18 @@ const PaymentDetail = () => {
                           ? `${totalNow} alerta(s) em ${flaggedNow} item(ns).`
                           : "Nenhuma inconsistência detectada.",
                       });
-                      await load();
+                      // Refetch direto e isolado dos itens — garante atualização
+                      // imediata da UI (contagem do botão + popover) mesmo se o
+                      // load() global for cancelado por corrida com realtime.
+                      const { data: freshItems } = await supabase
+                        .from("payment_items")
+                        .select("*")
+                        .eq("payment_id", id)
+                        .order("created_at")
+                        .limit(5000);
+                      if (freshItems) setItems(freshItems as any);
+                      // load() em background para sincronizar o resto.
+                      load();
                     } catch (e: unknown) {
                       const msg = e instanceof Error ? e.message : String(e);
                       toast({ title: "Falha ao validar", description: msg, variant: "destructive" });
