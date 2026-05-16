@@ -2443,7 +2443,7 @@ export function analyzePaymentItems(
 
   rules: RuleInput[],
   ctx: PaymentContext,
-  options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup },
+  options?: { referenceLookup?: ReferenceTableLookup; exceptionLookup?: ExceptionTableLookup; siblingsSource?: ItemInput[] },
 ): AnalysisResult[] {
   const filtered = preFilterRules(rules, ctx);
   const ordered = [...items].sort((a, b) => {
