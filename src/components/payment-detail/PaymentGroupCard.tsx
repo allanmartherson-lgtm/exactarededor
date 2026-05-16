@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Receipt,
+  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import {
