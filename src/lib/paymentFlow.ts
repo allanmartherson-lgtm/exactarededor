@@ -139,8 +139,9 @@ export const isTerminalStatus = (s: PaymentStatus): boolean => TERMINAL_STATUSES
  */
 const TRANSITIONS: Record<ActorRole, Partial<Record<PaymentStatus, PaymentStatus[]>>> = {
    analista: {
-     revisao_analista: ["aguardando_validacao"],
-     devolvido_analista: ["aguardando_validacao", "aguardando_aprovacao"],
+     revisao_analista: ["concluida_analista", "aguardando_validacao"],
+     concluida_analista: ["revisao_analista", "aguardando_validacao"],
+     devolvido_analista: ["concluida_analista", "aguardando_validacao", "aguardando_aprovacao"],
      aprovado_em_revisao: ["pedido_nf_enviado"],
      lancado: ["arquivado"],
    },
