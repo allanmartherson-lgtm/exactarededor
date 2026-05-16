@@ -284,7 +284,7 @@ export default function ValidationRules() {
       name: form.name.trim(),
       description: form.description.trim() || null,
       active: form.active,
-      severity: form.severity,
+      severity: ACTION_TO_SEVERITY[form.action],
       kind: form.kind,
       action: form.action,
       scope_global: form.scope_global,
