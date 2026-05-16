@@ -1,0 +1,1 @@
+ALTER TYPE public.payment_status ADD VALUE IF NOT EXISTS 'concluida_analista' AFTER 'revisao_analista';
