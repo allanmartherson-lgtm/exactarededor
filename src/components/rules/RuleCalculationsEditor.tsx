@@ -390,7 +390,6 @@ function ComplementosBlock({
             </p>
           </div>
         )}
-      </div>
     </div>
   );
 }
