@@ -833,7 +833,11 @@ export default function ValidationRules() {
             <section className="space-y-3">
               <h4 className="text-xs font-semibold uppercase text-muted-foreground">Tipo de regra</h4>
               <Select value={form.kind} onValueChange={(v) => { const k = v as Kind; setForm({ ...form, kind: k, params: defaultParamsFor(k) }); }}>
-                <SelectTrigger className="w-full"><SelectValue className="truncate" /></SelectTrigger>
+                <SelectTrigger className="w-full">
+                  <span className="truncate block w-full text-left">
+                    <SelectValue />
+                  </span>
+                </SelectTrigger>
                 <SelectContent className="max-w-[640px]">
                   {Array.from(new Set<Kind>([...VISIBLE_KINDS, form.kind])).map((k) => (
                     <SelectPrimitive.Item
