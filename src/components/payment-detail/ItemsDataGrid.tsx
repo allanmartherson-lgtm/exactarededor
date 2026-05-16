@@ -1552,7 +1552,9 @@ function ValidationFindingsBadge({
           className={cn(
             "inline-flex items-center rounded-full border px-1 py-0.5 cursor-pointer",
             TEXT_META,
-            token.badge,
+            // Badge de validação assistencial sempre em índigo, independente
+            // da severidade dominante — uniforme com o card de empresa.
+            "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100",
           )}
           title={`Validação · ${token.label}`}
         >
