@@ -1678,15 +1678,17 @@ export default function CompanyAnalysis() {
                           }
                           sendForValidation();
                         };
-                        return returner ? (
-                          <Button size="sm" onClick={handleClick} disabled={busy} title={tooltip} variant={podeEnviar ? "default" : "secondary"}>
-                            <Send className="h-4 w-4 mr-2" />
-                            Reencaminhar ao {returner}
-                          </Button>
-                        ) : (
-                          <Button size="sm" onClick={handleClick} disabled={busy} title={tooltip} variant={podeEnviar ? "default" : "secondary"}>
-                            <Send className="h-4 w-4 mr-2" />
-                            Enviar para validação
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={handleClick}
+                            disabled={busy}
+                            title={tooltip}
+                            className={podeEnviar ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                            variant={podeEnviar ? "default" : "secondary"}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Concluir análise
                           </Button>
                         );
                       })()}
