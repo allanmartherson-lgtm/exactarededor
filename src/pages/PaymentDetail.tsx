@@ -2074,8 +2074,11 @@ const PaymentDetail = () => {
             return (
               <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
                 <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                <span className="text-success-foreground font-medium">Revisão concluída pelo analista</span>
-                <span className="text-muted-foreground text-xs">— {groupsReadyToSend.length} empresa(s) pronta(s) para enviar</span>
+                <span className="text-success-foreground font-medium">Empresas concluídas pelo analista</span>
+                <span className="text-muted-foreground text-xs">
+                  — {groupsReadyToSend.length} pronta(s) para envio
+                  {groupsPendingAnalyst.length > 0 && ` · ${groupsPendingAnalyst.length} ainda pendente(s)`}
+                </span>
                 {blocked && (
                   <span className="text-destructive text-xs flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -2090,7 +2093,7 @@ const PaymentDetail = () => {
                   className="ml-auto h-7 px-3 text-xs"
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" />
-                  Enviar todas para validação
+                  Enviar lote para validação
                 </Button>
               </div>
             );
