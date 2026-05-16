@@ -80,6 +80,12 @@ export const PaymentGroupCard = ({
   const groupAlerts = groupItems
     .filter((it) => (it.ai_findings?.alerts ?? []).length > 0)
     .map((it) => ({ item: it, alerts: it.ai_findings!.alerts as string[] }));
+  // Contagem de alertas assistenciais (regras de validação disparadas) na empresa.
+  // Lê `validation_findings` gravado pelo motor em payment_items.
+  const validationAlertCount = groupItems.reduce((count, it) => {
+    const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
+    return count + (Array.isArray(findings) ? findings.length : 0);
+  }, 0);
   const gCounts = groupItems.reduce(
     (acc, it) => {
       const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, gStatus);
