@@ -2509,6 +2509,8 @@ export type Database = {
         | "item_em_pacote"
         | "particular_sem_excecao"
         | "outlier_valor"
+        | "parecer_virou_cirurgia"
+        | "restricao_contratual"
       validation_severity:
         | "informativo"
         | "alerta"
@@ -2728,6 +2730,8 @@ export const Constants = {
         "item_em_pacote",
         "particular_sem_excecao",
         "outlier_valor",
+        "parecer_virou_cirurgia",
+        "restricao_contratual",
       ],
       validation_severity: [
         "informativo",
