@@ -1652,10 +1652,26 @@ const PaymentDetail = () => {
           // caso comum: itens acatados/exceções/duplicidades resolvidas após
           // a última reanálise completa mudam os counts em tempo real, e o
           // texto antigo deixa de mencionar esses números.
+          // Detecta se o texto persistido em ai_summary ainda bate com os
+          // contadores atuais. Extrai os números via regex (\d+ próximo das
+          // palavras-chave) em vez de `includes` para evitar falsos positivos
+          // — ex.: "5 aprovados" no texto antigo ainda casaria com counts=15
+          // pelo `includes("5")`.
+          const extractCount = (text: string, keyword: RegExp): number | null => {
+            const m = text.match(keyword);
+            return m ? Number(m[1]) : null;
+          };
+          const sum = payment.ai_summary ?? "";
+          const summaryAprovado = extractCount(sum, /(\d+)\s+aprovad/i);
+          const summaryAlerta = extractCount(sum, /(\d+)\s+alerta/i);
+          const summaryReprovado = extractCount(sum, /(\d+)\s+reprovad/i);
+          // Se algum não foi encontrado, consideramos defasado (texto não
+          // segue o formato esperado — provavelmente foi gerado pela IA com
+          // narrativa livre, ou está em formato antigo).
           const summaryMatchesCounts = !!payment.ai_summary &&
-            payment.ai_summary.includes(`${counts.aprovado}`) &&
-            payment.ai_summary.includes(`${counts.alerta}`) &&
-            payment.ai_summary.includes(`${counts.reprovado}`);
+            summaryAprovado === counts.aprovado &&
+            summaryAlerta === counts.alerta &&
+            summaryReprovado === counts.reprovado;
           return (
           <Card className="shadow-card border-info/30 bg-info-soft/40">
             <CardContent className="p-3 space-y-2">
