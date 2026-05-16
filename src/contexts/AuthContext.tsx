@@ -19,7 +19,7 @@ interface AuthContextValue {
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error("auth_timeout")), ms);
