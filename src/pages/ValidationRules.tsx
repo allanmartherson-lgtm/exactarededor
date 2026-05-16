@@ -826,24 +826,39 @@ export default function ValidationRules() {
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Tipo de validação</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Tipo de regra</h4>
               <Select value={form.kind} onValueChange={(v) => { const k = v as Kind; setForm({ ...form, kind: k, params: defaultParamsFor(k) }); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(KIND_LABELS) as Kind[]).map((k) => <SelectItem key={k} value={k}>{KIND_LABELS[k]}</SelectItem>)}
+                <SelectContent className="max-w-[640px]">
+                  {/* Mantém o tipo atual mesmo se for um tipo legado removido da UI */}
+                  {Array.from(new Set<Kind>([...VISIBLE_KINDS, form.kind])).map((k) => (
+                    <SelectItem key={k} value={k} className="items-start py-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-sm">{KIND_LABELS[k]}</span>
+                        {KIND_DESCRIPTIONS[k] && (
+                          <span className="text-xs text-muted-foreground whitespace-normal leading-snug">
+                            {KIND_DESCRIPTIONS[k]}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {KIND_DESCRIPTIONS[form.kind] && (
+                <p className="text-xs text-muted-foreground">{KIND_DESCRIPTIONS[form.kind]}</p>
+              )}
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Parâmetros</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Como identificar o conflito</h4>
               {showParams}
             </section>
 
             <section className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Escopo de aplicação</h4>
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Quem esta regra afeta</h4>
               <div className="flex items-center justify-between rounded-md border border-border p-2">
-                <Label className="text-sm">Global (aplica a todos)</Label>
+                <Label className="text-sm">Aplicar a todos os médicos e empresas</Label>
                 <Switch checked={form.scope_global} onCheckedChange={(v) => setForm({ ...form, scope_global: v })} />
               </div>
               {!form.scope_global && (
