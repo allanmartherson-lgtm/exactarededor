@@ -1459,8 +1459,8 @@ const PaymentDetail = () => {
                   {validatingRules
                     ? "Validando..."
                     : flagged > 0
-                      ? `Validar regras (${totalFindings} alerta${totalFindings > 1 ? "s" : ""})`
-                      : "Validar regras assistenciais"}
+                      ? `➳ Validação assistencial (${totalFindings})`
+                      : "➳ Validação assistencial"}
                 </Button>
               );
             })()}
