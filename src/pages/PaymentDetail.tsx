@@ -1463,6 +1463,46 @@ const PaymentDetail = () => {
                 </Button>
               );
             })()}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Mais ações">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {canReimport && (
+                  <DropdownMenuItem onSelect={() => setIsTestModalOpen(true)}>
+                    <TestTube2 className="h-4 w-4 mr-2" /> Teste de Regra
+                  </DropdownMenuItem>
+                )}
+                {canEditMeta && (
+                  <DropdownMenuItem onSelect={() => { openEditMeta(); setEditMetaOpen(true); }}>
+                    <Pencil className="h-4 w-4 mr-2" /> Editar lote
+                  </DropdownMenuItem>
+                )}
+                {canReimport && (
+                  <DropdownMenuItem disabled={busy || reimporting} onSelect={() => reimportInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" /> Reimportar base
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={() => setAssignmentsHistoryOpen(true)}>
+                  <UserCheck className="h-4 w-4 mr-2" /> Transferir / Histórico
+                </DropdownMenuItem>
+                {canCancel && (
+                  <DropdownMenuItem onSelect={() => setCancelOpen(true)}>
+                    <Ban className="h-4 w-4 mr-2" /> Cancelar
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <StatusBadge status={payment.status} />
           </div>
         }
