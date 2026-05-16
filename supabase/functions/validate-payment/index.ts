@@ -31,12 +31,26 @@ type Item = {
   payment_id: string;
   attendance_number: string | null;
   procedure_code: string | null;
+  procedure_name: string | null;
   procedure_date: string | null;
   doctor_name: string | null;
   patient_name: string | null;
   gross_amount: number | null;
   sector: string | null;
   company_id: string | null;
+  company_name: string | null;
+};
+
+type ConflictingItemSnapshot = {
+  attendance_number: string | null;
+  patient_name: string | null;
+  procedure_code: string | null;
+  procedure_name: string | null;
+  doctor_name: string | null;
+  procedure_date: string | null;
+  company_name: string | null;
+  payment_id: string;
+  payment_reference: string | null;
 };
 
 type Finding = {
@@ -47,6 +61,7 @@ type Finding = {
   action: string;
   message: string;
   conflicting_item_id?: string;
+  conflicting_item?: ConflictingItemSnapshot;
   detected_at: string;
 };
 
