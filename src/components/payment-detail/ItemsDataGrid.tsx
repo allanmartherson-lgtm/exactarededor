@@ -1486,9 +1486,9 @@ function ValidationFindingsBadge({
         <button
           type="button"
           className={cn(
-            "inline-flex items-center gap-0.5 rounded-full border px-1 py-0.5 uppercase tracking-wide cursor-pointer",
+            "inline-flex items-center rounded-full border px-1 py-0.5 cursor-pointer",
             TEXT_META,
-            "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
+            "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200",
           )}
         >
           <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />
