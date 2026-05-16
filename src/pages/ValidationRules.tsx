@@ -102,6 +102,16 @@ type OutlierParams = {
   same_procedure: boolean;
 };
 
+type ParecerCirurgiaParams = { prazo_horas: number; mesmo_medico: boolean };
+type RestricaoContratualParams = {
+  hora_inicio: string;
+  hora_fim: string;
+  dias_semana: number[];
+  incluir_feriados: boolean;
+  codigos_restritos: string[];
+  observacao_analista: string;
+};
+
 const defaultParamsFor = (k: Kind): Record<string, unknown> => {
   switch (k) {
     case "duplicidade_exata":
@@ -110,6 +120,17 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
       return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "" };
+    case "parecer_virou_cirurgia":
+      return { prazo_horas: 48, mesmo_medico: false } satisfies ParecerCirurgiaParams;
+    case "restricao_contratual":
+      return {
+        hora_inicio: "08:00",
+        hora_fim: "17:59",
+        dias_semana: [1, 2, 3, 4, 5],
+        incluir_feriados: false,
+        codigos_restritos: [],
+        observacao_analista: "",
+      } satisfies RestricaoContratualParams;
     case "outlier_valor":
       return {
         level: "procedimento",
