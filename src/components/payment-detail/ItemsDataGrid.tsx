@@ -1516,6 +1516,15 @@ function ValidationFindingsBadge({
   findings: ValidationFinding[];
   currentPaymentId: string;
 }) {
+  const navigate = useNavigate();
+
+  // Severidade dominante para colorir o trigger.
+  const dominant: SeverityLevel = dominantLevel(
+    findings.map((f) => actionToLevel(f.action)),
+  );
+  const token = SEVERITY_TOKENS[dominant];
+  const TriggerIcon = token.icon;
+
   const goToConflict = (f: ValidationFinding, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -1525,16 +1534,13 @@ function ValidationFindingsBadge({
     const sameBatch = !ci || ci.payment_id === currentPaymentId;
     if (sameBatch) {
       const el = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        const prev = el.style.boxShadow;
-        el.style.boxShadow = "inset 0 0 0 2px hsl(38 92% 50%)";
-        el.style.transition = "box-shadow 0.3s ease";
-        window.setTimeout(() => { el.style.boxShadow = prev; }, 2000);
-      }
+      flashHighlight(el);
     } else if (ci) {
-      const url = `/pagamentos/${ci.payment_id}/empresa/${encodeURIComponent(ci.company_name ?? "")}`;
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Mesmo padrão: navega in-app e o destino lê ?highlight para piscar.
+      const url = `/pagamentos/${ci.payment_id}/empresa/${encodeURIComponent(
+        ci.company_name ?? "",
+      )}?highlight=${encodeURIComponent(targetId)}`;
+      navigate(url);
     }
   };
 
@@ -1546,10 +1552,11 @@ function ValidationFindingsBadge({
           className={cn(
             "inline-flex items-center rounded-full border px-1 py-0.5 cursor-pointer",
             TEXT_META,
-            "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100",
+            token.badge,
           )}
+          title={`Validação · ${token.label}`}
         >
-          <ShieldCheck className="h-2.5 w-2.5 mr-0.5 inline" />
+          <TriggerIcon className="h-2.5 w-2.5 mr-0.5 inline" />
           Validação ({findings.length})
         </button>
       </PopoverTrigger>
