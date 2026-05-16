@@ -98,25 +98,25 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        // Flash sutil 2× para sinalizar "você foi navegado até aqui"
+        // (uso: classe `row-flash`, aplicada via lib/uiSignals.flashHighlight)
+        "row-flash": {
+          "0%, 100%": { backgroundColor: "transparent" },
+          "20%, 60%": { backgroundColor: "hsl(38 92% 50% / 0.28)" },
+          "40%, 80%": { backgroundColor: "transparent" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "row-flash": "row-flash 1.6s ease-in-out",
       },
     },
   },

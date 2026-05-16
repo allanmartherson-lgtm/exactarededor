@@ -25,6 +25,14 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  SEVERITY_TOKENS,
+  actionToLevel,
+  dominantLevel,
+  flashHighlight,
+  type SeverityLevel,
+} from "@/lib/uiSignals";
 import {
   formatCurrency,
   TONE_CLASSES,
@@ -935,12 +943,62 @@ function RowMain({
               {eff}
             </span>
           )}
-          {Array.isArray((it as any).validation_findings) && (it as any).validation_findings.length > 0 && (
-            <ValidationFindingsBadge
-              findings={(it as any).validation_findings}
-              currentPaymentId={it.payment_id}
-            />
-          )}
+          {(() => {
+            const rawFindings: any[] = Array.isArray((it as any).validation_findings)
+              ? (it as any).validation_findings
+              : [];
+            const matchedIdsAll: string[] = it.ai_findings?.matched_rule_ids ?? [];
+            const matchedNamesAll: string[] = it.ai_findings?.matched_rules ?? [];
+            // Sintetiza entries para regras disparadas que não têm finding
+            // explícito (tipicamente action=informar). Dedup por rule_id quando
+            // disponível; caso contrário, pelo nome normalizado.
+            const knownRuleKeys = new Set(
+              rawFindings.map((f) => String(f.rule_id ?? f.rule_name ?? "").toLowerCase()),
+            );
+            const synthesized: any[] = [];
+            matchedIdsAll.forEach((rid, i) => {
+              const key = String(rid).toLowerCase();
+              if (knownRuleKeys.has(key)) return;
+              const rule = rulesIndex[rid];
+              if (!rule) return;
+              knownRuleKeys.add(key);
+              synthesized.push({
+                rule_id: rid,
+                rule_name: rule.name,
+                kind: "info",
+                severity: rule.severity ?? "informativo",
+                action: rule.action ?? "informar",
+                message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
+                detected_at: new Date().toISOString(),
+              });
+            });
+            // Fallback: matched_rules por nome quando o id não está indexado
+            matchedNamesAll.forEach((nm) => {
+              const key = String(nm).trim().toLowerCase();
+              if (knownRuleKeys.has(key)) return;
+              const rule = rulesByName[key];
+              if (!rule || knownRuleKeys.has(String(rule.id).toLowerCase())) return;
+              knownRuleKeys.add(key);
+              knownRuleKeys.add(String(rule.id).toLowerCase());
+              synthesized.push({
+                rule_id: rule.id,
+                rule_name: rule.name,
+                kind: "info",
+                severity: rule.severity ?? "informativo",
+                action: rule.action ?? "informar",
+                message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
+                detected_at: new Date().toISOString(),
+              });
+            });
+            const allFindings = [...rawFindings, ...synthesized];
+            if (allFindings.length === 0) return null;
+            return (
+              <ValidationFindingsBadge
+                findings={allFindings}
+                currentPaymentId={it.payment_id}
+              />
+            );
+          })()}
           </div>
         </td>
         {colVis.observacao && (
@@ -1458,6 +1516,15 @@ function ValidationFindingsBadge({
   findings: ValidationFinding[];
   currentPaymentId: string;
 }) {
+  const navigate = useNavigate();
+
+  // Severidade dominante para colorir o trigger.
+  const dominant: SeverityLevel = dominantLevel(
+    findings.map((f) => actionToLevel(f.action)),
+  );
+  const token = SEVERITY_TOKENS[dominant];
+  const TriggerIcon = token.icon;
+
   const goToConflict = (f: ValidationFinding, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -1467,16 +1534,13 @@ function ValidationFindingsBadge({
     const sameBatch = !ci || ci.payment_id === currentPaymentId;
     if (sameBatch) {
       const el = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        const prev = el.style.boxShadow;
-        el.style.boxShadow = "inset 0 0 0 2px hsl(38 92% 50%)";
-        el.style.transition = "box-shadow 0.3s ease";
-        window.setTimeout(() => { el.style.boxShadow = prev; }, 2000);
-      }
+      flashHighlight(el);
     } else if (ci) {
-      const url = `/pagamentos/${ci.payment_id}/empresa/${encodeURIComponent(ci.company_name ?? "")}`;
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Mesmo padrão: navega in-app e o destino lê ?highlight para piscar.
+      const url = `/pagamentos/${ci.payment_id}/empresa/${encodeURIComponent(
+        ci.company_name ?? "",
+      )}?highlight=${encodeURIComponent(targetId)}`;
+      navigate(url);
     }
   };
 
@@ -1488,10 +1552,11 @@ function ValidationFindingsBadge({
           className={cn(
             "inline-flex items-center rounded-full border px-1 py-0.5 cursor-pointer",
             TEXT_META,
-            "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100",
+            token.badge,
           )}
+          title={`Validação · ${token.label}`}
         >
-          <ShieldCheck className="h-2.5 w-2.5 mr-0.5 inline" />
+          <TriggerIcon className="h-2.5 w-2.5 mr-0.5 inline" />
           Validação ({findings.length})
         </button>
       </PopoverTrigger>

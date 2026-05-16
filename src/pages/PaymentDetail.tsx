@@ -124,6 +124,18 @@ const PaymentDetail = () => {
   const { user, hasRole } = useAuth();
   const location = useLocation();
 
+  // Quando o usuário chega via "?highlight=<itemId>" (link a partir de outro
+  // lote por duplicidade), pisca a linha alvo assim que ela aparece no DOM.
+  // Lazy-import para evitar ciclo de imports no topo.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const target = params.get("highlight");
+    if (!target) return;
+    import("@/lib/uiSignals").then(({ flashRowById }) => {
+      flashRowById(target, 4000);
+    });
+  }, [location.search, id]);
+
   const {
     payment,
     items,
