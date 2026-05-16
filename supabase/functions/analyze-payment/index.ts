@@ -525,7 +525,14 @@ serve(async (req) => {
 
     // ---------- 4. MOTOR: decisão + cálculo determinístico ----------
     console.time(`${__t} motor_analise`);
-    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup, exceptionLookup });
+    const siblingsSource = siblingsRaw
+      ? siblingsRaw.map((r) => ({
+          id: r.id,
+          attendance_number: r.attendance_number ?? undefined,
+          procedure_code: r.procedure_code ?? undefined,
+        }) as any)
+      : undefined;
+    const results: AnalysisResult[] = analyzePaymentItems(items, rules, ctx, { referenceLookup, exceptionLookup, siblingsSource });
     console.timeEnd(`${__t} motor_analise`);
 
     // CAMADAS 1 e 2 — Gating por-regra (convênio whitelist/blacklist e
