@@ -458,16 +458,12 @@ const PaymentDetail = () => {
     }
   };
 
-  // Analista enviar para validação (todos os grupos em revisao_analista ou devolvido_analista).
-  // A validação é fila coletiva: qualquer validador pode assumir.
-  const sendForValidation = async (onlyGroupId?: string) => {
-    if (!id) return;
-    const targets = (onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups)
-      .filter((g) => g.status === "revisao_analista" || g.status === "devolvido_analista");
-    if (targets.length === 0) {
-      toast({ title: "Nada para enviar", description: "Nenhuma empresa pronta para validação." });
-      return;
-    }
+  // Analista envia o lote para validação.
+  // Grupos prontos = {concluida_analista, devolvido_analista}. Grupos pendentes
+  // (revisao_analista) ficam para trás e disparam modal de aviso. A validação
+  // é fila coletiva: qualquer validador pode assumir.
+  const doSendForValidation = async (targets: typeof groups) => {
+    if (!id || targets.length === 0) return;
     setBusy(true);
     await autoClaim();
     for (const g of targets) {
@@ -486,7 +482,6 @@ const PaymentDetail = () => {
       if (!obsRes.ok) {
         toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
       }
-      // Notifica todos os validadores (fila coletiva) + auditoria. Fire-and-forget.
       supabase.functions.invoke("notify-validator-assignment", {
         body: {
           payment_id: id,
@@ -497,7 +492,27 @@ const PaymentDetail = () => {
     }
     await load();
     setBusy(false);
-    toast({ title: "Enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+    toast({ title: "Lote enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+  };
+
+  const sendForValidation = async (onlyGroupId?: string) => {
+    if (!id) return;
+    const scope = onlyGroupId ? groups.filter((g) => g.id === onlyGroupId) : groups;
+    const prontos = scope.filter((g) => g.status === "concluida_analista" || g.status === "devolvido_analista");
+    const pendentes = scope.filter((g) => g.status === "revisao_analista");
+    if (prontos.length === 0) {
+      toast({
+        title: "Nenhuma empresa concluída",
+        description: "Conclua a análise de ao menos uma empresa antes de enviar o lote.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (pendentes.length > 0) {
+      setPendingSendState({ prontos, pendentes });
+      return;
+    }
+    await doSendForValidation(prontos);
   };
 
   const toggleItemExpanded = (itemId: string) => {
