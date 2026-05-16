@@ -508,6 +508,114 @@ export default function ValidationRules() {
         </div>
       );
     }
+    if (k === "parecer_virou_cirurgia") {
+      const p = form.params as ParecerCirurgiaParams;
+      const set = (patch: Partial<ParecerCirurgiaParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs">Prazo máximo entre o parecer e a cirurgia</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="number"
+                min={1}
+                className="w-24"
+                value={p.prazo_horas ?? 48}
+                onChange={(e) => set({ prazo_horas: Number(e.target.value) || 0 })}
+              />
+              <span className="text-sm text-muted-foreground">horas</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cirurgia realizada dentro deste prazo após o parecer cancela o pagamento do parecer. Padrão: 48 horas.
+            </p>
+          </div>
+          <div className="rounded-md border border-border p-3 space-y-1">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox checked={!!p.mesmo_medico} onCheckedChange={(v) => set({ mesmo_medico: !!v })} />
+              Aplicar apenas ao mesmo médico
+            </label>
+            <p className="text-xs text-muted-foreground pl-6">
+              Quando ativado, só cancela o parecer se o mesmo médico realizou a cirurgia.
+              Quando desativado, qualquer cirurgia no atendimento dentro do prazo cancela o parecer.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    if (k === "restricao_contratual") {
+      const p = form.params as RestricaoContratualParams;
+      const set = (patch: Partial<RestricaoContratualParams>) => setForm({ ...form, params: { ...p, ...patch } });
+      const dias: Array<[number, string]> = [
+        [1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "Sáb"], [0, "Dom"],
+      ];
+      const toggleDia = (n: number) => {
+        const cur = new Set(p.dias_semana ?? []);
+        if (cur.has(n)) cur.delete(n); else cur.add(n);
+        set({ dias_semana: Array.from(cur).sort((a, b) => a - b) });
+      };
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs">Horário restrito</Label>
+            <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Início</span>
+                <Input type="time" className="w-32" value={p.hora_inicio ?? "08:00"}
+                  onChange={(e) => set({ hora_inicio: e.target.value })} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Fim</span>
+                <Input type="time" className="w-32" value={p.hora_fim ?? "17:59"}
+                  onChange={(e) => set({ hora_fim: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Dias da semana</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {dias.map(([n, lbl]) => {
+                const checked = (p.dias_semana ?? []).includes(n);
+                return (
+                  <button key={n} type="button" onClick={() => toggleDia(n)}
+                    className={`text-xs px-3 py-1.5 rounded-md border ${checked ? "bg-primary text-primary-foreground border-primary" : "border-border bg-card"}`}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={!!p.incluir_feriados} onCheckedChange={(v) => set({ incluir_feriados: !!v })} />
+            Incluir feriados nesta restrição
+          </label>
+          <div>
+            <Label className="text-xs">Códigos TUSS restritos neste horário</Label>
+            <Textarea
+              rows={3}
+              value={(p.codigos_restritos ?? []).join("\n")}
+              onChange={(e) => set({
+                codigos_restritos: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+              })}
+              placeholder="Um código por linha"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe vazio para aplicar a todos os códigos. Ex: 40809170, 30804086
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Observação para o analista</Label>
+            <Textarea
+              rows={2}
+              value={p.observacao_analista ?? ""}
+              onChange={(e) => set({ observacao_analista: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Esta mensagem aparece no alerta gerado. Ex: Verificar se o paciente é do cirurgião intervencionista — consultar evolução clínica.
+            </p>
+          </div>
+        </div>
+      );
+    }
     if (k === "outlier_valor") {
       const p = form.params as OutlierParams;
       const set = (patch: Partial<OutlierParams>) => setForm({ ...form, params: { ...p, ...patch } });
