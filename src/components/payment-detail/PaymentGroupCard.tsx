@@ -192,13 +192,13 @@ export const PaymentGroupCard = ({
             {validationAlertCount > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-700">
-                    <ShieldAlert className="h-3 w-3" /> Validação ({validationAlertCount})
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">
+                    ⊛ {validationAlertCount}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-xs">
-                    {validationAlertCount} alerta(s) de regras assistenciais nesta empresa.
+                    {validationAlertCount} alerta(s) de validação assistencial — clique no card para ver detalhes.
                   </p>
                 </TooltipContent>
               </Tooltip>
