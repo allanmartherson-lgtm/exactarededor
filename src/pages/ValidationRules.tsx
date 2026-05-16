@@ -698,7 +698,7 @@ export default function ValidationRules() {
       <PageHeader
         title="Regras de Validação"
         icon={ShieldCheck}
-        description="Validações 100% determinísticas. Não interferem no cálculo do valor esperado."
+        description="Regras assistenciais e contratuais aplicadas automaticamente pelo sistema. Complementam a análise financeira sem alterá-la — cada alerta requer avaliação do analista."
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
