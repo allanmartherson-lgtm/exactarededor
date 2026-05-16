@@ -288,9 +288,124 @@ function CalcCard({
             </div>
           )}
           {c.calculation_type === "valor_fixo" && (
-            <div className="space-y-1">
-              <Label className="text-xs">Valor fixo (R$)</Label>
-              <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Valor fixo (R$)</Label>
+                <Input type="number" step="0.01" value={c.fixed_amount} onChange={(e) => onChange({ fixed_amount: e.target.value })} />
+              </div>
+
+              <div className="rounded-md border border-dashed bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wide">Condições de contexto</Label>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Se o mesmo atendimento contiver determinados códigos, usar um valor diferente do padrão acima.
+                    </p>
+                  </div>
+                  <span className="text-[10px] uppercase rounded bg-primary/10 text-primary px-1.5 py-0.5 font-medium">novo</span>
+                </div>
+
+                {c.context_conditions.map((cond, ci) => (
+                  <div key={ci} className="rounded border bg-background p-2 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-medium text-muted-foreground">Condição #{ci + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[11px]">Modo:</Label>
+                        <Select
+                          value={cond.match_mode}
+                          onValueChange={(v) => {
+                            const next = [...c.context_conditions];
+                            next[ci] = { ...cond, match_mode: v as "any" | "all" };
+                            onChange({ context_conditions: next });
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">qualquer um</SelectItem>
+                            <SelectItem value="all">todos</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button" size="sm" variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive"
+                          onClick={() => {
+                            const next = c.context_conditions.filter((_, k) => k !== ci);
+                            onChange({ context_conditions: next });
+                          }}
+                          aria-label="Remover condição"
+                        >✕</Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Códigos gatilho (TUSS)</Label>
+                      <div className="flex flex-wrap gap-1">
+                        {cond.trigger_codes.map((code) => (
+                          <span key={code} className="inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+                            {code}
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => {
+                                const next = [...c.context_conditions];
+                                next[ci] = { ...cond, trigger_codes: cond.trigger_codes.filter((x) => x !== code) };
+                                onChange({ context_conditions: next });
+                              }}
+                            >×</button>
+                          </span>
+                        ))}
+                        <Input
+                          className="h-7 w-32 text-xs"
+                          placeholder="código + Enter"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === ",") {
+                              e.preventDefault();
+                              const raw = (e.currentTarget.value || "").trim();
+                              if (!raw) return;
+                              const codes = raw.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+                              const next = [...c.context_conditions];
+                              const merged = Array.from(new Set([...cond.trigger_codes, ...codes]));
+                              next[ci] = { ...cond, trigger_codes: merged };
+                              onChange({ context_conditions: next });
+                              e.currentTarget.value = "";
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Usar valor (R$) quando bater</Label>
+                      <Input
+                        type="number" step="0.01"
+                        className="h-8 text-xs"
+                        value={cond.value}
+                        onChange={(e) => {
+                          const next = [...c.context_conditions];
+                          next[ci] = { ...cond, value: e.target.value };
+                          onChange({ context_conditions: next });
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <Button
+                  type="button" variant="outline" size="sm" className="text-xs h-7"
+                  onClick={() => {
+                    onChange({
+                      context_conditions: [
+                        ...c.context_conditions,
+                        { trigger_codes: [], match_mode: "any", value: "0" },
+                      ],
+                    });
+                  }}
+                >+ Adicionar condição de contexto</Button>
+
+                <p className="text-[10px] text-muted-foreground italic leading-snug">
+                  As condições são verificadas em ordem. A primeira que bater define o valor. Se nenhuma bater, o valor padrão acima é usado.
+                </p>
+              </div>
             </div>
           )}
           {c.calculation_type === "bonus" && (
