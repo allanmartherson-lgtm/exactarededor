@@ -1520,177 +1520,176 @@ const PaymentDetail = () => {
             </CardContent>
           </Card>
         )}
-        <Card className="shadow-card">
-          <CardContent className="p-4 flex flex-wrap gap-x-6 gap-y-2 items-center text-sm">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Competência:</span>
-              <span className="font-medium capitalize">{formatCompetence(payment.competence_months?.length ? payment.competence_months : payment.competence_month)}</span>
-            </div>
-            <div><span className="text-muted-foreground">Previsão pgto:</span> <span className="font-medium">{formatDateOnly(payment.payment_due_date)}</span></div>
-            {payment.payment_type && <div><span className="text-muted-foreground">Tipo:</span> <span className="font-medium">{PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS]}</span></div>}
-            {payment.payment_kind && <div><span className="text-muted-foreground">Categoria:</span> <span className="font-medium">{PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS]}</span></div>}
-            {payment.cost_center_code && <div><span className="text-muted-foreground">Centro de custos:</span> <span className="font-mono text-xs font-medium">{payment.cost_center_code}</span></div>}
-            <div className="ml-auto flex flex-wrap gap-2">
-              {canReimport && (
-                <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => setIsTestModalOpen(true)}>
-                  <TestTube2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Teste de Regra</span>
-                </Button>
-              )}
-              {canEditMeta && (
-                <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={busy} onClick={openEditMeta}>
-                      <MessageSquarePlus className="h-4 w-4 mr-1" /> Editar lote
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Editar lote</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Referência</label>
-                        <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Descrição</label>
-                        <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
-                        <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
-                      </div>
+        {/* Linha compacta: metadados + responsável */}
+        {(() => {
+          const currentResponsibleId = assignments[0]?.analyst_id ?? null;
+          const currentResponsibleName = currentResponsibleId ? (profiles[currentResponsibleId] || "—") : null;
+          const initials = currentResponsibleName
+            ? currentResponsibleName.trim().split(/\s+/).slice(0, 2).map((s) => s[0]).join("").toUpperCase()
+            : "?";
+          const isMe = !!currentResponsibleId && currentResponsibleId === user?.id;
+          const cells: { label: string; value: React.ReactNode }[] = [
+            { label: "Competência", value: <span className="capitalize">{formatCompetence(payment.competence_months?.length ? payment.competence_months : payment.competence_month)}</span> },
+            { label: "Previsão", value: formatDateOnly(payment.payment_due_date) },
+          ];
+          if (payment.payment_type) cells.push({ label: "Tipo", value: PAYMENT_TYPE_LABELS[payment.payment_type as keyof typeof PAYMENT_TYPE_LABELS] });
+          if (payment.payment_kind) cells.push({ label: "Categoria", value: PAYMENT_KIND_LABELS[payment.payment_kind as keyof typeof PAYMENT_KIND_LABELS] });
+          if (payment.cost_center_code) cells.push({ label: "Centro de custo", value: <span className="font-mono">{payment.cost_center_code}</span> });
+          return (
+            <Card className="shadow-card">
+              <CardContent className="p-3">
+                <div className="flex flex-wrap items-center text-xs">
+                  {cells.map((c, i) => (
+                    <div key={i} className="flex items-baseline gap-1.5 px-3 py-0.5 border-r border-border/60 first:pl-0">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
+                      <span className="font-medium">{c.value}</span>
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
-                      <Button onClick={saveMeta} disabled={savingMeta}>{savingMeta ? "Salvando…" : "Salvar"}</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-              {canReimport && (
-                <div className="flex gap-2">
-                    <input
-                      ref={reimportInputRef}
-                      type="file"
-                      multiple
-                      accept=".xlsx,.xls"
-                      className="hidden"
-                      onChange={(e) => {
-                        const files = e.target.files;
-                        if (files && files.length > 0) {
-                          setReimportConfirm(prev => prev ? [...prev, ...Array.from(files)] : Array.from(files));
-                          // Reset input value so same file can be selected again if needed
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy || reimporting}
-                    onClick={() => reimportInputRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4 mr-1" /> {reimporting ? "Reimportando…" : "Reimportar base"}
-                  </Button>
-                  <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
-                        <AlertDialogDescription className="space-y-3">
-                          <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
-                          <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-6 text-[10px] px-2"
-                                onClick={() => reimportInputRef.current?.click()}
-                              >
-                                <Plus className="h-3 w-3 mr-1" /> Adicionar mais
-                              </Button>
-                            </div>
-                            <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
-                              {reimportConfirm?.map((f, i) => (
-                                <li key={i} className="flex items-center justify-between gap-2 group">
-                                  <span className="truncate flex-1">• {f.name}</span>
-                                  <button 
-                                    type="button" 
-                                    onClick={() => setReimportConfirm(prev => prev?.filter((_, idx) => idx !== i) || null)}
-                                    className="text-muted-foreground hover:text-destructive p-0.5"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
-                            Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
-                          </p>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          disabled={reimporting}
-                          onClick={() => reimportConfirm && doReimport(reimportConfirm)}
-                        >
-                          {reimporting ? "Reimportando…" : "Confirmar"}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  ))}
+                  <div className="flex items-center gap-1.5 px-3 py-0.5">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Responsável</span>
+                    {currentResponsibleName ? (
+                      <>
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-semibold">{initials}</span>
+                        <span className="font-medium">{currentResponsibleName}</span>
+                        {isMe && <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">você</span>}
+                      </>
+                    ) : (
+                      <span className="italic text-muted-foreground">Ninguém assumiu</span>
+                    )}
+                  </div>
                 </div>
-              )}
-              {canCancel && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={busy}><Ban className="h-4 w-4 mr-1" /> Cancelar</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
-                      <AlertDialogDescription>O lote ficará marcado como cancelado e sairá do fluxo. Use esta opção se anexou os arquivos errados.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Voltar</AlertDialogCancel>
-                      <AlertDialogAction onClick={cancelPayment}>Confirmar cancelamento</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-              {canDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" disabled={busy}><Trash2 className="h-4 w-4 mr-1" /> Excluir</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
-                      <AlertDialogDescription>Esta ação remove o lote, todos os itens e o histórico. Não pode ser desfeita. Use para refazer o anexo a partir do zero em <strong>Nova base</strong>.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Voltar</AlertDialogCancel>
-                      <AlertDialogAction onClick={deletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir definitivamente</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
-        <AssignmentCard
-          assignments={assignments}
-          profiles={profiles}
-          currentUserId={user?.id ?? null}
-          canAssume={canAssumeNow}
-          onAssume={handleManualAssume}
+        {/* Input + dialogs extraídos (acionados pelo menu ···) */}
+        <input
+          ref={reimportInputRef}
+          type="file"
+          multiple
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={(e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+              setReimportConfirm((prev) => (prev ? [...prev, ...Array.from(files)] : Array.from(files)));
+              e.target.value = "";
+            }
+          }}
         />
+
+        {canEditMeta && (
+          <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Editar lote</DialogTitle></DialogHeader>
+              <div className="space-y-3 py-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Referência</label>
+                  <Input value={metaDraft.reference} onChange={(e) => setMetaDraft((m) => ({ ...m, reference: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Descrição</label>
+                  <Textarea rows={3} value={metaDraft.description} onChange={(e) => setMetaDraft((m) => ({ ...m, description: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Previsão de pagamento</label>
+                  <Input type="date" value={metaDraft.payment_due_date} onChange={(e) => setMetaDraft((m) => ({ ...m, payment_due_date: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditMetaOpen(false)} disabled={savingMeta}>Cancelar</Button>
+                <Button onClick={saveMeta} disabled={savingMeta}>{savingMeta ? "Salvando…" : "Salvar"}</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {canReimport && (
+          <AlertDialog open={!!reimportConfirm} onOpenChange={(v) => !v && !reimporting && setReimportConfirm(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reimportar base?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3">
+                  <p>Esta ação <strong>substitui todos os itens e grupos</strong> deste lote pelo conteúdo dos arquivos selecionados e reinicia a análise. Metadados (referência, competência, tipo) são mantidos. Não pode ser desfeita.</p>
+                  <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Arquivos para reimportar ({reimportConfirm?.length}):</p>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => reimportInputRef.current?.click()}>
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar mais
+                      </Button>
+                    </div>
+                    <ul className="text-xs space-y-1 max-h-[150px] overflow-y-auto pr-1">
+                      {reimportConfirm?.map((f, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 group">
+                          <span className="truncate flex-1">• {f.name}</span>
+                          <button type="button" onClick={() => setReimportConfirm((prev) => prev?.filter((_, idx) => idx !== i) || null)} className="text-muted-foreground hover:text-destructive p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic bg-info-soft/30 p-1.5 rounded border border-info/20">
+                    Dica: Você pode selecionar vários arquivos de uma vez no explorador ou clicar em "Adicionar mais" acima.
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={reimporting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction disabled={reimporting} onClick={() => reimportConfirm && doReimport(reimportConfirm)}>
+                  {reimporting ? "Reimportando…" : "Confirmar"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {canCancel && (
+          <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar este lote?</AlertDialogTitle>
+                <AlertDialogDescription>O lote ficará marcado como cancelado e sairá do fluxo. Use esta opção se anexou os arquivos errados.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={cancelPayment}>Confirmar cancelamento</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {canDelete && (
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                <AlertDialogDescription>Esta ação remove o lote, todos os itens e o histórico. Não pode ser desfeita. Use para refazer o anexo a partir do zero em <strong>Nova base</strong>.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={deletePayment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir definitivamente</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {/* Responsável e histórico de atribuições (transferir / ver histórico) */}
+        <Sheet open={assignmentsHistoryOpen} onOpenChange={setAssignmentsHistoryOpen}>
+          <SheetContent side="right" className="w-[480px] sm:max-w-md overflow-y-auto">
+            <SheetHeader><SheetTitle>Responsável e histórico</SheetTitle></SheetHeader>
+            <div className="mt-4">
+              <AssignmentCard
+                assignments={assignments}
+                profiles={profiles}
+                currentUserId={user?.id ?? null}
+                canAssume={canAssumeNow}
+                onAssume={handleManualAssume}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {(payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
           // Detecta se o texto persistido em ai_summary ainda cita os mesmos
