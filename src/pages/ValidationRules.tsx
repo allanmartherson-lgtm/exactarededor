@@ -120,7 +120,7 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
     case "duplicidade_atendimento":
       return { compare_attendance: true, compare_patient: true, compare_date: true, compare_code: true, allow_different_doctors: true };
     case "sobreposicao_assistencial":
-      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "" };
+      return { compare_attendance: true, compare_patient: true, compare_date: true, entry_type: "qualquer" };
     case "parecer_virou_cirurgia":
       return { prazo_horas: 48, mesmo_medico: false } satisfies ParecerCirurgiaParams;
     case "restricao_contratual":
