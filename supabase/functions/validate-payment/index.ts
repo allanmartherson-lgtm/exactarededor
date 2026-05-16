@@ -31,12 +31,26 @@ type Item = {
   payment_id: string;
   attendance_number: string | null;
   procedure_code: string | null;
+  procedure_name: string | null;
   procedure_date: string | null;
   doctor_name: string | null;
   patient_name: string | null;
   gross_amount: number | null;
   sector: string | null;
   company_id: string | null;
+  company_name: string | null;
+};
+
+type ConflictingItemSnapshot = {
+  attendance_number: string | null;
+  patient_name: string | null;
+  procedure_code: string | null;
+  procedure_name: string | null;
+  doctor_name: string | null;
+  procedure_date: string | null;
+  company_name: string | null;
+  payment_id: string;
+  payment_reference: string | null;
 };
 
 type Finding = {
@@ -47,6 +61,7 @@ type Finding = {
   action: string;
   message: string;
   conflicting_item_id?: string;
+  conflicting_item?: ConflictingItemSnapshot;
   detected_at: string;
 };
 
@@ -84,6 +99,7 @@ function applyDuplicidadeExata(
   rule: ValidationRule,
   items: Item[],
   findingsByItem: Map<string, Finding[]>,
+  paymentReference: string | null,
 ): number {
   const params = (rule.params ?? {}) as Json;
   const anySelected =
@@ -112,11 +128,21 @@ function applyDuplicidadeExata(
   let hits = 0;
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    // Marca o item de MENOR valor (convênio pagou menos). Empate → segundo da lista.
     const sorted = [...group].sort((a, b) => (a.gross_amount ?? 0) - (b.gross_amount ?? 0));
     const target = sorted[0].gross_amount === sorted[1].gross_amount ? group[1] : sorted[0];
     const other = group.find((x) => x.id !== target.id)!;
     const list = findingsByItem.get(target.id) ?? [];
+    const snapshot: ConflictingItemSnapshot = {
+      attendance_number: other.attendance_number,
+      patient_name: other.patient_name,
+      procedure_code: other.procedure_code,
+      procedure_name: other.procedure_name,
+      doctor_name: other.doctor_name,
+      procedure_date: other.procedure_date,
+      company_name: other.company_name,
+      payment_id: other.payment_id,
+      payment_reference: paymentReference,
+    };
     list.push({
       rule_id: rule.id,
       rule_name: rule.name,
@@ -125,6 +151,7 @@ function applyDuplicidadeExata(
       action: rule.action,
       message: `Item duplicado com item ${other.id} (mesmo ${reason}).`,
       conflicting_item_id: other.id,
+      conflicting_item: snapshot,
       detected_at: now,
     });
     findingsByItem.set(target.id, list);
@@ -151,10 +178,10 @@ Deno.serve(async (req) => {
     // 1. Carrega lote (para filtros de escopo) e itens
     const [{ data: payment, error: payErr }, { data: itemsRaw, error: itErr }, { data: rulesRaw, error: rulesErr }] =
       await Promise.all([
-        supabase.from("payments").select("id, payment_type, sectors").eq("id", payment_id).single(),
+        supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
         supabase
           .from("payment_items")
-          .select("id, payment_id, attendance_number, procedure_code, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id")
+          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name")
           .eq("payment_id", payment_id)
           .limit(20000),
         supabase.from("validation_rules").select("*").eq("active", true),
@@ -165,6 +192,7 @@ Deno.serve(async (req) => {
 
     const items = (itemsRaw ?? []) as Item[];
     const rules = (rulesRaw ?? []) as ValidationRule[];
+    const paymentReference = (payment as any).reference ?? null;
 
     // 2. Idempotência: zera validation_findings de todos os itens do lote
     await supabase
@@ -184,7 +212,7 @@ Deno.serve(async (req) => {
         continue;
       }
       if (rule.kind === "duplicidade_exata") {
-        const hits = applyDuplicidadeExata(rule, items, findingsByItem);
+        const hits = applyDuplicidadeExata(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
         appliedRules.push(rule.name);
       } else {
