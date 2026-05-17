@@ -2587,6 +2587,78 @@ function finalizeAnalysis(
   };
 }
 
+/**
+ * Correção C — Pré-passe por atendimento para cálculos de pacote.
+ *
+ * Para cada (rule.id, attendance_key) escolhe deterministicamente UM calc
+ * vencedor pela maior cobertura dos códigos do atendimento (depois
+ * inclusos_ratio, depois menor sort_order). O vencedor é o único calc de
+ * pacote daquela regra que pode aplicar nesse atendimento.
+ */
+function preComputePackageWinners(
+  items: ItemInput[],
+  rules: RuleInput[],
+  siblings: Map<string, Set<string>>,
+): Map<string, string> {
+  const isPacoteType = (t: CalculationType) =>
+    t === "pacote" || t === "pacote_por_atendimento" || t === "pacote_fechado" || t === "pacote_com_extras";
+
+  const winners = new Map<string, string>();
+  const candidateRules = rules.filter((r) =>
+    Array.isArray(r.calculations) && r.calculations.some((c) => isPacoteType(c.calculation_type))
+  );
+  if (candidateRules.length === 0) return winners;
+
+  const attKeys = new Set<string>();
+  for (const it of items) {
+    const k = (it as any).attendance_group_key ?? it.attendance_number ?? "";
+    if (k) attKeys.add(k);
+  }
+
+  for (const rule of candidateRules) {
+    const pacoteCalcs = (rule.calculations ?? []).filter((c) => isPacoteType(c.calculation_type));
+    for (const attKey of attKeys) {
+      const siblingsOfAtt = siblings.get(attKey);
+      if (!siblingsOfAtt || siblingsOfAtt.size === 0) continue;
+
+      type Scored = { calc: RuleCalculationItem; cobertura: number; inclusosRatio: number };
+      const scored: Scored[] = [];
+
+      for (const c of pacoteCalcs) {
+        const main = String(c.package_main_code ?? "").trim();
+        if (main && !siblingsOfAtt.has(main)) continue;
+
+        const included = (Array.isArray(c.package_included_codes) ? c.package_included_codes : [])
+          .map((x) => String(x).trim()).filter(Boolean);
+        const extras = (Array.isArray(c.extras_codes) ? c.extras_codes : [])
+          .map((x) => String(x).trim()).filter(Boolean);
+
+        const universo = new Set<string>([...(main ? [main] : []), ...included, ...extras]);
+        let cobertura = 0;
+        for (const code of siblingsOfAtt) {
+          if (universo.has(code)) cobertura += 1;
+        }
+        const inclusosHit = included.filter((code) => siblingsOfAtt.has(code)).length;
+        const inclusosRatio = included.length > 0 ? inclusosHit / included.length : 1.0;
+
+        scored.push({ calc: c, cobertura, inclusosRatio });
+      }
+
+      if (scored.length === 0) continue;
+      scored.sort((a, b) => {
+        if (b.cobertura !== a.cobertura) return b.cobertura - a.cobertura;
+        if (b.inclusosRatio !== a.inclusosRatio) return b.inclusosRatio - a.inclusosRatio;
+        return (a.calc.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.calc.sort_order ?? Number.MAX_SAFE_INTEGER);
+      });
+      const winner = scored[0];
+      if (winner.calc.id) {
+        winners.set(`${rule.id}|${attKey}`, winner.calc.id);
+      }
+    }
+  }
+  return winners;
+}
+
 export function analyzePaymentItems(
   items: ItemInput[],
 
