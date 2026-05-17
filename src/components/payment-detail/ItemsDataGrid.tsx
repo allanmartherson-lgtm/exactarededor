@@ -1145,7 +1145,7 @@ function ItemDetailsRow({
     { label: "Paciente", value: getPatient(it) },
     { label: "Convênio", value: getAgreement(it) },
     { label: "Via de Acesso", value: getAccessRoute(it) },
-    { label: "Caráter (Tipo Entrada)", value: characterLabel },
+    ...(colVis.tipo_entrada ? [{ label: "Caráter (Tipo Entrada)", value: characterLabel }] : []),
     { label: "TUSS", value: getProcedureCode(it) },
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
