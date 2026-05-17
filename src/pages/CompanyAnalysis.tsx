@@ -1157,6 +1157,16 @@ export default function CompanyAnalysis() {
   const isAdmin = hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
+  // Gate por empresa: mesmo que o lote esteja editável, uma empresa concluída
+  // (concluida_analista/aguardando_validacao/...) congela até ser reaberta.
+  const companyEditable = isCompanyGroupEditable(gStatus);
+  const canEditCompany = canEdit && companyEditable;
+  // Reabrir análise: só aparece em estados pós-conclusão do analista,
+  // e somente para o analista atualmente atribuído ao lote.
+  const currentAssignedAnalystId = assignments[0]?.analyst_id ?? null;
+  const isCurrentAnalyst = !!user && !!currentAssignedAnalystId && user.id === currentAssignedAnalystId;
+  const canReopenCompany =
+    isAnalistaRole && isCompanyGroupReopenable(gStatus) && (isCurrentAnalyst || isAdmin);
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const isTerminal = ["pago", "rejeitado", "cancelado", "lancado"].includes(payment.status as string);
   const canDelete = isAdmin || (isAnalistaRole && !isTerminal);
