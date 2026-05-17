@@ -517,6 +517,7 @@ export default function CompanyAnalysis() {
 
   const reanalyzeGroup = async () => {
     if (!id || !group) return;
+    if (!guardEditable()) return;
     await autoClaim();
     setReanalyzing(true);
     const startedAt = Date.now();
