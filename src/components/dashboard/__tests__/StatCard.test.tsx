@@ -40,7 +40,7 @@ describe("StatCard (hierarquia visual)", () => {
     expect(content).toHaveClass("h-full");
     expect(content).toHaveClass("flex");
     expect(content).toHaveClass("flex-col");
-    expect(content).toHaveClass("gap-3");
+    expect(content).toHaveClass("gap-4");
   };
 
   it("sem hint nem badge: usa placeholder pra preservar altura do footer", () => {
@@ -149,7 +149,7 @@ describe("StatCardSkeleton (mesma estrutura do StatCard)", () => {
     expect(content).toHaveClass("h-full");
     expect(content).toHaveClass("flex");
     expect(content).toHaveClass("flex-col");
-    expect(content).toHaveClass("gap-3");
+    expect(content).toHaveClass("gap-4");
   });
 
   it("é anunciado como status carregando para leitores de tela", () => {
