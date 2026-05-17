@@ -1136,6 +1136,58 @@ export default function CompanyAnalysis() {
     setBusy(false);
   };
 
+  const reopenCompanyAnalysis = async () => {
+    if (!id || !group || !user) return;
+    const reason = reopenReason.trim();
+    if (reason.length < 10) {
+      toast.error("Motivo obrigatório", { description: "Descreva o motivo com ao menos 10 caracteres." });
+      return;
+    }
+    setReopening(true);
+    try {
+      const previousStatus = group.status;
+      const { error } = await supabase
+        .from("payment_company_groups")
+        .update({ status: "revisao_analista", validated_by: null, validated_at: null })
+        .eq("id", group.id);
+      if (error) throw error;
+
+      // Registra em audit_log (tabela já existente — usamos diff/jsonb para metadados)
+      await supabase.from("audit_log").insert({
+        entity_type: "payment_company_group",
+        entity_id: group.id,
+        action: "company_group_reopened",
+        actor_id: user.id,
+        company_id: group.company_id ?? null,
+        company_name: group.company_name,
+        diff: {
+          previous_status: { before: previousStatus, after: "revisao_analista" },
+          motivo: { before: null, after: reason },
+          payment_id: { before: null, after: id },
+        } as never,
+      });
+
+      // Observação visível no histórico da empresa
+      await recordObservation({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user.id,
+        message: `[${group.company_name}] Análise reaberta pelo analista. Motivo: ${reason}`,
+        status_from: previousStatus,
+        status_to: "revisao_analista",
+      });
+
+      toast.success("Análise reaberta", { description: "Você pode editar a empresa novamente." });
+      setReopenOpen(false);
+      setReopenReason("");
+      await load();
+    } catch (e) {
+      toast.error("Falha ao reabrir análise", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setReopening(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
