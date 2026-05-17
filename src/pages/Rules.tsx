@@ -2421,13 +2421,13 @@ const Rules = () => {
                                   <h4 className="text-sm font-semibold text-foreground truncate">{r.name}</h4>
 
                                   {r.active === false && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]">Inativa</span>
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]">Inativa</span>
                                   )}
                                   {expired && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]">Expirada</span>
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]">Expirada</span>
                                   )}
                                   <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
+                                    "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
                                     r.severity === "bloqueio" && "bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]",
                                     r.severity === "aviso" && "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]",
                                     r.severity === "info" && "bg-[hsl(var(--info-soft))] text-[hsl(var(--info))]",
@@ -2436,7 +2436,7 @@ const Rules = () => {
                                   </span>
 
                                   {(r.valid_from || r.valid_until) && (
-                                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                                       <span className="w-1 h-1 rounded-full bg-border" />
                                       Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
                                     </span>
@@ -2451,7 +2451,7 @@ const Rules = () => {
                                     const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
                                     const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
                                     return (
-                                      <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1.5">
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                                         <span className="w-1 h-1 rounded-full bg-border" />
                                         ⚠ {alertText} / 🚫 {blockText}
                                       </span>
@@ -2461,7 +2461,7 @@ const Rules = () => {
                                   {renderCalcBadge(r)}
 
                                   {incomplete && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] flex items-center gap-1">
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] flex items-center gap-1">
                                       <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
                                     </span>
                                   )}
@@ -2469,11 +2469,11 @@ const Rules = () => {
 
                                 {/* Linha 2 — descrição (auxiliar) */}
                                 {r.description && (
-                                  <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{r.description}</p>
+                                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{r.description}</p>
                                 )}
                                 {/* Linha 3 — texto principal da regra */}
                                 {r.rule_text && (
-                                  <p className="text-[13px] text-foreground/90 leading-relaxed mt-1 line-clamp-3">{r.rule_text}</p>
+                                  <p className="text-sm text-foreground/90 leading-relaxed mt-1 line-clamp-3">{r.rule_text}</p>
                                 )}
                               </div>
 
