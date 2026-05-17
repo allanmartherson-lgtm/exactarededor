@@ -805,6 +805,7 @@ export type Database = {
           applied_calc_method: string | null
           applied_rule_id: string | null
           applied_rule_label: string | null
+          attendance_character: string | null
           attendance_group_key: string | null
           attendance_number: string | null
           authorized_exception: boolean
@@ -856,6 +857,7 @@ export type Database = {
           applied_calc_method?: string | null
           applied_rule_id?: string | null
           applied_rule_label?: string | null
+          attendance_character?: string | null
           attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
@@ -907,6 +909,7 @@ export type Database = {
           applied_calc_method?: string | null
           applied_rule_id?: string | null
           applied_rule_label?: string | null
+          attendance_character?: string | null
           attendance_group_key?: string | null
           attendance_number?: string | null
           authorized_exception?: boolean
@@ -1147,6 +1150,7 @@ export type Database = {
         Row: {
           access_route: string | null
           agreement_text: string | null
+          attendance_character: string | null
           attendance_number: string | null
           convenio_value_totalized: boolean
           created_at: string
@@ -1183,6 +1187,7 @@ export type Database = {
         Insert: {
           access_route?: string | null
           agreement_text?: string | null
+          attendance_character?: string | null
           attendance_number?: string | null
           convenio_value_totalized?: boolean
           created_at?: string
@@ -1219,6 +1224,7 @@ export type Database = {
         Update: {
           access_route?: string | null
           agreement_text?: string | null
+          attendance_character?: string | null
           attendance_number?: string | null
           convenio_value_totalized?: boolean
           created_at?: string
