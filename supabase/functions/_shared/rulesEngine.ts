@@ -1154,6 +1154,20 @@ function calcPacotePorAtendimento(
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
   }
+  // Lock pré-passe (Correção C) — só o calc vencedor do atendimento aplica.
+  {
+    const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+    const lockKey = `${rule.id}|${attKey}`;
+    const winnerCalcId = ctx?.lockedPackageCalcByRuleAtt?.get(lockKey);
+    const myCalcId = (rule as any).__calc_id ?? null;
+    if (winnerCalcId !== undefined && winnerCalcId !== null && myCalcId !== null && winnerCalcId !== myCalcId) {
+      return {
+        expected: 0,
+        explanation: `Pacote não vencedor para o atendimento ${attKey} (vencedor: ${winnerCalcId}).`,
+        alerts: [],
+      };
+    }
+  }
   const att = (item.attendance_number ?? "").trim();
   if (!att) {
     return {
