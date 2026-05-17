@@ -100,74 +100,88 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 215 28% 7%;           /* #0d1117 */
-    --foreground: 213 27% 93%;          /* #e6edf3 */
-    --card: 220 26% 12%;                /* #161b26 */
-    --card-foreground: 213 27% 93%;
-    --popover: 220 26% 12%;
-    --popover-foreground: 213 27% 93%;
-    --primary: 224 76% 58%;             /* navy-light for dark */
-    --primary-foreground: 0 0% 100%;
-    --primary-soft: 224 60% 18%;
-    --primary-glow: 224 80% 70%;
-    --secondary: 225 36% 16%;           /* border-light #1a2236 */
-    --secondary-foreground: 213 27% 93%;
-    --muted: 224 29% 15%;               /* bg-hover #1c2333 */
-    --muted-foreground: 213 12% 65%;    /* text-secondary */
-    --text-tertiary: 213 10% 48%;       /* text-tertiary */
-    --accent: 172 56% 11%;              /* accent-light */
-    --accent-foreground: 168 76% 64%;   /* accent-text */
-    --success: 142 71% 58%;             /* green-text */
-    --success-foreground: 215 28% 7%;
-    --success-soft: 142 51% 10%;
-    --warning: 43 96% 56%;
-    --warning-foreground: 215 28% 7%;
-    --warning-soft: 41 100% 9%;
-    --info: 213 94% 68%;
-    --info-foreground: 215 28% 7%;
-    --info-soft: 220 60% 15%;
-    --destructive: 0 91% 71%;
-    --destructive-foreground: 215 28% 7%;
-    --destructive-soft: 0 36% 13%;
-    --border: 222 28% 18%;              /* #21293a */
-    --input: 222 28% 18%;
-    --ring: 173 82% 39%;
+    /* Dark — readable, neutral surfaces, brand blue accent (matches light) */
+    --background: 222 24% 9%;            /* #11141c */
+    --foreground: 210 30% 96%;           /* #eef2f7 — near-white, high contrast */
 
-    --gradient-brand: linear-gradient(135deg, hsl(173 82% 39%), hsl(168 76% 64%));
-    --gradient-soft: linear-gradient(135deg, hsl(172 56% 11%), hsl(215 28% 7%));
+    --card: 220 22% 13%;                 /* #1a1e29 */
+    --card-foreground: 210 30% 96%;
+    --popover: 220 22% 13%;
+    --popover-foreground: 210 30% 96%;
 
-    --bubble-purple-bg: 250 40% 18%;
-    --bubble-purple-fg: 250 90% 78%;
-    --bubble-yellow-bg: 41 100% 9%;
-    --bubble-yellow-fg: 43 96% 56%;
-    --bubble-red-bg: 0 36% 13%;
-    --bubble-red-fg: 0 91% 71%;
-    --bubble-blue-bg: 220 60% 15%;
-    --bubble-blue-fg: 213 94% 68%;
-    --bubble-green-bg: 142 51% 10%;
-    --bubble-green-fg: 142 71% 58%;
-    --bubble-teal-bg: 172 56% 14%;
-    --bubble-teal-fg: 168 76% 64%;
+    /* Brand: same airy blue, slightly brighter for dark surfaces */
+    --primary: 217 91% 65%;              /* #4f8df9 */
+    --primary-foreground: 222 47% 8%;
+    --primary-soft: 222 60% 18%;
+    --primary-glow: 217 91% 72%;
 
-    /* Table-specific surfaces (kept in sync with bg-hover / border-light spec) */
-    --table-row-hover: 224 29% 15%;     /* #1c2333 */
-    --table-border-light: 225 36% 16%;  /* #1a2236 */
+    --secondary: 222 18% 20%;            /* #2a3040 */
+    --secondary-foreground: 213 25% 88%; /* #d6dde7 */
 
-    --hover-surface: 224 29% 18%;
-    --shadow-hover: 0 4px 20px hsl(173 82% 39% / 0.18);
+    --muted: 222 20% 16%;                /* #21263354 */
+    --muted-foreground: 215 18% 75%;     /* #b3becd — readable secondary text */
+    --text-tertiary: 215 14% 62%;        /* #8b95a6 — meta still readable */
 
-    /* Sidebar — dark */
-    --sidebar-background: 220 26% 12%;
-    --sidebar-foreground: 213 9% 58%;
-    --sidebar-muted-foreground: 212 12% 45%;
-    --sidebar-primary: 173 82% 39%;
-    --sidebar-primary-foreground: 215 28% 7%;
-    --sidebar-hover: 224 29% 16%;
-    --sidebar-hover-foreground: 213 27% 93%;
-    --sidebar-accent: 172 56% 11%;
-    --sidebar-accent-foreground: 168 76% 64%;
-    --sidebar-border: 224 36% 16%;
-    --sidebar-ring: 173 82% 39%;
+    --accent: 222 60% 18%;               /* primary tint as bg */
+    --accent-foreground: 217 91% 75%;
+
+    --success: 152 65% 58%;
+    --success-foreground: 152 70% 12%;
+    --success-soft: 152 45% 16%;
+
+    --warning: 38 92% 62%;
+    --warning-foreground: 30 80% 12%;
+    --warning-soft: 36 60% 18%;
+
+    --info: 217 91% 70%;
+    --info-foreground: 222 47% 8%;
+    --info-soft: 222 60% 18%;
+
+    --destructive: 0 84% 68%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 50% 20%;
+
+    --border: 222 18% 22%;               /* #2c3346 — visible separators */
+    --input: 222 18% 22%;
+    --ring: 217 91% 65%;
+
+    --gradient-brand: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 70%));
+    --gradient-soft: linear-gradient(135deg, hsl(222 60% 18%), hsl(222 24% 9%));
+    --shadow-soft: 0 1px 2px 0 hsl(0 0% 0% / 0.4), 0 1px 3px 0 hsl(0 0% 0% / 0.3);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 1px 2px -1px hsl(0 0% 0% / 0.3);
+    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.6), 0 8px 16px -8px hsl(0 0% 0% / 0.4);
+
+    --bubble-purple-bg: 250 40% 22%;
+    --bubble-purple-fg: 250 95% 85%;
+    --bubble-yellow-bg: 36 60% 18%;
+    --bubble-yellow-fg: 38 92% 68%;
+    --bubble-red-bg: 0 50% 20%;
+    --bubble-red-fg: 0 90% 78%;
+    --bubble-blue-bg: 222 60% 20%;
+    --bubble-blue-fg: 217 91% 75%;
+    --bubble-green-bg: 152 45% 16%;
+    --bubble-green-fg: 152 65% 65%;
+    --bubble-teal-bg: 188 50% 18%;
+    --bubble-teal-fg: 188 80% 70%;
+
+    --table-row-hover: 222 20% 16%;
+    --table-border-light: 222 18% 20%;
+
+    --hover-surface: 222 20% 18%;
+    --shadow-hover: 0 4px 14px hsl(0 0% 0% / 0.4);
+
+    /* Sidebar — dark, with readable idle text */
+    --sidebar-background: 220 22% 11%;
+    --sidebar-foreground: 215 18% 78%;
+    --sidebar-muted-foreground: 215 14% 60%;
+    --sidebar-primary: 217 91% 65%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-hover: 222 20% 17%;
+    --sidebar-hover-foreground: 210 30% 96%;
+    --sidebar-accent: 222 60% 18%;
+    --sidebar-accent-foreground: 217 91% 75%;
+    --sidebar-border: 222 18% 20%;
+    --sidebar-ring: 217 91% 65%;
   }
 }
 
