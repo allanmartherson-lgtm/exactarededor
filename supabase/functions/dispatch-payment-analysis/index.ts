@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
         total_items: totalItems,
         status: "dispatched",
         message: `Análise iniciada para ${companyNames.length} empresa(s) e ${totalItems} itens.`,
+        skipped_companies: skippedCompanies,
       }),
       { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
