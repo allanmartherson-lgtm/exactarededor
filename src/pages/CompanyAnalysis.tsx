@@ -432,9 +432,18 @@ export default function CompanyAnalysis() {
     : isValidador ? "validador"
     : "analista";
 
+  const guardEditable = (): boolean => {
+    if (!isCompanyGroupEditable(group?.status)) {
+      toast.error("Empresa concluída", { description: COMPANY_GROUP_LOCKED_TOOLTIP });
+      return false;
+    }
+    return true;
+  };
+
   const addItemComment = async (itemId: string) => {
     const text = (itemDraft[itemId] ?? "").trim();
     if (!text || !id) return;
+    if (!guardEditable()) return;
     setBusy(true);
     const r = await recordObservation({
       payment_id: id,
@@ -453,6 +462,7 @@ export default function CompanyAnalysis() {
   const addGroupComment = async () => {
     const text = groupDraft.trim();
     if (!text || !id || !group) return;
+    if (!guardEditable()) return;
     setBusy(true);
     const r = await recordObservation({
       payment_id: id,
@@ -471,6 +481,7 @@ export default function CompanyAnalysis() {
   };
 
   const acceptItem = async (it: PaymentItemRow) => {
+    if (!guardEditable()) return;
     const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
@@ -486,6 +497,7 @@ export default function CompanyAnalysis() {
   };
 
   const undoAcceptItem = async (it: PaymentItemRow) => {
+    if (!guardEditable()) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("undo_accept_payment_item", { _item_id: it.id });
     setBusy(false);
