@@ -293,6 +293,11 @@ All colors MUST be HSL.
     height: auto !important;
     line-height: 1.4 !important;
   }
+  @media (min-width: 640px) {
+    table thead th {
+      padding: 8px 16px !important;
+    }
+  }
 
   table tbody td {
     text-transform: none !important;
