@@ -1716,6 +1716,51 @@ export function applyCalculation(
       };
     }
 
+    // ---- Desempate por packageMatchScore entre cálculos de PACOTE ----
+    // Se houver múltiplos cálculos do tipo pacote/pacote_por_atendimento
+    // válidos para este item, escolhemos o pacote cujo conjunto de inclusos
+    // tem maior sobreposição com o atendimento. Cálculos não-pacote
+    // permanecem disputando normalmente.
+    const isPacoteType = (t: CalculationType) =>
+      t === "pacote" || t === "pacote_por_atendimento";
+    const pacoteCalcs = validCalcs.filter((v) => isPacoteType(v.calculation_type));
+    if (pacoteCalcs.length >= 2) {
+      const scored = pacoteCalcs.map((v) => {
+        const cItem = list.find((c) => (c.id ?? null) === v.id);
+        const eff = cItem ? ruleFromCalcItem(rule, cItem) : rule;
+        const score = packageMatchScore(eff, item, ctx);
+        return { v, score };
+      });
+      const eligible = scored.filter((s) => s.score >= 0);
+      if (eligible.length > 0) {
+        eligible.sort((a, b) =>
+          b.score - a.score ||
+          a.v.sort_order - b.v.sort_order ||
+          0,
+        );
+        const winnerId = eligible[0].v.id;
+        const winnerIds = new Set<string | null>([winnerId]);
+        // Remove dos validCalcs todos os outros pacotes (perderam o desempate).
+        for (let i = validCalcs.length - 1; i >= 0; i--) {
+          const v = validCalcs[i];
+          if (isPacoteType(v.calculation_type) && !winnerIds.has(v.id)) {
+            validCalcs.splice(i, 1);
+          }
+        }
+        // Marca no breakdown os pacotes perdedores.
+        for (const b of breakdown) {
+          if (
+            b.matched &&
+            (b.calculation_type === "pacote" || b.calculation_type === "pacote_por_atendimento") &&
+            b.calc_id !== winnerId
+          ) {
+            b.matched = false;
+            b.skip_reason = "pacote_perdeu_desempate_score";
+          }
+        }
+      }
+    }
+
     // Sub-Onda 2C — resolução prévia escolhe um cálculo entre TODOS os válidos
     // (restritivos ou catch-all — analista pode ter escolhido qualquer um).
     const resolutionId = item.calc_duplicity_resolution?.chosen_calc_id ?? null;
