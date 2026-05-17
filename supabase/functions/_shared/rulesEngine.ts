@@ -1274,6 +1274,10 @@ export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
   /** Índice atendimento → códigos de procedimento dos itens do mesmo atendimento. */
   attendanceSiblingCodes?: Map<string, Set<string>>;
+  /** Pré-passe — para cada (rule_id|attendance_key), o calc_id do pacote
+   *  que venceu pela cobertura do atendimento inteiro. Cálculos de pacote
+   *  diferentes do registrado aqui NÃO devem aplicar nesse atendimento. */
+  lockedPackageCalcByRuleAtt?: Map<string, string | null>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
   tolerance_pct?: number; // Tolerância customizada (ex.: 0.05 para 5%)
