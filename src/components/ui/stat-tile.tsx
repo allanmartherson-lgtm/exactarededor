@@ -177,7 +177,7 @@ export const StatTile = ({
       <CardContent
         className={cn(
           "h-full flex flex-col transition-[padding,gap] duration-200 ease-out motion-reduce:transition-none relative",
-          isCompact ? "p-4 gap-3" : "p-5 sm:p-6 gap-4",
+          isCompact ? "p-3 gap-2 sm:p-4 sm:gap-3" : "p-4 gap-3 sm:p-5 sm:gap-4 md:p-6",
         )}
       >
         {/* Floating "Sua vez" badge (top-right) when highlighted + string badge.
