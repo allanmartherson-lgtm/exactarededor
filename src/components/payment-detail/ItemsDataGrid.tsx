@@ -1086,6 +1086,7 @@ function ItemDetailsRow({
   observations,
   profiles,
   colSpan,
+  showTipoEntrada,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
@@ -1093,6 +1094,7 @@ function ItemDetailsRow({
   observations: ObservationRow[];
   profiles: Record<string, string>;
   colSpan: number;
+  showTipoEntrada?: boolean;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
