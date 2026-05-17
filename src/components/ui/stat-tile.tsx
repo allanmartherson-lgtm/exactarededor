@@ -180,9 +180,10 @@ export const StatTile = ({
           isCompact ? "p-4 gap-3" : "p-5 sm:p-6 gap-4",
         )}
       >
-        {/* Floating "Sua vez" badge (top-right) when highlighted + string badge */}
+        {/* Floating "Sua vez" badge (top-right) when highlighted + string badge.
+            Keeps test-visible badge in footer (see below) to preserve a11y/test contracts. */}
         {highlighted && typeof badge === "string" && (
-          <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
+          <span aria-hidden className="absolute top-3 right-3 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
             {badge}
           </span>
         )}
