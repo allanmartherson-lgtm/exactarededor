@@ -487,3 +487,141 @@ Deno.test("ONDA 1 BUGFIX — Tabela Diferenciada via rule.calculations[] não du
   const matches = explanation.match(/× qtd 3/g) ?? [];
   assertEquals(matches.length, 1, `Explicação deveria ter exatamente 1 "× qtd 3", encontrou ${matches.length}: ${explanation}`);
 });
+
+// --- FIX Pacotes — escopo de códigos em calcItemMatches ---
+import { calcItemMatches } from "./rulesEngine.ts";
+
+Deno.test("calcItemMatches: item fora do escopo de um cálculo de pacote retorna ok:false", () => {
+  const calc: any = {
+    id: "c-pacote-q",
+    sort_order: 0,
+    label: "Quadrantectomia",
+    calculation_type: "pacote",
+    package_main_code: "30602190",
+    package_included_codes: ["30602289", "30602254", "30602173"],
+    procedure_codes: null,
+    code_match_mode: "any",
+    package_amount: 9718.72,
+  };
+  const item = makeItem({ procedure_code: "30602157" });
+  const r = calcItemMatches(calc, item);
+  assertEquals(r.ok, false);
+  assertEquals((r as any).reason, "codigo_fora_do_pacote");
+});
+
+Deno.test("calcItemMatches: item que é o main_code do pacote passa", () => {
+  const calc: any = {
+    id: "c-pacote-q",
+    calculation_type: "pacote",
+    package_main_code: "30602190",
+    package_included_codes: ["30602289"],
+    code_match_mode: "any",
+  };
+  const item = makeItem({ procedure_code: "30602190" });
+  assertEquals(calcItemMatches(calc, item).ok, true);
+});
+
+Deno.test("calcItemMatches: pacote sem package_main_code mantém comportamento legado (passa)", () => {
+  const calc: any = {
+    id: "c-pacote-legacy",
+    calculation_type: "pacote",
+    package_main_code: null,
+    package_included_codes: null,
+    code_match_mode: "any",
+  };
+  const item = makeItem({ procedure_code: "99999999" });
+  assertEquals(calcItemMatches(calc, item).ok, true);
+});
+
+// --- FIX Pacotes — desempate por packageMatchScore entre pacotes elegíveis ---
+
+Deno.test("Desempate por packageMatchScore: vence o pacote com maior sobreposição de inclusos", () => {
+  // Pacote A (sort 0): main 30602149, inclusos [30602289] (1 incluído)
+  // Pacote B (sort 1): main 30602149, inclusos [30602289, 30602262, 30602157] (3)
+  // Atendimento: 30602149 + 30602289 + 30602157 → matches A=1/1=1.0; B=2/3=0.67
+  // Vence A (score maior).
+  const rule = makeRule({
+    id: "rule-mastopack",
+    name: "Mastologia Pacotes (test)",
+    calculation_type: "pacote_por_atendimento",
+    calculations: [
+      {
+        id: "calc-A",
+        sort_order: 0,
+        label: "Pacote A",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "30602149",
+        package_included_codes: ["30602289"],
+        package_amount: 1000,
+        code_match_mode: "any",
+      },
+      {
+        id: "calc-B",
+        sort_order: 1,
+        label: "Pacote B",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "30602149",
+        package_included_codes: ["30602289", "30602262", "30602157"],
+        package_amount: 9999,
+        code_match_mode: "any",
+      },
+    ],
+  } as any);
+
+  const att = "9097530";
+  const base = { attendance_number: att, procedure_amount: 100, gross_amount: 100 };
+  const mainItem = makeItem({ id: "i-main", procedure_code: "30602149", ...base });
+  const sib1 = makeItem({ id: "i-2", procedure_code: "30602289", ...base });
+  const sib2 = makeItem({ id: "i-3", procedure_code: "30602157", ...base });
+
+  const ctx: PaymentContext = { sectors: ["outro"], specialties: [], payment_type: null, reference_date: "2026-05-01" };
+  const results = analyzePaymentItems([mainItem, sib1, sib2], [rule], ctx);
+  const main = results.find((r) => r.item_id === "i-main")!;
+  // Score: A=1.0 vence B=0.67 → applied = 1000 do Pacote A
+  assertEquals(main.expected_amount, 1000);
+});
+
+Deno.test("Desempate por packageMatchScore: vence pacote mais específico quando todos inclusos batem", () => {
+  // Pacote A (sort 0): main 30602157, inclusos [30602289] → 1/1 = 1.0
+  // Pacote B (sort 1): main 30602157, inclusos [30602289, 30602149, 30602262] → 2/3 = 0.67
+  // Atendimento: 30602157 + 30602289 + 30602149 → A vence
+  const rule = makeRule({
+    id: "rule-mastopack-2",
+    name: "Mastologia Pacotes 2",
+    calculation_type: "pacote_por_atendimento",
+    calculations: [
+      {
+        id: "calc-A",
+        sort_order: 0,
+        label: "Pacote A small",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "30602157",
+        package_included_codes: ["30602289"],
+        package_amount: 5000,
+        code_match_mode: "any",
+      },
+      {
+        id: "calc-B",
+        sort_order: 1,
+        label: "Pacote B big",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "30602157",
+        package_included_codes: ["30602289", "30602149", "30602262"],
+        package_amount: 14315.59,
+        code_match_mode: "any",
+      },
+    ],
+  } as any);
+
+  const att = "ATT-2";
+  const base = { attendance_number: att, procedure_amount: 100, gross_amount: 100 };
+  const items = [
+    makeItem({ id: "m", procedure_code: "30602157", ...base }),
+    makeItem({ id: "s1", procedure_code: "30602289", ...base }),
+    makeItem({ id: "s2", procedure_code: "30602149", ...base }),
+  ];
+  const ctx: PaymentContext = { sectors: ["outro"], specialties: [], payment_type: null, reference_date: "2026-05-01" };
+  const results = analyzePaymentItems(items, [rule], ctx);
+  const main = results.find((r) => r.item_id === "m")!;
+  assertEquals(main.expected_amount, 5000); // score 1.0 vence 0.67
+});

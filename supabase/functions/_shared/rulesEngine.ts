@@ -1402,6 +1402,34 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     if (c.elective_mode === "urgencia" && !isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
   }
 
+  // ---- Escopo de códigos para cálculos do tipo PACOTE ----
+  // Quando o cálculo é um pacote E declara `package_main_code`, o item só se
+  // aplica se o `procedure_code` for o principal, ou estiver na lista de
+  // incluídos, ou estiver nos extras. Caso contrário, o cálculo simplesmente
+  // não vale para este item (evita que itens fora do escopo do pacote sejam
+  // considerados aplicáveis e acabem virando "expected = 0" silenciosamente).
+  // Retrocompat: pacotes antigos sem `package_main_code` continuam caindo no
+  // caminho atual (sem este filtro).
+  const isPackageCalc =
+    c.calculation_type === "pacote" ||
+    c.calculation_type === "pacote_por_atendimento" ||
+    c.calculation_type === "pacote_fechado" ||
+    c.calculation_type === "pacote_com_extras";
+  if (isPackageCalc) {
+    const mainCode = String((c as any).package_main_code ?? "").trim();
+    if (mainCode) {
+      const ic = String(item.procedure_code ?? "").trim();
+      const included = Array.isArray((c as any).package_included_codes)
+        ? (c as any).package_included_codes.map((x: any) => String(x).trim()).filter(Boolean)
+        : [];
+      const extras = Array.isArray((c as any).extras_codes)
+        ? (c as any).extras_codes.map((x: any) => String(x).trim()).filter(Boolean)
+        : [];
+      const inScope = !!ic && (ic === mainCode || included.includes(ic) || extras.includes(ic));
+      if (!inScope) return { ok: false, reason: "codigo_fora_do_pacote" };
+    }
+  }
+
   return { ok: true };
 }
 
@@ -1686,6 +1714,51 @@ export function applyCalculation(
         alerts: ["Nenhum item de cálculo da regra se aplica a este item."],
         breakdown,
       };
+    }
+
+    // ---- Desempate por packageMatchScore entre cálculos de PACOTE ----
+    // Se houver múltiplos cálculos do tipo pacote/pacote_por_atendimento
+    // válidos para este item, escolhemos o pacote cujo conjunto de inclusos
+    // tem maior sobreposição com o atendimento. Cálculos não-pacote
+    // permanecem disputando normalmente.
+    const isPacoteType = (t: CalculationType) =>
+      t === "pacote" || t === "pacote_por_atendimento";
+    const pacoteCalcs = validCalcs.filter((v) => isPacoteType(v.calculation_type));
+    if (pacoteCalcs.length >= 2) {
+      const scored = pacoteCalcs.map((v) => {
+        const cItem = list.find((c) => (c.id ?? null) === v.id);
+        const eff = cItem ? ruleFromCalcItem(rule, cItem) : rule;
+        const score = packageMatchScore(eff, item, ctx);
+        return { v, score };
+      });
+      const eligible = scored.filter((s) => s.score >= 0);
+      if (eligible.length > 0) {
+        eligible.sort((a, b) =>
+          b.score - a.score ||
+          a.v.sort_order - b.v.sort_order ||
+          0,
+        );
+        const winnerId = eligible[0].v.id;
+        const winnerIds = new Set<string | null>([winnerId]);
+        // Remove dos validCalcs todos os outros pacotes (perderam o desempate).
+        for (let i = validCalcs.length - 1; i >= 0; i--) {
+          const v = validCalcs[i];
+          if (isPacoteType(v.calculation_type) && !winnerIds.has(v.id)) {
+            validCalcs.splice(i, 1);
+          }
+        }
+        // Marca no breakdown os pacotes perdedores.
+        for (const b of breakdown) {
+          if (
+            b.matched &&
+            (b.calculation_type === "pacote" || b.calculation_type === "pacote_por_atendimento") &&
+            b.calc_id !== winnerId
+          ) {
+            b.matched = false;
+            b.skip_reason = "pacote_perdeu_desempate_score";
+          }
+        }
+      }
     }
 
     // Sub-Onda 2C — resolução prévia escolhe um cálculo entre TODOS os válidos
