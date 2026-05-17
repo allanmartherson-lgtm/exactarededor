@@ -2386,78 +2386,111 @@ const Rules = () => {
         {groups.length === 0 ? (
           <Card className="shadow-card"><CardContent className="px-6 py-12"><p className="text-center text-sm text-muted-foreground">Nenhuma regra encontrada.</p></CardContent></Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4 max-w-6xl">
             {groups.map((g) => {
               const isCol = collapsed[g.key] === true;
               return (
-                <Card key={g.key} className="shadow-card overflow-hidden">
+                <div key={g.key} className="space-y-2">
+                  {/* Group header — sem card, mais leve, alinhado com o resto do sistema */}
                   <button onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCol }))}
-                    className="w-full px-6 py-3 flex items-center gap-3 bg-muted/40 hover:bg-muted/60 text-left border-b border-border">
-                    {isCol ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    <span className="text-sm">{g.type === "master" ? "📘" : g.type === "empresa" ? "🏥" : "👤"}</span>
-                    <p className="font-medium text-sm flex-1">{g.label}</p>
-                    <span className="text-xs text-muted-foreground">{g.rules.length} regra{g.rules.length > 1 ? "s" : ""}</span>
+                    className="w-full px-2 py-1.5 flex items-center gap-2.5 text-left rounded-lg hover:bg-muted/40 transition-colors">
+                    {isCol ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    <span className="text-base leading-none">{g.type === "master" ? "📘" : g.type === "empresa" ? "🏥" : "👤"}</span>
+                    <p className="font-display font-semibold text-[15px] text-foreground flex-1">{g.label}</p>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      {g.rules.length} regra{g.rules.length > 1 ? "s" : ""}
+                    </span>
                   </button>
                   {!isCol && (
-                    <div className="divide-y divide-border">
+                    <div className="space-y-2">
                       {g.rules.map((r) => {
                         const incomplete = isIncomplete(r);
                         const missing = missingFields(r);
+                        const expired = r.valid_until && new Date(r.valid_until) < new Date();
                         return (
-                          <div key={r.id} className="px-6 py-4 flex items-start gap-3">
-                            <Checkbox className="mt-1" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                 {r.active === false && <span className="text-[10px] font-bold uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20">Inativa</span>}
-                                 {r.valid_until && new Date(r.valid_until) < new Date() && <span className="text-[10px] font-bold uppercase bg-warning/10 text-warning-foreground px-1.5 py-0.5 rounded border border-warning/20">Expirada</span>}
-                                <span className="font-semibold text-foreground">{r.name}</span>
-                                {(() => {
-                                  const alertVal = r.limiar_alerta_valor;
-                                  const alertType = r.limiar_alerta_tipo;
-                                  const blockVal = r.limiar_bloqueio_valor;
-                                  const blockType = r.limiar_bloqueio_tipo;
-                                  if (alertVal == null && blockVal == null) return null;
-                                  const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
-                                  const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
-                                  return <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/50 ml-1">⚠ {alertText} / 🚫 {blockText}</span>;
-                                })()}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <span className={`text-xs rounded-full border px-2 py-0.5 ${TONE_CLASSES[sevTone[r.severity as RuleSeverity]]}`}>{r.severity}</span>
-                                {/* Badge de setores removida — restritivo vive por Cálculo */}
-                                 {(r.valid_from || r.valid_until) && (
+                          <div
+                            key={r.id}
+                            className="group bg-card rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] hover:border-primary/30 transition-all duration-200"
+                          >
+                            <div className="flex items-start gap-4 p-4">
+                              <Checkbox className="mt-1 flex-shrink-0" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
+
+                              <div className="flex-1 min-w-0">
+                                {/* Linha 1 — título + chips inline */}
+                                <div className="flex items-center flex-wrap gap-2 mb-1.5">
+                                  <h4 className="font-display font-semibold text-[15px] text-foreground truncate">{r.name}</h4>
+
+                                  {r.active === false && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]">Inativa</span>
+                                  )}
+                                  {expired && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]">Expirada</span>
+                                  )}
                                   <span className={cn(
-                                    "text-xs rounded-full border px-2 py-0.5",
-                                    r.valid_until && new Date(r.valid_until) < new Date() 
-                                      ? "border-warning/50 bg-warning/5 text-warning-foreground" 
-                                      : "border-border bg-muted/60"
+                                    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
+                                    r.severity === "bloqueio" && "bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]",
+                                    r.severity === "aviso" && "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]",
+                                    r.severity === "info" && "bg-[hsl(var(--info-soft))] text-[hsl(var(--info))]",
                                   )}>
-                                    Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
+                                    {r.severity}
                                   </span>
+
+                                  {(r.valid_from || r.valid_until) && (
+                                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+                                      <span className="w-1 h-1 rounded-full bg-border" />
+                                      Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
+                                    </span>
+                                  )}
+
+                                  {(() => {
+                                    const alertVal = r.limiar_alerta_valor;
+                                    const alertType = r.limiar_alerta_tipo;
+                                    const blockVal = r.limiar_bloqueio_valor;
+                                    const blockType = r.limiar_bloqueio_tipo;
+                                    if (alertVal == null && blockVal == null) return null;
+                                    const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                    const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                    return (
+                                      <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1.5">
+                                        <span className="w-1 h-1 rounded-full bg-border" />
+                                        ⚠ {alertText} / 🚫 {blockText}
+                                      </span>
+                                    );
+                                  })()}
+
+                                  {renderCalcBadge(r)}
+
+                                  {incomplete && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] flex items-center gap-1">
+                                      <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Linha 2 — descrição (auxiliar) */}
+                                {r.description && (
+                                  <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{r.description}</p>
                                 )}
-                                {renderCalcBadge(r)}
-                                {incomplete && (
-                                  <span className="text-xs rounded-full border border-warning/50 bg-warning/10 text-warning-foreground px-2 py-0.5 flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
-                                  </span>
+                                {/* Linha 3 — texto principal da regra */}
+                                {r.rule_text && (
+                                  <p className="text-[13px] text-foreground/90 leading-relaxed mt-1 line-clamp-3">{r.rule_text}</p>
                                 )}
-                                {/* Filtros legados (códigos/setores/etc. no nível Regra) foram removidos do schema. */}
                               </div>
-                              {r.description && <p className="text-xs text-muted-foreground mb-1">{r.description}</p>}
-                              <p className="text-sm">{r.rule_text}</p>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+
+                              {/* Ações horizontais, com divisor sutil, aparecem no hover */}
+                              <div className="flex items-center gap-0.5 pl-3 ml-2 border-l border-border/60 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[hsl(var(--destructive-soft))] hover:text-[hsl(var(--destructive))]" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                              </div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
                   )}
-                </Card>
+                </div>
               );
             })}
           </div>
