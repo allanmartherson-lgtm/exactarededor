@@ -157,22 +157,35 @@ export const StatTile = ({
     />
   );
 
+  // "Zero state" = idle visual: gray the number so the highlighted card naturally pops.
+  const isZero =
+    (typeof value === "number" && value === 0) ||
+    (typeof value === "string" && value.trim() === "0");
+
   const inner = (
     <Card
       data-testid="stat-card"
       className={cn(
-        "shadow-soft transition h-full",
-        highlighted && "ring-1 ring-primary/40",
-        interactive && "group-hover:shadow-card group-focus-visible:shadow-card",
+        "rounded-3xl transition-all duration-200 h-full bg-card",
+        highlighted
+          ? "border-2 border-primary shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.25)]"
+          : "border border-border shadow-none hover:border-border/80",
+        interactive && !highlighted && "group-hover:shadow-card group-focus-visible:shadow-card",
         className,
       )}
     >
       <CardContent
         className={cn(
-          "h-full flex flex-col transition-[padding,gap] duration-200 ease-out motion-reduce:transition-none",
-          isCompact ? "p-3 gap-2" : "p-3 sm:p-4 lg:p-5 gap-3",
+          "h-full flex flex-col transition-[padding,gap] duration-200 ease-out motion-reduce:transition-none relative",
+          isCompact ? "p-4 gap-3" : "p-5 sm:p-6 gap-4",
         )}
       >
+        {/* Floating "Sua vez" badge (top-right) when highlighted + string badge */}
+        {highlighted && typeof badge === "string" && (
+          <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
+            {badge}
+          </span>
+        )}
         <div
           className={cn(
             "flex items-start justify-between transition-[gap] duration-200 ease-out motion-reduce:transition-none",
@@ -180,7 +193,6 @@ export const StatTile = ({
           )}
         >
           {isBottomLabel ? (
-            // Apenas o ícone no topo; espaço do label vai para o rodapé.
             <span aria-hidden className="flex-1 min-w-0" />
           ) : (
             labelNode
@@ -198,9 +210,10 @@ export const StatTile = ({
         <p
           data-testid="stat-card-value"
           className={cn(
-            "stat-number",
-            isCompact ? "text-2xl" : "text-2xl sm:text-3xl",
-            "font-semibold tabular-nums leading-none transition-[font-size] duration-200 ease-out motion-reduce:transition-none",
+            "stat-number font-display",
+            isCompact ? "text-3xl" : "text-3xl sm:text-4xl",
+            "font-semibold tabular-nums leading-none tracking-tight transition-[font-size,color] duration-200 ease-out motion-reduce:transition-none",
+            isZero && !highlighted ? "text-[hsl(var(--text-tertiary))]" : "text-foreground",
           )}
         >
           {value}
