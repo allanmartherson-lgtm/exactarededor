@@ -2386,18 +2386,18 @@ const Rules = () => {
         {groups.length === 0 ? (
           <Card className="shadow-card"><CardContent className="px-6 py-12"><p className="text-center text-sm text-muted-foreground">Nenhuma regra encontrada.</p></CardContent></Card>
         ) : (
-          <div className="space-y-4 max-w-6xl">
+          <div className="space-y-4 w-full">
             {groups.map((g) => {
               const isCol = collapsed[g.key] === true;
               return (
                 <div key={g.key} className="space-y-2">
-                  {/* Group header — sem card, mais leve, alinhado com o resto do sistema */}
+                  {/* Group header — alinhado com o padrão do sistema (text-sm font-semibold) */}
                   <button onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCol }))}
                     className="w-full px-2 py-1.5 flex items-center gap-2.5 text-left rounded-lg hover:bg-muted/40 transition-colors">
                     {isCol ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                     <span className="text-base leading-none">{g.type === "master" ? "📘" : g.type === "empresa" ? "🏥" : "👤"}</span>
-                    <p className="font-display font-semibold text-[15px] text-foreground flex-1">{g.label}</p>
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <p className="text-sm font-semibold text-foreground flex-1">{g.label}</p>
+                    <span className="text-[11px] font-medium text-muted-foreground">
                       {g.rules.length} regra{g.rules.length > 1 ? "s" : ""}
                     </span>
                   </button>
@@ -2418,7 +2418,7 @@ const Rules = () => {
                               <div className="flex-1 min-w-0">
                                 {/* Linha 1 — título + chips inline */}
                                 <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                  <h4 className="font-display font-semibold text-[15px] text-foreground truncate">{r.name}</h4>
+                                  <h4 className="text-sm font-semibold text-foreground truncate">{r.name}</h4>
 
                                   {r.active === false && (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]">Inativa</span>
