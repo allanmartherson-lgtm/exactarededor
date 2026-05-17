@@ -693,6 +693,38 @@ function CalcCard({
             </div>
 
             {/* Códigos */}
+            {isPacote ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Códigos TUSS / CBHPM</Label>
+                {(() => {
+                  const main = c.package_main_code.trim();
+                  const inclusos = c.package_included_codes
+                    .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                  const extras = (c.extras_codes || "")
+                    .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                  const hasAny = main || inclusos.length > 0 || extras.length > 0;
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                      <Package className="h-4 w-4 mt-0.5 shrink-0 opacity-70" aria-hidden />
+                      {hasAny ? (
+                        <p className="leading-snug">
+                          <span className="italic">Escopo de código:</span>{" "}
+                          {main && (<><strong className="font-mono not-italic text-foreground">{main}</strong> (principal)</>)}
+                          {main && inclusos.length > 0 && " + "}
+                          {inclusos.length > 0 && (<><strong className="font-mono not-italic text-foreground">{inclusos.join(", ")}</strong> (inclusos)</>)}
+                          {extras.length > 0 && (<> + <strong className="font-mono not-italic text-foreground">{extras.join(", ")}</strong> (extras)</>)}
+                          .
+                        </p>
+                      ) : (
+                        <p className="italic leading-snug">
+                          Escopo de código: defina o código principal e os inclusos no bloco acima.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs">Códigos TUSS / CBHPM</Label>
@@ -797,6 +829,7 @@ function CalcCard({
                 </>
               )}
             </div>
+            )}
 
             {/* Convênios */}
             <div className="space-y-1.5">
