@@ -814,10 +814,63 @@ const PaymentDetail = () => {
         return;
       }
 
-      // Limpa itens e grupos existentes
+      // Limpa apenas itens; grupos serão sincronizados (não apagados em massa)
+      // para que as empresas continuem visíveis na tela durante a reanálise pela IA.
+      // O motor (analyze-payment) atualiza totais e remove grupos órfãos ao final.
       const { error: delItemsErr } = await supabase.from("payment_items").delete().eq("payment_id", id);
       if (delItemsErr) { toast({ title: "Falha ao limpar itens", description: delItemsErr.message, variant: "destructive" }); return; }
-      await supabase.from("payment_company_groups").delete().eq("payment_id", id);
+
+      // Sincronização eager de grupos: agrega por empresa a partir das linhas
+      // recém-importadas e faz upsert/insert; remove grupos cuja empresa não
+      // existe mais no novo arquivo. Status fica "revisao_analista" como skeleton
+      // até o motor reescrever com os valores definitivos.
+      const norm = (s: string) => (s ?? "").trim().toLowerCase();
+      const newGroupsMap = new Map<string, { company_name: string; company_id: string | null; items_count: number; total_amount: number }>();
+      for (const r of allRows) {
+        const name = (r.company_name ?? "Sem empresa").trim() || "Sem empresa";
+        const key = norm(name);
+        const cur = newGroupsMap.get(key);
+        if (cur) {
+          cur.items_count += 1;
+          cur.total_amount += Number(r.gross_amount) || 0;
+          if (!cur.company_id && r.company_id) cur.company_id = r.company_id;
+        } else {
+          newGroupsMap.set(key, { company_name: name, company_id: r.company_id ?? null, items_count: 1, total_amount: Number(r.gross_amount) || 0 });
+        }
+      }
+      const { data: existingGroups } = await supabase
+        .from("payment_company_groups")
+        .select("id,company_name,status")
+        .eq("payment_id", id);
+      const newKeys = new Set(newGroupsMap.keys());
+      const toRemove = (existingGroups ?? []).filter((g) => !newKeys.has(norm(g.company_name))).map((g) => g.id);
+      if (toRemove.length > 0) {
+        await supabase.from("payment_company_groups").delete().in("id", toRemove);
+      }
+      for (const [key, g] of newGroupsMap.entries()) {
+        const existing = (existingGroups ?? []).find((eg) => norm(eg.company_name) === key);
+        if (existing) {
+          await supabase
+            .from("payment_company_groups")
+            .update({
+              company_name: g.company_name,
+              company_id: g.company_id,
+              items_count: g.items_count,
+              total_amount: g.total_amount,
+              status: "revisao_analista",
+            })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("payment_company_groups").insert({
+            payment_id: id,
+            company_name: g.company_name,
+            company_id: g.company_id,
+            items_count: g.items_count,
+            total_amount: g.total_amount,
+            status: "revisao_analista",
+          });
+        }
+      }
 
       const itemsToInsert = allRows.map((r) => ({
         payment_id: id,
