@@ -110,8 +110,8 @@ All colors MUST be HSL.
     --popover-foreground: 210 30% 96%;
 
     /* Brand: same airy blue, slightly brighter for dark surfaces */
-    --primary: 217 91% 65%;              /* #4f8df9 */
-    --primary-foreground: 222 47% 8%;
+    --primary: 217 91% 62%;              /* #3b82f6-ish, still readable on dark */
+    --primary-foreground: 0 0% 100%;     /* white on blue — WCAG AA */
     --primary-soft: 222 60% 18%;
     --primary-glow: 217 91% 72%;
 
@@ -122,22 +122,22 @@ All colors MUST be HSL.
     --muted-foreground: 215 18% 75%;     /* #b3becd — readable secondary text */
     --text-tertiary: 215 14% 62%;        /* #8b95a6 — meta still readable */
 
-    --accent: 222 60% 18%;               /* primary tint as bg */
-    --accent-foreground: 217 91% 75%;
+    --accent: 222 55% 20%;               /* primary tint as bg */
+    --accent-foreground: 217 95% 80%;
 
-    --success: 152 65% 58%;
-    --success-foreground: 152 70% 12%;
+    --success: 152 60% 55%;
+    --success-foreground: 0 0% 100%;
     --success-soft: 152 45% 16%;
 
-    --warning: 38 92% 62%;
-    --warning-foreground: 30 80% 12%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 30 80% 10%;    /* dark text on bright amber */
     --warning-soft: 36 60% 18%;
 
-    --info: 217 91% 70%;
-    --info-foreground: 222 47% 8%;
+    --info: 217 91% 68%;
+    --info-foreground: 0 0% 100%;
     --info-soft: 222 60% 18%;
 
-    --destructive: 0 84% 68%;
+    --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 50% 20%;
 
@@ -145,11 +145,12 @@ All colors MUST be HSL.
     --input: 222 18% 22%;
     --ring: 217 91% 65%;
 
-    --gradient-brand: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 70%));
-    --gradient-soft: linear-gradient(135deg, hsl(222 60% 18%), hsl(222 24% 9%));
-    --shadow-soft: 0 1px 2px 0 hsl(0 0% 0% / 0.4), 0 1px 3px 0 hsl(0 0% 0% / 0.3);
-    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 1px 2px -1px hsl(0 0% 0% / 0.3);
-    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.6), 0 8px 16px -8px hsl(0 0% 0% / 0.4);
+    --gradient-brand: linear-gradient(135deg, hsl(217 91% 58%), hsl(217 91% 70%));
+    --gradient-soft: linear-gradient(135deg, hsl(222 55% 18%), hsl(222 24% 9%));
+    /* Airy soft elevation in dark: subtle dark base + faint primary glow */
+    --shadow-soft: 0 1px 2px 0 hsl(0 0% 0% / 0.35), 0 1px 3px 0 hsl(0 0% 0% / 0.25);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(217 91% 50% / 0.08);
+    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.55), 0 8px 24px -8px hsl(217 91% 50% / 0.15);
 
     --bubble-purple-bg: 250 40% 22%;
     --bubble-purple-fg: 250 95% 85%;
@@ -174,8 +175,8 @@ All colors MUST be HSL.
     --sidebar-background: 220 22% 11%;
     --sidebar-foreground: 215 18% 78%;
     --sidebar-muted-foreground: 215 14% 60%;
-    --sidebar-primary: 217 91% 65%;
-    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-primary: 217 91% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 222 20% 17%;
     --sidebar-hover-foreground: 210 30% 96%;
     --sidebar-accent: 222 60% 18%;
@@ -204,6 +205,17 @@ All colors MUST be HSL.
     font-family: "Outfit", "Figtree", system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: -0.02em;
+  }
+
+  /* Dark mode: lighter heading weight + tighter smoothing avoids the
+     "bold smear" of bright Outfit on dark surfaces — keeps Airy feel. */
+  .dark h1, .dark h2, .dark h3, .dark h4 {
+    font-weight: 550;
+    letter-spacing: -0.018em;
+  }
+  .dark body {
+    font-weight: 380;
+    text-rendering: optimizeLegibility;
   }
 }
 
