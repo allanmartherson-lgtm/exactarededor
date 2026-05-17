@@ -28,6 +28,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
 import { claimPayment } from "@/lib/assignments";
+import { isCompanyGroupEditable, isCompanyGroupReopenable, COMPANY_GROUP_LOCKED_TOOLTIP } from "@/lib/companyGroupGuards";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import {
@@ -362,6 +363,9 @@ export default function CompanyAnalysis() {
   const [reimporting, setReimporting] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [reopening, setReopening] = useState(false);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
@@ -428,9 +432,18 @@ export default function CompanyAnalysis() {
     : isValidador ? "validador"
     : "analista";
 
+  const guardEditable = (): boolean => {
+    if (!isCompanyGroupEditable(group?.status)) {
+      toast.error("Empresa concluída", { description: COMPANY_GROUP_LOCKED_TOOLTIP });
+      return false;
+    }
+    return true;
+  };
+
   const addItemComment = async (itemId: string) => {
     const text = (itemDraft[itemId] ?? "").trim();
     if (!text || !id) return;
+    if (!guardEditable()) return;
     setBusy(true);
     const r = await recordObservation({
       payment_id: id,
@@ -449,6 +462,7 @@ export default function CompanyAnalysis() {
   const addGroupComment = async () => {
     const text = groupDraft.trim();
     if (!text || !id || !group) return;
+    if (!guardEditable()) return;
     setBusy(true);
     const r = await recordObservation({
       payment_id: id,
@@ -467,6 +481,7 @@ export default function CompanyAnalysis() {
   };
 
   const acceptItem = async (it: PaymentItemRow) => {
+    if (!guardEditable()) return;
     const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
@@ -482,6 +497,7 @@ export default function CompanyAnalysis() {
   };
 
   const undoAcceptItem = async (it: PaymentItemRow) => {
+    if (!guardEditable()) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("undo_accept_payment_item", { _item_id: it.id });
     setBusy(false);
@@ -501,6 +517,7 @@ export default function CompanyAnalysis() {
 
   const reanalyzeGroup = async () => {
     if (!id || !group) return;
+    if (!guardEditable()) return;
     await autoClaim();
     setReanalyzing(true);
     const startedAt = Date.now();
@@ -916,6 +933,7 @@ export default function CompanyAnalysis() {
 
   const saveItem = async () => {
     if (!editItem || !id || !group) return;
+    if (!guardEditable()) return;
     const newGross = Number(editDraft.gross_amount.replace(",", "."));
     if (Number.isNaN(newGross)) {
       toast.error("Valor inválido");
@@ -1132,6 +1150,58 @@ export default function CompanyAnalysis() {
     setBusy(false);
   };
 
+  const reopenCompanyAnalysis = async () => {
+    if (!id || !group || !user) return;
+    const reason = reopenReason.trim();
+    if (reason.length < 10) {
+      toast.error("Motivo obrigatório", { description: "Descreva o motivo com ao menos 10 caracteres." });
+      return;
+    }
+    setReopening(true);
+    try {
+      const previousStatus = group.status;
+      const { error } = await supabase
+        .from("payment_company_groups")
+        .update({ status: "revisao_analista", validated_by: null, validated_at: null })
+        .eq("id", group.id);
+      if (error) throw error;
+
+      // Registra em audit_log (tabela já existente — usamos diff/jsonb para metadados)
+      await supabase.from("audit_log").insert({
+        entity_type: "payment_company_group",
+        entity_id: group.id,
+        action: "company_group_reopened",
+        actor_id: user.id,
+        company_id: group.company_id ?? null,
+        company_name: group.company_name,
+        diff: {
+          previous_status: { before: previousStatus, after: "revisao_analista" },
+          motivo: { before: null, after: reason },
+          payment_id: { before: null, after: id },
+        } as never,
+      });
+
+      // Observação visível no histórico da empresa
+      await recordObservation({
+        payment_id: id,
+        author_type: "analista",
+        author_id: user.id,
+        message: `[${group.company_name}] Análise reaberta pelo analista. Motivo: ${reason}`,
+        status_from: previousStatus,
+        status_to: "revisao_analista",
+      });
+
+      toast.success("Análise reaberta", { description: "Você pode editar a empresa novamente." });
+      setReopenOpen(false);
+      setReopenReason("");
+      await load();
+    } catch (e) {
+      toast.error("Falha ao reabrir análise", { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setReopening(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -1156,6 +1226,16 @@ export default function CompanyAnalysis() {
   const isAdmin = hasRole("admin");
   const isAdminOrDiretor = hasRole("admin") || hasRole("diretor");
   const canEdit = canEditBatch(gStatus, { isOwner, isAnalista, isAdminOrDiretor });
+  // Gate por empresa: mesmo que o lote esteja editável, uma empresa concluída
+  // (concluida_analista/aguardando_validacao/...) congela até ser reaberta.
+  const companyEditable = isCompanyGroupEditable(gStatus);
+  const canEditCompany = canEdit && companyEditable;
+  // Reabrir análise: só aparece em estados pós-conclusão do analista,
+  // e somente para o analista atualmente atribuído ao lote.
+  const currentAssignedAnalystId = assignments[0]?.analyst_id ?? null;
+  const isCurrentAnalyst = !!user && !!currentAssignedAnalystId && user.id === currentAssignedAnalystId;
+  const canReopenCompany =
+    isAnalistaRole && isCompanyGroupReopenable(gStatus) && (isCurrentAnalyst || isAdmin);
   const canReimport = canReimportBatch(payment.status as PaymentStatus, { isOwner, isAnalista });
   const isTerminal = ["pago", "rejeitado", "cancelado", "lancado"].includes(payment.status as string);
   const canDelete = isAdmin || (isAnalistaRole && !isTerminal);
@@ -1314,7 +1394,7 @@ export default function CompanyAnalysis() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {canEdit && (
+          {canEditCompany && (
             <div className="flex items-center gap-2 mr-2 pr-2 border-r">
               <Switch 
                 id="group-totalized" 
@@ -1349,6 +1429,43 @@ export default function CompanyAnalysis() {
             </div>
           )}
           <StatusBadge status={gStatus} />
+          {canReopenCompany && (
+            <Dialog open={reopenOpen} onOpenChange={(o) => { setReopenOpen(o); if (!o) setReopenReason(""); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-amber-400 text-amber-700 hover:bg-amber-50">
+                  <Undo2 className="h-4 w-4 mr-1.5" />
+                  Reabrir análise
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reabrir análise da empresa</DialogTitle>
+                  <DialogDescription>
+                    A empresa <strong>{group.company_name}</strong> voltará para <strong>Em revisão do analista</strong> e poderá ser editada novamente.
+                    O motivo será registrado no histórico e na auditoria.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 py-2">
+                  <Label htmlFor="reopen-reason" className="text-xs">Motivo da reabertura (obrigatório, mín. 10 caracteres)</Label>
+                  <Textarea
+                    id="reopen-reason"
+                    value={reopenReason}
+                    onChange={(e) => setReopenReason(e.target.value.slice(0, 500))}
+                    rows={4}
+                    placeholder="Ex.: identificada divergência em 3 itens após conferência manual com a base original."
+                    disabled={reopening}
+                  />
+                  <p className="text-[11px] text-muted-foreground text-right">{reopenReason.trim().length}/500</p>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setReopenOpen(false)} disabled={reopening}>Cancelar</Button>
+                  <Button onClick={reopenCompanyAnalysis} disabled={reopening || reopenReason.trim().length < 10}>
+                    {reopening ? "Reabrindo…" : "Reabrir"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -1485,7 +1602,7 @@ export default function CompanyAnalysis() {
                 observations={obs}
                 profiles={profiles}
                 storageKey="companyAnalysisPage"
-                canEdit={canEdit}
+                canEdit={canEditCompany}
                 onEditItem={openEditItem}
                 onDeleteItem={(it) => setDeleteItem(it)}
                 onAcceptItem={acceptItem}

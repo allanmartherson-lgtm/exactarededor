@@ -15,6 +15,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { humanizeCompanyGroupStatus } from "@/lib/companyGroupGuards";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
@@ -178,6 +180,7 @@ const PaymentDetail = () => {
   const [groupAiOpen, setGroupAiOpen] = useState<Set<string>>(new Set());
   const [reanalyzingGroupId, setReanalyzingGroupId] = useState<string | null>(null);
   const [reprocessingAi, setReprocessingAi] = useState(false);
+  const [skippedCompanies, setSkippedCompanies] = useState<Array<{ company_name: string; status: string }>>([]);
   const [validatingRules, setValidatingRules] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
@@ -942,7 +945,7 @@ const PaymentDetail = () => {
       // Removido a criação manual de job no frontend para operações de lote, 
       // o dispatch-payment-analysis cuidará disso internamente de forma exaustiva.
 
-      const { error } = await supabase.functions.invoke(fnName, {
+      const { data, error } = await supabase.functions.invoke(fnName, {
         body: {
           payment_id: id,
           ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
@@ -952,6 +955,8 @@ const PaymentDetail = () => {
         },
       });
       if (error) throw error;
+      const skipped = (data as any)?.skipped_companies ?? [];
+      setSkippedCompanies(Array.isArray(skipped) ? skipped : []);
       
       const filterDesc = statuses && statuses.length > 0 
         ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
@@ -2189,6 +2194,37 @@ const PaymentDetail = () => {
 
           {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+
+          {skippedCompanies.length > 0 && (
+            <Alert variant="warning" className="relative">
+              <AlertTriangle className="h-4 w-4" />
+              <button
+                type="button"
+                onClick={() => setSkippedCompanies([])}
+                className="absolute right-3 top-3 text-xs text-muted-foreground hover:text-foreground"
+                aria-label="Fechar aviso"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+              <AlertTitle>{skippedCompanies.length} empresa(s) puladas na reanálise</AlertTitle>
+              <AlertDescription>
+                <p className="mb-1 text-xs">
+                  Estas empresas já foram concluídas ou estão em fases posteriores e não foram reanalisadas:
+                </p>
+                <ul className="text-xs space-y-0.5 mb-2">
+                  {skippedCompanies.slice(0, 5).map((s, i) => (
+                    <li key={i}>• <strong>{s.company_name}</strong> ({humanizeCompanyGroupStatus(s.status)})</li>
+                  ))}
+                  {skippedCompanies.length > 5 && (
+                    <li className="text-muted-foreground italic">e mais {skippedCompanies.length - 5} empresa(s)…</li>
+                  )}
+                </ul>
+                <p className="text-xs">
+                  Para reanalisar uma delas, abra a empresa e clique em <strong>"Reabrir análise"</strong>.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <TooltipProvider delayDuration={150}>
             <CompanyListLegend />
