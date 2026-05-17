@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -693,6 +693,38 @@ function CalcCard({
             </div>
 
             {/* Códigos */}
+            {isPacote ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Códigos TUSS / CBHPM</Label>
+                {(() => {
+                  const main = c.package_main_code.trim();
+                  const inclusos = c.package_included_codes
+                    .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                  const extras = (c.extras_codes || "")
+                    .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+                  const hasAny = main || inclusos.length > 0 || extras.length > 0;
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                      <Package className="h-4 w-4 mt-0.5 shrink-0 opacity-70" aria-hidden />
+                      {hasAny ? (
+                        <p className="leading-snug">
+                          <span className="italic">Escopo de código:</span>{" "}
+                          {main && (<><strong className="font-mono not-italic text-foreground">{main}</strong> (principal)</>)}
+                          {main && inclusos.length > 0 && " + "}
+                          {inclusos.length > 0 && (<><strong className="font-mono not-italic text-foreground">{inclusos.join(", ")}</strong> (inclusos)</>)}
+                          {extras.length > 0 && (<> + <strong className="font-mono not-italic text-foreground">{extras.join(", ")}</strong> (extras)</>)}
+                          .
+                        </p>
+                      ) : (
+                        <p className="italic leading-snug">
+                          Escopo de código: defina o código principal e os inclusos no bloco acima.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs">Códigos TUSS / CBHPM</Label>
@@ -797,6 +829,7 @@ function CalcCard({
                 </>
               )}
             </div>
+            )}
 
             {/* Convênios */}
             <div className="space-y-1.5">
@@ -1232,10 +1265,12 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
     specialties: c.has_conditions ? c.specialties : [],
     force_totalized: c.calculation_type === "percentual_sobre_convenio" ? c.force_totalized : false,
     application_unit: c.calculation_type === "bonus" ? c.application_unit : "por_item",
-    procedure_codes: c.procedure_codes.length > 0 ? c.procedure_codes : null,
+    // Para tipos de pacote, o escopo de código é determinado pelos campos do pacote
+    // (main_code + incluídos + extras). Limpamos o filtro genérico para evitar resíduos.
+    procedure_codes: isPacote ? null : (c.procedure_codes.length > 0 ? c.procedure_codes : null),
     // Normaliza: sem códigos listados ⇒ modo "any" (fallback). Evita o anti-padrão
     // "whitelist sem códigos" que faz o cálculo capturar qualquer item por engano.
-    code_match_mode: c.procedure_codes.length > 0 ? c.code_match_mode : "any",
+    code_match_mode: isPacote ? "any" : (c.procedure_codes.length > 0 ? c.code_match_mode : "any"),
     agreement_aliases: c.agreement_aliases.length > 0 ? c.agreement_aliases : null,
     agreement_match_mode: c.agreement_aliases.length > 0 ? c.agreement_match_mode : null,
     doctor_roles: c.doctor_roles.length > 0 ? c.doctor_roles : null,
@@ -1257,6 +1292,11 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
  * Permitido apenas em `tabela_diferenciada`, onde a própria tabela define o universo de códigos.
  */
 export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
+  const isPkg = c.calculation_type === "pacote"
+    || c.calculation_type === "pacote_fechado"
+    || c.calculation_type === "pacote_com_extras"
+    || c.calculation_type === "pacote_por_atendimento";
+  if (isPkg) return false;
   return (
     c.code_match_mode === "whitelist" &&
     c.procedure_codes.length === 0 &&
