@@ -871,6 +871,7 @@ export default function CompanyAnalysis() {
         procedure_date: r.procedure_date,
         patient_name: r.patient_name,
         sector: r.sector,
+        attendance_character: r.attendance_character,
         raw_data: r.raw_data as never,
         tipo_linha: r.tipo_linha,
       }));
