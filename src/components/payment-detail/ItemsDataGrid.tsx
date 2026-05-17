@@ -1133,11 +1133,16 @@ function ItemDetailsRow({
   const exceptionMarked = !!itemAny.authorized_exception;
   const itemObs = observations.filter((o) => o.item_id === it.id);
 
+  const rawCharacter = ((it as unknown as { attendance_character?: string | null }).attendance_character ?? "").toString().trim();
+  const characterLabel = rawCharacter
+    ? (/^elet/i.test(rawCharacter) ? "Eletivo" : /^urg/i.test(rawCharacter) ? "Urgência" : /^emerg/i.test(rawCharacter) ? "Emergência" : rawCharacter)
+    : "—";
   const summary: { label: string; value: string }[] = [
     { label: "Atendimento", value: it.attendance_number ?? "—" },
     { label: "Paciente", value: getPatient(it) },
     { label: "Convênio", value: getAgreement(it) },
     { label: "Via de Acesso", value: getAccessRoute(it) },
+    { label: "Caráter (Tipo Entrada)", value: characterLabel },
     { label: "TUSS", value: getProcedureCode(it) },
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
