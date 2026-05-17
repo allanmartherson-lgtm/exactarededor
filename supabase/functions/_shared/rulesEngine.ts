@@ -2162,7 +2162,19 @@ export function analyzeItem(
     if (!procDateValid) return false;
     return isInValidity(r, procDateRaw!);
   });
-  const outcome = selectWinningRule(item, rulesForItem, ctx, { collectTrace: true });
+  // Desempate de pacotes: quando múltiplos pacotes são elegíveis para o mesmo
+  // item, o de maior score (mais específico) deve ser avaliado primeiro.
+  const scoredRulesForItem = rulesForItem
+    .map((r) => ({
+      rule: r,
+      score:
+        r.calculation_type === "pacote" || r.calculation_type === "pacote_por_atendimento"
+          ? packageMatchScore(r, item, ctx)
+          : 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.rule);
+  const outcome = selectWinningRule(item, scoredRulesForItem, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
   let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
   let priority: RuleMatchPriority = "sem_regra";
