@@ -1602,7 +1602,7 @@ export default function CompanyAnalysis() {
                 observations={obs}
                 profiles={profiles}
                 storageKey="companyAnalysisPage"
-                canEdit={canEdit}
+                canEdit={canEditCompany}
                 onEditItem={openEditItem}
                 onDeleteItem={(it) => setDeleteItem(it)}
                 onAcceptItem={acceptItem}
