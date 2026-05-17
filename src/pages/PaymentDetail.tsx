@@ -943,7 +943,7 @@ const PaymentDetail = () => {
       // Removido a criação manual de job no frontend para operações de lote, 
       // o dispatch-payment-analysis cuidará disso internamente de forma exaustiva.
 
-      const { error } = await supabase.functions.invoke(fnName, {
+      const { data, error } = await supabase.functions.invoke(fnName, {
         body: {
           payment_id: id,
           ai_statuses: statuses && statuses.length > 0 ? statuses : undefined,
@@ -953,6 +953,8 @@ const PaymentDetail = () => {
         },
       });
       if (error) throw error;
+      const skipped = (data as any)?.skipped_companies ?? [];
+      setSkippedCompanies(Array.isArray(skipped) ? skipped : []);
       
       const filterDesc = statuses && statuses.length > 0 
         ? ` (filtrado por: ${statuses.join(", ")}; tolerância: ${toleranceValue * 100}%)` 
