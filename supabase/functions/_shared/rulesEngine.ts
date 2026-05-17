@@ -1149,6 +1149,7 @@ function calcPacotePorAtendimento(
   rule: RuleInput,
   item: ItemInput,
   applied: Set<string>,
+  ctx?: EngineCtx,
 ): ExpectedCalc {
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
@@ -1168,9 +1169,16 @@ function calcPacotePorAtendimento(
   }
   // Decide qual item leva o pacote: o "principal" se houver, senão o primeiro processado
   const isMain = isMainPackageCode(rule, item);
-  if (!applied.has(att) && isMain) {
+  const score = packageMatchScore(rule, item, ctx);
+  if (!applied.has(att) && isMain && score >= 0) {
+    // score >= 0 significa: código principal presente + ao menos 1 incluído
+    // (ou pacote sem incluídos, score = 0)
     applied.add(att);
-    return { expected: Number(rule.package_amount), explanation: `Pacote por atendimento ${att} aplicado em ${item.procedure_code ?? "principal"}: R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
+    return {
+      expected: Number(rule.package_amount),
+      explanation: `Pacote por atendimento ${att} (score ${(score * 100).toFixed(0)}%) aplicado em ${item.procedure_code ?? "principal"}: R$ ${rule.package_amount.toFixed(2)}`,
+      alerts: [],
+    };
   }
   if (!applied.has(att) && !rule.package_main_code) {
     // sem código principal definido — primeiro item recebe
