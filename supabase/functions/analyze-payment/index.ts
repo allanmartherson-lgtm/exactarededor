@@ -546,17 +546,31 @@ serve(async (req) => {
     for (const r of results) resultById[r.item_id] = r;
 
     // ---------- 4.2 PACOTES FIXOS por combinação de códigos ----------
-    // Tabelas reference_tables.kind = 'pacote_combinacao' definem pacotes:
-    // se os códigos do atendimento contêm o conjunto tuss_codes do pacote,
-    // o valor esperado dos itens participantes passa a ser o valor do pacote
-    // (rateado entre os itens elegíveis), em vez da soma individual.
+    // Tabelas reference_tables.kind = 'pacote_combinacao' SÓ atuam quando
+    // estiverem vinculadas a alguma regra ativa (via reference_table_id da
+    // regra, reference_table_id de um cálculo, ou exception_table_ids).
+    // Tabela sem regra vinculada não tem poder algum — a regra manda.
     try {
       const today = (ctx.reference_date ?? new Date().toISOString().slice(0, 10));
-      const { data: pkgTablesAll } = await supabase
+      const ruleLinkedTableIds = new Set<string>([
+        ...rules.filter((r) => r.reference_table_id).map((r) => r.reference_table_id as string),
+        ...rules.flatMap((r) =>
+          (Array.isArray((r as any).calculations) ? (r as any).calculations : [])
+            .filter((c: any) => c.reference_table_id)
+            .map((c: any) => c.reference_table_id as string),
+        ),
+        ...rules.flatMap((r) => Array.isArray(r.exception_table_ids) ? r.exception_table_ids : []),
+      ]);
+      if (ruleLinkedTableIds.size === 0) {
+        // Nenhuma regra ativa referencia tabela alguma → não há pacote a aplicar.
+        // (early-out evita query desnecessária)
+      }
+      const { data: pkgTablesAll } = ruleLinkedTableIds.size === 0 ? { data: [] as any[] } : await supabase
         .from("reference_tables")
         .select("id,name,active,valid_from,valid_until,package_only_main_surgeon,package_apply_auxiliaries,package_apply_particular,package_apply_intl_insurance")
         .eq("kind", "pacote_combinacao")
-        .eq("active", true);
+        .eq("active", true)
+        .in("id", Array.from(ruleLinkedTableIds));
       const pkgTables = (pkgTablesAll ?? []).filter((t: any) =>
         (!t.valid_from || t.valid_from <= today) && (!t.valid_until || t.valid_until >= today),
       );
