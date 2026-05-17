@@ -2418,7 +2418,7 @@ const Rules = () => {
                               <div className="flex-1 min-w-0">
                                 {/* Linha 1 — título + chips inline */}
                                 <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                  <h4 className="font-display font-semibold text-[15px] text-foreground truncate">{r.name}</h4>
+                                  <h4 className="text-sm font-semibold text-foreground truncate">{r.name}</h4>
 
                                   {r.active === false && (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]">Inativa</span>
