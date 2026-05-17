@@ -287,7 +287,7 @@ All colors MUST be HSL.
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     border-bottom: 1px solid hsl(var(--border));
-    padding: 8px 16px !important;
+    padding: 6px 12px !important;
     text-align: left;
     vertical-align: middle !important;
     height: auto !important;
