@@ -1394,7 +1394,7 @@ export default function CompanyAnalysis() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {canEdit && (
+          {canEditCompany && (
             <div className="flex items-center gap-2 mr-2 pr-2 border-r">
               <Switch 
                 id="group-totalized" 
