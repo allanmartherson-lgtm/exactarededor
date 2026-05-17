@@ -2404,38 +2404,39 @@ const Rules = () => {
                     </span>
                   </button>
                   {!isCol && (
-                    <Card className="shadow-card">
-                      <CardContent className="p-0">
-                        {g.rules.map((r, idx) => {
-                          const expired = !!(r.valid_until && new Date(r.valid_until) < new Date());
-                          return (
-                            <RuleListRow
-                              key={r.id}
-                              name={r.name}
-                              severity={r.severity}
-                              active={r.active}
-                              expired={expired}
-                              validFrom={r.valid_from}
-                              validUntil={r.valid_until}
-                              thresholdAlert={{ value: r.limiar_alerta_valor, type: r.limiar_alerta_tipo }}
-                              thresholdBlock={{ value: r.limiar_bloqueio_valor, type: r.limiar_bloqueio_tipo }}
-                              incomplete={isIncomplete(r)}
-                              missingFields={missingFields(r)}
-                              description={r.description}
-                              ruleText={r.rule_text}
-                              calcBadge={renderCalcBadge(r)}
-                              selected={selected.has(r.id)}
-                              isLast={idx === g.rules.length - 1}
-                              onToggleSelect={() => toggleSelect(r.id)}
-                              onEdit={() => openEdit(r)}
-                              onDuplicate={() => openDuplicate(r)}
-                              onExportPdf={() => exportRuleToPDF(r)}
-                              onDelete={() => remove(r.id)}
-                            />
-                          );
-                        })}
-                      </CardContent>
-                    </Card>
+                    <div className="space-y-2">
+                      {g.rules.map((r) => {
+                        const expired = !!(r.valid_until && new Date(r.valid_until) < new Date());
+                        return (
+                          <Card key={r.id} className="shadow-card">
+                            <CardContent className="p-0">
+                              <RuleListRow
+                                name={r.name}
+                                severity={r.severity}
+                                active={r.active}
+                                expired={expired}
+                                validFrom={r.valid_from}
+                                validUntil={r.valid_until}
+                                thresholdAlert={{ value: r.limiar_alerta_valor, type: r.limiar_alerta_tipo }}
+                                thresholdBlock={{ value: r.limiar_bloqueio_valor, type: r.limiar_bloqueio_tipo }}
+                                incomplete={isIncomplete(r)}
+                                missingFields={missingFields(r)}
+                                description={r.description}
+                                ruleText={r.rule_text}
+                                calcBadge={renderCalcBadge(r)}
+                                selected={selected.has(r.id)}
+                                isLast
+                                onToggleSelect={() => toggleSelect(r.id)}
+                                onEdit={() => openEdit(r)}
+                                onDuplicate={() => openDuplicate(r)}
+                                onExportPdf={() => exportRuleToPDF(r)}
+                                onDelete={() => remove(r.id)}
+                              />
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               );
