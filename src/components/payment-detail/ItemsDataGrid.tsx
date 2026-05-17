@@ -78,7 +78,8 @@ type OptionalColKey =
   | "setor_inferido"
   | "regra"
   | "diferenca"
-  | "observacao";
+  | "observacao"
+  | "tipo_entrada";
 
 const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "atendimento", label: "Atendimento" },
@@ -88,6 +89,7 @@ const OPTIONAL_COLUMNS: { key: OptionalColKey; label: string }[] = [
   { key: "procedimento", label: "Procedimento" },
   { key: "setor_lido", label: "Setor (Planilha)" },
   { key: "setor_inferido", label: "Setor (Sistema)" },
+  { key: "tipo_entrada", label: "Tipo de entrada (caráter)" },
   { key: "regra", label: "Regra aplicada" },
   { key: "diferenca", label: "Diferença" },
   { key: "observacao", label: "Observação" },
@@ -101,6 +103,7 @@ const DEFAULT_COL_VISIBILITY: Record<OptionalColKey, boolean> = {
   procedimento: true,
   setor_lido: true,
   setor_inferido: true,
+  tipo_entrada: false,
   regra: false,
   diferenca: false,
   observacao: false,
@@ -1069,6 +1072,7 @@ function RowMain({
           observations={observations}
           profiles={profiles}
           colSpan={totalCols}
+          showTipoEntrada={!!colVis.tipo_entrada}
         />
       )}
     </>
@@ -1082,6 +1086,7 @@ function ItemDetailsRow({
   observations,
   profiles,
   colSpan,
+  showTipoEntrada,
 }: {
   it: PaymentItemRowData;
   rulesIndex: Record<string, RuleLite>;
@@ -1089,6 +1094,7 @@ function ItemDetailsRow({
   observations: ObservationRow[];
   profiles: Record<string, string>;
   colSpan: number;
+  showTipoEntrada?: boolean;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
@@ -1142,7 +1148,7 @@ function ItemDetailsRow({
     { label: "Paciente", value: getPatient(it) },
     { label: "Convênio", value: getAgreement(it) },
     { label: "Via de Acesso", value: getAccessRoute(it) },
-    { label: "Caráter (Tipo Entrada)", value: characterLabel },
+    ...(showTipoEntrada ? [{ label: "Caráter (Tipo Entrada)", value: characterLabel }] : []),
     { label: "TUSS", value: getProcedureCode(it) },
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
