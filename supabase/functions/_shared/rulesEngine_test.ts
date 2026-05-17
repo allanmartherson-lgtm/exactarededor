@@ -543,11 +543,6 @@ Deno.test("Desempate por packageMatchScore: vence o pacote com maior sobreposiç
   const rule = makeRule({
     id: "rule-mastopack",
     name: "Mastologia Pacotes (test)",
-    scope: "master",
-    target_type: null,
-    target_identifier: null,
-    target_name: null,
-    target_company_id: null,
     calculation_type: "pacote_por_atendimento",
     calculations: [
       {
@@ -593,11 +588,6 @@ Deno.test("Desempate por packageMatchScore: vence pacote mais específico quando
   const rule = makeRule({
     id: "rule-mastopack-2",
     name: "Mastologia Pacotes 2",
-    scope: "master",
-    target_type: null,
-    target_identifier: null,
-    target_name: null,
-    target_company_id: null,
     calculation_type: "pacote_por_atendimento",
     calculations: [
       {
