@@ -363,6 +363,9 @@ export default function CompanyAnalysis() {
   const [reimporting, setReimporting] = useState(false);
   const [reimportConfirm, setReimportConfirm] = useState<File[] | null>(null);
   const reimportInputRef = useRef<HTMLInputElement | null>(null);
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [reopening, setReopening] = useState(false);
 
   useEffect(() => {
     document.title = "Análise da empresa | MedPay Approval";
