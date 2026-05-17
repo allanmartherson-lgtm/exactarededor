@@ -178,7 +178,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Figtree", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -187,8 +187,9 @@ All colors MUST be HSL.
 
   h1, h2, h3, h4 {
     @apply tracking-tight text-foreground;
-    font-family: "Inter", system-ui, sans-serif;
-    font-weight: 500;
+    font-family: "Outfit", "Figtree", system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }
 
