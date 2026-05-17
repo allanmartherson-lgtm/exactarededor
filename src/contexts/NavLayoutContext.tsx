@@ -13,9 +13,9 @@ interface NavLayoutContextValue {
 const NavLayoutContext = createContext<NavLayoutContextValue | undefined>(undefined);
 
 function getInitialLayout(): NavLayout {
-  if (typeof window === "undefined") return "top";
+  if (typeof window === "undefined") return "side";
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "side" ? "side" : "top";
+  return stored === "top" ? "top" : "side";
 }
 
 export const NavLayoutProvider = ({ children }: { children: ReactNode }) => {

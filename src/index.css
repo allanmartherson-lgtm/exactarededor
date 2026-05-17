@@ -8,95 +8,95 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — Stripe-like institutional palette */
+    /* Surfaces — Cloud White, Apple-like minimal */
     --background: 210 20% 98%;          /* #FAFBFC */
-    --foreground: 224 36% 16%;          /* #1A1F36 */
+    --foreground: 222 47% 11%;          /* #0F172A */
 
-    --card: 0 0% 100%;                  /* #ffffff */
-    --card-foreground: 224 36% 16%;
+    --card: 0 0% 100%;                  /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 36% 16%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Brand: navy blue */
-    --primary: 224 76% 40%;             /* #1E40AF */
+    /* Brand: airy blue (#3B82F6) */
+    --primary: 217 91% 60%;             /* #3B82F6 */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 95% 93%;        /* #DBEAFE */
-    --primary-glow: 224 76% 48%;
+    --primary-soft: 214 95% 97%;        /* very light blue tint */
+    --primary-glow: 217 91% 65%;
 
-    --secondary: 215 24% 91%;           /* border-light #E3E8EE */
-    --secondary-foreground: 218 13% 47%;
+    --secondary: 214 21% 93%;           /* #E8ECF1 — border / surface */
+    --secondary-foreground: 215 19% 35%;/* #475569 */
 
-    --muted: 220 14% 96%;               /* #F3F4F6 */
-    --muted-foreground: 218 13% 47%;    /* #697386 */
-    --text-tertiary: 218 14% 59%;       /* #8792A2 */
+    --muted: 210 20% 98%;               /* #FAFBFC */
+    --muted-foreground: 215 16% 47%;    /* #94A3B8 — labels, muted text */
+    --text-tertiary: 213 27% 84%;       /* #CBD5E1 — idle zero numbers */
 
-    --accent: 214 95% 93%;              /* primary-soft */
-    --accent-foreground: 224 76% 40%;   /* primary */
+    --accent: 214 95% 97%;              /* primary @ 5% as bg */
+    --accent-foreground: 217 91% 60%;   /* primary */
 
-    /* Status semantics — Stripe-like discrete */
-    --success: 152 60% 36%;             /* #2E7D5B */
-    --success-foreground: 152 67% 22%;  /* #176138 */
-    --success-soft: 150 60% 92%;        /* #DCF5E7 */
+    /* Status semantics — quiet, only used where it guides the eye */
+    --success: 152 60% 36%;
+    --success-foreground: 152 67% 22%;
+    --success-soft: 150 60% 92%;
 
-    --warning: 32 95% 44%;              /* #D97706 */
-    --warning-foreground: 26 84% 35%;   /* #B45309 */
-    --warning-soft: 48 96% 89%;         /* #FEF3C7 */
+    --warning: 32 95% 44%;
+    --warning-foreground: 26 84% 35%;
+    --warning-soft: 48 96% 89%;
 
-    --info: 201 96% 32%;                /* #0369A1 */
-    --info-foreground: 201 96% 28%;     /* #075985 */
-    --info-soft: 204 100% 94%;          /* #E0F2FE */
+    --info: 217 91% 60%;
+    --info-foreground: 217 91% 45%;
+    --info-soft: 214 95% 97%;
 
-    --destructive: 0 73% 41%;           /* #B91C1C */
+    --destructive: 0 73% 41%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-soft: 0 93% 94%;      /* #FEE2E2 */
+    --destructive-soft: 0 93% 94%;
 
-    --border: 215 24% 91%;              /* #E3E8EE */
-    --input: 215 24% 91%;
-    --ring: 224 76% 40%;
+    --border: 214 21% 93%;              /* #E8ECF1 */
+    --input: 214 21% 93%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.625rem;
+    --radius: 0.875rem;                 /* 14px — friendlier, Apple-ish */
 
-    /* Gradients & shadows */
-    --gradient-brand: linear-gradient(135deg, hsl(224 76% 40%), hsl(224 76% 48%));
-    --gradient-soft: linear-gradient(135deg, hsl(214 95% 96%), hsl(210 20% 98%));
-    --shadow-soft: 0 1px 2px 0 hsl(224 36% 16% / 0.04), 0 1px 3px 0 hsl(224 36% 16% / 0.05);
-    --shadow-card: 0 1px 3px 0 hsl(224 36% 16% / 0.06), 0 1px 2px -1px hsl(224 36% 16% / 0.04);
-    --shadow-elevated: 0 8px 24px -8px hsl(224 76% 40% / 0.18);
+    /* Gradients & shadows — soft elevation */
+    --gradient-brand: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 65%));
+    --gradient-soft: linear-gradient(135deg, hsl(214 95% 97%), hsl(210 20% 98%));
+    --shadow-soft: 0 1px 2px 0 hsl(222 47% 11% / 0.03), 0 1px 3px 0 hsl(222 47% 11% / 0.04);
+    --shadow-card: 0 1px 3px 0 hsl(222 47% 11% / 0.05), 0 1px 2px -1px hsl(222 47% 11% / 0.03);
+    --shadow-elevated: 0 20px 40px -16px hsl(217 91% 60% / 0.15), 0 8px 16px -8px hsl(222 47% 11% / 0.06);
 
-    /* Bubble token pairs (icon backgrounds) — used by dashboard */
-    --bubble-purple-bg: 250 90% 96%;
+    /* Bubble token pairs (icon backgrounds) — quiet on idle */
+    --bubble-purple-bg: 250 90% 97%;
     --bubble-purple-fg: 250 60% 50%;
-    --bubble-yellow-bg: 48 96% 89%;
+    --bubble-yellow-bg: 48 96% 92%;
     --bubble-yellow-fg: 26 84% 35%;
-    --bubble-red-bg: 0 93% 94%;
+    --bubble-red-bg: 0 93% 96%;
     --bubble-red-fg: 0 73% 41%;
-    --bubble-blue-bg: 204 100% 94%;
-    --bubble-blue-fg: 201 96% 32%;
-    --bubble-green-bg: 150 60% 92%;
+    --bubble-blue-bg: 214 95% 97%;
+    --bubble-blue-fg: 217 91% 60%;
+    --bubble-green-bg: 150 60% 95%;
     --bubble-green-fg: 152 60% 32%;
-    --bubble-teal-bg: 214 95% 93%;
-    --bubble-teal-fg: 224 76% 40%;
+    --bubble-teal-bg: 214 95% 97%;
+    --bubble-teal-fg: 217 91% 60%;
 
     /* Table-specific surfaces */
-    --table-row-hover: 220 14% 96%;     /* #F3F4F6 */
-    --table-border-light: 215 24% 93%;  /* #E3E8EE-ish */
+    --table-row-hover: 210 20% 98%;
+    --table-border-light: 214 21% 95%;
 
-    --hover-surface: 220 14% 96%;
-    --shadow-hover: 0 2px 8px hsl(224 36% 16% / 0.06);
+    --hover-surface: 210 20% 96%;
+    --shadow-hover: 0 4px 12px hsl(222 47% 11% / 0.05);
 
-    /* Sidebar — light */
+    /* Sidebar — light, Apple-like */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 218 13% 47%;
-    --sidebar-muted-foreground: 218 14% 59%;
-    --sidebar-primary: 224 76% 40%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-muted-foreground: 213 27% 70%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 220 14% 96%;
-    --sidebar-hover-foreground: 224 36% 16%;
-    --sidebar-accent: 214 95% 93%;
-    --sidebar-accent-foreground: 224 76% 40%;
-    --sidebar-border: 215 24% 93%;
-    --sidebar-ring: 224 76% 40%;
+    --sidebar-hover: 214 21% 95%;
+    --sidebar-hover-foreground: 215 19% 35%;
+    --sidebar-accent: 214 95% 97%;
+    --sidebar-accent-foreground: 217 91% 60%;
+    --sidebar-border: 214 21% 93%;
+    --sidebar-ring: 217 91% 60%;
   }
 
   .dark {
@@ -178,7 +178,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Figtree", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -187,8 +187,9 @@ All colors MUST be HSL.
 
   h1, h2, h3, h4 {
     @apply tracking-tight text-foreground;
-    font-family: "Inter", system-ui, sans-serif;
-    font-weight: 500;
+    font-family: "Outfit", "Figtree", system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }
 

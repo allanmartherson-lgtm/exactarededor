@@ -9,13 +9,9 @@ const toneBg: Record<StatCardTone, string> = {
   success: "bg-success-soft text-success",
 };
 
-// Barra lateral de acento — cria hierarquia visual sem encher o card de cor.
-// Aspecto "Stripe-like": fundo branco, acento sutil, distinção imediata.
-const toneAccent: Record<StatCardTone, string> = {
-  info: "border-l-4 border-l-info",
-  warning: "border-l-4 border-l-warning",
-  success: "border-l-4 border-l-success",
-};
+// Idle (zero-state, non-highlighted) icon styling — silenced grayscale so the
+// active card naturally draws the eye. Apple-like: only what matters has color.
+const idleBg = "bg-muted text-[hsl(var(--text-tertiary))]";
 
 export interface StatCardProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -30,26 +26,25 @@ export interface StatCardProps {
 
 /**
  * StatCard — variante de domínio do StatTile usada no Dashboard.
- * Aplica o ícone com tom (info/warning/success), barra lateral de acento
- * para distinguir cada KPI sem cansar visualmente, e converte `mine`
- * no selo "Sua vez". Padronização base vem do StatTile.
+ * Apple-like aesthetic: cards inativos (valor 0 e não destacados) usam o
+ * ícone em tom muted para reduzir ruído visual; o destacado mantém a
+ * cor de tom para guiar o olho.
  */
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
+  const isIdle = value === 0 && !mine;
   const iconNode = (
     <div
-      className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center ${toneBg[tone]}`}
+      className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center ${
+        isIdle ? idleBg : toneBg[tone]
+      }`}
     >
       <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
     </div>
   );
 
-  const badge: StatTileProps["badge"] = mine ? (
-    <span
-      className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide rounded-full border px-2 py-0.5 leading-none ${TONE_CLASSES.info}`}
-    >
-      Sua vez
-    </span>
-  ) : undefined;
+  // Pass the badge as a plain string so StatTile can render it as a floating
+  // pill in the top-right corner of highlighted cards (Apple-like accent).
+  const badge: StatTileProps["badge"] = mine ? "Sua vez" : undefined;
 
   return (
     <StatTile
@@ -60,7 +55,6 @@ export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: Sta
       badge={badge}
       highlighted={mine}
       to={to}
-      className={toneAccent[tone]}
       ariaLabel={[label, `valor ${value}`, mine ? "sua vez" : hint].filter(Boolean).join(", ")}
     />
   );

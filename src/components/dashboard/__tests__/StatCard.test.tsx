@@ -40,7 +40,7 @@ describe("StatCard (hierarquia visual)", () => {
     expect(content).toHaveClass("h-full");
     expect(content).toHaveClass("flex");
     expect(content).toHaveClass("flex-col");
-    expect(content).toHaveClass("gap-3");
+    expect(content).toHaveClass("gap-4");
   };
 
   it("sem hint nem badge: usa placeholder pra preservar altura do footer", () => {
@@ -82,8 +82,8 @@ describe("StatCard (hierarquia visual)", () => {
   it("aplica tipografia consistente no valor", () => {
     renderWithRouter(<StatCard {...baseProps} value={42} />);
     const value = screen.getByTestId("stat-card-value");
-    expect(value).toHaveClass("text-2xl");
-    expect(value).toHaveClass("sm:text-3xl");
+    expect(value).toHaveClass("text-3xl");
+    expect(value).toHaveClass("sm:text-4xl");
     expect(value).toHaveClass("font-semibold");
     expect(value).toHaveClass("tabular-nums");
     expect(value).toHaveClass("leading-none");
@@ -149,7 +149,7 @@ describe("StatCardSkeleton (mesma estrutura do StatCard)", () => {
     expect(content).toHaveClass("h-full");
     expect(content).toHaveClass("flex");
     expect(content).toHaveClass("flex-col");
-    expect(content).toHaveClass("gap-3");
+    expect(content).toHaveClass("gap-4");
   });
 
   it("é anunciado como status carregando para leitores de tela", () => {
