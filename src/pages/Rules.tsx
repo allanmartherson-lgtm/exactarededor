@@ -13,6 +13,7 @@ import { FormDialog } from "@/components/FormDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2386,108 +2387,109 @@ const Rules = () => {
         {groups.length === 0 ? (
           <Card className="shadow-card"><CardContent className="px-6 py-12"><p className="text-center text-sm text-muted-foreground">Nenhuma regra encontrada.</p></CardContent></Card>
         ) : (
-          <div className="space-y-4 w-full">
+          <div className="space-y-6 w-full">
             {groups.map((g) => {
               const isCol = collapsed[g.key] === true;
               return (
                 <div key={g.key} className="space-y-2">
-                  {/* Group header — alinhado com o padrão do sistema (text-sm font-semibold) */}
+                  {/* Group header — leve, padrão do sistema */}
                   <button onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCol }))}
-                    className="w-full px-2 py-1.5 flex items-center gap-2.5 text-left rounded-lg hover:bg-muted/40 transition-colors">
+                    className="w-full px-2 py-1.5 flex items-center gap-2.5 text-left rounded-md hover:bg-muted/40 transition-colors">
                     {isCol ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                     <span className="text-base leading-none">{g.type === "master" ? "📘" : g.type === "empresa" ? "🏥" : "👤"}</span>
                     <p className="text-sm font-semibold text-foreground flex-1">{g.label}</p>
-                    <span className="text-[11px] font-medium text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {g.rules.length} regra{g.rules.length > 1 ? "s" : ""}
                     </span>
                   </button>
                   {!isCol && (
-                    <div className="space-y-2">
-                      {g.rules.map((r) => {
-                        const incomplete = isIncomplete(r);
-                        const missing = missingFields(r);
-                        const expired = r.valid_until && new Date(r.valid_until) < new Date();
-                        return (
-                          <div
-                            key={r.id}
-                            className="group bg-card rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] hover:border-primary/30 transition-all duration-200"
-                          >
-                            <div className="flex items-center gap-4 p-4">
-                              <Checkbox className="flex-shrink-0" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
-
-                              <div className="flex-1 min-w-0 space-y-1.5">
-                                {/* Linha 1 — título */}
-                                <h4 className="text-sm font-semibold text-foreground truncate leading-tight">{r.name}</h4>
-
-                                {/* Linha 2 — metadados (badges + chips) alinhados em linha única */}
-                                <div className="flex items-center flex-wrap gap-1.5">
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-xs font-medium capitalize leading-tight",
-                                    r.severity === "bloqueio" && "bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]",
-                                    r.severity === "aviso" && "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]",
-                                    r.severity === "info" && "bg-[hsl(var(--info-soft))] text-[hsl(var(--info))]",
-                                  )}>
-                                    {r.severity}
-                                  </span>
-                                  {r.active === false && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))] leading-tight">Inativa</span>
-                                  )}
-                                  {expired && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] leading-tight">Expirada</span>
-                                  )}
-                                  {renderCalcBadge(r)}
-                                  {incomplete && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] inline-flex items-center gap-1 leading-tight">
-                                      <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
-                                    </span>
-                                  )}
-
-                                  {(r.valid_from || r.valid_until) && (
-                                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5 leading-tight">
-                                      <span className="w-1 h-1 rounded-full bg-border" />
-                                      Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
-                                    </span>
-                                  )}
-
-                                  {(() => {
-                                    const alertVal = r.limiar_alerta_valor;
-                                    const alertType = r.limiar_alerta_tipo;
-                                    const blockVal = r.limiar_bloqueio_valor;
-                                    const blockType = r.limiar_bloqueio_tipo;
-                                    if (alertVal == null && blockVal == null) return null;
-                                    const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
-                                    const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
-                                    return (
-                                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5 leading-tight">
-                                        <span className="w-1 h-1 rounded-full bg-border" />
-                                        ⚠ {alertText} / 🚫 {blockText}
-                                      </span>
-                                    );
-                                  })()}
-                                </div>
-
-                                {/* Linha 3 — descrição (auxiliar) */}
-                                {r.description && (
-                                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{r.description}</p>
-                                )}
-                                {/* Linha 4 — texto principal da regra */}
-                                {r.rule_text && (
-                                  <p className="text-sm text-foreground/90 leading-relaxed line-clamp-3">{r.rule_text}</p>
-                                )}
+                    <Card className="shadow-card">
+                      <CardContent className="p-0">
+                        {g.rules.map((r, idx) => {
+                          const incomplete = isIncomplete(r);
+                          const missing = missingFields(r);
+                          const expired = r.valid_until && new Date(r.valid_until) < new Date();
+                          return (
+                            <div
+                              key={r.id}
+                              className={cn(
+                                "flex items-start gap-3 px-6 py-4 hover:bg-muted/40 transition-colors",
+                                idx !== g.rules.length - 1 && "border-b border-border/40",
+                              )}
+                            >
+                              <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
                               </div>
-
-                              {/* Ações horizontais, centralizadas verticalmente, com divisor sutil */}
-                              <div className="flex items-center gap-0.5 pl-3 ml-2 border-l border-border/60 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[hsl(var(--destructive-soft))] hover:text-[hsl(var(--destructive))]" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                              <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
+                                <div className="min-w-0 flex-1 space-y-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                    <p className="font-medium text-sm truncate">{r.name}</p>
+                                    {r.active === false && (
+                                      <Badge variant="outline" className="gap-1 font-normal bg-destructive-soft text-destructive border-destructive/30">Inativa</Badge>
+                                    )}
+                                    {expired && (
+                                      <Badge variant="outline" className="gap-1 font-normal bg-warning-soft text-warning-foreground border-warning/30">Expirada</Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        "gap-1 font-normal capitalize",
+                                        r.severity === "bloqueio" && "bg-destructive-soft text-destructive border-destructive/30",
+                                        r.severity === "aviso" && "bg-warning-soft text-warning-foreground border-warning/30",
+                                        r.severity === "info" && "bg-info-soft text-info border-info/30",
+                                      )}
+                                    >
+                                      {r.severity}
+                                    </Badge>
+                                    {renderCalcBadge(r)}
+                                    {(r.valid_from || r.valid_until) && (
+                                      <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                                        Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
+                                      </Badge>
+                                    )}
+                                    {(() => {
+                                      const alertVal = r.limiar_alerta_valor;
+                                      const alertType = r.limiar_alerta_tipo;
+                                      const blockVal = r.limiar_bloqueio_valor;
+                                      const blockType = r.limiar_bloqueio_tipo;
+                                      if (alertVal == null && blockVal == null) return null;
+                                      const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                      const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
+                                      return (
+                                        <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                                          ⚠ {alertText} / 🚫 {blockText}
+                                        </Badge>
+                                      );
+                                    })()}
+                                    {incomplete && (
+                                      <Badge variant="outline" className="gap-1 font-normal bg-warning-soft text-warning-foreground border-warning/30">
+                                        <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {r.description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">{r.description}</p>
+                                  )}
+                                  {r.rule_text && (
+                                    <p className="text-xs text-muted-foreground line-clamp-3">
+                                      <span className="text-foreground/80">{r.rule_text}</span>
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
               );
