@@ -1079,7 +1079,26 @@ function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
   return false;
 }
 
-function calcPacoteFechado(rule: RuleInput, item: ItemInput): ExpectedCalc {
+function packageMatchScore(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): number {
+  // Só pontua se o código principal está presente
+  if (!isMainPackageCode(rule, item)) return -1;
+
+  const included = (rule.package_included_codes ?? [])
+    .map((c: string) => String(c).trim())
+    .filter(Boolean);
+
+  if (included.length === 0) return 0; // sem incluídos → score 0 (pacote simples)
+
+  const key = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+  const siblings = ctx?.attendanceSiblingCodes?.get(key) ?? new Set<string>();
+
+  const matches = included.filter((c) => siblings.has(c)).length;
+  if (matches === 0) return -1; // precisa de ao menos 1 incluído presente
+
+  return matches / included.length; // 0.0 a 1.0
+}
+
+function calcPacoteFechado(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): ExpectedCalc {
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_fechado sem package_amount.", alerts: ["Pacote sem valor."] };
   }
@@ -1130,6 +1149,7 @@ function calcPacotePorAtendimento(
   rule: RuleInput,
   item: ItemInput,
   applied: Set<string>,
+  ctx?: EngineCtx,
 ): ExpectedCalc {
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
@@ -1149,9 +1169,16 @@ function calcPacotePorAtendimento(
   }
   // Decide qual item leva o pacote: o "principal" se houver, senão o primeiro processado
   const isMain = isMainPackageCode(rule, item);
-  if (!applied.has(att) && isMain) {
+  const score = packageMatchScore(rule, item, ctx);
+  if (!applied.has(att) && isMain && score >= 0) {
+    // score >= 0 significa: código principal presente + ao menos 1 incluído
+    // (ou pacote sem incluídos, score = 0)
     applied.add(att);
-    return { expected: Number(rule.package_amount), explanation: `Pacote por atendimento ${att} aplicado em ${item.procedure_code ?? "principal"}: R$ ${rule.package_amount.toFixed(2)}`, alerts: [] };
+    return {
+      expected: Number(rule.package_amount),
+      explanation: `Pacote por atendimento ${att} (score ${(score * 100).toFixed(0)}%) aplicado em ${item.procedure_code ?? "principal"}: R$ ${rule.package_amount.toFixed(2)}`,
+      alerts: [],
+    };
   }
   if (!applied.has(att) && !rule.package_main_code) {
     // sem código principal definido — primeiro item recebe
@@ -1767,19 +1794,19 @@ function applyCalculationSingle(
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
-    case "pacote_fechado":            return calcPacoteFechado(rule, item);
+    case "pacote_fechado":            return calcPacoteFechado(rule, item, ctx);
     case "pacote_com_extras":         return calcPacoteExtras(rule, item);
     case "pacote_por_atendimento": {
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
-      return calcPacotePorAtendimento(rule, item, set);
+      return calcPacotePorAtendimento(rule, item, set, ctx);
     }
     case "pacote": {
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
-      return calcPacotePorAtendimento(rule, item, set);
+      return calcPacotePorAtendimento(rule, item, set, ctx);
     }
     case "valor_fixo":                return calcValorFixo(rule, item, ctx);
     case "exclusao":                  return calcExclusao(rule);
@@ -2135,7 +2162,19 @@ export function analyzeItem(
     if (!procDateValid) return false;
     return isInValidity(r, procDateRaw!);
   });
-  const outcome = selectWinningRule(item, rulesForItem, ctx, { collectTrace: true });
+  // Desempate de pacotes: quando múltiplos pacotes são elegíveis para o mesmo
+  // item, o de maior score (mais específico) deve ser avaliado primeiro.
+  const scoredRulesForItem = rulesForItem
+    .map((r) => ({
+      rule: r,
+      score:
+        r.calculation_type === "pacote" || r.calculation_type === "pacote_por_atendimento"
+          ? packageMatchScore(r, item, ctx)
+          : 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.rule);
+  const outcome = selectWinningRule(item, scoredRulesForItem, ctx, { collectTrace: true });
   let winner: RuleInput | null = null;
   let calc: ExpectedCalc = { expected: null, explanation: "", alerts: [] };
   let priority: RuleMatchPriority = "sem_regra";
