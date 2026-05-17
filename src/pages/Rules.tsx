@@ -2412,31 +2412,38 @@ const Rules = () => {
                             key={r.id}
                             className="group bg-card rounded-2xl border border-border shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] hover:border-primary/30 transition-all duration-200"
                           >
-                            <div className="flex items-start gap-4 p-4">
-                              <Checkbox className="mt-1 flex-shrink-0" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
+                            <div className="flex items-center gap-4 p-4">
+                              <Checkbox className="flex-shrink-0" checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
 
-                              <div className="flex-1 min-w-0">
-                                {/* Linha 1 — título + chips inline */}
-                                <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                  <h4 className="text-sm font-semibold text-foreground truncate">{r.name}</h4>
+                              <div className="flex-1 min-w-0 space-y-1.5">
+                                {/* Linha 1 — título */}
+                                <h4 className="text-sm font-semibold text-foreground truncate leading-tight">{r.name}</h4>
 
-                                  {r.active === false && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]">Inativa</span>
-                                  )}
-                                  {expired && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]">Expirada</span>
-                                  )}
+                                {/* Linha 2 — metadados (badges + chips) alinhados em linha única */}
+                                <div className="flex items-center flex-wrap gap-1.5">
                                   <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
+                                    "px-2 py-0.5 rounded-full text-xs font-medium capitalize leading-tight",
                                     r.severity === "bloqueio" && "bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))]",
                                     r.severity === "aviso" && "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]",
                                     r.severity === "info" && "bg-[hsl(var(--info-soft))] text-[hsl(var(--info))]",
                                   )}>
                                     {r.severity}
                                   </span>
+                                  {r.active === false && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))] leading-tight">Inativa</span>
+                                  )}
+                                  {expired && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] leading-tight">Expirada</span>
+                                  )}
+                                  {renderCalcBadge(r)}
+                                  {incomplete && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] inline-flex items-center gap-1 leading-tight">
+                                      <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
+                                    </span>
+                                  )}
 
                                   {(r.valid_from || r.valid_until) && (
-                                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5 leading-tight">
                                       <span className="w-1 h-1 rounded-full bg-border" />
                                       Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
                                     </span>
@@ -2451,34 +2458,26 @@ const Rules = () => {
                                     const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
                                     const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
                                     return (
-                                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5 leading-tight">
                                         <span className="w-1 h-1 rounded-full bg-border" />
                                         ⚠ {alertText} / 🚫 {blockText}
                                       </span>
                                     );
                                   })()}
-
-                                  {renderCalcBadge(r)}
-
-                                  {incomplete && (
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] flex items-center gap-1">
-                                      <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
-                                    </span>
-                                  )}
                                 </div>
 
-                                {/* Linha 2 — descrição (auxiliar) */}
+                                {/* Linha 3 — descrição (auxiliar) */}
                                 {r.description && (
                                   <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{r.description}</p>
                                 )}
-                                {/* Linha 3 — texto principal da regra */}
+                                {/* Linha 4 — texto principal da regra */}
                                 {r.rule_text && (
-                                  <p className="text-sm text-foreground/90 leading-relaxed mt-1 line-clamp-3">{r.rule_text}</p>
+                                  <p className="text-sm text-foreground/90 leading-relaxed line-clamp-3">{r.rule_text}</p>
                                 )}
                               </div>
 
-                              {/* Ações horizontais, com divisor sutil, aparecem no hover */}
-                              <div className="flex items-center gap-0.5 pl-3 ml-2 border-l border-border/60 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                              {/* Ações horizontais, centralizadas verticalmente, com divisor sutil */}
+                              <div className="flex items-center gap-0.5 pl-3 ml-2 border-l border-border/60 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4" /></Button>
