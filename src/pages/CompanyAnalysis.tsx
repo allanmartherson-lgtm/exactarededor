@@ -933,6 +933,7 @@ export default function CompanyAnalysis() {
 
   const saveItem = async () => {
     if (!editItem || !id || !group) return;
+    if (!guardEditable()) return;
     const newGross = Number(editDraft.gross_amount.replace(",", "."));
     if (Number.isNaN(newGross)) {
       toast.error("Valor inválido");
