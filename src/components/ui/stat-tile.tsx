@@ -233,7 +233,7 @@ export const StatTile = ({
         >
           {isBottomLabel ? (
             labelNode
-          ) : badge ? (
+          ) : badge && !(highlighted && typeof badge === "string") ? (
             <span data-testid="stat-card-badge">{badge}</span>
           ) : hint ? (
             <TruncatedText
