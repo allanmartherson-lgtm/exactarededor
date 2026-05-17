@@ -96,8 +96,45 @@ Deno.serve(async (req) => {
         .reduce((acc, g) => acc + (g.items_count || 0), 0);
     }
 
+    // Governança: empresas com status diferente de revisao_analista/devolvido_analista
+    // NÃO devem ser reanalisadas. O analista já concluiu (ou enviou para validação/
+    // aprovação) — reanálise sobrescreveria dados validados sem rastro. Para
+    // reanalisar uma empresa fechada, o analista deve REABRIR a empresa via UI.
+    const EDITABLE_STATUSES = ["revisao_analista", "devolvido_analista"];
+    const { data: companyGroupsForGate, error: gateErr } = await supabase
+      .from("payment_company_groups")
+      .select("company_name, status")
+      .eq("payment_id", payment_id);
+    if (gateErr) throw gateErr;
+
+    const skippedCompanies: Array<{ company_name: string; status: string }> = [];
+    const allowedCompanySet = new Set<string>();
+    for (const g of companyGroupsForGate ?? []) {
+      const name = (g.company_name ?? "").trim() || "Sem empresa";
+      if (EDITABLE_STATUSES.includes(g.status as string)) {
+        allowedCompanySet.add(name.toLowerCase());
+      } else {
+        skippedCompanies.push({ company_name: name, status: g.status as string });
+      }
+    }
+
+    companyNames = companyNames.filter((name) => allowedCompanySet.has(name.toLowerCase()));
+    const allowedLower = new Set(companyNames.map((s) => s.toLowerCase()));
+    totalItems = (groups ?? [])
+      .filter((g) => allowedLower.has(((g.company_name ?? "").trim() || "Sem empresa").toLowerCase()))
+      .reduce((acc, g) => acc + (g.items_count || 0), 0);
+
     if (companyNames.length === 0) {
-      return new Response(JSON.stringify({ ok: true, total_companies: 0, total_items: 0, message: "nenhuma empresa para processar com os filtros aplicados" }), {
+      const msg = skippedCompanies.length > 0
+        ? "Nenhuma empresa em revisão — todas estão concluídas/em validação. Reabra alguma para reanalisar."
+        : "nenhuma empresa para processar com os filtros aplicados";
+      return new Response(JSON.stringify({
+        ok: true,
+        total_companies: 0,
+        total_items: 0,
+        message: msg,
+        skipped_companies: skippedCompanies,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
