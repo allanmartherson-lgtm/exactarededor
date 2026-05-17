@@ -1079,7 +1079,26 @@ function isIncludedInPackage(rule: RuleInput, item: ItemInput): boolean {
   return false;
 }
 
-function calcPacoteFechado(rule: RuleInput, item: ItemInput): ExpectedCalc {
+function packageMatchScore(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): number {
+  // Só pontua se o código principal está presente
+  if (!isMainPackageCode(rule, item)) return -1;
+
+  const included = (rule.package_included_codes ?? [])
+    .map((c: string) => String(c).trim())
+    .filter(Boolean);
+
+  if (included.length === 0) return 0; // sem incluídos → score 0 (pacote simples)
+
+  const key = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+  const siblings = ctx?.attendanceSiblingCodes?.get(key) ?? new Set<string>();
+
+  const matches = included.filter((c) => siblings.has(c)).length;
+  if (matches === 0) return -1; // precisa de ao menos 1 incluído presente
+
+  return matches / included.length; // 0.0 a 1.0
+}
+
+function calcPacoteFechado(rule: RuleInput, item: ItemInput, ctx?: EngineCtx): ExpectedCalc {
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_fechado sem package_amount.", alerts: ["Pacote sem valor."] };
   }
