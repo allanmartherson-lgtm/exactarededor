@@ -1402,6 +1402,34 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
     if (c.elective_mode === "urgencia" && !isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
   }
 
+  // ---- Escopo de códigos para cálculos do tipo PACOTE ----
+  // Quando o cálculo é um pacote E declara `package_main_code`, o item só se
+  // aplica se o `procedure_code` for o principal, ou estiver na lista de
+  // incluídos, ou estiver nos extras. Caso contrário, o cálculo simplesmente
+  // não vale para este item (evita que itens fora do escopo do pacote sejam
+  // considerados aplicáveis e acabem virando "expected = 0" silenciosamente).
+  // Retrocompat: pacotes antigos sem `package_main_code` continuam caindo no
+  // caminho atual (sem este filtro).
+  const isPackageCalc =
+    c.calculation_type === "pacote" ||
+    c.calculation_type === "pacote_por_atendimento" ||
+    c.calculation_type === "pacote_fechado" ||
+    c.calculation_type === "pacote_com_extras";
+  if (isPackageCalc) {
+    const mainCode = String((c as any).package_main_code ?? "").trim();
+    if (mainCode) {
+      const ic = String(item.procedure_code ?? "").trim();
+      const included = Array.isArray((c as any).package_included_codes)
+        ? (c as any).package_included_codes.map((x: any) => String(x).trim()).filter(Boolean)
+        : [];
+      const extras = Array.isArray((c as any).extras_codes)
+        ? (c as any).extras_codes.map((x: any) => String(x).trim()).filter(Boolean)
+        : [];
+      const inScope = !!ic && (ic === mainCode || included.includes(ic) || extras.includes(ic));
+      if (!inScope) return { ok: false, reason: "codigo_fora_do_pacote" };
+    }
+  }
+
   return { ok: true };
 }
 
