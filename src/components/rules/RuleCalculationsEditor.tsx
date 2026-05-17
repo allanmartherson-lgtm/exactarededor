@@ -1292,6 +1292,11 @@ export function calcToDbPayload(c: CalcItem, ruleId: string, sortOrder: number):
  * Permitido apenas em `tabela_diferenciada`, onde a própria tabela define o universo de códigos.
  */
 export function calcItemHasWhitelistWithoutCodes(c: CalcItem): boolean {
+  const isPkg = c.calculation_type === "pacote"
+    || c.calculation_type === "pacote_fechado"
+    || c.calculation_type === "pacote_com_extras"
+    || c.calculation_type === "pacote_por_atendimento";
+  if (isPkg) return false;
   return (
     c.code_match_mode === "whitelist" &&
     c.procedure_codes.length === 0 &&
