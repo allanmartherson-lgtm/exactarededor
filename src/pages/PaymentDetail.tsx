@@ -15,6 +15,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { humanizeCompanyGroupStatus } from "@/lib/companyGroupGuards";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/InvoiceQuestionsThread";
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
