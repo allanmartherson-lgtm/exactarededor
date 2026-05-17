@@ -303,7 +303,7 @@ export const StatTileSkeleton = ({ density = "default" }: { density?: "default" 
     <CardContent
       className={cn(
         "h-full flex flex-col",
-        isCompact ? "p-3 gap-2" : "p-3 sm:p-4 lg:p-5 gap-3",
+        isCompact ? "p-4 gap-3" : "p-5 sm:p-6 gap-4",
       )}
     >
       <div className={cn("flex items-start justify-between", isCompact ? "gap-2" : "gap-2 sm:gap-3")}>
