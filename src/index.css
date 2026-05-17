@@ -175,8 +175,8 @@ All colors MUST be HSL.
     --sidebar-background: 220 22% 11%;
     --sidebar-foreground: 215 18% 78%;
     --sidebar-muted-foreground: 215 14% 60%;
-    --sidebar-primary: 217 91% 65%;
-    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-primary: 217 91% 62%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 222 20% 17%;
     --sidebar-hover-foreground: 210 30% 96%;
     --sidebar-accent: 222 60% 18%;
