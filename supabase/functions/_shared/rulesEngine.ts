@@ -1154,6 +1154,20 @@ function calcPacotePorAtendimento(
   if (rule.package_amount == null) {
     return { expected: null, explanation: "pacote_por_atendimento sem package_amount.", alerts: ["Pacote sem valor."] };
   }
+  // Lock pré-passe (Correção C) — só o calc vencedor do atendimento aplica.
+  {
+    const attKey = (item as any).attendance_group_key ?? item.attendance_number ?? "";
+    const lockKey = `${rule.id}|${attKey}`;
+    const winnerCalcId = ctx?.lockedPackageCalcByRuleAtt?.get(lockKey);
+    const myCalcId = (rule as any).__calc_id ?? null;
+    if (winnerCalcId !== undefined && winnerCalcId !== null && myCalcId !== null && winnerCalcId !== myCalcId) {
+      return {
+        expected: 0,
+        explanation: `Pacote não vencedor para o atendimento ${attKey} (vencedor: ${winnerCalcId}).`,
+        alerts: [],
+      };
+    }
+  }
   const att = (item.attendance_number ?? "").trim();
   if (!att) {
     return {
@@ -1274,6 +1288,10 @@ export interface EngineCtx extends PaymentContext {
   appliedAttendancesByRule: Map<string, Set<string>>;
   /** Índice atendimento → códigos de procedimento dos itens do mesmo atendimento. */
   attendanceSiblingCodes?: Map<string, Set<string>>;
+  /** Pré-passe — para cada (rule_id|attendance_key), o calc_id do pacote
+   *  que venceu pela cobertura do atendimento inteiro. Cálculos de pacote
+   *  diferentes do registrado aqui NÃO devem aplicar nesse atendimento. */
+  lockedPackageCalcByRuleAtt?: Map<string, string | null>;
   referenceLookup?: ReferenceTableLookup;
   exceptionLookup?: ExceptionTableLookup;
   tolerance_pct?: number; // Tolerância customizada (ex.: 0.05 para 5%)
@@ -1495,7 +1513,9 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
       : (Array.isArray((rule as any).doctor_roles) ? (rule as any).doctor_roles : []),
     // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
     application_unit: c.application_unit ?? rule.application_unit ?? null,
-  } as RuleInput & { application_unit?: string | null };
+    // Marca auxiliar interna (Correção C) — usado pelo gating de pré-passe.
+    __calc_id: c.id ?? null,
+  } as RuleInput & { application_unit?: string | null; __calc_id?: string | null };
 }
 
 /**
@@ -2567,6 +2587,78 @@ function finalizeAnalysis(
   };
 }
 
+/**
+ * Correção C — Pré-passe por atendimento para cálculos de pacote.
+ *
+ * Para cada (rule.id, attendance_key) escolhe deterministicamente UM calc
+ * vencedor pela maior cobertura dos códigos do atendimento (depois
+ * inclusos_ratio, depois menor sort_order). O vencedor é o único calc de
+ * pacote daquela regra que pode aplicar nesse atendimento.
+ */
+function preComputePackageWinners(
+  items: ItemInput[],
+  rules: RuleInput[],
+  siblings: Map<string, Set<string>>,
+): Map<string, string> {
+  const isPacoteType = (t: CalculationType) =>
+    t === "pacote" || t === "pacote_por_atendimento" || t === "pacote_fechado" || t === "pacote_com_extras";
+
+  const winners = new Map<string, string>();
+  const candidateRules = rules.filter((r) =>
+    Array.isArray(r.calculations) && r.calculations.some((c) => isPacoteType(c.calculation_type))
+  );
+  if (candidateRules.length === 0) return winners;
+
+  const attKeys = new Set<string>();
+  for (const it of items) {
+    const k = (it as any).attendance_group_key ?? it.attendance_number ?? "";
+    if (k) attKeys.add(k);
+  }
+
+  for (const rule of candidateRules) {
+    const pacoteCalcs = (rule.calculations ?? []).filter((c) => isPacoteType(c.calculation_type));
+    for (const attKey of attKeys) {
+      const siblingsOfAtt = siblings.get(attKey);
+      if (!siblingsOfAtt || siblingsOfAtt.size === 0) continue;
+
+      type Scored = { calc: RuleCalculationItem; cobertura: number; inclusosRatio: number };
+      const scored: Scored[] = [];
+
+      for (const c of pacoteCalcs) {
+        const main = String(c.package_main_code ?? "").trim();
+        if (main && !siblingsOfAtt.has(main)) continue;
+
+        const included = (Array.isArray(c.package_included_codes) ? c.package_included_codes : [])
+          .map((x) => String(x).trim()).filter(Boolean);
+        const extras = (Array.isArray(c.extras_codes) ? c.extras_codes : [])
+          .map((x) => String(x).trim()).filter(Boolean);
+
+        const universo = new Set<string>([...(main ? [main] : []), ...included, ...extras]);
+        let cobertura = 0;
+        for (const code of siblingsOfAtt) {
+          if (universo.has(code)) cobertura += 1;
+        }
+        const inclusosHit = included.filter((code) => siblingsOfAtt.has(code)).length;
+        const inclusosRatio = included.length > 0 ? inclusosHit / included.length : 1.0;
+
+        scored.push({ calc: c, cobertura, inclusosRatio });
+      }
+
+      if (scored.length === 0) continue;
+      scored.sort((a, b) => {
+        if (b.cobertura !== a.cobertura) return b.cobertura - a.cobertura;
+        if (b.inclusosRatio !== a.inclusosRatio) return b.inclusosRatio - a.inclusosRatio;
+        return (a.calc.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.calc.sort_order ?? Number.MAX_SAFE_INTEGER);
+      });
+      const winner = scored[0];
+      if (winner.calc.id) {
+        winners.set(`${rule.id}|${attKey}`, winner.calc.id);
+      }
+    }
+  }
+  return winners;
+}
+
 export function analyzePaymentItems(
   items: ItemInput[],
 
@@ -2600,10 +2692,12 @@ export function analyzePaymentItems(
     const tc = String((it as any).tuss_code ?? "").trim();
     if (tc) set.add(tc);
   }
+  const lockedPackageCalcByRuleAtt = preComputePackageWinners(items, filtered, attendanceSiblingCodes);
   const state: EngineCtx = {
     ...ctx,
     appliedAttendancesByRule: new Map<string, Set<string>>(),
     attendanceSiblingCodes,
+    lockedPackageCalcByRuleAtt,
     referenceLookup: options?.referenceLookup,
     exceptionLookup: options?.exceptionLookup,
   };

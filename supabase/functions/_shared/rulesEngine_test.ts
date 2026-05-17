@@ -625,3 +625,100 @@ Deno.test("Desempate por packageMatchScore: vence pacote mais específico quando
   const main = results.find((r) => r.item_id === "m")!;
   assertEquals(main.expected_amount, 5000); // score 1.0 vence 0.67
 });
+
+// --- Correção C — Pré-passe por atendimento ---
+
+Deno.test("Correção C: pré-passe escolhe pacote com maior cobertura do atendimento (não do item)", () => {
+  // Pacote A: main M1, inclusos [X] → cobertura no atendimento {M1, M2, X, Y, Z} = 2 (M1, X)
+  // Pacote B: main M2, inclusos [X, Y, Z] → cobertura = 4 (M2, X, Y, Z)
+  // Esperado: B vence → expected = package_amount de B aplicado em item M2.
+  const rule = makeRule({
+    id: "rule-corr-c-1",
+    name: "Corr C 1",
+    calculation_type: "pacote_por_atendimento",
+    calculations: [
+      {
+        id: "calc-A",
+        sort_order: 0,
+        label: "Pacote A (pequeno)",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "M1",
+        package_included_codes: ["X"],
+        package_amount: 1000,
+        code_match_mode: "any",
+      },
+      {
+        id: "calc-B",
+        sort_order: 1,
+        label: "Pacote B (grande)",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "M2",
+        package_included_codes: ["X", "Y", "Z"],
+        package_amount: 9000,
+        code_match_mode: "any",
+      },
+    ],
+  } as any);
+
+  const att = "ATT-C1";
+  const base = { attendance_number: att, procedure_amount: 100, gross_amount: 100 };
+  const items = [
+    makeItem({ id: "iM1", procedure_code: "M1", ...base }),
+    makeItem({ id: "iM2", procedure_code: "M2", ...base }),
+    makeItem({ id: "iX", procedure_code: "X", ...base }),
+    makeItem({ id: "iY", procedure_code: "Y", ...base }),
+    makeItem({ id: "iZ", procedure_code: "Z", ...base }),
+  ];
+  const ctx: PaymentContext = { sectors: ["outro"], specialties: [], payment_type: null, reference_date: "2026-05-01" };
+  const results = analyzePaymentItems(items, [rule], ctx);
+
+  const m2 = results.find((r) => r.item_id === "iM2")!;
+  assertEquals(m2.expected_amount, 9000, "Pacote B (maior cobertura) deve aplicar em M2");
+
+  // M1 não deve receber o package_amount do Pacote A (perdedor); deve ser
+  // tratado como item embutido/sem-pacote → 0.
+  const m1 = results.find((r) => r.item_id === "iM1")!;
+  assertEquals(m1.expected_amount === 1000, false, "Pacote A não deve aplicar (perdeu pré-passe)");
+});
+
+Deno.test("Correção C: pacote cujo main_code não está nos siblings não é elegível", () => {
+  const rule = makeRule({
+    id: "rule-corr-c-2",
+    name: "Corr C 2",
+    calculation_type: "pacote_por_atendimento",
+    calculations: [
+      {
+        id: "calc-Quad",
+        sort_order: 0,
+        label: "Quadrantectomia",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "Q-MAIN",
+        package_included_codes: ["Q-A", "Q-B"],
+        package_amount: 7000,
+        code_match_mode: "any",
+      },
+      {
+        id: "calc-Simp",
+        sort_order: 1,
+        label: "Simples",
+        calculation_type: "pacote_por_atendimento",
+        package_main_code: "S-MAIN",
+        package_included_codes: ["Q-A"],
+        package_amount: 12000,
+        code_match_mode: "any",
+      },
+    ],
+  } as any);
+
+  const att = "ATT-C2";
+  const base = { attendance_number: att, procedure_amount: 100, gross_amount: 100 };
+  const items = [
+    makeItem({ id: "iqm", procedure_code: "Q-MAIN", ...base }),
+    makeItem({ id: "iqa", procedure_code: "Q-A", ...base }),
+    makeItem({ id: "iqb", procedure_code: "Q-B", ...base }),
+  ];
+  const ctx: PaymentContext = { sectors: ["outro"], specialties: [], payment_type: null, reference_date: "2026-05-01" };
+  const results = analyzePaymentItems(items, [rule], ctx);
+  const main = results.find((r) => r.item_id === "iqm")!;
+  assertEquals(main.expected_amount, 7000, "Quadrant deve vencer — Simples não é elegível (S-MAIN ausente)");
+});
