@@ -2692,10 +2692,12 @@ export function analyzePaymentItems(
     const tc = String((it as any).tuss_code ?? "").trim();
     if (tc) set.add(tc);
   }
+  const lockedPackageCalcByRuleAtt = preComputePackageWinners(items, filtered, attendanceSiblingCodes);
   const state: EngineCtx = {
     ...ctx,
     appliedAttendancesByRule: new Map<string, Set<string>>(),
     attendanceSiblingCodes,
+    lockedPackageCalcByRuleAtt,
     referenceLookup: options?.referenceLookup,
     exceptionLookup: options?.exceptionLookup,
   };
