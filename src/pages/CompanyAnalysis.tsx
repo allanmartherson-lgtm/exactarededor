@@ -28,6 +28,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { canEditBatch, canActAsValidatorOrDirector, canReimportBatch } from "@/lib/paymentFlow";
 import { claimPayment } from "@/lib/assignments";
+import { isCompanyGroupEditable, isCompanyGroupReopenable, COMPANY_GROUP_LOCKED_TOOLTIP } from "@/lib/companyGroupGuards";
 // useAuth já importado acima
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import {
