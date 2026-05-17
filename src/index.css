@@ -444,10 +444,16 @@ All colors MUST be HSL.
   .list-row {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
+    gap: 12px;
+    padding: 12px 14px;
     border-bottom: 1px solid hsl(var(--secondary)); /* border-light */
     transition: background-color 0.1s ease;
+  }
+  @media (min-width: 640px) {
+    .list-row {
+      gap: 16px;
+      padding: 16px 20px;
+    }
   }
   .list-row:last-child {
     border-bottom: 0;
