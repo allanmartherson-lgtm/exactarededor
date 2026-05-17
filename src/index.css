@@ -206,6 +206,17 @@ All colors MUST be HSL.
     font-weight: 600;
     letter-spacing: -0.02em;
   }
+
+  /* Dark mode: lighter heading weight + tighter smoothing avoids the
+     "bold smear" of bright Outfit on dark surfaces — keeps Airy feel. */
+  .dark h1, .dark h2, .dark h3, .dark h4 {
+    font-weight: 550;
+    letter-spacing: -0.018em;
+  }
+  .dark body {
+    font-weight: 380;
+    text-rendering: optimizeLegibility;
+  }
 }
 
 @layer components {
