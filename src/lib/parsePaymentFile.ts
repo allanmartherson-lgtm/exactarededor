@@ -38,6 +38,8 @@ export interface ParsedRow {
   procedure_date: string | null;
   patient_name: string | null;
   sector: string | null;
+  /** Caráter do atendimento (ELETIVO / URGENCIA / EMERGENCIA) — usado pelo motor para filtros de bônus. */
+  attendance_character: string | null;
   raw_data: Record<string, unknown>;
   tipo_linha: LineType;
   line_issues: LineIssue[];
@@ -341,6 +343,7 @@ export const parsePaymentFile = async (
       procedure_date: excelDateToISO(pick(row, ["data"])),
       patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
       sector: toStr(pick(row, ["setor do pagamento", "setor", "unidade de atendimento", "unidade", "departamento", "servico", "serviço", "localizacao", "localização"])),
+      attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
       raw_data: row,
     };
     const tipo_linha = classifyLine(base, paymentKind || null);

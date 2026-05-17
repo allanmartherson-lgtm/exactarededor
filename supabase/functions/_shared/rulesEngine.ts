@@ -270,6 +270,8 @@ export interface ItemInput {
   specialty?: string | null;
   /** Setor informado na planilha (opcional). */
   sector?: string | null;
+  /** Caráter do atendimento lido da planilha ("ELETIVO" | "URGENCIA" | "EMERGENCIA"). */
+  attendance_character?: string | null;
   /** Sub-Onda 2C — resolução manual de duplicidade entre cálculos da mesma regra (analista escolheu qual cálculo aplicar). */
   calc_duplicity_resolution?: { chosen_calc_id: string } | null;
 }
@@ -1415,7 +1417,15 @@ export function calcItemMatches(c: RuleCalculationItem, item: ItemInput): { ok: 
   }
   // Eletivo vs Urgência
   if (c.elective_mode && c.elective_mode !== "qualquer") {
-    const isUrgencia = /urgencia|emergencia|pronto/i.test(item.description ?? "");
+    // 1) Fonte preferencial: campo estruturado vindo da planilha ("Tipo Entrada").
+    // 2) Fallback: regex no nome do procedimento (compatibilidade com bases antigas).
+    const charRaw = (item.attendance_character ?? "").toString().trim().toLowerCase();
+    let isUrgencia: boolean;
+    if (charRaw) {
+      isUrgencia = /urg|emerg/.test(charRaw);
+    } else {
+      isUrgencia = /urgencia|urgência|emergencia|emergência|pronto/i.test(item.description ?? "");
+    }
     if (c.elective_mode === "eletivo" && isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
     if (c.elective_mode === "urgencia" && !isUrgencia) return { ok: false, reason: "eletivo_urgencia" };
   }

@@ -188,7 +188,7 @@ serve(async (req) => {
         procedure_amount,gross_amount,attendance_number,patient_name,procedure_date,quantity,
         authorized_exception,exception_reason,exception_authorizer,exception_note,
         tipo_linha,complement_reason,
-        agreement_text,specialty,tipo_item,sector,
+        agreement_text,specialty,tipo_item,sector,attendance_character,
         convenio_value_totalized,
         ai_status,
         item_hash,
@@ -380,6 +380,7 @@ serve(async (req) => {
       // Especialidade MÉDICA resolvida (NÃO é o tipo_item).
       specialty: resolved.value,
       sector: it.sector ?? null,
+      attendance_character: it.attendance_character ?? null,
       convenio_value_totalized: it.convenio_value_totalized ?? false,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
       calc_duplicity_resolution: it.ai_findings?.calc_duplicity?.resolution?.chosen_calc_id

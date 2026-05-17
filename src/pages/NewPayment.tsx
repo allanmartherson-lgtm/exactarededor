@@ -56,6 +56,7 @@ interface ParsedRow {
   procedure_date: string | null;
   patient_name: string | null;
   sector: string | null;
+  attendance_character: string | null;
   raw_data: Record<string, unknown>;
   source_file?: string;
   source_row_number?: number;
@@ -337,6 +338,7 @@ const NewPayment = () => {
         procedure_date: excelDateToISO(pick(row, ["data"])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: rawSector,
+        attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
         raw_data: row,
         source_file: f.name,
         source_row_number: rowIndex + 2,
@@ -723,6 +725,7 @@ const NewPayment = () => {
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
       sector: currentBucket?.sectorMapping || r.sector,
+      attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
       convenio_value_totalized: currentBucket?.convenioValueTotalized || false,
@@ -753,6 +756,7 @@ const NewPayment = () => {
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
       sector: b.sectorMapping || r.sector,
+      attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
       convenio_value_totalized: b.convenioValueTotalized || false,
