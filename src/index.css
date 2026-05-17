@@ -566,28 +566,32 @@ All colors MUST be HSL.
     cursor: not-allowed;
   }
 
-  /* Status pill used at end of list rows. */
+  /* Pills / chips / status indicators — same shape & soft elevation
+     across light and dark. Fundo `--*-soft` + texto `--*` (cor da família)
+     garante contraste suficiente em ambos os temas. */
   .pill {
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: 9999px;
     font-size: 11px;
     font-weight: 500;
     line-height: 1.4;
     white-space: nowrap;
+    box-shadow: var(--shadow-soft);
   }
   .pill--warning {
     background: hsl(var(--warning-soft));
-    color: hsl(var(--warning-foreground));
+    color: hsl(var(--warning));
   }
   .pill--success {
     background: hsl(var(--success-soft));
-    color: hsl(var(--success-foreground));
+    color: hsl(var(--success));
   }
   .pill--info {
     background: hsl(var(--info-soft));
-    color: hsl(var(--info-foreground));
+    color: hsl(var(--info));
   }
   .pill--danger {
     background: hsl(var(--destructive-soft));
@@ -597,6 +601,21 @@ All colors MUST be HSL.
     background: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
   }
+
+  /* Status dot — bolinha colorida usada antes de labels (• Crítico). */
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px hsl(var(--background));
+  }
+  .status-dot--success { background: hsl(var(--success)); }
+  .status-dot--warning { background: hsl(var(--warning)); }
+  .status-dot--info    { background: hsl(var(--info)); }
+  .status-dot--danger  { background: hsl(var(--destructive)); }
+  .status-dot--muted   { background: hsl(var(--muted-foreground)); }
 
   /* Underline-style filter tabs (text + count badge). */
   .filter-tabs {
