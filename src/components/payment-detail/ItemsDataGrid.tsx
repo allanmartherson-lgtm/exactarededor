@@ -1072,6 +1072,7 @@ function RowMain({
           observations={observations}
           profiles={profiles}
           colSpan={totalCols}
+          showTipoEntrada={!!colVis.tipo_entrada}
         />
       )}
     </>
