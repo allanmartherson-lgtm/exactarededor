@@ -2406,86 +2406,31 @@ const Rules = () => {
                     <Card className="shadow-card">
                       <CardContent className="p-0">
                         {g.rules.map((r, idx) => {
-                          const incomplete = isIncomplete(r);
-                          const missing = missingFields(r);
-                          const expired = r.valid_until && new Date(r.valid_until) < new Date();
+                          const expired = !!(r.valid_until && new Date(r.valid_until) < new Date());
                           return (
-                            <div
+                            <RuleListRow
                               key={r.id}
-                              className={cn(
-                                "flex items-start gap-3 px-6 py-4 hover:bg-muted/40 transition-colors",
-                                idx !== g.rules.length - 1 && "border-b border-border/40",
-                              )}
-                            >
-                              <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                                <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelect(r.id)} />
-                              </div>
-                              <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
-                                <div className="min-w-0 flex-1 space-y-2">
-                                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                    <p className="font-medium text-sm truncate">{r.name}</p>
-                                    {r.active === false && (
-                                      <Badge variant="outline" className="gap-1 font-normal bg-destructive-soft text-destructive border-destructive/30">Inativa</Badge>
-                                    )}
-                                    {expired && (
-                                      <Badge variant="outline" className="gap-1 font-normal bg-warning-soft text-warning-foreground border-warning/30">Expirada</Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                                    <Badge
-                                      variant="outline"
-                                      className={cn(
-                                        "gap-1 font-normal capitalize",
-                                        r.severity === "bloqueio" && "bg-destructive-soft text-destructive border-destructive/30",
-                                        r.severity === "aviso" && "bg-warning-soft text-warning-foreground border-warning/30",
-                                        r.severity === "info" && "bg-info-soft text-info border-info/30",
-                                      )}
-                                    >
-                                      {r.severity}
-                                    </Badge>
-                                    {renderCalcBadge(r)}
-                                    {(r.valid_from || r.valid_until) && (
-                                      <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                                        Vigência: {r.valid_from ?? "—"} → {r.valid_until ?? "—"}
-                                      </Badge>
-                                    )}
-                                    {(() => {
-                                      const alertVal = r.limiar_alerta_valor;
-                                      const alertType = r.limiar_alerta_tipo;
-                                      const blockVal = r.limiar_bloqueio_valor;
-                                      const blockType = r.limiar_bloqueio_tipo;
-                                      if (alertVal == null && blockVal == null) return null;
-                                      const alertText = alertVal != null ? `${alertVal}${alertType === 'percentual' ? '%' : ' R$'}` : 'global';
-                                      const blockText = blockVal != null ? `${blockVal}${blockType === 'percentual' ? '%' : ' R$'}` : 'global';
-                                      return (
-                                        <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                                          ⚠ {alertText} / 🚫 {blockText}
-                                        </Badge>
-                                      );
-                                    })()}
-                                    {incomplete && (
-                                      <Badge variant="outline" className="gap-1 font-normal bg-warning-soft text-warning-foreground border-warning/30">
-                                        <AlertTriangle className="h-3 w-3" /> Faltam: {missing.join(", ")}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {r.description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">{r.description}</p>
-                                  )}
-                                  {r.rule_text && (
-                                    <p className="text-xs text-muted-foreground line-clamp-3">
-                                      <span className="text-foreground/80">{r.rule_text}</span>
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-0.5 shrink-0">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openDuplicate(r)} title="Duplicar"><Copy className="h-4 w-4" /></Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4" /></Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                              </div>
-                            </div>
+                              name={r.name}
+                              severity={r.severity}
+                              active={r.active}
+                              expired={expired}
+                              validFrom={r.valid_from}
+                              validUntil={r.valid_until}
+                              thresholdAlert={{ value: r.limiar_alerta_valor, type: r.limiar_alerta_tipo }}
+                              thresholdBlock={{ value: r.limiar_bloqueio_valor, type: r.limiar_bloqueio_tipo }}
+                              incomplete={isIncomplete(r)}
+                              missingFields={missingFields(r)}
+                              description={r.description}
+                              ruleText={r.rule_text}
+                              calcBadge={renderCalcBadge(r)}
+                              selected={selected.has(r.id)}
+                              isLast={idx === g.rules.length - 1}
+                              onToggleSelect={() => toggleSelect(r.id)}
+                              onEdit={() => openEdit(r)}
+                              onDuplicate={() => openDuplicate(r)}
+                              onExportPdf={() => exportRuleToPDF(r)}
+                              onDelete={() => remove(r.id)}
+                            />
                           );
                         })}
                       </CardContent>
