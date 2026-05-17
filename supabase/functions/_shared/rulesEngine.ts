@@ -1794,19 +1794,19 @@ function applyCalculationSingle(
   switch (rule.calculation_type) {
     case "percentual_sobre_convenio": return calcPercentual(rule, item);
     case "regra_vias":                return calcRegraVias(rule, item);
-    case "pacote_fechado":            return calcPacoteFechado(rule, item);
+    case "pacote_fechado":            return calcPacoteFechado(rule, item, ctx);
     case "pacote_com_extras":         return calcPacoteExtras(rule, item);
     case "pacote_por_atendimento": {
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
-      return calcPacotePorAtendimento(rule, item, set);
+      return calcPacotePorAtendimento(rule, item, set, ctx);
     }
     case "pacote": {
       const map = ctx?.appliedAttendancesByRule ?? new Map<string, Set<string>>();
       let set = map.get(rule.id);
       if (!set) { set = new Set<string>(); map.set(rule.id, set); }
-      return calcPacotePorAtendimento(rule, item, set);
+      return calcPacotePorAtendimento(rule, item, set, ctx);
     }
     case "valor_fixo":                return calcValorFixo(rule, item, ctx);
     case "exclusao":                  return calcExclusao(rule);
