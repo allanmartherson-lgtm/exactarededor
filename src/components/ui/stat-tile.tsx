@@ -212,7 +212,7 @@ export const StatTile = ({
           data-testid="stat-card-value"
           className={cn(
             "stat-number font-display",
-            isCompact ? "text-3xl" : "text-3xl sm:text-4xl",
+            isCompact ? "text-2xl sm:text-3xl" : "text-[28px] sm:text-3xl md:text-4xl",
             "font-semibold tabular-nums leading-none tracking-tight transition-[font-size,color] duration-200 ease-out motion-reduce:transition-none",
             isZero && !highlighted ? "text-[hsl(var(--text-tertiary))]" : "text-foreground",
           )}
