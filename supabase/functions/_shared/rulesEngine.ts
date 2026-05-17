@@ -1499,7 +1499,9 @@ function ruleFromCalcItem(rule: RuleInput, c: RuleCalculationItem): RuleInput {
       : (Array.isArray((rule as any).doctor_roles) ? (rule as any).doctor_roles : []),
     // Propaga unidade de aplicação para uso na pós-análise (dedup de bônus).
     application_unit: c.application_unit ?? rule.application_unit ?? null,
-  } as RuleInput & { application_unit?: string | null };
+    // Marca auxiliar interna (Correção C) — usado pelo gating de pré-passe.
+    __calc_id: c.id ?? null,
+  } as RuleInput & { application_unit?: string | null; __calc_id?: string | null };
 }
 
 /**
