@@ -1429,6 +1429,43 @@ export default function CompanyAnalysis() {
             </div>
           )}
           <StatusBadge status={gStatus} />
+          {canReopenCompany && (
+            <Dialog open={reopenOpen} onOpenChange={(o) => { setReopenOpen(o); if (!o) setReopenReason(""); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-amber-400 text-amber-700 hover:bg-amber-50">
+                  <Undo2 className="h-4 w-4 mr-1.5" />
+                  Reabrir análise
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reabrir análise da empresa</DialogTitle>
+                  <DialogDescription>
+                    A empresa <strong>{group.company_name}</strong> voltará para <strong>Em revisão do analista</strong> e poderá ser editada novamente.
+                    O motivo será registrado no histórico e na auditoria.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 py-2">
+                  <Label htmlFor="reopen-reason" className="text-xs">Motivo da reabertura (obrigatório, mín. 10 caracteres)</Label>
+                  <Textarea
+                    id="reopen-reason"
+                    value={reopenReason}
+                    onChange={(e) => setReopenReason(e.target.value.slice(0, 500))}
+                    rows={4}
+                    placeholder="Ex.: identificada divergência em 3 itens após conferência manual com a base original."
+                    disabled={reopening}
+                  />
+                  <p className="text-[11px] text-muted-foreground text-right">{reopenReason.trim().length}/500</p>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setReopenOpen(false)} disabled={reopening}>Cancelar</Button>
+                  <Button onClick={reopenCompanyAnalysis} disabled={reopening || reopenReason.trim().length < 10}>
+                    {reopening ? "Reabrindo…" : "Reabrir"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
