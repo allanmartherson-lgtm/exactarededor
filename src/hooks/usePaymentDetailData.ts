@@ -228,40 +228,55 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
    */
   useEffect(() => {
     if (!id) return;
+    // Debounce coalesces bursts of realtime events (e.g., centenas de updates de
+    // payment_items durante a análise por IA) num único refetch. Sem isso, cada
+    // evento chama load() e o AbortController do load() anterior cancela o
+    // request em voo — resultado: o estado fica preso vazio até o usuário
+    // recarregar a página manualmente.
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        load();
+      }, 600);
+    };
+
     const channel = supabase
       .channel(`payment-detail:${id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_observations", filter: `payment_id=eq.${id}` },
-        () => { load(); },
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "invoice_questions", filter: `payment_id=eq.${id}` },
-        () => { load(); },
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_assignments", filter: `payment_id=eq.${id}` },
-        () => { load(); },
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments", filter: `id=eq.${id}` },
-        () => { load(); },
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_company_groups", filter: `payment_id=eq.${id}` },
-        () => { load(); },
+        scheduleReload,
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
-        () => { load(); },
+        scheduleReload,
       )
       .subscribe();
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [id, load]);
