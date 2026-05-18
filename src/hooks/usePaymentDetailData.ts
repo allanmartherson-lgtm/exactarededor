@@ -268,13 +268,53 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "payment_company_groups", filter: `payment_id=eq.${id}` },
-        scheduleReload,
+        { event: "INSERT", schema: "public", table: "payment_company_groups", filter: `payment_id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as GroupRow;
+          setGroups((prev) => (prev.some((g) => g.id === row.id) ? prev : [...prev, row]));
+        },
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
-        scheduleReload,
+        { event: "UPDATE", schema: "public", table: "payment_company_groups", filter: `payment_id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as GroupRow;
+          setGroups((prev) => prev.map((g) => (g.id === row.id ? { ...g, ...row } : g)));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "payment_company_groups", filter: `payment_id=eq.${id}` },
+        (payload) => {
+          const row = payload.old as Partial<GroupRow>;
+          if (!row?.id) return;
+          setGroups((prev) => prev.filter((g) => g.id !== row.id));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as unknown as PaymentItemRow;
+          setItems((prev) => (prev.some((i) => i.id === row.id) ? prev : [...prev, row]));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as unknown as PaymentItemRow;
+          setItems((prev) => prev.map((i) => (i.id === row.id ? { ...i, ...row } : i)));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "payment_items", filter: `payment_id=eq.${id}` },
+        (payload) => {
+          const row = payload.old as Partial<PaymentItemRow>;
+          if (!row?.id) return;
+          setItems((prev) => prev.filter((i) => i.id !== row.id));
+        },
       )
       .subscribe();
     return () => {
