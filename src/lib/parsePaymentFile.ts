@@ -341,9 +341,11 @@ export const parsePaymentFile = async (
 
   const rows: ParsedRow[] = json.map((row) => {
     const role = toStr(pick(row, ["funcao","função","papel"]));
-    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","vlrepasse","repasse","vl. repasse"]));
+    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","valor a repassar","valor repassar","vlrepasse","vl. repasse"]));
     const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce","valor convenio","valor convênio","vl convenio","vl. convenio"]));
-    const grossFromAny = repasse || toNumber(pick(row, ["valor bruto","valor","vlrbruto","bruto"])) || procVal;
+    const grossFromAny = repasse
+      || toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"]))
+      || procVal;
     const procedureAmountFinal = procVal || grossFromAny || null;
 
     // Identificação por linha — só ativa se filename NÃO foi confiável
@@ -361,24 +363,53 @@ export const parsePaymentFile = async (
       || (filenameTrusted ? fileMatchedCompany!.name : (rowCompanyNameRaw || rawCompanyName))
       || null;
 
+    // Excludes: termos que indicam OUTRO papel/coluna e não devem ser confundidos.
+    //   - doctor_name: "solic"/"solicitante" = quem pediu o parecer, não o prestador
+    //   - date: "solic"/"emiss" = datas de solicitação/emissão, não a do procedimento
+    //     (mas se nada melhor existir, ainda é melhor que vazio — só desempata)
+    const DOCTOR_EXCLUDES = ["solic","solicitante","requisit","pedinte"];
+
+    // Nome do médico: aceita variantes "Médico Parecerista", "Médico Executante",
+    // "Prestador", coluna "Repasse" (em planilhas de parecer, contém o nome do
+    // parecerista) — sempre evitando colunas de "solicitante".
+    let doctorNameRaw = toStr(pick(row, [
+      "medico parecerista","médico parecerista","parecerista",
+      "medico executante","médico executante","executante",
+      "medico","médico","nome","prestador",
+    ], DOCTOR_EXCLUDES));
+    // Fallback: planilhas de parecer usam coluna "Repasse" para o nome do
+    // recebedor. Só aceitamos se NÃO for número (valores ficam em outra coluna).
+    if (!doctorNameRaw) {
+      const repasseCell = pick(row, ["repasse"]);
+      const s = toStr(repasseCell);
+      if (s && isNaN(Number(s.replace(/[\sR$.,]/g, "")))) doctorNameRaw = s;
+    }
+
     const base = {
-      doctor_name: toStr(pick(row, ["medico","médico","nome","prestador"])) ?? "",
+      doctor_name: doctorNameRaw ?? "",
       doctor_document: toStr(pick(row, ["cpf","cnpj","documento","doc"])) ?? "",
       doctor_email: toStr(pick(row, ["email","e-mail"])) ?? "",
       description: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento","descricao","descrição","servico","serviço"])) ?? "",
       gross_amount: grossFromAny,
       company_name: resolvedName,
       company_id: resolvedCompany?.id || null,
-      attendance_number: toStr(pick(row, ["nr atendimento","n atendimento","atendimento","nratendim"])),
+      attendance_number: toStr(pick(row, ["nr atendimento","n atendimento","atendimento","atend","nratendim"])),
       procedure_code: toStr(pick(row, ["codigo procedimento","código procedimento","codigoproc","codproc","cod. tuss","tuss"])),
       procedure_name: toStr(pick(row, ["procedmat","proced/mat","proced.","procedimento"])),
       access_route: toStr(pick(row, ["via de acesso","viaacesso","via acesso"])),
       doctor_role: role,
-      agreement_text: toStr(pick(row, ["convenio","convênio","acordo"])),
-      specialty: toStr(pick(row, ["especialidade","especialid","especialidade médica","especialidade medica"])) || null,
+      agreement_text: toStr(pick(row, ["convenio","convênio","acordo","operadora","plano"])),
+      specialty: toStr(pick(row, [
+        "especialidade","especialid","especialidade médica","especialidade medica",
+        "espec destino","espec. dest","espec dest","especialidade destino",
+      ])) || null,
       procedure_amount: procedureAmountFinal,
       quantity: toNumber(pick(row, ["qtd","quantidade"])) || null,
-      procedure_date: excelDateToISO(pick(row, ["data"])),
+      procedure_date: excelDateToISO(pick(row, [
+        "data procedimento","data atendimento","data",
+        "dt resposta","dt. resp","dt resp","data resposta",
+        "dt solic","dt. solic","data solicitacao","data solicitação",
+      ])),
       patient_name: toStr(pick(row, ["paciente","nome paciente","nm paciente","nome do paciente"])),
       sector: toStr(pick(row, ["setor do pagamento", "setor", "unidade de atendimento", "unidade", "departamento", "servico", "serviço", "localizacao", "localização"])),
       attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
