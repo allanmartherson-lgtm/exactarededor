@@ -61,18 +61,21 @@ self.onmessage = async (e) => {
       else if (status === "alerta") statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } };
       else if (status === "reprovado") statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } };
 
-      // Validação assistencial: mesmas divergências mostradas no popover
-      // "Validação (N)" da tela expandida — uma linha por achado com
-      // "Regra: mensagem". Mantemos string única separada por " | " para
-      // caber numa célula sem quebrar o layout do Excel.
-      const vfRaw = Array.isArray(it.validation_findings) ? it.validation_findings : [];
-      const validationCol = vfRaw
-        .map((f: any) => {
-          const name = f?.rule_name || f?.kind || "Validação";
-          const msg = f?.message || "";
-          return msg ? `${name}: ${msg}` : name;
-        })
-        .join(" | ");
+      // Validação assistencial: usa o resumo pré-calculado no modal (que tem
+      // acesso a rulesIndex e replica a mesma lógica do popover, incluindo
+      // regras sintetizadas com action=informar). Fallback: monta a partir
+      // de validation_findings caso o resumo não venha.
+      let validationCol: string = typeof it.validation_summary === "string" ? it.validation_summary : "";
+      if (!validationCol) {
+        const vfRaw = Array.isArray(it.validation_findings) ? it.validation_findings : [];
+        validationCol = vfRaw
+          .map((f: any) => {
+            const name = f?.rule_name || f?.kind || "Validação";
+            const msg = f?.message || "";
+            return msg ? `${name}: ${msg}` : name;
+          })
+          .join(" | ");
+      }
 
       return [
         it.attendance_number,
