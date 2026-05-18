@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -543,152 +542,16 @@ const PaymentDetail = () => {
    */
   const generatePdf = async (opts: { silentUpload?: boolean } = {}) => {
     if (!payment) return;
-    const doc = new jsPDF();
-    doc.setFontSize(16); doc.text("Validação de Pagamento Médico", 14, 18);
-    doc.setFontSize(10);
-    doc.text(`Referência: ${payment.reference}`, 14, 28);
-    doc.text(`Status: ${payment.status}`, 14, 34);
-    doc.text(`Total: ${formatCurrency(payment.total_amount)}`, 14, 40);
-
-    // Aprovador / data: prioriza payment.approved_*; se ausente (aprovação por
-    // grupo agregada por trigger), deriva do grupo aprovado mais recente.
-    const approvedGroups = groups.filter((g) => g.approved_at && g.approved_by);
-    const latestApprovedGroup = approvedGroups
-      .slice()
-      .sort((a, b) => (a.approved_at! < b.approved_at! ? 1 : -1))[0];
-    const approverId = payment.approved_by ?? latestApprovedGroup?.approved_by ?? null;
-    const approverAt = payment.approved_at ?? latestApprovedGroup?.approved_at ?? null;
-    const aprovador = approverId ? (profiles[approverId] ?? "—") : "—";
-    const aprovadoEm = approverAt ? formatDate(approverAt) : "—";
-    doc.text(`Aprovado por: ${aprovador}  ·  em: ${aprovadoEm}`, 14, 46);
-
-    // Totais por empresa — visão executiva antes do detalhamento.
-    let cursorYTop = 54;
-    if (groups.length > 0) {
-      doc.setFontSize(12);
-      doc.text(`Totais por empresa (${groups.length})`, 14, cursorYTop);
-      autoTable(doc, {
-        startY: cursorYTop + 4,
-        head: [["Empresa", "Itens", "Status", "Total"]],
-        body: groups.map((g) => [
-          g.company_name,
-          String(g.items_count ?? 0),
-          g.status,
-          formatCurrency(g.total_amount ?? 0),
-        ]),
-        foot: [[
-          "Total geral",
-          String(groups.reduce((s, g) => s + (g.items_count ?? 0), 0)),
-          "",
-          formatCurrency(payment.total_amount),
-        ]],
-        styles: { fontSize: 9 },
-        footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },
-      });
-      type DocWithLastTable2 = jsPDF & { lastAutoTable?: { finalY?: number } };
-      cursorYTop = ((doc as DocWithLastTable2).lastAutoTable?.finalY ?? cursorYTop) + 8;
-    }
-
-    autoTable(doc, {
-      startY: cursorYTop,
-      head: [["Médico", "Doc", "Descrição", "Valor", "IA"]],
-      body: items.map((i) => [i.doctor_name, i.doctor_document ?? "", i.description ?? "", formatCurrency(i.gross_amount), i.ai_status]),
-      styles: { fontSize: 8 },
+    // Gerador unificado: o relatório por empresa usa o mesmo helper com
+    // items/groups filtrados, garantindo PDFs idênticos em estrutura.
+    const doc = generatePaymentReportPdf({
+      payment,
+      items,
+      groups,
+      observations: obs,
+      profiles,
+      rulesIndex,
     });
-
-    // Divergências relevantes (alertas/reprovações)
-    type DocWithLastTable = jsPDF & { lastAutoTable?: { finalY?: number } };
-    let cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? 60) + 8;
-    const divergencias = items.filter(
-      (i) => i.ai_status === "alerta" || i.ai_status === "reprovado" || (i.ai_findings?.alerts?.length ?? 0) > 0,
-    );
-    if (divergencias.length > 0) {
-      doc.setFontSize(12);
-      doc.text(`Divergências (${divergencias.length})`, 14, cursorY);
-      autoTable(doc, {
-        startY: cursorY + 4,
-        head: [["Item", "Status", "Motivos"]],
-        body: divergencias.map((i) => [
-          `${i.doctor_name}${i.attendance_number ? ` · #${i.attendance_number}` : ""}`,
-          i.ai_status,
-          ((i.ai_findings?.alerts ?? []) as string[]).join(" | ") || "—",
-        ]),
-        styles: { fontSize: 8, cellWidth: "wrap" },
-        columnStyles: { 2: { cellWidth: 110 } },
-      });
-      cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
-    }
-
-    // Validações assistenciais — replica a lógica do popover "Validação (N)"
-    // da tela expandida: findings explícitos + entradas sintetizadas para
-    // regras disparadas sem conflito (action=informar), usando rulesIndex.
-    const validationRows: Array<[string, string]> = [];
-    for (const it of items) {
-      const raw = Array.isArray((it as any).validation_findings)
-        ? ((it as any).validation_findings as any[])
-        : [];
-      const known = new Set(
-        raw.map((f) => String(f?.rule_id ?? f?.rule_name ?? "").toLowerCase()),
-      );
-      const synth: any[] = [];
-      const matched: string[] = ((it as any).ai_findings?.matched_rule_ids ?? []) as string[];
-      matched.forEach((rid) => {
-        const key = String(rid).toLowerCase();
-        if (known.has(key)) return;
-        const rule = rulesIndex?.[rid];
-        if (!rule) return;
-        known.add(key);
-        synth.push({
-          rule_name: rule.name,
-          message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
-        });
-      });
-      const all = [...raw, ...synth];
-      if (all.length === 0) continue;
-      const text = all
-        .map((f: any) => {
-          const name = f?.rule_name || f?.kind || "Validação";
-          const msg = f?.message || "";
-          return msg ? `${name}: ${msg}` : name;
-        })
-        .join(" | ");
-      const label = `${(it as any).doctor_name ?? "—"}${(it as any).attendance_number ? ` · #${(it as any).attendance_number}` : ""}`;
-      validationRows.push([label, text]);
-    }
-    if (validationRows.length > 0) {
-      if (cursorY > 250) { doc.addPage(); cursorY = 20; }
-      doc.setFontSize(12);
-      doc.text(`Validações assistenciais (${validationRows.length})`, 14, cursorY);
-      autoTable(doc, {
-        startY: cursorY + 4,
-        head: [["Item", "Validações"]],
-        body: validationRows,
-        styles: { fontSize: 8, cellWidth: "wrap" },
-        columnStyles: { 1: { cellWidth: 130 } },
-      });
-      cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
-    }
-
-    // Histórico (observações) — base de auditoria
-    if (obs.length > 0) {
-      if (cursorY > 250) { doc.addPage(); cursorY = 20; }
-      doc.setFontSize(12);
-      doc.text(`Histórico de observações (${obs.length})`, 14, cursorY);
-      autoTable(doc, {
-        startY: cursorY + 4,
-        head: [["Data/hora", "Autor", "Papel", "Mensagem"]],
-        body: [...obs]
-          .sort((a, b) => (a.created_at < b.created_at ? -1 : 1))
-          .map((o) => [
-            formatDate(o.created_at),
-            (o.author_id && profiles[o.author_id]) || "—",
-            o.author_type,
-            o.message,
-          ]),
-        styles: { fontSize: 8 },
-        columnStyles: { 3: { cellWidth: 95 } },
-      });
-    }
 
     const blob = doc.output("blob");
     const path = `${payment.id}/aprovacao.pdf`;
@@ -2643,6 +2506,8 @@ const PaymentDetail = () => {
           groups={groups}
           rulesIndex={rulesIndex}
           analystName={user?.id ? profiles[user.id] : undefined}
+          observations={obs}
+          profiles={profiles}
         />
       )}
     </>
