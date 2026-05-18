@@ -1354,6 +1354,49 @@ const NewPayment = () => {
                             <PopoverTrigger asChild>
                               <Button
                                 size="sm"
+                                variant={b.rows.length === 0 ? "outline" : "ghost"}
+                                className={`h-6 px-2 text-[11px] ${b.rows.length === 0 ? "border-destructive text-destructive hover:text-destructive" : "text-muted-foreground hover:text-foreground"}`}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Cabeçalho: linha {(b.headerRowIndex ?? 0) + 1}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[min(480px,calc(100vw-2rem))] p-3" align="end" collisionPadding={16}>
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium">Escolher linha de cabeçalho</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    Se o sistema não detectou as colunas (0 linhas) ou pegou a linha errada, escolha aqui qual linha da planilha contém os nomes das colunas.
+                                  </p>
+                                </div>
+                                <div className="max-h-72 overflow-auto border rounded">
+                                  {(b.rawMatrix || []).slice(0, 30).map((row, rIdx) => {
+                                    const preview = (row || [])
+                                      .slice(0, 10)
+                                      .map((c) => (c == null || c === "" ? "·" : String(c)))
+                                      .join(" | ");
+                                    const isCurrent = rIdx === (b.headerRowIndex ?? 0);
+                                    return (
+                                      <button
+                                        key={rIdx}
+                                        type="button"
+                                        onClick={() => applyHeaderRowOverride(idx, rIdx)}
+                                        className={`w-full text-left text-[11px] px-2 py-1.5 border-b last:border-b-0 hover:bg-muted/60 ${isCurrent ? "bg-primary/10 font-medium" : ""}`}
+                                      >
+                                        <span className="text-muted-foreground mr-2">Linha {rIdx + 1}:</span>
+                                        <span className="truncate inline-block max-w-full align-bottom">{preview || "(vazia)"}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
                                 variant="ghost"
                                 className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                               >
