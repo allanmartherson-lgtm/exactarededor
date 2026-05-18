@@ -198,6 +198,10 @@ interface FileBucket {
   convenioValueTotalized?: boolean;
   /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
   columnOverrides?: ColumnOverrides;
+  /** Matriz crua da planilha (linhas x colunas), para permitir trocar a linha de cabeçalho. */
+  rawMatrix?: unknown[][];
+  /** Índice (0-based) da linha de cabeçalho atualmente usada. */
+  headerRowIndex?: number;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
