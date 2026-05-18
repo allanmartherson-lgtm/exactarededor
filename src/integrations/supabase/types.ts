@@ -643,6 +643,62 @@ export type Database = {
           },
         ]
       }
+      notification_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          debounce_seconds: number
+          events: Json
+          first_event_at: string
+          id: string
+          kind: string
+          last_event_at: string
+          payment_id: string
+          sender_ids: string[]
+          sent_at: string | null
+          sent_meta: Json | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          debounce_seconds?: number
+          events?: Json
+          first_event_at?: string
+          id?: string
+          kind: string
+          last_event_at?: string
+          payment_id: string
+          sender_ids?: string[]
+          sent_at?: string | null
+          sent_meta?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          debounce_seconds?: number
+          events?: Json
+          first_event_at?: string
+          id?: string
+          kind?: string
+          last_event_at?: string
+          payment_id?: string
+          sender_ids?: string[]
+          sent_at?: string | null
+          sent_meta?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_queue_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_assignments: {
         Row: {
           action: string
@@ -2316,6 +2372,16 @@ export type Database = {
         Returns: string
       }
       delete_payment_batch: { Args: { p_payment_id: string }; Returns: Json }
+      enqueue_notification: {
+        Args: {
+          p_debounce_seconds?: number
+          p_event: Json
+          p_kind: string
+          p_payment_id: string
+          p_sender_id?: string
+        }
+        Returns: string
+      }
       extract_rule_targets: {
         Args: {
           _group_company_links: Json
