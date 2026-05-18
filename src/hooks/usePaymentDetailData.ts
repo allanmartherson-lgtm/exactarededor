@@ -95,8 +95,10 @@ export function usePaymentDetailData(id: string | undefined, options?: { groupId
 
   const load = useCallback(async () => {
     if (!id) return;
-    // Cancela request anterior em voo (se houver) antes de iniciar a nova.
-    abortRef.current?.abort();
+    // NÃO abortamos o request anterior aqui. Durante a análise por IA, o
+    // realtime dispara muitos refetches em sequência; abortar o anterior
+    // faz a UI nunca terminar de carregar e ficar vazia até o usuário dar
+    // F5. O loadTokenRef garante que respostas stale sejam descartadas.
     const ac = new AbortController();
     abortRef.current = ac;
     const myToken = ++loadTokenRef.current;
