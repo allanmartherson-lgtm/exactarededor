@@ -390,7 +390,7 @@ export const parsePaymentFile = async (
 
   const rows: ParsedRow[] = json.map((row) => {
     const role = toStr(pick(row, ["funcao","função","papel"]));
-    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","valor a repassar","valor repassar","vlrepasse","vl. repasse"]));
+    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","valor a repassar","valor repassar","vlrepasse","vl. repasse","r$ a pagar","rs a pagar","a pagar","valor a pagar","vl a pagar"]));
     const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce","valor convenio","valor convênio","vl convenio","vl. convenio"]));
     const grossFromAny = repasse
       || toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"]))
