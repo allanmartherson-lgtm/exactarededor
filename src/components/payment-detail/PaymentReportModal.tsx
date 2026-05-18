@@ -245,10 +245,41 @@ export function PaymentReportModal({
             ? ruleNames.join(" | ") 
             : (it.ai_findings?.matched_rules?.join(" | ") || "");
 
+          // Replica a mesma lógica do popover "Validação (N)" da tela
+          // expandida: findings explícitos + entradas sintetizadas para regras
+          // disparadas que não geraram conflito (action=informar).
+          const rawFindings: any[] = Array.isArray((it as any).validation_findings)
+            ? (it as any).validation_findings
+            : [];
+          const knownKeys = new Set(
+            rawFindings.map((f) => String(f.rule_id ?? f.rule_name ?? "").toLowerCase()),
+          );
+          const synth: any[] = [];
+          (it.ai_findings?.matched_rule_ids ?? []).forEach((rid) => {
+            const key = String(rid).toLowerCase();
+            if (knownKeys.has(key)) return;
+            const rule = rulesIndex?.[rid];
+            if (!rule) return;
+            knownKeys.add(key);
+            synth.push({
+              rule_name: rule.name,
+              message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
+            });
+          });
+          const allFindings = [...rawFindings, ...synth];
+          const validationSummary = allFindings
+            .map((f: any) => {
+              const name = f?.rule_name || f?.kind || "Validação";
+              const msg = f?.message || "";
+              return msg ? `${name}: ${msg}` : name;
+            })
+            .join(" | ");
+
           return {
             ...it,
             procedure_date: it.procedure_date ? formatDateOnly(it.procedure_date) : "",
-            rule_summary: ruleSummary
+            rule_summary: ruleSummary,
+            validation_summary: validationSummary,
           };
         }),
         fileName
