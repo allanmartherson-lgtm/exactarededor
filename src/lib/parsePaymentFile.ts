@@ -323,6 +323,40 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
 export const MATCH_AUTO_THRESHOLD = 0.92;
 export const MATCH_REVIEW_THRESHOLD = 0.75;
 
+// Palavras-âncora que indicam que uma linha é cabeçalho de dados de pagamento.
+// Usadas para pular metadados (empresa, CNPJ, vigência, valor da NF) que
+// analistas costumam empilhar nas primeiras linhas da planilha.
+const HEADER_ANCHORS = [
+  "medico","médico","prestador","parecerista","executante",
+  "paciente","atendimento","procedimento","proced","tuss",
+  "data","dt","convenio","convênio","especialidade","setor",
+  "valor","repasse","bruto","pagar","quantidade","qtd","funcao","função",
+];
+
+/**
+ * Localiza a linha de cabeçalho em uma planilha que pode ter metadados antes
+ * (ex.: "EMPRESA: X", "VIGÊNCIA", "VALOR DA NF"). Pontuamos cada linha pela
+ * quantidade de células-texto que casam com âncoras conhecidas e exigimos um
+ * mínimo de 3 acertos. Se nada bater, caímos na linha 0 (comportamento legado).
+ */
+const detectHeaderRow = (rows: unknown[][]): number => {
+  const MAX_SCAN = Math.min(rows.length, 25);
+  let bestIdx = 0;
+  let bestScore = 0;
+  for (let i = 0; i < MAX_SCAN; i++) {
+    const r = rows[i] || [];
+    let score = 0;
+    for (const cell of r) {
+      if (typeof cell !== "string") continue;
+      const n = norm(cell);
+      if (!n || n.length > 40) continue;
+      if (HEADER_ANCHORS.some((a) => n === norm(a) || n.includes(norm(a)))) score++;
+    }
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  return bestScore >= 3 ? bestIdx : 0;
+};
+
 export const parsePaymentFile = async (
   f: File,
   companies: CompanyRow[],
@@ -331,7 +365,22 @@ export const parsePaymentFile = async (
   const buf = await f.arrayBuffer();
   const wb = XLSX.read(buf, { cellDates: false });
   const sheet = wb.Sheets[wb.SheetNames[0]];
-  const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+  // Lê como matriz para localizar a linha de cabeçalho real — algumas
+  // planilhas trazem metadados (empresa, CNPJ, vigência) antes dos dados.
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+  const headerIdx = detectHeaderRow(matrix);
+  const headerRow = (matrix[headerIdx] || []).map((h, i) => {
+    const s = (h ?? "").toString().trim();
+    return s.length ? s : `__col_${i}`;
+  });
+  const json: Record<string, unknown>[] = [];
+  for (let i = headerIdx + 1; i < matrix.length; i++) {
+    const row = matrix[i] || [];
+    if (row.every((c) => c == null || c === "")) continue;
+    const obj: Record<string, unknown> = {};
+    headerRow.forEach((key, ci) => { obj[key] = row[ci] ?? ""; });
+    json.push(obj);
+  }
 
   const rawCompanyName = extractCompanyFromFilename(f.name);
   const { company: fileMatchedCompany, score: fileMatchScore } = matchCompany(rawCompanyName, companies);
@@ -341,7 +390,7 @@ export const parsePaymentFile = async (
 
   const rows: ParsedRow[] = json.map((row) => {
     const role = toStr(pick(row, ["funcao","função","papel"]));
-    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","valor a repassar","valor repassar","vlrepasse","vl. repasse"]));
+    const repasse = toNumber(pick(row, ["vl repasse","valor repasse","valor a repassar","valor repassar","vlrepasse","vl. repasse","r$ a pagar","rs a pagar","a pagar","valor a pagar","vl a pagar"]));
     const procVal = toNumber(pick(row, ["valor procedimento","valor proce","vl proce","vlproce","valor convenio","valor convênio","vl convenio","vl. convenio"]));
     const grossFromAny = repasse
       || toNumber(pick(row, ["valor bruto","vlrbruto","bruto","valor"], ["repasse"]))
