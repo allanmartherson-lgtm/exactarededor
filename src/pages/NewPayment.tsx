@@ -277,6 +277,52 @@ const excelDateToISO = (v: unknown): string | null => {
 
 // Matching de empresa centralizado em src/lib/parsePaymentFile.ts (ver imports no topo).
 
+// Palavras-âncora que indicam linha de cabeçalho de dados de pagamento.
+// Usadas para pular metadados (empresa, CNPJ, vigência, totalizadores) que
+// algumas planilhas empilham nas primeiras linhas antes do cabeçalho real.
+const HEADER_ANCHORS = [
+  "medico","médico","prestador","parecerista","executante","executor",
+  "paciente","atendimento","procedimento","proced","tuss",
+  "data","dt","convenio","convênio","especialidade","setor","grupo",
+  "valor","repasse","bruto","pagar","quantidade","qtd","quant","funcao","função",
+  "registro","produto",
+];
+
+const detectHeaderRow = (rows: unknown[][]): number => {
+  const MAX_SCAN = Math.min(rows.length, 30);
+  let bestIdx = 0;
+  let bestScore = 0;
+  for (let i = 0; i < MAX_SCAN; i++) {
+    const r = rows[i] || [];
+    let score = 0;
+    for (const cell of r) {
+      if (typeof cell !== "string") continue;
+      const n = norm(cell);
+      if (!n || n.length > 40) continue;
+      if (HEADER_ANCHORS.some((a) => n === norm(a) || n.includes(norm(a)))) score++;
+    }
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  return bestScore >= 3 ? bestIdx : 0;
+};
+
+const matrixToJson = (matrix: unknown[][], headerIdx: number): Record<string, unknown>[] => {
+  const headerRow = (matrix[headerIdx] || []).map((h, i) => {
+    const s = (h ?? "").toString().trim();
+    return s.length ? s : `__col_${i}`;
+  });
+  const out: Record<string, unknown>[] = [];
+  for (let i = headerIdx + 1; i < matrix.length; i++) {
+    const row = matrix[i] || [];
+    if (row.every((c) => c == null || c === "")) continue;
+    const obj: Record<string, unknown> = {};
+    headerRow.forEach((key, ci) => { obj[key] = row[ci] ?? ""; });
+    out.push(obj);
+  }
+  return out;
+};
+
+
 const NewPayment = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
