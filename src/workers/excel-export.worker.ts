@@ -50,7 +50,7 @@ self.onmessage = async (e) => {
     const detailHeaders = [
       "Atendimento", "Data", "Empresa", "Paciente", "Médico", "Especialidade", 
       "Código", "Procedimento", "Valor Repasse", "Valor Esperado", 
-      "Divergência (R$)", "Status", "Regra", "Motivo"
+      "Divergência (R$)", "Status", "Regra", "Motivo", "Validação Assistencial"
     ];
     
     const detailRows = filteredItems.map(it => {
@@ -61,9 +61,22 @@ self.onmessage = async (e) => {
       else if (status === "alerta") statusStyle = { fill: { fgColor: { rgb: "FEF3C7" } } };
       else if (status === "reprovado") statusStyle = { fill: { fgColor: { rgb: "FEE2E2" } } };
 
+      // Validação assistencial: mesmas divergências mostradas no popover
+      // "Validação (N)" da tela expandida — uma linha por achado com
+      // "Regra: mensagem". Mantemos string única separada por " | " para
+      // caber numa célula sem quebrar o layout do Excel.
+      const vfRaw = Array.isArray(it.validation_findings) ? it.validation_findings : [];
+      const validationCol = vfRaw
+        .map((f: any) => {
+          const name = f?.rule_name || f?.kind || "Validação";
+          const msg = f?.message || "";
+          return msg ? `${name}: ${msg}` : name;
+        })
+        .join(" | ");
+
       return [
         it.attendance_number,
-        it.procedure_date, // Data já vem formatada ou formatar no componente
+        it.procedure_date,
         it.company_name,
         it.patient_name,
         it.doctor_name,
@@ -76,6 +89,7 @@ self.onmessage = async (e) => {
         { v: status, s: statusStyle },
         it.rule_summary || "",
         findings?.alerts?.join(" | ") || findings?.engine?.ai_note || "",
+        validationCol,
       ];
     });
 
