@@ -196,22 +196,46 @@ interface CompanyRow { id: string; name: string; aliases: string[] }
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 
-const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
-  // 1) Exact normalized match (header-based lookup, ordem das colunas é irrelevante)
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) {
-      if (norm(rk) === nk) return row[rk];
-    }
-  }
-  // 2) Fallback: substring match (mantém compat com headers ligeiramente diferentes)
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) {
-      if (norm(rk).includes(nk)) return row[rk];
-    }
-  }
-  return undefined;
+/**
+ * Match por SCORE (espelha src/lib/parsePaymentFile.ts):
+ *  - igualdade normalizada: 100; startsWith: 60; includes: 30
+ *  - bônus por posição da chave (chaves antes valem mais → canônicas)
+ *  - `excludes` descarta headers que contenham termos proibidos
+ *    (ex.: ao buscar "médico", excluir "Medico Solic." — solicitante, não prestador)
+ *
+ * Por que: o `pick` antigo retornava o PRIMEIRO header que contivesse a
+ * palavra-chave. Em planilhas de parecer, a coluna "Repasse" contém o NOME
+ * do médico, não um número → todas as linhas eram marcadas como
+ * "valor numérico inválido". Score + excludes resolvem.
+ */
+const pick = (
+  row: Record<string, unknown>,
+  keys: string[],
+  excludes: string[] = [],
+): unknown => {
+  const headers = Object.keys(row);
+  const nExcludes = excludes.map(norm).filter(Boolean);
+  let bestKey: string | null = null;
+  let bestScore = 0;
+  headers.forEach((rk) => {
+    const nrk = norm(rk);
+    if (!nrk) return;
+    if (nExcludes.some((ex) => nrk.includes(ex))) return;
+    let score = 0;
+    keys.forEach((k, idx) => {
+      const nk = norm(k);
+      if (!nk) return;
+      let s = 0;
+      if (nrk === nk) s = 100;
+      else if (nrk.startsWith(nk)) s = 60;
+      else if (nrk.includes(nk)) s = 30;
+      if (s === 0) return;
+      s += Math.max(0, 10 - idx);
+      if (s > score) score = s;
+    });
+    if (score > bestScore) { bestScore = score; bestKey = rk; }
+  });
+  return bestKey != null ? row[bestKey] : undefined;
 };
 
 
