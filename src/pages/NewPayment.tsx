@@ -178,6 +178,12 @@ const validateLine = (
   return issues;
 };
 
+interface ColumnOverrides {
+  doctor?: string;
+  gross?: string;
+  repasse?: string;
+}
+
 interface FileBucket {
   file: File;
   rows: ParsedRow[];
@@ -190,6 +196,8 @@ interface FileBucket {
   sectorMapping?: string | null;
   /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
   convenioValueTotalized?: boolean;
+  /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
+  columnOverrides?: ColumnOverrides;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
