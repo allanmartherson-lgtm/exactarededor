@@ -353,7 +353,7 @@ Deno.serve(async (req) => {
         .eq("payment_id", payment_id)
         .limit(20000),
       supabase.from("validation_rules").select("*").eq("active", true),
-      supabase.from("doctors").select("id, full_name, crm, specialties").eq("active", true),
+      supabase.from("doctors").select("id, full_name, crm, specialties").eq("active", true).limit(20000),
       supabase.from("assistance_groups").select("id, name, specialties, active").eq("active", true),
     ]);
     if (payErr || !payment) throw payErr ?? new Error("payment not found");
