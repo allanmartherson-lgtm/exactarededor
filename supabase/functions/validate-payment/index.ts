@@ -367,6 +367,7 @@ Deno.serve(async (req) => {
     const allDoctors = (doctorsRaw ?? []) as Doctor[];
     const groupsById = new Map<string, AssistanceGroup>();
     for (const g of (groupsRaw ?? []) as AssistanceGroup[]) groupsById.set(g.id, g);
+    console.log("[validate-payment] doctors loaded:", allDoctors.length, "groups:", groupsById.size);
     const paymentReference = (payment as any).reference ?? null;
 
     // 2. Idempotência: zera validation_findings de todos os itens do lote
