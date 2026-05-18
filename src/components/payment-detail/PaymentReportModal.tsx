@@ -61,7 +61,9 @@ import type {
   GroupRow,
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
+import type { ObservationRow } from "@/hooks/usePaymentDetailData";
 import { supabase } from "@/integrations/supabase/client";
+import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
 
 interface PaymentReportModalProps {
   open: boolean;
@@ -71,6 +73,8 @@ interface PaymentReportModalProps {
   groups: GroupRow[];
   rulesIndex?: Record<string, RuleLite>;
   analystName?: string;
+  observations?: ObservationRow[];
+  profiles?: Record<string, string>;
 }
 
 export function PaymentReportModal({
