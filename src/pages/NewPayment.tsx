@@ -196,22 +196,46 @@ interface CompanyRow { id: string; name: string; aliases: string[] }
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 
-const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
-  // 1) Exact normalized match (header-based lookup, ordem das colunas é irrelevante)
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) {
-      if (norm(rk) === nk) return row[rk];
-    }
-  }
-  // 2) Fallback: substring match (mantém compat com headers ligeiramente diferentes)
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) {
-      if (norm(rk).includes(nk)) return row[rk];
-    }
-  }
-  return undefined;
+/**
+ * Match por SCORE (espelha src/lib/parsePaymentFile.ts):
+ *  - igualdade normalizada: 100; startsWith: 60; includes: 30
+ *  - bônus por posição da chave (chaves antes valem mais → canônicas)
+ *  - `excludes` descarta headers que contenham termos proibidos
+ *    (ex.: ao buscar "médico", excluir "Medico Solic." — solicitante, não prestador)
+ *
+ * Por que: o `pick` antigo retornava o PRIMEIRO header que contivesse a
+ * palavra-chave. Em planilhas de parecer, a coluna "Repasse" contém o NOME
+ * do médico, não um número → todas as linhas eram marcadas como
+ * "valor numérico inválido". Score + excludes resolvem.
+ */
+const pick = (
+  row: Record<string, unknown>,
+  keys: string[],
+  excludes: string[] = [],
+): unknown => {
+  const headers = Object.keys(row);
+  const nExcludes = excludes.map(norm).filter(Boolean);
+  let bestKey: string | null = null;
+  let bestScore = 0;
+  headers.forEach((rk) => {
+    const nrk = norm(rk);
+    if (!nrk) return;
+    if (nExcludes.some((ex) => nrk.includes(ex))) return;
+    let score = 0;
+    keys.forEach((k, idx) => {
+      const nk = norm(k);
+      if (!nk) return;
+      let s = 0;
+      if (nrk === nk) s = 100;
+      else if (nrk.startsWith(nk)) s = 60;
+      else if (nrk.includes(nk)) s = 30;
+      if (s === 0) return;
+      s += Math.max(0, 10 - idx);
+      if (s > score) score = s;
+    });
+    if (score > bestScore) { bestScore = score; bestKey = rk; }
+  });
+  return bestKey != null ? row[bestKey] : undefined;
 };
 
 
@@ -284,9 +308,12 @@ const NewPayment = () => {
     const rows: ParsedRow[] = json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
       
-      const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "vlrepasse", "repasse", "vl. repasse"]));
+      // IMPORTANTE: NÃO inclui "repasse" sozinho — em planilhas de parecer essa
+      // coluna contém o NOME do médico. Usar só variantes específicas.
+      const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
-      const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "valor", "vlrbruto", "bruto"]));
+      // "valor" sozinho como fallback — exclui coluna chamada apenas "repasse" (nome)
+      const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "vlrbruto", "bruto", "valor"], ["repasse"]));
       const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade"]));
 
       const repasse = r_repasse.value;
@@ -309,16 +336,28 @@ const NewPayment = () => {
 
       const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
 
-      // Resolução final da empresa por linha:
-      //  - filename confiável: sempre usa a empresa do filename
-      //  - senão: row match (>= AUTO) > filename match (qualquer score) > nome cru
       const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
         ?? null;
 
+      // Excludes para o nome do médico: descarta colunas de "solicitante".
+      const DOCTOR_EXCLUDES = ["solic", "solicitante", "requisit", "pedinte"];
+      let doctorNameRaw = toStr(pick(row, [
+        "medico parecerista", "médico parecerista", "parecerista",
+        "medico executante", "médico executante", "executante",
+        "medico", "médico", "nome", "prestador", "fornecedor",
+      ], DOCTOR_EXCLUDES));
+      // Fallback: coluna "Repasse" em planilhas de parecer = nome do recebedor.
+      // Só aceita se NÃO for número.
+      if (!doctorNameRaw) {
+        const repasseCell = pick(row, ["repasse"]);
+        const s = toStr(repasseCell);
+        if (s && isNaN(Number(s.replace(/[\sR$.,]/g, "")))) doctorNameRaw = s;
+      }
+
       const base = {
-        doctor_name: toStr(pick(row, ["medico", "médico", "nome", "prestador", "fornecedor"])) ?? "",
+        doctor_name: doctorNameRaw ?? "",
         doctor_document: toStr(pick(row, ["cpf", "cnpj", "documento", "doc"])) ?? "",
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
         description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
@@ -326,16 +365,23 @@ const NewPayment = () => {
         valor_invalido,
         company_name: resolvedName,
         company_id: resolvedCompany?.id ?? null,
-        attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "nratendim"])),
+        attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "atend", "nratendim"])),
         procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss"])),
         procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
         access_route: toStr(pick(row, ["via de acesso", "viaacesso", "via acesso"])),
         doctor_role: role,
-        agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo"])),
-        specialty: toStr(pick(row, ["especialidade", "especialid", "especialidade médica", "especialidade medica"])) || null,
+        agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo", "operadora", "plano"])),
+        specialty: toStr(pick(row, [
+          "especialidade", "especialid", "especialidade médica", "especialidade medica",
+          "espec destino", "espec. dest", "espec dest", "especialidade destino",
+        ])) || null,
         procedure_amount: procedureAmountFinal,
         quantity: quantity,
-        procedure_date: excelDateToISO(pick(row, ["data"])),
+        procedure_date: excelDateToISO(pick(row, [
+          "data procedimento", "data atendimento", "data",
+          "dt resposta", "dt. resp", "dt resp", "data resposta",
+          "dt solic", "dt. solic", "data solicitacao", "data solicitação",
+        ])),
         patient_name: toStr(pick(row, ["paciente", "nome paciente", "nm paciente", "nome do paciente"])),
         sector: rawSector,
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
