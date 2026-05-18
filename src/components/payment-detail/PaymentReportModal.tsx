@@ -85,6 +85,8 @@ export function PaymentReportModal({
   groups,
   rulesIndex,
   analystName,
+  observations = [],
+  profiles = {},
 }: PaymentReportModalProps) {
   const { toast } = useToast();
   // --- Estados de Filtro ---
