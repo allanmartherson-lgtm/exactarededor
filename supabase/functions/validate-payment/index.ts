@@ -220,6 +220,109 @@ function applyDuplicidadeExata(
   return hits;
 }
 
+function applySobreposicaoAssistencial(
+  rule: ValidationRule,
+  items: Item[],
+  allDoctors: Doctor[],
+  group: AssistanceGroup,
+  findingsByItem: Map<string, Finding[]>,
+  paymentReference: string | null,
+): { hits: number; unresolvedDoctors: Set<string> } {
+  const params = (rule.params ?? {}) as Json;
+  const unresolvedDoctors = new Set<string>();
+
+  // Índices doutores
+  const doctorByName = new Map<string, Doctor>();
+  const doctorByCrm = new Map<string, Doctor>();
+  for (const d of allDoctors) {
+    if (d.full_name) doctorByName.set(normName(d.full_name), d);
+    if (d.crm) doctorByCrm.set(d.crm.trim(), d);
+  }
+
+  const groupSpecSet = new Set(group.specialties.map(normSpecialty).filter(Boolean));
+  if (groupSpecSet.size === 0) return { hits: 0, unresolvedDoctors };
+
+  const isAfim = (doc: Doctor): boolean =>
+    (doc.specialties ?? []).some((s) => groupSpecSet.has(normSpecialty(s)));
+
+  // Itens elegíveis: visita ou parecer + doctor resolvido + afim
+  type Elig = { item: Item; doctor: Doctor };
+  const eligible: Elig[] = [];
+  for (const it of items) {
+    if (!isVisitaOuParecer(it.procedure_name)) continue;
+    let doc: Doctor | undefined;
+    if (it.doctor_document && it.doctor_document.trim()) {
+      doc = doctorByCrm.get(it.doctor_document.trim());
+    }
+    if (!doc && it.doctor_name) {
+      doc = doctorByName.get(normName(it.doctor_name));
+    }
+    if (!doc) {
+      if (it.doctor_name) unresolvedDoctors.add(it.doctor_name);
+      continue;
+    }
+    if (!isAfim(doc)) continue;
+    eligible.push({ item: it, doctor: doc });
+  }
+
+  // Agrupar
+  const groups = new Map<string, Elig[]>();
+  for (const e of eligible) {
+    const parts: string[] = [];
+    if (params.compare_patient) parts.push(normName(e.item.patient_name ?? ""));
+    if (params.compare_date) parts.push((e.item.procedure_date ?? "").slice(0, 10));
+    if (params.compare_attendance) parts.push(e.item.attendance_number ?? "");
+    const key = parts.join("|");
+    if (!key.replaceAll("|", "")) continue;
+    const arr = groups.get(key) ?? [];
+    arr.push(e);
+    groups.set(key, arr);
+  }
+
+  const now = new Date().toISOString();
+  let hits = 0;
+
+  for (const grp of groups.values()) {
+    const distinctDocs = new Set(grp.map((e) => normName(e.doctor.full_name)));
+    if (distinctDocs.size < 2) continue;
+
+    const doctorNames = Array.from(new Set(grp.map((e) => e.doctor.full_name)));
+    const patientName = grp[0].item.patient_name ?? "paciente não informado";
+    const dateStr = (grp[0].item.procedure_date ?? "").slice(0, 10);
+
+    for (const e of grp) {
+      const other = grp.find((x) => normName(x.doctor.full_name) !== normName(e.doctor.full_name))!;
+      const snapshot: ConflictingItemSnapshot = {
+        attendance_number: other.item.attendance_number,
+        patient_name: getPatient(other.item),
+        procedure_code: other.item.procedure_code,
+        procedure_name: other.item.procedure_name,
+        doctor_name: other.item.doctor_name,
+        procedure_date: other.item.procedure_date,
+        company_name: other.item.company_name,
+        payment_id: other.item.payment_id,
+        payment_reference: paymentReference,
+      };
+      const list = findingsByItem.get(e.item.id) ?? [];
+      list.push({
+        rule_id: rule.id,
+        rule_name: rule.name,
+        kind: rule.kind,
+        severity: rule.severity,
+        action: rule.action,
+        message: `Sobreposição assistencial: ${patientName} foi atendido em ${dateStr} por ${distinctDocs.size} médicos afins do grupo '${group.name}' (${doctorNames.join(", ")}).`,
+        conflicting_item_id: other.item.id,
+        conflicting_item: snapshot,
+        detected_at: now,
+      });
+      findingsByItem.set(e.item.id, list);
+      hits++;
+    }
+  }
+
+  return { hits, unresolvedDoctors };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
