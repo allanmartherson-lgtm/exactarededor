@@ -10,6 +10,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const runInBackground = (promise: Promise<unknown>, label: string) => {
+  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  const guarded = promise.catch((e) => console.error(`[orchestrate] ${label}`, e));
+  if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(guarded);
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -147,7 +153,7 @@ Deno.serve(async (req) => {
       const nextUrl = `${SUPABASE_URL}/functions/v1/orchestrate-analysis`;
       // Não aguardamos a resposta — cada página é uma execução independente
       // com seu próprio orçamento de 60s.
-      fetch(nextUrl, {
+      runInBackground(fetch(nextUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -161,7 +167,10 @@ Deno.serve(async (req) => {
           ai_statuses,
           tolerance_pct,
         }),
-      }).catch((e) => console.error("[orchestrate] falha ao disparar próxima página", e));
+      }).then(async (resp) => {
+        if (!resp.ok) console.error("[orchestrate] próxima página retornou erro", resp.status, (await resp.text()).slice(0, 500));
+        else await resp.text();
+      }), "falha ao disparar próxima página");
     }
 
     return new Response(
