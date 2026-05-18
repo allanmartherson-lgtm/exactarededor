@@ -24,6 +24,7 @@ type ValidationRule = {
   payment_types: string[];
   company_ids: string[];
   params: Json;
+  assistance_group_id?: string | null;
 };
 
 type Item = {
@@ -34,6 +35,7 @@ type Item = {
   procedure_name: string | null;
   procedure_date: string | null;
   doctor_name: string | null;
+  doctor_document: string | null;
   patient_name: string | null;
   gross_amount: number | null;
   sector: string | null;
@@ -42,6 +44,20 @@ type Item = {
   doctor_role: string | null;
   access_route: string | null;
   raw_data: Record<string, unknown> | null;
+};
+
+type AssistanceGroup = {
+  id: string;
+  name: string;
+  specialties: string[];
+  active: boolean;
+};
+
+type Doctor = {
+  id: string;
+  full_name: string;
+  crm: string | null;
+  specialties: string[];
 };
 
 type ConflictingItemSnapshot = {
