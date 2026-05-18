@@ -353,7 +353,22 @@ Deno.serve(async (req) => {
         .eq("payment_id", payment_id)
         .limit(20000),
       supabase.from("validation_rules").select("*").eq("active", true),
-      supabase.from("doctors").select("id, full_name, crm, specialties").eq("active", true).limit(20000),
+      (async () => {
+        const all: Doctor[] = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await supabase
+            .from("doctors")
+            .select("id, full_name, crm, specialties")
+            .eq("active", true)
+            .range(from, from + PAGE - 1);
+          if (error) return { data: null as any, error };
+          if (!data || data.length === 0) break;
+          all.push(...(data as Doctor[]));
+          if (data.length < PAGE) break;
+        }
+        return { data: all, error: null };
+      })(),
       supabase.from("assistance_groups").select("id, name, specialties, active").eq("active", true),
     ]);
     if (payErr || !payment) throw payErr ?? new Error("payment not found");
