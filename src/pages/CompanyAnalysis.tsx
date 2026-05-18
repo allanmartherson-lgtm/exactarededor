@@ -1788,6 +1788,18 @@ export default function CompanyAnalysis() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {payment && (
+        <PaymentReportModal
+          open={isReportOpen}
+          onOpenChange={setIsReportOpen}
+          payment={payment}
+          items={items}
+          groups={group ? [group] : []}
+          rulesIndex={rulesIndex}
+          analystName={user?.id ? profiles[user.id] : undefined}
+        />
+      )}
     </div>
   );
 }
