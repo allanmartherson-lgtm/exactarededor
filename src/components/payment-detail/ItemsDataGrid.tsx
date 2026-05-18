@@ -328,10 +328,10 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   return (
-    {/* h-[calc(100vh-220px)] + max-h: garante que o grid tenha altura própria
-        mesmo quando o pai (ex.: CardContent dentro do scroll da página) não
-        define altura. Sem isso, o flex-1/overflow-auto interno nunca ativa e
-        o scroll vai parar no fim da página em planilhas grandes. */}
+    // h-[calc(100vh-220px)] + max-h: garante que o grid tenha altura própria
+    // mesmo quando o pai (ex.: CardContent dentro do scroll da página) não
+    // define altura. Sem isso, o flex-1/overflow-auto interno nunca ativa e
+    // o scroll vai parar no fim da página em planilhas grandes.
     <div className={cn("flex flex-col min-h-0 h-[calc(100vh-220px)] max-h-[calc(100vh-220px)]", className)}>
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
