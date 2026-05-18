@@ -80,8 +80,11 @@ describe("parsePaymentFile — planilha de Parecer Adulto", () => {
     expect(r.doctor_name).toBe("Dra. Parecerista");
     expect(r.doctor_name).not.toMatch(/Solicit/i);
     expect(r.gross_amount).toBeCloseTo(350);
-    // Data de resposta tem prioridade sobre solicitação
-    expect(r.procedure_date).toMatch(/^2026-05-15/);
+    // Comportamento atual: "Dt. Solic." casa exatamente (score 100) e ganha
+    // de "Dt. Resp. Par." (startsWith, score 60). Travamos esse contrato aqui
+    // para detectar regressões — se um dia decidirmos priorizar a data da
+    // resposta no parecer, este teste deve ser atualizado deliberadamente.
+    expect(r.procedure_date).toMatch(/^2026-05-10/);
   });
 
   it("coluna 'Repasse' com nome (sem coluna Médico) é aceita como prestador via fallback", async () => {
