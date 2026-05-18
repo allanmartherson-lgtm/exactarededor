@@ -2506,6 +2506,8 @@ const PaymentDetail = () => {
           groups={groups}
           rulesIndex={rulesIndex}
           analystName={user?.id ? profiles[user.id] : undefined}
+          observations={obs}
+          profiles={profiles}
         />
       )}
     </>
