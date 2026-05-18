@@ -163,3 +163,40 @@ describe("parsePaymentFile — empresa via filename", () => {
     expect(b.rows[0].company_id).toBe("c-acme");
   });
 });
+
+describe("parsePaymentFile — header não está na primeira linha", () => {
+  it("pula linhas de metadados (EMPRESA, CNPJ, VIGÊNCIA, VALOR DA NF) e localiza o cabeçalho real", async () => {
+    const aoa: unknown[][] = [
+      [],
+      [null, "DF Star  -  Ambulatório"],
+      [null, null, "Venus Serviços Médicos Ltda - Ambulatório"],
+      [null, "EMPRESA", "Venus Serviços Médicos Ltda"],
+      [null, "CNPJ", "18124369000171"],
+      [null, "SETOR", "Ambulatório"],
+      [null, "VIGÊNCIA", "01/04/2026", "a", null, null, "30/04/2026"],
+      [null, "PAGTO EM:", "10 dias uteis após o envio da NF"],
+      [null, "VALOR DA NF (R$)", 450],
+      [null, "Check valor", 0],
+      [null, "MÉDICO", "DATA", "ATENDIMENTO", "Especialidade", "PACIENTE", "PROCEDIMENTO", "Convênio", "R$ A PAGAR"],
+      [null, "Renata Souto Viana", "10/04/2026", "009118311", "Oncologia Clínica", "Aguinaldo Siega", "Em Consultório", "Assefaz", 150],
+      [null, "Renata Souto Viana", "17/04/2026", "009143361", "Oncologia Clínica", "Theresa Castro", "Em Consultório", "Senado Federal", 150],
+      [null, "Renata Souto Viana", "20/04/2026", "009149814", "Oncologia Clínica", "Renata Conill", "Em Consultório", "Bradesco", 150],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Planilha1");
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const file = new File([buf], "Venus.xlsx");
+    if (!file.arrayBuffer) (file as any).arrayBuffer = async () => buf;
+
+    const b = await parsePaymentFile(file, []);
+    expect(b.rows).toHaveLength(3);
+    expect(b.rows[0].doctor_name).toBe("Renata Souto Viana");
+    expect(b.rows[0].gross_amount).toBe(150);
+    expect(b.rows[0].attendance_number).toBe("009118311");
+    expect(b.rows[0].patient_name).toBe("Aguinaldo Siega");
+    expect(b.rows[0].specialty).toBe("Oncologia Clínica");
+    expect(b.rows[0].agreement_text).toBe("Assefaz");
+    expect(b.rows[0].procedure_date).toMatch(/^2026-04-10/);
+  });
+});
