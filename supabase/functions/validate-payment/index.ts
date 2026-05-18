@@ -103,6 +103,22 @@ function rawPick(raw: Record<string, unknown> | null, keys: readonly string[]): 
   return null;
 }
 
+const normSpecialty = (s: string | null | undefined): string => {
+  if (!s) return "";
+  return s.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[.,;:]/g, "")
+    .replace(/\s+/g, " ");
+};
+
+const isVisitaOuParecer = (name: string | null): boolean => {
+  if (!name) return false;
+  const n = normName(name);
+  return n.includes("visita") || n.includes("parecer");
+};
+
 const PATIENT_ALIASES = ["paciente", "nome paciente", "nm paciente", "nome do paciente"];
 
 const getPatient = (it: Item): string | null =>
