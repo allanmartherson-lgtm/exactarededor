@@ -29,7 +29,133 @@ const firstName = (full?: string | null) =>
 
 const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
 
-const buildBody = (
+const brl = (v: number | string | null | undefined) => {
+  const n = typeof v === "string" ? parseFloat(v) : (v ?? 0);
+  if (!Number.isFinite(n as number)) return "R$ 0,00";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(n as number);
+};
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;")
+   .replace(/</g, "&lt;")
+   .replace(/>/g, "&gt;")
+   .replace(/"/g, "&quot;")
+   .replace(/'/g, "&#039;");
+
+const buildEmailText = (
+  greeting: string,
+  name: string,
+  paymentRef: string,
+  totalFormatted: string,
+  companyCount: number,
+  link: string,
+) =>
+  `${greeting}, ${name}.
+
+Há um pagamento aguardando sua aprovação no MedPay.
+
+Pagamento: ${paymentRef}
+Valor total: ${totalFormatted}
+Empresas: ${companyCount}
+
+Acessar: ${link}
+
+—
+MedPay · Hospital DF Star · Rede D'Or
+Você está recebendo este e-mail porque é um diretor aprovador no MedPay.`;
+
+const buildEmailHtml = (
+  greeting: string,
+  name: string,
+  paymentRef: string,
+  totalFormatted: string,
+  companyCount: number,
+  link: string,
+) => {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pagamento aguardando aprovação — MedPay</title>
+</head>
+<body style="margin:0;padding:0;background:#F1EFE8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2C2C2A;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;border:0.5px solid #D3D1C7;">
+          <!-- Header -->
+          <tr>
+            <td style="background:#9A6B3A;padding:24px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="font-size:18px;font-weight:500;color:#FFFFFF;letter-spacing:0.3px;">MedPay</td>
+                  <td align="right" style="font-size:12px;color:rgba(255,255,255,0.75);">Hospital DF Star</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <p style="font-size:16px;color:#2C2C2A;margin:0 0 8px;">${greeting}, Prezado(a) ${escapeHtml(name)}.</p>
+              <p style="font-size:14px;color:#5F5E5A;margin:0 0 24px;line-height:1.6;">Há um pagamento aguardando sua aprovação no MedPay.</p>
+
+              <!-- Card cinza com dados -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;border-radius:10px;margin:0 0 28px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="font-size:11px;color:#888780;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Pagamento</p>
+                    <p style="font-size:16px;color:#2C2C2A;margin:0 0 18px;font-weight:500;">${escapeHtml(paymentRef)}</p>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td width="50%" style="vertical-align:top;">
+                          <p style="font-size:11px;color:#888780;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Valor total</p>
+                          <p style="font-size:18px;color:#2C2C2A;margin:0;font-weight:500;">${totalFormatted}</p>
+                        </td>
+                        <td width="50%" style="vertical-align:top;">
+                          <p style="font-size:11px;color:#888780;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;">Empresas</p>
+                          <p style="font-size:18px;color:#2C2C2A;margin:0;font-weight:500;">${companyCount}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding:0 0 28px;">
+                    <a href="${link}" style="display:inline-block;background:#9A6B3A;color:#FFFFFF;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">Acessar no MedPay</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:12px;color:#888780;margin:0;text-align:center;line-height:1.6;">Você está recebendo este e-mail porque é um diretor aprovador no MedPay.</p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#F1EFE8;padding:16px 32px;text-align:center;border-top:0.5px solid #D3D1C7;">
+              <p style="font-size:11px;color:#888780;margin:0;">MedPay · Hospital DF Star · Rede D'Or</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+const buildWhatsappBody = (
   greeting: string,
   name: string,
   link: string,
@@ -64,12 +190,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Confirmar que o pagamento de fato está em aguardando_aprovacao
-    const { data: payment, error: pErr } = await supabase
-      .from("payments")
-      .select("id, reference, status, total_amount")
-      .eq("id", paymentId)
-      .maybeSingle();
+    // Confirmar que o pagamento de fato está em aguardando_aprovacao + contar empresas
+    const [paymentRes, companyCountRes] = await Promise.all([
+      supabase
+        .from("payments")
+        .select("id, reference, status, total_amount")
+        .eq("id", paymentId)
+        .maybeSingle(),
+      supabase
+        .from("payment_company_groups")
+        .select("id", { count: "exact", head: true })
+        .eq("payment_id", paymentId),
+    ]);
+    const payment = paymentRes.data;
+    const pErr = paymentRes.error;
+    const companyCount = companyCountRes.count ?? 0;
+
     if (pErr || !payment) {
       return new Response(JSON.stringify({ error: "Pagamento não encontrado" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -112,8 +248,9 @@ Deno.serve(async (req) => {
 
     for (const d of directors ?? []) {
       const name = firstName(d.full_name);
-      const body = buildBody(greeting, name, link);
-      const html = `<p>${body.replace(/\n/g, "<br/>")}</p>`;
+      const totalFormatted = brl(payment.total_amount);
+      const text = buildEmailText(greeting, name, payment.reference, totalFormatted, companyCount, link);
+      const html = buildEmailHtml(greeting, name, payment.reference, totalFormatted, companyCount, link);
 
       // Email via Resend gateway
       if (d.email && LOVABLE_API_KEY && RESEND_API_KEY) {
@@ -128,9 +265,9 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               from: EMAIL_FROM,
               to: [d.email],
-              subject: "Pagamento aguardando sua aprovação — MedPay",
+              subject: `Pagamento "${payment.reference}" aguarda sua aprovação — MedPay`,
               html,
-              text: body,
+              text,
             }),
           });
           const json = await r.json().catch(() => ({}));
@@ -148,10 +285,11 @@ Deno.serve(async (req) => {
         try {
           // Garantir prefixo Brasil se vier 11 dígitos
           const e164 = phoneDigits.length === 11 ? `+55${phoneDigits}` : `+${phoneDigits}`;
+          const waBody = buildWhatsappBody(greeting, name, link);
           const params = new URLSearchParams({
             To: `whatsapp:${e164}`,
             From: TWILIO_FROM,
-            Body: body,
+            Body: waBody,
           });
           const r = await fetch(`${TWILIO_GATEWAY}/Messages.json`, {
             method: "POST",
