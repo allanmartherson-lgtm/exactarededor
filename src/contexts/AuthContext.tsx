@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,36 +26,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
+  // Mantemos o último userId cuja role foi carregada para evitar recarregar
+  // (e disparar rolesLoading=true) em cada TOKEN_REFRESHED/SIGNED_IN — isso
+  // remontava o ProtectedRoute periodicamente e apagava formulários em
+  // andamento (ex.: modal de cadastro de regras).
+  const lastLoadedUserIdRef = useRef<string | null>(null);
+  const isRecoveryRouteRef = useRef(false);
+  isRecoveryRouteRef.current = ["/definir-senha", "/reset-password", "/auth/reset-password"].includes(
+    location.pathname,
+  );
 
   const loadRoles = async (userId: string) => {
     setRolesLoading(true);
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     setRoles((data ?? []).map((r) => r.role as AppRole));
     setRolesLoading(false);
+    lastLoadedUserIdRef.current = userId;
   };
 
   useEffect(() => {
-    const path = location.pathname;
-    const isPasswordRecoveryRoute = ["/definir-senha", "/reset-password", "/auth/reset-password"].includes(path);
-
-    if (isPasswordRecoveryRoute) {
-      console.info("[auth recovery] AuthProvider pulou init global na rota de recovery", { path });
+    if (isRecoveryRouteRef.current) {
+      console.info("[auth recovery] AuthProvider pulou init global na rota de recovery", {
+        path: location.pathname,
+      });
       setSession(null);
       setUser(null);
       setRoles([]);
       setRolesLoading(false);
       setLoading(false);
+      lastLoadedUserIdRef.current = null;
       return;
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        setTimeout(() => loadRoles(newSession.user.id), 0);
+      const newUserId = newSession?.user?.id ?? null;
+      if (newUserId) {
+        // Só recarrega papéis se o usuário mudou. Eventos como
+        // TOKEN_REFRESHED disparam frequentemente e não devem causar
+        // rolesLoading=true (que desmonta a página via ProtectedRoute).
+        if (lastLoadedUserIdRef.current !== newUserId) {
+          setTimeout(() => loadRoles(newUserId), 0);
+        }
       } else {
         setRoles([]);
         setRolesLoading(false);
+        lastLoadedUserIdRef.current = null;
       }
     });
 
@@ -63,16 +80,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(existing);
       setUser(existing?.user ?? null);
       if (existing?.user) {
-        await loadRoles(existing.user.id);
+        if (lastLoadedUserIdRef.current !== existing.user.id) {
+          await loadRoles(existing.user.id);
+        }
       } else {
         setRoles([]);
         setRolesLoading(false);
+        lastLoadedUserIdRef.current = null;
       }
       setLoading(false);
     });
 
     return () => sub.subscription.unsubscribe();
-  }, [location.pathname]);
+    // Roda apenas uma vez por sessão. Trocar de rota não deve reinicializar
+    // o listener (isso causava remount periódico em conjunto com o reload de
+    // papéis).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const signIn: AuthContextValue["signIn"] = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
