@@ -130,16 +130,54 @@ export const validateLine = (r: Omit<ParsedRow, "line_issues">): LineIssue[] => 
 
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 
-const pick = (row: Record<string, unknown>, keys: string[]): unknown => {
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) if (norm(rk) === nk) return row[rk];
-  }
-  for (const k of keys) {
-    const nk = norm(k);
-    for (const rk of Object.keys(row)) if (norm(rk).includes(nk)) return row[rk];
-  }
-  return undefined;
+/**
+ * Escolhe o valor de uma coluna usando match com PONTUAÇÃO:
+ *   - igualdade normalizada: 100
+ *   - header começa com a chave: 60
+ *   - header contém a chave:   30
+ *   - bônus pela posição da chave na lista (chaves anteriores valem mais)
+ *
+ * `excludes` permite descartar headers que contenham termos proibidos
+ * (ex.: ao buscar o "médico", excluir colunas como "Medico Solic." que
+ * representam o solicitante, não o prestador).
+ *
+ * Por que isso existe: cada planilha de origem tem cabeçalhos um pouco
+ * diferentes. Antes o `pick` retornava o PRIMEIRO header que contivesse a
+ * palavra-chave, então "Medico Solic." vencia "Médico Parecerista" só por
+ * estar antes na planilha — cruzava colunas errado.
+ */
+const pick = (
+  row: Record<string, unknown>,
+  keys: string[],
+  excludes: string[] = [],
+): unknown => {
+  const headers = Object.keys(row);
+  const nExcludes = excludes.map(norm).filter(Boolean);
+  let bestKey: string | null = null;
+  let bestScore = 0;
+  headers.forEach((rk) => {
+    const nrk = norm(rk);
+    if (!nrk) return;
+    if (nExcludes.some((ex) => nrk.includes(ex))) return;
+    let score = 0;
+    keys.forEach((k, idx) => {
+      const nk = norm(k);
+      if (!nk) return;
+      let s = 0;
+      if (nrk === nk) s = 100;
+      else if (nrk.startsWith(nk)) s = 60;
+      else if (nrk.includes(nk)) s = 30;
+      if (s === 0) return;
+      // bônus: chaves no início da lista têm preferência (são as mais canônicas)
+      s += Math.max(0, 10 - idx);
+      if (s > score) score = s;
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = rk;
+    }
+  });
+  return bestKey != null ? row[bestKey] : undefined;
 };
 
 const toNumber = (v: unknown): number => {
