@@ -12,6 +12,12 @@ const corsHeaders = {
 
 const PAGE_SIZE = 4; // empresas processadas em paralelo por página do orquestrador (reduzido de 8 para mitigar contenção de lock em payments)
 
+const runInBackground = (promise: Promise<unknown>, label: string) => {
+  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  const guarded = promise.catch((e) => console.error(`[dispatch] ${label}`, e));
+  if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(guarded);
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -107,18 +113,23 @@ Deno.serve(async (req) => {
       .eq("payment_id", payment_id);
     if (gateErr) throw gateErr;
 
-    const skippedCompanies: Array<{ company_name: string; status: string }> = [];
-    const allowedCompanySet = new Set<string>();
+    const targetCompanySet = new Set(companyNames.map((name) => name.toLowerCase()));
+    const groupStatusByName = new Map<string, string>();
     for (const g of companyGroupsForGate ?? []) {
       const name = (g.company_name ?? "").trim() || "Sem empresa";
-      if (EDITABLE_STATUSES.includes(g.status as string)) {
-        allowedCompanySet.add(name.toLowerCase());
-      } else {
-        skippedCompanies.push({ company_name: name, status: g.status as string });
-      }
+      groupStatusByName.set(name.toLowerCase(), g.status as string);
     }
 
-    companyNames = companyNames.filter((name) => allowedCompanySet.has(name.toLowerCase()));
+    const skippedCompanies: Array<{ company_name: string; status: string }> = [];
+    companyNames = companyNames.filter((name) => {
+      const status = groupStatusByName.get(name.toLowerCase());
+      // Primeira análise (ou grupo ainda não consolidado): não há status de
+      // workflow para proteger, então a empresa precisa ser processada.
+      if (!status) return true;
+      if (EDITABLE_STATUSES.includes(status)) return true;
+      if (targetCompanySet.has(name.toLowerCase())) skippedCompanies.push({ company_name: name, status });
+      return false;
+    });
     const allowedLower = new Set(companyNames.map((s) => s.toLowerCase()));
     totalItems = (groups ?? [])
       .filter((g) => allowedLower.has(((g.company_name ?? "").trim() || "Sem empresa").toLowerCase()))
@@ -157,7 +168,7 @@ Deno.serve(async (req) => {
     // Delega orquestração para `orchestrate-analysis` (página 0).
     // Fire-and-forget: dispatch retorna imediatamente sem aguardar.
     const orchestratorUrl = `${SUPABASE_URL}/functions/v1/orchestrate-analysis`;
-    fetch(orchestratorUrl, {
+    runInBackground(fetch(orchestratorUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -171,7 +182,10 @@ Deno.serve(async (req) => {
         ai_statuses,
         tolerance_pct,
       }),
-    }).catch((e) => console.error("[dispatch] falha ao disparar orquestrador", e));
+    }).then(async (resp) => {
+      if (!resp.ok) console.error("[dispatch] orquestrador retornou erro", resp.status, (await resp.text()).slice(0, 500));
+      else await resp.text();
+    }), "falha ao disparar orquestrador");
 
     return new Response(
       JSON.stringify({
