@@ -1798,6 +1798,8 @@ export default function CompanyAnalysis() {
           groups={group ? [group] : []}
           rulesIndex={rulesIndex}
           analystName={user?.id ? profiles[user.id] : undefined}
+          observations={obs}
+          profiles={profiles}
         />
       )}
     </div>
