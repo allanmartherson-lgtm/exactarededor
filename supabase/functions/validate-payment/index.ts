@@ -380,6 +380,7 @@ Deno.serve(async (req) => {
     let totalHits = 0;
     const appliedRules: string[] = [];
     const skippedRules: { id: string; name: string; reason: string }[] = [];
+    const unresolvedByRule: Record<string, string[]> = {};
 
     for (const rule of rules) {
       if (!ruleAppliesToPayment(rule, payment as any)) {
@@ -389,6 +390,23 @@ Deno.serve(async (req) => {
       if (rule.kind === "duplicidade_exata") {
         const hits = applyDuplicidadeExata(rule, items, findingsByItem, paymentReference);
         totalHits += hits;
+        appliedRules.push(rule.name);
+      } else if (rule.kind === "sobreposicao_assistencial") {
+        const groupId = rule.assistance_group_id;
+        if (!groupId) {
+          skippedRules.push({ id: rule.id, name: rule.name, reason: "no_assistance_group" });
+          continue;
+        }
+        const group = groupsById.get(groupId);
+        if (!group || !group.active) {
+          skippedRules.push({ id: rule.id, name: rule.name, reason: "assistance_group_inactive_or_missing" });
+          continue;
+        }
+        const result = applySobreposicaoAssistencial(rule, items, allDoctors, group, findingsByItem, paymentReference);
+        totalHits += result.hits;
+        if (result.unresolvedDoctors.size > 0) {
+          unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
+        }
         appliedRules.push(rule.name);
       } else {
         skippedRules.push({ id: rule.id, name: rule.name, reason: `kind_not_implemented:${rule.kind}` });
@@ -414,6 +432,7 @@ Deno.serve(async (req) => {
         rules_skipped: skippedRules,
         items_flagged: updates.length,
         total_findings: totalHits,
+        unresolved_doctors_by_rule: unresolvedByRule,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
