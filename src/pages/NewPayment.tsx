@@ -524,6 +524,45 @@ const NewPayment = () => {
     );
   };
 
+  /**
+   * Aplica override manual de colunas no bucket: re-extrai doctor_name,
+   * gross_amount, procedure_amount e valor_invalido das linhas usando o
+   * `raw_data` já salvo. Usado quando o auto-detect erra para planilhas
+   * com cabeçalhos atípicos.
+   */
+  const applyColumnOverrides = (idx: number, overrides: ColumnOverrides) => {
+    setBuckets((prev) =>
+      prev.map((bucket, bIdx) => {
+        if (bIdx !== idx) return bucket;
+        const rows = bucket.rows.map((row) => {
+          const raw = row.raw_data || {};
+          const next: ParsedRow = { ...row };
+
+          if (overrides.doctor) {
+            const v = toStr(raw[overrides.doctor]);
+            next.doctor_name = v ?? "";
+          }
+          const rRep = overrides.repasse ? normalizeNumericValue(raw[overrides.repasse]) : null;
+          const rGross = overrides.gross ? normalizeNumericValue(raw[overrides.gross]) : null;
+          if (rRep || rGross) {
+            const repVal = rRep?.value ?? 0;
+            const grossVal = rGross?.value ?? 0;
+            next.gross_amount = repVal || grossVal || row.gross_amount;
+            next.procedure_amount = grossVal || row.procedure_amount;
+            next.valor_invalido = (rRep?.invalid ?? false) || (rGross?.invalid ?? false);
+          }
+
+          const tipo_linha = next.tipo_linha_manual ?? classifyLine(next, paymentKind || null);
+          const withType = { ...next, tipo_linha };
+          return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+        });
+        return { ...bucket, columnOverrides: overrides, rows };
+      })
+    );
+    toast({ title: "Mapeamento aplicado", description: "Colunas reinterpretadas com seu mapeamento manual." });
+  };
+
+
   const updateRow = (bucketIndex: number, rowIndex: number, changes: Partial<ParsedRow>) => {
     setBuckets((prev) =>
       prev.map((bucket, bIdx) =>
