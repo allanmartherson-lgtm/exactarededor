@@ -1268,6 +1268,57 @@ const NewPayment = () => {
                               </div>
                             </PopoverContent>
                           </Popover>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Colunas{b.columnOverrides && (b.columnOverrides.doctor || b.columnOverrides.gross || b.columnOverrides.repasse) ? " ✓" : ""}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[min(380px,calc(100vw-2rem))] p-3" align="end" collisionPadding={16}>
+                              {(() => {
+                                const headers = Array.from(new Set(b.rows.flatMap(r => Object.keys(r.raw_data || {})))).filter(Boolean);
+                                const ov = b.columnOverrides || {};
+                                const NONE = "__auto__";
+                                const renderSelect = (label: string, key: keyof ColumnOverrides, help: string) => (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{label}</Label>
+                                    <Select
+                                      value={ov[key] ?? NONE}
+                                      onValueChange={(v) => applyColumnOverrides(idx, { ...ov, [key]: v === NONE ? undefined : v })}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value={NONE} className="text-xs italic">Detectar automaticamente</SelectItem>
+                                        {headers.map(h => (
+                                          <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground">{help}</p>
+                                  </div>
+                                );
+                                return (
+                                  <div className="space-y-3">
+                                    <div className="space-y-1">
+                                      <h4 className="text-sm font-medium">Mapear colunas manualmente</h4>
+                                      <p className="text-xs text-muted-foreground">
+                                        Quando o sistema não identifica corretamente as colunas, escolha aqui qual cabeçalho representa cada campo.
+                                      </p>
+                                    </div>
+                                    {renderSelect("Médico (prestador)", "doctor", "Coluna com o nome do médico que recebe o repasse.")}
+                                    {renderSelect("Valor bruto (convênio)", "gross", "Valor cobrado do convênio / valor do procedimento.")}
+                                    {renderSelect("Valor a repassar", "repasse", "Valor líquido que deve ser pago ao médico.")}
+                                  </div>
+                                );
+                              })()}
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <span className="text-xs text-muted-foreground ml-auto">
                           {b.rows.length} linhas · {formatCurrency(b.rows.reduce((s, r) => s + r.gross_amount, 0))}
