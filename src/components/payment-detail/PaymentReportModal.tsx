@@ -377,6 +377,10 @@ export function PaymentReportModal({
             </div>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportPdf} disabled={isExporting}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Exportar PDF
+            </Button>
             <Button variant="outline" onClick={handleExportExcel} disabled={isExporting}>
               {isExporting ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
