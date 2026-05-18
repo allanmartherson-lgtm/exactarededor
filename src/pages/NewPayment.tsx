@@ -198,6 +198,10 @@ interface FileBucket {
   convenioValueTotalized?: boolean;
   /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
   columnOverrides?: ColumnOverrides;
+  /** Matriz crua da planilha (linhas x colunas), para permitir trocar a linha de cabeçalho. */
+  rawMatrix?: unknown[][];
+  /** Índice (0-based) da linha de cabeçalho atualmente usada. */
+  headerRowIndex?: number;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
@@ -273,6 +277,52 @@ const excelDateToISO = (v: unknown): string | null => {
 
 // Matching de empresa centralizado em src/lib/parsePaymentFile.ts (ver imports no topo).
 
+// Palavras-âncora que indicam linha de cabeçalho de dados de pagamento.
+// Usadas para pular metadados (empresa, CNPJ, vigência, totalizadores) que
+// algumas planilhas empilham nas primeiras linhas antes do cabeçalho real.
+const HEADER_ANCHORS = [
+  "medico","médico","prestador","parecerista","executante","executor",
+  "paciente","atendimento","procedimento","proced","tuss",
+  "data","dt","convenio","convênio","especialidade","setor","grupo",
+  "valor","repasse","bruto","pagar","quantidade","qtd","quant","funcao","função",
+  "registro","produto",
+];
+
+const detectHeaderRow = (rows: unknown[][]): number => {
+  const MAX_SCAN = Math.min(rows.length, 30);
+  let bestIdx = 0;
+  let bestScore = 0;
+  for (let i = 0; i < MAX_SCAN; i++) {
+    const r = rows[i] || [];
+    let score = 0;
+    for (const cell of r) {
+      if (typeof cell !== "string") continue;
+      const n = norm(cell);
+      if (!n || n.length > 40) continue;
+      if (HEADER_ANCHORS.some((a) => n === norm(a) || n.includes(norm(a)))) score++;
+    }
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+  return bestScore >= 3 ? bestIdx : 0;
+};
+
+const matrixToJson = (matrix: unknown[][], headerIdx: number): Record<string, unknown>[] => {
+  const headerRow = (matrix[headerIdx] || []).map((h, i) => {
+    const s = (h ?? "").toString().trim();
+    return s.length ? s : `__col_${i}`;
+  });
+  const out: Record<string, unknown>[] = [];
+  for (let i = headerIdx + 1; i < matrix.length; i++) {
+    const row = matrix[i] || [];
+    if (row.every((c) => c == null || c === "")) continue;
+    const obj: Record<string, unknown> = {};
+    headerRow.forEach((key, ci) => { obj[key] = row[ci] ?? ""; });
+    out.push(obj);
+  }
+  return out;
+};
+
+
 const NewPayment = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -302,62 +352,52 @@ const NewPayment = () => {
     });
   }, []);
 
-  const parseFile = async (f: File): Promise<FileBucket> => {
-    const buf = await f.arrayBuffer();
-    const wb = XLSX.read(buf, { cellDates: false });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-
-    const rawCompanyName = extractCompanyFromFilename(f.name);
-    const { company, score } = matchCompany(rawCompanyName, companies);
-    // Filename é fonte primária quando confiança >= MATCH_AUTO_THRESHOLD.
-    const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
-
-    const rows: ParsedRow[] = json.map((row, rowIndex) => {
+  /**
+   * Mapeia um array de linhas JSON (já com cabeçalho correto) para ParsedRow[].
+   * Extraído para que `parseFile` (carga inicial) e `applyHeaderRowOverride`
+   * (troca manual da linha de cabeçalho) compartilhem a mesma lógica.
+   */
+  const mapJsonToRows = (
+    json: Record<string, unknown>[],
+    f: File,
+    headerOffset: number,
+    company: CompanyRow | null,
+    filenameTrusted: boolean,
+    rawCompanyName: string,
+  ): ParsedRow[] => {
+    return json.map((row, rowIndex) => {
       const role = toStr(pick(row, ["funcao", "função", "papel"]));
-      
-      // IMPORTANTE: NÃO inclui "repasse" sozinho — em planilhas de parecer essa
-      // coluna contém o NOME do médico. Usar só variantes específicas.
       const r_repasse = normalizeNumericValue(pick(row, ["vl repasse", "valor repasse", "valor a repassar", "valor repassar", "vlrepasse", "vl. repasse"]));
       const r_procVal = normalizeNumericValue(pick(row, ["valor procedimento", "valor proce", "vl proce", "vlproce", "valor convenio", "valor convênio", "vl convenio", "vl. convenio"]));
-      // "valor" sozinho como fallback — exclui coluna chamada apenas "repasse" (nome)
       const r_gross = normalizeNumericValue(pick(row, ["valor bruto", "vlrbruto", "bruto", "valor"], ["repasse"]));
-      const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade"]));
+      const r_qty = normalizeNumericValue(pick(row, ["qtd", "quantidade", "quant"]));
 
       const repasse = r_repasse.value;
       const procVal = r_procVal.value;
       const grossFromAny = repasse || r_gross.value || procVal;
       const procedureAmountFinal = procVal || grossFromAny || null;
       const quantity = r_qty.value || null;
-      
       const valor_invalido = r_repasse.invalid || r_procVal.invalid || r_gross.invalid || r_qty.invalid;
 
-      // Tenta identificar empresa por linha (Multi-empresa) — só ativa se filename NÃO foi confiável
       const rowCompanyNameRaw = toStr(pick(row, ["empresa", "hospital", "unidade", "unidade de atendimento", "pj", "fornecedor"]));
       let rowMatchedCompany: CompanyRow | null = null;
       if (!filenameTrusted && rowCompanyNameRaw) {
         const { company: matched, score: s } = matchCompany(rowCompanyNameRaw, companies);
-        if (s >= MATCH_AUTO_THRESHOLD) {
-          rowMatchedCompany = matched;
-        }
+        if (s >= MATCH_AUTO_THRESHOLD) rowMatchedCompany = matched;
       }
-
       const rawSector = toStr(pick(row, ["setor", "unidade", "departamento", "servico", "serviço"]));
-
       const resolvedCompany = filenameTrusted ? company : (rowMatchedCompany || company);
       const resolvedName = resolvedCompany?.name
         ?? (filenameTrusted ? company!.name : (rowCompanyNameRaw || rawCompanyName))
         ?? null;
 
-      // Excludes para o nome do médico: descarta colunas de "solicitante".
       const DOCTOR_EXCLUDES = ["solic", "solicitante", "requisit", "pedinte"];
       let doctorNameRaw = toStr(pick(row, [
         "medico parecerista", "médico parecerista", "parecerista",
         "medico executante", "médico executante", "executante",
+        "medico executor", "médico executor",
         "medico", "médico", "nome", "prestador", "fornecedor",
       ], DOCTOR_EXCLUDES));
-      // Fallback: coluna "Repasse" em planilhas de parecer = nome do recebedor.
-      // Só aceita se NÃO for número.
       if (!doctorNameRaw) {
         const repasseCell = pick(row, ["repasse"]);
         const s = toStr(repasseCell);
@@ -368,14 +408,14 @@ const NewPayment = () => {
         doctor_name: doctorNameRaw ?? "",
         doctor_document: toStr(pick(row, ["cpf", "cnpj", "documento", "doc"])) ?? "",
         doctor_email: toStr(pick(row, ["email", "e-mail"])) ?? "",
-        description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "descricao", "descrição", "servico", "serviço"])) ?? "",
+        description: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "produto", "descricao", "descrição", "servico", "serviço"])) ?? "",
         gross_amount: grossFromAny,
         valor_invalido,
         company_name: resolvedName,
         company_id: resolvedCompany?.id ?? null,
-        attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "atend", "nratendim"])),
-        procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss"])),
-        procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento"])),
+        attendance_number: toStr(pick(row, ["nr atendimento", "n atendimento", "atendimento", "atend", "nratendim", "num conta", "nr conta"])),
+        procedure_code: toStr(pick(row, ["codigo procedimento", "código procedimento", "codigoproc", "codproc", "cod. tuss", "tuss", "cod prd", "codigo produto"])),
+        procedure_name: toStr(pick(row, ["procedmat", "proced/mat", "proced.", "procedimento", "produto", "produto - atributo"])),
         access_route: toStr(pick(row, ["via de acesso", "viaacesso", "via acesso"])),
         doctor_role: role,
         agreement_text: toStr(pick(row, ["convenio", "convênio", "acordo", "operadora", "plano"])),
@@ -386,7 +426,7 @@ const NewPayment = () => {
         procedure_amount: procedureAmountFinal,
         quantity: quantity,
         procedure_date: excelDateToISO(pick(row, [
-          "data procedimento", "data atendimento", "data",
+          "data procedimento", "data atendimento", "data dmy", "data",
           "dt resposta", "dt. resp", "dt resp", "data resposta",
           "dt solic", "dt. solic", "data solicitacao", "data solicitação",
         ])),
@@ -395,15 +435,31 @@ const NewPayment = () => {
         attendance_character: toStr(pick(row, ["tipo entrada","tipo de entrada","carater","caráter","carater atendimento","caráter atendimento","carater do atendimento","caráter do atendimento","tipo internacao","tipo internação"])),
         raw_data: row,
         source_file: f.name,
-        source_row_number: rowIndex + 2,
+        source_row_number: headerOffset + 2 + rowIndex,
       };
       const tipo_linha = classifyLine(base, paymentKind || null);
       const withType = { ...base, tipo_linha };
       const line_issues = validateLine(withType);
       return { ...withType, line_issues } as ParsedRow;
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
+  };
 
-    // Identifica o setor dominante na planilha
+  const parseFile = async (f: File): Promise<FileBucket> => {
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, { cellDates: false });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    // Lê como matriz para localizar a linha de cabeçalho real — muitas
+    // planilhas trazem totalizadores/metadados antes da linha de cabeçalho.
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+    const headerIdx = detectHeaderRow(matrix);
+    const json = matrixToJson(matrix, headerIdx);
+
+    const rawCompanyName = extractCompanyFromFilename(f.name);
+    const { company, score } = matchCompany(rawCompanyName, companies);
+    const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
+
+    const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName);
+
     const sectorCounts: Record<string, number> = {};
     for (const r of rows) {
       if (r.sector) {
@@ -413,15 +469,40 @@ const NewPayment = () => {
     }
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
-    return { 
-      file: f, 
-      rows, 
-      rawCompanyName, 
-      matchedCompany: company ? { id: company.id, name: company.name } : null, 
+    return {
+      file: f,
+      rows,
+      rawCompanyName,
+      matchedCompany: company ? { id: company.id, name: company.name } : null,
       matchScore: score,
-      sectorMapping: dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null
+      sectorMapping: dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null,
+      rawMatrix: matrix,
+      headerRowIndex: headerIdx,
     };
   };
+
+  /**
+   * Reaplica o parsing usando uma linha de cabeçalho escolhida manualmente.
+   * Útil quando o auto-detect erra (planilhas com cabeçalhos atípicos ou
+   * metadados extras antes da tabela).
+   */
+  const applyHeaderRowOverride = (idx: number, newHeaderIdx: number) => {
+    setBuckets((prev) => prev.map((bucket, bIdx) => {
+      if (bIdx !== idx) return bucket;
+      const matrix = bucket.rawMatrix;
+      if (!matrix) return bucket;
+      const json = matrixToJson(matrix, newHeaderIdx);
+      const filenameTrusted = bucket.matchScore >= MATCH_AUTO_THRESHOLD && !!bucket.matchedCompany;
+      const company = bucket.matchedCompany
+        ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
+        : null;
+      const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName);
+      return { ...bucket, rows, headerRowIndex: newHeaderIdx };
+    }));
+    toast({ title: "Cabeçalho atualizado", description: `Linha ${newHeaderIdx + 1} usada como cabeçalho.` });
+  };
+
+
 
   const onFiles = async (fileList: FileList) => {
     const newBuckets: FileBucket[] = [];
@@ -1265,6 +1346,49 @@ const NewPayment = () => {
                                     ))}
                                   </SelectContent>
                                 </Select>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant={b.rows.length === 0 ? "outline" : "ghost"}
+                                className={`h-6 px-2 text-[11px] ${b.rows.length === 0 ? "border-destructive text-destructive hover:text-destructive" : "text-muted-foreground hover:text-foreground"}`}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Cabeçalho: linha {(b.headerRowIndex ?? 0) + 1}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[min(480px,calc(100vw-2rem))] p-3" align="end" collisionPadding={16}>
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <h4 className="text-sm font-medium">Escolher linha de cabeçalho</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    Se o sistema não detectou as colunas (0 linhas) ou pegou a linha errada, escolha aqui qual linha da planilha contém os nomes das colunas.
+                                  </p>
+                                </div>
+                                <div className="max-h-72 overflow-auto border rounded">
+                                  {(b.rawMatrix || []).slice(0, 30).map((row, rIdx) => {
+                                    const preview = (row || [])
+                                      .slice(0, 10)
+                                      .map((c) => (c == null || c === "" ? "·" : String(c)))
+                                      .join(" | ");
+                                    const isCurrent = rIdx === (b.headerRowIndex ?? 0);
+                                    return (
+                                      <button
+                                        key={rIdx}
+                                        type="button"
+                                        onClick={() => applyHeaderRowOverride(idx, rIdx)}
+                                        className={`w-full text-left text-[11px] px-2 py-1.5 border-b last:border-b-0 hover:bg-muted/60 ${isCurrent ? "bg-primary/10 font-medium" : ""}`}
+                                      >
+                                        <span className="text-muted-foreground mr-2">Linha {rIdx + 1}:</span>
+                                        <span className="truncate inline-block max-w-full align-bottom">{preview || "(vazia)"}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </PopoverContent>
                           </Popover>
