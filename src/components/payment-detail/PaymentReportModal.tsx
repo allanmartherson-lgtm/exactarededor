@@ -332,6 +332,33 @@ export function PaymentReportModal({
     }
   };
 
+  /**
+   * Exportação PDF — usa o mesmo helper do PDF do lote, mas com items/groups
+   * já filtrados pelo modal. Garante paridade total de colunas, divergências
+   * e validações assistenciais entre os relatórios do lote e da empresa.
+   */
+  const handleExportPdf = () => {
+    try {
+      const doc = generatePaymentReportPdf({
+        payment,
+        items: filteredItems,
+        groups: companyGroups.length === groups.length
+          ? groups
+          : groups.filter((g) => companyGroups.some((cg) => cg.name === g.company_name)),
+        observations,
+        profiles,
+        rulesIndex,
+      });
+      const competence = payment.competence_months || payment.competence_month || "";
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      doc.save(`Relatorio_Lote_${formatCompetence(competence).replace(/\s/g, "")}_${stamp}.pdf`);
+      toast({ title: "PDF gerado com sucesso" });
+    } catch (err: any) {
+      console.error("Erro ao gerar PDF:", err);
+      toast({ title: "Falha ao gerar PDF", description: err?.message, variant: "destructive" });
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-none p-0 flex flex-col h-screen overflow-hidden">
