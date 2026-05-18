@@ -338,23 +338,35 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // 1. Carrega lote (para filtros de escopo) e itens
-    const [{ data: payment, error: payErr }, { data: itemsRaw, error: itErr }, { data: rulesRaw, error: rulesErr }] =
-      await Promise.all([
-        supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
-        supabase
-          .from("payment_items")
-          .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, patient_name, gross_amount, sector, company_id, company_name, doctor_role, access_route, raw_data")
-          .eq("payment_id", payment_id)
-          .limit(20000),
-        supabase.from("validation_rules").select("*").eq("active", true),
-      ]);
+    // 1. Carrega lote (para filtros de escopo), itens, regras, médicos e grupos
+    const [
+      { data: payment, error: payErr },
+      { data: itemsRaw, error: itErr },
+      { data: rulesRaw, error: rulesErr },
+      { data: doctorsRaw, error: docErr },
+      { data: groupsRaw, error: grpErr },
+    ] = await Promise.all([
+      supabase.from("payments").select("id, payment_type, sectors, reference").eq("id", payment_id).single(),
+      supabase
+        .from("payment_items")
+        .select("id, payment_id, attendance_number, procedure_code, procedure_name, procedure_date, doctor_name, doctor_document, patient_name, gross_amount, sector, company_id, company_name, doctor_role, access_route, raw_data")
+        .eq("payment_id", payment_id)
+        .limit(20000),
+      supabase.from("validation_rules").select("*").eq("active", true),
+      supabase.from("doctors").select("id, full_name, crm, specialties").eq("active", true),
+      supabase.from("assistance_groups").select("id, name, specialties, active").eq("active", true),
+    ]);
     if (payErr || !payment) throw payErr ?? new Error("payment not found");
     if (itErr) throw itErr;
     if (rulesErr) throw rulesErr;
+    if (docErr) throw docErr;
+    if (grpErr) throw grpErr;
 
     const items = (itemsRaw ?? []) as Item[];
     const rules = (rulesRaw ?? []) as ValidationRule[];
+    const allDoctors = (doctorsRaw ?? []) as Doctor[];
+    const groupsById = new Map<string, AssistanceGroup>();
+    for (const g of (groupsRaw ?? []) as AssistanceGroup[]) groupsById.set(g.id, g);
     const paymentReference = (payment as any).reference ?? null;
 
     // 2. Idempotência: zera validation_findings de todos os itens do lote
