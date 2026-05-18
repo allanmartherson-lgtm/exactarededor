@@ -619,6 +619,56 @@ const PaymentDetail = () => {
       cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
     }
 
+    // Validações assistenciais — replica a lógica do popover "Validação (N)"
+    // da tela expandida: findings explícitos + entradas sintetizadas para
+    // regras disparadas sem conflito (action=informar), usando rulesIndex.
+    const validationRows: Array<[string, string]> = [];
+    for (const it of items) {
+      const raw = Array.isArray((it as any).validation_findings)
+        ? ((it as any).validation_findings as any[])
+        : [];
+      const known = new Set(
+        raw.map((f) => String(f?.rule_id ?? f?.rule_name ?? "").toLowerCase()),
+      );
+      const synth: any[] = [];
+      const matched: string[] = ((it as any).ai_findings?.matched_rule_ids ?? []) as string[];
+      matched.forEach((rid) => {
+        const key = String(rid).toLowerCase();
+        if (known.has(key)) return;
+        const rule = rulesIndex?.[rid];
+        if (!rule) return;
+        known.add(key);
+        synth.push({
+          rule_name: rule.name,
+          message: rule.description || "Regra disparada — sem conflito ou bloqueio.",
+        });
+      });
+      const all = [...raw, ...synth];
+      if (all.length === 0) continue;
+      const text = all
+        .map((f: any) => {
+          const name = f?.rule_name || f?.kind || "Validação";
+          const msg = f?.message || "";
+          return msg ? `${name}: ${msg}` : name;
+        })
+        .join(" | ");
+      const label = `${(it as any).doctor_name ?? "—"}${(it as any).attendance_number ? ` · #${(it as any).attendance_number}` : ""}`;
+      validationRows.push([label, text]);
+    }
+    if (validationRows.length > 0) {
+      if (cursorY > 250) { doc.addPage(); cursorY = 20; }
+      doc.setFontSize(12);
+      doc.text(`Validações assistenciais (${validationRows.length})`, 14, cursorY);
+      autoTable(doc, {
+        startY: cursorY + 4,
+        head: [["Item", "Validações"]],
+        body: validationRows,
+        styles: { fontSize: 8, cellWidth: "wrap" },
+        columnStyles: { 1: { cellWidth: 130 } },
+      });
+      cursorY = ((doc as DocWithLastTable).lastAutoTable?.finalY ?? cursorY) + 8;
+    }
+
     // Histórico (observações) — base de auditoria
     if (obs.length > 0) {
       if (cursorY > 250) { doc.addPage(); cursorY = 20; }
