@@ -178,6 +178,12 @@ const validateLine = (
   return issues;
 };
 
+interface ColumnOverrides {
+  doctor?: string;
+  gross?: string;
+  repasse?: string;
+}
+
 interface FileBucket {
   file: File;
   rows: ParsedRow[];
@@ -190,6 +196,8 @@ interface FileBucket {
   sectorMapping?: string | null;
   /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
   convenioValueTotalized?: boolean;
+  /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
+  columnOverrides?: ColumnOverrides;
 }
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
@@ -515,6 +523,45 @@ const NewPayment = () => {
       prev.map((x, i) => (i === idx ? { ...x, convenioValueTotalized: !x.convenioValueTotalized } : x))
     );
   };
+
+  /**
+   * Aplica override manual de colunas no bucket: re-extrai doctor_name,
+   * gross_amount, procedure_amount e valor_invalido das linhas usando o
+   * `raw_data` já salvo. Usado quando o auto-detect erra para planilhas
+   * com cabeçalhos atípicos.
+   */
+  const applyColumnOverrides = (idx: number, overrides: ColumnOverrides) => {
+    setBuckets((prev) =>
+      prev.map((bucket, bIdx) => {
+        if (bIdx !== idx) return bucket;
+        const rows = bucket.rows.map((row) => {
+          const raw = row.raw_data || {};
+          const next: ParsedRow = { ...row };
+
+          if (overrides.doctor) {
+            const v = toStr(raw[overrides.doctor]);
+            next.doctor_name = v ?? "";
+          }
+          const rRep = overrides.repasse ? normalizeNumericValue(raw[overrides.repasse]) : null;
+          const rGross = overrides.gross ? normalizeNumericValue(raw[overrides.gross]) : null;
+          if (rRep || rGross) {
+            const repVal = rRep?.value ?? 0;
+            const grossVal = rGross?.value ?? 0;
+            next.gross_amount = repVal || grossVal || row.gross_amount;
+            next.procedure_amount = grossVal || row.procedure_amount;
+            next.valor_invalido = (rRep?.invalid ?? false) || (rGross?.invalid ?? false);
+          }
+
+          const tipo_linha = next.tipo_linha_manual ?? classifyLine(next, paymentKind || null);
+          const withType = { ...next, tipo_linha };
+          return { ...withType, line_issues: validateLine(withType) } as ParsedRow;
+        });
+        return { ...bucket, columnOverrides: overrides, rows };
+      })
+    );
+    toast({ title: "Mapeamento aplicado", description: "Colunas reinterpretadas com seu mapeamento manual." });
+  };
+
 
   const updateRow = (bucketIndex: number, rowIndex: number, changes: Partial<ParsedRow>) => {
     setBuckets((prev) =>
@@ -1219,6 +1266,57 @@ const NewPayment = () => {
                                   </SelectContent>
                                 </Select>
                               </div>
+                            </PopoverContent>
+                          </Popover>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Colunas{b.columnOverrides && (b.columnOverrides.doctor || b.columnOverrides.gross || b.columnOverrides.repasse) ? " ✓" : ""}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[min(380px,calc(100vw-2rem))] p-3" align="end" collisionPadding={16}>
+                              {(() => {
+                                const headers = Array.from(new Set(b.rows.flatMap(r => Object.keys(r.raw_data || {})))).filter(Boolean);
+                                const ov = b.columnOverrides || {};
+                                const NONE = "__auto__";
+                                const renderSelect = (label: string, key: keyof ColumnOverrides, help: string) => (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">{label}</Label>
+                                    <Select
+                                      value={ov[key] ?? NONE}
+                                      onValueChange={(v) => applyColumnOverrides(idx, { ...ov, [key]: v === NONE ? undefined : v })}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value={NONE} className="text-xs italic">Detectar automaticamente</SelectItem>
+                                        {headers.map(h => (
+                                          <SelectItem key={h} value={h} className="text-xs">{h}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground">{help}</p>
+                                  </div>
+                                );
+                                return (
+                                  <div className="space-y-3">
+                                    <div className="space-y-1">
+                                      <h4 className="text-sm font-medium">Mapear colunas manualmente</h4>
+                                      <p className="text-xs text-muted-foreground">
+                                        Quando o sistema não identifica corretamente as colunas, escolha aqui qual cabeçalho representa cada campo.
+                                      </p>
+                                    </div>
+                                    {renderSelect("Médico (prestador)", "doctor", "Coluna com o nome do médico que recebe o repasse.")}
+                                    {renderSelect("Valor bruto (convênio)", "gross", "Valor cobrado do convênio / valor do procedimento.")}
+                                    {renderSelect("Valor a repassar", "repasse", "Valor líquido que deve ser pago ao médico.")}
+                                  </div>
+                                );
+                              })()}
                             </PopoverContent>
                           </Popover>
                         </div>
