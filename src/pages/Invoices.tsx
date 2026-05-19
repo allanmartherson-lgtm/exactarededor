@@ -525,6 +525,44 @@ const Invoices = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={resendOpen} onOpenChange={setResendOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reenviar pedido de NF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="resend-email" className="text-sm font-medium">E-mail destinatário</Label>
+              <Input
+                id="resend-email"
+                type="email"
+                value={resendEmail}
+                onChange={(e) => setResendEmail(e.target.value)}
+                placeholder="email@empresa.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                O e-mail será salvo neste pedido e usado como destinatário principal.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setResendOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!resendEmail.trim() || busyId === resendInvoice?.id}
+              onClick={() => {
+                if (!resendInvoice) return;
+                void resend(resendInvoice, resendEmail);
+                setResendOpen(false);
+              }}
+            >
+              {busyId === resendInvoice?.id ? "Reenviando…" : "Reenviar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
