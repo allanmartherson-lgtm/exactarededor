@@ -71,6 +71,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const payment_id = body?.payment_id as string | undefined;
     const invoice_id = body?.invoice_id as string | undefined;
+    const recipient_email = body?.recipient_email as string | undefined;
     if (!payment_id && !invoice_id) {
       return json({ error: "payment_id ou invoice_id obrigatório" }, 400);
     }
@@ -220,20 +221,22 @@ serve(async (req) => {
       company_name: string | null;
       recipient_label: string;
       reuse_invoice?: InvoiceRow | null;
+      override_to?: string[];
     }) => {
+      const to = opts.override_to ?? opts.to;
       // Reusa invoice existente (por id passado, por company_id, ou por recipient_email)
       let invoice: InvoiceRow | null = opts.reuse_invoice ?? null;
       if (!invoice && opts.company_id && existingByCompany.has(opts.company_id)) {
         invoice = existingByCompany.get(opts.company_id) ?? null;
       }
-      if (!invoice && opts.to[0]) {
-        const k = opts.to[0].toLowerCase();
+      if (!invoice && to[0]) {
+        const k = to[0].toLowerCase();
         if (existingByEmail.has(k)) invoice = existingByEmail.get(k) ?? null;
       }
       if (invoice) {
         await supabase.from("invoices").update({
           expected_amount: opts.total,
-          recipient_email: opts.to[0],
+          recipient_email: to[0],
           recipient_cc: opts.cc,
           items_count: opts.items.length,
           company_id: opts.company_id,
@@ -244,7 +247,7 @@ serve(async (req) => {
         const { data: inserted } = await supabase.from("invoices").insert({
           payment_id: resolvedPaymentId,
           expected_amount: opts.total,
-          recipient_email: opts.to[0],
+          recipient_email: to[0],
           recipient_cc: opts.cc,
           items_count: opts.items.length,
           status: "aguardando",
@@ -387,6 +390,7 @@ serve(async (req) => {
           company_name: bucket.company_name,
           recipient_label: bucket.company_name,
           reuse_invoice: targetInvoice,
+          override_to: recipient_email ? [recipient_email] : undefined,
         });
       } else if (doctorBucket) {
         await processBucket({
@@ -398,6 +402,7 @@ serve(async (req) => {
           company_name: null,
           recipient_label: doctorBucket.items[0]?.doctor_name ?? doctorBucket.doctor_email,
           reuse_invoice: targetInvoice,
+          override_to: recipient_email ? [recipient_email] : undefined,
         });
       }
       return json({

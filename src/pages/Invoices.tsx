@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,6 +77,9 @@ const Invoices = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("todas");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendInvoice, setResendInvoice] = useState<InvoiceRow | null>(null);
+  const [resendEmail, setResendEmail] = useState("");
 
   const canActOnNF = hasRole("analista") || hasRole("admin") || hasRole("diretor");
 
@@ -180,17 +186,23 @@ const Invoices = () => {
     toast({ title: "Link copiado", description: url });
   };
 
-  const resend = async (inv: InvoiceRow) => {
+  const openResendDialog = (inv: InvoiceRow) => {
+    setResendInvoice(inv);
+    setResendEmail(inv.recipient_email ?? "");
+    setResendOpen(true);
+  };
+
+  const resend = async (inv: InvoiceRow, overrideEmail?: string) => {
     setBusyId(inv.id);
     const { error } = await supabase.functions.invoke("send-invoice-request", {
-      body: { invoice_id: inv.id },
+      body: { invoice_id: inv.id, recipient_email: overrideEmail?.trim() || undefined },
     });
     setBusyId(null);
     if (error) {
       toast({ title: "Falha ao reenviar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Pedido reenviado", description: inv.company_name ?? inv.recipient_email });
+    toast({ title: "Pedido reenviado", description: inv.company_name ?? (overrideEmail?.trim() || inv.recipient_email) });
     await load();
   };
 
@@ -369,7 +381,7 @@ const Invoices = () => {
                               type="button"
                               className="list-row__btn"
                               disabled={busyId === i.id}
-                              onClick={() => resend(i)}
+                              onClick={() => openResendDialog(i)}
                             >
                               <Send className="h-3.5 w-3.5" aria-hidden />
                               Reenviar
@@ -515,6 +527,44 @@ const Invoices = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={resendOpen} onOpenChange={setResendOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reenviar pedido de NF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="resend-email" className="text-sm font-medium">E-mail destinatário</Label>
+              <Input
+                id="resend-email"
+                type="email"
+                value={resendEmail}
+                onChange={(e) => setResendEmail(e.target.value)}
+                placeholder="email@empresa.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                O e-mail será salvo neste pedido e usado como destinatário principal.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setResendOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!resendEmail.trim() || busyId === resendInvoice?.id}
+              onClick={() => {
+                if (!resendInvoice) return;
+                void resend(resendInvoice, resendEmail);
+                setResendOpen(false);
+              }}
+            >
+              {busyId === resendInvoice?.id ? "Reenviando…" : "Reenviar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
