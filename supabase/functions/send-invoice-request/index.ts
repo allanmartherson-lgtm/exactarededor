@@ -71,6 +71,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const payment_id = body?.payment_id as string | undefined;
     const invoice_id = body?.invoice_id as string | undefined;
+    const recipient_email = body?.recipient_email as string | undefined;
     if (!payment_id && !invoice_id) {
       return json({ error: "payment_id ou invoice_id obrigatório" }, 400);
     }
