@@ -1690,6 +1690,11 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
+      {id && groupId && (
+        <div className="mt-4">
+          <CompanyQuestionsThread paymentId={id} companyGroupId={groupId} />
+        </div>
+      )}
       {/* Editar item */}
       <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
         <DialogContent>
