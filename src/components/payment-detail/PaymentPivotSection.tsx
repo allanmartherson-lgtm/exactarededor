@@ -536,7 +536,7 @@ function KpiTile({
   bgClassName?: string;
 }) {
   return (
-    <div className={cn("rounded-md border border-border p-3", bgClassName ?? "bg-muted")}>
+    <div className={cn("rounded-md border border-border p-3", bgClassName ?? "bg-card shadow-card")}>
       <p className="card-label text-[10px] uppercase tracking-[0.06em]">
         {label}
       </p>
