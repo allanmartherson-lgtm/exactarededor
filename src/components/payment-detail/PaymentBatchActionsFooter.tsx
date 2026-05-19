@@ -80,8 +80,12 @@ export function PaymentBatchActionsFooter({
   };
 
   const handleApproveClick = async () => {
-    if (approvable.length === 0) {
-      toast({ title: "Nada para aprovar", description: "Nenhuma empresa em estado aprovável.", variant: "destructive" });
+    if (approvable.length === 0 && pending.length === 0) {
+      toast({ title: "Lote já foi processado", variant: "destructive" });
+      return;
+    }
+    if (approvable.length === 0 && pending.length > 0) {
+      toast({ title: "Todas as empresas estão pendentes com o analista", variant: "destructive" });
       return;
     }
     if (pending.length === 0) {
