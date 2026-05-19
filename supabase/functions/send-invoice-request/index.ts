@@ -293,6 +293,7 @@ serve(async (req) => {
             : payment.competence_month,
         sectors: payment.sectors ?? [],
         specialties: payment.specialties ?? [],
+        lote_name: payment.reference ?? null,
       });
 
       const summary: Record<string, unknown> = {
