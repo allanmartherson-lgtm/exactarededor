@@ -132,6 +132,7 @@ export function PaymentConciliationModal({
   const [items, setItems] = useState<ReconciliationItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>("todos");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
