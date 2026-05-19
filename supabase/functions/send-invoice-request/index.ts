@@ -462,61 +462,112 @@ serve(async (req) => {
           console.warn("[send-invoice-request] falha ao gerar XLSX:", xlsxErr instanceof Error ? xlsxErr.message : String(xlsxErr));
         }
 
-        const html = `
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;padding:0">
-  <div style="background:#1E3A5F;padding:24px 32px">
-    <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:600;letter-spacing:0.3px">
-      GHM DF Star — Pedido de Nota Fiscal
-    </h1>
-  </div>
-  <div style="padding:32px">
-    <p style="margin:0 0 20px 0;color:#1a1a2e;font-size:14px">Prezados, ${greetingBrasilia()}!</p>
-    <p style="margin:0 0 20px 0;color:#1a1a2e;font-size:14px">
-      Solicitamos, por gentileza, a emissão de Nota Fiscal referente à produção de
-      <strong>${setoresStr}</strong>${competenciaStr ? ` — <strong>${competenciaStr}</strong>` : ""}:
-    </p>
-    <div style="background:#f8f9fa;border-left:4px solid #1E3A5F;border-radius:4px;padding:20px;margin-bottom:24px">
-      <p style="margin:0 0 8px 0;font-size:16px;font-weight:700;color:#1a1a2e">${opts.recipient_label}</p>
-      <table style="width:100%;border-collapse:collapse">
-        <tr>
-          <td style="padding:4px 0;font-size:13px;color:#555;width:160px">Valor:</td>
-          <td style="padding:4px 0;font-size:15px;font-weight:700;color:#1E3A5F">${totalFormatted}</td>
-        </tr>
-        <tr>
-          <td style="padding:4px 0;font-size:13px;color:#555">Previsão de pagamento:</td>
-          <td style="padding:4px 0;font-size:13px;color:#1a1a2e">10 dias úteis após o envio da NF</td>
-        </tr>
-        ${prazoRow}
-      </table>
-    </div>
-    <div style="text-align:center;margin:28px 0">
-      <a href="${uploadUrl}" style="display:inline-block;background:#1E3A5F;color:#ffffff;padding:14px 32px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">
-        Enviar Nota Fiscal →
-      </a>
-    </div>
-    <div style="border-top:1px solid #e5e7eb;padding-top:20px;margin-top:8px">
-      <p style="margin:0 0 8px 0;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.5px">
-        Dados Cadastrais do Hospital
-      </p>
-      <p style="margin:0;font-size:13px;color:#1a1a2e;line-height:1.7">
-        Hospitais Integrados da Gávea S.A - DF Star<br/>
-        CNPJ: 31.635.857/0006-16 &nbsp; C.C.M: 07.895.204/001-40<br/>
-        SGAS 914 Conjunto H - Parte<br/>
-        Asa Sul - CEP: 70.390-140
-      </p>
-    </div>
-  </div>
-  <div style="background:#f1f3f5;padding:16px 32px;border-top:1px solid #e5e7eb">
-    <p style="margin:0;font-size:12px;color:#888;text-align:center">
-      Atenciosamente, <strong>GHM DF Star</strong> &nbsp;·&nbsp;
-      ghm.repassedfstar@rededor.com.br &nbsp;·&nbsp; (11) 2142-4879
-    </p>
-    <p style="margin:8px 0 0 0;font-size:11px;color:#aaa;text-align:center">
-      Este link é único e intransferível. Em caso de dúvidas, responda este e-mail.
-    </p>
-  </div>
-</div>
-`;
+        const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#f4f6f8">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:32px 0">
+  <tr><td align="center">
+  <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+
+    <!-- HEADER -->
+    <tr>
+      <td style="background:#1E3A5F;padding:28px 40px">
+        <div style="font-family:Arial,sans-serif;color:#ffffff;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;opacity:0.7">Hospital DF Star</div>
+        <div style="font-family:Arial,sans-serif;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.3px">Pedido de Nota Fiscal</div>
+      </td>
+    </tr>
+
+    <!-- BODY -->
+    <tr>
+      <td style="padding:36px 40px 0 40px;font-family:Arial,sans-serif">
+
+        <p style="margin:0 0 6px 0;font-size:14px;color:#1a1a2e">Prezados, <strong>${greetingBrasilia()}!</strong></p>
+        <p style="margin:0 0 24px 0;font-size:14px;color:#444;line-height:1.6">
+          Solicitamos, por gentileza, a emissão de Nota Fiscal referente à produção de
+          <strong>${setoresStr}</strong>${competenciaStr ? ` — <strong>${competenciaStr}</strong>` : ""}:
+        </p>
+
+        <!-- CARD EMPRESA -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;border-left:4px solid #1E3A5F;border-radius:6px;margin-bottom:28px">
+          <tr>
+            <td style="padding:20px 24px">
+              <div style="font-family:Arial,sans-serif;font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:14px">${opts.recipient_label}</div>
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="font-family:Arial,sans-serif;font-size:13px;color:#666;padding:3px 20px 3px 0;white-space:nowrap">Valor:</td>
+                  <td style="font-family:Arial,sans-serif;font-size:16px;font-weight:700;color:#1E3A5F;padding:3px 0">${totalFormatted}</td>
+                </tr>
+                <tr>
+                  <td style="font-family:Arial,sans-serif;font-size:13px;color:#666;padding:3px 20px 3px 0;white-space:nowrap">Previsão de pagamento:</td>
+                  <td style="font-family:Arial,sans-serif;font-size:13px;color:#444;padding:3px 0">10 dias úteis após o envio da NF</td>
+                </tr>
+                ${prazoRow}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- INSTRUÇÃO -->
+        <p style="margin:0 0 20px 0;font-family:Arial,sans-serif;font-size:13px;color:#555;line-height:1.6">
+          Para envio da Nota Fiscal ou em caso de dúvidas e questionamentos, utilize o botão abaixo:
+        </p>
+
+        <!-- BOTÃO -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
+          <tr>
+            <td align="center">
+              <a href="${uploadUrl}" style="display:inline-block;background:#1E3A5F;color:#ffffff;padding:14px 36px;border-radius:6px;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:700;letter-spacing:0.3px">
+                Enviar Nota Fiscal →
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <!-- DADOS CADASTRAIS -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;padding-top:24px;margin-bottom:32px">
+          <tr>
+            <td style="padding-top:24px">
+              <div style="font-family:Arial,sans-serif;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Dados Cadastrais do Tomador</div>
+              <div style="font-family:Arial,sans-serif;font-size:13px;color:#1a1a2e;line-height:1.8">
+                <strong>Hospitais Integrados da Gávea S.A — DF Star</strong><br/>
+                CNPJ: 31.635.857/0006-16 &nbsp;&nbsp; C.C.M: 07.895.204/001-40<br/>
+                SGAS 914 Conjunto H - Parte, Asa Sul<br/>
+                Brasília — DF | CEP: 70.390-140
+              </div>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+      <td style="background:#f0f4f8;padding:20px 40px;border-top:1px solid #e2e8f0">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-family:Arial,sans-serif;font-size:12px;color:#666">
+              Atenciosamente,<br/>
+              <strong style="color:#1E3A5F">GHM DF Star</strong>
+            </td>
+            <td align="right" style="font-family:Arial,sans-serif;font-size:12px;color:#888;line-height:1.7">
+              ghm.repassedfstar@rededor.com.br<br/>
+              (11) 2142-4879
+            </td>
+          </tr>
+        </table>
+        <div style="font-family:Arial,sans-serif;font-size:11px;color:#aaa;margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0">
+          Este link é único e intransferível. Em caso de dúvidas, responda este e-mail.
+        </div>
+      </td>
+    </tr>
+
+  </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
         const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
           method: "POST",
           headers: {
