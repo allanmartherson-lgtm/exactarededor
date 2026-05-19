@@ -354,26 +354,26 @@ export function PaymentPivotSection({
         {/* Tabela pivot */}
         <div className="rounded-md border border-border overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead className="bg-primary/5">
               <tr>
                 <th
-                  className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-foreground/50"
-                  style={{ color: "hsl(var(--secondary-foreground))" }}
+                  data-pivot-th=""
+                  className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
                 >
                   {FIELD_LABELS[grouping]}
                 </th>
                 {months.map((m) => (
                   <th
                     key={m}
-                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums text-foreground/50"
-                    style={{ color: "hsl(var(--secondary-foreground))" }}
+                    data-pivot-th=""
+                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums"
                   >
                     {monthLabel(m)}
                   </th>
                 ))}
                 <th
-                  className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-foreground/50"
-                  style={{ color: "hsl(var(--secondary-foreground))" }}
+                  data-pivot-th=""
+                  className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
                 >
                   Δ vs média
                 </th>
