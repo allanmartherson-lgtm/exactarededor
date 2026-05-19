@@ -832,3 +832,8 @@ All colors MUST be HSL.
   20%, 60% { background-color: hsl(38 92% 50% / 0.28); }
   40%, 80% { background-color: transparent; }
 }
+
+/* Pivot table headers — override global table thead th !important */
+[data-pivot-th] {
+  color: hsl(var(--secondary-foreground)) !important;
+}
