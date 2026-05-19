@@ -20,7 +20,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
 import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
-import * as XLSX from "https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
