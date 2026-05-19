@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  MessageCircle,
   Receipt,
   Sparkles,
 } from "lucide-react";
@@ -52,6 +53,8 @@ export type PaymentGroupCardProps = {
   onToggleExpanded: () => void;
   isAiOpen: boolean;
   onToggleAiOpen: () => void;
+  /** Número de questionamentos abertos para esta empresa (payment_questions). */
+  questionCount?: number;
 };
 
 /**
@@ -72,6 +75,7 @@ export const PaymentGroupCard = ({
   onToggleExpanded,
   isAiOpen,
   onToggleAiOpen,
+  questionCount = 0,
 }: PaymentGroupCardProps) => {
   const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
@@ -218,6 +222,20 @@ export const PaymentGroupCard = ({
               </Tooltip>
             )}
           </div>
+          {questionCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ml-1">
+                  <MessageCircle className="h-3 w-3" /> {questionCount}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {questionCount} questionamento(s) nesta empresa — abra para responder.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <div className="flex items-center gap-2">

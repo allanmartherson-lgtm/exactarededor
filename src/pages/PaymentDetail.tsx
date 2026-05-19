@@ -201,6 +201,38 @@ const PaymentDetail = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
+  // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("payment_questions")
+        .select("company_group_id")
+        .eq("payment_id", id);
+      if (cancelled) return;
+      const counts: Record<string, number> = {};
+      (data ?? []).forEach((r: { company_group_id: string | null }) => {
+        if (!r.company_group_id) return;
+        counts[r.company_group_id] = (counts[r.company_group_id] ?? 0) + 1;
+      });
+      setQuestionCounts(counts);
+    };
+    load();
+    const ch = supabase
+      .channel(`pq-counts-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_questions", filter: `payment_id=eq.${id}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [id]);
   // Toggle de visão por papel (Detalhe/Compacto/Executivo). Persiste por payment_id.
   const [viewMode, setViewMode] = useState<PivotVariant>(() => {
     if (!id) return "detalhe";
@@ -2352,6 +2384,7 @@ const PaymentDetail = () => {
                     searchActive={!!sqCompany}
                     obs={obs}
                     invoices={invoices}
+                    questionCount={questionCounts[g.id] ?? 0}
                     isExpanded={expandedGroups.has(g.id)}
                     onToggleExpanded={() =>
                       setExpandedGroups((prev) => {

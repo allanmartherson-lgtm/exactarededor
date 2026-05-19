@@ -31,6 +31,7 @@ import {
   Timer,
   AlertTriangle,
   Building2,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
@@ -847,6 +848,52 @@ const Dashboard = () => {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [isDiretor]);
 
+  // Questionamentos pendentes para o analista (lotes criados por ele com empresa em em_questionamento).
+  const [pendingQuestions, setPendingQuestions] = useState<
+    Array<{ payment_id: string; reference: string; count: number }>
+  >([]);
+  useEffect(() => {
+    if (!isAnalista || !user?.id) return;
+    let cancelled = false;
+    const fetchPending = async () => {
+      const { data } = await supabase
+        .from("payment_company_groups")
+        .select("id, payment_id, company_name, payments!inner(reference, created_by)")
+        .eq("status", "em_questionamento")
+        .eq("payments.created_by", user.id);
+      if (cancelled) return;
+      const byPayment = new Map<string, { reference: string; count: number }>();
+      ((data ?? []) as Array<{ payment_id: string; payments: { reference: string } | null }>).forEach((r) => {
+        const ref = r.payments?.reference ?? "—";
+        const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
+        cur.count += 1;
+        byPayment.set(r.payment_id, cur);
+      });
+      setPendingQuestions(
+        Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
+      );
+    };
+    fetchPending();
+    const ch = supabase
+      .channel("dash_pending_questions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_company_groups" },
+        () => fetchPending(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_questions" },
+        () => fetchPending(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [isAnalista, user?.id]);
+  const totalPendingQuestions = pendingQuestions.reduce((sum, p) => sum + p.count, 0);
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
@@ -990,6 +1037,35 @@ const Dashboard = () => {
           <span className="text-xs text-destructive/80">Abrir →</span>
         </Link>
       )}
+
+      {/* QUESTIONAMENTOS AGUARDANDO RESPOSTA DO ANALISTA */}
+      {isAnalista && totalPendingQuestions > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-amber-900 mb-2">
+            <MessageCircle className="h-4 w-4" />
+            <span className="font-semibold">{totalPendingQuestions}</span>
+            questionamento{totalPendingQuestions > 1 ? "s" : ""} aguardando sua resposta
+            {pendingQuestions.length > 1 && ` em ${pendingQuestions.length} lotes`}.
+          </div>
+          <ul className="space-y-1">
+            {pendingQuestions.slice(0, 5).map((p) => (
+              <li key={p.payment_id} className="flex items-center justify-between text-xs">
+                <span className="text-amber-900">
+                  Lote <span className="font-medium">{p.reference}</span> · {p.count} empresa{p.count > 1 ? "s" : ""}
+                </span>
+                <Link
+                  to={`/pagamentos/${p.payment_id}`}
+                  className="text-amber-700 hover:text-amber-900 font-medium"
+                >
+                  Abrir →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+
 
 
       {/* ATENÇÃO IMEDIATA */}
