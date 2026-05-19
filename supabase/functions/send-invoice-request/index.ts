@@ -247,7 +247,7 @@ serve(async (req) => {
         const { data: inserted } = await supabase.from("invoices").insert({
           payment_id: resolvedPaymentId,
           expected_amount: opts.total,
-          recipient_email: opts.to[0],
+          recipient_email: to[0],
           recipient_cc: opts.cc,
           items_count: opts.items.length,
           status: "aguardando",
