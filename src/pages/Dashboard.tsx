@@ -953,13 +953,13 @@ const Dashboard = () => {
       const { data: recebida } = await supabase
         .from("invoices")
         .select("id, payment:payments!inner(created_by)")
-        .eq("status", "nf_recebida")
+        .eq("status", "recebida")
         .eq("payments.created_by", user.id);
 
       const { data: conciliar } = await supabase
         .from("invoices")
         .select("id, payment:payments!inner(created_by)")
-        .eq("status", "nf_conciliada")
+        .eq("status", "conciliada")
         .eq("payments.created_by", user.id);
 
       if (cancelled) return;
