@@ -58,7 +58,7 @@ import { authorRoleLabel } from "@/lib/observations";
 // Mesmo set tipográfico usado em AlertBanner, headers, cells e detalhes.
 // Tamanho de referência = AlertBanner (text-xs / 12px).
 export const TEXT_BODY = "text-xs leading-snug tracking-normal";
-export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-foreground/60 leading-tight";
+export const TEXT_LABEL = "text-[10px] uppercase tracking-wide font-medium text-muted-foreground leading-tight";
 export const TEXT_META = "text-[10px] leading-tight tracking-normal text-muted-foreground";
 
 /**
@@ -420,7 +420,7 @@ export function ItemsDataGrid({
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-56 p-2">
-              <p className="px-1.5 pb-1.5 text-[10px] uppercase tracking-wide text-foreground/60">
+              <p className="px-1.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                 Colunas opcionais
               </p>
               <div className="space-y-0.5">
@@ -1348,7 +1348,7 @@ function ItemDetailsRow({
                         <div className="mt-2 space-y-3">
                           <div className="grid grid-cols-2 gap-4">
                             <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wide text-foreground/60 font-semibold mb-1">Normalização</p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Normalização</p>
                               <div className="space-y-1.5">
                                 <div className="min-w-0">
                                   <span className="text-[9px] text-muted-foreground block mb-0.5">Médico (Normalizado)</span>
@@ -1365,7 +1365,7 @@ function ItemDetailsRow({
                               </div>
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wide text-foreground/60 font-semibold mb-1">Alias Aplicado</p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Alias Aplicado</p>
                               <div>
                                 <span className="text-[9px] text-muted-foreground block mb-0.5">Função (Role)</span>
                                 <div className="flex flex-wrap items-center gap-1.5">
@@ -1383,7 +1383,7 @@ function ItemDetailsRow({
                           </div>
                           
                           <div className="pt-2 border-t border-border/40">
-                            <p className="text-[10px] uppercase tracking-wide text-foreground/60 font-semibold mb-1">Hierarquia validada:</p>
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Hierarquia validada:</p>
                             <ul className="space-y-2 list-none pl-0 text-muted-foreground">
                               <li className="flex items-start gap-1.5 text-[10px] break-words whitespace-normal min-w-0">
                                 <div className={cn("h-1.5 w-1.5 rounded-full mt-1 shrink-0", (priority?.includes("medico") || priority?.includes("empresa") || priority?.includes("grupo") || priority?.includes("convenio")) ? "bg-success" : "bg-muted-foreground/30")} />
@@ -1595,7 +1595,7 @@ function ValidationFindingsBadge({
                 <div className="text-[11px] text-foreground/80 mb-2 leading-snug break-words">{f.message}</div>
                 {ci ? (
                   <>
-                    <div className="text-[10px] uppercase tracking-wide text-foreground/60 mb-1">Conflita com:</div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Conflita com:</div>
                     <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px]">
                       <dt className="text-muted-foreground">Atendimento:</dt>
                       <dd className="font-mono break-all">{ci.attendance_number ?? "—"}</dd>
