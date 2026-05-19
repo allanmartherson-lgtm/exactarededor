@@ -211,15 +211,23 @@ export function PaymentConciliationModal({
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
 
-      // Indexa MedPay por chave attendance + procedure_code
-      const keyOf = (att: unknown, code: unknown) =>
+      // Indexa MedPay por chave attendance + procedure_code (+ company)
+      const keyOf = (att: unknown, code: unknown, company?: unknown) =>
+        `${normalizeString(String(att ?? ""))}|${normalizeString(String(code ?? ""))}|${normalizeString(String(company ?? ""))}`;
+
+      const keyNoCompany = (att: unknown, code: unknown) =>
         `${normalizeString(String(att ?? ""))}|${normalizeString(String(code ?? ""))}`;
 
       const medpayMap = new Map<string, PaymentItemRow[]>();
+      const medpayMapNoCompany = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
-        const k = keyOf(it.attendance_number, it.procedure_code);
+        const k = keyOf(it.attendance_number, it.procedure_code, it.company_name);
         if (!medpayMap.has(k)) medpayMap.set(k, []);
         medpayMap.get(k)!.push(it);
+
+        const k2 = keyNoCompany(it.attendance_number, it.procedure_code);
+        if (!medpayMapNoCompany.has(k2)) medpayMapNoCompany.set(k2, []);
+        medpayMapNoCompany.get(k2)!.push(it);
       }
       const matchedMedpayIds = new Set<string>();
 
@@ -228,17 +236,38 @@ export function PaymentConciliationModal({
       let valor_divergente = 0;
       let so_hospital = 0;
       let so_medpay = 0;
-      let risco_mais = 0; // hospital cobrou mais que MedPay pagou (valor_hospital > valor_medpay)
-      let risco_menos = 0; // hospital cobrou menos que MedPay (possível pagamento a maior)
+      let risco_mais = 0;
+      let risco_menos = 0;
       let divergencia_valor = 0;
 
-      for (const row of rows) {
+      // Coleta as empresas do lote (normalizado para comparação fuzzy)
+      const loteCompanies = new Set(
+        paymentItems
+          .map((it) => normalizeString(it.company_name ?? ""))
+          .filter(Boolean)
+      );
+
+      // Filtra as linhas do hospital apenas para empresas que existem no lote
+      const filteredRows = rows.filter((row) => {
+        const terceiro = pickHeader(row, HEADER_ALIASES.company);
+        if (!terceiro) return false;
+        const normTerceiro = normalizeString(String(terceiro));
+        return Array.from(loteCompanies).some(
+          (c) => normTerceiro.includes(c) || c.includes(normTerceiro) || normTerceiro === c
+        );
+      });
+
+      for (const row of filteredRows) {
         const att = pickHeader(row, HEADER_ALIASES.attendance);
         const code = pickHeader(row, HEADER_ALIASES.procCode);
         const valHosp = toNumber(pickHeader(row, HEADER_ALIASES.value));
-        const k = keyOf(att, code);
-        const matches = medpayMap.get(k) ?? [];
-        const match = matches.find((m) => !matchedMedpayIds.has(m.id)) ?? matches[0];
+        const company = pickHeader(row, HEADER_ALIASES.company);
+        const k = keyOf(att, code, company);
+        const k2 = keyNoCompany(att, code);
+        const candidatesWithCompany = medpayMap.get(k) ?? [];
+        const candidatesNoCompany = medpayMapNoCompany.get(k2) ?? [];
+        const candidates = candidatesWithCompany.length > 0 ? candidatesWithCompany : candidatesNoCompany;
+        const match = candidates.find((m) => !matchedMedpayIds.has(m.id)) ?? candidates[0];
 
         const base: Record<string, unknown> = {
           attendance_number: att ? String(att) : null,
@@ -250,7 +279,7 @@ export function PaymentConciliationModal({
           valor_hospital: valHosp,
           valor_medpay: 0,
           payment_item_id: null,
-          company_name: null,
+          company_name: company ? String(company) : null,
           ia_obs: null,
           status: "so_hospital",
         };
@@ -260,7 +289,7 @@ export function PaymentConciliationModal({
           const valMed = Number((match as any).gross_amount ?? 0);
           base.payment_item_id = match.id;
           base.valor_medpay = valMed;
-          base.company_name = match.company_name ?? null;
+          if (!base.company_name) base.company_name = match.company_name ?? null;
           if (!base.patient_name) base.patient_name = match.patient_name ?? null;
           if (!base.doctor_name) base.doctor_name = (match as any).doctor_name ?? null;
           if (!base.procedure_name) base.procedure_name = (match as any).procedure_name ?? null;
@@ -281,7 +310,7 @@ export function PaymentConciliationModal({
           }
         } else {
           base.status = "so_hospital";
-          base.ia_obs = "Item ausente na base MedPay — possível inclusão após importação.";
+          base.ia_obs = `Item de ${company ? String(company) : "empresa"} ausente na base MedPay — possível inclusão após importação do extrato.`;
           so_hospital++;
           risco_mais += valHosp;
         }
