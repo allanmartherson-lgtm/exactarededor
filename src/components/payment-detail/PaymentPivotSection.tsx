@@ -461,7 +461,7 @@ export function PaymentPivotSection({
                   );
                 })}
               {!loading && primaryRows.length > 0 && (
-                <tr className="border-t-2 border-border bg-muted font-semibold">
+                <tr className="border-t-2 border-primary/20 bg-muted font-semibold">
                   <td className="px-3 py-2 font-semibold">Total Geral</td>
                   {months.map((m) => (
                     <td key={m} className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
