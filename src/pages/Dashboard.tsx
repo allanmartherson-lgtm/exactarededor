@@ -1107,6 +1107,34 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* EMPRESAS APROVADAS AGUARDANDO LIBERAÇÃO DE NF */}
+      {isAnalista && totalPendingReleaseNf > 0 && (
+        <div className="rounded-md border border-teal-300 bg-teal-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-teal-900 mb-2">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="font-semibold">{totalPendingReleaseNf}</span>
+            empresa{totalPendingReleaseNf > 1 ? "s" : ""} aprovada{totalPendingReleaseNf > 1 ? "s" : ""} aguardando liberação de NF
+            {pendingReleaseNf.length > 1 && ` em ${pendingReleaseNf.length} lotes`}.
+          </div>
+          <ul className="space-y-1">
+            {pendingReleaseNf.slice(0, 5).map((p) => (
+              <li key={p.payment_id} className="flex items-center justify-between text-xs">
+                <span className="text-teal-900">
+                  Lote <span className="font-medium">{p.reference}</span> · {p.count} empresa{p.count > 1 ? "s" : ""}
+                </span>
+                <Link
+                  to={`/pagamentos/${p.payment_id}`}
+                  className="text-teal-700 hover:text-teal-900 font-medium"
+                >
+                  Abrir →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+
 
 
 
