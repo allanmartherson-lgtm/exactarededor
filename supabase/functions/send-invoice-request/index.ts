@@ -367,6 +367,41 @@ serve(async (req) => {
           ? `<tr><td style="padding:4px 0;font-size:13px;color:#555">Prazo para envio:</td><td style="padding:4px 0;font-size:13px;color:#c0392b;font-weight:600">${prazoFormatted}</td></tr>`
           : "";
 
+        // Gera Excel com detalhamento dos itens (opcional — não bloqueia envio)
+        let xlsxBuffer: string | null = null;
+        let fileName = "";
+        try {
+          const wsData = [
+            ["Descrição", "Médico", "Empresa", "CNPJ", "Data", "Valor (R$)"],
+            ...opts.items.map((it) => {
+              const company = it.company_id ? companyMap.get(it.company_id) : null;
+              const cnpjRaw = company?.document ?? it.company_document ?? "";
+              return [
+                it.description ?? it.procedure_name ?? "Serviço",
+                it.doctor_name ?? "",
+                company?.name ?? it.company_name ?? "",
+                cnpjRaw ? formatDoc(cnpjRaw) : "",
+                it.procedure_date ?? "",
+                Number(it.gross_amount ?? 0),
+              ];
+            }),
+          ];
+          const ws = XLSX.utils.aoa_to_sheet(wsData);
+          const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+          for (let R = 1; R <= range.e.r; R++) {
+            const cell = ws[XLSX.utils.encode_cell({ r: R, c: 5 })];
+            if (cell) cell.t = "n";
+          }
+          ws["!cols"] = [{ wch: 40 }, { wch: 30 }, { wch: 35 }, { wch: 20 }, { wch: 14 }, { wch: 16 }];
+          const wb = XLSX.utils.book_new();
+          const sheetName = (opts.recipient_label ?? "Itens").slice(0, 31);
+          XLSX.utils.book_append_sheet(wb, ws, sheetName);
+          xlsxBuffer = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+          fileName = `Detalhamento_NF_${(opts.recipient_label ?? "empresa").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40)}.xlsx`;
+        } catch (xlsxErr) {
+          console.warn("[send-invoice-request] falha ao gerar XLSX:", xlsxErr instanceof Error ? xlsxErr.message : String(xlsxErr));
+        }
+
         const html = `
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;padding:0">
   <div style="background:#1E3A5F;padding:24px 32px">
