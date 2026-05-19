@@ -61,6 +61,7 @@ type Item = {
   applied_rule_label: string | null;
   applied_calc_method: string | null;
   attendance_character: string | null;
+  raw_data: Record<string, unknown> | null;
 };
 type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
 type CompanyBucket = {
