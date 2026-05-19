@@ -390,6 +390,7 @@ serve(async (req) => {
           company_name: bucket.company_name,
           recipient_label: bucket.company_name,
           reuse_invoice: targetInvoice,
+          override_to: recipient_email ? [recipient_email] : undefined,
         });
       } else if (doctorBucket) {
         await processBucket({
@@ -401,6 +402,7 @@ serve(async (req) => {
           company_name: null,
           recipient_label: doctorBucket.items[0]?.doctor_name ?? doctorBucket.doctor_email,
           reuse_invoice: targetInvoice,
+          override_to: recipient_email ? [recipient_email] : undefined,
         });
       }
       return json({
