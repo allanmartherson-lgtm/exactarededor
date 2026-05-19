@@ -2412,6 +2412,15 @@ const PaymentDetail = () => {
             })()}
           </TooltipProvider>
 
+          <ReleaseInvoiceRequestDialog
+            open={!!releaseGroup}
+            onOpenChange={(o) => { if (!o) setReleaseGroup(null); }}
+            paymentId={id!}
+            group={releaseGroup}
+            onSuccess={() => { setReleaseGroup(null); load(); }}
+          />
+
+
           {/* (Footer Executivo foi movido para antes dos filtros operacionais) */}
 
 
