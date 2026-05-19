@@ -226,7 +226,7 @@ export const InvoiceQuestionsThread = ({
                   isRecebedor ? "bg-warning-soft border-warning/30" : "bg-muted/40"
                 }`}
               >
-                <p className="text-[10px] uppercase tracking-wider text-foreground/60 mb-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                   {isRecebedor ? "Recebedor" : "Analista"}
                   {q.author_name ? ` · ${q.author_name}` : ""}
                   {" · "}{formatDate(q.created_at)}

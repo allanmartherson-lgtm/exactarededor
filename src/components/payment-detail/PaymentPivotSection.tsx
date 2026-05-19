@@ -308,7 +308,7 @@ export function PaymentPivotSection({
 
         {/* Linha de configuração */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="section-label text-[10px] uppercase tracking-wider text-foreground/60">
+          <span className="section-label text-[10px] uppercase tracking-wider text-muted-foreground">
             {groupLabel}
           </span>
           {presets.map((p) => (
@@ -335,7 +335,7 @@ export function PaymentPivotSection({
           </Button>
 
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-foreground/60">Período</span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Período</span>
             <Select value={String(monthsBack)} onValueChange={(v) => setMonthsBack(Number(v))}>
               <SelectTrigger className="h-7 w-[110px] text-xs">
                 <SelectValue />
