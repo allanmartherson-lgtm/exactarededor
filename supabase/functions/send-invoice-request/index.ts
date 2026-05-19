@@ -236,7 +236,7 @@ serve(async (req) => {
       if (invoice) {
         await supabase.from("invoices").update({
           expected_amount: opts.total,
-          recipient_email: opts.to[0],
+          recipient_email: to[0],
           recipient_cc: opts.cc,
           items_count: opts.items.length,
           company_id: opts.company_id,
