@@ -117,9 +117,6 @@ export function PaymentPivotSection({
   );
 
   const [grouping, setGrouping] = useState<GroupingField>("especialidade");
-  const [secondary, setSecondary] = useState<GroupingField | null>(
-    variant === "compacto" ? "empresa" : null,
-  );
   const [monthsBack, setMonthsBack] = useState<number>(3);
   const [rows, setRows] = useState<PivotRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -128,22 +125,10 @@ export function PaymentPivotSection({
   const [customFields, setCustomFields] = useState<GroupingField[]>([]);
   const [alertsCount, setAlertsCount] = useState<number>(0);
 
-  useEffect(() => {
-    if (variant === "detalhe") return;
-    if (variant === "executivo") {
-      setSecondary(null);
-    } else if (variant === "compacto" && secondary === null && grouping !== "empresa") {
-      setSecondary("empresa");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant]);
-
-  // Evita secondary == grouping (RPC ficaria inconsistente)
-  useEffect(() => {
-    if (variant === "compacto" && secondary === grouping) {
-      setSecondary(grouping === "empresa" ? "especialidade" : "empresa");
-    }
-  }, [grouping, variant, secondary]);
+  // Drilldown secundário: só no compacto, derivado puramente do grouping primário.
+  // Se primário é "empresa", drill é por "especialidade". Caso contrário, drill é por "empresa".
+  const secondary: GroupingField | null =
+    variant === "compacto" ? (grouping === "empresa" ? "especialidade" : "empresa") : null;
 
   useEffect(() => {
     if (variant === "detalhe") return;
@@ -156,7 +141,8 @@ export function PaymentPivotSection({
     let alive = true;
     setLoading(true);
     (async () => {
-      const sec = variant === "compacto" && secondary && secondary !== grouping ? secondary : null;
+      const sec: GroupingField | null =
+        variant === "compacto" ? (grouping === "empresa" ? "especialidade" : "empresa") : null;
       const args: Record<string, unknown> = {
         p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
@@ -165,7 +151,8 @@ export function PaymentPivotSection({
       if (sec) {
         args.p_secondary = sec;
       }
-      console.log("[PaymentPivot] rpc args:", args);
+      const callId = Math.random().toString(36).slice(2, 8);
+      console.log(`[PaymentPivot ${callId}] rpc args:`, args);
       const { data, error } = await supabase.rpc("get_payment_pivot", args as {
         p_current_month: string;
         p_months_back: number;
@@ -174,28 +161,20 @@ export function PaymentPivotSection({
       });
       if (!alive) return;
       if (error) {
-        console.error("[PaymentPivot] rpc error:", error);
+        console.error(`[PaymentPivot ${callId}] rpc error:`, error);
+        console.error(`[PaymentPivot ${callId}] rpc error stringified:`, JSON.stringify(error, null, 2));
+        console.error(`[PaymentPivot ${callId}] rpc error keys:`, Object.keys(error || {}));
         setRows([]);
       } else {
-        console.log("[PaymentPivot] rpc rows count:", data?.length ?? 0);
-        console.log("[PaymentPivot] rpc rows sample (first 3):", data?.slice(0, 3));
-        console.log("[PaymentPivot] rpc rows types:", data?.[0] ? {
-          group_key: typeof data[0].group_key,
-          parent_key: typeof data[0].parent_key,
-          parent_key_value: data[0].parent_key,
-          month_bucket: typeof data[0].month_bucket,
-          month_bucket_value: data[0].month_bucket,
-          total: typeof data[0].total,
-          total_value: data[0].total,
-        } : null);
-        setRows(data ?? []);
+        console.log(`[PaymentPivot ${callId}] rpc rows count:`, data?.length ?? 0);
+        setRows((data ?? []) as PivotRow[]);
       }
       setLoading(false);
     })();
     return () => {
       alive = false;
     };
-  }, [variant, grouping, secondary, monthsBack, competenceDate]);
+  }, [variant, grouping, monthsBack, competenceDate]);
 
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
