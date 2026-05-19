@@ -367,19 +367,43 @@ serve(async (req) => {
 
     // ---- Modo reenvio individual: processa SOMENTE o bucket da invoice alvo ----
     if (targetInvoice) {
+      // Tenta achar bucket por company_id
       let bucket: CompanyBucket | undefined;
       if (targetInvoice.company_id) bucket = byCompany.get(targetInvoice.company_id);
+
+      // Se não achou (empresa sem invoice_emails no byCompany), monta bucket direto com todos os itens do pagamento dessa empresa
+      if (!bucket && targetInvoice.company_id) {
+        const companyItems = items.filter((i) => i.company_id === targetInvoice!.company_id);
+        if (companyItems.length > 0) {
+          const compInfo = companyMap.get(targetInvoice.company_id);
+          const toEmail = recipient_email ?? targetInvoice.recipient_email ?? "";
+          if (toEmail) {
+            bucket = {
+              company_id: targetInvoice.company_id,
+              company_name: compInfo?.name ?? targetInvoice.company_name ?? "",
+              to: [toEmail],
+              cc: new Set<string>(),
+              total: companyItems.reduce((sum, i) => sum + Number(i.gross_amount ?? 0), 0),
+              items: companyItems,
+            };
+          }
+        }
+      }
+
+      // Fallback: tenta bucket por médico
       let doctorBucket: DoctorBucket | undefined;
       if (!bucket) {
         const k = String(targetInvoice.recipient_email ?? "").toLowerCase();
         doctorBucket = byDoctorFallback.get(k);
       }
+
       if (!bucket && !doctorBucket) {
         return json({
           error: "sem_itens",
-          message: "Não há itens elegíveis para reenviar esta NF (a empresa pode ter sido removida do pagamento).",
+          message: "Não há itens elegíveis para reenviar esta NF.",
         }, 422);
       }
+
       if (bucket) {
         await processBucket({
           to: bucket.to,
@@ -405,6 +429,7 @@ serve(async (req) => {
           override_to: recipient_email ? [recipient_email] : undefined,
         });
       }
+
       return json({
         ok: true,
         mode: "single",
