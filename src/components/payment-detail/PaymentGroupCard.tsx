@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  MessageCircle,
   Receipt,
   Sparkles,
 } from "lucide-react";
