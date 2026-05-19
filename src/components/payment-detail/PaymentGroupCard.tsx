@@ -357,6 +357,26 @@ export const PaymentGroupCard = ({
         </div>
       </button>
 
+      {gStatus === "revisao_pos_aprovacao" && canReleaseInvoice && onReleaseInvoice && (
+        <div className="border-t border-teal-200/60 bg-teal-50/60 px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-teal-900">
+            <CheckCircle2 className="h-3.5 w-3.5 text-teal-700" />
+            <span>Aprovado pelo diretor — pronto para liberar o pedido de NF.</span>
+          </div>
+          <Button
+            size="sm"
+            variant="default"
+            className="h-7 bg-teal-700 hover:bg-teal-800 text-white text-[11px] gap-1"
+            onClick={onReleaseInvoice}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Liberar pedido de NF
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
+
       {groupExpandedEffective && nfDivergent && (
         <div className="border-t border-border/60 bg-destructive/5">
           <div className="flex items-start gap-2 px-4 py-3 text-xs">
