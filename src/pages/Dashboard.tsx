@@ -936,6 +936,45 @@ const Dashboard = () => {
   }, [isAnalista, user?.id]);
   const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
 
+  // Contagem de invoices por status de NF para o analista
+  const [pendingNfAguardando, setPendingNfAguardando] = useState<number>(0);
+  const [pendingNfRecebida, setPendingNfRecebida] = useState<number>(0);
+  const [pendingNfConciliar, setPendingNfConciliar] = useState<number>(0);
+  useEffect(() => {
+    if (!isAnalista || !user?.id) return;
+    let cancelled = false;
+    const fetchNfCounts = async () => {
+      const { data: aguardando } = await supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "aguardando")
+        .eq("payments.created_by", user.id);
+
+      const { data: recebida } = await supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "recebida")
+        .eq("payments.created_by", user.id);
+
+      const { data: conciliar } = await supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "conciliada")
+        .eq("payments.created_by", user.id);
+
+      if (cancelled) return;
+      setPendingNfAguardando((aguardando ?? []).length);
+      setPendingNfRecebida((recebida ?? []).length);
+      setPendingNfConciliar((conciliar ?? []).length);
+    };
+    fetchNfCounts();
+    const ch = supabase
+      .channel("dash_nf_counts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => fetchNfCounts())
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [isAnalista, user?.id]);
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
@@ -1112,6 +1151,44 @@ const Dashboard = () => {
                 hint={`em ${pendingReleaseNf.length} lote${pendingReleaseNf.length > 1 ? 's' : ''}`}
                 mine={true}
                 to={`/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`}
+              />
+            )}
+
+            {/* Card: NF enviada — aguardando retorno da empresa */}
+            {isAnalista && pendingNfAguardando > 0 && (
+              <BigStatCard
+                icon={Send}
+                color="blue"
+                label="NF enviada — aguard. retorno"
+                value={pendingNfAguardando}
+                hint="pedido enviado à empresa"
+                to="/notas-fiscais"
+              />
+            )}
+
+            {/* Card: NF recebida — aguardando conciliação */}
+            {isAnalista && pendingNfRecebida > 0 && (
+              <BigStatCard
+                icon={FileCheck}
+                color="green"
+                label="NF recebida — conciliar"
+                value={pendingNfRecebida}
+                hint="conferir valores e conciliar"
+                mine={true}
+                to="/notas-fiscais"
+              />
+            )}
+
+            {/* Card: NF conciliada — pronta para lançar */}
+            {isAnalista && pendingNfConciliar > 0 && (
+              <BigStatCard
+                icon={CheckCircle2}
+                color="green"
+                label="Pronta para lançar"
+                value={pendingNfConciliar}
+                hint="lançar no financeiro"
+                mine={true}
+                to="/notas-fiscais"
               />
             )}
 
