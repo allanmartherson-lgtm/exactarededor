@@ -201,13 +201,12 @@ const PaymentDetail = () => {
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
   // Toggle de visão por papel (Detalhe/Compacto/Executivo). Persiste por payment_id.
-  const { hasRole: _hasRoleProbe } = useAuth();
   const [viewMode, setViewMode] = useState<PivotVariant>(() => {
     if (!id) return "detalhe";
     const saved = typeof window !== "undefined" ? localStorage.getItem(`medpay:payment-view:${id}`) : null;
     if (saved === "detalhe" || saved === "compacto" || saved === "executivo") return saved;
-    if (_hasRoleProbe("diretor")) return "executivo";
-    if (_hasRoleProbe("validador")) return "compacto";
+    if (hasRole("diretor")) return "executivo";
+    if (hasRole("validador")) return "compacto";
     return "detalhe";
   });
   useEffect(() => {
