@@ -34,6 +34,7 @@ export type TemplateContext = {
   competence: string | string[] | null | undefined;
   sectors: string[];
   specialties: string[];
+  lote_name?: string | null;
 };
 
 export type EmailTemplate = {
@@ -52,7 +53,8 @@ const buildSetores = (sectors: string[], specialties: string[]) => {
 export const buildSubject = (ctx: TemplateContext): string => {
   const { label } = buildSetores(ctx.sectors, ctx.specialties);
   const competencia = formatCompetenceBR(ctx.competence);
-  const parts = ["Solicitação de Nota Fiscal", "DF Star", "Produção", label];
+  const loteName = (ctx.lote_name ?? "").trim() || label;
+  const parts = ["Solicitação de Nota Fiscal", "DF Star", loteName];
   if (competencia) parts.push(competencia);
   return parts.join(" - ");
 };
