@@ -2650,6 +2650,16 @@ export type Database = {
         }
         Returns: string
       }
+      reply_question: {
+        Args: {
+          p_author_id: string
+          p_author_name: string
+          p_company_group_id: string
+          p_is_analista?: boolean
+          p_message: string
+        }
+        Returns: undefined
+      }
       return_groups_to_analyst: {
         Args: {
           p_author_id: string

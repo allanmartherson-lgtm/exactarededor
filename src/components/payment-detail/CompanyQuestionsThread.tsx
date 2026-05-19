@@ -22,10 +22,12 @@ interface QuestionRow {
 interface Props {
   paymentId: string;
   companyGroupId: string;
+  isAnalista?: boolean;
 }
 
-export function CompanyQuestionsThread({ paymentId, companyGroupId }: Props) {
-  const { user } = useAuth();
+export function CompanyQuestionsThread({ paymentId, companyGroupId, isAnalista: isAnalistaProp }: Props) {
+  const { user, roles } = useAuth();
+  const isAnalista = isAnalistaProp ?? (roles.includes("analista") || roles.includes("admin"));
   const [items, setItems] = useState<QuestionRow[]>([]);
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,12 +76,12 @@ export function CompanyQuestionsThread({ paymentId, companyGroupId }: Props) {
     if (!user) return;
     if (reply.trim().length < 1) return;
     setBusy(true);
-    const { error } = await supabase.from("payment_questions").insert({
-      payment_id: paymentId,
-      company_group_id: companyGroupId,
-      author_id: user.id,
-      author_name: authorName || user.email || "Usuário",
-      message: reply.trim(),
+    const { error } = await supabase.rpc("reply_question", {
+      p_company_group_id: companyGroupId,
+      p_author_id: user.id,
+      p_author_name: authorName || user.email || "Usuário",
+      p_message: reply.trim(),
+      p_is_analista: isAnalista,
     });
     setBusy(false);
     if (error) {
