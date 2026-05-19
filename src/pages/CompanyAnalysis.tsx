@@ -1407,6 +1407,11 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
+      {/* Thread de questionamentos — visível para todos os papéis (analista/validador/diretor) */}
+      {id && groupId && (
+        <CompanyQuestionsThread paymentId={id} companyGroupId={groupId} />
+      )}
+
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
