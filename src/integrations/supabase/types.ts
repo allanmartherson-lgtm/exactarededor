@@ -2425,20 +2425,36 @@ export type Database = {
         }[]
       }
       fix_specialties_array: { Args: { arr: string[] }; Returns: string[] }
-      get_payment_pivot: {
-        Args: {
-          p_current_month: string
-          p_grouping: string
-          p_months_back: number
-          p_secondary?: string
-        }
-        Returns: {
-          group_key: string
-          month_bucket: string
-          parent_key: string
-          total: number
-        }[]
-      }
+      get_payment_pivot:
+        | {
+            Args: {
+              p_current_month: string
+              p_grouping: string
+              p_months_back: number
+              p_secondary?: string
+            }
+            Returns: {
+              group_key: string
+              month_bucket: string
+              parent_key: string
+              total: number
+            }[]
+          }
+        | {
+            Args: {
+              p_current_month: string
+              p_grouping: string
+              p_months_back: number
+              p_payment_id?: string
+              p_secondary?: string
+            }
+            Returns: {
+              group_key: string
+              month_bucket: string
+              parent_key: string
+              total: number
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
