@@ -61,6 +61,7 @@ type Item = {
   applied_rule_label: string | null;
   applied_calc_method: string | null;
   attendance_character: string | null;
+  raw_data: Record<string, unknown> | null;
 };
 type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
 type CompanyBucket = {
@@ -386,72 +387,89 @@ serve(async (req) => {
         let xlsxBuffer: string | null = null;
         let fileName = "";
         try {
-          const wsData = [
+          const wsData: (string | number)[][] = [
             [
-              "Atendimento",
+              "Nr. Atendimento",
               "Paciente",
               "Data",
               "Convênio",
               "Caráter",
               "Cód. Procedimento",
               "Procedimento",
+              "Via de Acesso",
               "Qtd",
               "Valor Convênio (R$)",
               "Valor Pago (R$)",
               "Médico",
-              "CRM/Doc",
               "Função",
               "Especialidade",
               "Setor",
-              "Centro de Custo",
               "Empresa",
               "CNPJ",
-              "Regra Aplicada",
-              "Método Cálculo",
             ],
             ...opts.items.map((it) => {
               const company = it.company_id ? companyMap.get(it.company_id) : null;
               const cnpjRaw = company?.document ?? it.company_document ?? "";
+              const raw = (it.raw_data ?? {}) as Record<string, unknown>;
+
+              const patientName  = it.patient_name   || String(raw["Paciente"]      ?? "");
+              const attendChar   = it.attendance_character || String(raw["Tipo Entrada"] ?? "");
+              const doctorRole   = it.doctor_role    || String(raw["Funcao"]         ?? "");
+              const accessRoute  = it.access_route   || String(raw["Via de Acesso"]  ?? "");
+              const convenio     = it.agreement_text || String(raw["Convênio"]       ?? "");
+              const setor        = it.sector         || String(raw["Setor"]          ?? "");
+
               const dateFmt = it.procedure_date
                 ? new Date(it.procedure_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
                 : "";
+
               return [
                 it.attendance_number ?? "",
-                it.patient_name ?? "",
+                patientName,
                 dateFmt,
-                it.agreement_text ?? "",
-                it.attendance_character ?? "",
+                convenio,
+                attendChar,
                 it.procedure_code ?? "",
                 it.procedure_name ?? it.description ?? "",
+                accessRoute,
                 Number(it.quantity ?? 1),
                 Number(it.procedure_amount ?? 0),
                 Number(it.gross_amount ?? 0),
                 it.doctor_name ?? "",
-                it.doctor_document ?? "",
-                it.doctor_role ?? "",
+                doctorRole,
                 it.specialty ?? "",
-                it.sector ?? "",
-                it.cost_center_code ?? "",
+                setor,
                 company?.name ?? it.company_name ?? "",
                 cnpjRaw ? formatDoc(cnpjRaw) : "",
-                it.applied_rule_label ?? "",
-                it.applied_calc_method ?? "",
               ];
             }),
           ];
           const ws = XLSX.utils.aoa_to_sheet(wsData);
           const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
           for (let R = 1; R <= range.e.r; R++) {
-            for (const C of [7, 8, 9]) {
+            for (const C of [8, 9, 10]) {
               const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
               if (cell) cell.t = "n";
             }
           }
           ws["!cols"] = [
-            { wch: 16 }, { wch: 30 }, { wch: 12 }, { wch: 20 }, { wch: 10 },
-            { wch: 14 }, { wch: 45 }, { wch: 6 }, { wch: 18 }, { wch: 16 },
-            { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 20 }, { wch: 18 },
-            { wch: 14 }, { wch: 35 }, { wch: 20 }, { wch: 30 }, { wch: 18 },
+            { wch: 16 }, // Nr. Atendimento
+            { wch: 32 }, // Paciente
+            { wch: 12 }, // Data
+            { wch: 22 }, // Convênio
+            { wch: 12 }, // Caráter
+            { wch: 14 }, // Cód. Procedimento
+            { wch: 48 }, // Procedimento
+            { wch: 22 }, // Via de Acesso
+            { wch: 6  }, // Qtd
+            { wch: 18 }, // Valor Convênio
+            { wch: 16 }, // Valor Pago
+            { wch: 32 }, // Médico
+            { wch: 18 }, // Função
+            { wch: 20 }, // Especialidade
+            { wch: 28 }, // Setor
+            { wch: 38 }, // Empresa
+            { wch: 20 }, // CNPJ
           ];
           const wb = XLSX.utils.book_new();
           const sheetName = (opts.recipient_label ?? "Itens").slice(0, 31);
