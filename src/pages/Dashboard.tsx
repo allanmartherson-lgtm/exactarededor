@@ -936,6 +936,45 @@ const Dashboard = () => {
   }, [isAnalista, user?.id]);
   const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
 
+  // Contagem de invoices por status de NF para o analista
+  const [pendingNfAguardando, setPendingNfAguardando] = useState<number>(0);
+  const [pendingNfRecebida, setPendingNfRecebida] = useState<number>(0);
+  const [pendingNfConciliar, setPendingNfConciliar] = useState<number>(0);
+  useEffect(() => {
+    if (!isAnalista || !user?.id) return;
+    let cancelled = false;
+    const fetchNfCounts = async () => {
+      const { data: aguardando } = await supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "aguardando")
+        .eq("payments.created_by", user.id);
+
+      const { data: recebida } = await supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "nf_recebida")
+        .eq("payments.created_by", user.id);
+
+      const { data: conciliar } = await supabase
+        .from("invoices")
+        .select("id, payment:payments!inner(created_by)")
+        .eq("status", "nf_conciliada")
+        .eq("payments.created_by", user.id);
+
+      if (cancelled) return;
+      setPendingNfAguardando((aguardando ?? []).length);
+      setPendingNfRecebida((recebida ?? []).length);
+      setPendingNfConciliar((conciliar ?? []).length);
+    };
+    fetchNfCounts();
+    const ch = supabase
+      .channel("dash_nf_counts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => fetchNfCounts())
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [isAnalista, user?.id]);
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
