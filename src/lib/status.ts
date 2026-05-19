@@ -29,6 +29,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   cancelado: "Cancelado",
   em_questionamento: "Em questionamento",
   aprovado_parcial: "Aprovado parcial",
+  revisao_pos_aprovacao: "Aguardando revisão de NF",
 };
 
 type Tone = "info" | "success" | "warning" | "destructive" | "muted" | "primary";
