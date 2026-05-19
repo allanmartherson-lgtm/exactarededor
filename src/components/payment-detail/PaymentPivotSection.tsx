@@ -537,10 +537,7 @@ function KpiTile({
 }) {
   return (
     <div className={cn("rounded-md border border-border p-3", bgClassName ?? "bg-muted")}>
-      <p
-        className="text-[10px] uppercase tracking-[0.06em]"
-        style={{ color: "hsl(var(--text-tertiary))" }}
-      >
+      <p className="card-label text-[10px] uppercase tracking-[0.06em]">
         {label}
       </p>
       <p className={cn("stat-number text-2xl font-medium text-foreground mt-1", valueClassName)}>{value}</p>
