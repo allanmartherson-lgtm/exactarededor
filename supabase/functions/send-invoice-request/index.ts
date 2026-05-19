@@ -293,6 +293,7 @@ serve(async (req) => {
             : payment.competence_month,
         sectors: payment.sectors ?? [],
         specialties: payment.specialties ?? [],
+        lote_name: payment.reference ?? null,
       });
 
       const summary: Record<string, unknown> = {
@@ -339,22 +340,13 @@ serve(async (req) => {
         }
         const ccList = [...opts.to.slice(1), ...opts.cc];
         const html = `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
-            <h2 style="color:#1a1a2e">Pedido de Nota Fiscal</h2>
-            <p>Prezado(a) <strong>${opts.recipient_label}</strong>,</p>
-            <p style="white-space:pre-line">${requestMessage}</p>
-            <p><strong>Referência:</strong> ${payment.reference ?? "—"}</p>
-            <p><strong>Valor total:</strong> ${totalFormatted}</p>
-            <p><strong>Itens:</strong> ${opts.items.length}</p>
-            <pre style="background:#f6f6f8;padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap">${itemsList}</pre>
-            <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
-            <p>Para enviar sua nota fiscal, acesse o link abaixo:</p>
-            <a href="${uploadUrl}" style="display:inline-block;background:#1d4ed8;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
-              Enviar Nota Fiscal →
-            </a>
-            <p style="margin-top:24px;font-size:12px;color:#888">
-              Este link é único e intransferível. Em caso de dúvidas, responda este e-mail.
-            </p>
+          <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.5">
+            <div style="white-space:pre-line;font-size:14px">${requestMessage}</div>
+            <div style="margin:28px 0">
+              <a href="${uploadUrl}" style="display:inline-block;background:#1d4ed8;color:#ffffff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+                Enviar Nota Fiscal →
+              </a>
+            </div>
           </div>
         `;
         const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
