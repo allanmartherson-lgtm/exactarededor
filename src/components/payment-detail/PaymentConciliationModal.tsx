@@ -493,6 +493,16 @@ export function PaymentConciliationModal({
                 </div>
               )}
 
+              {/* Info do arquivo */}
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/50 border border-border rounded-lg text-xs text-muted-foreground">
+                <FileDown className="h-4 w-4 shrink-0" />
+                <span>
+                  <strong>{run.file_name}</strong> · {run.total_items} linhas do lote processadas
+                  · conciliação em {new Date(run.created_at).toLocaleString("pt-BR")}
+                </span>
+              </div>
+
+
               {/* KPI cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <KpiCard
