@@ -21,6 +21,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
+import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
