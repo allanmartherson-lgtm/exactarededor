@@ -181,7 +181,7 @@ serve(async (req) => {
       }
     }
 
-    if (missingCompanyEmails.length > 0) {
+    if (!targetInvoice && missingCompanyEmails.length > 0) {
       return json({
         error: "empresa_sem_email",
         message: `Envio bloqueado: ${missingCompanyEmails.length} empresa(s) sem e-mail de NF cadastrado. Cadastre em Empresas → editar → "E-mails para pedido de NF".`,
