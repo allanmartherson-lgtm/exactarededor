@@ -2168,6 +2168,16 @@ const PaymentDetail = () => {
             </Alert>
           )}
 
+          {/* Pivot histórico — só aparece em Compacto/Executivo. Em Detalhe retorna null. */}
+          {id && payment.competence_month && (
+            <PaymentPivotSection
+              paymentId={id}
+              paymentReference={payment.reference}
+              competenceDate={String(payment.competence_month).slice(0, 10)}
+              variant={viewMode}
+            />
+          )}
+
           <TooltipProvider delayDuration={150}>
             <CompanyListLegend />
             {(() => {
