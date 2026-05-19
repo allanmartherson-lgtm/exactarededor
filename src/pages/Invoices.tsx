@@ -379,7 +379,7 @@ const Invoices = () => {
                               type="button"
                               className="list-row__btn"
                               disabled={busyId === i.id}
-                              onClick={() => resend(i)}
+                              onClick={() => openResendDialog(i)}
                             >
                               <Send className="h-3.5 w-3.5" aria-hidden />
                               Reenviar
