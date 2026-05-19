@@ -223,18 +223,23 @@ export function PaymentPivotSection({
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
+    let primaryCount = 0;
+    let childCount = 0;
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
       if (r.parent_key) {
+        childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
+        primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
+    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size });
 
     const totalsByMonth = new Map<string, number>();
     const primaryList = Array.from(primary.entries())
