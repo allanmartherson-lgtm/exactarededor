@@ -57,6 +57,7 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   cancelado: "muted",
   em_questionamento: "warning",
   aprovado_parcial: "warning",
+  revisao_pos_aprovacao: "success",
 };
 
 export const TONE_CLASSES: Record<Tone, string> = {
