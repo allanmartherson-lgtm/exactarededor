@@ -287,30 +287,22 @@ export function PaymentConciliationModal({
         return terceiro && companyMapping[terceiro];
       });
 
-      // Chave: data(YYYY-MM-DD) | código_tuss | médico_normalizado
-      const makeKey = (date: unknown, code: unknown, doctor: unknown): string => {
-        const dateStr = (() => {
-          if (!date) return "";
-          if (date instanceof Date) return date.toISOString().slice(0, 10);
-          const s = String(date).trim();
-          const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
-          if (iso) return iso[1];
-          const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-          if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-          return s.slice(0, 10);
-        })();
-        const normCode = normFull(String(Number(code) || code));
-        const normDoctor = normFull(String(doctor ?? "")).slice(0, 20);
-        return `${dateStr}|${normCode}|${normDoctor}`;
+      // Normaliza código para 7 dígitos (MedPay usa 8, planilha usa 7 — mesmo código com zero final)
+      const normalizeCode = (code: unknown): string => {
+        const s = String(Number(code) || code).replace(/\D/g, "");
+        if (s.length === 8 && s.endsWith("0")) return s.slice(0, 7);
+        return s;
       };
+
+      const normAtt = (att: unknown): string =>
+        String(Number(att) || att).replace(/\D/g, "");
+
+      const makeKey = (att: unknown, code: unknown): string =>
+        `${normAtt(att)}|${normalizeCode(code)}`;
 
       const medpayByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
-        const k = makeKey(
-          (it as any).procedure_date,
-          it.procedure_code,
-          (it as any).doctor_name,
-        );
+        const k = makeKey(it.attendance_number, it.procedure_code);
         if (!medpayByKey.has(k)) medpayByKey.set(k, []);
         medpayByKey.get(k)!.push(it);
       }
