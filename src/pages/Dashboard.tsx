@@ -895,6 +895,47 @@ const Dashboard = () => {
   }, [isAnalista, user?.id]);
   const totalPendingQuestions = pendingQuestions.reduce((sum, p) => sum + p.count, 0);
 
+  // Empresas aprovadas pelo diretor aguardando liberação de pedido de NF pelo analista.
+  const [pendingReleaseNf, setPendingReleaseNf] = useState<
+    Array<{ payment_id: string; reference: string; count: number }>
+  >([]);
+  useEffect(() => {
+    if (!isAnalista || !user?.id) return;
+    let cancelled = false;
+    const fetchPending = async () => {
+      const { data } = await supabase
+        .from("payment_company_groups")
+        .select("id, payment_id, payments!inner(reference, created_by)")
+        .eq("status", "revisao_pos_aprovacao")
+        .eq("payments.created_by", user.id);
+      if (cancelled) return;
+      const byPayment = new Map<string, { reference: string; count: number }>();
+      ((data ?? []) as Array<{ payment_id: string; payments: { reference: string } | null }>).forEach((r) => {
+        const ref = r.payments?.reference ?? "—";
+        const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
+        cur.count += 1;
+        byPayment.set(r.payment_id, cur);
+      });
+      setPendingReleaseNf(
+        Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
+      );
+    };
+    fetchPending();
+    const ch = supabase
+      .channel("dash_pending_release_nf")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_company_groups" },
+        () => fetchPending(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [isAnalista, user?.id]);
+  const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
