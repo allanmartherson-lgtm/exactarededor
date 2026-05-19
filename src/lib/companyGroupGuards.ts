@@ -56,6 +56,8 @@ export function humanizeCompanyGroupStatus(status: string | null | undefined): s
     case "nf_divergente": return "NF divergente";
     case "lancado": return "Lançado";
     case "arquivado": return "Arquivado";
+    case "em_questionamento": return "Em questionamento";
+    case "aprovado_parcial": return "Aprovado parcial";
     default: return status ?? "—";
   }
 }
