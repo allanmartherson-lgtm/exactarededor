@@ -21,6 +21,7 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import { PaymentTimeline } from "@/components/payment-detail/PaymentTimeline";
 import { PaymentInternalQuestionsPanel } from "@/components/payment-detail/PaymentInternalQuestionsPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
+import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
@@ -191,6 +192,7 @@ const PaymentDetail = () => {
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [isConciliationOpen, setIsConciliationOpen] = useState(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
@@ -1465,6 +1467,17 @@ const PaymentDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
+            {(isAnalista || isDiretor) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                onClick={() => setIsConciliationOpen(true)}
+              >
+                <GitCompare className="h-4 w-4 mr-1.5" />
+                Conciliar produção
+              </Button>
+            )}
             {(isAnalista || isValidador || isDiretor) && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
@@ -2611,6 +2624,16 @@ const PaymentDetail = () => {
           analystName={user?.id ? profiles[user.id] : undefined}
           observations={obs}
           profiles={profiles}
+        />
+      )}
+
+      {payment && (
+        <PaymentConciliationModal
+          open={isConciliationOpen}
+          onOpenChange={setIsConciliationOpen}
+          paymentId={id!}
+          paymentReference={payment.reference || "Lote"}
+          paymentItems={items}
         />
       )}
     </>

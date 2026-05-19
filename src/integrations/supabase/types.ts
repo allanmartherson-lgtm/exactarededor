@@ -1644,6 +1644,134 @@ export type Database = {
         }
         Relationships: []
       }
+      reconciliation_items: {
+        Row: {
+          attendance_number: string | null
+          company_name: string | null
+          created_at: string
+          doctor_name: string | null
+          ia_obs: string | null
+          id: string
+          patient_name: string | null
+          payment_item_id: string | null
+          procedure_code: string | null
+          procedure_date: string | null
+          procedure_name: string | null
+          run_id: string
+          status: string
+          valor_hospital: number
+          valor_medpay: number
+        }
+        Insert: {
+          attendance_number?: string | null
+          company_name?: string | null
+          created_at?: string
+          doctor_name?: string | null
+          ia_obs?: string | null
+          id?: string
+          patient_name?: string | null
+          payment_item_id?: string | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          run_id: string
+          status?: string
+          valor_hospital?: number
+          valor_medpay?: number
+        }
+        Update: {
+          attendance_number?: string | null
+          company_name?: string | null
+          created_at?: string
+          doctor_name?: string | null
+          ia_obs?: string | null
+          id?: string
+          patient_name?: string | null
+          payment_item_id?: string | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          run_id?: string
+          status?: string
+          valor_hospital?: number
+          valor_medpay?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_items_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_runs: {
+        Row: {
+          conciliado: number
+          created_at: string
+          created_by: string | null
+          divergencia_valor: number
+          file_name: string | null
+          id: string
+          payment_id: string
+          risco_mais: number
+          risco_menos: number
+          so_hospital: number
+          so_medpay: number
+          status: string
+          total_items: number
+          valor_divergente: number
+        }
+        Insert: {
+          conciliado?: number
+          created_at?: string
+          created_by?: string | null
+          divergencia_valor?: number
+          file_name?: string | null
+          id?: string
+          payment_id: string
+          risco_mais?: number
+          risco_menos?: number
+          so_hospital?: number
+          so_medpay?: number
+          status?: string
+          total_items?: number
+          valor_divergente?: number
+        }
+        Update: {
+          conciliado?: number
+          created_at?: string
+          created_by?: string | null
+          divergencia_valor?: number
+          file_name?: string | null
+          id?: string
+          payment_id?: string
+          risco_mais?: number
+          risco_menos?: number
+          so_hospital?: number
+          so_medpay?: number
+          status?: string
+          total_items?: number
+          valor_divergente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_runs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reference_table_items: {
         Row: {
           amount: number | null
