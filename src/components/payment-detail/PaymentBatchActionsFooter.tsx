@@ -55,7 +55,7 @@ export function PaymentBatchActionsFooter({
   const [approveNote, setApproveNote] = useState("");
 
   const approvable = useMemo(
-    () => groups.filter((g) => APPROVABLE_GROUP_STATUSES.has(String(g.status))),
+    () => groups.filter((g) => !PENDING_GROUP_STATUSES.has(String(g.status)) && !ALREADY_DONE_STATUSES.has(String(g.status))),
     [groups],
   );
   const pending = useMemo(
