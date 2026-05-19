@@ -356,18 +356,18 @@ export function PaymentPivotSection({
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <th className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide">
                   {FIELD_LABELS[grouping]}
                 </th>
                 {months.map((m) => (
                   <th
                     key={m}
-                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground tabular-nums"
+                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums"
                   >
                     {monthLabel(m)}
                   </th>
                 ))}
-                <th className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <th className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide">
                   Δ vs média
                 </th>
               </tr>
@@ -536,7 +536,7 @@ function KpiTile({
   bgClassName?: string;
 }) {
   return (
-    <div className={cn("rounded-md border border-border p-3", bgClassName ?? "bg-muted")}>
+    <div className={cn("rounded-md border border-border p-3", bgClassName ?? "bg-card shadow-card")}>
       <p className="card-label text-[10px] uppercase tracking-[0.06em]">
         {label}
       </p>
