@@ -27,6 +27,8 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   pago: "Pago",
   rejeitado: "Rejeitado",
   cancelado: "Cancelado",
+  em_questionamento: "Em questionamento",
+  aprovado_parcial: "Aprovado parcial",
 };
 
 type Tone = "info" | "success" | "warning" | "destructive" | "muted" | "primary";
@@ -52,6 +54,8 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
   pago: "success",
   rejeitado: "destructive",
   cancelado: "muted",
+  em_questionamento: "warning",
+  aprovado_parcial: "warning",
 };
 
 export const TONE_CLASSES: Record<Tone, string> = {

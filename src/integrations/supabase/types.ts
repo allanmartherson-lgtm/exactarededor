@@ -1226,6 +1226,58 @@ export type Database = {
           },
         ]
       }
+      payment_questions: {
+        Row: {
+          author_id: string
+          author_name: string
+          company_group_id: string | null
+          created_at: string
+          id: string
+          message: string
+          payment_id: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          company_group_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          payment_id: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          company_group_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_questions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_questions_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_questions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_status_history: {
         Row: {
           changed_at: string
@@ -2415,6 +2467,16 @@ export type Database = {
         Args: { _calculations: Json; _corrections: Json; _rule_data: Json }
         Returns: Json
       }
+      approve_payment: {
+        Args: {
+          p_author_id: string
+          p_author_name: string
+          p_group_ids: string[]
+          p_note?: string
+          p_payment_id: string
+        }
+        Returns: undefined
+      }
       backfill_payment_items_engine_columns: {
         Args: { _dry_run?: boolean }
         Returns: Json
@@ -2553,6 +2615,15 @@ export type Database = {
       norm_for_hash: { Args: { s: string }; Returns: string }
       normalize_sector: { Args: { input: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
+      question_company_group: {
+        Args: {
+          p_author_id: string
+          p_author_name: string
+          p_company_group_id: string
+          p_message: string
+        }
+        Returns: string
+      }
       recompute_payment_status_from_groups: {
         Args: { _payment_id: string }
         Returns: undefined
@@ -2568,6 +2639,16 @@ export type Database = {
           _status_to: Database["public"]["Enums"]["payment_status"]
         }
         Returns: string
+      }
+      return_groups_to_analyst: {
+        Args: {
+          p_author_id: string
+          p_author_name: string
+          p_group_ids: string[]
+          p_message: string
+          p_payment_id: string
+        }
+        Returns: undefined
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
       unaccent: { Args: { "": string }; Returns: string }
@@ -2631,6 +2712,8 @@ export type Database = {
         | "pago"
         | "rejeitado"
         | "cancelado"
+        | "em_questionamento"
+        | "aprovado_parcial"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind:
         | "simples"
@@ -2849,6 +2932,8 @@ export const Constants = {
         "pago",
         "rejeitado",
         "cancelado",
+        "em_questionamento",
+        "aprovado_parcial",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: [
