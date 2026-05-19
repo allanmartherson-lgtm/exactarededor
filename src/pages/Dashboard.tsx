@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   Building2,
   MessageCircle,
+  CheckCircle2,
   type LucideIcon,
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
