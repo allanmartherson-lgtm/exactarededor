@@ -138,6 +138,13 @@ export function PaymentPivotSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
+  // Evita secondary == grouping (RPC ficaria inconsistente)
+  useEffect(() => {
+    if (variant === "compacto" && secondary === grouping) {
+      setSecondary(grouping === "empresa" ? "especialidade" : "empresa");
+    }
+  }, [grouping, variant, secondary]);
+
   useEffect(() => {
     if (variant === "detalhe") return;
     if (!competenceDate || !/^\d{4}-\d{2}-\d{2}/.test(competenceDate)) {
