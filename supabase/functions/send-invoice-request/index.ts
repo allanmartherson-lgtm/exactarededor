@@ -229,8 +229,8 @@ serve(async (req) => {
       if (!invoice && opts.company_id && existingByCompany.has(opts.company_id)) {
         invoice = existingByCompany.get(opts.company_id) ?? null;
       }
-      if (!invoice && opts.to[0]) {
-        const k = opts.to[0].toLowerCase();
+      if (!invoice && to[0]) {
+        const k = to[0].toLowerCase();
         if (existingByEmail.has(k)) invoice = existingByEmail.get(k) ?? null;
       }
       if (invoice) {
