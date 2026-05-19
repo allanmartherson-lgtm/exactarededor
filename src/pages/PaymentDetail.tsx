@@ -24,6 +24,7 @@ import { PaymentReportModal } from "@/components/payment-detail/PaymentReportMod
 import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
+import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/ReleaseInvoiceRequestDialog";
 import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
@@ -203,6 +204,7 @@ const PaymentDetail = () => {
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
   // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  const [releaseGroup, setReleaseGroup] = useState<GroupRow | null>(null);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -2385,6 +2387,8 @@ const PaymentDetail = () => {
                     obs={obs}
                     invoices={invoices}
                     questionCount={questionCounts[g.id] ?? 0}
+                    canReleaseInvoice={isAnalista}
+                    onReleaseInvoice={() => setReleaseGroup(g)}
                     isExpanded={expandedGroups.has(g.id)}
                     onToggleExpanded={() =>
                       setExpandedGroups((prev) => {
@@ -2407,6 +2411,15 @@ const PaymentDetail = () => {
               });
             })()}
           </TooltipProvider>
+
+          <ReleaseInvoiceRequestDialog
+            open={!!releaseGroup}
+            onOpenChange={(o) => { if (!o) setReleaseGroup(null); }}
+            paymentId={id!}
+            group={releaseGroup}
+            onSuccess={() => { setReleaseGroup(null); load(); }}
+          />
+
 
           {/* (Footer Executivo foi movido para antes dos filtros operacionais) */}
 

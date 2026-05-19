@@ -5,9 +5,14 @@ import { Link, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowRight,
+  Banknote,
   Building2,
+  CheckCheck,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  FileText,
+  Mail,
   MessageCircle,
   Receipt,
   Sparkles,
@@ -55,6 +60,10 @@ export type PaymentGroupCardProps = {
   onToggleAiOpen: () => void;
   /** Número de questionamentos abertos para esta empresa (payment_questions). */
   questionCount?: number;
+  /** Callback opcional para abrir o modal "Liberar pedido de NF" (visível apenas para analista). */
+  onReleaseInvoice?: () => void;
+  /** Permite exibir o botão de liberação de NF (geralmente só para analista). */
+  canReleaseInvoice?: boolean;
 };
 
 /**
@@ -76,6 +85,8 @@ export const PaymentGroupCard = ({
   isAiOpen,
   onToggleAiOpen,
   questionCount = 0,
+  onReleaseInvoice,
+  canReleaseInvoice = false,
 }: PaymentGroupCardProps) => {
   const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
@@ -273,32 +284,98 @@ export const PaymentGroupCard = ({
                 </TooltipContent>
               </Tooltip>
             )}
-            {gStatus === "concluida_analista" ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 cursor-default whitespace-nowrap">
-                    ✓ Concluída
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Análise concluída pelo analista — aguardando envio do lote.</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                    · {PAYMENT_STATUS_LABELS[gStatus]}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+            {(() => {
+              // Badges visuais especiais por status — aproveitam o ciclo pós-aprovação.
+              const POST_BADGES: Partial<Record<PaymentStatus, { Icon: typeof CheckCircle2; cls: string; label: string; tip: string }>> = {
+                concluida_analista: {
+                  Icon: CheckCircle2,
+                  cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  label: "Concluída",
+                  tip: "Análise concluída pelo analista — aguardando envio do lote.",
+                },
+                revisao_pos_aprovacao: {
+                  Icon: CheckCircle2,
+                  cls: "border-teal-300 bg-teal-50 text-teal-800",
+                  label: "Aprovado — aguard. revisão",
+                  tip: "Aprovado pelo diretor — analista deve liberar o pedido de NF.",
+                },
+                pedido_nf_enviado: {
+                  Icon: Mail,
+                  cls: "border-blue-300 bg-blue-50 text-blue-700",
+                  label: "NF solicitada",
+                  tip: "Pedido de NF enviado — aguardando retorno da empresa.",
+                },
+                nf_recebida: {
+                  Icon: FileText,
+                  cls: "border-amber-300 bg-amber-50 text-amber-700",
+                  label: "NF recebida",
+                  tip: "Nota fiscal recebida — aguardando conciliação.",
+                },
+                nf_conciliada: {
+                  Icon: CheckCheck,
+                  cls: "border-green-300 bg-green-50 text-green-700",
+                  label: "NF conciliada",
+                  tip: "NF conciliada — aguardando lançamento contábil.",
+                },
+                lancado: {
+                  Icon: Banknote,
+                  cls: "border-slate-300 bg-slate-100 text-slate-700",
+                  label: "Lançado",
+                  tip: "Lançamento contábil concluído.",
+                },
+              };
+              const meta = POST_BADGES[gStatus];
+              if (meta) {
+                const { Icon, cls, label, tip } = meta;
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium cursor-default whitespace-nowrap", cls)}>
+                        <Icon className="h-3 w-3" /> {label}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{tip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
+                      · {PAYMENT_STATUS_LABELS[gStatus]}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })()}
           </div>
         </div>
       </button>
+
+      {gStatus === "revisao_pos_aprovacao" && canReleaseInvoice && onReleaseInvoice && (
+        <div className="border-t border-teal-200/60 bg-teal-50/60 px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-teal-900">
+            <CheckCircle2 className="h-3.5 w-3.5 text-teal-700" />
+            <span>Aprovado pelo diretor — pronto para liberar o pedido de NF.</span>
+          </div>
+          <Button
+            size="sm"
+            variant="default"
+            className="h-7 bg-teal-700 hover:bg-teal-800 text-white text-[11px] gap-1"
+            onClick={onReleaseInvoice}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Liberar pedido de NF
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
 
       {groupExpandedEffective && nfDivergent && (
         <div className="border-t border-border/60 bg-destructive/5">

@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   Building2,
   MessageCircle,
+  CheckCircle2,
   type LucideIcon,
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
@@ -894,6 +895,47 @@ const Dashboard = () => {
   }, [isAnalista, user?.id]);
   const totalPendingQuestions = pendingQuestions.reduce((sum, p) => sum + p.count, 0);
 
+  // Empresas aprovadas pelo diretor aguardando liberação de pedido de NF pelo analista.
+  const [pendingReleaseNf, setPendingReleaseNf] = useState<
+    Array<{ payment_id: string; reference: string; count: number }>
+  >([]);
+  useEffect(() => {
+    if (!isAnalista || !user?.id) return;
+    let cancelled = false;
+    const fetchPending = async () => {
+      const { data } = await supabase
+        .from("payment_company_groups")
+        .select("id, payment_id, payments!inner(reference, created_by)")
+        .eq("status", "revisao_pos_aprovacao")
+        .eq("payments.created_by", user.id);
+      if (cancelled) return;
+      const byPayment = new Map<string, { reference: string; count: number }>();
+      ((data ?? []) as Array<{ payment_id: string; payments: { reference: string } | null }>).forEach((r) => {
+        const ref = r.payments?.reference ?? "—";
+        const cur = byPayment.get(r.payment_id) ?? { reference: ref, count: 0 };
+        cur.count += 1;
+        byPayment.set(r.payment_id, cur);
+      });
+      setPendingReleaseNf(
+        Array.from(byPayment.entries()).map(([payment_id, v]) => ({ payment_id, ...v })),
+      );
+    };
+    fetchPending();
+    const ch = supabase
+      .channel("dash_pending_release_nf")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_company_groups" },
+        () => fetchPending(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [isAnalista, user?.id]);
+  const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
@@ -1064,6 +1106,34 @@ const Dashboard = () => {
           </ul>
         </div>
       )}
+
+      {/* EMPRESAS APROVADAS AGUARDANDO LIBERAÇÃO DE NF */}
+      {isAnalista && totalPendingReleaseNf > 0 && (
+        <div className="rounded-md border border-teal-300 bg-teal-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-teal-900 mb-2">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="font-semibold">{totalPendingReleaseNf}</span>
+            empresa{totalPendingReleaseNf > 1 ? "s" : ""} aprovada{totalPendingReleaseNf > 1 ? "s" : ""} aguardando liberação de NF
+            {pendingReleaseNf.length > 1 && ` em ${pendingReleaseNf.length} lotes`}.
+          </div>
+          <ul className="space-y-1">
+            {pendingReleaseNf.slice(0, 5).map((p) => (
+              <li key={p.payment_id} className="flex items-center justify-between text-xs">
+                <span className="text-teal-900">
+                  Lote <span className="font-medium">{p.reference}</span> · {p.count} empresa{p.count > 1 ? "s" : ""}
+                </span>
+                <Link
+                  to={`/pagamentos/${p.payment_id}`}
+                  className="text-teal-700 hover:text-teal-900 font-medium"
+                >
+                  Abrir →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
 
 
 
