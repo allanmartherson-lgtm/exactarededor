@@ -75,6 +75,7 @@ export const PaymentGroupCard = ({
   onToggleExpanded,
   isAiOpen,
   onToggleAiOpen,
+  questionCount = 0,
 }: PaymentGroupCardProps) => {
   const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
