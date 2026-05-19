@@ -1038,6 +1038,35 @@ const Dashboard = () => {
         </Link>
       )}
 
+      {/* QUESTIONAMENTOS AGUARDANDO RESPOSTA DO ANALISTA */}
+      {isAnalista && totalPendingQuestions > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-amber-900 mb-2">
+            <MessageCircle className="h-4 w-4" />
+            <span className="font-semibold">{totalPendingQuestions}</span>
+            questionamento{totalPendingQuestions > 1 ? "s" : ""} aguardando sua resposta
+            {pendingQuestions.length > 1 && ` em ${pendingQuestions.length} lotes`}.
+          </div>
+          <ul className="space-y-1">
+            {pendingQuestions.slice(0, 5).map((p) => (
+              <li key={p.payment_id} className="flex items-center justify-between text-xs">
+                <span className="text-amber-900">
+                  Lote <span className="font-medium">{p.reference}</span> · {p.count} empresa{p.count > 1 ? "s" : ""}
+                </span>
+                <Link
+                  to={`/pagamentos/${p.payment_id}`}
+                  className="text-amber-700 hover:text-amber-900 font-medium"
+                >
+                  Abrir →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+
+
 
       {/* ATENÇÃO IMEDIATA */}
       {!loading && (slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (
