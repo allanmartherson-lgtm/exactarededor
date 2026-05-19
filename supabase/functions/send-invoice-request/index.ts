@@ -332,25 +332,50 @@ serve(async (req) => {
       });
 
       try {
-        await supabase.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "invoice-request",
-            recipientEmail: opts.to[0],
-            cc: [...opts.to.slice(1), ...opts.cc],
-            idempotencyKey: `inv-${invoice.id}-${Date.now()}`,
-            subject: emailSubject,
-            templateData: {
-              recipientLabel: opts.recipient_label,
-              reference: payment.reference,
-              totalAmount: totalFormatted,
-              uploadUrl,
-              itemsList,
-              requestMessage,
-              subject: emailSubject,
-              summary,
-            },
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
+        const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
+        if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
+          throw new Error("LOVABLE_API_KEY ou RESEND_API_KEY ausente");
+        }
+        const ccList = [...opts.to.slice(1), ...opts.cc];
+        const html = `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+            <h2 style="color:#1a1a2e">Pedido de Nota Fiscal</h2>
+            <p>Prezado(a) <strong>${opts.recipient_label}</strong>,</p>
+            <p style="white-space:pre-line">${requestMessage}</p>
+            <p><strong>Referência:</strong> ${payment.reference ?? "—"}</p>
+            <p><strong>Valor total:</strong> ${totalFormatted}</p>
+            <p><strong>Itens:</strong> ${opts.items.length}</p>
+            <pre style="background:#f6f6f8;padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap">${itemsList}</pre>
+            <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
+            <p>Para enviar sua nota fiscal, acesse o link abaixo:</p>
+            <a href="${uploadUrl}" style="display:inline-block;background:#1d4ed8;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+              Enviar Nota Fiscal →
+            </a>
+            <p style="margin-top:24px;font-size:12px;color:#888">
+              Este link é único e intransferível. Em caso de dúvidas, responda este e-mail.
+            </p>
+          </div>
+        `;
+        const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": RESEND_API_KEY,
           },
+          body: JSON.stringify({
+            from: "MedPay <onboarding@resend.dev>",
+            to: [opts.to[0]],
+            cc: ccList.length > 0 ? ccList : undefined,
+            subject: emailSubject,
+            html,
+          }),
         });
+        if (!resendResp.ok) {
+          const errBody = await resendResp.text();
+          throw new Error(`Resend ${resendResp.status}: ${errBody}`);
+        }
         await supabase.from("invoices").update({
           sent_at: new Date().toISOString(),
           send_error: null,
@@ -358,7 +383,7 @@ serve(async (req) => {
         sentOk++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.warn("[send-invoice-request] falha ao despachar e-mail:", msg);
+        console.warn("[send-invoice-request] falha ao enviar e-mail:", msg);
         await supabase.from("invoices").update({ send_error: msg.slice(0, 500) }).eq("id", invoice.id);
         sentErr++;
         sendErrors.push(`${opts.recipient_label}: ${msg}`);
