@@ -400,7 +400,7 @@ export function PaymentPivotSection({
                   const canDrill = variant === "compacto" && r.children.length > 0;
                   return (
                     <>
-                      <tr key={r.key} className="border-t border-border hover:bg-muted/30">
+                      <tr key={r.key} className="border-t border-border even:bg-muted/20 hover:bg-muted/30">
                         <td className="px-3 py-2">
                           <button
                             type="button"
