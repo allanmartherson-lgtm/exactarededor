@@ -354,26 +354,26 @@ export function PaymentPivotSection({
         {/* Tabela pivot */}
         <div className="rounded-md border border-border overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead className="bg-primary/5">
               <tr>
                 <th
-                  className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-foreground/50"
-                  style={{ color: "hsl(var(--secondary-foreground))" }}
+                  data-pivot-th=""
+                  className="text-left px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
                 >
                   {FIELD_LABELS[grouping]}
                 </th>
                 {months.map((m) => (
                   <th
                     key={m}
-                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums text-foreground/50"
-                    style={{ color: "hsl(var(--secondary-foreground))" }}
+                    data-pivot-th=""
+                    className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide tabular-nums"
                   >
                     {monthLabel(m)}
                   </th>
                 ))}
                 <th
-                  className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-foreground/50"
-                  style={{ color: "hsl(var(--secondary-foreground))" }}
+                  data-pivot-th=""
+                  className="text-right px-3 py-2 text-[11px] font-medium uppercase tracking-wide"
                 >
                   Δ vs média
                 </th>
@@ -400,7 +400,7 @@ export function PaymentPivotSection({
                   const canDrill = variant === "compacto" && r.children.length > 0;
                   return (
                     <>
-                      <tr key={r.key} className="border-t border-border hover:bg-muted/30">
+                      <tr key={r.key} className="border-t border-border even:bg-muted/20 hover:bg-muted/30">
                         <td className="px-3 py-2">
                           <button
                             type="button"
@@ -436,7 +436,7 @@ export function PaymentPivotSection({
                         isOpen &&
                         r.children.map((c) => (
                           <tr key={`${r.key}::${c.key}`} className="border-t border-border/60 bg-muted/10">
-                            <td className="px-3 py-1.5 cell-secondary">
+                            <td className="px-3 py-1.5 cell-secondary border-l-2 border-primary/20">
                               <span className="inline-block" style={{ paddingLeft: 20 }}>
                                 <span className="text-[12px] text-muted-foreground">{c.key}</span>
                               </span>
@@ -461,7 +461,7 @@ export function PaymentPivotSection({
                   );
                 })}
               {!loading && primaryRows.length > 0 && (
-                <tr className="border-t-2 border-border bg-muted font-semibold">
+                <tr className="border-t-2 border-primary/20 bg-muted font-semibold">
                   <td className="px-3 py-2 font-semibold">Total Geral</td>
                   {months.map((m) => (
                     <td key={m} className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
