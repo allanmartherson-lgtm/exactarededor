@@ -1528,14 +1528,7 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-8 space-y-6">
-        {/* Toggle de visão por papel */}
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
-          <TabsList className="filter-tabs">
-            <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
-            <TabsTrigger value="compacto">Compacto</TabsTrigger>
-            <TabsTrigger value="executivo">Executivo</TabsTrigger>
-          </TabsList>
-        </Tabs>
+
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
