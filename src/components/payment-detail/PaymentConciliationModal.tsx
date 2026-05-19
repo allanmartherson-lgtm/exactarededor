@@ -23,12 +23,13 @@ import {
   ChevronDown,
   ChevronRight,
   RotateCcw,
+  Building2,
 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { cn, normalizeString } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
@@ -73,47 +74,33 @@ interface Props {
   paymentItems: PaymentItemRow[];
 }
 
-const HEADER_ALIASES: Record<string, string[]> = {
-  attendance: ["atendimento", "conta", "nratendimento", "numeroatendimento", "nr atendimento"],
-  patient: ["paciente", "nome", "nomepaciente"],
-  procCode: ["codigo", "procedimento", "codprocedimento", "codigoprocedimento", "codtuss", "tuss", "código"],
-  procName: ["procedimento/mat-med", "descricao", "nomeprocedimento", "descprocedimento", "procedimento", "mat-med"],
-  doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional", "prestador", "médicoexec"],
-  date: ["dt. proced.", "dtproced", "data", "dataatendimento", "dataprocedimento", "dt proced"],
-  value: ["vl. rep. calc.", "vlrepcalc", "valor", "valorbruto", "grossamount", "valorpago", "valortotal", "vl rep calc"],
-  company: ["terceiro", "empresa", "prestador", "pj", "razaosocial"],
-};
+type Step = "upload" | "mapping" | "result";
 
-const pickHeader = (row: Record<string, unknown>, keys: string[]): unknown => {
-  const normKeys = keys.map(normalizeString);
-  for (const k of Object.keys(row)) {
-    if (normKeys.includes(normalizeString(k))) {
-      const v = row[k];
-      if (v != null && String(v).trim() !== "") return v;
+const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
+  if (rows.length === 0) return {};
+  const aliases: Record<string, string[]> = {
+    attendance: ["atendimento", "conta", "nr atendimento", "nratendimento"],
+    patient: ["nome", "paciente", "nomepaciente"],
+    procCode: ["codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
+    procName: ["procedimento/mat-med", "procedimento", "descricao", "nomeprocedimento"],
+    doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
+    date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
+    value: ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
+    company: ["terceiro", "empresa", "prestador"],
+  };
+  const normKey = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9.]/g, "");
+  const map: Record<string, string> = {};
+  for (const col of Object.keys(rows[0])) {
+    const normCol = normKey(col);
+    for (const [field, aliasList] of Object.entries(aliases)) {
+      if (aliasList.some((a) => normKey(a) === normCol)) {
+        map[field] = col;
+        break;
+      }
     }
   }
-  return null;
-};
-
-const toNumber = (v: unknown): number => {
-  if (v == null || v === "") return 0;
-  if (typeof v === "number") return isNaN(v) ? 0 : v;
-  const s = String(v).replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", ".");
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
-};
-
-const toDate = (v: unknown): string | null => {
-  if (!v) return null;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  const s = String(v).trim();
-  // BR dd/mm/yyyy
-  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return iso[0];
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  return map;
 };
 
 const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
@@ -148,6 +135,21 @@ export function PaymentConciliationModal({
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
+  const [step, setStep] = useState<Step>("upload");
+  const [hospitalCompanies, setHospitalCompanies] = useState<string[]>([]);
+  const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
+  const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
+  const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
+  const [pendingFileName, setPendingFileName] = useState<string>("");
+
+  const loteCompanies = useMemo(
+    () =>
+      Array.from(
+        new Set(paymentItems.map((it) => it.company_name ?? "").filter(Boolean)),
+      ).sort(),
+    [paymentItems],
+  );
+
   const loadLatestRun = useCallback(async () => {
     setLoading(true);
     try {
@@ -167,9 +169,11 @@ export function PaymentConciliationModal({
           .eq("run_id", data.id)
           .order("created_at");
         setItems((its ?? []) as ReconciliationItem[]);
+        setStep("result");
       } else {
         setRun(null);
         setItems([]);
+        setStep("upload");
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -183,154 +187,107 @@ export function PaymentConciliationModal({
     if (open) loadLatestRun();
   }, [open, loadLatestRun]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setProcessing(true);
     try {
-      // Upload arquivo para storage
-      const storagePath = `${paymentId}/${Date.now()}_${file.name}`;
-      await supabase.storage.from("reconciliation-files").upload(storagePath, file, { upsert: false });
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
 
-      // Cria run
+      const colMap = detectColumns(rows);
+      const companyCol = colMap["company"];
+
+      const terceiros = Array.from(
+        new Set(
+          rows
+            .map((r) => (companyCol ? String(r[companyCol] ?? "").trim() : ""))
+            .filter(Boolean),
+        ),
+      ).sort();
+
+      const normFull = (s: string) =>
+        s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+      const autoMapping: Record<string, string | null> = {};
+      for (const terceiro of terceiros) {
+        const normT = normFull(terceiro);
+        const match = loteCompanies.find((lc) => {
+          const normL = normFull(lc);
+          return normT === normL || normT.includes(normL) || normL.includes(normT);
+        });
+        autoMapping[terceiro] = match ?? null;
+      }
+
+      setParsedRows(rows);
+      setParsedColMap(colMap);
+      setPendingFileName(file.name);
+      setHospitalCompanies(terceiros);
+      setCompanyMapping(autoMapping);
+      setStep("mapping");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast({ title: "Erro ao ler arquivo", description: msg, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleProcessReconciliation = async () => {
+    setProcessing(true);
+    try {
       const { data: newRun, error: runErr } = await (supabase as any)
         .from("reconciliation_runs")
         .insert({
           payment_id: paymentId,
           created_by: user?.id ?? null,
           status: "processing",
-          file_name: file.name,
+          file_name: pendingFileName,
         })
         .select()
         .single();
       if (runErr) throw runErr;
 
-      // Parse XLSX/CSV
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-
-      // Normalização leve — só lowercase + sem acentos, MANTÉM números e espaços
-      const normLight = (s: unknown): string => {
-        return String(s ?? "")
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .trim();
-      };
-
-      // Normalização forte — remove tudo exceto alfanumérico (para chave de cruzamento)
-      const normStrong = (s: unknown): string => {
-        return normLight(s).replace(/[^a-z0-9]/g, "");
-      };
-
-      // Mapeamento de colunas da planilha hospitalar — busca pelo nome normalizado da coluna
-      const colMap: Record<string, string> = {};
-      if (rows.length > 0) {
-        const aliases: Record<string, string[]> = {
-          attendance:  ["atendimento", "conta", "nr atendimento", "nratendimento"],
-          patient:     ["nome", "paciente", "nomepaciente"],
-          procCode:    ["codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
-          procName:    ["procedimento/mat-med", "procedimento", "descricao", "nomeprocedimento"],
-          doctor:      ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
-          date:        ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
-          value:       ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
-          company:     ["terceiro", "empresa", "prestador"],
-          agreement:   ["convênio", "convenio"],
-          function_:   ["função", "funcao", "função"],
-          sector:      ["setor"],
-          status:      ["status"],
-        };
-        for (const col of Object.keys(rows[0])) {
-          const normCol = normStrong(col);
-          for (const [field, aliasList] of Object.entries(aliases)) {
-            if (aliasList.some((a) => normStrong(a) === normCol || normStrong(col) === normStrong(a))) {
-              colMap[field] = col;
-              break;
-            }
-          }
-        }
-      }
+      const normFull = (s: string) =>
+        s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
       const getCell = (row: Record<string, unknown>, field: string): unknown => {
-        const col = colMap[field];
+        const col = parsedColMap[field];
         if (!col) return null;
         const v = row[col];
         return v != null && String(v).trim() !== "" ? v : null;
       };
 
-      // Stopwords do setor médico — palavras tão comuns que não identificam nenhuma empresa
-      const MEDICAL_STOPWORDS = new Set([
-        'servicos', 'medicos', 'medica', 'ltda', 'eireli', 'ss', 'me', 'sa',
-        'clinica', 'instituto', 'centro', 'cirurgia', 'cirurgica',
-        'saude', 'hospitalares', 'hospitalar', 'associados', 'associadas',
-        'brasilia', 'brasil', 'brasiliense', 'brasilienses',
-        'cuidados', 'servico', 'prestacao', 'prestacoes', 'especialidades',
-        'especializada', 'especializado', 'geral', 'integrada', 'integrado',
-        'ortopedia', 'traumatologia', 'urologia', 'cardiologia', 'neurologia',
-        'ginecologia', 'obstetricia', 'oncologia', 'cirurgicos', 'medico',
-      ]);
-
-      // Extrai palavras-chave ÚNICAS que identificam a empresa (exclui stopwords)
-      const getIdentifierWords = (name: string): string[] => {
-        const norm = name.toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9\s]/g, ' ')
-          .trim();
-        return norm.split(/\s+/)
-          .filter((w) => w.length >= 3 && !MEDICAL_STOPWORDS.has(w));
+      const toVal = (v: unknown): number => {
+        if (v == null || v === "") return 0;
+        if (typeof v === "number") return isNaN(v) ? 0 : v;
+        const s = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
+        return parseFloat(s) || 0;
       };
 
-      // Coleta palavras-chave de cada empresa do lote
-      const loteCompanyWords = paymentItems.reduce((map, it) => {
-        const name = it.company_name ?? '';
-        if (!name) return map;
-        const normName = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-        if (!map.has(normName)) {
-          map.set(normName, {
-            normFull: normName,
-            identifiers: getIdentifierWords(name),
-            original: name,
-          });
-        }
-        return map;
-      }, new Map<string, { normFull: string; identifiers: string[]; original: string }>());
-
-      const companyMatchesLote = (terceiro: unknown): boolean => {
-        if (!terceiro || String(terceiro).trim() === '') return false;
-        const normT = String(terceiro).toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]/g, '');
-        const wordsT = getIdentifierWords(String(terceiro));
-
-        for (const { normFull, identifiers } of loteCompanyWords.values()) {
-          // 1. Match exato (string normalizada completa)
-          if (normT === normFull) return true;
-          // 2. Um contém o outro (substring) — para abreviações como "ICD"
-          if (normT.includes(normFull) || normFull.includes(normT)) return true;
-          // 3. Match por palavras-chave ÚNICAS: pelo menos 1 identificador exclusivo em comum
-          //    E o identificador deve ter 4+ letras para evitar falsos positivos
-          const sharedIdentifiers = identifiers.filter(
-            (id) => id.length >= 4 && wordsT.includes(id)
-          );
-          if (sharedIdentifiers.length >= 1 && identifiers.length > 0) {
-            // Só aceita se o identificador compartilhado for >50% das palavras do nome do lote
-            const specificity = sharedIdentifiers.length / Math.max(identifiers.length, 1);
-            if (specificity >= 0.5) return true;
-          }
-        }
-        return false;
+      const toDateStr = (v: unknown): string | null => {
+        if (!v) return null;
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        const s = String(v).trim();
+        const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) return iso[0];
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
       };
 
-      const filteredRows = rows.filter((row) => companyMatchesLote(getCell(row, "company")));
+      const filteredRows = parsedRows.filter((row) => {
+        const col = parsedColMap["company"];
+        const terceiro = col ? String(row[col] ?? "").trim() : "";
+        return terceiro && companyMapping[terceiro];
+      });
 
-      // Indexa paymentItems por chave: norm(attendance) | norm(procCode)
-      // Código pode ser int na planilha (4020108) — sempre normalizar como string sem zeros extras
-      const makeKey = (att: unknown, code: unknown): string =>
-        `${normStrong(att)}|${normStrong(String(Number(code) || code))}`;
+      const makeKey = (att: unknown, code: unknown) =>
+        `${normFull(String(att ?? ""))}|${normFull(String(Number(code) || code))}`;
 
       const medpayByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
@@ -341,52 +298,41 @@ export function PaymentConciliationModal({
 
       const matchedMedpayIds = new Set<string>();
       const toInsert: Array<Record<string, unknown>> = [];
-      let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_medpay = 0;
-      let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
+      let conciliado = 0,
+        valor_divergente = 0,
+        so_hospital = 0,
+        so_medpay = 0;
+      let risco_mais = 0,
+        risco_menos = 0,
+        divergencia_valor = 0;
 
       for (const row of filteredRows) {
-        const att      = getCell(row, "attendance");
-        const code     = getCell(row, "procCode");
-        const valHosp  = (() => {
-          const v = getCell(row, "value");
-          if (v == null) return 0;
-          if (typeof v === "number") return isNaN(v) ? 0 : v;
-          const s = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
-          return parseFloat(s) || 0;
-        })();
-        const patient  = getCell(row, "patient");
-        const doctor   = getCell(row, "doctor");
+        const att = getCell(row, "attendance");
+        const code = getCell(row, "procCode");
+        const valHosp = toVal(getCell(row, "value"));
+        const patient = getCell(row, "patient");
+        const doctor = getCell(row, "doctor");
         const procName = getCell(row, "procName");
-        const dateRaw  = getCell(row, "date");
-        const company  = getCell(row, "company");
-
-        const dateStr = (() => {
-          if (!dateRaw) return null;
-          if (dateRaw instanceof Date) return dateRaw.toISOString().slice(0, 10);
-          const s = String(dateRaw).trim();
-          const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-          if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-          const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-          if (iso) return iso[0];
-          const d = new Date(s);
-          return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
-        })();
-
+        const dateRaw = getCell(row, "date");
+        const col = parsedColMap["company"];
+        const terceiro = col ? String(row[col] ?? "").trim() : "";
+        const mappedCompany = companyMapping[terceiro] ?? terceiro;
+        const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
         const candidates = medpayByKey.get(k) ?? [];
         const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
         const base: Record<string, unknown> = {
           attendance_number: att != null ? String(att) : null,
-          patient_name:  patient  ? String(patient)  : null,
-          procedure_code: code    ? String(code)      : null,
+          patient_name: patient ? String(patient) : null,
+          procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
-          doctor_name:   doctor   ? String(doctor)    : null,
+          doctor_name: doctor ? String(doctor) : null,
           procedure_date: dateStr,
           valor_hospital: valHosp,
           valor_medpay: 0,
           payment_item_id: null,
-          company_name: company ? String(company) : null,
+          company_name: mappedCompany,
           ia_obs: null,
           status: "so_hospital",
         };
@@ -396,12 +342,11 @@ export function PaymentConciliationModal({
           const valMed = Number((match as any).gross_amount ?? 0);
           base.payment_item_id = match.id;
           base.valor_medpay = valMed;
-          // Preenche campos do MedPay se a planilha não trouxe
-          if (!base.patient_name)   base.patient_name   = match.patient_name ?? null;
-          if (!base.doctor_name)    base.doctor_name    = (match as any).doctor_name ?? null;
+          if (!base.patient_name) base.patient_name = match.patient_name ?? null;
+          if (!base.doctor_name) base.doctor_name = (match as any).doctor_name ?? null;
           if (!base.procedure_name) base.procedure_name = (match as any).procedure_name ?? null;
           if (!base.procedure_date) base.procedure_date = (match as any).procedure_date ?? null;
-          if (!base.company_name)   base.company_name   = match.company_name ?? null;
+          if (!base.company_name) base.company_name = match.company_name ?? null;
 
           const diff = valHosp - valMed;
           if (Math.abs(diff) < 0.02) {
@@ -412,71 +357,80 @@ export function PaymentConciliationModal({
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
             const signal = diff > 0 ? "a mais" : "a menos";
-            base.ia_obs = `Hospital cobrou ${formatCurrency(Math.abs(diff))} ${signal} que o MedPay (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%). MedPay: ${formatCurrency(valMed)} · Hospital: ${formatCurrency(valHosp)}.`;
+            base.ia_obs = `Hospital cobrou ${formatCurrency(Math.abs(diff))} ${signal} (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%). MedPay: ${formatCurrency(valMed)} · Hospital: ${formatCurrency(valHosp)}.`;
             divergencia_valor += Math.abs(diff);
-            if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+            if (diff > 0) risco_mais += diff;
+            else risco_menos += Math.abs(diff);
           }
         } else {
           base.status = "so_hospital";
-          base.ia_obs = `Item em ${company ? String(company).slice(0, 50) : "empresa"} presente no extrato hospitalar mas ausente na base MedPay. Possível inclusão após a importação do lote.`;
+          base.ia_obs = `Item de ${mappedCompany} presente no extrato hospitalar mas ausente na base MedPay. Possível inclusão após importação do lote.`;
           so_hospital++;
           risco_mais += valHosp;
         }
-
         toInsert.push(base);
       }
 
-      // Itens MedPay sem match no extrato hospitalar
+      const mappedLoteCompanies = new Set(
+        Object.values(companyMapping).filter(Boolean) as string[],
+      );
       for (const it of paymentItems) {
         if (matchedMedpayIds.has(it.id)) continue;
+        if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
         const valMed = Number((it as any).gross_amount ?? 0);
         toInsert.push({
           payment_item_id: it.id,
           attendance_number: it.attendance_number ?? null,
-          patient_name:  it.patient_name ?? null,
+          patient_name: it.patient_name ?? null,
           procedure_code: it.procedure_code ?? null,
           procedure_name: (it as any).procedure_name ?? null,
-          doctor_name:   (it as any).doctor_name ?? null,
+          doctor_name: (it as any).doctor_name ?? null,
           procedure_date: (it as any).procedure_date ?? null,
           valor_medpay: valMed,
           valor_hospital: 0,
           company_name: it.company_name ?? null,
           status: "so_medpay",
-          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no MedPay mas ausente no extrato hospitalar — verificar glosa ou item não faturado.`,
+          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no MedPay mas ausente no extrato hospitalar — verificar glosa.`,
         });
         so_medpay++;
         risco_menos += valMed;
       }
 
-      // Insert em chunks de 500
       const CHUNK = 500;
       for (let i = 0; i < toInsert.length; i += CHUNK) {
         const slice = toInsert.slice(i, i + CHUNK).map((r) => ({ ...r, run_id: newRun.id }));
-        const { error: insErr } = await (supabase as any).from("reconciliation_items").insert(slice);
+        const { error: insErr } = await (supabase as any)
+          .from("reconciliation_items")
+          .insert(slice);
         if (insErr) throw insErr;
       }
 
-      const totals = {
-        total_items: toInsert.length,
-        conciliado,
-        valor_divergente,
-        so_hospital,
-        so_medpay,
-        risco_mais: Number(risco_mais.toFixed(2)),
-        risco_menos: Number(risco_menos.toFixed(2)),
-        divergencia_valor: Number(divergencia_valor.toFixed(2)),
-        status: "done",
-      };
-      await (supabase as any).from("reconciliation_runs").update(totals).eq("id", newRun.id);
+      await (supabase as any)
+        .from("reconciliation_runs")
+        .update({
+          total_items: toInsert.length,
+          conciliado,
+          valor_divergente,
+          so_hospital,
+          so_medpay,
+          risco_mais: Number(risco_mais.toFixed(2)),
+          risco_menos: Number(risco_menos.toFixed(2)),
+          divergencia_valor: Number(divergencia_valor.toFixed(2)),
+          status: "done",
+        })
+        .eq("id", newRun.id);
 
-      toast({ title: "Conciliação concluída", description: `${toInsert.length} itens processados.` });
+      toast({
+        title: "Conciliação concluída",
+        description: `${toInsert.length} itens processados.`,
+      });
       await loadLatestRun();
+      setStep("result");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast({ title: "Falha na conciliação", description: msg, variant: "destructive" });
     } finally {
       setProcessing(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -506,7 +460,16 @@ export function PaymentConciliationModal({
     XLSX.writeFile(wb, `conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.xlsx`);
   };
 
-  const triggerNew = () => fileInputRef.current?.click();
+  const triggerNew = () => {
+    setStep("upload");
+    setRun(null);
+    setItems([]);
+    setParsedRows([]);
+    setCompanyMapping({});
+    setHospitalCompanies([]);
+    setPendingFileName("");
+    setTimeout(() => fileInputRef.current?.click(), 0);
+  };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
     { key: "todos", label: "Todos", count: items.length },
@@ -517,11 +480,18 @@ export function PaymentConciliationModal({
   ];
 
   const total = run?.total_items ?? 0;
-  const pendentes = (run?.valor_divergente ?? 0) + (run?.so_hospital ?? 0) + (run?.so_medpay ?? 0);
+  const pendentes =
+    (run?.valor_divergente ?? 0) + (run?.so_hospital ?? 0) + (run?.so_medpay ?? 0);
+
+  const vinculadasCount = Object.values(companyMapping).filter(Boolean).length;
+  const ignoradasCount = Object.values(companyMapping).filter((v) => v === null).length;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-none p-0 flex flex-col h-screen overflow-hidden">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-none p-0 flex flex-col h-screen overflow-hidden"
+      >
         {/* Header */}
         <div className="border-b bg-muted/30 p-4 sticky top-0 z-10 flex items-center justify-between">
           <div>
@@ -533,13 +503,18 @@ export function PaymentConciliationModal({
             </p>
           </div>
           <div className="flex gap-2">
-            {run && (
+            {step === "result" && run && (
               <Button variant="outline" size="sm" onClick={triggerNew} disabled={processing}>
                 <RotateCcw className="h-4 w-4 mr-1.5" />
                 Nova conciliação
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={!run || run.status !== "done"}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={!run || run.status !== "done" || step !== "result"}
+            >
               <FileDown className="h-4 w-4 mr-1.5" />
               Exportar relatório
             </Button>
@@ -554,7 +529,7 @@ export function PaymentConciliationModal({
           type="file"
           accept=".xlsx,.xls,.csv"
           className="hidden"
-          onChange={handleFileUpload}
+          onChange={handleFileSelect}
         />
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-muted/10">
@@ -564,17 +539,14 @@ export function PaymentConciliationModal({
             </div>
           )}
 
-          {!loading && !run && (
+          {!loading && step === "upload" && (
             <Card>
               <CardContent className="p-6">
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
                   {processing ? (
                     <>
                       <Loader2 className="h-8 w-8 mx-auto mb-3 text-primary animate-spin" />
-                      <p className="text-sm font-medium">Processando conciliação...</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Cruzando linhas do extrato com a base MedPay.
-                      </p>
+                      <p className="text-sm font-medium">Lendo arquivo...</p>
                     </>
                   ) : (
                     <>
@@ -583,7 +555,7 @@ export function PaymentConciliationModal({
                       <p className="text-xs text-muted-foreground mt-1">
                         Arquivo .xlsx ou .csv exportado do sistema hospitalar
                       </p>
-                      <Button className="mt-4" onClick={triggerNew}>
+                      <Button className="mt-4" onClick={() => fileInputRef.current?.click()}>
                         Selecionar arquivo
                       </Button>
                     </>
@@ -593,11 +565,130 @@ export function PaymentConciliationModal({
             </Card>
           )}
 
-          {!loading && run && (
+          {!loading && step === "mapping" && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-3 p-4 bg-info-soft/40 border border-info/20 rounded-lg">
+                <div className="p-2 rounded-full bg-info/10 text-info shrink-0">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Vincular empresas da planilha ao lote</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {hospitalCompanies.length} empresas encontradas em{" "}
+                    <strong>{pendingFileName}</strong>. Vincule cada uma a uma empresa do lote ou
+                    deixe como "Ignorar" para excluir da conciliação.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-warning" /> Não vinculado
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Ignorado
+                </span>
+              </div>
+
+              <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
+                {hospitalCompanies.map((terceiro) => {
+                  const mapped = companyMapping[terceiro];
+                  return (
+                    <div
+                      key={terceiro}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border",
+                        mapped
+                          ? "border-success/30 bg-success/5"
+                          : mapped === null
+                            ? "border-border bg-muted/30"
+                            : "border-warning/30 bg-warning/5",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-2 h-2 rounded-full shrink-0",
+                          mapped
+                            ? "bg-success"
+                            : mapped === null
+                              ? "bg-muted-foreground/40"
+                              : "bg-warning",
+                        )}
+                      />
+                      <p
+                        className="text-xs flex-1 min-w-0 truncate font-medium"
+                        title={terceiro}
+                      >
+                        {terceiro}
+                      </p>
+                      <select
+                        value={mapped ?? "__ignore__"}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCompanyMapping((prev) => ({
+                            ...prev,
+                            [terceiro]: val === "__ignore__" ? null : val,
+                          }));
+                        }}
+                        className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[280px]"
+                      >
+                        <option value="__ignore__">— Ignorar —</option>
+                        {loteCompanies.map((lc) => (
+                          <option key={lc} value={lc}>
+                            {lc}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-success font-semibold">{vinculadasCount}</span>{" "}
+                  vinculadas ·{" "}
+                  <span className="text-muted-foreground">{ignoradasCount}</span> ignoradas
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setStep("upload");
+                      setParsedRows([]);
+                    }}
+                  >
+                    ← Voltar
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={processing || vinculadasCount === 0}
+                    onClick={handleProcessReconciliation}
+                  >
+                    {processing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      `Conciliar ${vinculadasCount} empresa(s) →`
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && step === "result" && run && (
             <>
               {processing && (
                 <div className="flex items-center text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Processando nova conciliação...
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Processando nova
+                  conciliação...
                 </div>
               )}
 
@@ -610,7 +701,6 @@ export function PaymentConciliationModal({
                 </span>
               </div>
 
-
               {/* KPI cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <KpiCard
@@ -620,7 +710,9 @@ export function PaymentConciliationModal({
                   value={`${run.conciliado} itens`}
                   hint={total ? `${((run.conciliado / total) * 100).toFixed(1)}% do total` : ""}
                   active={activeFilter === "conciliado"}
-                  onClick={() => setActiveFilter(activeFilter === "conciliado" ? "todos" : "conciliado")}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "conciliado" ? "todos" : "conciliado")
+                  }
                 />
                 <KpiCard
                   icon={AlertTriangle}
@@ -630,7 +722,9 @@ export function PaymentConciliationModal({
                   hint="revisar valor"
                   active={activeFilter === "valor_divergente"}
                   onClick={() =>
-                    setActiveFilter(activeFilter === "valor_divergente" ? "todos" : "valor_divergente")
+                    setActiveFilter(
+                      activeFilter === "valor_divergente" ? "todos" : "valor_divergente",
+                    )
                   }
                 />
                 <KpiCard
@@ -640,7 +734,9 @@ export function PaymentConciliationModal({
                   value={`${run.so_hospital} itens`}
                   hint="possível inclusão"
                   active={activeFilter === "so_hospital"}
-                  onClick={() => setActiveFilter(activeFilter === "so_hospital" ? "todos" : "so_hospital")}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "so_hospital" ? "todos" : "so_hospital")
+                  }
                 />
                 <KpiCard
                   icon={Info}
@@ -649,7 +745,9 @@ export function PaymentConciliationModal({
                   value={`${run.so_medpay} itens`}
                   hint="possível glosa"
                   active={activeFilter === "so_medpay"}
-                  onClick={() => setActiveFilter(activeFilter === "so_medpay" ? "todos" : "so_medpay")}
+                  onClick={() =>
+                    setActiveFilter(activeFilter === "so_medpay" ? "todos" : "so_medpay")
+                  }
                 />
               </div>
 
@@ -706,26 +804,39 @@ export function PaymentConciliationModal({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Empresa</TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Médico</TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
+                        Empresa
+                      </TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
+                        Médico
+                      </TableHead>
                       <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
                         Paciente / Procedimento
                       </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Atend.</TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Data</TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
+                        Atend.
+                      </TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
+                        Data
+                      </TableHead>
                       <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider text-right">
                         MedPay (R$)
                       </TableHead>
                       <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider text-right">
                         Hospital (R$)
                       </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Status</TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
+                        Status
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredItems.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
+                        <TableCell
+                          colSpan={8}
+                          className="text-center text-sm text-muted-foreground py-8"
+                        >
                           Nenhum item encontrado para o filtro selecionado.
                         </TableCell>
                       </TableRow>
@@ -751,12 +862,17 @@ export function PaymentConciliationModal({
                                 ) : (
                                   <span className="w-3" />
                                 )}
-                                <span className="truncate max-w-[180px]" title={it.company_name ?? ""}>
+                                <span
+                                  className="truncate max-w-[180px]"
+                                  title={it.company_name ?? ""}
+                                >
                                   {it.company_name ?? "—"}
                                 </span>
                               </div>
                             </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">{it.doctor_name ?? "—"}</TableCell>
+                            <TableCell className="px-3 py-2 text-[12px]">
+                              {it.doctor_name ?? "—"}
+                            </TableCell>
                             <TableCell className="px-3 py-2 text-[12px]">
                               <div className="font-medium">{it.patient_name ?? "—"}</div>
                               <div className="text-[11px] text-muted-foreground">
@@ -764,7 +880,9 @@ export function PaymentConciliationModal({
                                 {it.procedure_name ?? ""}
                               </div>
                             </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">{it.attendance_number ?? "—"}</TableCell>
+                            <TableCell className="px-3 py-2 text-[12px]">
+                              {it.attendance_number ?? "—"}
+                            </TableCell>
                             <TableCell className="px-3 py-2 text-[12px]">
                               {it.procedure_date
                                 ? new Date(it.procedure_date).toLocaleDateString("pt-BR")
@@ -774,7 +892,9 @@ export function PaymentConciliationModal({
                               {it.valor_medpay ? formatCurrency(Number(it.valor_medpay)) : "—"}
                             </TableCell>
                             <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
-                              {it.valor_hospital ? formatCurrency(Number(it.valor_hospital)) : "—"}
+                              {it.valor_hospital
+                                ? formatCurrency(Number(it.valor_hospital))
+                                : "—"}
                             </TableCell>
                             <TableCell className="px-3 py-2">
                               <span
