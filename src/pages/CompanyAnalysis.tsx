@@ -1696,11 +1696,7 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
-      {id && groupId && (
-        <div className="mt-4">
-          <CompanyQuestionsThread paymentId={id} companyGroupId={groupId} />
-        </div>
-      )}
+      {/* (thread movida para o topo da página, acima das abas) */}
       {/* Editar item */}
       <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
         <DialogContent>
