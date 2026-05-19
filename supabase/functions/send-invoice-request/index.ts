@@ -470,6 +470,9 @@ serve(async (req) => {
             cc: ccList.length > 0 ? ccList : undefined,
             subject: emailSubject,
             html,
+            attachments: xlsxBuffer
+              ? [{ filename: fileName, content: xlsxBuffer }]
+              : undefined,
           }),
         });
         if (!resendResp.ok) {
