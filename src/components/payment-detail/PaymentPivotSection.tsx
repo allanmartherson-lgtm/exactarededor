@@ -150,16 +150,21 @@ export function PaymentPivotSection({
     setLoading(true);
     (async () => {
       const sec = variant === "compacto" && secondary && secondary !== grouping ? secondary : null;
-      const args = {
+      const args: Record<string, unknown> = {
         p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
         p_grouping: grouping,
-        p_secondary: sec,
       };
+      if (sec) {
+        args.p_secondary = sec;
+      }
       console.log("[PaymentPivot] rpc args:", args);
-      const { data, error } = await (supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: PivotRow[] | null; error: unknown }>;
-      }).rpc("get_payment_pivot", args);
+      const { data, error } = await supabase.rpc("get_payment_pivot", args as {
+        p_current_month: string;
+        p_months_back: number;
+        p_grouping: string;
+        p_secondary?: string;
+      });
       if (!alive) return;
       if (error) {
         console.error("[PaymentPivot] rpc error:", error);
