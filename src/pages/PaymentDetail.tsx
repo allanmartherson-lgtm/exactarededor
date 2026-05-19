@@ -2031,75 +2031,17 @@ const PaymentDetail = () => {
             />
           )}
 
-          {/* Footer Executivo — aprovação direta do diretor (inline, antes dos filtros) */}
-          {viewMode === "executivo" && isDiretor && payment.status === "aguardando_aprovacao" && (
-            <Card className="shadow-card border-primary/30">
-              <CardContent className="p-4 flex flex-wrap items-center gap-2">
-                <span className="text-sm text-muted-foreground mr-auto">
-                  Pronto para aprovação? Você pode aprovar ou devolver para revisão.
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={approvalBusy || busy}
-                  onClick={async () => {
-                    if (!id) return;
-                    setApprovalBusy(true);
-                    const { error } = await supabase
-                      .from("payments")
-                      .update({ status: "revisao_analista" } as PaymentUpdate)
-                      .eq("id", id);
-                    if (!error) {
-                      await recordObservation({
-                        payment_id: id,
-                        author_id: user!.id,
-                        author_type: "diretor",
-                        observation_type: "informativo",
-                        message: "Pagamento devolvido para revisão pelo diretor (visão Executivo).",
-                      });
-                      toast({ title: "Devolvido para revisão" });
-                      await load();
-                    } else {
-                      toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" });
-                    }
-                    setApprovalBusy(false);
-                  }}
-                >
-                  Devolver para revisão
-                </Button>
-                <Button
-                  disabled={approvalBusy || busy}
-                  onClick={async () => {
-                    if (!id) return;
-                    setApprovalBusy(true);
-                    const { error } = await supabase
-                      .from("payments")
-                      .update({
-                        status: "aprovado",
-                        approved_by: user!.id,
-                        approved_at: new Date().toISOString(),
-                      } as PaymentUpdate)
-                      .eq("id", id);
-                    if (!error) {
-                      await recordObservation({
-                        payment_id: id,
-                        author_id: user!.id,
-                        author_type: "diretor",
-                        observation_type: "informativo",
-                        message: "Pagamento aprovado pelo diretor (visão Executivo).",
-                      });
-                      toast({ title: "Pagamento aprovado" });
-                      await load();
-                    } else {
-                      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
-                    }
-                    setApprovalBusy(false);
-                  }}
-                >
-                  Aprovar pagamento
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          {/* Footer de ações em lote — Questionar / Devolver / Aprovar */}
+          {id && (isValidador || isDiretor) &&
+            (["aguardando_validacao", "aguardando_aprovacao", "em_questionamento", "aprovado_parcial", "devolvido_analista"] as PaymentStatus[]).includes(payment.status as PaymentStatus) && (
+              <PaymentBatchActionsFooter
+                paymentId={id}
+                groups={groups}
+                currentUserId={user!.id}
+                currentUserName={profiles[user!.id] ?? user!.email ?? "Usuário"}
+                onDone={load}
+              />
+            )}
 
         {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
             atendimento, centro de custos, especialidade ou descrição. */}
