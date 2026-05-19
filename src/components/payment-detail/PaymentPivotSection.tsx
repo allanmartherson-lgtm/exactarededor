@@ -140,28 +140,41 @@ export function PaymentPivotSection({
 
   useEffect(() => {
     if (variant === "detalhe") return;
+    if (!competenceDate || !/^\d{4}-\d{2}-\d{2}/.test(competenceDate)) {
+      console.warn("[PaymentPivot] competenceDate inválido:", competenceDate);
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     let alive = true;
     setLoading(true);
     (async () => {
       const sec = variant === "compacto" && secondary && secondary !== grouping ? secondary : null;
-      const { data, error } = await (supabase.rpc as unknown as (
-        fn: string,
-        args: Record<string, unknown>,
-      ) => Promise<{ data: PivotRow[] | null; error: unknown }>) ("get_payment_pivot", {
-        p_current_month: competenceDate,
+      const args = {
+        p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
         p_grouping: grouping,
         p_secondary: sec,
-      });
+      };
+      console.log("[PaymentPivot] rpc args:", args);
+      const { data, error } = await (supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: PivotRow[] | null; error: unknown }>;
+      }).rpc("get_payment_pivot", args);
       if (!alive) return;
-      if (!error && data) setRows(data);
-      else setRows([]);
+      if (error) {
+        console.error("[PaymentPivot] rpc error:", error);
+        setRows([]);
+      } else {
+        console.log("[PaymentPivot] rpc rows:", data?.length ?? 0);
+        setRows(data ?? []);
+      }
       setLoading(false);
     })();
     return () => {
       alive = false;
     };
   }, [variant, grouping, secondary, monthsBack, competenceDate]);
+
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
   useEffect(() => {
