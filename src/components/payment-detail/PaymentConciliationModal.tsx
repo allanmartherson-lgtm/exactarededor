@@ -666,11 +666,12 @@ export function PaymentConciliationModal({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Atend.</TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Empresa</TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Médico</TableHead>
                       <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
                         Paciente / Procedimento
                       </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Médico</TableHead>
+                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Atend.</TableHead>
                       <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">Data</TableHead>
                       <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider text-right">
                         MedPay (R$)
@@ -684,7 +685,7 @@ export function PaymentConciliationModal({
                   <TableBody>
                     {filteredItems.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                           Nenhum item encontrado para o filtro selecionado.
                         </TableCell>
                       </TableRow>
@@ -710,9 +711,12 @@ export function PaymentConciliationModal({
                                 ) : (
                                   <span className="w-3" />
                                 )}
-                                {it.attendance_number ?? "—"}
+                                <span className="truncate max-w-[180px]" title={it.company_name ?? ""}>
+                                  {it.company_name ?? "—"}
+                                </span>
                               </div>
                             </TableCell>
+                            <TableCell className="px-3 py-2 text-[12px]">{it.doctor_name ?? "—"}</TableCell>
                             <TableCell className="px-3 py-2 text-[12px]">
                               <div className="font-medium">{it.patient_name ?? "—"}</div>
                               <div className="text-[11px] text-muted-foreground">
@@ -720,7 +724,7 @@ export function PaymentConciliationModal({
                                 {it.procedure_name ?? ""}
                               </div>
                             </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">{it.doctor_name ?? "—"}</TableCell>
+                            <TableCell className="px-3 py-2 text-[12px]">{it.attendance_number ?? "—"}</TableCell>
                             <TableCell className="px-3 py-2 text-[12px]">
                               {it.procedure_date
                                 ? new Date(it.procedure_date).toLocaleDateString("pt-BR")
@@ -745,7 +749,7 @@ export function PaymentConciliationModal({
                           </TableRow>
                           {isOpen && hasObs && (
                             <TableRow key={`${it.id}-exp`}>
-                              <TableCell colSpan={7} className="bg-info/5 px-4 py-3">
+                              <TableCell colSpan={8} className="bg-info/5 px-4 py-3">
                                 <div className="flex gap-3">
                                   <div className="shrink-0 p-1.5 rounded-full bg-info/10 text-info h-fit">
                                     <Lightbulb className="h-4 w-4" />
