@@ -138,6 +138,13 @@ export function PaymentPivotSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
+  // Evita secondary == grouping (RPC ficaria inconsistente)
+  useEffect(() => {
+    if (variant === "compacto" && secondary === grouping) {
+      setSecondary(grouping === "empresa" ? "especialidade" : "empresa");
+    }
+  }, [grouping, variant, secondary]);
+
   useEffect(() => {
     if (variant === "detalhe") return;
     if (!competenceDate || !/^\d{4}-\d{2}-\d{2}/.test(competenceDate)) {
@@ -170,7 +177,17 @@ export function PaymentPivotSection({
         console.error("[PaymentPivot] rpc error:", error);
         setRows([]);
       } else {
-        console.log("[PaymentPivot] rpc rows:", data?.length ?? 0);
+        console.log("[PaymentPivot] rpc rows count:", data?.length ?? 0);
+        console.log("[PaymentPivot] rpc rows sample (first 3):", data?.slice(0, 3));
+        console.log("[PaymentPivot] rpc rows types:", data?.[0] ? {
+          group_key: typeof data[0].group_key,
+          parent_key: typeof data[0].parent_key,
+          parent_key_value: data[0].parent_key,
+          month_bucket: typeof data[0].month_bucket,
+          month_bucket_value: data[0].month_bucket,
+          total: typeof data[0].total,
+          total_value: data[0].total,
+        } : null);
         setRows(data ?? []);
       }
       setLoading(false);
@@ -206,18 +223,23 @@ export function PaymentPivotSection({
   const { primaryRows, totalsByMonth, totalGeral } = useMemo(() => {
     const primary = new Map<string, Map<string, number>>();
     const childrenMap = new Map<string, Map<string, Map<string, number>>>(); // parent -> child -> month -> total
+    let primaryCount = 0;
+    let childCount = 0;
     rows.forEach((r) => {
       const monthIso = r.month_bucket.slice(0, 10);
       if (r.parent_key) {
+        childCount++;
         if (!childrenMap.has(r.parent_key)) childrenMap.set(r.parent_key, new Map());
         const c = childrenMap.get(r.parent_key)!;
         if (!c.has(r.group_key)) c.set(r.group_key, new Map());
         c.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       } else {
+        primaryCount++;
         if (!primary.has(r.group_key)) primary.set(r.group_key, new Map());
         primary.get(r.group_key)!.set(monthIso, Number(r.total) || 0);
       }
     });
+    console.log("[PaymentPivot] parsed:", { primaryCount, childCount, primaryMapSize: primary.size, childrenMapSize: childrenMap.size });
 
     const totalsByMonth = new Map<string, number>();
     const primaryList = Array.from(primary.entries())
