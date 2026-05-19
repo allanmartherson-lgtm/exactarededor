@@ -2397,6 +2397,20 @@ export type Database = {
           doctor_crms: string[]
         }[]
       }
+      get_payment_pivot: {
+        Args: {
+          p_current_month: string
+          p_grouping: string
+          p_months_back: number
+          p_secondary?: string
+        }
+        Returns: {
+          group_key: string
+          month_bucket: string
+          parent_key: string
+          total: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

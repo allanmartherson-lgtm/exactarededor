@@ -28,6 +28,7 @@ import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
+import { PaymentPivotSection, type PivotVariant } from "@/components/payment-detail/PaymentPivotSection";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -199,6 +200,25 @@ const PaymentDetail = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
+  // Toggle de visão por papel (Detalhe/Compacto/Executivo). Persiste por payment_id.
+  const [viewMode, setViewMode] = useState<PivotVariant>(() => {
+    if (!id) return "detalhe";
+    const saved = typeof window !== "undefined" ? localStorage.getItem(`medpay:payment-view:${id}`) : null;
+    if (saved === "detalhe" || saved === "compacto" || saved === "executivo") return saved;
+    if (hasRole("diretor")) return "executivo";
+    if (hasRole("validador")) return "compacto";
+    return "detalhe";
+  });
+  useEffect(() => {
+    if (!id) return;
+    try {
+      localStorage.setItem(`medpay:payment-view:${id}`, viewMode);
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [id, viewMode]);
+  const [approvalBusy, setApprovalBusy] = useState(false);
+
 
   useEffect(() => {
     document.title = "Pagamento | MedPay";
@@ -1500,6 +1520,14 @@ const PaymentDetail = () => {
         }
       />
       <div className="p-8 space-y-6">
+        {/* Toggle de visão por papel */}
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
+          <TabsList className="filter-tabs">
+            <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
+            <TabsTrigger value="compacto">Compacto</TabsTrigger>
+            <TabsTrigger value="executivo">Executivo</TabsTrigger>
+          </TabsList>
+        </Tabs>
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
@@ -2140,6 +2168,16 @@ const PaymentDetail = () => {
             </Alert>
           )}
 
+          {/* Pivot histórico — só aparece em Compacto/Executivo. Em Detalhe retorna null. */}
+          {id && payment.competence_month && (
+            <PaymentPivotSection
+              paymentId={id}
+              paymentReference={payment.reference}
+              competenceDate={String(payment.competence_month).slice(0, 10)}
+              variant={viewMode}
+            />
+          )}
+
           <TooltipProvider delayDuration={150}>
             <CompanyListLegend />
             {(() => {
@@ -2321,6 +2359,77 @@ const PaymentDetail = () => {
               });
             })()}
           </TooltipProvider>
+
+          {/* Footer Executivo — aprovação direta do diretor */}
+          {viewMode === "executivo" && isDiretor && payment.status === "aguardando_aprovacao" && (
+            <Card className="shadow-card border-primary/30">
+              <CardContent className="p-4 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground mr-auto">
+                  Pronto para aprovação? Você pode aprovar ou devolver para revisão.
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={approvalBusy || busy}
+                  onClick={async () => {
+                    if (!id) return;
+                    setApprovalBusy(true);
+                    const { error } = await supabase
+                      .from("payments")
+                      .update({ status: "revisao_analista" } as PaymentUpdate)
+                      .eq("id", id);
+                    if (!error) {
+                      await recordObservation({
+                        payment_id: id,
+                        author_id: user!.id,
+                        author_type: "diretor",
+                        observation_type: "informativo",
+                        message: "Pagamento devolvido para revisão pelo diretor (visão Executivo).",
+                      });
+                      toast({ title: "Devolvido para revisão" });
+                      await load();
+                    } else {
+                      toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" });
+                    }
+                    setApprovalBusy(false);
+                  }}
+                >
+                  Devolver para revisão
+                </Button>
+                <Button
+                  disabled={approvalBusy || busy}
+                  onClick={async () => {
+                    if (!id) return;
+                    setApprovalBusy(true);
+                    const { error } = await supabase
+                      .from("payments")
+                      .update({
+                        status: "aprovado",
+                        approved_by: user!.id,
+                        approved_at: new Date().toISOString(),
+                      } as PaymentUpdate)
+                      .eq("id", id);
+                    if (!error) {
+                      await recordObservation({
+                        payment_id: id,
+                        author_id: user!.id,
+                        author_type: "diretor",
+                        observation_type: "informativo",
+                        message: "Pagamento aprovado pelo diretor (visão Executivo).",
+                      });
+                      toast({ title: "Pagamento aprovado" });
+                      await load();
+                    } else {
+                      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+                    }
+                    setApprovalBusy(false);
+                  }}
+                >
+                  Aprovar pagamento
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
 
           {payment.status === "aprovado" && (isDiretor || canRequestNf) && (
             <Card className="shadow-card border-success/30">
