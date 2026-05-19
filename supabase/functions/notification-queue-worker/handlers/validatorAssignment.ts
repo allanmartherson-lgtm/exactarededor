@@ -3,9 +3,31 @@
 // e registra observação no histórico do pagamento.
 
 const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
+const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
+const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 const EMAIL_FROM = "MedPay <onboarding@resend.dev>";
+
+const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
+
+function buildWhatsappValidator(
+  greeting: string,
+  name: string,
+  paymentRef: string,
+  companyCount: number,
+  totalFormatted: string,
+  link: string,
+): string {
+  const empresasLabel = companyCount === 1 ? "empresa" : "empresas";
+  return `${greeting}, ${name}.
+
+*MedPay — DF Star*
+${companyCount} ${empresasLabel} para validação no lote "${paymentRef}".
+Total: ${totalFormatted}
+
+Acessar: ${link}`;
+}
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
@@ -210,7 +232,7 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email")
+    .select("id, full_name, email, phone")
     .in("id", recipientIds);
 
   let senderNames: string[] = [];
@@ -276,7 +298,51 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
     throw new Error(`all_email_sends_failed: ${JSON.stringify(results.slice(0, 2))}`);
   }
 
-  const obsMsg = `Notificação consolidada de envio para validação: ${companyCount} empresa(s) totalizando ${totalFormatted}. ${okCount}/${results.length} e-mail(s) enviado(s) aos validadores.`;
+  // WhatsApp consolidado para validadores
+  // deno-lint-ignore no-explicit-any
+  const whatsappResults: any[] = [];
+  const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+
+  if (LOVABLE_API_KEY && TWILIO_API_KEY) {
+    for (const p of profiles ?? []) {
+      const phoneDigits = onlyDigits(p.phone ?? "");
+      if (!phoneDigits) {
+        whatsappResults.push({ recipient_id: p.id, ok: false, skipped: "no_phone" });
+        continue;
+      }
+      const name = firstName(p.full_name);
+      const e164 = phoneDigits.length === 11 ? `+55${phoneDigits}` : `+${phoneDigits}`;
+      const waBody = buildWhatsappValidator(greeting, name, payment.reference, companyCount, totalFormatted, link);
+      const params = new URLSearchParams({
+        To: `whatsapp:${e164}`,
+        From: TWILIO_FROM,
+        Body: waBody,
+      });
+      try {
+        const r = await fetch(`${TWILIO_GATEWAY}/Messages.json`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": TWILIO_API_KEY,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params.toString(),
+        });
+        const json = await r.json().catch(() => ({}));
+        whatsappResults.push({ recipient_id: p.id, ok: r.ok, status: r.status, response: json });
+      } catch (e) {
+        whatsappResults.push({ recipient_id: p.id, ok: false, error: String(e) });
+      }
+    }
+  } else {
+    for (const p of profiles ?? []) {
+      whatsappResults.push({ recipient_id: p.id, ok: false, skipped: "missing_twilio_keys" });
+    }
+  }
+
+  const whatsOkCount = whatsappResults.filter((x) => x.ok).length;
+
+  const obsMsg = `Notificação consolidada de envio para validação: ${companyCount} empresa(s) totalizando ${totalFormatted}. ${okCount}/${results.length} e-mail(s) e ${whatsOkCount}/${whatsappResults.length} WhatsApp(s) enviado(s) aos validadores.`;
   await supabase.from("payment_observations").insert({
     payment_id: payment.id,
     author_type: "sistema",
@@ -288,6 +354,8 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
     meta: {
       emails_ok: okCount,
       emails_total: results.length,
+      whatsapp_ok: whatsOkCount,
+      whatsapp_total: whatsappResults.length,
       companies: companyCount,
       total_value: consolidatedTotal,
       events_count: events.length,
