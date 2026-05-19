@@ -60,6 +60,10 @@ export type PaymentGroupCardProps = {
   onToggleAiOpen: () => void;
   /** Número de questionamentos abertos para esta empresa (payment_questions). */
   questionCount?: number;
+  /** Callback opcional para abrir o modal "Liberar pedido de NF" (visível apenas para analista). */
+  onReleaseInvoice?: () => void;
+  /** Permite exibir o botão de liberação de NF (geralmente só para analista). */
+  canReleaseInvoice?: boolean;
 };
 
 /**
