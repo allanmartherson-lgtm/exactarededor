@@ -1080,89 +1080,6 @@ const Dashboard = () => {
         </Link>
       )}
 
-      {/* QUESTIONAMENTOS AGUARDANDO RESPOSTA DO ANALISTA */}
-      {isAnalista && totalPendingQuestions > 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-amber-900 mb-2">
-            <MessageCircle className="h-4 w-4" />
-            <span className="font-semibold">{totalPendingQuestions}</span>
-            questionamento{totalPendingQuestions > 1 ? "s" : ""} aguardando sua resposta
-            {pendingQuestions.length > 1 && ` em ${pendingQuestions.length} lotes`}.
-          </div>
-          <ul className="space-y-1">
-            {pendingQuestions.slice(0, 5).map((p) => (
-              <li key={p.payment_id} className="flex items-center justify-between text-xs">
-                <span className="text-amber-900">
-                  Lote <span className="font-medium">{p.reference}</span> · {p.count} empresa{p.count > 1 ? "s" : ""}
-                </span>
-                <Link
-                  to={`/pagamentos/${p.payment_id}`}
-                  className="text-amber-700 hover:text-amber-900 font-medium"
-                >
-                  Abrir →
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* EMPRESAS APROVADAS AGUARDANDO LIBERAÇÃO DE NF */}
-      {isAnalista && totalPendingReleaseNf > 0 && (
-        <div className="rounded-md border border-teal-300 bg-teal-50 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-teal-900 mb-2">
-            <CheckCircle2 className="h-4 w-4" />
-            <span className="font-semibold">{totalPendingReleaseNf}</span>
-            empresa{totalPendingReleaseNf > 1 ? "s" : ""} aprovada{totalPendingReleaseNf > 1 ? "s" : ""} aguardando liberação de NF
-            {pendingReleaseNf.length > 1 && ` em ${pendingReleaseNf.length} lotes`}.
-          </div>
-          <ul className="space-y-1">
-            {pendingReleaseNf.slice(0, 5).map((p) => (
-              <li key={p.payment_id} className="flex items-center justify-between text-xs">
-                <span className="text-teal-900">
-                  Lote <span className="font-medium">{p.reference}</span> · {p.count} empresa{p.count > 1 ? "s" : ""}
-                </span>
-                <Link
-                  to={`/pagamentos/${p.payment_id}`}
-                  className="text-teal-700 hover:text-teal-900 font-medium"
-                >
-                  Abrir →
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-
-
-
-
-      {/* ATENÇÃO IMEDIATA */}
-      {!loading && (slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (
-        <section aria-labelledby="atencao-imediata-heading">
-          <SectionLabel>Atenção imediata</SectionLabel>
-          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
-            <AttentionTile
-              tone="critical"
-              icon={Flame}
-              label="Itens fora do SLA"
-              value={slaTotals.vencido}
-              hint="vencidos — agir agora"
-              to="/pagamentos?delayed=1"
-            />
-            <AttentionTile
-              tone="warning"
-              icon={Timer}
-              label="Próximos do SLA"
-              value={slaTotals.preventivo}
-              hint="dentro do prazo, mas perto do limite"
-              to="/pagamentos?delayed=1"
-            />
-          </div>
-        </section>
-      )}
-
       {/* SUAS TAREFAS */}
       <section aria-labelledby="suas-tarefas-heading">
         <SectionLabel>Suas tarefas</SectionLabel>
@@ -1171,84 +1088,108 @@ const Dashboard = () => {
             {Array.from({ length: 3 }).map((_, i) => <BigStatSkeleton key={i} />)}
           </div>
         ) : (
-          <div className="flex flex-col" style={{ gap: 14 }}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 14 }}>
-              {isAnalista && (
-                <BigStatCard
-                  icon={Landmark}
-                  color="purple"
-                  label="Suas bases"
-                  value={counts.mineAnalista}
-                  companiesCount={counts.mineAnalistaCompanies}
-                  hint={
-                    slaTotals.vencido > 0
-                      ? `${slaTotals.vencido} fora do SLA`
-                      : slaTotals.preventivo > 0
-                      ? `${slaTotals.preventivo} perto do SLA`
-                      : counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"
-                  }
-                  mine={counts.mineAnalista > 0}
-                  to="/pagamentos?owner=me&status=analista"
-                />
-              )}
-              {isValidador && (
-                <BigStatCard
-                  icon={ListChecks}
-                  color="yellow"
-                  label="Para validar"
-                  value={counts.mineValidador}
-                  companiesCount={counts.mineValidadorCompanies}
-                  mine={counts.mineValidador > 0}
-                  to="/pagamentos?status=aguardando_validacao"
-                />
-              )}
-              {isDiretor && (
-                <BigStatCard
-                  icon={ShieldCheck}
-                  color="teal"
-                  label="Para aprovar"
-                  value={counts.mineDiretor}
-                  companiesCount={counts.mineDiretorCompanies}
-                  mine={counts.mineDiretor > 0}
-                  to="/pagamentos?status=aguardando_aprovacao"
-                />
-              )}
-              {isDiretor && (
-                <BigStatCard
-                  icon={FileText}
-                  color="blue"
-                  label="Aprovados — aguardando revisão do analista"
-                  value={counts.diretorAprovadoEmRevisao}
-                  hint="acompanhamento (somente leitura)"
-                  to="/pagamentos?status=aprovado_em_revisao"
-                />
-              )}
-            </div>
-            {isAnalista && (counts.mineRessalvas + counts.mineInvoicesQuestionadas + counts.mineInvoicesDivergentes > 0 || true) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
-                <BigStatCard
-                  icon={AlertCircle}
-                  color="red"
-                  label="Ressalvas"
-                  value={counts.mineRessalvas}
-                  hint="aprovado com ressalva"
-                  mine={counts.mineRessalvas > 0}
-                  to="/pagamentos?status=aprovado_com_ressalva"
-                />
-                <BigStatCard
-                  icon={FileWarning}
-                  color="blue"
-                  label="NFs divergentes"
-                  value={counts.mineInvoicesDivergentes}
-                  hint={
-                    counts.teamInvoicesDivergentes !== counts.mineInvoicesDivergentes
-                      ? `${counts.teamInvoicesDivergentes} no time`
-                      : "lançar no financeiro"
-                  }
-                  mine={counts.mineInvoicesDivergentes > 0}
-                  to="/notas-fiscais"
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 14 }}>
+            {/* Card: questionamentos pendentes — só analista */}
+            {isAnalista && totalPendingQuestions > 0 && (
+              <BigStatCard
+                icon={MessageCircle}
+                color="yellow"
+                label="Questionamentos pendentes"
+                value={totalPendingQuestions}
+                hint={`em ${pendingQuestions.length} lote${pendingQuestions.length > 1 ? 's' : ''}`}
+                mine={true}
+                to={`/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`}
+              />
+            )}
+
+            {/* Card: empresas aguardando liberação de NF — só analista */}
+            {isAnalista && totalPendingReleaseNf > 0 && (
+              <BigStatCard
+                icon={CheckCircle2}
+                color="teal"
+                label="Aprovadas — liberar NF"
+                value={totalPendingReleaseNf}
+                hint={`em ${pendingReleaseNf.length} lote${pendingReleaseNf.length > 1 ? 's' : ''}`}
+                mine={true}
+                to={`/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`}
+              />
+            )}
+
+            {isAnalista && (
+              <BigStatCard
+                icon={Landmark}
+                color="purple"
+                label="Suas bases"
+                value={counts.mineAnalista}
+                companiesCount={counts.mineAnalistaCompanies}
+                hint={
+                  slaTotals.vencido > 0
+                    ? `${slaTotals.vencido} fora do SLA`
+                    : slaTotals.preventivo > 0
+                    ? `${slaTotals.preventivo} perto do SLA`
+                    : counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"
+                }
+                mine={counts.mineAnalista > 0}
+                to="/pagamentos?owner=me&status=analista"
+              />
+            )}
+            {isValidador && (
+              <BigStatCard
+                icon={ListChecks}
+                color="yellow"
+                label="Para validar"
+                value={counts.mineValidador}
+                companiesCount={counts.mineValidadorCompanies}
+                mine={counts.mineValidador > 0}
+                to="/pagamentos?status=aguardando_validacao"
+              />
+            )}
+            {isDiretor && (
+              <BigStatCard
+                icon={ShieldCheck}
+                color="teal"
+                label="Para aprovar"
+                value={counts.mineDiretor}
+                companiesCount={counts.mineDiretorCompanies}
+                mine={counts.mineDiretor > 0}
+                to="/pagamentos?status=aguardando_aprovacao"
+              />
+            )}
+            {isDiretor && (
+              <BigStatCard
+                icon={FileText}
+                color="blue"
+                label="Pós-aprovação"
+                value={counts.diretorAprovadoEmRevisao}
+                hint="aguardando analista liberar NF"
+                to="/pagamentos?status=aprovado_em_revisao"
+              />
+            )}
+            {isAnalista && (
+              <BigStatCard
+                icon={AlertCircle}
+                color="red"
+                label="Ressalvas"
+                value={counts.mineRessalvas}
+                hint="aprovado com ressalva"
+                mine={counts.mineRessalvas > 0}
+                to="/pagamentos?status=aprovado_com_ressalva"
+              />
+            )}
+            {isAnalista && (
+              <BigStatCard
+                icon={FileWarning}
+                color="blue"
+                label="NFs divergentes"
+                value={counts.mineInvoicesDivergentes}
+                hint={
+                  counts.teamInvoicesDivergentes !== counts.mineInvoicesDivergentes
+                    ? `${counts.teamInvoicesDivergentes} no time`
+                    : "lançar no financeiro"
+                }
+                mine={counts.mineInvoicesDivergentes > 0}
+                to="/notas-fiscais"
+              />
             )}
           </div>
         )}
