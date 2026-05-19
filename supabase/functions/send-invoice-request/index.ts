@@ -18,7 +18,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { isValidCNPJ, onlyDigits, formatDoc, validateDoc } from "./docs.ts";
-import { fmtMoney } from "./text.ts";
+import { addBusinessDays, fmtMoney, formatCompetenceBR, formatDateBR, greetingBrasilia, joinPt } from "./text.ts";
 import { buildEmail } from "./templates.ts";
 
 const corsHeaders = {
