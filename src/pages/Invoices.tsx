@@ -75,6 +75,9 @@ const Invoices = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("todas");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendInvoice, setResendInvoice] = useState<InvoiceRow | null>(null);
+  const [resendEmail, setResendEmail] = useState("");
 
   const canActOnNF = hasRole("analista") || hasRole("admin") || hasRole("diretor");
 
@@ -181,17 +184,23 @@ const Invoices = () => {
     toast({ title: "Link copiado", description: url });
   };
 
-  const resend = async (inv: InvoiceRow) => {
+  const openResendDialog = (inv: InvoiceRow) => {
+    setResendInvoice(inv);
+    setResendEmail(inv.recipient_email ?? "");
+    setResendOpen(true);
+  };
+
+  const resend = async (inv: InvoiceRow, overrideEmail?: string) => {
     setBusyId(inv.id);
     const { error } = await supabase.functions.invoke("send-invoice-request", {
-      body: { invoice_id: inv.id },
+      body: { invoice_id: inv.id, recipient_email: overrideEmail?.trim() || undefined },
     });
     setBusyId(null);
     if (error) {
       toast({ title: "Falha ao reenviar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Pedido reenviado", description: inv.company_name ?? inv.recipient_email });
+    toast({ title: "Pedido reenviado", description: inv.company_name ?? (overrideEmail?.trim() || inv.recipient_email) });
     await load();
   };
 
