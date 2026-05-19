@@ -211,71 +211,138 @@ export function PaymentConciliationModal({
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
 
-      // Indexa MedPay por chave attendance + procedure_code (+ company)
-      const keyOf = (att: unknown, code: unknown, company?: unknown) =>
-        `${normalizeString(String(att ?? ""))}|${normalizeString(String(code ?? ""))}|${normalizeString(String(company ?? ""))}`;
+      // Normalização leve — só lowercase + sem acentos, MANTÉM números e espaços
+      const normLight = (s: unknown): string => {
+        return String(s ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim();
+      };
 
-      const keyNoCompany = (att: unknown, code: unknown) =>
-        `${normalizeString(String(att ?? ""))}|${normalizeString(String(code ?? ""))}`;
+      // Normalização forte — remove tudo exceto alfanumérico (para chave de cruzamento)
+      const normStrong = (s: unknown): string => {
+        return normLight(s).replace(/[^a-z0-9]/g, "");
+      };
 
-      const medpayMap = new Map<string, PaymentItemRow[]>();
-      const medpayMapNoCompany = new Map<string, PaymentItemRow[]>();
-      for (const it of paymentItems) {
-        const k = keyOf(it.attendance_number, it.procedure_code, it.company_name);
-        if (!medpayMap.has(k)) medpayMap.set(k, []);
-        medpayMap.get(k)!.push(it);
-
-        const k2 = keyNoCompany(it.attendance_number, it.procedure_code);
-        if (!medpayMapNoCompany.has(k2)) medpayMapNoCompany.set(k2, []);
-        medpayMapNoCompany.get(k2)!.push(it);
+      // Mapeamento de colunas da planilha hospitalar — busca pelo nome normalizado da coluna
+      const colMap: Record<string, string> = {};
+      if (rows.length > 0) {
+        const aliases: Record<string, string[]> = {
+          attendance:  ["atendimento", "conta", "nr atendimento", "nratendimento"],
+          patient:     ["nome", "paciente", "nomepaciente"],
+          procCode:    ["codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
+          procName:    ["procedimento/mat-med", "procedimento", "descricao", "nomeprocedimento"],
+          doctor:      ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
+          date:        ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
+          value:       ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
+          company:     ["terceiro", "empresa", "prestador"],
+          agreement:   ["convênio", "convenio"],
+          function_:   ["função", "funcao", "função"],
+          sector:      ["setor"],
+          status:      ["status"],
+        };
+        for (const col of Object.keys(rows[0])) {
+          const normCol = normStrong(col);
+          for (const [field, aliasList] of Object.entries(aliases)) {
+            if (aliasList.some((a) => normStrong(a) === normCol || normStrong(col) === normStrong(a))) {
+              colMap[field] = col;
+              break;
+            }
+          }
+        }
       }
-      const matchedMedpayIds = new Set<string>();
 
-      const toInsert: Omit<ReconciliationItem, "id" | "run_id">[] & Array<Record<string, unknown>> = [] as any;
-      let conciliado = 0;
-      let valor_divergente = 0;
-      let so_hospital = 0;
-      let so_medpay = 0;
-      let risco_mais = 0;
-      let risco_menos = 0;
-      let divergencia_valor = 0;
+      const getCell = (row: Record<string, unknown>, field: string): unknown => {
+        const col = colMap[field];
+        if (!col) return null;
+        const v = row[col];
+        return v != null && String(v).trim() !== "" ? v : null;
+      };
 
-      // Coleta as empresas do lote (normalizado para comparação fuzzy)
-      const loteCompanies = new Set(
-        paymentItems
-          .map((it) => normalizeString(it.company_name ?? ""))
-          .filter(Boolean)
+      // Coleta empresas do lote (nome normalizado forte para comparação)
+      const loteCompanyNames = new Set(
+        paymentItems.map((it) => normStrong(it.company_name ?? "")).filter(Boolean)
       );
 
-      // Filtra as linhas do hospital apenas para empresas que existem no lote
-      const filteredRows = rows.filter((row) => {
-        const terceiro = pickHeader(row, HEADER_ALIASES.company);
-        if (!terceiro) return false;
-        const normTerceiro = normalizeString(String(terceiro));
-        return Array.from(loteCompanies).some(
-          (c) => normTerceiro.includes(c) || c.includes(normTerceiro) || normTerceiro === c
-        );
-      });
+      // Filtra linhas da planilha apenas para empresas do lote
+      // Usa match parcial: se 60%+ das palavras-chave do nome batem, considera match
+      const companyMatchesLote = (terceiro: unknown): boolean => {
+        if (loteCompanyNames.size === 0) return true; // sem empresas no lote, aceita tudo
+        const normT = normStrong(terceiro);
+        if (!normT) return false;
+        // Match exato ou parcial (um contém o outro)
+        for (const loteComp of loteCompanyNames) {
+          if (normT === loteComp) return true;
+          if (normT.includes(loteComp)) return true;
+          if (loteComp.includes(normT)) return true;
+          // Match por palavras: pega as 2 primeiras palavras significativas
+          const wordsT = normLight(terceiro).replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 3).slice(0, 3);
+          const wordsL = normLight(loteComp).split(/\s+/).filter((w) => w.length > 3).slice(0, 3);
+          const commonWords = wordsT.filter((w) => wordsL.some((wl) => wl.includes(w) || w.includes(wl)));
+          if (commonWords.length >= 2) return true;
+        }
+        return false;
+      };
+
+      const filteredRows = rows.filter((row) => companyMatchesLote(getCell(row, "company")));
+
+      // Indexa paymentItems por chave: norm(attendance) | norm(procCode)
+      // Código pode ser int na planilha (4020108) — sempre normalizar como string sem zeros extras
+      const makeKey = (att: unknown, code: unknown): string =>
+        `${normStrong(att)}|${normStrong(String(Number(code) || code))}`;
+
+      const medpayByKey = new Map<string, PaymentItemRow[]>();
+      for (const it of paymentItems) {
+        const k = makeKey(it.attendance_number, it.procedure_code);
+        if (!medpayByKey.has(k)) medpayByKey.set(k, []);
+        medpayByKey.get(k)!.push(it);
+      }
+
+      const matchedMedpayIds = new Set<string>();
+      const toInsert: Array<Record<string, unknown>> = [];
+      let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_medpay = 0;
+      let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
 
       for (const row of filteredRows) {
-        const att = pickHeader(row, HEADER_ALIASES.attendance);
-        const code = pickHeader(row, HEADER_ALIASES.procCode);
-        const valHosp = toNumber(pickHeader(row, HEADER_ALIASES.value));
-        const company = pickHeader(row, HEADER_ALIASES.company);
-        const k = keyOf(att, code, company);
-        const k2 = keyNoCompany(att, code);
-        const candidatesWithCompany = medpayMap.get(k) ?? [];
-        const candidatesNoCompany = medpayMapNoCompany.get(k2) ?? [];
-        const candidates = candidatesWithCompany.length > 0 ? candidatesWithCompany : candidatesNoCompany;
-        const match = candidates.find((m) => !matchedMedpayIds.has(m.id)) ?? candidates[0];
+        const att      = getCell(row, "attendance");
+        const code     = getCell(row, "procCode");
+        const valHosp  = (() => {
+          const v = getCell(row, "value");
+          if (v == null) return 0;
+          if (typeof v === "number") return isNaN(v) ? 0 : v;
+          const s = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
+          return parseFloat(s) || 0;
+        })();
+        const patient  = getCell(row, "patient");
+        const doctor   = getCell(row, "doctor");
+        const procName = getCell(row, "procName");
+        const dateRaw  = getCell(row, "date");
+        const company  = getCell(row, "company");
+
+        const dateStr = (() => {
+          if (!dateRaw) return null;
+          if (dateRaw instanceof Date) return dateRaw.toISOString().slice(0, 10);
+          const s = String(dateRaw).trim();
+          const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+          if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+          const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (iso) return iso[0];
+          const d = new Date(s);
+          return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+        })();
+
+        const k = makeKey(att, code);
+        const candidates = medpayByKey.get(k) ?? [];
+        const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
         const base: Record<string, unknown> = {
-          attendance_number: att ? String(att) : null,
-          patient_name: (pickHeader(row, HEADER_ALIASES.patient) as string) || null,
-          procedure_code: code ? String(code) : null,
-          procedure_name: (pickHeader(row, HEADER_ALIASES.procName) as string) || null,
-          doctor_name: (pickHeader(row, HEADER_ALIASES.doctor) as string) || null,
-          procedure_date: toDate(pickHeader(row, HEADER_ALIASES.date)),
+          attendance_number: att != null ? String(att) : null,
+          patient_name:  patient  ? String(patient)  : null,
+          procedure_code: code    ? String(code)      : null,
+          procedure_name: procName ? String(procName) : null,
+          doctor_name:   doctor   ? String(doctor)    : null,
+          procedure_date: dateStr,
           valor_hospital: valHosp,
           valor_medpay: 0,
           payment_item_id: null,
@@ -289,28 +356,29 @@ export function PaymentConciliationModal({
           const valMed = Number((match as any).gross_amount ?? 0);
           base.payment_item_id = match.id;
           base.valor_medpay = valMed;
-          if (!base.company_name) base.company_name = match.company_name ?? null;
-          if (!base.patient_name) base.patient_name = match.patient_name ?? null;
-          if (!base.doctor_name) base.doctor_name = (match as any).doctor_name ?? null;
+          // Preenche campos do MedPay se a planilha não trouxe
+          if (!base.patient_name)   base.patient_name   = match.patient_name ?? null;
+          if (!base.doctor_name)    base.doctor_name    = (match as any).doctor_name ?? null;
           if (!base.procedure_name) base.procedure_name = (match as any).procedure_name ?? null;
           if (!base.procedure_date) base.procedure_date = (match as any).procedure_date ?? null;
+          if (!base.company_name)   base.company_name   = match.company_name ?? null;
 
           const diff = valHosp - valMed;
-          if (Math.abs(diff) < 0.01) {
+          if (Math.abs(diff) < 0.02) {
             base.status = "conciliado";
             conciliado++;
           } else {
             base.status = "valor_divergente";
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            base.ia_obs = `Divergência de ${formatCurrency(Math.abs(diff))} (${pct.toFixed(1)}%) entre MedPay (${formatCurrency(valMed)}) e extrato hospitalar (${formatCurrency(valHosp)}).`;
+            const signal = diff > 0 ? "a mais" : "a menos";
+            base.ia_obs = `Hospital cobrou ${formatCurrency(Math.abs(diff))} ${signal} que o MedPay (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%). MedPay: ${formatCurrency(valMed)} · Hospital: ${formatCurrency(valHosp)}.`;
             divergencia_valor += Math.abs(diff);
-            if (diff > 0) risco_mais += diff;
-            else risco_menos += Math.abs(diff);
+            if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
           }
         } else {
           base.status = "so_hospital";
-          base.ia_obs = `Item de ${company ? String(company) : "empresa"} ausente na base MedPay — possível inclusão após importação do extrato.`;
+          base.ia_obs = `Item em ${company ? String(company).slice(0, 50) : "empresa"} presente no extrato hospitalar mas ausente na base MedPay. Possível inclusão após a importação do lote.`;
           so_hospital++;
           risco_mais += valHosp;
         }
@@ -318,29 +386,29 @@ export function PaymentConciliationModal({
         toInsert.push(base);
       }
 
-      // Itens MedPay sem match no hospital
+      // Itens MedPay sem match no extrato hospitalar
       for (const it of paymentItems) {
         if (matchedMedpayIds.has(it.id)) continue;
         const valMed = Number((it as any).gross_amount ?? 0);
         toInsert.push({
           payment_item_id: it.id,
           attendance_number: it.attendance_number ?? null,
-          patient_name: it.patient_name ?? null,
+          patient_name:  it.patient_name ?? null,
           procedure_code: it.procedure_code ?? null,
           procedure_name: (it as any).procedure_name ?? null,
-          doctor_name: (it as any).doctor_name ?? null,
+          doctor_name:   (it as any).doctor_name ?? null,
           procedure_date: (it as any).procedure_date ?? null,
           valor_medpay: valMed,
           valor_hospital: 0,
           company_name: it.company_name ?? null,
           status: "so_medpay",
-          ia_obs: "Item presente no MedPay mas ausente no extrato hospitalar — verificar glosa.",
-        } as any);
+          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no MedPay mas ausente no extrato hospitalar — verificar glosa ou item não faturado.`,
+        });
         so_medpay++;
         risco_menos += valMed;
       }
 
-      // Insert em chunks
+      // Insert em chunks de 500
       const CHUNK = 500;
       for (let i = 0; i < toInsert.length; i += CHUNK) {
         const slice = toInsert.slice(i, i + CHUNK).map((r) => ({ ...r, run_id: newRun.id }));
