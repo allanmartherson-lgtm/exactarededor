@@ -31,6 +31,7 @@ import {
   Timer,
   AlertTriangle,
   Building2,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
