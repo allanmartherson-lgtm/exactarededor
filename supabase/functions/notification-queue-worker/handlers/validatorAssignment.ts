@@ -232,7 +232,7 @@ export async function processValidatorAssignment(supabase: any, row: any): Promi
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email")
+    .select("id, full_name, email, phone")
     .in("id", recipientIds);
 
   let senderNames: string[] = [];
