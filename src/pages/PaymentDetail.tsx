@@ -1322,6 +1322,14 @@ const PaymentDetail = () => {
         sticky
         actions={
           <div className="flex items-center gap-2">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
+              <TabsList className="filter-tabs">
+                <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
+                <TabsTrigger value="compacto">Compacto</TabsTrigger>
+                <TabsTrigger value="executivo">Executivo</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
             {obs.some((o: any) => o.is_question) && (
               <Button 
                 variant="outline" 
