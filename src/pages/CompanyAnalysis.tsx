@@ -1407,6 +1407,11 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
+      {/* Thread de questionamentos — visível para todos os papéis (analista/validador/diretor) */}
+      {id && groupId && (
+        <CompanyQuestionsThread paymentId={id} companyGroupId={groupId} />
+      )}
+
       {/* ABAS */}
       <Tabs defaultValue="analise" className="space-y-3">
         <TabsList>
@@ -1691,11 +1696,7 @@ export default function CompanyAnalysis() {
           </div>
         </div>
       )}
-      {id && groupId && (
-        <div className="mt-4">
-          <CompanyQuestionsThread paymentId={id} companyGroupId={groupId} />
-        </div>
-      )}
+      {/* (thread movida para o topo da página, acima das abas) */}
       {/* Editar item */}
       <Dialog open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)}>
         <DialogContent>
