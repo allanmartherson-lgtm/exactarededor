@@ -53,6 +53,8 @@ export type PaymentGroupCardProps = {
   onToggleExpanded: () => void;
   isAiOpen: boolean;
   onToggleAiOpen: () => void;
+  /** Número de questionamentos abertos para esta empresa (payment_questions). */
+  questionCount?: number;
 };
 
 /**
