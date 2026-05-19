@@ -337,7 +337,7 @@ export function PaymentConciliationModal({
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = companyMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
-        const k = makeKey(att, code);
+        const k = makeKey(dateRaw, code, doctor);
         const candidates = medpayByKey.get(k) ?? [];
         const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
