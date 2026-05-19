@@ -28,11 +28,7 @@ interface Props {
 }
 
 const PENDING_GROUP_STATUSES = new Set<string>(["em_questionamento", "devolvido_analista"]);
-const APPROVABLE_GROUP_STATUSES = new Set<string>([
-  "aguardando_validacao",
-  "aguardando_aprovacao",
-  "concluida_analista",
-]);
+const ALREADY_DONE_STATUSES = new Set<string>(["aprovado", "rejeitado", "cancelado", "arquivado"]);
 
 export function PaymentBatchActionsFooter({
   paymentId,
@@ -59,7 +55,7 @@ export function PaymentBatchActionsFooter({
   const [approveNote, setApproveNote] = useState("");
 
   const approvable = useMemo(
-    () => groups.filter((g) => APPROVABLE_GROUP_STATUSES.has(String(g.status))),
+    () => groups.filter((g) => !PENDING_GROUP_STATUSES.has(String(g.status)) && !ALREADY_DONE_STATUSES.has(String(g.status))),
     [groups],
   );
   const pending = useMemo(
@@ -84,8 +80,12 @@ export function PaymentBatchActionsFooter({
   };
 
   const handleApproveClick = async () => {
-    if (approvable.length === 0) {
-      toast({ title: "Nada para aprovar", description: "Nenhuma empresa em estado aprovável.", variant: "destructive" });
+    if (approvable.length === 0 && pending.length === 0) {
+      toast({ title: "Lote já foi processado", variant: "destructive" });
+      return;
+    }
+    if (approvable.length === 0 && pending.length > 0) {
+      toast({ title: "Todas as empresas estão pendentes com o analista", variant: "destructive" });
       return;
     }
     if (pending.length === 0) {
