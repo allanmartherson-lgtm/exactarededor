@@ -221,7 +221,9 @@ serve(async (req) => {
       company_name: string | null;
       recipient_label: string;
       reuse_invoice?: InvoiceRow | null;
+      override_to?: string[];
     }) => {
+      const to = opts.override_to ?? opts.to;
       // Reusa invoice existente (por id passado, por company_id, ou por recipient_email)
       let invoice: InvoiceRow | null = opts.reuse_invoice ?? null;
       if (!invoice && opts.company_id && existingByCompany.has(opts.company_id)) {
