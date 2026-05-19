@@ -3,9 +3,31 @@
 // e registra observação no histórico do pagamento.
 
 const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
+const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
+const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 const EMAIL_FROM = "MedPay <onboarding@resend.dev>";
+
+const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
+
+function buildWhatsappValidator(
+  greeting: string,
+  name: string,
+  paymentRef: string,
+  companyCount: number,
+  totalFormatted: string,
+  link: string,
+): string {
+  const empresasLabel = companyCount === 1 ? "empresa" : "empresas";
+  return `${greeting}, ${name}.
+
+*MedPay — DF Star*
+${companyCount} ${empresasLabel} para validação no lote "${paymentRef}".
+Total: ${totalFormatted}
+
+Acessar: ${link}`;
+}
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
