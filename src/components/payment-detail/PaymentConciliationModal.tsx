@@ -287,12 +287,30 @@ export function PaymentConciliationModal({
         return terceiro && companyMapping[terceiro];
       });
 
-      const makeKey = (att: unknown, code: unknown) =>
-        `${normFull(String(att ?? ""))}|${normFull(String(Number(code) || code))}`;
+      // Chave: data(YYYY-MM-DD) | código_tuss | médico_normalizado
+      const makeKey = (date: unknown, code: unknown, doctor: unknown): string => {
+        const dateStr = (() => {
+          if (!date) return "";
+          if (date instanceof Date) return date.toISOString().slice(0, 10);
+          const s = String(date).trim();
+          const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+          if (iso) return iso[1];
+          const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+          if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+          return s.slice(0, 10);
+        })();
+        const normCode = normFull(String(Number(code) || code));
+        const normDoctor = normFull(String(doctor ?? "")).slice(0, 20);
+        return `${dateStr}|${normCode}|${normDoctor}`;
+      };
 
       const medpayByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
-        const k = makeKey(it.attendance_number, it.procedure_code);
+        const k = makeKey(
+          (it as any).procedure_date,
+          it.procedure_code,
+          (it as any).doctor_name,
+        );
         if (!medpayByKey.has(k)) medpayByKey.set(k, []);
         medpayByKey.get(k)!.push(it);
       }
