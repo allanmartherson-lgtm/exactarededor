@@ -260,27 +260,67 @@ export function PaymentConciliationModal({
         return v != null && String(v).trim() !== "" ? v : null;
       };
 
-      // Coleta empresas do lote (nome normalizado forte para comparação)
-      const loteCompanyNames = new Set(
-        paymentItems.map((it) => normStrong(it.company_name ?? "")).filter(Boolean)
-      );
+      // Stopwords do setor médico — palavras tão comuns que não identificam nenhuma empresa
+      const MEDICAL_STOPWORDS = new Set([
+        'servicos', 'medicos', 'medica', 'ltda', 'eireli', 'ss', 'me', 'sa',
+        'clinica', 'instituto', 'centro', 'cirurgia', 'cirurgica',
+        'saude', 'hospitalares', 'hospitalar', 'associados', 'associadas',
+        'brasilia', 'brasil', 'brasiliense', 'brasilienses',
+        'cuidados', 'servico', 'prestacao', 'prestacoes', 'especialidades',
+        'especializada', 'especializado', 'geral', 'integrada', 'integrado',
+        'ortopedia', 'traumatologia', 'urologia', 'cardiologia', 'neurologia',
+        'ginecologia', 'obstetricia', 'oncologia', 'cirurgicos', 'medico',
+      ]);
 
-      // Filtra linhas da planilha apenas para empresas do lote
-      // Usa match parcial: se 60%+ das palavras-chave do nome batem, considera match
+      // Extrai palavras-chave ÚNICAS que identificam a empresa (exclui stopwords)
+      const getIdentifierWords = (name: string): string[] => {
+        const norm = name.toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .trim();
+        return norm.split(/\s+/)
+          .filter((w) => w.length >= 3 && !MEDICAL_STOPWORDS.has(w));
+      };
+
+      // Coleta palavras-chave de cada empresa do lote
+      const loteCompanyWords = paymentItems.reduce((map, it) => {
+        const name = it.company_name ?? '';
+        if (!name) return map;
+        const normName = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+        if (!map.has(normName)) {
+          map.set(normName, {
+            normFull: normName,
+            identifiers: getIdentifierWords(name),
+            original: name,
+          });
+        }
+        return map;
+      }, new Map<string, { normFull: string; identifiers: string[]; original: string }>());
+
       const companyMatchesLote = (terceiro: unknown): boolean => {
-        if (loteCompanyNames.size === 0) return true; // sem empresas no lote, aceita tudo
-        const normT = normStrong(terceiro);
-        if (!normT) return false;
-        // Match exato ou parcial (um contém o outro)
-        for (const loteComp of loteCompanyNames) {
-          if (normT === loteComp) return true;
-          if (normT.includes(loteComp)) return true;
-          if (loteComp.includes(normT)) return true;
-          // Match por palavras: pega as 2 primeiras palavras significativas
-          const wordsT = normLight(terceiro).replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 3).slice(0, 3);
-          const wordsL = normLight(loteComp).split(/\s+/).filter((w) => w.length > 3).slice(0, 3);
-          const commonWords = wordsT.filter((w) => wordsL.some((wl) => wl.includes(w) || w.includes(wl)));
-          if (commonWords.length >= 2) return true;
+        if (!terceiro || String(terceiro).trim() === '') return false;
+        const normT = String(terceiro).toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+        const wordsT = getIdentifierWords(String(terceiro));
+
+        for (const { normFull, identifiers } of loteCompanyWords.values()) {
+          // 1. Match exato (string normalizada completa)
+          if (normT === normFull) return true;
+          // 2. Um contém o outro (substring) — para abreviações como "ICD"
+          if (normT.includes(normFull) || normFull.includes(normT)) return true;
+          // 3. Match por palavras-chave ÚNICAS: pelo menos 1 identificador exclusivo em comum
+          //    E o identificador deve ter 4+ letras para evitar falsos positivos
+          const sharedIdentifiers = identifiers.filter(
+            (id) => id.length >= 4 && wordsT.includes(id)
+          );
+          if (sharedIdentifiers.length >= 1 && identifiers.length > 0) {
+            // Só aceita se o identificador compartilhado for >50% das palavras do nome do lote
+            const specificity = sharedIdentifiers.length / Math.max(identifiers.length, 1);
+            if (specificity >= 0.5) return true;
+          }
         }
         return false;
       };
