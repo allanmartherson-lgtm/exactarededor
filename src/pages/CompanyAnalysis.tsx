@@ -1684,53 +1684,8 @@ export default function CompanyAnalysis() {
                   )}
                 </>
               )}
-              {canActValidador && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => transitionGroupStatus("devolvido_analista", "validador", "Devolvido ao analista pelo validador", true)}
-                  >
-                    <Undo2 className="h-4 w-4 mr-2" /> Devolver ao analista
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => transitionGroupStatus("aguardando_aprovacao", "validador", "Validado e enviado para aprovação", false)}
-                  >
-                    <ShieldCheck className="h-4 w-4 mr-2" /> Validar e enviar para aprovação
-                  </Button>
-                </>
-              )}
-              {canActDiretor && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => transitionGroupStatus("devolvido_analista", "diretor", "Devolvido ao analista pelo diretor", true)}
-                  >
-                    <Undo2 className="h-4 w-4 mr-2" /> Devolver ao analista
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => transitionGroupStatus("rejeitado", "diretor", "Rejeitado pelo diretor", true)}
-                  >
-                    <ThumbsDown className="h-4 w-4 mr-2" /> Rejeitar
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => transitionGroupStatus("aprovado_em_revisao", "diretor", "Aprovado pelo diretor", false)}
-                  >
-                    <ThumbsUp className="h-4 w-4 mr-2" /> Aprovar
-                  </Button>
-                </>
-              )}
+              {/* Ações de validador/diretor por empresa foram movidas para o footer
+                  de ações em lote no PaymentDetail (Questionar / Devolver / Aprovar). */}
             </div>
           </div>
         </div>
