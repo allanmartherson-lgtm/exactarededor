@@ -148,9 +148,8 @@ export function PaymentPivotSection({
         p_months_back: monthsBack,
         p_grouping: grouping,
       };
-      if (sec) {
-        args.p_secondary = sec;
-      }
+      if (sec) args.p_secondary = sec;
+      if (paymentId) args.p_payment_id = paymentId;
       const callId = Math.random().toString(36).slice(2, 8);
       console.log(`[PaymentPivot ${callId}] rpc args:`, args);
       const { data, error } = await supabase.rpc("get_payment_pivot", args as {
@@ -158,6 +157,7 @@ export function PaymentPivotSection({
         p_months_back: number;
         p_grouping: string;
         p_secondary?: string;
+        p_payment_id?: string;
       });
       if (!alive) return;
       if (error) {
