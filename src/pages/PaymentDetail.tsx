@@ -28,6 +28,7 @@ import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
+import { PaymentPivotSection, type PivotVariant } from "@/components/payment-detail/PaymentPivotSection";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
