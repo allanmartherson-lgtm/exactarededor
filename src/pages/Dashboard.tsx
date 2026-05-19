@@ -1154,6 +1154,44 @@ const Dashboard = () => {
               />
             )}
 
+            {/* Card: NF enviada — aguardando retorno da empresa */}
+            {isAnalista && pendingNfAguardando > 0 && (
+              <BigStatCard
+                icon={Send}
+                color="blue"
+                label="NF enviada — aguard. retorno"
+                value={pendingNfAguardando}
+                hint="pedido enviado à empresa"
+                to="/notas-fiscais"
+              />
+            )}
+
+            {/* Card: NF recebida — aguardando conciliação */}
+            {isAnalista && pendingNfRecebida > 0 && (
+              <BigStatCard
+                icon={FileCheck}
+                color="green"
+                label="NF recebida — conciliar"
+                value={pendingNfRecebida}
+                hint="conferir valores e conciliar"
+                mine={true}
+                to="/notas-fiscais"
+              />
+            )}
+
+            {/* Card: NF conciliada — pronta para lançar */}
+            {isAnalista && pendingNfConciliar > 0 && (
+              <BigStatCard
+                icon={CheckCircle2}
+                color="green"
+                label="Pronta para lançar"
+                value={pendingNfConciliar}
+                hint="lançar no financeiro"
+                mine={true}
+                to="/notas-fiscais"
+              />
+            )}
+
             {isAnalista && (
               <BigStatCard
                 icon={Landmark}
