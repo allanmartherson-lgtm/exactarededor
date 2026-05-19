@@ -189,7 +189,7 @@ serve(async (req) => {
       }, 422);
     }
 
-    if (byCompany.size === 0 && byDoctorFallback.size === 0) {
+    if (!targetInvoice && byCompany.size === 0 && byDoctorFallback.size === 0) {
       return json({ error: "Nenhum destinatário válido (sem empresa com e-mail e sem e-mail de médico)." }, 400);
     }
 
