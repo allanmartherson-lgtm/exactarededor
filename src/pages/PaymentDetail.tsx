@@ -2384,6 +2384,7 @@ const PaymentDetail = () => {
                     searchActive={!!sqCompany}
                     obs={obs}
                     invoices={invoices}
+                    questionCount={questionCounts[g.id] ?? 0}
                     isExpanded={expandedGroups.has(g.id)}
                     onToggleExpanded={() =>
                       setExpandedGroups((prev) => {
