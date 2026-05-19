@@ -379,7 +379,7 @@ serve(async (req) => {
         }
 
         const prazoRow = prazoFormatted
-          ? `<tr><td style="padding:4px 0;font-size:13px;color:#555">Prazo para envio:</td><td style="padding:4px 0;font-size:13px;color:#c0392b;font-weight:600">${prazoFormatted}</td></tr>`
+          ? `<tr><td style="font-family:Arial,sans-serif;padding:3px 20px 3px 0;font-size:13px;color:#666;white-space:nowrap">Prazo para envio:</td><td style="font-family:Arial,sans-serif;padding:3px 0;font-size:13px;color:#c0392b;font-weight:600">${prazoFormatted}</td></tr>`
           : "";
 
         // Gera Excel com detalhamento dos itens (opcional — não bloqueia envio)
