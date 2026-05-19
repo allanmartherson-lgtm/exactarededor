@@ -818,156 +818,233 @@ export function PaymentConciliationModal({
                 ))}
               </div>
 
-              {/* Tabela */}
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
-                        Empresa
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
-                        Médico
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
-                        Paciente / Procedimento
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
-                        Atend.
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
-                        Data
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider text-right">
-                        MedPay (R$)
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider text-right">
-                        Hospital (R$)
-                      </TableHead>
-                      <TableHead className="px-3 py-2 text-[10px] uppercase tracking-wider">
-                        Status
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredItems.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={8}
-                          className="text-center text-sm text-muted-foreground py-8"
+              {/* Visão agrupada por empresa */}
+              <div className="space-y-2">
+                {filteredItems.length === 0 && (
+                  <Card>
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      Nenhum item encontrado para o filtro selecionado.
+                    </div>
+                  </Card>
+                )}
+                {(() => {
+                  const grouped = new Map<string, ReconciliationItem[]>();
+                  for (const it of filteredItems) {
+                    const key = it.company_name ?? "(sem empresa)";
+                    if (!grouped.has(key)) grouped.set(key, []);
+                    grouped.get(key)!.push(it);
+                  }
+
+                  return Array.from(grouped.entries()).map(([company, companyItems]) => {
+                    const isOpen = expandedCompany === company;
+                    const counts = {
+                      conciliado: companyItems.filter((i) => i.status === "conciliado").length,
+                      valor_divergente: companyItems.filter((i) => i.status === "valor_divergente").length,
+                      so_hospital: companyItems.filter((i) => i.status === "so_hospital").length,
+                      so_medpay: companyItems.filter((i) => i.status === "so_medpay").length,
+                    };
+                    const totalHosp = companyItems.reduce((s, i) => s + Number(i.valor_hospital), 0);
+                    const totalMed = companyItems.reduce((s, i) => s + Number(i.valor_medpay), 0);
+                    const hasPendencias =
+                      counts.valor_divergente + counts.so_hospital + counts.so_medpay > 0;
+
+                    return (
+                      <Card
+                        key={company}
+                        className={cn(
+                          "shadow-card overflow-hidden",
+                          hasPendencias && "border-warning/30",
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setExpandedCompany(isOpen ? null : company)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
                         >
-                          Nenhum item encontrado para o filtro selecionado.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {filteredItems.map((it) => {
-                      const isOpen = expanded === it.id;
-                      const hasObs = !!it.ia_obs;
-                      return (
-                        <>
-                          <TableRow
-                            key={it.id}
-                            className="cursor-pointer"
-                            onClick={() => setExpanded(isOpen ? null : it.id)}
-                          >
-                            <TableCell className="px-3 py-2 text-[12px]">
-                              <div className="flex items-center gap-1">
-                                {hasObs ? (
-                                  isOpen ? (
-                                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                                  ) : (
-                                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                  )
-                                ) : (
-                                  <span className="w-3" />
-                                )}
+                          {isOpen ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{company}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {companyItems.length} itens
+                              {counts.conciliado > 0 && (
+                                <span className="text-success ml-2">
+                                  · {counts.conciliado} conciliados
+                                </span>
+                              )}
+                              {counts.valor_divergente > 0 && (
+                                <span className="text-warning-foreground ml-2">
+                                  · {counts.valor_divergente} com divergência
+                                </span>
+                              )}
+                              {counts.so_hospital > 0 && (
+                                <span className="text-destructive ml-2">
+                                  · {counts.so_hospital} só no hospital
+                                </span>
+                              )}
+                              {counts.so_medpay > 0 && (
+                                <span className="text-info ml-2">
+                                  · {counts.so_medpay} só no MedPay
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-muted-foreground">Hospital</p>
+                            <p className="text-sm font-semibold tabular-nums">
+                              {formatCurrency(totalHosp)}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0 ml-4">
+                            <p className="text-xs text-muted-foreground">MedPay</p>
+                            <p className="text-sm font-semibold tabular-nums">
+                              {formatCurrency(totalMed)}
+                            </p>
+                          </div>
+                        </button>
+
+                        {isOpen && (
+                          <div className="border-t border-border">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">Médico</TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">
+                                    Paciente / Procedimento
+                                  </TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">Data</TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right">
+                                    MedPay (R$)
+                                  </TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right">
+                                    Hospital (R$)
+                                  </TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">Status</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {companyItems.map((it) => {
+                                  const isRowOpen = expanded === it.id;
+                                  return (
+                                    <>
+                                      <TableRow
+                                        key={it.id}
+                                        className="cursor-pointer"
+                                        onClick={() => setExpanded(isRowOpen ? null : it.id)}
+                                      >
+                                        <TableCell className="px-3 py-2 text-[12px]">
+                                          {it.doctor_name ?? "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px]">
+                                          <div className="font-medium">{it.patient_name ?? "—"}</div>
+                                          <div className="text-[11px] text-muted-foreground">
+                                            {it.procedure_code ? `${it.procedure_code} · ` : ""}
+                                            {it.procedure_name ?? ""}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px]">
+                                          {it.procedure_date
+                                            ? new Date(it.procedure_date).toLocaleDateString("pt-BR")
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
+                                          {it.valor_medpay
+                                            ? formatCurrency(Number(it.valor_medpay))
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
+                                          {it.valor_hospital
+                                            ? formatCurrency(Number(it.valor_hospital))
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2">
+                                          <span
+                                            className={cn(
+                                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border",
+                                              STATUS_TONE[it.status],
+                                            )}
+                                          >
+                                            {STATUS_LABEL[it.status]}
+                                          </span>
+                                        </TableCell>
+                                      </TableRow>
+                                      {isRowOpen && it.ia_obs && (
+                                        <TableRow key={`${it.id}-exp`}>
+                                          <TableCell colSpan={6} className="bg-info/5 px-4 py-3">
+                                            <div className="flex gap-3">
+                                              <Lightbulb className="h-4 w-4 text-info shrink-0 mt-0.5" />
+                                              <div className="flex-1">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider text-info mb-1">
+                                                  Análise IA
+                                                </p>
+                                                <p className="text-[12px]">{it.ia_obs}</p>
+                                                <div className="flex gap-2 mt-2">
+                                                  {it.status === "so_hospital" && (
+                                                    <Button size="sm">Incorporar ao ciclo</Button>
+                                                  )}
+                                                  {it.status === "so_medpay" && (
+                                                    <Button size="sm" variant="outline">
+                                                      Marcar como glosado
+                                                    </Button>
+                                                  )}
+                                                  {it.status === "valor_divergente" && (
+                                                    <Button size="sm" variant="outline">
+                                                      Revisar manualmente
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                            <div className="px-4 py-2 border-t border-border bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{companyItems.length} itens</span>
+                              <div className="flex gap-6">
+                                <span>
+                                  MedPay:{" "}
+                                  <strong className="tabular-nums">{formatCurrency(totalMed)}</strong>
+                                </span>
+                                <span>
+                                  Hospital:{" "}
+                                  <strong className="tabular-nums">{formatCurrency(totalHosp)}</strong>
+                                </span>
                                 <span
-                                  className="truncate max-w-[180px]"
-                                  title={it.company_name ?? ""}
+                                  className={cn(
+                                    "font-semibold tabular-nums",
+                                    totalHosp - totalMed > 0
+                                      ? "text-destructive"
+                                      : totalHosp - totalMed < 0
+                                        ? "text-success"
+                                        : "text-muted-foreground",
+                                  )}
                                 >
-                                  {it.company_name ?? "—"}
+                                  Δ {formatCurrency(Math.abs(totalHosp - totalMed))}
                                 </span>
                               </div>
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">
-                              {it.doctor_name ?? "—"}
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">
-                              <div className="font-medium">{it.patient_name ?? "—"}</div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {it.procedure_code ? `${it.procedure_code} · ` : ""}
-                                {it.procedure_name ?? ""}
-                              </div>
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">
-                              {it.attendance_number ?? "—"}
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px]">
-                              {it.procedure_date
-                                ? new Date(it.procedure_date).toLocaleDateString("pt-BR")
-                                : "—"}
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
-                              {it.valor_medpay ? formatCurrency(Number(it.valor_medpay)) : "—"}
-                            </TableCell>
-                            <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
-                              {it.valor_hospital
-                                ? formatCurrency(Number(it.valor_hospital))
-                                : "—"}
-                            </TableCell>
-                            <TableCell className="px-3 py-2">
-                              <span
-                                className={cn(
-                                  "pill inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                                  STATUS_TONE[it.status],
-                                )}
-                              >
-                                {STATUS_LABEL[it.status]}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                          {isOpen && hasObs && (
-                            <TableRow key={`${it.id}-exp`}>
-                              <TableCell colSpan={8} className="bg-info/5 px-4 py-3">
-                                <div className="flex gap-3">
-                                  <div className="shrink-0 p-1.5 rounded-full bg-info/10 text-info h-fit">
-                                    <Lightbulb className="h-4 w-4" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-info mb-1">
-                                      Análise IA
-                                    </p>
-                                    <p className="text-[12px] text-foreground">{it.ia_obs}</p>
-                                    <div className="flex gap-2 mt-3">
-                                      {it.status === "so_hospital" && (
-                                        <Button size="sm">Incorporar ao ciclo</Button>
-                                      )}
-                                      {it.status === "so_medpay" && (
-                                        <Button size="sm" variant="outline">
-                                          Marcar como glosado
-                                        </Button>
-                                      )}
-                                      {it.status === "valor_divergente" && (
-                                        <Button size="sm" variant="outline">
-                                          Revisar manualmente
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-                <div className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">
-                  Exibindo {filteredItems.length} de {total} itens · {run.conciliado} conciliados ·{" "}
-                  {pendentes} pendentes de revisão
-                </div>
-              </Card>
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Footer geral */}
+              <div className="text-xs text-muted-foreground pt-1">
+                {filteredItems.length} itens de {total} · {run?.conciliado ?? 0} conciliados ·{" "}
+                {pendentes} pendentes de revisão
+              </div>
+
             </>
           )}
         </div>
