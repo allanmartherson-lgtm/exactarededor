@@ -19,6 +19,7 @@ const MAX_ATTEMPTS = 3;
 // deno-lint-ignore no-explicit-any
 const HANDLERS: Record<string, (supabase: any, row: any) => Promise<{ ok: boolean; meta: unknown }>> = {
   validator_assignment: processValidatorAssignment,
+  director_approval: processDirectorApproval,
 };
 
 Deno.serve(async (req) => {
