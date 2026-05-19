@@ -2387,6 +2387,8 @@ const PaymentDetail = () => {
                     obs={obs}
                     invoices={invoices}
                     questionCount={questionCounts[g.id] ?? 0}
+                    canReleaseInvoice={isAnalista}
+                    onReleaseInvoice={() => setReleaseGroup(g)}
                     isExpanded={expandedGroups.has(g.id)}
                     onToggleExpanded={() =>
                       setExpandedGroups((prev) => {
