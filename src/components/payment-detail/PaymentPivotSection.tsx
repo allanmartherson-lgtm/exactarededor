@@ -436,7 +436,7 @@ export function PaymentPivotSection({
                         isOpen &&
                         r.children.map((c) => (
                           <tr key={`${r.key}::${c.key}`} className="border-t border-border/60 bg-muted/10">
-                            <td className="px-3 py-1.5 cell-secondary">
+                            <td className="px-3 py-1.5 cell-secondary border-l-2 border-primary/20">
                               <span className="inline-block" style={{ paddingLeft: 20 }}>
                                 <span className="text-[12px] text-muted-foreground">{c.key}</span>
                               </span>
