@@ -2031,6 +2031,155 @@ const PaymentDetail = () => {
             />
           )}
 
+        {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
+            atendimento, centro de custos, especialidade ou descrição. */}
+        {payment.analysis_mode === "empresa_prioritaria" && (
+          <Card className="shadow-card border-warning/30 bg-warning-soft/30">
+            <CardContent className="p-3 text-xs flex items-start gap-2">
+              <span className="font-semibold uppercase tracking-wide text-warning-foreground shrink-0">
+                Modo empresa prioritária
+              </span>
+              <span className="text-muted-foreground">
+                Mostrando apenas itens com alerta ou reprovação. Empresas e atendimentos sem divergência foram ocultados desta visão.
+              </span>
+            </CardContent>
+          </Card>
+        )}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
+              <div className="relative w-full sm:w-[280px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  placeholder="Filtrar empresa (PJ)..."
+                  className="pl-9 pr-9"
+                />
+                {companySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCompanySearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar filtro de empresa"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex-1 min-w-[280px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Buscar médico, paciente, atendimento, CC..."
+                  className="pl-9 pr-9"
+                />
+                {itemSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setItemSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+              <Button
+                variant={criticalFilter === "all" ? "default" : "ghost"}
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => setCriticalFilter("all")}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={criticalFilter === "no_rule" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "no_rule" ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600"
+                )}
+                onClick={() => setCriticalFilter("no_rule")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Sem regra
+              </Button>
+              <Button
+                variant={criticalFilter === "divergent" ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5",
+                  criticalFilter === "divergent" ? "bg-destructive hover:bg-destructive/90 text-white" : "text-destructive"
+                )}
+                onClick={() => setCriticalFilter("divergent")}
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                Divergente
+              </Button>
+              <Select 
+                value={criticalFilter === "approved" || criticalFilter === "approved_strict" ? criticalFilter : undefined} 
+                onValueChange={(v) => setCriticalFilter(v as any)}
+              >
+                <SelectTrigger 
+                  className={cn(
+                    "h-8 w-[160px] text-xs gap-1.5",
+                    (criticalFilter === "approved" || criticalFilter === "approved_strict") ? "bg-success hover:bg-success/90 text-white" : "text-success border-success/30"
+                  )}
+                >
+                  <SelectValue placeholder="Aprovados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved" className="text-xs">Aprovados (flexível)</SelectItem>
+                  <SelectItem value="approved_strict" className="text-xs">Aprovados (sem pendências)</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {hasRole("analista") || hasRole("admin") || hasRole("diretor") ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs gap-1.5 border-dashed"
+                  onClick={() => setIsReportOpen(true)}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Relatório
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          
+          {(criticalFilter !== "all" || payment.analysis_mode === "empresa_prioritaria") && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-dashed">
+              <Info className="h-3.5 w-3.5" />
+              <span>
+                {criticalFilter === "no_rule" && "Mostrando apenas empresas com itens sem regra cadastrada."}
+                {criticalFilter === "divergent" && "Mostrando apenas empresas com divergência de valores."}
+                {criticalFilter === "approved" && "Mostrando apenas empresas aprovadas (considera justificativas/blacklists)."}
+                {criticalFilter === "approved_strict" && "Mostrando apenas empresas 100% limpas (sem alertas ou notas da IA)."}
+                {criticalFilter === "all" && payment.analysis_mode === "empresa_prioritaria" && "Modo empresa prioritária: apenas divergências visíveis."}
+              </span>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="h-auto p-0 text-xs ml-auto" 
+                 onClick={() => {
+                   setCriticalFilter("all");
+                   setItemSearch("");
+                   setCompanySearch("");
+                 }}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          )}
+        </div>
+
           <TooltipProvider delayDuration={150}>
             <CompanyListLegend />
             {(() => {
