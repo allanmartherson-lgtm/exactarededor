@@ -1467,6 +1467,17 @@ const PaymentDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
+            {(isAnalista || isDiretor) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                onClick={() => setIsConciliationOpen(true)}
+              >
+                <GitCompare className="h-4 w-4 mr-1.5" />
+                Conciliar produção
+              </Button>
+            )}
             {(isAnalista || isValidador || isDiretor) && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
