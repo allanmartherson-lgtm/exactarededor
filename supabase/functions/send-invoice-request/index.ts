@@ -37,15 +37,30 @@ const json = (body: unknown, status = 200) =>
 type Item = {
   id: string;
   payment_id: string;
-  doctor_name: string;
-  doctor_email: string | null;
-  description: string | null;
-  procedure_name: string | null;
+  patient_name: string | null;
+  attendance_number: string | null;
   procedure_date: string | null;
+  agreement_text: string | null;
+  procedure_code: string | null;
+  procedure_name: string | null;
+  description: string | null;
+  quantity: number | null;
+  procedure_amount: number | null;
   gross_amount: number | null;
+  doctor_name: string;
+  doctor_document: string | null;
+  doctor_role: string | null;
+  specialty: string | null;
+  sector: string | null;
+  cost_center_code: string | null;
+  access_route: string | null;
   company_id: string | null;
   company_name: string | null;
   company_document: string | null;
+  doctor_email: string | null;
+  applied_rule_label: string | null;
+  applied_calc_method: string | null;
+  attendance_character: string | null;
 };
 type CompanyInfo = { name: string; document: string | null; invoice_emails: string[] };
 type CompanyBucket = {
