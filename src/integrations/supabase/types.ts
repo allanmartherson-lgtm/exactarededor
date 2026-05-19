@@ -585,6 +585,7 @@ export type Database = {
           ai_extracted_number: string | null
           ai_validated_at: string | null
           ai_validation: Json | null
+          company_group_id: string | null
           company_id: string | null
           company_name: string | null
           created_at: string
@@ -612,6 +613,7 @@ export type Database = {
           ai_extracted_number?: string | null
           ai_validated_at?: string | null
           ai_validation?: Json | null
+          company_group_id?: string | null
           company_id?: string | null
           company_name?: string | null
           created_at?: string
@@ -639,6 +641,7 @@ export type Database = {
           ai_extracted_number?: string | null
           ai_validated_at?: string | null
           ai_validation?: Json | null
+          company_group_id?: string | null
           company_id?: string | null
           company_name?: string | null
           created_at?: string
@@ -661,6 +664,13 @@ export type Database = {
           upload_token?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "payment_company_groups"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_payment_id_fkey"
             columns: ["payment_id"]
@@ -2714,6 +2724,7 @@ export type Database = {
         | "cancelado"
         | "em_questionamento"
         | "aprovado_parcial"
+        | "revisao_pos_aprovacao"
       payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind:
         | "simples"
@@ -2934,6 +2945,7 @@ export const Constants = {
         "cancelado",
         "em_questionamento",
         "aprovado_parcial",
+        "revisao_pos_aprovacao",
       ],
       payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: [
