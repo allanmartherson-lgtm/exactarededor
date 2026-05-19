@@ -204,6 +204,7 @@ const PaymentDetail = () => {
   const [analysisJob, setAnalysisJob] = useState<{ status: "em_andamento" | "concluido" | "parcial" | "cancelado" } | null>(null);
   // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  const [releaseGroup, setReleaseGroup] = useState<GroupRow | null>(null);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
