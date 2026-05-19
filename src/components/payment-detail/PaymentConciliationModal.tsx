@@ -76,11 +76,12 @@ interface Props {
 const HEADER_ALIASES: Record<string, string[]> = {
   attendance: ["atendimento", "conta", "nratendimento", "numeroatendimento", "nr atendimento"],
   patient: ["paciente", "nome", "nomepaciente"],
-  procCode: ["procedimento", "codprocedimento", "codigoprocedimento", "codigo", "codtuss", "tuss"],
-  procName: ["descricao", "nomeprocedimento", "descprocedimento"],
-  doctor: ["medico", "profissional", "prestador"],
-  date: ["data", "dataatendimento", "dataprocedimento"],
-  value: ["valor", "valorbruto", "grossamount", "valorpago", "valortotal"],
+  procCode: ["codigo", "procedimento", "codprocedimento", "codigoprocedimento", "codtuss", "tuss", "código"],
+  procName: ["procedimento/mat-med", "descricao", "nomeprocedimento", "descprocedimento", "procedimento", "mat-med"],
+  doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional", "prestador", "médicoexec"],
+  date: ["dt. proced.", "dtproced", "data", "dataatendimento", "dataprocedimento", "dt proced"],
+  value: ["vl. rep. calc.", "vlrepcalc", "valor", "valorbruto", "grossamount", "valorpago", "valortotal", "vl rep calc"],
+  company: ["terceiro", "empresa", "prestador", "pj", "razaosocial"],
 };
 
 const pickHeader = (row: Record<string, unknown>, keys: string[]): unknown => {
