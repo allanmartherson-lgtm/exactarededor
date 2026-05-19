@@ -284,29 +284,75 @@ export const PaymentGroupCard = ({
                 </TooltipContent>
               </Tooltip>
             )}
-            {gStatus === "concluida_analista" ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 cursor-default whitespace-nowrap">
-                    ✓ Concluída
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Análise concluída pelo analista — aguardando envio do lote.</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
-                    · {PAYMENT_STATUS_LABELS[gStatus]}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+            {(() => {
+              // Badges visuais especiais por status — aproveitam o ciclo pós-aprovação.
+              const POST_BADGES: Partial<Record<PaymentStatus, { Icon: typeof CheckCircle2; cls: string; label: string; tip: string }>> = {
+                concluida_analista: {
+                  Icon: CheckCircle2,
+                  cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  label: "Concluída",
+                  tip: "Análise concluída pelo analista — aguardando envio do lote.",
+                },
+                revisao_pos_aprovacao: {
+                  Icon: CheckCircle2,
+                  cls: "border-teal-300 bg-teal-50 text-teal-800",
+                  label: "Aprovado — aguard. revisão",
+                  tip: "Aprovado pelo diretor — analista deve liberar o pedido de NF.",
+                },
+                pedido_nf_enviado: {
+                  Icon: Mail,
+                  cls: "border-blue-300 bg-blue-50 text-blue-700",
+                  label: "NF solicitada",
+                  tip: "Pedido de NF enviado — aguardando retorno da empresa.",
+                },
+                nf_recebida: {
+                  Icon: FileText,
+                  cls: "border-amber-300 bg-amber-50 text-amber-700",
+                  label: "NF recebida",
+                  tip: "Nota fiscal recebida — aguardando conciliação.",
+                },
+                nf_conciliada: {
+                  Icon: CheckCheck,
+                  cls: "border-green-300 bg-green-50 text-green-700",
+                  label: "NF conciliada",
+                  tip: "NF conciliada — aguardando lançamento contábil.",
+                },
+                lancado: {
+                  Icon: Banknote,
+                  cls: "border-slate-300 bg-slate-100 text-slate-700",
+                  label: "Lançado",
+                  tip: "Lançamento contábil concluído.",
+                },
+              };
+              const meta = POST_BADGES[gStatus];
+              if (meta) {
+                const { Icon, cls, label, tip } = meta;
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium cursor-default whitespace-nowrap", cls)}>
+                        <Icon className="h-3 w-3" /> {label}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">{tip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs text-muted-foreground cursor-default whitespace-nowrap">
+                      · {PAYMENT_STATUS_LABELS[gStatus]}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Status: {PAYMENT_STATUS_LABELS[gStatus]}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })()}
           </div>
         </div>
       </button>
