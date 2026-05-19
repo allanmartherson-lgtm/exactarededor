@@ -339,16 +339,88 @@ serve(async (req) => {
           throw new Error("LOVABLE_API_KEY ou RESEND_API_KEY ausente");
         }
         const ccList = [...opts.to.slice(1), ...opts.cc];
+
+        // Setor/especialidade e competência (mesma lógica do template)
+        const setoresArr = Array.from(new Set([
+          ...((payment.sectors ?? []) as string[]),
+          ...((payment.specialties ?? []) as string[]),
+        ].filter(Boolean)));
+        const setoresStr = setoresArr.length ? joinPt(setoresArr) : "Produção médica";
+        const competenciaStr = formatCompetenceBR(
+          Array.isArray(payment.competence_months) && payment.competence_months.length
+            ? payment.competence_months
+            : payment.competence_month,
+        );
+
+        // Prazo (10 dias úteis antes do vencimento), se houver
+        let prazoFormatted: string | null = null;
+        if (payment.payment_due_date) {
+          const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(payment.payment_due_date));
+          if (m) {
+            const due = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+            prazoFormatted = formatDateBR(addBusinessDays(due, -10));
+          }
+        }
+
+        const prazoRow = prazoFormatted
+          ? `<tr><td style="padding:4px 0;font-size:13px;color:#555">Prazo para envio:</td><td style="padding:4px 0;font-size:13px;color:#c0392b;font-weight:600">${prazoFormatted}</td></tr>`
+          : "";
+
         const html = `
-          <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#1a1a2e;line-height:1.5">
-            <div style="white-space:pre-line;font-size:14px">${requestMessage}</div>
-            <div style="margin:28px 0">
-              <a href="${uploadUrl}" style="display:inline-block;background:#1d4ed8;color:#ffffff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
-                Enviar Nota Fiscal →
-              </a>
-            </div>
-          </div>
-        `;
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;padding:0">
+  <div style="background:#1E3A5F;padding:24px 32px">
+    <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:600;letter-spacing:0.3px">
+      GHM DF Star — Pedido de Nota Fiscal
+    </h1>
+  </div>
+  <div style="padding:32px">
+    <p style="margin:0 0 20px 0;color:#1a1a2e;font-size:14px">Prezados, ${greetingBrasilia()}!</p>
+    <p style="margin:0 0 20px 0;color:#1a1a2e;font-size:14px">
+      Solicitamos, por gentileza, a emissão de Nota Fiscal referente à produção de
+      <strong>${setoresStr}</strong>${competenciaStr ? ` — <strong>${competenciaStr}</strong>` : ""}:
+    </p>
+    <div style="background:#f8f9fa;border-left:4px solid #1E3A5F;border-radius:4px;padding:20px;margin-bottom:24px">
+      <p style="margin:0 0 8px 0;font-size:16px;font-weight:700;color:#1a1a2e">${opts.recipient_label}</p>
+      <table style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="padding:4px 0;font-size:13px;color:#555;width:160px">Valor:</td>
+          <td style="padding:4px 0;font-size:15px;font-weight:700;color:#1E3A5F">${totalFormatted}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 0;font-size:13px;color:#555">Previsão de pagamento:</td>
+          <td style="padding:4px 0;font-size:13px;color:#1a1a2e">10 dias úteis após o envio da NF</td>
+        </tr>
+        ${prazoRow}
+      </table>
+    </div>
+    <div style="text-align:center;margin:28px 0">
+      <a href="${uploadUrl}" style="display:inline-block;background:#1E3A5F;color:#ffffff;padding:14px 32px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600">
+        Enviar Nota Fiscal →
+      </a>
+    </div>
+    <div style="border-top:1px solid #e5e7eb;padding-top:20px;margin-top:8px">
+      <p style="margin:0 0 8px 0;font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.5px">
+        Dados Cadastrais do Hospital
+      </p>
+      <p style="margin:0;font-size:13px;color:#1a1a2e;line-height:1.7">
+        Hospitais Integrados da Gávea S.A - DF Star<br/>
+        CNPJ: 31.635.857/0006-16 &nbsp; C.C.M: 07.895.204/001-40<br/>
+        SGAS 914 Conjunto H - Parte<br/>
+        Asa Sul - CEP: 70.390-140
+      </p>
+    </div>
+  </div>
+  <div style="background:#f1f3f5;padding:16px 32px;border-top:1px solid #e5e7eb">
+    <p style="margin:0;font-size:12px;color:#888;text-align:center">
+      Atenciosamente, <strong>GHM DF Star</strong> &nbsp;·&nbsp;
+      ghm.repassedfstar@rededor.com.br &nbsp;·&nbsp; (11) 2142-4879
+    </p>
+    <p style="margin:8px 0 0 0;font-size:11px;color:#aaa;text-align:center">
+      Este link é único e intransferível. Em caso de dúvidas, responda este e-mail.
+    </p>
+  </div>
+</div>
+`;
         const resendResp = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
           method: "POST",
           headers: {
