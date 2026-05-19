@@ -1138,6 +1138,38 @@ export type Database = {
           },
         ]
       }
+      payment_pivot_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: string
+          payment_id: string
+          rows: Json
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: string
+          payment_id: string
+          rows: Json
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: string
+          payment_id?: string
+          rows?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_pivot_cache_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_processing_jobs: {
         Row: {
           company_list: string[] | null
