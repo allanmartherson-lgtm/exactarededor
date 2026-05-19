@@ -2626,6 +2626,16 @@ const PaymentDetail = () => {
           profiles={profiles}
         />
       )}
+
+      {payment && (
+        <PaymentConciliationModal
+          open={isConciliationOpen}
+          onOpenChange={setIsConciliationOpen}
+          paymentId={id!}
+          paymentReference={payment.reference || "Lote"}
+          paymentItems={items}
+        />
+      )}
     </>
   );
 };
