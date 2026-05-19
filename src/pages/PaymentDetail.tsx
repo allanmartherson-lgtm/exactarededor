@@ -1562,12 +1562,12 @@ const PaymentDetail = () => {
                 <div className="flex flex-wrap items-center text-xs">
                   {cells.map((c, i) => (
                     <div key={i} className="flex items-baseline gap-1.5 px-3 py-0.5 border-r border-border/60 first:pl-0">
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-foreground/60">{c.label}</span>
                       <span className="font-medium">{c.value}</span>
                     </div>
                   ))}
                   <div className="flex items-center gap-1.5 px-3 py-0.5">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Responsável</span>
+                    <span className="text-[10px] uppercase tracking-wide text-foreground/60">Responsável</span>
                     {currentResponsibleName ? (
                       <>
                         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-semibold">{initials}</span>
@@ -1767,7 +1767,7 @@ const PaymentDetail = () => {
                       aria-label="Distribuição de itens"
                     />
                     <div className="text-xs space-y-1 min-w-0 flex-1">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Distribuição dos itens</p>
+                      <p className="text-[10px] uppercase tracking-wide text-foreground/60">Distribuição dos itens</p>
                       <div className="flex items-center gap-1.5">
                         <span className="inline-block h-2 w-2 rounded-full bg-success" />
                         <span className="text-success font-medium">{counts.aprovado}</span>
@@ -1794,7 +1794,7 @@ const PaymentDetail = () => {
               {/* Card 2 — Análise da IA */}
               <Card className="shadow-card border-info/30 bg-info-soft/40">
                 <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Análise da última execução completa</p>
+                  <p className="text-[10px] uppercase tracking-wide text-foreground/60">Análise da última execução completa</p>
                   {payment.ai_summary ? (
                     summaryExpanded ? (
                       <div className="space-y-1.5">
@@ -1829,7 +1829,7 @@ const PaymentDetail = () => {
               <Card className="shadow-card">
                 <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas assistenciais</p>
+                    <p className="text-[10px] uppercase tracking-wide text-foreground/60">Alertas assistenciais</p>
                     {totalRuleAlerts > 0 && (
                       <span className="text-[10px] font-medium text-warning">{totalRuleAlerts} total</span>
                     )}
@@ -1891,7 +1891,7 @@ const PaymentDetail = () => {
                       const inv = invoices.find((i) => i.id === invoice_id);
                       return (
                         <li key={q.id} className="rounded-md border border-warning/30 bg-background/60 p-2.5 text-xs">
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                          <p className="text-[10px] uppercase tracking-wider text-foreground/60 mb-1">
                             {q.author_name ?? "Recebedor"}
                             {inv?.company_name ? ` · ${inv.company_name}` : ""}
                             {" · "}{formatDate(q.created_at)}
@@ -2029,6 +2029,76 @@ const PaymentDetail = () => {
               competenceDate={String(payment.competence_month).slice(0, 10)}
               variant={viewMode}
             />
+          )}
+
+          {/* Footer Executivo — aprovação direta do diretor (inline, antes dos filtros) */}
+          {viewMode === "executivo" && isDiretor && payment.status === "aguardando_aprovacao" && (
+            <Card className="shadow-card border-primary/30">
+              <CardContent className="p-4 flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground mr-auto">
+                  Pronto para aprovação? Você pode aprovar ou devolver para revisão.
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={approvalBusy || busy}
+                  onClick={async () => {
+                    if (!id) return;
+                    setApprovalBusy(true);
+                    const { error } = await supabase
+                      .from("payments")
+                      .update({ status: "revisao_analista" } as PaymentUpdate)
+                      .eq("id", id);
+                    if (!error) {
+                      await recordObservation({
+                        payment_id: id,
+                        author_id: user!.id,
+                        author_type: "diretor",
+                        observation_type: "informativo",
+                        message: "Pagamento devolvido para revisão pelo diretor (visão Executivo).",
+                      });
+                      toast({ title: "Devolvido para revisão" });
+                      await load();
+                    } else {
+                      toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" });
+                    }
+                    setApprovalBusy(false);
+                  }}
+                >
+                  Devolver para revisão
+                </Button>
+                <Button
+                  disabled={approvalBusy || busy}
+                  onClick={async () => {
+                    if (!id) return;
+                    setApprovalBusy(true);
+                    const { error } = await supabase
+                      .from("payments")
+                      .update({
+                        status: "aprovado",
+                        approved_by: user!.id,
+                        approved_at: new Date().toISOString(),
+                      } as PaymentUpdate)
+                      .eq("id", id);
+                    if (!error) {
+                      await recordObservation({
+                        payment_id: id,
+                        author_id: user!.id,
+                        author_type: "diretor",
+                        observation_type: "informativo",
+                        message: "Pagamento aprovado pelo diretor (visão Executivo).",
+                      });
+                      toast({ title: "Pagamento aprovado" });
+                      await load();
+                    } else {
+                      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+                    }
+                    setApprovalBusy(false);
+                  }}
+                >
+                  Aprovar pagamento
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
         {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
@@ -2362,75 +2432,8 @@ const PaymentDetail = () => {
             })()}
           </TooltipProvider>
 
-          {/* Footer Executivo — aprovação direta do diretor */}
-          {viewMode === "executivo" && isDiretor && payment.status === "aguardando_aprovacao" && (
-            <Card className="shadow-card border-primary/30">
-              <CardContent className="p-4 flex flex-wrap items-center gap-2">
-                <span className="text-sm text-muted-foreground mr-auto">
-                  Pronto para aprovação? Você pode aprovar ou devolver para revisão.
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={approvalBusy || busy}
-                  onClick={async () => {
-                    if (!id) return;
-                    setApprovalBusy(true);
-                    const { error } = await supabase
-                      .from("payments")
-                      .update({ status: "revisao_analista" } as PaymentUpdate)
-                      .eq("id", id);
-                    if (!error) {
-                      await recordObservation({
-                        payment_id: id,
-                        author_id: user!.id,
-                        author_type: "diretor",
-                        observation_type: "informativo",
-                        message: "Pagamento devolvido para revisão pelo diretor (visão Executivo).",
-                      });
-                      toast({ title: "Devolvido para revisão" });
-                      await load();
-                    } else {
-                      toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" });
-                    }
-                    setApprovalBusy(false);
-                  }}
-                >
-                  Devolver para revisão
-                </Button>
-                <Button
-                  disabled={approvalBusy || busy}
-                  onClick={async () => {
-                    if (!id) return;
-                    setApprovalBusy(true);
-                    const { error } = await supabase
-                      .from("payments")
-                      .update({
-                        status: "aprovado",
-                        approved_by: user!.id,
-                        approved_at: new Date().toISOString(),
-                      } as PaymentUpdate)
-                      .eq("id", id);
-                    if (!error) {
-                      await recordObservation({
-                        payment_id: id,
-                        author_id: user!.id,
-                        author_type: "diretor",
-                        observation_type: "informativo",
-                        message: "Pagamento aprovado pelo diretor (visão Executivo).",
-                      });
-                      toast({ title: "Pagamento aprovado" });
-                      await load();
-                    } else {
-                      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
-                    }
-                    setApprovalBusy(false);
-                  }}
-                >
-                  Aprovar pagamento
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          {/* (Footer Executivo foi movido para antes dos filtros operacionais) */}
+
 
 
           {payment.status === "aprovado" && (isDiretor || canRequestNf) && (
