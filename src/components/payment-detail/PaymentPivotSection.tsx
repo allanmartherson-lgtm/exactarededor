@@ -170,7 +170,17 @@ export function PaymentPivotSection({
         console.error("[PaymentPivot] rpc error:", error);
         setRows([]);
       } else {
-        console.log("[PaymentPivot] rpc rows:", data?.length ?? 0);
+        console.log("[PaymentPivot] rpc rows count:", data?.length ?? 0);
+        console.log("[PaymentPivot] rpc rows sample (first 3):", data?.slice(0, 3));
+        console.log("[PaymentPivot] rpc rows types:", data?.[0] ? {
+          group_key: typeof data[0].group_key,
+          parent_key: typeof data[0].parent_key,
+          parent_key_value: data[0].parent_key,
+          month_bucket: typeof data[0].month_bucket,
+          month_bucket_value: data[0].month_bucket,
+          total: typeof data[0].total,
+          total_value: data[0].total,
+        } : null);
         setRows(data ?? []);
       }
       setLoading(false);
