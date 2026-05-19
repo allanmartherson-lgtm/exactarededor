@@ -28,11 +28,7 @@ interface Props {
 }
 
 const PENDING_GROUP_STATUSES = new Set<string>(["em_questionamento", "devolvido_analista"]);
-const APPROVABLE_GROUP_STATUSES = new Set<string>([
-  "aguardando_validacao",
-  "aguardando_aprovacao",
-  "concluida_analista",
-]);
+const ALREADY_DONE_STATUSES = new Set<string>(["aprovado", "rejeitado", "cancelado", "arquivado"]);
 
 export function PaymentBatchActionsFooter({
   paymentId,
