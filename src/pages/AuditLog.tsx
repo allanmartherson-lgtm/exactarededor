@@ -32,7 +32,9 @@ type RoleRow = { user_id: string; role: AppRole };
 
 const ENTITY_LABELS: Record<string, string> = {
   rule: "Regra",
+  rule_calculation: "Cálculo da regra",
   payment: "Pagamento",
+  payment_item: "Item de pagamento",
 };
 const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
