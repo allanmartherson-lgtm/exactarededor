@@ -82,7 +82,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     attendance: ["atendimento", "nr atendimento", "nratendimento"],
     account: ["conta", "nrconta", "numeroconta"],
     patient: ["nome", "paciente", "nomepaciente"],
-    procCode: ["código tuss (8d)", "codigotuss8d", "tuss8d", "codigo tuss (8d)", "codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
+    procCode: ["codigotuss8d", "codigo tuss (8d)", "código tuss (8d)", "tuss8d", "codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
     procName: ["procedimento/mat-med", "procedimento", "descricao", "nomeprocedimento"],
     doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
     date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
@@ -90,7 +90,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     company: ["terceiro", "empresa", "prestador"],
   };
   const normKey = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9.]/g, "");
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
   const map: Record<string, string> = {};
   for (const col of Object.keys(rows[0])) {
     const normCol = normKey(col);
@@ -290,20 +290,20 @@ export function PaymentConciliationModal({
 
       const normalizeCode = (code: unknown): string => {
         if (code == null || code === '') return '';
-        // Remove casas decimais (ex: 31005470.0 -> 31005470)
         const num = parseFloat(String(code));
-        if (!isNaN(num)) return String(Math.round(num));
+        if (!isNaN(num) && isFinite(num)) return String(Math.round(num));
         return String(code).replace(/\D/g, '');
       };
 
       const normAtt = (att: unknown): string =>
-        String(Number(att) || att).replace(/\D/g, "");
+        String(Math.round(Number(att)) || att).replace(/\D/g, "");
 
       const makeKey = (att: unknown, code: unknown): string =>
         `${normAtt(att)}|${normalizeCode(code)}`;
 
       const medpayByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
+        if (!it.attendance_number || !it.procedure_code) continue;
         const k = makeKey(it.attendance_number, it.procedure_code);
         if (!medpayByKey.has(k)) medpayByKey.set(k, []);
         medpayByKey.get(k)!.push(it);
@@ -337,7 +337,7 @@ export function PaymentConciliationModal({
         const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
         const base: Record<string, unknown> = {
-          attendance_number: att ? String(att) : (account ? String(account) : null),
+          attendance_number: att ? String(Math.round(Number(att)) || att) : null,
           patient_name: patient ? String(patient) : null,
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
