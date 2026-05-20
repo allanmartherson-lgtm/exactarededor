@@ -337,7 +337,7 @@ export function PaymentConciliationModal({
         const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
         const base: Record<string, unknown> = {
-          attendance_number: att ? String(att) : (account ? String(account) : null),
+          attendance_number: att ? String(Math.round(Number(att)) || att) : null,
           patient_name: patient ? String(patient) : null,
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
