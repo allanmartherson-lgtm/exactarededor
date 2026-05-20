@@ -3,6 +3,7 @@ import {
   Wallet,
   Receipt,
   BarChart2,
+  BarChart3,
   ShieldCheck,
   Table,
   Building2,
@@ -63,6 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/pagamentos", label: "Pagamentos", icon: Wallet, iconName: "Wallet", roles: ALL_ROLES },
       { to: "/notas-fiscais", label: "Notas Fiscais", icon: Receipt, iconName: "Receipt", roles: ALL_ROLES },
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
+      { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
     ],
   },
   {
@@ -108,6 +110,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Pagamentos", iconName: "Wallet" },
   { label: "Notas Fiscais", iconName: "Receipt" },
   { label: "KPIs", iconName: "BarChart2" },
+  { label: "Executivo", iconName: "BarChart3" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
   { label: "Simulador de Regras", iconName: "FlaskConical" },

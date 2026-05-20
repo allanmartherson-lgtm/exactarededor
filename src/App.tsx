@@ -18,6 +18,7 @@ import ForceChangePassword from "./pages/ForceChangePassword.tsx";
 
 // Lazy loaded feature pages
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
+const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard.tsx"));
 const Payments = lazy(() => import("./pages/Payments.tsx"));
 const NewPayment = lazy(() => import("./pages/NewPayment.tsx"));
 const PaymentDetail = lazy(() => import("./pages/PaymentDetail.tsx"));
@@ -80,6 +81,7 @@ const App = () => (
                   <Route path="/pagamentos/:id/empresa/:groupId" element={<CompanyAnalysis />} />
                   <Route path="/notas-fiscais" element={<Invoices />} />
                   <Route path="/kpis" element={<Kpis />} />
+                  <Route path="/executivo" element={<ProtectedRoute roles={["diretor", "admin"]}><ExecutiveDashboard /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/validacao" element={<ProtectedRoute roles={["diretor", "admin"]}><ValidationRules /></ProtectedRoute>} />
