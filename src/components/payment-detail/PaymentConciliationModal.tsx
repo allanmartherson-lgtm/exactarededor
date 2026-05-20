@@ -82,7 +82,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     attendance: ["atendimento", "nr atendimento", "nratendimento"],
     account: ["conta", "nrconta", "numeroconta"],
     patient: ["nome", "paciente", "nomepaciente"],
-    procCode: ["código tuss (8d)", "codigotuss8d", "tuss8d", "codigo tuss (8d)", "codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
+    procCode: ["codigotuss8d", "codigo tuss (8d)", "código tuss (8d)", "tuss8d", "codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
     procName: ["procedimento/mat-med", "procedimento", "descricao", "nomeprocedimento"],
     doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
     date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
