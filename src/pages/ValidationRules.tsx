@@ -849,6 +849,26 @@ export default function ValidationRules() {
                     ))}
                   </div>
                 )}
+                {(() => {
+                  const impact = ruleImpact.get(r.id);
+                  if (!impact) return null;
+                  return (
+                    <div className="mt-2 flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+                        <DollarSign className="h-3 w-3" />
+                        <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
+                        <FileText className="h-3 w-3" />
+                        <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
