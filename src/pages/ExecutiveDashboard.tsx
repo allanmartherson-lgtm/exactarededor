@@ -109,14 +109,25 @@ export default function ExecutiveDashboard() {
         .order("created_at", { ascending: false });
       setPayments(pays ?? []);
 
-      const monthly: Record<string, number> = {};
+      const byCompetencia: Record<string, number> = {};
       (pays ?? []).forEach((p: any) => {
-        const m = (p.competence_month ?? p.created_at ?? "").slice(0, 7);
-        if (m) monthly[m] = (monthly[m] ?? 0) + Number(p.total_amount ?? 0);
+        const m = (p.competence_month ?? "").slice(0, 7);
+        if (m) byCompetencia[m] = (byCompetencia[m] ?? 0) + Number(p.total_amount ?? 0);
       });
-      const sorted = Object.entries(monthly).sort(([a], [b]) => a.localeCompare(b)).slice(-7)
-        .map(([month, valor]) => ({ month, valor }));
-      setMonthlyData(sorted);
+      setMonthlyCompetencia(
+        Object.entries(byCompetencia).sort(([a], [b]) => a.localeCompare(b)).slice(-7)
+          .map(([month, valor]) => ({ month, valor }))
+      );
+
+      const byProcessamento: Record<string, number> = {};
+      (pays ?? []).forEach((p: any) => {
+        const m = (p.created_at ?? "").slice(0, 7);
+        if (m) byProcessamento[m] = (byProcessamento[m] ?? 0) + Number(p.total_amount ?? 0);
+      });
+      setMonthlyProcessamento(
+        Object.entries(byProcessamento).sort(([a], [b]) => a.localeCompare(b)).slice(-7)
+          .map(([month, valor]) => ({ month, valor }))
+      );
 
       const { data: items } = await supabase
         .from("payment_items")
