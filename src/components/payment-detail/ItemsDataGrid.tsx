@@ -1164,7 +1164,7 @@ function ItemDetailsRow({
 
   const fmtDate = (d: string | null | undefined) => {
     if (!d) return "—";
-    try { return new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+    try { return formatDateTimeBR(d); }
     catch { return String(d); }
   };
 
