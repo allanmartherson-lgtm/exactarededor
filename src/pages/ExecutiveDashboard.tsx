@@ -185,7 +185,7 @@ export default function ExecutiveDashboard() {
           const pct = Math.max(4, (d.valor / max) * 100);
           return (
             <div key={d.month} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ width: 28, fontSize: 10, color: isLast ? "#9A6B3A" : "hsl(var(--muted-foreground))", fontWeight: isLast ? 700 : 400, flexShrink: 0, textAlign: "right" }}>
+              <span style={{ width: 44, fontSize: 10, color: isLast ? "#9A6B3A" : "hsl(var(--muted-foreground))", fontWeight: isLast ? 700 : 400, flexShrink: 0, textAlign: "right" }}>
                 {fmtMonth(d.month)}
               </span>
               <div style={{ flex: 1, background: "hsl(var(--muted))", borderRadius: 4, height: 18, overflow: "hidden" }}>
