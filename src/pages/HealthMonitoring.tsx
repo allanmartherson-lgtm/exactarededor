@@ -4,10 +4,12 @@ import { Link } from "react-router-dom";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Zap, ArrowRight, ShieldOff, FileWarning, Cpu,
+  RefreshCcw, Inbox,
   type LucideIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
