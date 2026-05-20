@@ -4,10 +4,12 @@ import { Link } from "react-router-dom";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Zap, ArrowRight, ShieldOff, FileWarning, Cpu,
+  RefreshCcw, Inbox,
   type LucideIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
@@ -111,6 +113,16 @@ interface HealthData {
   valorEmRisco: number;
 }
 
+interface FailedJob {
+  jobId: string;
+  paymentId: string;
+  paymentReference: string;
+  status: string;
+  failedCompanies: Array<{ company_name: string; error: string; at: string }>;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
 const TRAVADO_HORAS = 3;
 const FILA_CRITICA = 10;
 const FILA_AVISO = 5;
@@ -129,6 +141,8 @@ export default function HealthMonitoring() {
   const [data, setData] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [failedJobs, setFailedJobs] = useState<FailedJob[]>([]);
+  const [retrying, setRetrying] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,6 +239,37 @@ export default function HealthMonitoring() {
         alertasNaoResolvidos,
         valorEmRisco,
       });
+
+      // 7. Dead-letter queue — jobs com empresas que falharam
+      const { data: failedJobsRaw } = await supabase
+        .from("payment_processing_jobs")
+        .select("id, payment_id, status, failed_companies, finished_at, created_at, payments(reference)")
+        .not("failed_companies", "is", null)
+        .neq("failed_companies", "[]")
+        .in("status", ["parcial", "em_andamento", "concluido"])
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      // Agrupa por payment_id — mantém só o job mais recente por lote
+      const byPayment = new Map<string, FailedJob>();
+      for (const job of failedJobsRaw ?? []) {
+        const ref = (job as any).payments?.reference ?? job.payment_id.slice(0, 8);
+        const companies = Array.isArray(job.failed_companies) ? job.failed_companies : [];
+        if (companies.length === 0) continue;
+        if (!byPayment.has(job.payment_id)) {
+          byPayment.set(job.payment_id, {
+            jobId: job.id,
+            paymentId: job.payment_id,
+            paymentReference: ref,
+            status: job.status,
+            failedCompanies: companies as any,
+            finishedAt: job.finished_at,
+            createdAt: job.created_at,
+          });
+        }
+      }
+      setFailedJobs(Array.from(byPayment.values()));
+
     } finally {
       setLoading(false);
       setLastRefresh(new Date());
@@ -261,6 +306,37 @@ export default function HealthMonitoring() {
     : data.alertasNaoResolvidos > 50 ? "critico"
     : data.alertasNaoResolvidos > 10 ? "aviso"
     : "ok";
+
+  const retryCompanies = async (paymentId: string, companies: string[], jobKey: string) => {
+    setRetrying(prev => ({ ...prev, [jobKey]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke("dispatch-payment-analysis", {
+        body: {
+          payment_id: paymentId,
+          only_companies: companies,
+        },
+      });
+      if (error) throw error;
+      const result = data as { ok?: boolean; message?: string; total_companies?: number };
+      if (!result?.ok && result?.total_companies === 0) {
+        toast.warning("Empresas sem retry disponível", {
+          description: result?.message ?? "Verifique se os grupos ainda estão em revisão do analista.",
+        });
+      } else {
+        toast.success(`Retry iniciado para ${companies.length} empresa(s)`, {
+          description: "As empresas serão reanalisadas pelo motor. Acompanhe pelo lote.",
+        });
+        // Aguarda 3s e recarrega
+        setTimeout(() => load(), 3000);
+      }
+    } catch (e: any) {
+      toast.error("Falha ao iniciar retry", {
+        description: e?.message ?? String(e),
+      });
+    } finally {
+      setRetrying(prev => ({ ...prev, [jobKey]: false }));
+    }
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -492,6 +568,148 @@ export default function HealthMonitoring() {
               Gerenciar regras de validação <ArrowRight size={13} />
             </Link>
           </div>
+        </SurfaceCard>
+      </section>
+
+      {/* ── Seção: Dead-Letter Queue ── */}
+      <section>
+        <SectionLabel>Dead-letter queue</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Empresas com falha de processamento"
+            icon={Inbox}
+            iconColor="red"
+            sub="Empresas que falharam em jobs anteriores e precisam de retry manual"
+            rightAction={
+              <StatusPill status={
+                !data ? "carregando"
+                : failedJobs.length === 0 ? "ok"
+                : failedJobs.some(j => j.failedCompanies.length > 3) ? "critico"
+                : "aviso"
+              } />
+            }
+          />
+
+          {loading ? (
+            <div style={{ padding: "22px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {[1,2,3].map(i => <div key={i} style={{ height: 24, background: "hsl(var(--muted))", borderRadius: 4, opacity: 0.3 }} />)}
+            </div>
+          ) : failedJobs.length === 0 ? (
+            <div style={{ padding: "22px", display: "flex", alignItems: "center", gap: 10 }}>
+              <CheckCircle2 size={16} style={{ color: "hsl(var(--bubble-green-fg))" }} />
+              <span style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+                Nenhuma empresa com falha pendente de retry.
+              </span>
+            </div>
+          ) : (
+            <div>
+              {failedJobs.map((job, ji) => {
+                const jobKey = job.jobId;
+                const isRetrying = retrying[jobKey];
+                const allCompanyNames = job.failedCompanies.map(f => f.company_name);
+                // Agrupa erros por tipo para exibição compacta
+                const errorGroups = job.failedCompanies.reduce((acc, f) => {
+                  const type = f.error.includes("504") || f.error.includes("IDLE_TIMEOUT") ? "timeout"
+                    : f.error.includes("500") ? "erro_motor"
+                    : "outro";
+                  acc[type] = (acc[type] ?? 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+
+                return (
+                  <div key={job.jobId} style={{
+                    borderBottom: ji < failedJobs.length - 1 ? "1px solid hsl(var(--border))" : "none",
+                  }}>
+                    {/* Header do job */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", background: "hsl(var(--muted) / 0.3)" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Link
+                            to={`/pagamentos/${job.paymentId}`}
+                            style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", textDecoration: "none" }}
+                          >
+                            {job.paymentReference}
+                          </Link>
+                          <span style={{
+                            background: "hsl(var(--bubble-red-bg))", color: "hsl(var(--bubble-red-fg))",
+                            borderRadius: 20, padding: "2px 8px", fontSize: 10, fontWeight: 700,
+                            textTransform: "uppercase" as const, letterSpacing: "0.05em",
+                          }}>
+                            {job.failedCompanies.length} empresa{job.failedCompanies.length !== 1 ? "s" : ""} com falha
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 3, display: "flex", gap: 12 }}>
+                          {errorGroups.timeout ? <span>⏱ {errorGroups.timeout} timeout</span> : null}
+                          {errorGroups.erro_motor ? <span>⚡ {errorGroups.erro_motor} erro do motor</span> : null}
+                          {errorGroups.outro ? <span>❓ {errorGroups.outro} outros</span> : null}
+                          <span>· {new Date(job.createdAt).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => retryCompanies(job.paymentId, allCompanyNames, jobKey)}
+                        disabled={isRetrying}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          background: isRetrying ? "hsl(var(--muted))" : "#9A6B3A",
+                          color: isRetrying ? "hsl(var(--muted-foreground))" : "white",
+                          border: "none", borderRadius: 8, padding: "7px 14px",
+                          fontSize: 12, fontWeight: 600, cursor: isRetrying ? "not-allowed" : "pointer",
+                          opacity: isRetrying ? 0.7 : 1, transition: "all 0.15s",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <RefreshCcw size={13} style={{ animation: isRetrying ? "spin 1s linear infinite" : "none" }} />
+                        {isRetrying ? "Iniciando..." : `Retry (${allCompanyNames.length})`}
+                      </button>
+                    </div>
+
+                    {/* Lista de empresas com falha */}
+                    {job.failedCompanies.map((f, fi) => {
+                      const isTimeout = f.error.includes("504") || f.error.includes("IDLE_TIMEOUT");
+                      const isMotorError = f.error.includes("500");
+                      const errorColor = isTimeout
+                        ? "hsl(var(--bubble-yellow-fg))"
+                        : isMotorError ? "hsl(var(--bubble-red-fg))"
+                        : "hsl(var(--muted-foreground))";
+                      const errorLabel = isTimeout ? "Timeout (150s)" : isMotorError ? "Erro motor" : "Falha";
+                      return (
+                        <div key={fi} style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "9px 22px 9px 36px",
+                          borderTop: "1px solid hsl(var(--border) / 0.5)",
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {f.company_name}
+                            </div>
+                            <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 1 }}>
+                              {new Date(f.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 10, color: errorColor, fontWeight: 600, flexShrink: 0 }}>
+                            {errorLabel}
+                          </span>
+                          <button
+                            onClick={() => retryCompanies(job.paymentId, [f.company_name], `${jobKey}-${fi}`)}
+                            disabled={retrying[`${jobKey}-${fi}`]}
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                              background: "transparent", border: "1px solid hsl(var(--border))",
+                              borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600,
+                              color: "#9A6B3A", cursor: "pointer", flexShrink: 0,
+                            }}
+                          >
+                            <RefreshCcw size={10} />
+                            Retry
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </SurfaceCard>
       </section>
     </div>
