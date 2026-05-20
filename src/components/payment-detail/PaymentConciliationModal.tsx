@@ -1050,6 +1050,7 @@ export function PaymentConciliationModal({
                                     Paciente / Procedimento
                                   </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Data</TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">Convênio</TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     MedPay (R$)
                                   </TableHead>
