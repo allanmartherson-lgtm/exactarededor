@@ -181,7 +181,8 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
           ci.attendance_number ? `#${ci.attendance_number}` : "—",
           ci.specialty ?? "—",
           ci.patient_name ?? "—",
-          ci.procedure_date ? formatDate(ci.procedure_date) : "—",
+          fmtDateISO(ci.procedure_date),
+
           ci.gross_amount != null ? formatCurrency(Number(ci.gross_amount)) : "—",
         ].join("\n") : (f?.message ?? "Sem item conflitante");
 
