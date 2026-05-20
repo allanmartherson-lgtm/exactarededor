@@ -508,8 +508,9 @@ const PaymentDetail = () => {
       if (!obsRes.ok) {
         toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
       }
-      await load();
-      toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
+      toast({ title: "Reanálise iniciada", description: `Processando itens de ${g.company_name}…` });
+      // Não chama load() aqui — o AnalysisProgressBar detecta o job via realtime
+      // e chama onJobChange quando concluir, que aciona o reload automático.
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       toast({ title: "Falha ao reaplicar regras", description: msg, variant: "destructive" });
