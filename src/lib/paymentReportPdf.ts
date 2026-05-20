@@ -31,7 +31,17 @@ export type GeneratePaymentPdfInput = {
 
 type DocWithLastTable = jsPDF & { lastAutoTable?: { finalY?: number } };
 
+function fmtDateISO(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return String(iso); }
+}
+
 function formatFindingText(f: any): string {
+
   const name = f?.rule_name || f?.kind || "Validação";
   const ci = f?.conflicting_item;
   let conflictDetail = "";
