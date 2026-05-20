@@ -58,7 +58,7 @@ const SurfaceCardHeader = ({ title, icon: Icon, iconColor = "teal", rightAction 
 
 interface ExecKpiCardProps {
   label: string; value: string; sub: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: LucideIcon;
   color: BubbleColor; badge?: string; badgeColor?: string; delta?: number;
 }
 
