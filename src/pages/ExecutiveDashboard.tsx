@@ -168,9 +168,10 @@ export default function ExecutiveDashboard() {
     const max = Math.max(...monthlyData.map(d => d.valor), 1);
     const fmtMonth = (m: string) => {
       const parts = m.split("-");
+      const year = parts[0]?.slice(2) ?? "";
       const mo = parseInt(parts[1] ?? "1");
       const months = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-      return months[mo - 1] ?? m;
+      return `${months[mo - 1] ?? m}/${year}`;
     };
     const fmtShort = (v: number) => {
       if (v >= 1000000) return `R$ ${(v/1000000).toFixed(1)}M`;
