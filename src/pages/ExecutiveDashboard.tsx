@@ -227,7 +227,7 @@ export default function ExecutiveDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{ gap: 14 }}>
           <ExecKpiCard label="Volume Total" value={formatCurrency(totalVolume)} sub={`${totalItems} itens · ${payments.length} lotes`} icon={TrendingUp} color="copper" />
           <ExecKpiCard label="Lotes Aprovados" value={String(aprovados)} sub={`${payments.length > 0 ? ((aprovados / payments.length) * 100).toFixed(0) : 0}% do total processado`} icon={CheckCircle} color="green" badge="Concluídos" badgeColor="hsl(var(--bubble-green-bg))" />
-          <ExecKpiCard label="Em Risco — Validação" value={formatCurrency(validationImpact.valor)} sub={`${validationImpact.alertas} alertas ativos`} icon={ShieldAlert} color="yellow" badge="Requer revisão" badgeColor="hsl(var(--bubble-yellow-bg))" />
+          <ExecKpiCard label="Em Risco — Validação" value={formatCurrency(validationImpact.valor)} sub={`${validationImpact.alertas} alertas ativos`} icon={ShieldAlert} color="red" badge="Requer revisão" badgeColor="hsl(var(--bubble-red-bg))" />
           <ExecKpiCard label="Lotes em Andamento" value={String(emAnalise)} sub="em análise, validação ou aprovação" icon={Clock} color="blue" />
         </div>
       </section>
