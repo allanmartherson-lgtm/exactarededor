@@ -839,7 +839,7 @@ export function PaymentConciliationModal({
                 <span>
                   <strong>{run.file_name}</strong> · {run.total_items} itens processados
                   {excludeConsultas && ' · consultas e visitas excluídas'}
-                  · conciliação em {new Date(run.created_at).toLocaleString("pt-BR")}
+                  · conciliação em {formatDateTimeBR(run.created_at)}
                 </span>
               </div>
 
