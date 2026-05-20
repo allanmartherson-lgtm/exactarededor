@@ -1026,7 +1026,11 @@ function RowMain({
               <ValidationFindingsBadge
                 findings={allFindings}
                 currentPaymentId={it.payment_id}
+                item={it}
+                canEdit={canEdit}
+                onAcceptItem={onAcceptItem}
               />
+
             );
           })()}
           </div>
