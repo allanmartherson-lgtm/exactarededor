@@ -157,39 +157,59 @@ export default function ExecutiveDashboard() {
 
   const totalVolume = useMemo(() => payments.reduce((a, p) => a + Number(p.total_amount ?? 0), 0), [payments]);
   const totalItems = useMemo(() => payments.reduce((a, p) => a + Number(p.items_count ?? 0), 0), [payments]);
-  const aprovados = useMemo(() => payments.filter(p => ["aprovado","pedido_nf_enviado","nf_recebida","nf_conciliada","pago"].includes(p.status)).length, [payments]);
+  const aprovados = useMemo(() => payments.filter(p =>
+    !["em_analise_ia","revisao_analista","aguardando_validacao","aguardando_aprovacao","rascunho","cancelado","devolvido_analista"].includes(p.status)
+  ).length, [payments]);
   const emAnalise = useMemo(() => payments.filter(p => ["em_analise_ia","revisao_analista","aguardando_validacao","aguardando_aprovacao"].includes(p.status)).length, [payments]);
 
   const MiniBarChart = () => {
     if (monthlyData.length === 0) return null;
-    const max = Math.max(...monthlyData.map(d => d.valor));
-    const W = 100, H = 60;
+    const max = Math.max(...monthlyData.map(d => d.valor), 1);
     const fmtMonth = (m: string) => {
-      const [, mo] = m.split("-");
+      const parts = m.split("-");
+      const mo = parseInt(parts[1] ?? "1");
       const months = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-      return months[parseInt(mo) - 1] ?? mo;
+      return months[mo - 1] ?? m;
+    };
+    const fmtShort = (v: number) => {
+      if (v >= 1000000) return `R$ ${(v/1000000).toFixed(1)}M`;
+      if (v >= 1000) return `R$ ${(v/1000).toFixed(0)}k`;
+      return formatCurrency(v);
     };
     return (
-      <svg width="100%" viewBox={`0 0 ${W * monthlyData.length * 1.1} ${H + 20}`} style={{ overflow: "visible" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {monthlyData.map((d, i) => {
-          const barH = max > 0 ? (d.valor / max) * H : 0;
-          const x = i * (W + 4);
           const isLast = i === monthlyData.length - 1;
+          const pct = Math.max(4, (d.valor / max) * 100);
           return (
-            <g key={d.month}>
-              <rect x={x} y={H - barH} width={W} height={barH} rx={4}
-                fill={isLast ? "#9A6B3A" : "hsl(var(--muted))"} />
-              <text x={x + W / 2} y={H + 14} textAnchor="middle" fontSize={10}
-                fill={isLast ? "#9A6B3A" : "hsl(var(--muted-foreground))"}
-                fontWeight={isLast ? "700" : "400"}>
+            <div key={d.month} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 28, fontSize: 10, color: isLast ? "#9A6B3A" : "hsl(var(--muted-foreground))", fontWeight: isLast ? 700 : 400, flexShrink: 0, textAlign: "right" }}>
                 {fmtMonth(d.month)}
-              </text>
-            </g>
+              </span>
+              <div style={{ flex: 1, background: "hsl(var(--muted))", borderRadius: 4, height: 18, overflow: "hidden" }}>
+                <div style={{
+                  width: `${pct}%`, height: "100%", borderRadius: 4,
+                  background: isLast ? "#9A6B3A" : "hsl(var(--bubble-purple-bg))",
+                  display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 6,
+                  transition: "width 0.3s ease",
+                }}>
+                  {pct > 25 && (
+                    <span style={{ fontSize: 10, color: isLast ? "white" : "hsl(var(--bubble-purple-fg))", fontWeight: 600 }}>
+                      {fmtShort(d.valor)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span style={{ width: 80, fontSize: 11, color: isLast ? "#9A6B3A" : "hsl(var(--foreground))", fontWeight: isLast ? 700 : 400, flexShrink: 0, fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+                {fmtShort(d.valor)}
+              </span>
+            </div>
           );
         })}
-      </svg>
+      </div>
     );
   };
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -207,7 +227,7 @@ export default function ExecutiveDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{ gap: 14 }}>
           <ExecKpiCard label="Volume Total" value={formatCurrency(totalVolume)} sub={`${totalItems} itens · ${payments.length} lotes`} icon={TrendingUp} color="copper" />
           <ExecKpiCard label="Lotes Aprovados" value={String(aprovados)} sub={`${payments.length > 0 ? ((aprovados / payments.length) * 100).toFixed(0) : 0}% do total processado`} icon={CheckCircle} color="green" badge="Concluídos" badgeColor="hsl(var(--bubble-green-bg))" />
-          <ExecKpiCard label="Em Risco — Validação" value={formatCurrency(validationImpact.valor)} sub={`${validationImpact.alertas} alertas ativos`} icon={ShieldAlert} color="yellow" badge="Requer revisão" badgeColor="hsl(var(--bubble-yellow-bg))" />
+          <ExecKpiCard label="Em Risco — Validação" value={formatCurrency(validationImpact.valor)} sub={`${validationImpact.alertas} alertas ativos`} icon={ShieldAlert} color="red" badge="Requer revisão" badgeColor="hsl(var(--bubble-red-bg))" />
           <ExecKpiCard label="Lotes em Andamento" value={String(emAnalise)} sub="em análise, validação ou aprovação" icon={Clock} color="blue" />
         </div>
       </section>
