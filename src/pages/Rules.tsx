@@ -1627,24 +1627,27 @@ const Rules = () => {
               </div>
             }
           >
-            {editingId ? (
-              <Tabs defaultValue="form" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-3">
-                  <TabsTrigger value="form">Formulário</TabsTrigger>
-                  <TabsTrigger value="history">
-                    <History className="h-4 w-4 mr-1.5" /> Histórico
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="history" className="mt-0">
-                  <RuleHistoryTab ruleId={editingId} />
-                </TabsContent>
-                <TabsContent value="form" className="mt-0">
-                  <form id="rule-form" onSubmit={submitRule} className="space-y-4">
-                    {calcSyncErrors.length > 0 && (
-                      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 font-semibold text-destructive">
-                            <AlertTriangle className="h-4 w-4" />
+            <Tabs defaultValue="form" className="w-full">
+              {editingId && (
+                <>
+                  <TabsList className="grid w-full grid-cols-2 mb-3">
+                    <TabsTrigger value="form">Formulário</TabsTrigger>
+                    <TabsTrigger value="history">
+                      <History className="h-4 w-4 mr-1.5" /> Histórico
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="history" className="mt-0">
+                    <RuleHistoryTab ruleId={editingId} />
+                  </TabsContent>
+                </>
+              )}
+              <TabsContent value="form" className="mt-0">
+                <form id="rule-form" onSubmit={submitRule} className="space-y-4">
+                {calcSyncErrors.length > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 font-semibold text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
                         Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
                         {calcSyncAttempt > 0 && (
                           <span className="text-muted-foreground font-normal">· tentativa {calcSyncAttempt}</span>
