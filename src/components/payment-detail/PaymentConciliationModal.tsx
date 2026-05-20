@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
 type ReconciliationRun = {
