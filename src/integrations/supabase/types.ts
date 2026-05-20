@@ -1646,6 +1646,9 @@ export type Database = {
       }
       reconciliation_items: {
         Row: {
+          agreement_text: string | null
+          applied_calc_method: string | null
+          applied_rule_label: string | null
           attendance_number: string | null
           company_name: string | null
           created_at: string
@@ -1663,6 +1666,9 @@ export type Database = {
           valor_medpay: number
         }
         Insert: {
+          agreement_text?: string | null
+          applied_calc_method?: string | null
+          applied_rule_label?: string | null
           attendance_number?: string | null
           company_name?: string | null
           created_at?: string
@@ -1680,6 +1686,9 @@ export type Database = {
           valor_medpay?: number
         }
         Update: {
+          agreement_text?: string | null
+          applied_calc_method?: string | null
+          applied_rule_label?: string | null
           attendance_number?: string | null
           company_name?: string | null
           created_at?: string
