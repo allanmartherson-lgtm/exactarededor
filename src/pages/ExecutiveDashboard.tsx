@@ -176,6 +176,12 @@ export default function ExecutiveDashboard() {
   ).length, [payments]);
   const emAnalise = useMemo(() => payments.filter(p => ["em_analise_ia","revisao_analista","aguardando_validacao","aguardando_aprovacao"].includes(p.status)).length, [payments]);
 
+  const monthlyData = useMemo(
+    () => chartMode === "competencia" ? monthlyCompetencia : monthlyProcessamento,
+    [chartMode, monthlyCompetencia, monthlyProcessamento]
+  );
+
+
   const MiniBarChart = () => {
     if (monthlyData.length === 0) return null;
     const max = Math.max(...monthlyData.map(d => d.valor), 1);
