@@ -84,7 +84,7 @@ export function AssignmentCard({
                         <span className="text-[10px] text-muted-foreground">(automático)</span>
                       )}
                       <span className="ml-auto tabular-nums text-muted-foreground">
-                        {new Date(a.created_at).toLocaleString("pt-BR")}
+                        {formatDateTimeBR(a.created_at)}
                       </span>
                     </div>
                     {a.note && <p className="mt-0.5 text-muted-foreground">{a.note}</p>}
