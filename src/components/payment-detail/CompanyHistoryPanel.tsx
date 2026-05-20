@@ -18,6 +18,7 @@ import type {
   ObservationRow,
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
 
