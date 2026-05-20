@@ -439,6 +439,24 @@ function CalcCard({
         </Button>
       </div>
 
+      {(() => {
+        const warnings = calcItemWarnings(c);
+        if (warnings.length === 0) return null;
+        return (
+          <div className="rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 space-y-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+              ⚠ Valor fora do padrão
+            </div>
+            {warnings.map((w, i) => (
+              <p key={i} className="text-[11px] text-amber-800 dark:text-amber-200">{w}</p>
+            ))}
+            <p className="text-[10px] text-amber-700/80 dark:text-amber-300/70 italic">
+              Confira se não houve erro de digitação. É possível salvar mesmo assim.
+            </p>
+          </div>
+        );
+      })()}
+
       {open && (
         <>
           {/* === MÉTODO + PARÂMETROS === */}
@@ -1317,4 +1335,36 @@ export function calcItemErrors(c: CalcItem): number {
   if (c.has_conditions && c.time_start && c.time_end && c.time_start === c.time_end) n++;
   if (calcItemHasWhitelistWithoutCodes(c)) n++;
   return n;
+}
+
+/**
+ * Sanity checks financeiros — retornam alertas visuais (warnings) sem bloquear
+ * o salvamento. Valores fora dos ranges típicos podem indicar erro de digitação
+ * (ex.: 999 em vez de 99, multiplicador 50 em vez de 5).
+ */
+export function calcItemWarnings(c: CalcItem): string[] {
+  const warnings: string[] = [];
+  if (c.calculation_type === "percentual_sobre_convenio") {
+    const pct = numOrNull(c.convenio_percentage);
+    if (pct !== null && (pct < 1 || pct > 300)) {
+      warnings.push(`Percentual sobre convênio = ${pct}% fora do range usual (1% a 300%).`);
+    }
+  }
+  if (c.calculation_type === "tabela_diferenciada") {
+    const mult = numOrNull(c.multiplier);
+    if (mult !== null && (mult < 0.1 || mult > 10)) {
+      warnings.push(`Multiplicador = ${mult} fora do range usual (0,1 a 10).`);
+    }
+    const defl = numOrNull(c.deflator_pct);
+    if (defl !== null && (defl < 0 || defl > 50)) {
+      warnings.push(`Deflator = ${defl}% acima do range usual (0% a 50%).`);
+    }
+  }
+  if (c.calculation_type === "bonus") {
+    const bonus = numOrNull(c.bonus_amount);
+    if (bonus !== null && bonus > 50000) {
+      warnings.push(`Bônus fixo = R$ ${bonus.toLocaleString("pt-BR")} acima de R$ 50.000 por item.`);
+    }
+  }
+  return warnings;
 }
