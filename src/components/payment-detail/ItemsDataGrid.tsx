@@ -287,6 +287,19 @@ export function ItemsDataGrid({
     };
   }, [filtered]);
 
+  const validationImpact = useMemo(() => {
+    let count = 0;
+    let valor = 0;
+    for (const it of filtered) {
+      const findings = (it as any).validation_findings;
+      if (Array.isArray(findings) && findings.length > 0) {
+        count++;
+        valor += Number(it.gross_amount ?? 0);
+      }
+    }
+    return { count, valor };
+  }, [filtered]);
+
   const needsReviewCount = useMemo(
     () => items.filter((it) => !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review).length,
     [items],
@@ -488,6 +501,15 @@ export function ItemsDataGrid({
               Confortável
             </button>
           </div>
+          {validationImpact.count > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                <strong>{validationImpact.count}</strong> item{validationImpact.count !== 1 ? "s" : ""} com alerta de validação ·
+                <strong> {formatCurrency(validationImpact.valor)}</strong> em risco
+              </span>
+            </div>
+          )}
           <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
@@ -1004,7 +1026,11 @@ function RowMain({
               <ValidationFindingsBadge
                 findings={allFindings}
                 currentPaymentId={it.payment_id}
+                item={it}
+                canEdit={canEdit}
+                onAcceptItem={onAcceptItem}
               />
+
             );
           })()}
           </div>
@@ -1528,9 +1554,15 @@ function fmtDate(d: string | null | undefined): string {
 function ValidationFindingsBadge({
   findings,
   currentPaymentId,
+  item,
+  canEdit,
+  onAcceptItem,
 }: {
   findings: ValidationFinding[];
   currentPaymentId: string;
+  item: PaymentItemRowData;
+  canEdit?: boolean;
+  onAcceptItem?: (item: PaymentItemRowData) => void;
 }) {
   const navigate = useNavigate();
 
@@ -1540,6 +1572,23 @@ function ValidationFindingsBadge({
   );
   const token = SEVERITY_TOKENS[dominant];
   const TriggerIcon = token.icon;
+
+  const severityColors: Record<string, string> = {
+    critico: "bg-red-50 text-red-700 border-red-300 hover:bg-red-100",
+    alerta: "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100",
+    informativo: "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100",
+  };
+  const badgeColor = severityColors[dominant] ?? severityColors.informativo;
+
+  const KIND_LABELS: Record<string, string> = {
+    duplicidade_exata: "Duplicidade",
+    sobreposicao_assistencial: "Sobreposição",
+    parecer_virou_cirurgia: "Parecer absorvido",
+    restricao_contratual: "Restrição contratual",
+    outlier_valor: "Outlier de valor",
+  };
+  const firstFinding = findings[0];
+  const kindLabel = KIND_LABELS[firstFinding?.kind ?? ""] ?? "Validação";
 
   const goToConflict = (f: ValidationFinding, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1552,7 +1601,6 @@ function ValidationFindingsBadge({
       const el = document.querySelector<HTMLElement>(`[data-row-id="${targetId}"]`);
       flashHighlight(el);
     } else if (ci) {
-      // Mesmo padrão: navega in-app e o destino lê ?highlight para piscar.
       const url = `/pagamentos/${ci.payment_id}/empresa/${encodeURIComponent(
         ci.company_name ?? "",
       )}?highlight=${encodeURIComponent(targetId)}`;
@@ -1566,16 +1614,14 @@ function ValidationFindingsBadge({
         <button
           type="button"
           className={cn(
-            "inline-flex items-center rounded-full border px-1 py-0.5 cursor-pointer",
+            "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 cursor-pointer",
             TEXT_META,
-            // Badge de validação assistencial sempre em índigo, independente
-            // da severidade dominante — uniforme com o card de empresa.
-            "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100",
+            badgeColor,
           )}
-          title={`Validação · ${token.label}`}
+          title={`${kindLabel} · ${token.label}`}
         >
-          <TriggerIcon className="h-2.5 w-2.5 mr-0.5 inline" />
-          Validação ({findings.length})
+          <TriggerIcon className="h-2.5 w-2.5 shrink-0" />
+          {kindLabel}{findings.length > 1 ? ` (${findings.length})` : ""}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -1589,6 +1635,7 @@ function ValidationFindingsBadge({
             const sameBatch = !ci || ci.payment_id === currentPaymentId;
             return (
               <div key={`${f.rule_id}-${idx}`} className={cn("p-3", idx > 0 && "border-t border-[#D9D2C5]")}>
+
                 <div className="flex items-start gap-1.5 mb-2">
                   <ShieldAlert className="h-3.5 w-3.5 text-[#9A6B3A] mt-0.5 shrink-0" />
                   <div className="text-xs font-semibold text-[#9A6B3A] leading-tight break-words">{f.rule_name}</div>
@@ -1631,6 +1678,27 @@ function ValidationFindingsBadge({
                 ) : (
                   <div className="text-[11px] text-muted-foreground italic">
                     Detalhes do item conflitante indisponíveis. Rode a validação novamente para enriquecer.
+                  </div>
+                )}
+                {canEdit && (
+                  <div className="mt-3 pt-2.5 border-t border-[#D9D2C5] flex flex-col gap-1.5">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Ação</p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 mb-1">
+                      <span className="font-semibold">Valor em risco: {formatCurrency(Number(item.gross_amount ?? 0))}</span>
+                    </div>
+                    {onAcceptItem && (item.ai_status === "reprovado" || item.ai_status === "alerta" || item.ai_status === "aprovado") && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAcceptItem(item);
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-[11px] px-2 py-1.5 rounded border border-green-200 bg-green-50 text-green-800 hover:bg-green-100 transition-colors font-medium"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        Acatar como válido (com justificativa)
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
