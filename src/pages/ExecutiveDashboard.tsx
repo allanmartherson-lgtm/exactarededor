@@ -247,18 +247,7 @@ export default function ExecutiveDashboard() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <MiniBarChart />
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                    {monthlyData.slice(-3).reverse().map((d, i) => (
-                      <div key={d.month} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                          {d.month.slice(0, 7)}
-                        </span>
-                        <span style={{ fontSize: 16, fontWeight: i === 0 ? 600 : 300, color: i === 0 ? "#9A6B3A" : "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>
-                          {formatCurrency(d.valor)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                </div>
                 </div>
               )}
             </div>
