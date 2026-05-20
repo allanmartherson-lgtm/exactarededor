@@ -79,9 +79,10 @@ type Step = "upload" | "mapping" | "result";
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
   if (rows.length === 0) return {};
   const aliases: Record<string, string[]> = {
-    attendance: ["atendimento", "conta", "nr atendimento", "nratendimento"],
+    attendance: ["atendimento", "nr atendimento", "nratendimento"],
+    account: ["conta", "nrconta", "numeroconta"],
     patient: ["nome", "paciente", "nomepaciente"],
-    procCode: ["codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
+    procCode: ["código tuss (8d)", "codigotuss8d", "tuss8d", "codigo tuss (8d)", "codigo", "código", "codprocedimento", "codigoprocedimento", "codtuss"],
     procName: ["procedimento/mat-med", "procedimento", "descricao", "nomeprocedimento"],
     doctor: ["médico exec.", "medico exec.", "medicoexec", "medico", "profissional"],
     date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
@@ -288,10 +289,11 @@ export function PaymentConciliationModal({
       });
 
       const normalizeCode = (code: unknown): string => {
-        const s = String(Number(code) || code).replace(/\D/g, '');
-        // MedPay usa 8 dígitos, planilha hospitalar usa 7 — remove sempre o último dígito se tiver 8
-        if (s.length === 8) return s.slice(0, 7);
-        return s;
+        if (code == null || code === '') return '';
+        // Remove casas decimais (ex: 31005470.0 -> 31005470)
+        const num = parseFloat(String(code));
+        if (!isNaN(num)) return String(Math.round(num));
+        return String(code).replace(/\D/g, '');
       };
 
       const normAtt = (att: unknown): string =>
@@ -319,6 +321,7 @@ export function PaymentConciliationModal({
 
       for (const row of filteredRows) {
         const att = getCell(row, "attendance");
+        const account = getCell(row, "account");
         const code = getCell(row, "procCode");
         const valHosp = toVal(getCell(row, "value"));
         const patient = getCell(row, "patient");
@@ -334,7 +337,7 @@ export function PaymentConciliationModal({
         const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
         const base: Record<string, unknown> = {
-          attendance_number: att != null ? String(att) : null,
+          attendance_number: att ? String(att) : (account ? String(account) : null),
           patient_name: patient ? String(patient) : null,
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
