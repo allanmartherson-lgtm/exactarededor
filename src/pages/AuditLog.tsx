@@ -12,6 +12,7 @@ import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { ChevronDown, ChevronRight, Search, X, History, ShieldAlert, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getRoleVisual } from "@/lib/observations";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 
 type Entry = {
   id: string;
@@ -40,8 +41,7 @@ const ACTION_LABELS: Record<string, string> = {
   validation_assigned: "Envio para validação",
 };
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+const fmtDate = (iso: string) => formatDateTimeBR(iso);
 
 const stringify = (v: unknown): string => {
   if (v === null || v === undefined) return "—";
