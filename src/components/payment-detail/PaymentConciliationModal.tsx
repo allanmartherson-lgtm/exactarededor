@@ -65,6 +65,9 @@ type ReconciliationItem = {
   status: "conciliado" | "valor_divergente" | "so_hospital" | "so_medpay";
   ia_obs: string | null;
   company_name: string | null;
+  agreement_text: string | null;
+  applied_rule_label: string | null;
+  applied_calc_method: string | null;
 };
 
 interface Props {
@@ -450,6 +453,9 @@ export function PaymentConciliationModal({
           company_name: mappedCompany,
           ia_obs: null,
           status: "so_hospital",
+          agreement_text: (it as any).agreement_text ?? null,
+          applied_rule_label: null,
+          applied_calc_method: null,
         };
 
         if (match) {
@@ -462,6 +468,9 @@ export function PaymentConciliationModal({
           if (!base.procedure_name) base.procedure_name = (match as any).procedure_name ?? null;
           if (!base.procedure_date) base.procedure_date = (match as any).procedure_date ?? null;
           if (!base.company_name) base.company_name = match.company_name ?? null;
+          if (!base.agreement_text) base.agreement_text = (match as any).agreement_text ?? null;
+          base.applied_rule_label = (match as any).applied_rule_label ?? null;
+          base.applied_calc_method = (match as any).applied_calc_method ?? null;
 
           const diff = valHosp - valMed;
           if (Math.abs(diff) < 0.02) {
@@ -471,8 +480,10 @@ export function PaymentConciliationModal({
             base.status = "valor_divergente";
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            const signal = diff > 0 ? "a mais" : "a menos";
-            base.ia_obs = `Hospital cobrou ${formatCurrency(Math.abs(diff))} ${signal} (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%). MedPay: ${formatCurrency(valMed)} · Hospital: ${formatCurrency(valHosp)}.`;
+            const ruleContext = (match as any).applied_rule_label
+              ? ` Regra aplicada: "${(match as any).applied_rule_label}".`
+              : '';
+            base.ia_obs = `Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%).${ruleContext} Revisar se o valor do hospital corresponde ao convênio sem aplicação de acordo.`;
             divergencia_valor += Math.abs(diff);
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
@@ -1039,6 +1050,7 @@ export function PaymentConciliationModal({
                                     Paciente / Procedimento
                                   </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Data</TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px]">Convênio</TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     MedPay (R$)
                                   </TableHead>
@@ -1073,6 +1085,9 @@ export function PaymentConciliationModal({
                                             ? formatDateBR(it.procedure_date)
                                             : "—"}
                                         </TableCell>
+                                        <TableCell className="px-3 py-2 text-[11px] text-muted-foreground">
+                                          {it.agreement_text ?? "—"}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
                                           {it.valor_medpay
                                             ? formatCurrency(Number(it.valor_medpay))
@@ -1096,7 +1111,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={6} className="bg-info/5 px-4 py-3">
+                                          <TableCell colSpan={7} className="bg-info/5 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-info shrink-0 mt-0.5" />
                                               <div className="flex-1">
@@ -1104,6 +1119,17 @@ export function PaymentConciliationModal({
                                                   Análise IA
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs}</p>
+                                                {it.status === "valor_divergente" && it.applied_rule_label && (
+                                                  <div className="mt-2 flex items-center gap-2">
+                                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra MedPay:</span>
+                                                    <span className="text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+                                                      {it.applied_rule_label}
+                                                    </span>
+                                                    {it.applied_calc_method && (
+                                                      <span className="text-[10px] text-muted-foreground">· {it.applied_calc_method}</span>
+                                                    )}
+                                                  </div>
+                                                )}
                                                 <div className="flex gap-2 mt-2">
                                                   {it.status === "so_hospital" && (
                                                     <Button size="sm">Incorporar ao ciclo</Button>
