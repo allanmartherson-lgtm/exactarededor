@@ -944,27 +944,47 @@ const Rules = () => {
         actorId: user!.id, company: meta.auditCompany,
         diff: buildDiff(before as any, ruleData as any),
       });
-      // Auditoria dedicada do diff de cálculos — garante rastro dos parâmetros financeiros.
-      if (prevCalcs !== null) {
-        const calcsChanged = JSON.stringify(prevCalcs) !== JSON.stringify(calcs);
-        if (calcsChanged) {
-          await recordAudit({
-            entityType: "rule",
-            entityId: savedId,
-            action: "update",
-            actorId: user!.id,
-            company: meta.auditCompany,
-            diff: { calculations: { before: prevCalcs, after: calcs } },
-          });
-        }
-      } else if (!meta.wasEditing && calcs.length > 0) {
+      // Auditoria por cálculo — registra diff financeiro de cada rule_calculation.
+      const FINANCIAL_FIELDS = [
+        "label", "calculation_type", "convenio_percentage", "fixed_amount",
+        "multiplier", "deflator_pct", "repasse_pct", "acrescimo_pct",
+        "package_amount", "bonus_amount", "bonus_pct", "target_amount",
+        "reference_table_id", "aux_first_pct", "aux_second_pct", "instrumentador_pct",
+        "procedure_codes", "sectors", "doctor_roles", "agreement_aliases",
+        "time_mode", "weekdays", "elective_mode", "sort_order",
+      ];
+      const pick = (src: any) =>
+        Object.fromEntries(FINANCIAL_FIELDS.filter((f) => src && f in src).map((f) => [f, src[f]]));
+
+      const { data: savedCalcs } = await supabase
+        .from("rule_calculations")
+        .select("*")
+        .eq("rule_id", savedId)
+        .order("sort_order");
+
+      const prevByKey = new Map<string, any>();
+      (prevCalcs ?? []).forEach((p: any, idx: number) => {
+        prevByKey.set(p.id, p);
+        prevByKey.set(`__idx_${idx}`, p);
+      });
+
+      for (let i = 0; i < (savedCalcs ?? []).length; i++) {
+        const cur = (savedCalcs as any[])[i];
+        const prev = prevByKey.get(cur.id) ?? prevByKey.get(`__idx_${i}`) ?? null;
+        const calcDiff = buildDiff(prev ? pick(prev) : null, pick(cur));
+        if (Object.keys(calcDiff).length === 0) continue;
         await recordAudit({
-          entityType: "rule",
-          entityId: savedId,
-          action: "create",
+          entityType: "rule_calculation",
+          entityId: cur.id,
+          action: prev ? "update" : "create",
           actorId: user!.id,
           company: meta.auditCompany,
-          diff: { calculations: { before: null, after: calcs } },
+          diff: {
+            __rule_id: { before: null, after: savedId },
+            __calc_index: { before: null, after: i },
+            __calc_label: { before: null, after: cur.label ?? cur.calculation_type },
+            ...calcDiff,
+          },
         });
       }
     }
