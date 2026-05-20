@@ -1111,7 +1111,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={6} className="bg-info/5 px-4 py-3">
+                                          <TableCell colSpan={7} className="bg-info/5 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-info shrink-0 mt-0.5" />
                                               <div className="flex-1">
@@ -1119,6 +1119,17 @@ export function PaymentConciliationModal({
                                                   Análise IA
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs}</p>
+                                                {it.status === "valor_divergente" && it.applied_rule_label && (
+                                                  <div className="mt-2 flex items-center gap-2">
+                                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra MedPay:</span>
+                                                    <span className="text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+                                                      {it.applied_rule_label}
+                                                    </span>
+                                                    {it.applied_calc_method && (
+                                                      <span className="text-[10px] text-muted-foreground">· {it.applied_calc_method}</span>
+                                                    )}
+                                                  </div>
+                                                )}
                                                 <div className="flex gap-2 mt-2">
                                                   {it.status === "so_hospital" && (
                                                     <Button size="sm">Incorporar ao ciclo</Button>
