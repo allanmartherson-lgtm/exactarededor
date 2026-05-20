@@ -90,7 +90,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     company: ["terceiro", "empresa", "prestador"],
   };
   const normKey = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9.]/g, "");
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
   const map: Record<string, string> = {};
   for (const col of Object.keys(rows[0])) {
     const normCol = normKey(col);
