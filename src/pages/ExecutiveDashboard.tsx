@@ -248,7 +248,6 @@ export default function ExecutiveDashboard() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <MiniBarChart />
                 </div>
-                </div>
               )}
             </div>
           </SurfaceCard>
