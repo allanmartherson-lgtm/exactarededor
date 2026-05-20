@@ -88,7 +88,7 @@ export function RuleHistoryTab({ ruleId }: { ruleId: string }) {
         .order("created_at", { ascending: false })
         .limit(200);
 
-      const list = ((data ?? []) as AuditEntry[]).filter(
+      const list = (((data ?? []) as unknown) as AuditEntry[]).filter(
         (e) => e.action !== "create_via_rpc" && e.action !== "update_via_rpc",
       );
 
