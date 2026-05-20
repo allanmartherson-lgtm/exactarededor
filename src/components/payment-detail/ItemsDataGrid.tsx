@@ -501,6 +501,15 @@ export function ItemsDataGrid({
               Confortável
             </button>
           </div>
+          {validationImpact.count > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                <strong>{validationImpact.count}</strong> item{validationImpact.count !== 1 ? "s" : ""} com alerta de validação ·
+                <strong> {formatCurrency(validationImpact.valor)}</strong> em risco
+              </span>
+            </div>
+          )}
           <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
