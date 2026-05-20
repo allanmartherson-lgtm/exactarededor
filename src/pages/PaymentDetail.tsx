@@ -952,6 +952,18 @@ const PaymentDetail = () => {
     }
   };
 
+  // Recarrega dados quando um job de análise termina (reanálise por empresa ou lote inteiro)
+  const prevJobStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!analysisJob) return;
+    const prev = prevJobStatusRef.current;
+    prevJobStatusRef.current = analysisJob.status;
+    // Só recarrega quando TRANSICIONA de em_andamento para concluido/parcial
+    if (prev === "em_andamento" && (analysisJob.status === "concluido" || analysisJob.status === "parcial")) {
+      load();
+    }
+  }, [analysisJob]);
+
   if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
 
   const isValidador = hasRole("validador") || hasRole("admin");
