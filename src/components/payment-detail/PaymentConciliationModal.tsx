@@ -140,6 +140,7 @@ export function PaymentConciliationModal({
   const [step, setStep] = useState<Step>("upload");
   const [hospitalCompanies, setHospitalCompanies] = useState<string[]>([]);
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
+  const [matchLevels, setMatchLevels] = useState<Record<string, 'exact' | 'high' | 'medium' | null>>({});
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
