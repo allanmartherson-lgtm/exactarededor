@@ -18,6 +18,7 @@ import type {
   ObservationRow,
   PaymentItemRow,
 } from "@/hooks/usePaymentDetailData";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 import { authorRoleLabel, getRoleVisual } from "@/lib/observations";
 
@@ -56,7 +57,7 @@ type Entry = {
 };
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR");
+  return formatDateTimeBR(iso);
 }
 
 function itemLabelOf(it: PaymentItemRow | undefined): string | null {
@@ -238,7 +239,7 @@ export function CompanyHistoryPanel({
    */
   const exportPdf = () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-    const generatedAt = new Date().toLocaleString("pt-BR");
+    const generatedAt = formatDateTimeBR(new Date().toISOString());
     doc.setFontSize(14);
     doc.text("Histórico do pagamento", 40, 40);
     doc.setFontSize(9);

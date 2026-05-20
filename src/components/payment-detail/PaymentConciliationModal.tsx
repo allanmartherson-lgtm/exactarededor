@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/status";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
 type ReconciliationRun = {
@@ -838,7 +839,7 @@ export function PaymentConciliationModal({
                 <span>
                   <strong>{run.file_name}</strong> · {run.total_items} itens processados
                   {excludeConsultas && ' · consultas e visitas excluídas'}
-                  · conciliação em {new Date(run.created_at).toLocaleString("pt-BR")}
+                  · conciliação em {formatDateTimeBR(run.created_at)}
                 </span>
               </div>
 
@@ -1069,7 +1070,7 @@ export function PaymentConciliationModal({
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px]">
                                           {it.procedure_date
-                                            ? new Date(it.procedure_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+                                            ? formatDateBR(it.procedure_date)
                                             : "—"}
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">

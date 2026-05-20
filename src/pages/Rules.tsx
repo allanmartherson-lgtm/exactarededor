@@ -18,6 +18,7 @@ import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { toast } from "@/hooks/use-toast";
 import {
   TONE_CLASSES,
@@ -408,7 +409,7 @@ const Rules = () => {
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text(`ID: ${r.id}`, 14, 34);
-    doc.text(`Exportado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 34, { align: 'right' });
+    doc.text(`Exportado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 34, { align: 'right' });
     
     let currentY = 55;
     
@@ -425,7 +426,7 @@ const Rules = () => {
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
-      ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
+      ["Vigência", `${r.valid_from ? formatDateBR(r.valid_from) : "Início"} → ${r.valid_until ? formatDateBR(r.valid_until) : "Fim"}`],
       ["Status", (() => {
         const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
         if (r.active === false) return "Inativa (Manual)";
@@ -669,7 +670,7 @@ const Rules = () => {
     doc.text("Relatório Geral de Regras de Negócio", 14, 20);
     doc.setFontSize(10);
     doc.text(`Total de regras: ${filtered.length}`, 14, 28);
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    doc.text(`Gerado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 28, { align: 'right' });
     
     const tableData = filtered.map(r => [
         r.name,

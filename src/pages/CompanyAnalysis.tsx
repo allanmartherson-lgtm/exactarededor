@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { recordObservation, type ObservationType } from "@/lib/observations";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1531,7 +1532,7 @@ export default function CompanyAnalysis() {
                       <div className="text-muted-foreground mb-0.5">
                         {o.author_type}
                         {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
-                        {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
+                        {" · "}{formatDateTimeBR(o.created_at)}
                       </div>
                       <div className="whitespace-pre-wrap">{o.message}</div>
                     </li>
@@ -1931,7 +1932,7 @@ function DivergenceCard({
                 <div className="text-muted-foreground text-[10px] mb-0.5">
                   {o.author_type}
                   {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
-                  {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
+                  {" · "}{formatDateTimeBR(o.created_at)}
                 </div>
                 <div className="whitespace-pre-wrap">{o.message}</div>
               </li>

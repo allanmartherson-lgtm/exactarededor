@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserCheck, Users } from "lucide-react";
 import type { AssignmentRow } from "@/hooks/usePaymentDetailData";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 
 /**
  * Card de responsável atual + histórico de assumiu/transferiu para o lote.
@@ -83,7 +84,7 @@ export function AssignmentCard({
                         <span className="text-[10px] text-muted-foreground">(automático)</span>
                       )}
                       <span className="ml-auto tabular-nums text-muted-foreground">
-                        {new Date(a.created_at).toLocaleString("pt-BR")}
+                        {formatDateTimeBR(a.created_at)}
                       </span>
                     </div>
                     {a.note && <p className="mt-0.5 text-muted-foreground">{a.note}</p>}

@@ -18,6 +18,7 @@ import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType } from "@/lib/status";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 import type { Database } from "@/integrations/supabase/types";
 
 type ValidationRule = Database["public"]["Tables"]["validation_rules"]["Row"];
@@ -325,7 +326,7 @@ export default function ValidationRules() {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`ID: ${r.id}`, 14, 28);
-    doc.text(`Exportado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    doc.text(`Exportado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 28, { align: 'right' });
     
     let currentY = 40;
     

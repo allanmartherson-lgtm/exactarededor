@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
@@ -501,7 +502,7 @@ const Users = () => {
                     <div className="space-y-1 min-w-0">
                       <p className="font-medium text-sm">{r.full_name} <span className="text-muted-foreground font-normal">— {r.email}</span></p>
                       <p className="text-xs text-muted-foreground">
-                        {formatPhone(r.phone)} · {r.role_title} · {r.department} · Nasc. {new Date(r.birth_date).toLocaleDateString("pt-BR")}
+                        {formatPhone(r.phone)} · {r.role_title} · {r.department} · Nasc. {formatDateBR(r.birth_date)}
                       </p>
                       {r.message && <p className="text-xs text-muted-foreground italic">"{r.message}"</p>}
                     </div>
@@ -720,7 +721,7 @@ const Users = () => {
             {historyEntries?.map((e) => {
               const isCreate = e.action === "created";
               const diff = e.diff ?? {};
-              const when = new Date(e.created_at).toLocaleString("pt-BR");
+              const when = formatDateTimeBR(e.created_at);
               const actor = e.actor_id ? (historyActors[e.actor_id] ?? "—") : "Sistema";
               return (
                 <div key={e.id} className="border rounded-md p-3 text-sm">

@@ -64,6 +64,7 @@ import type {
 import type { ObservationRow } from "@/hooks/usePaymentDetailData";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
+import { formatDateBR } from "@/lib/dateUtils";
 
 interface PaymentReportModalProps {
   open: boolean;
@@ -369,7 +370,7 @@ export function PaymentReportModal({
               {payment.reference && ` — ${payment.reference}`}
             </SheetTitle>
             <div className="flex gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
-              <span><strong>Data:</strong> {new Date().toLocaleDateString("pt-BR")}</span>
+              <span><strong>Data:</strong> {formatDateBR(new Date().toISOString())}</span>
               <span><strong>Analista:</strong> {analystName || "Sistema"}</span>
               <span><strong>Empresas:</strong> {groups.length}</span>
               <span><strong>Itens:</strong> {items.length}</span>
