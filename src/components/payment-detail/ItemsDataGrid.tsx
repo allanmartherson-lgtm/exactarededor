@@ -167,6 +167,7 @@ export function ItemsDataGrid({
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
+  const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
 
   const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
     if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
@@ -241,6 +242,10 @@ export function ItemsDataGrid({
       const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
       if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
       if (onlyNeedsReview && !needsReview) return false;
+      if (onlyValidationAlerts) {
+        const vf = (it as any).validation_findings;
+        if (!Array.isArray(vf) || vf.length === 0) return false;
+      }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
@@ -261,7 +266,7 @@ export function ItemsDataGrid({
     }).sort((a, b) =>
       getPatient(a).localeCompare(getPatient(b), "pt-BR", { sensitivity: "base" })
     );
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
 
   // Totais da seleção atual (após filtros).
   // gross_amount/expected_amount já representam o valor da linha como
@@ -412,7 +417,16 @@ export function ItemsDataGrid({
             <ShieldAlert className="h-3.5 w-3.5 mr-1" />
             Sem regra ({needsReviewCount})
           </Button>
-          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyNeedsReview) && (
+          <Button
+            size="sm"
+            variant={onlyValidationAlerts ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setOnlyValidationAlerts((v) => !v)}
+          >
+            <ShieldAlert className="h-3.5 w-3.5 mr-1" />
+            Alertas assistenciais
+          </Button>
+          {(filter || patientFilter || doctorFilter !== "__all__" || statusFilter !== "__all__" || convenioFilter !== "__all__" || onlyAlerts || onlyNeedsReview || onlyValidationAlerts) && (
             <Button
               size="sm"
               variant="ghost"
@@ -421,6 +435,7 @@ export function ItemsDataGrid({
                 setFilter(""); setPatientFilter("");
                 setDoctorFilter("__all__"); setStatusFilter("__all__"); setConvenioFilter("__all__");
                 setOnlyAlerts(false); setOnlyNeedsReview(false);
+                setOnlyValidationAlerts(false);
               }}
             >
               Limpar
