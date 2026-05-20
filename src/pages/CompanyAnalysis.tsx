@@ -890,6 +890,13 @@ export default function CompanyAnalysis() {
       // Optimistic update
       setItems(prev => prev.filter(it => it.id !== deleteItem.id));
       
+      // Deleta registros dependentes em reconciliation_items antes (FK sem CASCADE)
+      await supabase
+        .from("reconciliation_items")
+        .delete()
+        .eq("payment_item_id", deleteItem.id);
+
+      // Agora pode deletar o item com segurança
       const { error } = await supabase.from("payment_items").delete().eq("id", deleteItem.id);
       if (error) throw error;
       
