@@ -66,6 +66,7 @@ const ExecKpiCard = ({ label, value, sub, icon: Icon, color, badge, badgeColor, 
   <div style={{
     background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12,
     padding: "22px", display: "flex", flexDirection: "column", gap: 14, position: "relative",
+    overflow: "hidden", minWidth: 0,
   }}>
     <div className="flex items-start justify-between gap-3">
       <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" as const, lineHeight: 1.4 }}>{label}</span>
@@ -73,7 +74,7 @@ const ExecKpiCard = ({ label, value, sub, icon: Icon, color, badge, badgeColor, 
         <Icon size={18} strokeWidth={2} />
       </div>
     </div>
-    <div style={{ fontSize: 36, fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+    <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</div>
     <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{sub}</div>
     {badge && (
       <span style={{ background: badgeColor || "hsl(var(--muted))", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, alignSelf: "flex-start", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{badge}</span>
