@@ -57,7 +57,7 @@ type Entry = {
 };
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR");
+  return formatDateTimeBR(iso);
 }
 
 function itemLabelOf(it: PaymentItemRow | undefined): string | null {
