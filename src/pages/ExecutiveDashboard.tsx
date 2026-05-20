@@ -41,7 +41,7 @@ const SurfaceCard = ({ children, className, style }: { children: React.ReactNode
 );
 
 const SurfaceCardHeader = ({ title, icon: Icon, iconColor = "teal", rightAction }: {
-  title: string; icon?: React.ComponentType<{ size?: number }>; iconColor?: BubbleColor; rightAction?: React.ReactNode;
+  title: string; icon?: LucideIcon; iconColor?: BubbleColor; rightAction?: React.ReactNode;
 }) => (
   <div className="flex items-center justify-between gap-3" style={{ padding: "18px 22px", borderBottom: "1px solid hsl(var(--border))" }}>
     <div className="flex items-center gap-2.5 min-w-0">
