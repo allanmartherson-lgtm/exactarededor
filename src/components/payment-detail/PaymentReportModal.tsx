@@ -647,6 +647,144 @@ export function PaymentReportModal({
             </CardContent>
           </Card>
 
+          {/* Alertas Assistenciais — tabela comparativa */}
+          {(() => {
+            const validationItems = filteredItems.filter(it => {
+              const vf = (it as any).validation_findings;
+              return Array.isArray(vf) && vf.length > 0;
+            });
+            if (validationItems.length === 0) return null;
+
+            const rows: Array<{ item: PaymentItemRow; finding: any }> = [];
+            for (const it of validationItems) {
+              const findings = (it as any).validation_findings as any[];
+              for (const f of findings) {
+                rows.push({ item: it, finding: f });
+              }
+            }
+
+            const totalRisco = validationItems.reduce((acc, it) => acc + Number(it.gross_amount ?? 0), 0);
+
+            return (
+              <Card className="border-warning/30">
+                <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-warning-foreground">
+                    <AlertTriangle className="h-4 w-4" />
+                    Alertas Assistenciais — {rows.length} ocorrência{rows.length !== 1 ? "s" : ""}
+                  </div>
+                  <div className="text-xs font-semibold text-destructive">
+                    {formatCurrency(totalRisco)} em risco
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="text-[10px] h-8 uppercase w-32">Tipo de Alerta</TableHead>
+                        <TableHead className="text-[10px] h-8 uppercase" colSpan={2}>
+                          <div className="grid grid-cols-2 gap-2">
+                            <span>Item Original</span>
+                            <span className="text-warning-foreground">↔ Item Conflitante</span>
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="text-[10px] h-7 uppercase"></TableHead>
+                        <TableHead className="text-[10px] h-7 uppercase border-r">Médico · Empresa · Atend · Especialidade · Paciente · Data · Valor</TableHead>
+                        <TableHead className="text-[10px] h-7 uppercase text-warning-foreground">Médico · Empresa · Atend · Especialidade · Paciente · Data · Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((row, i) => {
+                        const { item, finding } = row;
+                        const ci = finding?.conflicting_item;
+                        const kindLabel = finding?.rule_name || finding?.kind || "Validação";
+                        const isOdd = i % 2 === 0;
+
+                        const renderItemCell = (
+                          medico: string | null | undefined,
+                          empresa: string | null | undefined,
+                          atend: string | number | null | undefined,
+                          especialidade: string | null | undefined,
+                          paciente: string | null | undefined,
+                          data: string | null | undefined,
+                          valor: number | null | undefined,
+                          isConflict = false
+                        ) => (
+                          <div className="flex flex-col gap-0.5 py-1">
+                            <div className="flex items-center gap-1">
+                              <Stethoscope className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium text-xs">{medico || "—"}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="text-[11px] text-muted-foreground truncate max-w-[220px]">{empresa || "—"}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+                              {atend && <span className="font-mono">Atend: {atend}</span>}
+                              {especialidade && <span>· {especialidade}</span>}
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+                              {paciente && <span className="flex items-center gap-1"><User className="h-2.5 w-2.5" /> {paciente}</span>}
+                              {data && <span>· {data}</span>}
+                              {valor != null && (
+                                <span className={cn("font-semibold", isConflict ? "text-warning-foreground" : "text-foreground")}>
+                                  · {formatCurrency(valor)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+
+                        return (
+                          <TableRow key={`${item.id}-${i}`} className={cn("text-xs align-top", isOdd ? "bg-muted/10" : "bg-background")}>
+                            <TableCell className="align-top py-2">
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] px-1.5 py-0.5 whitespace-nowrap border-warning/40 text-warning-foreground bg-warning/5"
+                              >
+                                {kindLabel}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="align-top py-2 border-r">
+                              {renderItemCell(
+                                item.doctor_name,
+                                item.company_name,
+                                item.attendance_number,
+                                item.specialty,
+                                item.patient_name,
+                                item.procedure_date ? formatDateOnly(item.procedure_date) : null,
+                                Number(item.gross_amount ?? 0),
+                                false
+                              )}
+                            </TableCell>
+                            <TableCell className="align-top py-2 bg-warning/5">
+                              {ci ? renderItemCell(
+                                ci.doctor_name,
+                                ci.company_name,
+                                ci.attendance_number,
+                                ci.specialty,
+                                ci.patient_name,
+                                ci.procedure_date ? formatDateOnly(ci.procedure_date) : null,
+                                ci.gross_amount != null ? Number(ci.gross_amount) : null,
+                                true
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground italic">
+                                  {finding?.message || "Sem item conflitante identificado"}
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+
           {/* Tabela de Empresas */}
           <div className="space-y-3 pb-10">
             <h3 className="font-semibold text-lg flex items-center gap-2">
