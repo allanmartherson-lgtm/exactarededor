@@ -65,10 +65,28 @@ const FIELD_LABELS: Record<string, string> = {
 
 const stringify = (v: unknown): string => {
   if (v === null || v === undefined || v === "") return "—";
-  if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
-  if (Array.isArray(v)) return v.length === 0 ? "—" : v.join(", ");
-  try { return JSON.stringify(v); } catch { return String(v); }
+  if (typeof v === "boolean") return v ? "Sim" : "Não";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return v || "—";
+  if (Array.isArray(v)) {
+    if (v.length === 0) return "—";
+    if (typeof v[0] === "object" && v[0] !== null) {
+      return `${v.length} item(s)`;
+    }
+    return v.join(", ");
+  }
+  if (typeof v === "object") {
+    try {
+      const entries = Object.entries(v as object)
+        .filter(([, val]) => val !== null && val !== undefined)
+        .slice(0, 3)
+        .map(([k, val]) => `${k}: ${val}`);
+      return entries.join(" | ") || "{}";
+    } catch {
+      return JSON.stringify(v);
+    }
+  }
+  return String(v);
 };
 
 export function RuleHistoryTab({ ruleId }: { ruleId: string }) {
