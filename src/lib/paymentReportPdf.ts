@@ -161,13 +161,7 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
     });
     const all = [...raw, ...synth];
     if (all.length === 0) continue;
-    const text = all
-      .map((f: any) => {
-        const name = f?.rule_name || f?.kind || "Validação";
-        const msg = f?.message || "";
-        return msg ? `${name}: ${msg}` : name;
-      })
-      .join(" | ");
+    const text = all.map((f: any) => formatFindingText(f)).join(" | ");
     const label = `${(it as any).doctor_name ?? "—"}${(it as any).attendance_number ? ` · #${(it as any).attendance_number}` : ""}`;
     validationRows.push([label, text]);
   }
