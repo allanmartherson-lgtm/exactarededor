@@ -426,7 +426,7 @@ const Rules = () => {
       ["Convênio", r.agreement_name || "Todos"],
       ["Gravidade", (r.severity || "info").toUpperCase()],
       ["Escopo", RULE_SCOPE_LABELS[r.scope as RuleScope] ?? r.scope ?? "Master"],
-      ["Vigência", `${r.valid_from ? new Date(r.valid_from).toLocaleDateString('pt-BR') : "Início"} → ${r.valid_until ? new Date(r.valid_until).toLocaleDateString('pt-BR') : "Fim"}`],
+      ["Vigência", `${r.valid_from ? formatDateBR(r.valid_from) : "Início"} → ${r.valid_until ? formatDateBR(r.valid_until) : "Fim"}`],
       ["Status", (() => {
         const isDateInactive = (r.valid_until && new Date(r.valid_until) < new Date());
         if (r.active === false) return "Inativa (Manual)";
