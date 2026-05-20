@@ -109,6 +109,77 @@ self.onmessage = async (e) => {
     const wsDetails = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailRows]);
     XLSX.utils.book_append_sheet(wb, wsDetails, "Detalhe dos Itens");
 
+    // Aba 4: Alertas Assistenciais — tabela comparativa lado a lado
+    const alertItems = filteredItems.filter((it: any) =>
+      Array.isArray(it.validation_findings) && it.validation_findings.length > 0
+    );
+
+    if (alertItems.length > 0) {
+      const alertHeaders = [
+        "Tipo de Alerta",
+        "Médico (Original)", "Empresa (Original)", "Atendimento (Original)",
+        "Especialidade (Original)", "Paciente (Original)", "Data (Original)", "Valor (Original)",
+        "↔",
+        "Médico (Conflitante)", "Empresa (Conflitante)", "Atendimento (Conflitante)",
+        "Especialidade (Conflitante)", "Paciente (Conflitante)", "Data (Conflitante)", "Valor (Conflitante)",
+      ];
+
+      const alertRows: any[][] = [];
+      for (const it of alertItems) {
+        const findings = (it as any).validation_findings as any[];
+        for (const f of findings) {
+          const ci = f?.conflicting_item;
+          alertRows.push([
+            f?.rule_name || f?.kind || "Validação",
+            it.doctor_name || "",
+            it.company_name || "",
+            it.attendance_number || "",
+            it.specialty || "",
+            it.patient_name || "",
+            it.procedure_date || "",
+            Number(it.gross_amount ?? 0),
+            "",
+            ci?.doctor_name || "",
+            ci?.company_name || "",
+            ci?.attendance_number || "",
+            ci?.specialty || "",
+            ci?.patient_name || "",
+            ci?.procedure_date || "",
+            ci?.gross_amount != null ? Number(ci.gross_amount) : "",
+          ]);
+        }
+      }
+
+      const wsAlerts = XLSX.utils.aoa_to_sheet([alertHeaders, ...alertRows]);
+
+      const alertRange = XLSX.utils.decode_range(wsAlerts["!ref"] || "A1:P1");
+      for (let C = alertRange.s.c; C <= alertRange.e.c; ++C) {
+        const cell = wsAlerts[XLSX.utils.encode_cell({ r: 0, c: C })];
+        if (cell) {
+          cell.s = {
+            fill: { fgColor: { rgb: C < 8 ? "EFF6FF" : C === 8 ? "FFFFFF" : "FFF7ED" } },
+            font: { bold: true, sz: 9 },
+          };
+        }
+      }
+
+      for (let R = 1; R <= alertRows.length; ++R) {
+        const cell = wsAlerts[XLSX.utils.encode_cell({ r: R, c: 8 })];
+        if (cell) cell.s = { alignment: { horizontal: "center" }, font: { bold: true } };
+      }
+
+      wsAlerts["!cols"] = [
+        { wch: 24 },
+        { wch: 26 }, { wch: 30 }, { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 12 },
+        { wch: 3 },
+        { wch: 26 }, { wch: 30 }, { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 12 }, { wch: 12 },
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsAlerts, "Alertas Assistenciais");
+    }
+
+
+
     const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     self.postMessage({ type: 'success', buffer: excelBuffer, fileName });
   } catch (error) {
