@@ -18,6 +18,7 @@ import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType } from "@/lib/status";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 import type { Database } from "@/integrations/supabase/types";
 
 type ValidationRule = Database["public"]["Tables"]["validation_rules"]["Row"];
