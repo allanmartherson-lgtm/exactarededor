@@ -3,6 +3,7 @@ import {
   Wallet,
   Receipt,
   BarChart2,
+  BarChart3,
   ShieldCheck,
   Table,
   Building2,
