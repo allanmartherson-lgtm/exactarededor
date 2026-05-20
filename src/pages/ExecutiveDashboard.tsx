@@ -66,6 +66,7 @@ const ExecKpiCard = ({ label, value, sub, icon: Icon, color, badge, badgeColor, 
   <div style={{
     background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12,
     padding: "22px", display: "flex", flexDirection: "column", gap: 14, position: "relative",
+    overflow: "hidden", minWidth: 0,
   }}>
     <div className="flex items-start justify-between gap-3">
       <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" as const, lineHeight: 1.4 }}>{label}</span>
@@ -73,7 +74,7 @@ const ExecKpiCard = ({ label, value, sub, icon: Icon, color, badge, badgeColor, 
         <Icon size={18} strokeWidth={2} />
       </div>
     </div>
-    <div style={{ fontSize: 36, fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+    <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</div>
     <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{sub}</div>
     {badge && (
       <span style={{ background: badgeColor || "hsl(var(--muted))", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, alignSelf: "flex-start", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{badge}</span>
@@ -167,9 +168,10 @@ export default function ExecutiveDashboard() {
     const max = Math.max(...monthlyData.map(d => d.valor), 1);
     const fmtMonth = (m: string) => {
       const parts = m.split("-");
+      const year = parts[0]?.slice(2) ?? "";
       const mo = parseInt(parts[1] ?? "1");
       const months = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-      return months[mo - 1] ?? m;
+      return `${months[mo - 1] ?? m}/${year}`;
     };
     const fmtShort = (v: number) => {
       if (v >= 1000000) return `R$ ${(v/1000000).toFixed(1)}M`;
@@ -183,7 +185,7 @@ export default function ExecutiveDashboard() {
           const pct = Math.max(4, (d.valor / max) * 100);
           return (
             <div key={d.month} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ width: 28, fontSize: 10, color: isLast ? "#9A6B3A" : "hsl(var(--muted-foreground))", fontWeight: isLast ? 700 : 400, flexShrink: 0, textAlign: "right" }}>
+              <span style={{ width: 44, fontSize: 10, color: isLast ? "#9A6B3A" : "hsl(var(--muted-foreground))", fontWeight: isLast ? 700 : 400, flexShrink: 0, textAlign: "right" }}>
                 {fmtMonth(d.month)}
               </span>
               <div style={{ flex: 1, background: "hsl(var(--muted))", borderRadius: 4, height: 18, overflow: "hidden" }}>
@@ -245,18 +247,6 @@ export default function ExecutiveDashboard() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <MiniBarChart />
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                    {monthlyData.slice(-3).reverse().map((d, i) => (
-                      <div key={d.month} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                          {d.month.slice(0, 7)}
-                        </span>
-                        <span style={{ fontSize: 16, fontWeight: i === 0 ? 600 : 300, color: i === 0 ? "#9A6B3A" : "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>
-                          {formatCurrency(d.valor)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
