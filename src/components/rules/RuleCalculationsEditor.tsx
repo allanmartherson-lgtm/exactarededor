@@ -439,6 +439,24 @@ function CalcCard({
         </Button>
       </div>
 
+      {(() => {
+        const warnings = calcItemWarnings(c);
+        if (warnings.length === 0) return null;
+        return (
+          <div className="rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 space-y-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+              ⚠ Valor fora do padrão
+            </div>
+            {warnings.map((w, i) => (
+              <p key={i} className="text-[11px] text-amber-800 dark:text-amber-200">{w}</p>
+            ))}
+            <p className="text-[10px] text-amber-700/80 dark:text-amber-300/70 italic">
+              Confira se não houve erro de digitação. É possível salvar mesmo assim.
+            </p>
+          </div>
+        );
+      })()}
+
       {open && (
         <>
           {/* === MÉTODO + PARÂMETROS === */}
