@@ -51,6 +51,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 import { authorRoleLabel } from "@/lib/observations";
 
@@ -1163,7 +1164,7 @@ function ItemDetailsRow({
 
   const fmtDate = (d: string | null | undefined) => {
     if (!d) return "—";
-    try { return new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+    try { return formatDateTimeBR(d); }
     catch { return String(d); }
   };
 
