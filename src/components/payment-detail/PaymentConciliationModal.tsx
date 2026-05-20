@@ -424,7 +424,17 @@ export function PaymentConciliationModal({
         const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
         const candidates = medpayByKey.get(k) ?? [];
-        const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
+        // Prefere o candidato cujo valor é mais próximo ao valor da planilha
+        const available = candidates.filter((m) => !matchedMedpayIds.has(m.id));
+        const match = available.length === 0
+          ? undefined
+          : available.length === 1
+          ? available[0]
+          : available.reduce((best, curr) => {
+              const diffBest = Math.abs(Number((best as any).gross_amount ?? 0) - valHosp);
+              const diffCurr = Math.abs(Number((curr as any).gross_amount ?? 0) - valHosp);
+              return diffCurr < diffBest ? curr : best;
+            });
 
         const base: Record<string, unknown> = {
           attendance_number: att ? String(Math.round(Number(att)) || att) : null,
