@@ -266,7 +266,7 @@ export function ItemsDataGrid({
     }).sort((a, b) =>
       getPatient(a).localeCompare(getPatient(b), "pt-BR", { sensitivity: "base" })
     );
-  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, groupStatus]);
+  }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
 
   // Totais da seleção atual (após filtros).
   // gross_amount/expected_amount já representam o valor da linha como
