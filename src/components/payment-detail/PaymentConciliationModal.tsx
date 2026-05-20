@@ -289,10 +289,11 @@ export function PaymentConciliationModal({
       });
 
       const normalizeCode = (code: unknown): string => {
-        const s = String(Number(code) || code).replace(/\D/g, '');
-        // MedPay usa 8 dígitos, planilha hospitalar usa 7 — remove sempre o último dígito se tiver 8
-        if (s.length === 8) return s.slice(0, 7);
-        return s;
+        if (code == null || code === '') return '';
+        // Remove casas decimais (ex: 31005470.0 -> 31005470)
+        const num = parseFloat(String(code));
+        if (!isNaN(num)) return String(Math.round(num));
+        return String(code).replace(/\D/g, '');
       };
 
       const normAtt = (att: unknown): string =>
