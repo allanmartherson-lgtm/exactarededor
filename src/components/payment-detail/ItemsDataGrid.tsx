@@ -1029,6 +1029,7 @@ function RowMain({
                 item={it}
                 canEdit={canEdit}
                 onAcceptItem={onAcceptItem}
+                onCancelValidationItem={onDeleteItem}
               />
 
             );
