@@ -721,7 +721,7 @@ const Users = () => {
             {historyEntries?.map((e) => {
               const isCreate = e.action === "created";
               const diff = e.diff ?? {};
-              const when = new Date(e.created_at).toLocaleString("pt-BR");
+              const when = formatDateTimeBR(e.created_at);
               const actor = e.actor_id ? (historyActors[e.actor_id] ?? "—") : "Sistema";
               return (
                 <div key={e.id} className="border rounded-md p-3 text-sm">
