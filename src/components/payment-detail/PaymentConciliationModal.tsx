@@ -574,8 +574,9 @@ export function PaymentConciliationModal({
   const pendentes =
     (run?.valor_divergente ?? 0) + (run?.so_hospital ?? 0) + (run?.so_medpay ?? 0);
 
-  const vinculadasCount = Object.values(companyMapping).filter(Boolean).length;
-  const ignoradasCount = Object.values(companyMapping).filter((v) => v === null).length;
+  const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
+  const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
+  const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t]).length;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
