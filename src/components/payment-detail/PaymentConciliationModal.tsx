@@ -1070,7 +1070,7 @@ export function PaymentConciliationModal({
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px]">
                                           {it.procedure_date
-                                            ? new Date(it.procedure_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+                                            ? formatDateBR(it.procedure_date)
                                             : "—"}
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
