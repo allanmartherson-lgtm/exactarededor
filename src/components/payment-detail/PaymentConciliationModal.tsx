@@ -65,6 +65,9 @@ type ReconciliationItem = {
   status: "conciliado" | "valor_divergente" | "so_hospital" | "so_medpay";
   ia_obs: string | null;
   company_name: string | null;
+  agreement_text: string | null;
+  applied_rule_label: string | null;
+  applied_calc_method: string | null;
 };
 
 interface Props {
