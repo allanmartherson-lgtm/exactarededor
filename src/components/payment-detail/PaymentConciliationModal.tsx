@@ -287,10 +287,10 @@ export function PaymentConciliationModal({
         return terceiro && companyMapping[terceiro];
       });
 
-      // Normaliza código para 7 dígitos (MedPay usa 8, planilha usa 7 — mesmo código com zero final)
       const normalizeCode = (code: unknown): string => {
-        const s = String(Number(code) || code).replace(/\D/g, "");
-        if (s.length === 8 && s.endsWith("0")) return s.slice(0, 7);
+        const s = String(Number(code) || code).replace(/\D/g, '');
+        // MedPay usa 8 dígitos, planilha hospitalar usa 7 — remove sempre o último dígito se tiver 8
+        if (s.length === 8) return s.slice(0, 7);
         return s;
       };
 
