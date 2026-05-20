@@ -126,25 +126,28 @@ self.onmessage = async (e) => {
 
     if (alertItems.length > 0) {
       const alertHeaders = [
-        "Tipo de Alerta",
-        "Médico (Original)", "Empresa (Original)", "Atendimento (Original)",
-        "Especialidade (Original)", "Paciente (Original)", "Data (Original)", "Valor (Original)",
-        "↔",
-        "Médico (Conflitante)", "Empresa (Conflitante)", "Atendimento (Conflitante)",
-        "Especialidade (Conflitante)", "Paciente (Conflitante)", "Data (Conflitante)", "Valor (Conflitante)",
-      ];
-
-      const alertRows: any[][] = [];
-      for (const it of alertItems) {
-        const findings = (it as any).validation_findings as any[];
-        for (const f of findings) {
-          const ci = f?.conflicting_item;
           alertRows.push([
+            // Col A: Tipo de Alerta
             f?.rule_name || f?.kind || "Validação",
+            // Col B-H: Item Original
             it.doctor_name || "",
             it.company_name || "",
             it.attendance_number || "",
             it.specialty || "",
+            it.patient_name || "",
+            fmtDate(it.procedure_date),
+            Number(it.gross_amount ?? 0),
+            // Col I: Separador
+            "",
+            // Col J-P: Item Conflitante
+            ci?.doctor_name || "",
+            ci?.company_name || "",
+            ci?.attendance_number || "",
+            ci?.specialty || "",
+            ci?.patient_name || "",
+            fmtDate(ci?.procedure_date),
+            ci?.gross_amount != null ? Number(ci.gross_amount) : "",
+          ]);
             it.patient_name || "",
             fmtDate(it.procedure_date),
 
