@@ -2623,7 +2623,16 @@ const Rules = () => {
       <RuleConflictModal
         open={conflictOpen}
         problems={conflictProblems}
-        onCancel={() => { setConflictOpen(false); setConflictProblems([]); setPendingRuleData(null); setPendingCalcs([]); }}
+        onCancel={() => {
+          // Restaura editingId caso tenha sido perdido (edição de regra existente)
+          if (pendingRuleData?.id && !editingId) {
+            setEditingId(pendingRuleData.id as string);
+          }
+          setConflictOpen(false);
+          setConflictProblems([]);
+          setPendingRuleData(null);
+          setPendingCalcs([]);
+        }}
         onApplyAndSave={handleConflictApply}
       />
     </>
