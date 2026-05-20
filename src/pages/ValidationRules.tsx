@@ -771,7 +771,7 @@ export default function ValidationRules() {
         const totalAlertas = [...ruleImpact.values()].reduce((a, b) => a + b.alertas, 0);
         const totalValor = [...ruleImpact.values()].reduce((a, b) => a + b.valor, 0);
         const allLotes = new Set<string>();
-        for (const item of (itemsWithFindings ?? [])) {
+        for (const item of (impactItems ?? [])) {
           const findings = item.validation_findings as any[];
           if (!Array.isArray(findings)) continue;
           for (const f of findings) {
