@@ -10,14 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, AlertTriangle, DollarSign, FileText } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
-import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType } from "@/lib/status";
+import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType, formatCurrency } from "@/lib/status";
 import { formatDateTimeBR } from "@/lib/dateUtils";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -220,23 +220,51 @@ export default function ValidationRules() {
   const [companyPicker, setCompanyPicker] = useState<CompanyOption | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
+  const [ruleImpact, setRuleImpact] = useState<Map<string, { alertas: number; valor: number; lotes: number }>>(new Map());
+  const [impactItems, setImpactItems] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: vr }, { data: ag }, { data: co }] = await Promise.all([
+    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
       supabase.from("companies").select("id, name"),
+      supabase
+        .from("payment_items")
+        .select("id, gross_amount, payment_id, validation_findings")
+        .not("validation_findings", "is", null)
+        .neq("validation_findings", "[]"),
     ]);
     setRules(vr ?? []);
     setGroups(ag ?? []);
-    
+
     if (co) {
       const map: Record<string, string> = {};
       co.forEach(c => map[c.id] = c.name);
       setAllCompaniesMap(map);
     }
-    
+
+    // Agregar impacto financeiro por rule_id
+    const impactByRule = new Map<string, { alertas: number; valor: number; lotes: Set<string> }>();
+    for (const item of itemsWithFindings ?? []) {
+      const findings = item.validation_findings as any[];
+      if (!Array.isArray(findings)) continue;
+      for (const f of findings) {
+        if (!f.rule_id) continue;
+        const cur = impactByRule.get(f.rule_id) ?? { alertas: 0, valor: 0, lotes: new Set() };
+        cur.alertas += 1;
+        cur.valor += Number(item.gross_amount ?? 0);
+        cur.lotes.add(item.payment_id);
+        impactByRule.set(f.rule_id, cur);
+      }
+    }
+    const impactMap = new Map<string, { alertas: number; valor: number; lotes: number }>();
+    impactByRule.forEach((v, k) => {
+      impactMap.set(k, { alertas: v.alertas, valor: v.valor, lotes: v.lotes.size });
+    });
+    setRuleImpact(impactMap);
+    setImpactItems(itemsWithFindings ?? []);
+
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -739,6 +767,35 @@ export default function ValidationRules() {
         }
       />
 
+      {(() => {
+        const totalAlertas = [...ruleImpact.values()].reduce((a, b) => a + b.alertas, 0);
+        const totalValor = [...ruleImpact.values()].reduce((a, b) => a + b.valor, 0);
+        const allLotes = new Set<string>();
+        for (const item of (impactItems ?? [])) {
+          const findings = item.validation_findings as any[];
+          if (!Array.isArray(findings)) continue;
+          for (const f of findings) {
+            if (f.rule_id) allLotes.add(item.payment_id);
+          }
+        }
+        const totalLotes = allLotes.size;
+        if (totalAlertas === 0) return null;
+        return (
+          <div className="mx-0 mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">Impacto financeiro detectado pelas regras de validação</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {totalAlertas} alerta{totalAlertas !== 1 ? "s" : ""} ativo{totalAlertas !== 1 ? "s" : ""} em {totalLotes} lote{totalLotes !== 1 ? "s" : ""} — 
+                  <strong> {formatCurrency(totalValor)} em risco</strong> aguardando revisão do analista
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="mt-6 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-lg border border-border">
         <div className="flex items-center gap-2 text-muted-foreground mr-2">
           <Filter className="h-4 w-4" />
@@ -792,6 +849,26 @@ export default function ValidationRules() {
                     ))}
                   </div>
                 )}
+                {(() => {
+                  const impact = ruleImpact.get(r.id);
+                  if (!impact) return null;
+                  return (
+                    <div className="mt-2 flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+                        <DollarSign className="h-3 w-3" />
+                        <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
+                        <FileText className="h-3 w-3" />
+                        <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
