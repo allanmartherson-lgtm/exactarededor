@@ -1680,6 +1680,27 @@ function ValidationFindingsBadge({
                     Detalhes do item conflitante indisponíveis. Rode a validação novamente para enriquecer.
                   </div>
                 )}
+                {canEdit && (
+                  <div className="mt-3 pt-2.5 border-t border-[#D9D2C5] flex flex-col gap-1.5">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Ação</p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1 mb-1">
+                      <span className="font-semibold">Valor em risco: {formatCurrency(Number(item.gross_amount ?? 0))}</span>
+                    </div>
+                    {onAcceptItem && (item.ai_status === "reprovado" || item.ai_status === "alerta" || item.ai_status === "aprovado") && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAcceptItem(item);
+                        }}
+                        className="w-full text-left flex items-center gap-2 text-[11px] px-2 py-1.5 rounded border border-green-200 bg-green-50 text-green-800 hover:bg-green-100 transition-colors font-medium"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        Acatar como válido (com justificativa)
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
