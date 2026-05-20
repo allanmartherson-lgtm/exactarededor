@@ -678,44 +678,51 @@ export function PaymentConciliationModal({
                   <div className="w-2 h-2 rounded-full bg-success" /> Auto-vinculado
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-warning" /> Não vinculado
+                  <div className="w-2 h-2 rounded-full bg-warning" /> Confirmar sugestão
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Ignorado
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40" /> Não encontrado
                 </span>
               </div>
 
               <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
                 {hospitalCompanies.map((terceiro) => {
                   const mapped = companyMapping[terceiro];
+                  const level = matchLevels[terceiro];
+
+                  const cardStyle = mapped
+                    ? level === 'exact' || level === 'high'
+                      ? 'border-success/30 bg-success/5'
+                      : 'border-warning/30 bg-warning/5'
+                    : 'border-border bg-muted/30';
+
+                  const dotColor = mapped
+                    ? level === 'exact' || level === 'high'
+                      ? 'bg-success'
+                      : 'bg-warning'
+                    : 'bg-muted-foreground/40';
+
+                  const badge = mapped
+                    ? level === 'exact'
+                      ? <span className="text-[10px] font-semibold text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded-full shrink-0">Auto ✓</span>
+                      : level === 'high'
+                      ? <span className="text-[10px] font-semibold text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded-full shrink-0">Match ✓</span>
+                      : <span className="text-[10px] font-semibold text-warning-foreground bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded-full shrink-0">Confirmar</span>
+                    : <span className="text-[10px] font-semibold text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-full shrink-0">Ignorar</span>;
+
                   return (
                     <div
                       key={terceiro}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border",
-                        mapped
-                          ? "border-success/30 bg-success/5"
-                          : mapped === null
-                            ? "border-border bg-muted/30"
-                            : "border-warning/30 bg-warning/5",
-                      )}
+                      className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg border", cardStyle)}
                     >
-                      <div
-                        className={cn(
-                          "w-2 h-2 rounded-full shrink-0",
-                          mapped
-                            ? "bg-success"
-                            : mapped === null
-                              ? "bg-muted-foreground/40"
-                              : "bg-warning",
-                        )}
-                      />
+                      <div className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />
                       <p
                         className="text-xs flex-1 min-w-0 truncate font-medium"
                         title={terceiro}
                       >
                         {terceiro}
                       </p>
+                      {badge}
                       <select
                         value={mapped ?? "__ignore__"}
                         onChange={(e) => {
@@ -724,8 +731,12 @@ export function PaymentConciliationModal({
                             ...prev,
                             [terceiro]: val === "__ignore__" ? null : val,
                           }));
+                          setMatchLevels((prev) => ({
+                            ...prev,
+                            [terceiro]: val === "__ignore__" ? null : 'exact',
+                          }));
                         }}
-                        className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[280px]"
+                        className="h-8 text-xs border border-border rounded-md bg-background px-2 shrink-0 w-[260px]"
                       >
                         <option value="__ignore__">— Ignorar —</option>
                         {loteCompanies.map((lc) => (
@@ -741,9 +752,9 @@ export function PaymentConciliationModal({
 
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-success font-semibold">{vinculadasCount}</span>{" "}
-                  vinculadas ·{" "}
-                  <span className="text-muted-foreground">{ignoradasCount}</span> ignoradas
+                  <span className="text-success font-semibold">{exactCount}</span> auto-vinculadas ·{" "}
+                  <span className="text-warning-foreground font-semibold">{confirmCount}</span> aguardando confirmação ·{" "}
+                  <span className="text-muted-foreground">{pendingCount}</span> não encontradas
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -758,7 +769,7 @@ export function PaymentConciliationModal({
                   </Button>
                   <Button
                     size="sm"
-                    disabled={processing || vinculadasCount === 0}
+                    disabled={processing || (exactCount + confirmCount) === 0}
                     onClick={handleProcessReconciliation}
                   >
                     {processing ? (
@@ -767,7 +778,7 @@ export function PaymentConciliationModal({
                         Processando...
                       </>
                     ) : (
-                      `Conciliar ${vinculadasCount} empresa(s) →`
+                      `Conciliar ${exactCount + confirmCount} empresa(s) →`
                     )}
                   </Button>
                 </div>
