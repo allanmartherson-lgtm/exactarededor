@@ -453,6 +453,9 @@ export function PaymentConciliationModal({
           company_name: mappedCompany,
           ia_obs: null,
           status: "so_hospital",
+          agreement_text: (it as any).agreement_text ?? null,
+          applied_rule_label: null,
+          applied_calc_method: null,
         };
 
         if (match) {
@@ -465,6 +468,9 @@ export function PaymentConciliationModal({
           if (!base.procedure_name) base.procedure_name = (match as any).procedure_name ?? null;
           if (!base.procedure_date) base.procedure_date = (match as any).procedure_date ?? null;
           if (!base.company_name) base.company_name = match.company_name ?? null;
+          if (!base.agreement_text) base.agreement_text = (match as any).agreement_text ?? null;
+          base.applied_rule_label = (match as any).applied_rule_label ?? null;
+          base.applied_calc_method = (match as any).applied_calc_method ?? null;
 
           const diff = valHosp - valMed;
           if (Math.abs(diff) < 0.02) {
@@ -474,8 +480,10 @@ export function PaymentConciliationModal({
             base.status = "valor_divergente";
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            const signal = diff > 0 ? "a mais" : "a menos";
-            base.ia_obs = `Hospital cobrou ${formatCurrency(Math.abs(diff))} ${signal} (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%). MedPay: ${formatCurrency(valMed)} · Hospital: ${formatCurrency(valHosp)}.`;
+            const ruleContext = (match as any).applied_rule_label
+              ? ` Regra aplicada: "${(match as any).applied_rule_label}".`
+              : '';
+            base.ia_obs = `Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%).${ruleContext} Revisar se o valor do hospital corresponde ao convênio sem aplicação de acordo.`;
             divergencia_valor += Math.abs(diff);
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
