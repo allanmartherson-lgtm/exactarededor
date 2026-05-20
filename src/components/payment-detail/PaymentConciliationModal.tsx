@@ -290,20 +290,20 @@ export function PaymentConciliationModal({
 
       const normalizeCode = (code: unknown): string => {
         if (code == null || code === '') return '';
-        // Remove casas decimais (ex: 31005470.0 -> 31005470)
         const num = parseFloat(String(code));
-        if (!isNaN(num)) return String(Math.round(num));
+        if (!isNaN(num) && isFinite(num)) return String(Math.round(num));
         return String(code).replace(/\D/g, '');
       };
 
       const normAtt = (att: unknown): string =>
-        String(Number(att) || att).replace(/\D/g, "");
+        String(Math.round(Number(att)) || att).replace(/\D/g, "");
 
       const makeKey = (att: unknown, code: unknown): string =>
         `${normAtt(att)}|${normalizeCode(code)}`;
 
       const medpayByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
+        if (!it.attendance_number || !it.procedure_code) continue;
         const k = makeKey(it.attendance_number, it.procedure_code);
         if (!medpayByKey.has(k)) medpayByKey.set(k, []);
         medpayByKey.get(k)!.push(it);
