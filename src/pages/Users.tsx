@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Copy, Send, Loader2, ExternalLink, KeyRound, Check, X, Pencil, History, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 
 const ROLES: AppRole[] = ["admin", "diretor", "validador", "analista"];
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
