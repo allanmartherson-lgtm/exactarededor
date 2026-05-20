@@ -2399,6 +2399,16 @@ const Rules = () => {
                 </Accordion>
 
             </form>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <form id="rule-form" onSubmit={submitRule} className="space-y-4">
+                {/* Conteúdo do formulário em modo criação (sem aba de histórico). */}
+                <p className="text-xs text-muted-foreground italic">
+                  Preencha o formulário acima. O histórico ficará disponível após o primeiro salvamento.
+                </p>
+              </form>
+            )}
           </FormDialog>
         </>
       }
