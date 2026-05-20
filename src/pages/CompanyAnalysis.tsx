@@ -356,6 +356,29 @@ export default function CompanyAnalysis() {
 
   const acceptItem = async (it: PaymentItemRow) => {
     if (!guardEditable()) return;
+
+    // Detecta ação de "manter pagamento" (alerta assistencial em item aprovado)
+    const isManterAction = (it as any)._validationAction === "manter";
+
+    if (isManterAction) {
+      // Não chama RPC — apenas registra que o analista revisou e manteve
+      setBusy(true);
+      const r = await recordObservation({
+        payment_id: id!,
+        item_id: it.id,
+        author_type: myAuthorType,
+        author_id: user!.id,
+        message: `Item revisado pelo analista: alerta de validação assistencial avaliado e pagamento mantido (${formatCurrency(Number(it.gross_amount ?? 0))}).`,
+        observation_type: "justificativa_override",
+      });
+      setBusy(false);
+      if (!r.ok) return toast.error("Erro ao registrar", { description: r.error });
+      toast.success("Revisão registrada", { description: "Pagamento mantido. Registro no histórico." });
+      load();
+      return;
+    }
+
+    // Fluxo normal: acatar item reprovado/alerta financeiramente
     const justif = (obs.find((o) => o.item_id === it.id && (o.message?.trim().length ?? 0) >= 1)?.message ?? "").trim();
     setBusy(true);
     const { data, error } = await supabase.rpc("accept_payment_item", {
@@ -910,7 +933,13 @@ export default function CompanyAnalysis() {
     } catch (e) {
       // Rollback
       setItems(previousItems);
-      toast.error("Falha ao excluir", { description: e instanceof Error ? e.message : String(e) });
+      // Supabase errors são objetos com .message, não instâncias de Error
+      const msg = e instanceof Error
+        ? e.message
+        : (e as any)?.message
+        ?? (e as any)?.error_description
+        ?? JSON.stringify(e);
+      toast.error("Falha ao excluir", { description: msg });
     } finally {
       setDeletingItem(false);
     }
