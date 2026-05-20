@@ -196,14 +196,28 @@ const excelDateToISO = (v: unknown): string | null => {
   if (v == null || v === "") return null;
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
-    if (d) return new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString();
+    if (d) {
+      const hasTime = d.H || d.M || d.S;
+      if (hasTime) {
+        return new Date(Date.UTC(d.y, d.m - 1, d.d, d.H || 0, d.M || 0, Math.floor(d.S || 0))).toISOString();
+      }
+      // Data sem hora: usar 15:00 UTC (= meio-dia em UTC-3) para evitar rollback em Brasília
+      return new Date(Date.UTC(d.y, d.m - 1, d.d, 15, 0, 0)).toISOString();
+    }
   }
   const s = String(v).trim();
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
   if (m) {
     const [, dd, mm, yy, hh, mi] = m;
     const year = yy.length === 2 ? 2000 + Number(yy) : Number(yy);
-    return new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh || 0), Number(mi || 0))).toISOString();
+    const hasTime = hh !== undefined;
+    if (hasTime) {
+      return new Date(Date.UTC(year, Number(mm) - 1, Number(dd), Number(hh), Number(mi || 0))).toISOString();
+    }
+    return new Date(Date.UTC(year, Number(mm) - 1, Number(dd), 15, 0, 0)).toISOString();
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return `${s}T15:00:00.000Z`;
   }
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d.toISOString();
