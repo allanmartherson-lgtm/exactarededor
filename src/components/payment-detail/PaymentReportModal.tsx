@@ -64,6 +64,7 @@ import type {
 import type { ObservationRow } from "@/hooks/usePaymentDetailData";
 import { supabase } from "@/integrations/supabase/client";
 import { generatePaymentReportPdf } from "@/lib/paymentReportPdf";
+import { formatDateBR } from "@/lib/dateUtils";
 
 interface PaymentReportModalProps {
   open: boolean;
