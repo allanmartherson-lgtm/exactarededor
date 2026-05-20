@@ -18,6 +18,7 @@ import { RuleListRow } from "@/components/RuleListRow";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { toast } from "@/hooks/use-toast";
 import {
   TONE_CLASSES,
