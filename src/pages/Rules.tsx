@@ -1010,13 +1010,15 @@ const Rules = () => {
   /** Handler do modal: aplica correções escolhidas + grava via RPC. */
   const handleConflictApply = async (corrections: ConflictCorrection[]) => {
     if (!pendingRuleData) throw new Error("Estado de save perdido — reabra o formulário.");
+    // Usa a presença de `id` no payload como fonte de verdade para wasEditing
+    const wasEditing = !!(pendingRuleData.id);
     const auditCompany = (pendingRuleData.target_type === "empresa" && pendingRuleData.target_identifier)
       ? { id: (pendingRuleData.target_company_id as string | null) ?? null,
           name: (pendingRuleData.target_name as string | null) ?? null,
           document: (pendingRuleData.target_identifier as string | null) ?? null }
       : null;
     await applyRuleSaveRpc(pendingRuleData, pendingCalcs, corrections, {
-      wasEditing: pendingIsUpdate, auditCompany,
+      wasEditing, auditCompany,
     });
   };
 
@@ -2621,7 +2623,16 @@ const Rules = () => {
       <RuleConflictModal
         open={conflictOpen}
         problems={conflictProblems}
-        onCancel={() => { setConflictOpen(false); setConflictProblems([]); setPendingRuleData(null); setPendingCalcs([]); }}
+        onCancel={() => {
+          // Restaura editingId caso tenha sido perdido (edição de regra existente)
+          if (pendingRuleData?.id && !editingId) {
+            setEditingId(pendingRuleData.id as string);
+          }
+          setConflictOpen(false);
+          setConflictProblems([]);
+          setPendingRuleData(null);
+          setPendingCalcs([]);
+        }}
         onApplyAndSave={handleConflictApply}
       />
     </>
