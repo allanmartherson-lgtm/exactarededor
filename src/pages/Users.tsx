@@ -502,7 +502,7 @@ const Users = () => {
                     <div className="space-y-1 min-w-0">
                       <p className="font-medium text-sm">{r.full_name} <span className="text-muted-foreground font-normal">— {r.email}</span></p>
                       <p className="text-xs text-muted-foreground">
-                        {formatPhone(r.phone)} · {r.role_title} · {r.department} · Nasc. {new Date(r.birth_date).toLocaleDateString("pt-BR")}
+                        {formatPhone(r.phone)} · {r.role_title} · {r.department} · Nasc. {formatDateBR(r.birth_date)}
                       </p>
                       {r.message && <p className="text-xs text-muted-foreground italic">"{r.message}"</p>}
                     </div>
