@@ -1532,7 +1532,7 @@ export default function CompanyAnalysis() {
                       <div className="text-muted-foreground mb-0.5">
                         {o.author_type}
                         {o.author_id && profiles[o.author_id] ? ` · ${profiles[o.author_id]}` : ""}
-                        {" · "}{new Date(o.created_at).toLocaleString("pt-BR")}
+                        {" · "}{formatDateTimeBR(o.created_at)}
                       </div>
                       <div className="whitespace-pre-wrap">{o.message}</div>
                     </li>
