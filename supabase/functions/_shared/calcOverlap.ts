@@ -254,17 +254,14 @@ export function detectCrossRuleOverlap(
 ): CalcOverlapProblem[] {
   const A = Array.isArray(calcsA) ? calcsA : [];
   const B = Array.isArray(calcsB) ? calcsB : [];
+  // Se um dos lados não tem cálculos, é um catch-all puro (regra master legada
+  // com parâmetros no nível da própria regra, sem rule_calculations).
+  // Catch-all não compete com regras que têm filtros restritivos — ele é o fallback.
+  // Só reportamos overlap quando AMBOS os lados têm pelo menos um cálculo restritivo
+  // com filtros que se intersectam.
   if (A.length === 0 || B.length === 0) {
-    // Sem cálculos de algum lado → comportamento histórico de catch-all.
-    // Conservador: tratar como overlap (uma regra "vazia" pega qualquer item).
-    return [{
-      type: "calc_overlap",
-      calc_a_id: "",
-      calc_a_label: "(regra sem cálculos)",
-      calc_b_id: "",
-      calc_b_label: "(regra sem cálculos)",
-      intersection_description: "qualquer item",
-    }];
+    // Lado sem cálculos = catch-all puro → nunca conflita cruzado.
+    return [];
   }
   const out: CalcOverlapProblem[] = [];
   for (const a of A) {
