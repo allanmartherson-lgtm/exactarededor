@@ -933,7 +933,13 @@ export default function CompanyAnalysis() {
     } catch (e) {
       // Rollback
       setItems(previousItems);
-      toast.error("Falha ao excluir", { description: e instanceof Error ? e.message : String(e) });
+      // Supabase errors são objetos com .message, não instâncias de Error
+      const msg = e instanceof Error
+        ? e.message
+        : (e as any)?.message
+        ?? (e as any)?.error_description
+        ?? JSON.stringify(e);
+      toast.error("Falha ao excluir", { description: msg });
     } finally {
       setDeletingItem(false);
     }
