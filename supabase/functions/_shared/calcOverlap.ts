@@ -263,9 +263,19 @@ export function detectCrossRuleOverlap(
     // Lado sem cálculos = catch-all puro → nunca conflita cruzado.
     return [];
   }
+  // Filtra catch-alls: cálculos não-restritivos nunca competem com regras específicas —
+  // eles são fallback. Só comparamos cálculos restritivos (que têm filtros definidos).
+  const restrictiveA = A.filter((c) => isRestrictiveCalculation(c, A));
+  const restrictiveB = B.filter((c) => isRestrictiveCalculation(c, B));
+
+  // Se um dos lados não tem cálculos restritivos, é puramente catch-all → sem overlap.
+  if (restrictiveA.length === 0 || restrictiveB.length === 0) {
+    return [];
+  }
+
   const out: CalcOverlapProblem[] = [];
-  for (const a of A) {
-    for (const b of B) {
+  for (const a of restrictiveA) {
+    for (const b of restrictiveB) {
       const r = evaluatePair(a, b);
       if (!r.conflicts) continue;
       const desc = r.pieces.length > 0
