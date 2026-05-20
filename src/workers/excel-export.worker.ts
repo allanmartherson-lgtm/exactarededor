@@ -1,5 +1,15 @@
 import * as XLSX from "xlsx-js-style";
 
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return iso; }
+}
+
+
 self.onmessage = async (e) => {
   const { summary, companyGroups, filteredItems, fileName } = e.data;
 
@@ -136,14 +146,16 @@ self.onmessage = async (e) => {
             it.attendance_number || "",
             it.specialty || "",
             it.patient_name || "",
-            it.procedure_date || "",
+            fmtDate(it.procedure_date),
+
             Number(it.gross_amount ?? 0),
             "",
             ci?.doctor_name || "",
             ci?.company_name || "",
             ci?.attendance_number || "",
             ci?.specialty || "",
-            ci?.patient_name || "",
+            fmtDate(ci?.procedure_date),
+
             ci?.procedure_date || "",
             ci?.gross_amount != null ? Number(ci.gross_amount) : "",
           ]);
