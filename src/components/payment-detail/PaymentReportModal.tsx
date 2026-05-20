@@ -118,6 +118,67 @@ export function PaymentReportModal({
       });
       if (error) throw error;
       setAuditData(data);
+
+      // Enriquece conflicting_item com gross_amount e specialty via conflicting_item_id
+      const itemsWithFindings = items.filter(it => {
+        const vf = (it as any).validation_findings;
+        return Array.isArray(vf) && vf.length > 0;
+      });
+
+      const conflictIds = new Set<string>();
+      for (const it of itemsWithFindings) {
+        const findings = (it as any).validation_findings as any[];
+        for (const f of findings) {
+          if (f?.conflicting_item_id) conflictIds.add(f.conflicting_item_id);
+        }
+      }
+
+      if (conflictIds.size > 0) {
+        const { data: conflictItems } = await supabase
+          .from("payment_items")
+          .select("id, gross_amount, specialty, doctor_name, company_name, attendance_number, patient_name, procedure_date")
+          .in("id", Array.from(conflictIds));
+
+        const conflictMap = new Map((conflictItems ?? []).map((ci: any) => [ci.id, ci]));
+
+        for (const it of itemsWithFindings) {
+          const findings = (it as any).validation_findings as any[];
+          for (const f of findings) {
+            if (f?.conflicting_item_id && conflictMap.has(f.conflicting_item_id)) {
+              const enriched = conflictMap.get(f.conflicting_item_id);
+              f.conflicting_item = {
+                ...(f.conflicting_item ?? {}),
+                gross_amount: enriched.gross_amount,
+                specialty: enriched.specialty,
+              };
+            }
+          }
+        }
+      }
+
+      // Enriquece specialty do item original via cadastro de médicos
+      const itemsWithoutSpecialty = items.filter(it => !(it as any).specialty && (it as any).doctor_document);
+      const docs = [...new Set(itemsWithoutSpecialty.map(it => (it as any).doctor_document).filter(Boolean))];
+
+      if (docs.length > 0) {
+        const { data: doctorsData } = await supabase
+          .from("doctors")
+          .select("crm, specialties")
+          .in("crm", docs as string[]);
+
+        const docMap = new Map(
+          (doctorsData ?? []).map((d: any) => [
+            d.crm,
+            Array.isArray(d.specialties) ? d.specialties[0] ?? null : d.specialties ?? null,
+          ]),
+        );
+
+        for (const it of items) {
+          if (!(it as any).specialty && (it as any).doctor_document && docMap.has((it as any).doctor_document)) {
+            (it as any).specialty = docMap.get((it as any).doctor_document);
+          }
+        }
+      }
     } catch (err: any) {
       console.error("Erro ao carregar auditoria:", err);
       toast({
@@ -129,6 +190,7 @@ export function PaymentReportModal({
       setLoadingAudit(false);
     }
   };
+
 
   // --- Opções para Filtros ---
   const companyOptions = useMemo(() => 
