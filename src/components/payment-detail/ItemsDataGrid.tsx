@@ -51,6 +51,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 import { authorRoleLabel } from "@/lib/observations";
 
