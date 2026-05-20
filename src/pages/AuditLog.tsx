@@ -32,7 +32,9 @@ type RoleRow = { user_id: string; role: AppRole };
 
 const ENTITY_LABELS: Record<string, string> = {
   rule: "Regra",
+  rule_calculation: "Cálculo da regra",
   payment: "Pagamento",
+  payment_item: "Item de pagamento",
 };
 const ACTION_LABELS: Record<string, string> = {
   create: "Criação",
@@ -75,7 +77,11 @@ const AuditLog = () => {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
-      const list = (data ?? []) as Entry[];
+      // Filtra registros legados `*_via_rpc` (objeto inteiro sem diff antes/depois).
+      // A auditoria de regras agora é gravada exclusivamente pelo cliente com buildDiff.
+      const list = ((data ?? []) as Entry[]).filter(
+        (e) => e.action !== "create_via_rpc" && e.action !== "update_via_rpc",
+      );
       setEntries(list);
 
       const actorIds = Array.from(new Set(list.map((e) => e.actor_id).filter(Boolean) as string[]));
