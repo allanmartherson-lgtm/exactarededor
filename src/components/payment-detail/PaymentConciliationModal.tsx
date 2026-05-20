@@ -567,23 +567,170 @@ export function PaymentConciliationModal({
 
   const handleExport = () => {
     if (!run) return;
+
     const data = items.map((it) => ({
-      Status: STATUS_LABEL[it.status],
-      Atendimento: it.attendance_number ?? "",
-      Paciente: it.patient_name ?? "",
-      Codigo: it.procedure_code ?? "",
-      Procedimento: it.procedure_name ?? "",
-      Medico: it.doctor_name ?? "",
-      Data: it.procedure_date ?? "",
-      "MedPay (R$)": it.valor_medpay,
-      "Hospital (R$)": it.valor_hospital,
+      "Status": STATUS_LABEL[it.status],
+      "Empresa": it.company_name ?? "",
+      "Médico": it.doctor_name ?? "",
+      "Paciente": it.patient_name ?? "",
+      "Atendimento": it.attendance_number ?? "",
+      "Cód. TUSS": it.procedure_code ?? "",
+      "Procedimento": it.procedure_name ?? "",
+      "Data": it.procedure_date ? formatDateBR(it.procedure_date) : "",
+      "Convênio": it.agreement_text ?? "",
+      "MedPay (R$)": Number(it.valor_medpay),
+      "Hospital (R$)": Number(it.valor_hospital),
       "Diferença (R$)": Number((it.valor_hospital - it.valor_medpay).toFixed(2)),
+      "Regra MedPay": it.applied_rule_label ?? "",
+      "Método Cálculo": it.applied_calc_method ?? "",
       "Observação IA": it.ia_obs ?? "",
     }));
+
     const ws = XLSX.utils.json_to_sheet(data);
+
+    ws["!cols"] = [
+      { wch: 18 }, { wch: 38 }, { wch: 30 }, { wch: 30 }, { wch: 14 },
+      { wch: 14 }, { wch: 48 }, { wch: 12 }, { wch: 22 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 20 }, { wch: 60 },
+    ];
+
+    const headerRange = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
+    for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+      if (cell) {
+        cell.s = {
+          font: { bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: '1E3A5F' } },
+          alignment: { horizontal: 'center' },
+        };
+      }
+    }
+
+    const STATUS_COLOR: Record<string, string> = {
+      'Conciliado': 'F0FDF4',
+      'Valor divergente': 'FFFBEB',
+      'Só no hospital': 'FEF2F2',
+      'Só no MedPay': 'EFF6FF',
+    };
+    for (let R = 1; R <= headerRange.e.r; R++) {
+      const statusCell = ws[XLSX.utils.encode_cell({ r: R, c: 0 })];
+      const color = STATUS_COLOR[statusCell?.v ?? ''];
+      if (color) {
+        for (let C = 0; C <= headerRange.e.c; C++) {
+          const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+          if (cell) cell.s = { fill: { fgColor: { rgb: color } } };
+        }
+      }
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conciliação");
+
+    const summaryData: (string | number)[][] = [
+      ["Relatório de Conciliação de Produção"],
+      [""],
+      ["Lote", paymentReference],
+      ["Arquivo base", run.file_name ?? ""],
+      ["Data da conciliação", formatDateTimeBR(run.created_at)],
+      [""],
+      ["RESUMO"],
+      ["Total de itens", run.total_items],
+      ["Conciliados", run.conciliado, `${total ? ((run.conciliado / total) * 100).toFixed(1) : 0}%`],
+      ["Valor divergente", run.valor_divergente],
+      ["Só no hospital", run.so_hospital],
+      ["Só no MedPay", run.so_medpay],
+      [""],
+      ["IMPACTO FINANCEIRO"],
+      ["Risco pagamento a mais", run.risco_mais],
+      ["Risco pagamento a menos", run.risco_menos],
+      ["Divergência de valores", run.divergencia_valor],
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSummary['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
+
     XLSX.writeFile(wb, `conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.xlsx`);
+    toast({ title: "Relatório exportado", description: "Arquivo XLSX gerado com sucesso." });
+  };
+
+  const handleExportPdf = async () => {
+    if (!run) return;
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFillColor(30, 58, 95);
+    doc.rect(0, 0, pageWidth, 20, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("Conciliação de Produção — " + paymentReference, 14, 13);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Gerado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 13, { align: "right" });
+
+    doc.setTextColor(30, 58, 95);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total: ${run.total_items}  ·  Conciliados: ${run.conciliado}  ·  Divergência: ${run.valor_divergente}  ·  Só hospital: ${run.so_hospital}  ·  Só MedPay: ${run.so_medpay}`, 14, 28);
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Risco +: R$ ${Number(run.risco_mais).toFixed(2)}  ·  Risco -: R$ ${Number(run.risco_menos).toFixed(2)}  ·  Divergência: R$ ${Number(run.divergencia_valor).toFixed(2)}`, 14, 34);
+
+    const tableData = items.map((it) => [
+      STATUS_LABEL[it.status],
+      it.company_name ?? "",
+      it.doctor_name ?? "",
+      it.patient_name ?? "",
+      it.procedure_code ?? "",
+      it.procedure_date ? formatDateBR(it.procedure_date) : "",
+      it.agreement_text ?? "",
+      `R$ ${Number(it.valor_medpay).toFixed(2)}`,
+      `R$ ${Number(it.valor_hospital).toFixed(2)}`,
+      it.applied_rule_label ?? "",
+    ]);
+
+    const STATUS_FILL: Record<string, [number, number, number]> = {
+      "Conciliado": [240, 253, 244],
+      "Valor divergente": [255, 251, 235],
+      "Só no hospital": [254, 242, 242],
+      "Só no MedPay": [239, 246, 255],
+    };
+
+    autoTable(doc, {
+      startY: 38,
+      head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "MedPay", "Hospital", "Regra MedPay"]],
+      body: tableData,
+      styles: { fontSize: 6.5, cellPadding: 1.5 },
+      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: "bold", fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 16 },
+        5: { cellWidth: 14 },
+        6: { cellWidth: 20 },
+        7: { cellWidth: 18, halign: "right" },
+        8: { cellWidth: 18, halign: "right" },
+        9: { cellWidth: 38 },
+      },
+      didParseCell: (data) => {
+        if (data.section === "body") {
+          const status = String(tableData[data.row.index]?.[0] ?? "");
+          const fill = STATUS_FILL[status];
+          if (fill) data.cell.styles.fillColor = fill;
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    doc.save(`conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.pdf`);
+    toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
   };
 
   const triggerNew = () => {
@@ -636,15 +783,18 @@ export function PaymentConciliationModal({
                 Nova conciliação
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!run || run.status !== "done" || step !== "result"}
-            >
-              <FileDown className="h-4 w-4 mr-1.5" />
-              Exportar relatório
-            </Button>
+            {step === "result" && run && run.status === "done" && (
+              <>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  XLSX
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPdf}>
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  PDF
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
             </Button>
