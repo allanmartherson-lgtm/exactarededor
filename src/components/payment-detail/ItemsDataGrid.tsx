@@ -167,6 +167,7 @@ export function ItemsDataGrid({
   const [convenioFilter, setConvenioFilter] = useState<string>("__all__");
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   const [onlyNeedsReview, setOnlyNeedsReview] = useState(false);
+  const [onlyValidationAlerts, setOnlyValidationAlerts] = useState(false);
 
   const [colVis, setColVis] = useState<Record<OptionalColKey, boolean>>(() => {
     if (typeof window === "undefined") return DEFAULT_COL_VISIBILITY;
