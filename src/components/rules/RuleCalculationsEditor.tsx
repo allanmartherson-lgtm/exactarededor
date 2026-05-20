@@ -1318,3 +1318,35 @@ export function calcItemErrors(c: CalcItem): number {
   if (calcItemHasWhitelistWithoutCodes(c)) n++;
   return n;
 }
+
+/**
+ * Sanity checks financeiros — retornam alertas visuais (warnings) sem bloquear
+ * o salvamento. Valores fora dos ranges típicos podem indicar erro de digitação
+ * (ex.: 999 em vez de 99, multiplicador 50 em vez de 5).
+ */
+export function calcItemWarnings(c: CalcItem): string[] {
+  const warnings: string[] = [];
+  if (c.calculation_type === "percentual_sobre_convenio") {
+    const pct = numOrNull(c.convenio_percentage);
+    if (pct !== null && (pct < 1 || pct > 300)) {
+      warnings.push(`Percentual sobre convênio = ${pct}% fora do range usual (1% a 300%).`);
+    }
+  }
+  if (c.calculation_type === "tabela_diferenciada") {
+    const mult = numOrNull(c.multiplier);
+    if (mult !== null && (mult < 0.1 || mult > 10)) {
+      warnings.push(`Multiplicador = ${mult} fora do range usual (0,1 a 10).`);
+    }
+    const defl = numOrNull(c.deflator_pct);
+    if (defl !== null && (defl < 0 || defl > 50)) {
+      warnings.push(`Deflator = ${defl}% acima do range usual (0% a 50%).`);
+    }
+  }
+  if (c.calculation_type === "bonus") {
+    const bonus = numOrNull(c.bonus_amount);
+    if (bonus !== null && bonus > 50000) {
+      warnings.push(`Bônus fixo = R$ ${bonus.toLocaleString("pt-BR")} acima de R$ 50.000 por item.`);
+    }
+  }
+  return warnings;
+}
