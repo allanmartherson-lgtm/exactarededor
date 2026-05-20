@@ -4,7 +4,8 @@ import { formatCurrency } from "@/lib/status";
 import { Link } from "react-router-dom";
 import {
   TrendingUp, ShieldAlert, Clock, Building2,
-  BarChart3, ArrowRight, FileText, CheckCircle
+  BarChart3, ArrowRight, FileText, CheckCircle,
+  type LucideIcon,
 } from "lucide-react";
 
 // --- Primitivos inline (mesmo padrão do Dashboard.tsx) ---
