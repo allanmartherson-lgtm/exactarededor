@@ -670,7 +670,7 @@ const Rules = () => {
     doc.text("Relatório Geral de Regras de Negócio", 14, 20);
     doc.setFontSize(10);
     doc.text(`Total de regras: ${filtered.length}`, 14, 28);
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    doc.text(`Gerado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 28, { align: 'right' });
     
     const tableData = filtered.map(r => [
         r.name,
