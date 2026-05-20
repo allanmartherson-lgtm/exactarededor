@@ -146,7 +146,8 @@ self.onmessage = async (e) => {
             it.attendance_number || "",
             it.specialty || "",
             it.patient_name || "",
-            it.procedure_date || "",
+            fmtDate(it.procedure_date),
+
             Number(it.gross_amount ?? 0),
             "",
             ci?.doctor_name || "",
