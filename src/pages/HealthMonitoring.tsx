@@ -113,6 +113,16 @@ interface HealthData {
   valorEmRisco: number;
 }
 
+interface FailedJob {
+  jobId: string;
+  paymentId: string;
+  paymentReference: string;
+  status: string;
+  failedCompanies: Array<{ company_name: string; error: string; at: string }>;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
 const TRAVADO_HORAS = 3;
 const FILA_CRITICA = 10;
 const FILA_AVISO = 5;
