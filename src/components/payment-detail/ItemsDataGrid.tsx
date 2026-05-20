@@ -242,6 +242,10 @@ export function ItemsDataGrid({
       const needsReview = !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review;
       if (onlyAlerts && alerts.length === 0 && it.ai_status !== "reprovado" && it.ai_status !== "alerta") return false;
       if (onlyNeedsReview && !needsReview) return false;
+      if (onlyValidationAlerts) {
+        const vf = (it as any).validation_findings;
+        if (!Array.isArray(vf) || vf.length === 0) return false;
+      }
       if (statusFilter !== "__all__" && eff !== statusFilter) return false;
       if (doctorFilter !== "__all__" && (it.doctor_name ?? "") !== doctorFilter) return false;
       if (convenioFilter !== "__all__" && getConvenio(it) !== convenioFilter) return false;
