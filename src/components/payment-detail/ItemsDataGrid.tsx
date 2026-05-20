@@ -287,6 +287,19 @@ export function ItemsDataGrid({
     };
   }, [filtered]);
 
+  const validationImpact = useMemo(() => {
+    let count = 0;
+    let valor = 0;
+    for (const it of filtered) {
+      const findings = (it as any).validation_findings;
+      if (Array.isArray(findings) && findings.length > 0) {
+        count++;
+        valor += Number(it.gross_amount ?? 0);
+      }
+    }
+    return { count, valor };
+  }, [filtered]);
+
   const needsReviewCount = useMemo(
     () => items.filter((it) => !!(it.ai_findings as { needs_human_review?: boolean } | null)?.needs_human_review).length,
     [items],
