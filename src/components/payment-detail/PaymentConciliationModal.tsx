@@ -321,6 +321,7 @@ export function PaymentConciliationModal({
 
       for (const row of filteredRows) {
         const att = getCell(row, "attendance");
+        const account = getCell(row, "account");
         const code = getCell(row, "procCode");
         const valHosp = toVal(getCell(row, "value"));
         const patient = getCell(row, "patient");
@@ -336,7 +337,7 @@ export function PaymentConciliationModal({
         const match = candidates.find((m) => !matchedMedpayIds.has(m.id));
 
         const base: Record<string, unknown> = {
-          attendance_number: att != null ? String(att) : null,
+          attendance_number: att ? String(att) : (account ? String(account) : null),
           patient_name: patient ? String(patient) : null,
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
