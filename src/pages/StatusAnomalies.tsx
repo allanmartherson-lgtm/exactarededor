@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw } from "lucide-react";
 import { PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 
 type Anomaly = {
   id: string;
@@ -41,8 +42,7 @@ const KIND_LABEL: Record<string, string> = {
   out_of_sync: "Status fora de sincronia",
 };
 
-const fmt = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+const fmt = (iso: string) => formatDateTimeBR(iso);
 
 const StatusAnomalies = () => {
   const { user } = useAuth();
