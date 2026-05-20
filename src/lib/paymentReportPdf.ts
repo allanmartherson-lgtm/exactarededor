@@ -31,6 +31,22 @@ export type GeneratePaymentPdfInput = {
 
 type DocWithLastTable = jsPDF & { lastAutoTable?: { finalY?: number } };
 
+function formatFindingText(f: any): string {
+  const name = f?.rule_name || f?.kind || "Validação";
+  const ci = f?.conflicting_item;
+  let conflictDetail = "";
+  if (ci) {
+    const parts: string[] = [];
+    if (ci.doctor_name) parts.push(`Médico: ${ci.doctor_name}`);
+    if (ci.company_name) parts.push(`Empresa: ${ci.company_name}`);
+    if (ci.attendance_number) parts.push(`Atend: ${ci.attendance_number}`);
+    if (parts.length > 0) conflictDetail = ` → conflita com [${parts.join(" · ")}]`;
+  }
+  const msg = f?.message || "";
+  if (conflictDetail) return `${name}: ${msg}${conflictDetail}`;
+  return msg ? `${name}: ${msg}` : name;
+}
+
 export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF {
   const { payment, items, groups, observations = [], profiles = {}, rulesIndex } = input;
 
@@ -145,13 +161,7 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
     });
     const all = [...raw, ...synth];
     if (all.length === 0) continue;
-    const text = all
-      .map((f: any) => {
-        const name = f?.rule_name || f?.kind || "Validação";
-        const msg = f?.message || "";
-        return msg ? `${name}: ${msg}` : name;
-      })
-      .join(" | ");
+    const text = all.map((f: any) => formatFindingText(f)).join(" | ");
     const label = `${(it as any).doctor_name ?? "—"}${(it as any).attendance_number ? ` · #${(it as any).attendance_number}` : ""}`;
     validationRows.push([label, text]);
   }
