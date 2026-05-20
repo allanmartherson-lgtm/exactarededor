@@ -1557,12 +1557,14 @@ function ValidationFindingsBadge({
   item,
   canEdit,
   onAcceptItem,
+  onCancelValidationItem,
 }: {
   findings: ValidationFinding[];
   currentPaymentId: string;
   item: PaymentItemRowData;
   canEdit?: boolean;
   onAcceptItem?: (item: PaymentItemRowData) => void;
+  onCancelValidationItem?: (item: PaymentItemRowData) => void;
 }) {
   const navigate = useNavigate();
 
