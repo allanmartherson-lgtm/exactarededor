@@ -148,20 +148,6 @@ self.onmessage = async (e) => {
             fmtDate(ci?.procedure_date),
             ci?.gross_amount != null ? Number(ci.gross_amount) : "",
           ]);
-            it.patient_name || "",
-            fmtDate(it.procedure_date),
-
-            Number(it.gross_amount ?? 0),
-            "",
-            ci?.doctor_name || "",
-            ci?.company_name || "",
-            ci?.attendance_number || "",
-            ci?.specialty || "",
-            fmtDate(ci?.procedure_date),
-
-            ci?.procedure_date || "",
-            ci?.gross_amount != null ? Number(ci.gross_amount) : "",
-          ]);
         }
       }
 
