@@ -214,14 +214,56 @@ export function PaymentConciliationModal({
       const normFull = (s: string) =>
         s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
-      const autoMapping: Record<string, string | null> = {};
-      for (const terceiro of terceiros) {
+      const STOPWORDS = new Set([
+        'servicos', 'medicos', 'medica', 'ltda', 'eireli', 'ss', 'me', 'sa',
+        'clinica', 'instituto', 'centro', 'cirurgia', 'cirurgica', 'saude',
+        'hospitalares', 'hospitalar', 'associados', 'associadas', 'brasilia',
+        'brasil', 'cuidados', 'servico', 'especialidades', 'geral',
+      ]);
+
+      const getIdentifiers = (name: string): string[] => {
+        const norm = name.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ');
+        return norm.split(/\s+/).filter(w => w.length >= 3 && !STOPWORDS.has(w));
+      };
+
+      type MatchLevel = 'exact' | 'high' | 'medium' | null;
+
+      const findMatch = (terceiro: string, candidates: string[]): { company: string | null; level: MatchLevel } => {
         const normT = normFull(terceiro);
-        const match = loteCompanies.find((lc) => {
-          const normL = normFull(lc);
-          return normT === normL || normT.includes(normL) || normL.includes(normT);
+        const idsT = getIdentifiers(terceiro);
+
+        const exact = candidates.find(c => normFull(c) === normT);
+        if (exact) return { company: exact, level: 'exact' };
+
+        const substring = candidates.find(c => {
+          const normC = normFull(c);
+          return normT.includes(normC) || normC.includes(normT);
         });
-        autoMapping[terceiro] = match ?? null;
+        if (substring) return { company: substring, level: 'high' };
+
+        let bestMatch: { company: string; score: number } | null = null;
+        for (const c of candidates) {
+          const idsC = getIdentifiers(c);
+          const common = idsT.filter(id => idsC.includes(id));
+          const score = common.reduce((s, id) => s + id.length, 0);
+          const hasLongMatch = common.some(id => id.length >= 6);
+          const hasEnough = common.length >= 2 || (common.length >= 1 && hasLongMatch);
+          if (hasEnough && score > (bestMatch?.score ?? 0)) {
+            bestMatch = { company: c, score };
+          }
+        }
+        if (bestMatch) return { company: bestMatch.company, level: 'medium' };
+
+        return { company: null, level: null };
+      };
+
+      const autoMapping: Record<string, string | null> = {};
+      const newMatchLevels: Record<string, MatchLevel> = {};
+      for (const terceiro of terceiros) {
+        const { company, level } = findMatch(terceiro, loteCompanies);
+        autoMapping[terceiro] = company;
+        newMatchLevels[terceiro] = level;
       }
 
       setParsedRows(rows);
@@ -229,6 +271,7 @@ export function PaymentConciliationModal({
       setPendingFileName(file.name);
       setHospitalCompanies(terceiros);
       setCompanyMapping(autoMapping);
+      setMatchLevels(newMatchLevels);
       setStep("mapping");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
