@@ -150,7 +150,9 @@ export function RuleHistoryTab({ ruleId }: { ruleId: string }) {
         const isCalc = e.entity_type === "rule_calculation";
         const diff = e.diff ?? {};
         const calcLabel = (diff as any).__calc_label?.after as string | undefined;
-        const fields = Object.entries(diff).filter(([k]) => !k.startsWith("__"));
+        const fields = Object.entries(diff)
+          .filter(([k]) => !k.startsWith("__") && !SYSTEM_FIELDS.has(k));
+        if (fields.length === 0) return null;
         return (
           <div key={e.id} className="rounded-md border border-border bg-white p-3 space-y-2">
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -210,7 +212,7 @@ export function RuleHistoryTab({ ruleId }: { ruleId: string }) {
             )}
           </div>
         );
-      })}
+      }).filter(Boolean)}
     </div>
   );
 }
