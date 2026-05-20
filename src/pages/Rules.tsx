@@ -409,7 +409,7 @@ const Rules = () => {
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text(`ID: ${r.id}`, 14, 34);
-    doc.text(`Exportado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 34, { align: 'right' });
+    doc.text(`Exportado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 34, { align: 'right' });
     
     let currentY = 55;
     
