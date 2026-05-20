@@ -88,6 +88,7 @@ const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> 
     date: ["dt. proced.", "dt proced", "data", "dataatendimento", "dtproced"],
     value: ["vl. rep. calc.", "vl rep calc", "vlrepcalc", "valor", "valorbruto"],
     company: ["terceiro", "empresa", "prestador"],
+    grupo: ["grupo cbhpm", "grupocbhpm", "grupo", "grupoproc"],
   };
   const normKey = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
