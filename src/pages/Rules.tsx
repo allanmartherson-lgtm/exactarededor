@@ -918,6 +918,16 @@ const Rules = () => {
     const before = meta.wasEditing && ruleData.id
       ? rules.find((r) => r.id === ruleData.id) ?? null
       : null;
+    // Captura estado anterior dos cálculos ANTES da RPC (que faz delete+insert).
+    let prevCalcs: any[] | null = null;
+    if (meta.wasEditing && ruleData.id) {
+      const { data: pc } = await supabase
+        .from("rule_calculations")
+        .select("*")
+        .eq("rule_id", ruleData.id as string)
+        .order("sort_order");
+      prevCalcs = pc ?? [];
+    }
     const { data, error } = await supabase.rpc("apply_rule_save_with_corrections", {
       _rule_data: ruleData as any,
       _calculations: calcs as any,
@@ -934,6 +944,29 @@ const Rules = () => {
         actorId: user!.id, company: meta.auditCompany,
         diff: buildDiff(before as any, ruleData as any),
       });
+      // Auditoria dedicada do diff de cálculos — garante rastro dos parâmetros financeiros.
+      if (prevCalcs !== null) {
+        const calcsChanged = JSON.stringify(prevCalcs) !== JSON.stringify(calcs);
+        if (calcsChanged) {
+          await recordAudit({
+            entityType: "rule",
+            entityId: savedId,
+            action: "update",
+            actorId: user!.id,
+            company: meta.auditCompany,
+            diff: { calculations: { before: prevCalcs, after: calcs } },
+          });
+        }
+      } else if (!meta.wasEditing && calcs.length > 0) {
+        await recordAudit({
+          entityType: "rule",
+          entityId: savedId,
+          action: "create",
+          actorId: user!.id,
+          company: meta.auditCompany,
+          diff: { calculations: { before: null, after: calcs } },
+        });
+      }
     }
     if ((result?.corrections_applied ?? 0) > 0) {
       toast({
