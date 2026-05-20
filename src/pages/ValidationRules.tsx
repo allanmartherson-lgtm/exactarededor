@@ -326,7 +326,7 @@ export default function ValidationRules() {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`ID: ${r.id}`, 14, 28);
-    doc.text(`Exportado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - 14, 28, { align: 'right' });
+    doc.text(`Exportado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 28, { align: 'right' });
     
     let currentY = 40;
     
