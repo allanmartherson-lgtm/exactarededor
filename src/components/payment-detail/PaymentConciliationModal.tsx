@@ -1085,6 +1085,9 @@ export function PaymentConciliationModal({
                                             ? formatDateBR(it.procedure_date)
                                             : "—"}
                                         </TableCell>
+                                        <TableCell className="px-3 py-2 text-[11px] text-muted-foreground">
+                                          {it.agreement_text ?? "—"}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
                                           {it.valor_medpay
                                             ? formatCurrency(Number(it.valor_medpay))
