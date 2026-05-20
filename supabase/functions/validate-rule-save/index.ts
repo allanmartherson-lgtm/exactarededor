@@ -1,3 +1,4 @@
+// @version 2026-05-20-calcOverlap-catchall-fix
 /**
  * Sub-Onda 2D — Edge function de validação preventiva de regras.
  *
