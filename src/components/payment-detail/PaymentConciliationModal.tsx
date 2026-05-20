@@ -282,11 +282,40 @@ export function PaymentConciliationModal({
         return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
       };
 
+      console.log('[Conciliação] parsedColMap:', parsedColMap);
+      console.log('[Conciliação] parsedRows[0]:', parsedRows[0]);
+      console.log('[Conciliação] paymentItems sample:', paymentItems.slice(0, 3).map(it => ({
+        attendance_number: it.attendance_number,
+        procedure_code: it.procedure_code,
+        company_name: it.company_name,
+        gross_amount: (it as unknown as Record<string, unknown>).gross_amount,
+      })));
+
+      // Fallback: se procCode não foi detectado, tentar encontrar manualmente
+      if (!parsedColMap['procCode'] && parsedRows.length > 0) {
+        const firstRow = parsedRows[0];
+        const candidates = Object.keys(firstRow).filter(k => {
+          const norm = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+          return norm.includes('tuss') || norm.includes('codigo') || norm.includes('código');
+        });
+        if (candidates.length > 0) {
+          parsedColMap['procCode'] = candidates[0];
+          console.log('[Conciliação] procCode detectado no fallback:', candidates[0]);
+        }
+      }
+
       const filteredRows = parsedRows.filter((row) => {
         const col = parsedColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         return terceiro && companyMapping[terceiro];
       });
+
+      const sampleRow = filteredRows[0];
+      if (sampleRow) {
+        console.log('[Conciliação] sample row filtrada:', sampleRow);
+        console.log('[Conciliação] att col:', parsedColMap['attendance'], '-> valor:', sampleRow[parsedColMap['attendance']]);
+        console.log('[Conciliação] code col:', parsedColMap['procCode'], '-> valor:', sampleRow[parsedColMap['procCode']]);
+      }
 
       const normalizeCode = (code: unknown): string => {
         if (code == null || code === '') return '';
@@ -295,8 +324,12 @@ export function PaymentConciliationModal({
         return String(code).replace(/\D/g, '');
       };
 
-      const normAtt = (att: unknown): string =>
-        String(Math.round(Number(att)) || att).replace(/\D/g, "");
+      const normAtt = (att: unknown): string => {
+        if (att == null || att === '') return '';
+        const n = Number(att);
+        if (!isNaN(n) && isFinite(n)) return String(Math.round(n));
+        return String(att).replace(/\D/g, '');
+      };
 
       const makeKey = (att: unknown, code: unknown): string =>
         `${normAtt(att)}|${normalizeCode(code)}`;
