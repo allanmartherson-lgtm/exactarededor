@@ -765,6 +765,35 @@ export default function ValidationRules() {
         }
       />
 
+      {(() => {
+        const totalAlertas = [...ruleImpact.values()].reduce((a, b) => a + b.alertas, 0);
+        const totalValor = [...ruleImpact.values()].reduce((a, b) => a + b.valor, 0);
+        const allLotes = new Set<string>();
+        for (const item of (itemsWithFindings ?? [])) {
+          const findings = item.validation_findings as any[];
+          if (!Array.isArray(findings)) continue;
+          for (const f of findings) {
+            if (f.rule_id) allLotes.add(item.payment_id);
+          }
+        }
+        const totalLotes = allLotes.size;
+        if (totalAlertas === 0) return null;
+        return (
+          <div className="mx-0 mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">Impacto financeiro detectado pelas regras de validação</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {totalAlertas} alerta{totalAlertas !== 1 ? "s" : ""} ativo{totalAlertas !== 1 ? "s" : ""} em {totalLotes} lote{totalLotes !== 1 ? "s" : ""} — 
+                  <strong> {formatCurrency(totalValor)} em risco</strong> aguardando revisão do analista
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="mt-6 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-lg border border-border">
         <div className="flex items-center gap-2 text-muted-foreground mr-2">
           <Filter className="h-4 w-4" />
