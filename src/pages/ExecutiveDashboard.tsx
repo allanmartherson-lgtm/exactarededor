@@ -257,7 +257,39 @@ export default function ExecutiveDashboard() {
         <SectionLabel>Análise detalhada</SectionLabel>
         <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 14 }}>
           <SurfaceCard style={{ gridColumn: "span 2" }}>
-            <SurfaceCardHeader title="Evolução Mensal — Volume Processado" icon={BarChart3} iconColor="copper" />
+            <SurfaceCardHeader
+              title="Evolução Mensal — Volume Processado"
+              icon={BarChart3}
+              iconColor="copper"
+              rightAction={
+                <div
+                  role="radiogroup"
+                  aria-label="Modo do gráfico"
+                  style={{ display: "inline-flex", background: "hsl(var(--muted))", borderRadius: 8, padding: 3, gap: 2 }}
+                >
+                  {(["competencia", "processamento"] as const).map((mode) => {
+                    const active = chartMode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setChartMode(mode)}
+                        style={{
+                          padding: "5px 11px", fontSize: 12, fontWeight: 600, borderRadius: 6,
+                          border: "none", cursor: "pointer", transition: "all 0.15s ease",
+                          background: active ? "hsl(var(--primary))" : "transparent",
+                          color: active ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                        }}
+                      >
+                        {mode === "competencia" ? "Competência" : "Processamento"}
+                      </button>
+                    );
+                  })}
+                </div>
+              }
+            />
             <div style={{ padding: "22px" }}>
               {loading ? (
                 <div style={{ height: 80, background: "hsl(var(--muted))", borderRadius: 8, opacity: 0.4 }} />
