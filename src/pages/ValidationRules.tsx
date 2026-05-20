@@ -224,20 +224,45 @@ export default function ValidationRules() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: vr }, { data: ag }, { data: co }] = await Promise.all([
+    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
       supabase.from("companies").select("id, name"),
+      supabase
+        .from("payment_items")
+        .select("id, gross_amount, payment_id, validation_findings")
+        .not("validation_findings", "is", null)
+        .neq("validation_findings", "[]"),
     ]);
     setRules(vr ?? []);
     setGroups(ag ?? []);
-    
+
     if (co) {
       const map: Record<string, string> = {};
       co.forEach(c => map[c.id] = c.name);
       setAllCompaniesMap(map);
     }
-    
+
+    // Agregar impacto financeiro por rule_id
+    const impactByRule = new Map<string, { alertas: number; valor: number; lotes: Set<string> }>();
+    for (const item of itemsWithFindings ?? []) {
+      const findings = item.validation_findings as any[];
+      if (!Array.isArray(findings)) continue;
+      for (const f of findings) {
+        if (!f.rule_id) continue;
+        const cur = impactByRule.get(f.rule_id) ?? { alertas: 0, valor: 0, lotes: new Set() };
+        cur.alertas += 1;
+        cur.valor += Number(item.gross_amount ?? 0);
+        cur.lotes.add(item.payment_id);
+        impactByRule.set(f.rule_id, cur);
+      }
+    }
+    const impactMap = new Map<string, { alertas: number; valor: number; lotes: number }>();
+    impactByRule.forEach((v, k) => {
+      impactMap.set(k, { alertas: v.alertas, valor: v.valor, lotes: v.lotes.size });
+    });
+    setRuleImpact(impactMap);
+
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
