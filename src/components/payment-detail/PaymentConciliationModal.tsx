@@ -783,15 +783,18 @@ export function PaymentConciliationModal({
                 Nova conciliação
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={!run || run.status !== "done" || step !== "result"}
-            >
-              <FileDown className="h-4 w-4 mr-1.5" />
-              Exportar relatório
-            </Button>
+            {step === "result" && run && run.status === "done" && (
+              <>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  XLSX
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPdf}>
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  PDF
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
             </Button>
