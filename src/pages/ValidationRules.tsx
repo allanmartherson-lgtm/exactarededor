@@ -263,6 +263,7 @@ export default function ValidationRules() {
       impactMap.set(k, { alertas: v.alertas, valor: v.valor, lotes: v.lotes.size });
     });
     setRuleImpact(impactMap);
+    setImpactItems(itemsWithFindings ?? []);
 
     setLoading(false);
   };
