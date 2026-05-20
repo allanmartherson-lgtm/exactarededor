@@ -154,7 +154,8 @@ self.onmessage = async (e) => {
             ci?.company_name || "",
             ci?.attendance_number || "",
             ci?.specialty || "",
-            ci?.patient_name || "",
+            fmtDate(ci?.procedure_date),
+
             ci?.procedure_date || "",
             ci?.gross_amount != null ? Number(ci.gross_amount) : "",
           ]);
