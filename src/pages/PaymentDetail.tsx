@@ -1790,16 +1790,19 @@ const PaymentDetail = () => {
 
           // Alertas assistenciais agregados por nome de regra
           const ruleCounts = new Map<string, number>();
+          const ruleValues = new Map<string, number>();
           items.forEach((it) => {
             const findings = (it as unknown as { validation_findings?: unknown }).validation_findings;
             if (!Array.isArray(findings)) return;
             findings.forEach((f: any) => {
               const name = String(f?.rule_name ?? "Regra sem nome");
               ruleCounts.set(name, (ruleCounts.get(name) ?? 0) + 1);
+              ruleValues.set(name, (ruleValues.get(name) ?? 0) + Number(it.gross_amount ?? 0));
             });
           });
           const sortedRules = Array.from(ruleCounts.entries()).sort((a, b) => b[1] - a[1]);
           const totalRuleAlerts = sortedRules.reduce((acc, [, n]) => acc + n, 0);
+          const totalRuleValue = Array.from(ruleValues.values()).reduce((a, b) => a + b, 0);
 
           const gridCols = jobConcluido ? "md:grid-cols-3" : "md:grid-cols-2";
 
@@ -1876,20 +1879,30 @@ const PaymentDetail = () => {
               {/* Card 3 — Alertas assistenciais */}
               <Card className="shadow-card">
                 <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas assistenciais</p>
                     {totalRuleAlerts > 0 && (
-                      <span className="text-[10px] font-medium text-warning">{totalRuleAlerts} total</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-medium text-warning">{totalRuleAlerts} total</span>
+                        {totalRuleValue > 0 && (
+                          <span className="text-[10px] font-semibold text-red-600">· {formatCurrency(totalRuleValue)} em risco</span>
+                        )}
+                      </div>
                     )}
                   </div>
                   {sortedRules.length === 0 ? (
                     <p className="italic text-muted-foreground">Nenhum alerta</p>
                   ) : (
-                    <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                    <ul className="space-y-1 max-h-40 overflow-y-auto">
                       {sortedRules.slice(0, 6).map(([name, n]) => (
                         <li key={name} className="flex items-center justify-between gap-2">
-                          <span className="truncate" title={name}>{name}</span>
-                          <span className="font-medium text-warning shrink-0">{n}</span>
+                          <span className="truncate flex-1" title={name}>{name}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-medium text-warning">{n}</span>
+                            {ruleValues.get(name) != null && (
+                              <span className="text-[10px] text-red-600 font-medium">{formatCurrency(ruleValues.get(name)!)}</span>
+                            )}
+                          </div>
                         </li>
                       ))}
                       {sortedRules.length > 6 && (
