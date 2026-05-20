@@ -508,8 +508,9 @@ const PaymentDetail = () => {
       if (!obsRes.ok) {
         toast({ title: "Histórico não registrado", description: obsRes.error, variant: "destructive" });
       }
-      await load();
-      toast({ title: "Regras reaplicadas", description: `IA reanalisou os itens de ${g.company_name}.` });
+      toast({ title: "Reanálise iniciada", description: `Processando itens de ${g.company_name}…` });
+      // Não chama load() aqui — o AnalysisProgressBar detecta o job via realtime
+      // e chama onJobChange quando concluir, que aciona o reload automático.
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       toast({ title: "Falha ao reaplicar regras", description: msg, variant: "destructive" });
@@ -950,6 +951,18 @@ const PaymentDetail = () => {
       setReprocessingAi(false);
     }
   };
+
+  // Recarrega dados quando um job de análise termina (reanálise por empresa ou lote inteiro)
+  const prevJobStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!analysisJob) return;
+    const prev = prevJobStatusRef.current;
+    prevJobStatusRef.current = analysisJob.status;
+    // Só recarrega quando TRANSICIONA de em_andamento para concluido/parcial
+    if (prev === "em_andamento" && (analysisJob.status === "concluido" || analysisJob.status === "parcial")) {
+      load();
+    }
+  }, [analysisJob]);
 
   if (!payment) return <div className="p-8 text-sm text-muted-foreground">Carregando...</div>;
 
