@@ -220,6 +220,7 @@ export default function ValidationRules() {
   const [companyPicker, setCompanyPicker] = useState<CompanyOption | null>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
+  const [ruleImpact, setRuleImpact] = useState<Map<string, { alertas: number; valor: number; lotes: number }>>(new Map());
 
   const load = async () => {
     setLoading(true);
