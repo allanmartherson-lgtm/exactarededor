@@ -139,6 +139,7 @@ export function PaymentConciliationModal({
   const [processing, setProcessing] = useState(false);
 
   const [step, setStep] = useState<Step>("upload");
+  const [excludeConsultas, setExcludeConsultas] = useState(true);
   const [hospitalCompanies, setHospitalCompanies] = useState<string[]>([]);
   const [companyMapping, setCompanyMapping] = useState<Record<string, string | null>>({});
   const [matchLevels, setMatchLevels] = useState<Record<string, 'exact' | 'high' | 'medium' | null>>({});
@@ -355,7 +356,18 @@ export function PaymentConciliationModal({
         return terceiro && companyMapping[terceiro];
       });
 
-      const sampleRow = filteredRows[0];
+      // Filtro de procedimentos — exclui Consultas/Visitas por padrão
+      const GRUPOS_EXCLUIR = new Set(['CONSULTAS', 'VISITAS']);
+      const colGrupo = parsedColMap['grupo'] ?? null;
+
+      const rowsParaCruzamento = excludeConsultas && colGrupo
+        ? filteredRows.filter(row => {
+            const grupo = String(row[colGrupo] ?? '').trim();
+            return !GRUPOS_EXCLUIR.has(grupo.toUpperCase());
+          })
+        : filteredRows;
+
+      const sampleRow = rowsParaCruzamento[0];
       if (sampleRow) {
         console.log('[Conciliação] sample row filtrada:', sampleRow);
         console.log('[Conciliação] att col:', parsedColMap['attendance'], '-> valor:', sampleRow[parsedColMap['attendance']]);
@@ -397,7 +409,7 @@ export function PaymentConciliationModal({
         risco_menos = 0,
         divergencia_valor = 0;
 
-      for (const row of filteredRows) {
+      for (const row of rowsParaCruzamento) {
         const att = getCell(row, "attendance");
         const account = getCell(row, "account");
         const code = getCell(row, "procCode");
@@ -686,6 +698,20 @@ export function PaymentConciliationModal({
                 </span>
               </div>
 
+              <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-lg">
+                <input
+                  type="checkbox"
+                  id="excludeConsultas"
+                  checked={excludeConsultas}
+                  onChange={(e) => setExcludeConsultas(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                <label htmlFor="excludeConsultas" className="text-xs text-muted-foreground cursor-pointer">
+                  <span className="font-medium text-foreground">Excluir Consultas e Visitas</span>
+                  {' '}— remove procedimentos do Grupo CBHPM "CONSULTAS" da análise (visitas hospitalares, pareceres, consultas ambulatoriais)
+                </label>
+              </div>
+
               <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
                 {hospitalCompanies.map((terceiro) => {
                   const mapped = companyMapping[terceiro];
@@ -800,7 +826,8 @@ export function PaymentConciliationModal({
               <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/50 border border-border rounded-lg text-xs text-muted-foreground">
                 <FileDown className="h-4 w-4 shrink-0" />
                 <span>
-                  <strong>{run.file_name}</strong> · {run.total_items} linhas do lote processadas
+                  <strong>{run.file_name}</strong> · {run.total_items} itens processados
+                  {excludeConsultas && ' · consultas e visitas excluídas'}
                   · conciliação em {new Date(run.created_at).toLocaleString("pt-BR")}
                 </span>
               </div>
