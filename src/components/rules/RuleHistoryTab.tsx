@@ -17,6 +17,11 @@ type AuditEntry = {
 
 type Profile = { id: string; email: string; full_name: string | null };
 
+const SYSTEM_FIELDS = new Set([
+  "created_at", "updated_at", "created_by", "id", "rule_id",
+  "target_company_id", "__calc_index",
+]);
+
 const FINANCIAL_FIELDS = new Set([
   "multiplier", "package_amount", "convenio_percentage", "deflator_pct",
   "bonus_amount", "fixed_amount", "repasse_pct", "acrescimo_pct",
