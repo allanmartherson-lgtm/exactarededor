@@ -91,8 +91,10 @@ export default function ExecutiveDashboard() {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<any[]>([]);
   const [validationImpact, setValidationImpact] = useState<{ alertas: number; valor: number; byRule: Map<string, { alertas: number; valor: number }> }>({ alertas: 0, valor: 0, byRule: new Map() });
-  const [monthlyData, setMonthlyData] = useState<{ month: string; valor: number }[]>([]);
+  const [monthlyCompetencia, setMonthlyCompetencia] = useState<{ month: string; valor: number }[]>([]);
+  const [monthlyProcessamento, setMonthlyProcessamento] = useState<{ month: string; valor: number }[]>([]);
   const [topEmpresas, setTopEmpresas] = useState<{ name: string; valor: number }[]>([]);
+  const [chartMode, setChartMode] = useState<"competencia" | "processamento">("competencia");
 
   useEffect(() => {
     document.title = "Dashboard Executivo | MedPay";
