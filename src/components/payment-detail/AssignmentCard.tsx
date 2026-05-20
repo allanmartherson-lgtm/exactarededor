@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserCheck, Users } from "lucide-react";
 import type { AssignmentRow } from "@/hooks/usePaymentDetailData";
+import { formatDateTimeBR } from "@/lib/dateUtils";
 
 /**
  * Card de responsável atual + histórico de assumiu/transferiu para o lote.
