@@ -455,22 +455,15 @@ export default function Glosas() {
               e.target.value = "";
             }}
           />
-          <button
-            type="button"
+          <Button
+            variant="copper"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              background: "#9A6B3A", color: "white", border: "none",
-              borderRadius: 10, padding: "8px 16px", fontSize: 13,
-              fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer",
-              opacity: uploading ? 0.7 : 1, fontFamily: "inherit",
-            }}
           >
             {uploading
-              ? <><RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />Importando…</>
-              : <><Upload size={14} />Importar glosa</>}
-          </button>
+              ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
+              : <><Upload size={14} className="mr-1" />Importar glosa</>}
+          </Button>
         </div>
       </div>
 
