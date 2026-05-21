@@ -972,7 +972,7 @@ function RowMain({
                 "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-wide font-semibold",
                 TEXT_META,
               )}
-              style={{ backgroundColor: "#166534", color: "#fff", borderColor: "#166534" }}
+              style={{ backgroundColor: "hsl(var(--success))", color: "hsl(var(--primary-foreground))", borderColor: "hsl(var(--success))" }}
               title={
                 it.acatado_status_original
                   ? `Acatado (era ${it.acatado_status_original})`
