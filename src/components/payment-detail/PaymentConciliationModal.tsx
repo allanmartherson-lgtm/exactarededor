@@ -189,7 +189,7 @@ export function PaymentConciliationModal({
       } else {
         setRun(null);
         setItems([]);
-        setStep("upload");
+        setStep("select_base");
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
