@@ -1009,7 +1009,7 @@ export function PaymentConciliationModal({
                               checked ? prev.filter(s => s !== sector) : [...prev, sector]
                             )}
                             className="h-4 w-4 rounded"
-                            style={{ accentColor: "#9A6B3A" }}
+                            style={{ accentColor: "hsl(var(--primary))" }}
                           />
                           <span className="text-xs font-medium flex-1 truncate">{sector}</span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{count} linhas</span>
@@ -1018,7 +1018,7 @@ export function PaymentConciliationModal({
                     })}
                   </div>
                   {selectedSectors.length > 0 && (
-                    <p className="text-xs text-[#9A6B3A] font-medium">
+                    <p className="text-xs text-primary font-medium">
                       {selectedSectors.length} setor(es) selecionado(s) · {
                         (selectedBase.raw_data ?? []).filter((r: any) => {
                           const sectorCol = Object.keys(r).find(k => {
@@ -1036,7 +1036,6 @@ export function PaymentConciliationModal({
               {selectedBase && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button
-                    variant="copper"
                     disabled={!selectedBase}
                     onClick={handleProcessFromBase}
                   >

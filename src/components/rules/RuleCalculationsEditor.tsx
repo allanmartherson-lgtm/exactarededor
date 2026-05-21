@@ -433,13 +433,13 @@ function WhenApplySection({
     <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, overflow: "hidden" }}>
       <button type="button" onClick={() => toggle(id)} style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "9px 14px", background: active ? "#fdf5ec" : "hsl(var(--card))",
+        padding: "9px 14px", background: active ? "hsl(var(--accent))" : "hsl(var(--card))",
         border: "none", cursor: "pointer", fontFamily: "inherit",
         borderBottom: openSection === id ? "1px solid hsl(var(--border))" : "none",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: active ? "#9A6B3A" : "hsl(var(--muted-foreground))" }}>{label}</span>
-          {active && <span style={{ background: "#9A6B3A", color: "white", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
+          <span style={{ fontSize: 12, fontWeight: 600, color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>{label}</span>
+          {active && <span style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
         </div>
         <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", display: "inline-block", transform: openSection === id ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
       </button>
@@ -529,7 +529,7 @@ function WhenApplySection({
               const sel = c.doctor_roles.includes(opt.v);
               return (
                 <button key={opt.v} type="button" onClick={() => onChange({ doctor_roles: sel ? c.doctor_roles.filter(x => x !== opt.v) : [...c.doctor_roles, opt.v] })}
-                  style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500, border: `1px solid ${sel ? "#9A6B3A" : "hsl(var(--border))"}`, background: sel ? "#fdf5ec" : "hsl(var(--card))", color: sel ? "#9A6B3A" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                  style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500, border: `1px solid ${sel ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: sel ? "hsl(var(--accent))" : "hsl(var(--card))", color: sel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
                   {opt.label}
                 </button>
               );
@@ -563,7 +563,7 @@ function WhenApplySection({
                   {WEEKDAY_LABELS.map(d => {
                     const checked = c.weekdays.includes(d.v);
                     return <button key={d.v} type="button" onClick={() => onChange({ weekdays: checked ? c.weekdays.filter(x => x !== d.v) : [...c.weekdays, d.v] })}
-                      style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, border: `1px solid ${checked ? "#9A6B3A" : "hsl(var(--border))"}`, background: checked ? "#fdf5ec" : "hsl(var(--card))", color: checked ? "#9A6B3A" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                      style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, border: `1px solid ${checked ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: checked ? "hsl(var(--accent))" : "hsl(var(--card))", color: checked ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
                       {d.label}
                     </button>;
                   })}
@@ -586,7 +586,7 @@ function WhenApplySection({
                 {["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].map(route => {
                   const sel = c.allowed_access_routes.includes(route);
                   return <button key={route} type="button" onClick={() => { const next = sel ? c.allowed_access_routes.filter(r => r !== route) : [...c.allowed_access_routes, route]; onChange({ allowed_access_routes: next, has_conditions: next.length > 0 || c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays }); }}
-                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, border: `1px solid ${sel ? "#9A6B3A" : "hsl(var(--border))"}`, background: sel ? "#fdf5ec" : "hsl(var(--card))", color: sel ? "#9A6B3A" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, border: `1px solid ${sel ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: sel ? "hsl(var(--accent))" : "hsl(var(--card))", color: sel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
                     {route}{sel && " ✕"}
                   </button>;
                 })}
@@ -621,11 +621,11 @@ function CalcCard({
   return (
     <div style={{ borderRadius: 10, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)", overflow: "hidden" }}>
       {/* Header copper */}
-      <div style={{ background: "#fdf5ec", borderBottom: "1px solid #f0e6d3", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ background: "hsl(var(--accent))", borderBottom: "1px solid hsl(var(--border))", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </Button>
-        <span style={{ color: "#9A6B3A", fontSize: 11 }} className="uppercase tracking-wider font-semibold">
+        <span style={{ color: "hsl(var(--primary))", fontSize: 11 }} className="uppercase tracking-wider font-semibold">
           Cálculo #{index + 1}
         </span>
         <Input

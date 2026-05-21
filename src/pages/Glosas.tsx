@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Upload, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CopperButton } from "@/components/ui/copper-button";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -162,9 +162,9 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <CopperButton onClick={() => onConfirm(map)}>
+          <Button onClick={() => onConfirm(map)}>
             Confirmar mapeamento
-          </CopperButton>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -768,9 +768,9 @@ export default function Glosas() {
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
                   onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
-                <CopperButton onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
+                <Button variant="outline" onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
                   {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</> : <><Upload size={14} className="mr-1" />Importar base</>}
-                </CopperButton>
+                </Button>
               </div>
             </div>
 
