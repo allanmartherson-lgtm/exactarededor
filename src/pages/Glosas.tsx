@@ -222,7 +222,22 @@ export default function Glosas() {
         ? "Cirurgias e Procedimentos"
         : wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null });
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, cellDates: true } as any);
+
+      // Serializar datas para string ISO antes de salvar no banco (jsonb não aceita Date objects)
+      const rows = rawRows.map(row => {
+        const clean: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(row)) {
+          if (v instanceof Date) {
+            clean[k] = v.toISOString().slice(0, 10);
+          } else if (v === null || v === undefined || v === "") {
+            // omite campos vazios para reduzir tamanho do JSON
+          } else {
+            clean[k] = v;
+          }
+        }
+        return clean;
+      });
 
       if (rows.length === 0) { toast.error("Planilha vazia."); return; }
 
@@ -269,8 +284,13 @@ export default function Glosas() {
         status: "ativo",
       });
 
-      if (error) throw new Error(error.message);
-      toast.success(`Base importada: ${rows.length} linhas`);
+      if (error) {
+        console.error("Erro ao salvar base de conciliação:", error);
+        throw new Error(error.message ?? "Erro desconhecido ao salvar no banco");
+      }
+      toast.success(`Base importada: ${rows.length} linhas`, {
+        description: `${Object.keys(colMap).length} colunas mapeadas · pronta para conciliação`,
+      });
       loadConcBases();
     } catch (e: any) {
       toast.error("Erro ao importar base", { description: e.message });
