@@ -78,7 +78,7 @@ interface Props {
   paymentItems: PaymentItemRow[];
 }
 
-type Step = "upload" | "mapping" | "result";
+type Step = "select_base" | "upload" | "mapping" | "result";
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
   if (rows.length === 0) return {};
@@ -151,6 +151,13 @@ export function PaymentConciliationModal({
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
 
+  // Seleção de base importada
+  const [concBases, setConcBases] = useState<any[]>([]);
+  const [selectedBase, setSelectedBase] = useState<any | null>(null);
+  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [loadingBases, setLoadingBases] = useState(false);
+
   const loteCompanies = useMemo(
     () =>
       Array.from(
@@ -182,7 +189,7 @@ export function PaymentConciliationModal({
       } else {
         setRun(null);
         setItems([]);
-        setStep("upload");
+        setStep("select_base");
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -192,9 +199,105 @@ export function PaymentConciliationModal({
     }
   }, [paymentId, toast]);
 
+  const loadConcBases = useCallback(async () => {
+    setLoadingBases(true);
+    const { data } = await (supabase as any)
+      .from("conciliation_bases")
+      .select("id, reference, competence_month, file_name, total_rows, created_at, raw_data, col_map")
+      .eq("status", "ativo")
+      .order("created_at", { ascending: false });
+    setConcBases(data ?? []);
+    setLoadingBases(false);
+  }, []);
+
   useEffect(() => {
-    if (open) loadLatestRun();
-  }, [open, loadLatestRun]);
+    if (open) {
+      loadLatestRun();
+      loadConcBases();
+    }
+  }, [open, loadLatestRun, loadConcBases]);
+
+  const handleSelectBase = (base: any) => {
+    setSelectedBase(base);
+    const rows: Record<string, unknown>[] = base.raw_data ?? [];
+    const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+    });
+    const sectors = Array.from(new Set(
+      rows.map(r => sectorCol ? String(r[sectorCol] ?? "").trim() : "").filter(Boolean)
+    )).sort();
+    setAvailableSectors(sectors);
+    setSelectedSectors([]);
+  };
+
+  const handleProcessFromBase = () => {
+    if (!selectedBase) return;
+    const rows: Record<string, unknown>[] = selectedBase.raw_data ?? [];
+    const colMap: Record<string, string> = selectedBase.col_map ?? {};
+
+    const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+    });
+
+    const filteredRows = selectedSectors.length > 0 && sectorCol
+      ? rows.filter(r => selectedSectors.includes(String(r[sectorCol] ?? "").trim()))
+      : rows;
+
+    const companyCol = colMap["company"] ?? Object.keys(rows[0] ?? {}).find(k => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("terceiro") || n.includes("empresa") || n.includes("prestador");
+    });
+
+    const terceiros = Array.from(new Set(
+      filteredRows.map(r => companyCol ? String(r[companyCol] ?? "").trim() : "").filter(Boolean)
+    )).sort();
+
+    const normFull = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+    const STOPWORDS = new Set(['servicos','medicos','medica','ltda','eireli','ss','me','sa','clinica','instituto','centro','cirurgia','cirurgica','saude','hospitalares','hospitalar','associados','associadas','brasilia','brasil','cuidados','servico','especialidades','geral']);
+    const getIdentifiers = (name: string) => {
+      const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ");
+      return norm.split(/\s+/).filter(w => w.length >= 3 && !STOPWORDS.has(w));
+    };
+    type MatchLevel = "exact" | "high" | "medium" | null;
+    const findMatch = (t: string, candidates: string[]): { company: string | null; level: MatchLevel } => {
+      const normT = normFull(t);
+      const idsT = getIdentifiers(t);
+      const exact = candidates.find(c => normFull(c) === normT);
+      if (exact) return { company: exact, level: "exact" };
+      const sub = candidates.find(c => { const n = normFull(c); return normT.includes(n) || n.includes(normT); });
+      if (sub) return { company: sub, level: "high" };
+      let best: { company: string; score: number } | null = null;
+      for (const c of candidates) {
+        const idsC = getIdentifiers(c);
+        const common = idsT.filter(id => idsC.includes(id));
+        const score = common.reduce((s, id) => s + id.length, 0);
+        const ok = common.length >= 2 || (common.length >= 1 && common.some(id => id.length >= 6));
+        if (ok && score > (best?.score ?? 0)) best = { company: c, score };
+      }
+      if (best) return { company: best.company, level: "medium" };
+      return { company: null, level: null };
+    };
+
+    const autoMapping: Record<string, string | null> = {};
+    const newMatchLevels: Record<string, MatchLevel> = {};
+    for (const t of terceiros) {
+      const { company, level } = findMatch(t, loteCompanies);
+      autoMapping[t] = company;
+      newMatchLevels[t] = level;
+    }
+
+    setParsedRows(filteredRows);
+    setParsedColMap(colMap);
+    setPendingFileName(selectedBase.file_name ?? selectedBase.reference);
+    setHospitalCompanies(terceiros);
+    setCompanyMapping(autoMapping);
+    setMatchLevels(newMatchLevels);
+    setStep("mapping");
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -734,14 +837,16 @@ export function PaymentConciliationModal({
   };
 
   const triggerNew = () => {
-    setStep("upload");
+    setStep("select_base");
     setRun(null);
     setItems([]);
     setParsedRows([]);
     setCompanyMapping({});
     setHospitalCompanies([]);
     setPendingFileName("");
-    setTimeout(() => fileInputRef.current?.click(), 0);
+    setSelectedBase(null);
+    setAvailableSectors([]);
+    setSelectedSectors([]);
   };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
@@ -816,30 +921,130 @@ export function PaymentConciliationModal({
             </div>
           )}
 
-          {!loading && step === "upload" && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  {processing ? (
-                    <>
-                      <Loader2 className="h-8 w-8 mx-auto mb-3 text-primary animate-spin" />
-                      <p className="text-sm font-medium">Lendo arquivo...</p>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-                      <p className="text-sm font-medium">Carregar extrato hospitalar</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Arquivo .xlsx ou .csv exportado do sistema hospitalar
-                      </p>
-                      <Button className="mt-4" onClick={() => fileInputRef.current?.click()}>
-                        Selecionar arquivo
-                      </Button>
-                    </>
+          {!loading && step === "select_base" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-1">Selecionar base de conciliação</p>
+                <p className="text-xs text-muted-foreground">Escolha uma base importada em Glosas e Conciliação. Depois filtre pelo setor que deseja conciliar.</p>
+              </div>
+
+              {loadingBases ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando bases…
+                </div>
+              ) : concBases.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm font-medium">Nenhuma base disponível</p>
+                    <p className="text-xs text-muted-foreground mt-1">Importe uma base em <strong>Financeiro → Glosas e Conciliação → Bases de Conciliação</strong>.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {concBases.map(base => {
+                    const isSelected = selectedBase?.id === base.id;
+                    return (
+                      <button
+                        key={base.id}
+                        type="button"
+                        onClick={() => handleSelectBase(base)}
+                        className={cn(
+                          "w-full text-left p-4 rounded-lg border transition-all",
+                          isSelected
+                            ? "border-[#9A6B3A] bg-[#fdf5ec] shadow-sm"
+                            : "border-border bg-card hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
+                              {base.competence_month && ` · competência ${base.competence_month}`}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <div className="shrink-0 w-5 h-5 rounded-full bg-[#9A6B3A] flex items-center justify-center">
+                              <CheckCircle2 className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedBase && availableSectors.length > 0 && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Filtrar por setor</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Selecione apenas os setores pertinentes a este lote. Deixe todos desmarcados para incluir a base completa (não recomendado — pode gerar ruído entre tipos de atendimento).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                    {availableSectors.map(sector => {
+                      const checked = selectedSectors.includes(sector);
+                      const count = (selectedBase.raw_data ?? []).filter((r: any) => {
+                        const sectorCol = Object.keys(r).find(k => {
+                          const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                          return n.includes("setor") || n.includes("centro") || n.includes("custos");
+                        });
+                        return sectorCol && String(r[sectorCol] ?? "").trim() === sector;
+                      }).length;
+                      return (
+                        <label
+                          key={sector}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors",
+                            checked ? "border-[#9A6B3A] bg-[#fdf5ec]" : "border-border bg-card hover:bg-muted/40"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setSelectedSectors(prev =>
+                              checked ? prev.filter(s => s !== sector) : [...prev, sector]
+                            )}
+                            className="h-4 w-4 rounded"
+                            style={{ accentColor: "#9A6B3A" }}
+                          />
+                          <span className="text-xs font-medium flex-1 truncate">{sector}</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{count} linhas</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedSectors.length > 0 && (
+                    <p className="text-xs text-[#9A6B3A] font-medium">
+                      {selectedSectors.length} setor(es) selecionado(s) · {
+                        (selectedBase.raw_data ?? []).filter((r: any) => {
+                          const sectorCol = Object.keys(r).find(k => {
+                            const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                            return n.includes("setor") || n.includes("centro") || n.includes("custos");
+                          });
+                          return sectorCol && selectedSectors.includes(String(r[sectorCol] ?? "").trim());
+                        }).length
+                      } linhas serão analisadas
+                    </p>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+
+              {selectedBase && (
+                <div className="flex justify-end pt-2 border-t border-border">
+                  <Button
+                    variant="copper"
+                    disabled={!selectedBase}
+                    onClick={handleProcessFromBase}
+                  >
+                    Continuar → Vincular empresas
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
 
           {!loading && step === "mapping" && (
@@ -960,7 +1165,7 @@ export function PaymentConciliationModal({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setStep("upload");
+                      setStep("select_base");
                       setParsedRows([]);
                     }}
                   >
