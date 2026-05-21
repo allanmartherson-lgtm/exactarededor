@@ -1018,7 +1018,7 @@ export function PaymentConciliationModal({
                     })}
                   </div>
                   {selectedSectors.length > 0 && (
-                    <p className="text-xs text-[#9A6B3A] font-medium">
+                    <p className="text-xs text-primary font-medium">
                       {selectedSectors.length} setor(es) selecionado(s) · {
                         (selectedBase.raw_data ?? []).filter((r: any) => {
                           const sectorCol = Object.keys(r).find(k => {
