@@ -61,22 +61,41 @@ function parseGlosaFile(
   const items = dataRows
     .filter(row => row.some(c => c != null && c !== ""))
     .map(row => {
-      const get = (col: string) => row[colLetterToIndex(col)] ?? null;
-      const valorGlosa = parseFloat(String(get(colMap.valor_glosa) ?? "0").replace(",", ".")) || 0;
+      const get = (col: string) => {
+        const idx = colLetterToIndex(col);
+        return idx < row.length ? row[idx] : null;
+      };
+
+      const toNum = (v: any): number => {
+        if (v === null || v === undefined || v === "") return 0;
+        if (typeof v === "number") return v;
+        const s = String(v).replace(",", ".").replace(/[^\d.-]/g, "");
+        return parseFloat(s) || 0;
+      };
+
+      const toDate = (v: any): string | null => {
+        if (!v) return null;
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        if (typeof v === "number") {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          return d.toISOString().slice(0, 10);
+        }
+        return String(v).slice(0, 10) || null;
+      };
+
+      const valorGlosa = toNum(get(colMap.valor_glosa));
       if (valorGlosa === 0) return null;
       return {
         attendance_number: String(get(colMap.attendance_number) ?? "").trim() || null,
         procedure_code: String(get(colMap.procedure_code) ?? "").trim() || null,
         procedure_name: String(get(colMap.procedure_name) ?? "").trim() || null,
-        procedure_date: get(colMap.procedure_date) instanceof Date
-          ? (get(colMap.procedure_date) as Date).toISOString().slice(0, 10)
-          : String(get(colMap.procedure_date) ?? "").slice(0, 10) || null,
+        procedure_date: toDate(get(colMap.procedure_date)),
         sector: String(get(colMap.sector) ?? "").trim() || null,
         doctor_name: String(get(colMap.doctor_name) ?? "").trim() || null,
         doctor_crm: String(get(colMap.doctor_crm) ?? "").trim() || null,
         patient_name: String(get(colMap.patient_name) ?? "").trim() || null,
         convenio: String(get(colMap.convenio) ?? "").trim() || null,
-        valor_cobrado: parseFloat(String(get(colMap.valor_cobrado) ?? "0").replace(",", ".")) || 0,
+        valor_cobrado: toNum(get(colMap.valor_cobrado)),
         valor_glosa: valorGlosa,
         motivo_glosa: String(get(colMap.motivo_glosa) ?? "").trim() || null,
         complemento_glosa: String(get(colMap.complemento_glosa) ?? "").trim() || null,
