@@ -222,7 +222,7 @@ export default function Glosas() {
         ? "Cirurgias e Procedimentos"
         : wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, cellDates: true });
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, raw: false } as any);
 
       // Serializar datas para string ISO antes de salvar no banco (jsonb não aceita Date objects)
       const rows = rawRows.map(row => {
