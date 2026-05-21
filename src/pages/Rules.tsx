@@ -1621,14 +1621,6 @@ const Rules = () => {
             title={editingId ? "Editar regra" : "Nova regra"}
             description={editingId ? "Atualize os campos e salve." : undefined}
             maxWidth="6xl"
-            footer={
-              <div className="w-full flex items-center justify-end gap-3">
-                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button type="submit" form="rule-form">
-                  {editingId ? "Atualizar" : "Criar"}
-                </Button>
-              </div>
-            }
           >
             <Tabs defaultValue="form" className="w-full">
               {editingId && (
@@ -1645,769 +1637,733 @@ const Rules = () => {
                 </>
               )}
               <TabsContent value="form" className="mt-0">
-                <form id="rule-form" onSubmit={submitRule} className="space-y-4">
-                {calcSyncErrors.length > 0 && (
-                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 font-semibold text-destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
-                        {calcSyncAttempt > 0 && (
-                          <span className="text-muted-foreground font-normal">· tentativa {calcSyncAttempt}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                          onClick={retryCalcSync}
-                          disabled={calcSyncRetrying || !calcSyncRuleId}
-                        >
-                          {calcSyncRetrying
-                            ? `Tentando… (${calcSyncAttempt})`
-                            : `Tentar novamente (próxima: ${calcSyncAttempt + 1})`}
-                        </Button>
-                        <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setCalcSyncErrors([])} disabled={calcSyncRetrying}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="text-muted-foreground">
-                      A regra foi salva, mas as etapas abaixo falharam. Use “Tentar novamente” para reexecutar o delete e o insert sem reenviar o formulário.
-                    </div>
-                    <ul className="space-y-2">
-                      {calcSyncErrors.map((err, i) => (
-                        <li key={i} className="rounded border border-destructive/30 bg-background p-2 space-y-1">
-                          <div className="font-semibold">{STEP_LABELS[err.step]}</div>
-                          <div className="font-mono break-all whitespace-pre-wrap text-destructive">{err.message}</div>
-                          {err.code && <div><span className="font-semibold">Código:</span> <span className="font-mono">{err.code}</span></div>}
-                          {err.details && <div><span className="font-semibold">Detalhes:</span> <span className="font-mono break-all whitespace-pre-wrap">{err.details}</span></div>}
-                          {err.hint && <div><span className="font-semibold">Dica:</span> {err.hint}</div>}
-                          {typeof err.rowsAttempted === "number" && (
-                            <div><span className="font-semibold">Linhas tentadas:</span> {err.rowsAttempted}</div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {/* Resumo dinâmico */}
-                {(() => {
-                  const onde =
-                    scope === "master" ? "Todos os itens (master)"
-                    : scope === "especifica" ? `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`
-                    : scope === "grupo"
-                      ? (() => {
-                          const parts: string[] = [];
-                          for (const link of fGroupLinks) {
-                            if (!link.company_id) continue;
-                            const co = companies.find((c) => c.id === link.company_id);
-                            const nm = co?.name ?? link.company_id.slice(0, 8);
-                            parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s) específico(s)`}`);
-                          }
-                          if (fGroupDoctors.length > 0) parts.push(`Médicos avulsos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
-                          return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) avulso(s)";
-                        })()
-                      : RULE_SCOPE_LABELS[scope];
-                  const calc = fNature === "informativo"
-                    ? "Informativa / bloqueio (não calcula)"
-                    : fCalculations.length > 1
-                      ? `${fCalculations.length} cálculos (somados quando casarem)`
-                      : `${RULE_CALCULATION_TYPE_LABELS[fCalculations[0]?.calculation_type ?? "informativo"]}`;
-                  const cond: string[] = [];
-                  const condItems = fCalculations.filter((c) => c.has_conditions);
-                  if (fNature === "calculavel" && condItems.length > 0) {
-                    cond.push(`${condItems.length} cálculo(s) com janela específica`);
-                  } else {
-                    cond.push("qualquer dia/horário/tipo");
-                  }
-                  return (
-                    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
-                      <div><span className="font-semibold">Onde aplica:</span> {onde}</div>
-                      <div><span className="font-semibold">Como calcula:</span> {calc}</div>
-                      <div><span className="font-semibold">Condições:</span> {cond.join(" · ")}</div>
-                    </div>
-                  );
-                })()}
-
-                <Accordion type="multiple" value={accordionValue} onValueChange={setAccordionValue} className="space-y-2">
-
-                  {/* Identificação */}
-                  <AccordionItem value="identificacao" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.identificacao > 0 && "text-destructive")}>
-                      <span className="flex items-center">Identificação da regra
-                        {sectionErrors.identificacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.identificacao}</span>}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Checkbox id="rule-active" checked={fActive} onCheckedChange={(v) => setFActive(!!v)} />
-                        <Label htmlFor="rule-active" className="cursor-pointer font-semibold">Regra Ativa</Label>
-                        <span className="text-xs text-muted-foreground">(Inativa = motor ignora esta regra)</span>
-                      </div>
-                      <div className="space-y-1.5"><Label>Nome *</Label>
-                        <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
-                      </div>
-                      <div className="space-y-1.5"><Label>Descrição</Label>
-                        <Input maxLength={300} value={fDescription} onChange={(e) => setFDescription(e.target.value)} />
-                      </div>
-                      <div className="space-y-1.5"><Label>Texto da regra *</Label>
-                        <Textarea required rows={3} maxLength={2000} value={fRuleText} onChange={(e) => setFRuleText(e.target.value)} />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1.5"><Label>Escopo</Label>
-                          <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>{Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                          </Select>
+                <form id="rule-form" onSubmit={submitRule}>
+                  <RuleFormStepper
+                    isEditing={!!editingId}
+                    saving={saving}
+                    onCancel={() => setOpen(false)}
+                    onSubmit={() => {
+                      const form = document.getElementById("rule-form") as HTMLFormElement | null;
+                      form?.requestSubmit();
+                    }}
+                    summaryBanner={(() => {
+                      const onde =
+                        scope === "master" ? "Todos os itens (master)"
+                        : scope === "especifica" ? `Específica · ${RULE_TARGET_TYPE_LABELS[targetType]}${fTargetName ? ` "${fTargetName}"` : ""}`
+                        : scope === "grupo"
+                          ? (() => {
+                              const parts: string[] = [];
+                              for (const link of fGroupLinks) {
+                                if (!link.company_id) continue;
+                                const co = companies.find((c) => c.id === link.company_id);
+                                const nm = co?.name ?? link.company_id.slice(0, 8);
+                                parts.push(`${nm} — ${link.doctors.length === 0 ? "todos os médicos" : `${link.doctors.length} médico(s)`}`);
+                              }
+                              if (fGroupDoctors.length > 0) parts.push(`Médicos avulsos: ${fGroupDoctors.map((d) => d.name).join(", ")}`);
+                              return parts.length ? `Aplica para ${parts.join("; ")}` : "Grupo · adicione empresa(s) ou médico(s) avulso(s)";
+                            })()
+                          : RULE_SCOPE_LABELS[scope];
+                      const calc = fNature === "informativo"
+                        ? "Informativa / bloqueio (não calcula)"
+                        : fCalculations.length > 1
+                          ? `${fCalculations.length} cálculos`
+                          : `${RULE_CALCULATION_TYPE_LABELS[fCalculations[0]?.calculation_type ?? "informativo"]}`;
+                      return (
+                        <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs flex flex-wrap gap-x-4 gap-y-1">
+                          <span><span className="font-semibold">Onde:</span> {onde}</span>
+                          <span><span className="font-semibold">Cálculo:</span> {calc}</span>
                         </div>
-                        <div className="space-y-1.5"><Label>Severidade</Label>
-                          <Select value={fSeverity} onValueChange={(v) => setFSeverity(v as RuleSeverity)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      {/* Setor (multi) e Convênio (eixo determinístico) removidos do nível Regra.
-                          Toda restrição (setor, convênio, código, especialidade, horário, via, função)
-                          agora é configurada dentro de cada item de Cálculo, na seção
-                          "Quando aplicar este cálculo". Isso permite múltiplos cálculos por regra
-                          com escopos completamente diferentes. */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1.5"><Label>Vigência — início</Label>
-                          <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5"><Label>Vigência — fim</Label>
-                          <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* Accordion "Especialidades vinculadas" removido —
-                      especialidade é apenas metadado de relatório/filtro e nunca afeta cálculo. */}
-
-                  {/* Aplicação da regra */}
-                  <AccordionItem value="aplicacao" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.aplicacao > 0 && "text-destructive")}>
-                      <span className="flex items-center">Alvos e Filtros (Aplicação)
-                        {sectionErrors.aplicacao > 0 && <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">{sectionErrors.aplicacao}</span>}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                      {scope === "especifica" && (
-                        <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                          <div className="space-y-1.5"><Label>Aplicar a</Label>
-                            <Select value={targetType} onValueChange={(v) => setTargetType(v as RuleTargetType)}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>{Object.entries(RULE_TARGET_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                            </Select>
+                      );
+                    })()}
+                    syncErrorBanner={calcSyncErrors.length > 0 ? (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 font-semibold text-destructive">
+                            <AlertTriangle className="h-4 w-4" />
+                            Falha ao sincronizar cálculos ({calcSyncErrors.length} etapa{calcSyncErrors.length > 1 ? "s" : ""})
+                            {calcSyncAttempt > 0 && (
+                              <span className="text-muted-foreground font-normal">· tentativa {calcSyncAttempt}</span>
+                            )}
                           </div>
-                          {targetType === "empresa" ? (
-                            <div className="space-y-2">
-                              <div className="space-y-1.5">
-                                <Label>Empresa cadastrada</Label>
-                                <CompanyCombobox
-                                  value={fTargetName ? { id: "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
-                                  onChange={(c) => {
-                                    setFTargetName(c?.name ?? "");
-                                    setFTargetIdentifier(c?.document ? formatCNPJ(c.document) : "");
-                                  }}
-                                  placeholder="Selecionar empresa…"
-                                  className="w-full"
-                                />
-                                <p className="text-xs text-muted-foreground">Puxa nome e CNPJ direto do cadastro de empresas.</p>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="space-y-1.5"><Label>CNPJ</Label>
-                                  <Input
-                                    value={fTargetIdentifier}
-                                    onChange={(e) => setFTargetIdentifier(formatCNPJ(e.target.value))}
-                                    placeholder="00.000.000/0000-00"
-                                    inputMode="numeric"
-                                    maxLength={18}
-                                    aria-invalid={!!fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)}
-                                    className={cn(
-                                      fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && "border-destructive focus-visible:ring-destructive"
-                                    )}
-                                  />
-                                  {fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && (
-                                    <p className="text-xs text-destructive">CNPJ inválido — confira os 14 dígitos.</p>
-                                  )}
-                                </div>
-                                <div className="space-y-1.5"><Label>Nome</Label>
-                                  <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="space-y-1.5">
-                                <Label>Médico cadastrado</Label>
-                                <DoctorCombobox
-                                  value={fTargetName ? { id: "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
-                                  onChange={(d) => {
-                                    setFTargetName(d?.name ?? "");
-                                    setFTargetIdentifier(d?.crm ?? "");
-                                  }}
-                                  placeholder="Buscar médico…"
-                                  className="w-full"
-                                />
-                                <p className="text-xs text-muted-foreground">Puxa nome e CRM direto do cadastro de médicos.</p>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="space-y-1.5"><Label>CRM (ou Identificador)</Label>
-                                  <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
-                                </div>
-                                <div className="space-y-1.5"><Label>Nome</Label>
-                                  <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7"
+                              onClick={retryCalcSync}
+                              disabled={calcSyncRetrying || !calcSyncRuleId}
+                            >
+                              {calcSyncRetrying
+                                ? `Tentando… (${calcSyncAttempt})`
+                                : `Tentar novamente (próxima: ${calcSyncAttempt + 1})`}
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setCalcSyncErrors([])} disabled={calcSyncRetrying}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                      )}
-
-                      {scope === "grupo" && (() => {
-                        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                        const usedIds = new Set(fGroupLinks.map((l) => l.company_id).filter(Boolean));
-                        const dupIds = new Set<string>();
-                        const seen = new Set<string>();
-                        for (const l of fGroupLinks) {
-                          if (!l.company_id) continue;
-                          if (seen.has(l.company_id)) dupIds.add(l.company_id);
-                          seen.add(l.company_id);
-                        }
-                        return (
-                          <div className="space-y-4 animate-fade-in">
-                            {/* Tabela de vínculos por empresa */}
-                            <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
-                              <div className="flex items-center justify-between gap-4">
-                                <div>
-                                  <Label className="text-sm font-semibold">Vínculos por empresa</Label>
-                                  <p className="text-xs text-muted-foreground">Use quando o acordo é com a PJ. Cada linha = uma empresa. Deixe os médicos vazios para aplicar a toda a equipe da PJ, ou selecione médicos específicos dentro daquela PJ.</p>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {fGroupLinks.length > 1 && (
-                                    <Button
-                                      type="button" size="sm" variant="ghost"
-                                      onClick={() => {
-                                        setFGroupLinks(prev => [...prev].sort((a, b) => {
-                                          const nameA = (a as any).company_name || companies.find(c => c.id === a.company_id)?.name || "";
-                                          const nameB = (b as any).company_name || companies.find(c => c.id === b.company_id)?.name || "";
-                                          return nameA.localeCompare(nameB);
-                                        }));
-                                      }}
-                                      title="Ordenar por nome"
-                                    >
-                                      A-Z
-                                    </Button>
-                                  )}
-                                  <Button
-                                    type="button" size="sm" variant="outline"
-                                    onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
-                                  >
-                                    <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
-                                  </Button>
-                                </div>
+                        <ul className="space-y-2">
+                          {calcSyncErrors.map((err, i) => (
+                            <li key={i} className="rounded border border-destructive/30 bg-background p-2 space-y-1">
+                              <div className="font-semibold">{STEP_LABELS[err.step]}</div>
+                              <div className="font-mono break-all whitespace-pre-wrap text-destructive">{err.message}</div>
+                              {err.code && <div><span className="font-semibold">Código:</span> <span className="font-mono">{err.code}</span></div>}
+                              {err.details && <div><span className="font-semibold">Detalhes:</span> <span className="font-mono break-all whitespace-pre-wrap">{err.details}</span></div>}
+                              {err.hint && <div><span className="font-semibold">Dica:</span> {err.hint}</div>}
+                              {typeof err.rowsAttempted === "number" && (
+                                <div><span className="font-semibold">Linhas tentadas:</span> {err.rowsAttempted}</div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    steps={[
+                      {
+                        key: "identificacao",
+                        label: "Identificação",
+                        description: "Nome, escopo e vigência",
+                        errorCount: sectionErrors.identificacao,
+                        content: (
+                          <div className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Checkbox id="rule-active" checked={fActive} onCheckedChange={(v) => setFActive(!!v)} />
+                              <Label htmlFor="rule-active" className="cursor-pointer font-semibold">Regra Ativa</Label>
+                              <span className="text-xs text-muted-foreground">(Inativa = motor ignora esta regra)</span>
+                            </div>
+                            <div className="space-y-1.5"><Label>Nome *</Label>
+                              <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5"><Label>Descrição</Label>
+                              <Input maxLength={300} value={fDescription} onChange={(e) => setFDescription(e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5"><Label>Texto da regra *</Label>
+                              <Textarea required rows={3} maxLength={2000} value={fRuleText} onChange={(e) => setFRuleText(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1.5"><Label>Escopo</Label>
+                                <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>{Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                                </Select>
                               </div>
-
-                              {fGroupLinks.length === 0 && (
-                                <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em “Adicionar empresa” ou use médicos avulsos abaixo.</p>
-                              )}
-
-                              {fGroupLinks.length > 0 && (
-                                <div className="flex items-center gap-2 pt-1">
-                                  <span className="text-xs font-normal text-muted-foreground shrink-0">
-                                    {fGroupLinks.length} {fGroupLinks.length === 1 ? "empresa adicionada" : "empresas adicionadas"}
-                                  </span>
-                                  <div className="relative flex-1 max-w-xs ml-auto">
-                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                    <Input
-                                      value={companyLinksFilter}
-                                      onChange={(e) => setCompanyLinksFilter(e.target.value)}
-                                      placeholder="Filtrar empresas adicionadas..."
-                                      className="h-8 pl-7 text-xs font-normal"
-                                      style={{ borderWidth: "0.5px" }}
-                                    />
-                                  </div>
+                              <div className="space-y-1.5"><Label>Severidade</Label>
+                                <Select value={fSeverity} onValueChange={(v) => setFSeverity(v as RuleSeverity)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1.5"><Label>Vigência — início</Label>
+                                <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
+                              </div>
+                              <div className="space-y-1.5"><Label>Vigência — fim</Label>
+                                <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
+                              </div>
+                            </div>
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "aplicacao",
+                        label: "Alvo",
+                        description: scope === "master" ? "Aplica a todos" : scope === "grupo" ? `${fGroupLinks.length} empresa(s)` : "Empresa ou médico",
+                        errorCount: sectionErrors.aplicacao,
+                        content: (
+                          <div className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
+                            {scope === "especifica" && (
+                              <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                                <div className="space-y-1.5"><Label>Aplicar a</Label>
+                                  <Select value={targetType} onValueChange={(v) => setTargetType(v as RuleTargetType)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{Object.entries(RULE_TARGET_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                                  </Select>
                                 </div>
-                              )}
+                                {targetType === "empresa" ? (
+                                  <div className="space-y-2">
+                                    <div className="space-y-1.5">
+                                      <Label>Empresa cadastrada</Label>
+                                      <CompanyCombobox
+                                        value={fTargetName ? { id: "__sel__", name: fTargetName, document: fTargetIdentifier ? onlyDigits(fTargetIdentifier) : null } : null}
+                                        onChange={(c) => {
+                                          setFTargetName(c?.name ?? "");
+                                          setFTargetIdentifier(c?.document ? formatCNPJ(c.document) : "");
+                                        }}
+                                        placeholder="Selecionar empresa…"
+                                        className="w-full"
+                                      />
+                                      <p className="text-xs text-muted-foreground">Puxa nome e CNPJ direto do cadastro de empresas.</p>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div className="space-y-1.5"><Label>CNPJ</Label>
+                                        <Input
+                                          value={fTargetIdentifier}
+                                          onChange={(e) => setFTargetIdentifier(formatCNPJ(e.target.value))}
+                                          placeholder="00.000.000/0000-00"
+                                          inputMode="numeric"
+                                          maxLength={18}
+                                          aria-invalid={!!fTargetIdentifier && !isValidCNPJ(fTargetIdentifier)}
+                                          className={cn(
+                                            fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && "border-destructive focus-visible:ring-destructive"
+                                          )}
+                                        />
+                                        {fTargetIdentifier && !isValidCNPJ(fTargetIdentifier) && (
+                                          <p className="text-xs text-destructive">CNPJ inválido — confira os 14 dígitos.</p>
+                                        )}
+                                      </div>
+                                      <div className="space-y-1.5"><Label>Nome</Label>
+                                        <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <div className="space-y-1.5">
+                                      <Label>Médico cadastrado</Label>
+                                      <DoctorCombobox
+                                        value={fTargetName ? { id: "__sel__", name: fTargetName, crm: fTargetIdentifier || null, crm_uf: null } : null}
+                                        onChange={(d) => {
+                                          setFTargetName(d?.name ?? "");
+                                          setFTargetIdentifier(d?.crm ?? "");
+                                        }}
+                                        placeholder="Buscar médico…"
+                                        className="w-full"
+                                      />
+                                      <p className="text-xs text-muted-foreground">Puxa nome e CRM direto do cadastro de médicos.</p>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div className="space-y-1.5"><Label>CRM (ou Identificador)</Label>
+                                        <Input value={fTargetIdentifier} onChange={(e) => setFTargetIdentifier(e.target.value)} maxLength={30} />
+                                      </div>
+                                      <div className="space-y-1.5"><Label>Nome</Label>
+                                        <Input value={fTargetName} onChange={(e) => setFTargetName(e.target.value)} maxLength={150} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-                              <div className="space-y-2">
-                                {(() => {
-                                  const qFilter = norm(companyLinksFilter);
-                                  const visible = fGroupLinks
-                                    .map((l, i) => ({ link: l, idx: i }))
-                                    .filter(({ link }) => {
-                                      if (!qFilter) return true;
-                                      if ((link as any)._isNew) return true;
-                                      const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
-                                      const name = co?.name || (link as any).company_name || "";
-                                      return norm(name).includes(qFilter);
-                                    });
-                                  if (qFilter && visible.length === 0) {
-                                    return (
-                                      <p className="text-xs text-muted-foreground italic px-1">
-                                        Nenhuma empresa encontrada para “{companyLinksFilter}”.
-                                      </p>
-                                    );
-                                  }
-                                  return visible.map(({ link, idx }) => {
-                                  const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
-                                  const isDup = link.company_id && dupIds.has(link.company_id);
-                                  const noCompany = !link.company_id;
-                                  const allowedDocs = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
-                                  const loadingDocs = link.company_id ? loadingCompanyDoctorsIds.has(link.company_id) : false;
-                                  const allowedSet = new Set(allowedDocs.map((d) => norm(d.name)));
-                                  const invalidPicked: { name: string; crm?: string }[] = []; // validação removida — médicos manuais são aceitos
-                                  const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
-                                  const isNew = !!(link as any)._isNew;
-                                  const isCollapsed = !isNew && !!link.company_id && collapsedCompanies.has(link.company_id);
-                                  const toggleCollapsed = () => {
-                                    if (!link.company_id) return;
-                                    setCollapsedCompanies((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(link.company_id)) next.delete(link.company_id);
-                                      else next.add(link.company_id);
-                                      return next;
-                                    });
-                                  };
-                                  const displayName = co?.name || (link as any).company_name || "Empresa não selecionada";
-                                  const displayDoc = co?.document || (link as any).company_document || "";
-                                  const doctorsSummary = link.doctors.length === 0 ? "Todos os médicos" : `${link.doctors.length} ${link.doctors.length === 1 ? "médico" : "médicos"}`;
-                                  return (
-                                    <div key={idx} className={cn(
-                                      "rounded-md bg-card animate-fade-in transition-all duration-300",
-                                      isNew ? "ring-2 ring-primary/20 border-primary/50 shadow-sm border" : "border",
-                                      (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "",
-                                      !isCollapsed && link.company_id ? "border-l-2" : ""
-                                    )}
-                                    style={{
-                                      borderWidth: noCompany || isDup || invalidPicked.length > 0 || isNew ? undefined : "0.5px",
-                                      borderLeftWidth: !isCollapsed && link.company_id ? "2px" : undefined,
-                                      borderLeftColor: !isCollapsed && link.company_id ? "#9A6B3A" : undefined,
-                                    }}>
-                                      {isCollapsed ? (
-                                        <button
-                                          type="button"
-                                          onClick={toggleCollapsed}
-                                          className="w-full flex items-center gap-2 p-3 text-left hover:bg-muted/40 transition-colors rounded-md min-w-0"
-                                        >
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                                          <div className="flex-1 min-w-0 flex items-center gap-2 text-sm">
-                                            <span className="font-medium truncate">{displayName}</span>
-                                            {displayDoc && (
-                                              <span className="text-xs text-muted-foreground font-normal cell-mono shrink-0">· {displayDoc}</span>
-                                            )}
-                                            <span className="text-xs text-muted-foreground font-normal truncate">· {doctorsSummary}</span>
-                                          </div>
-                                          <span
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={(e) => { e.stopPropagation(); setFGroupLinks((prev) => prev.filter((_, i) => i !== idx)); }}
-                                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setFGroupLinks((prev) => prev.filter((_, i) => i !== idx)); } }}
-                                            className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
-                                            aria-label="Remover empresa"
+                            {scope === "grupo" && (() => {
+                              const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                              const usedIds = new Set(fGroupLinks.map((l) => l.company_id).filter(Boolean));
+                              const dupIds = new Set<string>();
+                              const seen = new Set<string>();
+                              for (const l of fGroupLinks) {
+                                if (!l.company_id) continue;
+                                if (seen.has(l.company_id)) dupIds.add(l.company_id);
+                                seen.add(l.company_id);
+                              }
+                              return (
+                                <div className="space-y-4 animate-fade-in">
+                                  <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                                    <div className="flex items-center justify-between gap-4">
+                                      <div>
+                                        <Label className="text-sm font-semibold">Vínculos por empresa</Label>
+                                        <p className="text-xs text-muted-foreground">Use quando o acordo é com a PJ. Cada linha = uma empresa. Deixe os médicos vazios para aplicar a toda a equipe da PJ, ou selecione médicos específicos dentro daquela PJ.</p>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        {fGroupLinks.length > 1 && (
+                                          <Button
+                                            type="button" size="sm" variant="ghost"
+                                            onClick={() => {
+                                              setFGroupLinks(prev => [...prev].sort((a, b) => {
+                                                const nameA = (a as any).company_name || companies.find(c => c.id === a.company_id)?.name || "";
+                                                const nameB = (b as any).company_name || companies.find(c => c.id === b.company_id)?.name || "";
+                                                return nameA.localeCompare(nameB);
+                                              }));
+                                            }}
+                                            title="Ordenar por nome"
                                           >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </span>
-                                        </button>
-                                      ) : (
-                                        <div className="p-3 space-y-2">
-                                          <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
-                                            {link.company_id && !isNew ? (
+                                            A-Z
+                                          </Button>
+                                        )}
+                                        <Button
+                                          type="button" size="sm" variant="outline"
+                                          onClick={() => setFGroupLinks((prev) => [{ company_id: "", doctors: [], _isNew: true } as any, ...prev])}
+                                        >
+                                          <Plus className="h-4 w-4 mr-1" /> Adicionar empresa
+                                        </Button>
+                                      </div>
+                                    </div>
+
+                                    {fGroupLinks.length === 0 && (
+                                      <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em "Adicionar empresa" ou use médicos avulsos abaixo.</p>
+                                    )}
+
+                                    {fGroupLinks.length > 0 && (
+                                      <div className="flex items-center gap-2 pt-1">
+                                        <span className="text-xs font-normal text-muted-foreground shrink-0">
+                                          {fGroupLinks.length} {fGroupLinks.length === 1 ? "empresa adicionada" : "empresas adicionadas"}
+                                        </span>
+                                        <div className="relative flex-1 max-w-xs ml-auto">
+                                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                          <Input
+                                            value={companyLinksFilter}
+                                            onChange={(e) => setCompanyLinksFilter(e.target.value)}
+                                            placeholder="Filtrar empresas adicionadas..."
+                                            className="h-8 pl-7 text-xs font-normal"
+                                            style={{ borderWidth: "0.5px" }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                      {(() => {
+                                        const qFilter = norm(companyLinksFilter);
+                                        const visible = fGroupLinks
+                                          .map((l, i) => ({ link: l, idx: i }))
+                                          .filter(({ link }) => {
+                                            if (!qFilter) return true;
+                                            if ((link as any)._isNew) return true;
+                                            const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
+                                            const name = co?.name || (link as any).company_name || "";
+                                            return norm(name).includes(qFilter);
+                                          });
+                                        if (qFilter && visible.length === 0) {
+                                          return (
+                                            <p className="text-xs text-muted-foreground italic px-1">
+                                              Nenhuma empresa encontrada para "{companyLinksFilter}".
+                                            </p>
+                                          );
+                                        }
+                                        return visible.map(({ link, idx }) => {
+                                        const co = link.company_id ? companies.find((c) => c.id === link.company_id) : null;
+                                        const isDup = link.company_id && dupIds.has(link.company_id);
+                                        const noCompany = !link.company_id;
+                                        const allowedDocs = link.company_id ? (companyDoctorsMap[link.company_id] ?? []) : [];
+                                        const loadingDocs = link.company_id ? loadingCompanyDoctorsIds.has(link.company_id) : false;
+                                        const allowedSet = new Set(allowedDocs.map((d) => norm(d.name)));
+                                        const invalidPicked: { name: string; crm?: string }[] = [];
+                                        const updateLink = (patch: Partial<typeof link>) => setFGroupLinks((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+                                        const isNew = !!(link as any)._isNew;
+                                        const isCollapsed = !isNew && !!link.company_id && collapsedCompanies.has(link.company_id);
+                                        const toggleCollapsed = () => {
+                                          if (!link.company_id) return;
+                                          setCollapsedCompanies((prev) => {
+                                            const next = new Set(prev);
+                                            if (next.has(link.company_id)) next.delete(link.company_id);
+                                            else next.add(link.company_id);
+                                            return next;
+                                          });
+                                        };
+                                        const displayName = co?.name || (link as any).company_name || "Empresa não selecionada";
+                                        const displayDoc = co?.document || (link as any).company_document || "";
+                                        const doctorsSummary = link.doctors.length === 0 ? "Todos os médicos" : `${link.doctors.length} ${link.doctors.length === 1 ? "médico" : "médicos"}`;
+                                        return (
+                                          <div key={idx} className={cn(
+                                            "rounded-md bg-card animate-fade-in transition-all duration-300",
+                                            isNew ? "ring-2 ring-primary/20 border-primary/50 shadow-sm border" : "border",
+                                            (noCompany || isDup || invalidPicked.length > 0) ? "border-destructive/60" : "",
+                                            !isCollapsed && link.company_id ? "border-l-2" : ""
+                                          )}
+                                          style={{
+                                            borderWidth: noCompany || isDup || invalidPicked.length > 0 || isNew ? undefined : "0.5px",
+                                            borderLeftWidth: !isCollapsed && link.company_id ? "2px" : undefined,
+                                            borderLeftColor: !isCollapsed && link.company_id ? "#9A6B3A" : undefined,
+                                          }}>
+                                            {isCollapsed ? (
                                               <button
                                                 type="button"
                                                 onClick={toggleCollapsed}
-                                                className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted text-muted-foreground mt-5 shrink-0"
-                                                aria-label="Recolher empresa"
+                                                className="w-full flex items-center gap-2 p-3 text-left hover:bg-muted/40 transition-colors rounded-md min-w-0"
                                               >
-                                                <ChevronDown className="h-4 w-4" />
+                                                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <div className="flex-1 min-w-0 flex items-center gap-2 text-sm">
+                                                  <span className="font-medium truncate">{displayName}</span>
+                                                  {displayDoc && (
+                                                    <span className="text-xs text-muted-foreground font-normal cell-mono shrink-0">· {displayDoc}</span>
+                                                  )}
+                                                  <span className="text-xs text-muted-foreground font-normal truncate">· {doctorsSummary}</span>
+                                                </div>
+                                                <span
+                                                  role="button"
+                                                  tabIndex={0}
+                                                  onClick={(e) => { e.stopPropagation(); setFGroupLinks((prev) => prev.filter((_, i) => i !== idx)); }}
+                                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setFGroupLinks((prev) => prev.filter((_, i) => i !== idx)); } }}
+                                                  className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+                                                  aria-label="Remover empresa"
+                                                >
+                                                  <Trash2 className="h-3.5 w-3.5" />
+                                                </span>
                                               </button>
-                                            ) : <span className="hidden sm:block w-7" />}
-                                            <div className="space-y-1 min-w-0">
-                                              <Label className="text-xs font-medium">Empresa/PJ</Label>
-                                              <CompanyCombobox
-                                                 value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
-                                                 onChange={(c) => {
-                                                   if (!c) return;
-                                                   if (usedIds.has(c.id) && c.id !== link.company_id) {
-                                                     toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
-                                                     return;
-                                                   }
-                                                   setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
-                                                   updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
-                                                 }}
-                                                placeholder="Selecionar empresa…"
-                                                className="w-full"
-                                                autoOpen={(link as any)._isNew}
-                                              />
-                                              {isDup && <p className="text-xs text-destructive">Empresa repetida em outra linha.</p>}
-                                              {noCompany && <p className="text-xs text-destructive">Selecione uma empresa.</p>}
-                                            </div>
-                                            <div className="flex sm:flex-col gap-1 sm:items-end">
-                                              <Button
-                                                type="button" size="sm" variant="ghost"
-                                                onClick={() => setFGroupLinks((prev) => prev.filter((_, i) => i !== idx))}
-                                                aria-label="Remover linha"
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                            </div>
-                                          </div>
+                                            ) : (
+                                              <div className="p-3 space-y-2">
+                                                <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-2 items-start min-w-0 overflow-hidden">
+                                                  {link.company_id && !isNew ? (
+                                                    <button
+                                                      type="button"
+                                                      onClick={toggleCollapsed}
+                                                      className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted text-muted-foreground mt-5 shrink-0"
+                                                      aria-label="Recolher empresa"
+                                                    >
+                                                      <ChevronDown className="h-4 w-4" />
+                                                    </button>
+                                                  ) : <span className="hidden sm:block w-7" />}
+                                                  <div className="space-y-1 min-w-0">
+                                                    <Label className="text-xs font-medium">Empresa/PJ</Label>
+                                                    <CompanyCombobox
+                                                       value={co ? { id: co.id, name: co.name, document: co.document ?? null } : (link.company_id ? { id: link.company_id, name: (link as any).company_name ?? "Empresa selecionada", document: (link as any).company_document ?? null } : null)}
+                                                       onChange={(c) => {
+                                                         if (!c) return;
+                                                         if (usedIds.has(c.id) && c.id !== link.company_id) {
+                                                           toast({ title: "Empresa já vinculada", description: "Edite a linha existente.", variant: "destructive" });
+                                                           return;
+                                                         }
+                                                         setCompanies((prev) => prev.some((x) => x.id === c.id) ? prev : [...prev, { id: c.id, name: c.name, document: c.document ?? null }]);
+                                                         updateLink({ company_id: c.id, doctors: [], company_name: c.name, company_document: c.document ?? null, _isNew: false } as any);
+                                                       }}
+                                                      placeholder="Selecionar empresa…"
+                                                      className="w-full"
+                                                      autoOpen={(link as any)._isNew}
+                                                    />
+                                                    {isDup && <p className="text-xs text-destructive">Empresa repetida em outra linha.</p>}
+                                                    {noCompany && <p className="text-xs text-destructive">Selecione uma empresa.</p>}
+                                                  </div>
+                                                  <div className="flex sm:flex-col gap-1 sm:items-end">
+                                                    <Button
+                                                      type="button" size="sm" variant="ghost"
+                                                      onClick={() => setFGroupLinks((prev) => prev.filter((_, i) => i !== idx))}
+                                                      aria-label="Remover linha"
+                                                    >
+                                                      <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                  </div>
+                                                </div>
 
-                                          {link.company_id && (
-                                            <div className="space-y-1.5 animate-fade-in">
-                                              <div className="flex items-center justify-between">
-                                                <Label className="text-xs">Médicos desta empresa — opcional</Label>
-                                                <div className="flex gap-1">
-                                                  <Button
-                                                    type="button" size="sm" variant={link.doctors.length === 0 ? "default" : "outline"}
-                                                    onClick={() => updateLink({ doctors: [] })}
-                                                  >
-                                                    Todos os médicos
-                                                  </Button>
+                                                {link.company_id && (
+                                                  <div className="space-y-1.5 animate-fade-in">
+                                                    <div className="flex items-center justify-between">
+                                                      <Label className="text-xs">Médicos desta empresa — opcional</Label>
+                                                      <div className="flex gap-1">
+                                                        <Button
+                                                          type="button" size="sm" variant={link.doctors.length === 0 ? "default" : "outline"}
+                                                          onClick={() => updateLink({ doctors: [] })}
+                                                        >
+                                                          Todos os médicos
+                                                        </Button>
+                                                      </div>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                      {loadingDocs
+                                                        ? "Carregando médicos…"
+                                                        : allowedDocs.length === 0
+                                                          ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
+                                                          : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
+                                                    </p>
+                                                    {allowedDocs.length > 0 && (
+                                                      <div className="flex flex-wrap gap-1">
+                                                        {allowedDocs.map((d, di) => {
+                                                          const checked = link.doctors.some((x) => norm(x.name) === norm(d.name));
+                                                          return (
+                                                            <Button
+                                                              key={`${d.name}-${di}`} type="button" size="sm"
+                                                              variant={checked ? "default" : "outline"}
+                                                              onClick={() => updateLink({
+                                                                doctors: checked
+                                                                  ? link.doctors.filter((x) => norm(x.name) !== norm(d.name))
+                                                                  : [...link.doctors, d],
+                                                              })}
+                                                            >
+                                                              {d.name}{d.crm ? ` · ${d.crm}` : ""}
+                                                            </Button>
+                                                          );
+                                                        })}
+                                                      </div>
+                                                    )}
+                                                    <DoctorsEditor
+                                                      value={link.doctors}
+                                                      onChange={(next) => updateLink({ doctors: next })}
+                                                    />
+                                                    {link.doctors.length > 0 && (
+                                                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                        <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
+                                                        <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
+                                                          Limpar
+                                                        </Button>
+                                                      </div>
+                                                    )}
+                                                    {invalidPicked.length > 0 && (
+                                                      <div className="text-xs text-destructive">
+                                                        {invalidPicked.length} médico(s) não pertence(m) a esta empresa.
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
+
+                                                <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
+                                                  <span className="font-medium">{co?.name ?? "—"}</span>
+                                                  {" | "}
+                                                  {link.doctors.length === 0
+                                                    ? "Todos os médicos"
+                                                    : link.doctors.map((d) => d.name).join(", ")}
                                                 </div>
                                               </div>
-                                              <p className="text-xs text-muted-foreground">
-                                                {loadingDocs
-                                                  ? "Carregando médicos…"
-                                                  : allowedDocs.length === 0
-                                                    ? "Nenhum médico encontrado nos atendimentos — adicione manualmente abaixo, ou deixe vazio para aplicar a todos."
-                                                    : "Clique nas sugestões ou adicione manualmente. Vazio = aplica a todos da empresa."}
-                                              </p>
-                                              {allowedDocs.length > 0 && (
-                                                <div className="flex flex-wrap gap-1">
-                                                  {allowedDocs.map((d, di) => {
-                                                    const checked = link.doctors.some((x) => norm(x.name) === norm(d.name));
-                                                    return (
-                                                      <Button
-                                                        key={`${d.name}-${di}`} type="button" size="sm"
-                                                        variant={checked ? "default" : "outline"}
-                                                        onClick={() => updateLink({
-                                                          doctors: checked
-                                                            ? link.doctors.filter((x) => norm(x.name) !== norm(d.name))
-                                                            : [...link.doctors, d],
-                                                        })}
-                                                      >
-                                                        {d.name}{d.crm ? ` · ${d.crm}` : ""}
-                                                      </Button>
-                                                    );
-                                                  })}
-                                                </div>
-                                              )}
-                                              <DoctorsEditor
-                                                value={link.doctors}
-                                                onChange={(next) => updateLink({ doctors: next })}
-                                              />
-                                              {link.doctors.length > 0 && (
-                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                                  <span>{link.doctors.length} médico(s) específico(s) selecionado(s).</span>
-                                                  <Button type="button" size="sm" variant="ghost" onClick={() => updateLink({ doctors: [] })}>
-                                                    Limpar
-                                                  </Button>
-                                                </div>
-                                              )}
-                                              {invalidPicked.length > 0 && (
-                                                <div className="text-xs text-destructive">
-                                                  {invalidPicked.length} médico(s) não pertence(m) a esta empresa.
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          <div className="text-xs text-muted-foreground border-t border-border pt-1.5 truncate" title={`${co?.name ?? "—"} | ${link.doctors.length === 0 ? "Todos os médicos" : link.doctors.map((d) => d.name).join(", ")}`}>
-                                            <span className="font-medium">{co?.name ?? "—"}</span>
-                                            {" | "}
-                                            {link.doctors.length === 0
-                                              ? "Todos os médicos"
-                                              : link.doctors.map((d) => d.name).join(", ")}
+                                            )}
                                           </div>
-                                        </div>
-                                      )}
+                                        );
+                                        });
+                                      })()}
                                     </div>
-                                  );
-                                  });
-                                })()}
-                              </div>
-                            </div>
-
-                            {/* Médicos avulsos (sem PJ) */}
-                            <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
-                              <div>
-                                <Label className="text-sm font-semibold">Médicos avulsos (sem empresa)</Label>
-                                <p className="text-xs text-muted-foreground">Use quando o acordo segue o médico, independente da PJ que faturar (ex.: Dr. Narcélio recebe o acordo Coluna mesmo faturando por qualquer CNPJ). Casa por nome+CRM em qualquer empresa do item. Pode ser combinado com os vínculos por empresa acima — o motor aceita os dois caminhos (OR).</p>
-                              </div>
-                              <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {scope === "master" && (
-                        <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima. Setores, códigos, convênios, especialidades, tipos de pagamento e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.</p>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* Cálculos da regra (1:N) — substitui as antigas seções
-                      "Condições" e "Cálculo da regra". As condições agora vivem
-                      DENTRO de cada item de cálculo. */}
-                  <AccordionItem value="calculo" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className={cn("text-sm font-semibold", sectionErrors.calculo > 0 && "text-destructive")}>
-                      <span className="flex items-center">
-                        Cálculos da regra
-                        {fNature === "calculavel" && fCalculations.length > 1 && (
-                          <span className="ml-2 text-xs font-normal text-muted-foreground">
-                            ({fCalculations.length} itens — somados quando casarem)
-                          </span>
-                        )}
-                        {sectionErrors.calculo > 0 && (
-                          <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">
-                            {sectionErrors.calculo}
-                          </span>
-                        )}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                      <div className="space-y-1.5">
-                        <Label>Natureza da regra *</Label>
-                        <Select
-                          value={fNature}
-                          onValueChange={(v) => {
-                            const nat = v as "calculavel" | "informativo";
-                            setFNature(nat);
-                            if (nat === "informativo") {
-                              setFCalculationType("informativo");
-                              setRefTableId("");
-                            } else if (fCalculationType === "informativo") {
-                              setFCalculationType("percentual_sobre_convenio");
-                            }
-                          }}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="calculavel">Calculável</SelectItem>
-                            <SelectItem value="informativo">Informativa / bloqueio</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          {fNature === "informativo"
-                            ? "Regra apenas alerta/bloqueia o validador — não calcula valor esperado."
-                            : "Você pode adicionar mais de um item de cálculo (bônus, tabela diferenciada, etc.). Cada item pode ter sua própria janela de aplicação (período/dia/horário). Os valores dos itens cujas condições baterem são somados."}
-                        </p>
-                      </div>
-
-                      {fNature === "calculavel" && (
-                        <div className="space-y-4">
-                          <RuleCalculationsEditor
-                            value={fCalculations}
-                            onChange={setFCalculations}
-                            refTables={refTables}
-                            enabled={true}
-                          />
-                          
-                          {/* Hint antigo de "Códigos específicos" removido —
-                              os códigos do bônus são definidos dentro do próprio item de cálculo
-                              (seção "Quando aplicar este cálculo"). */}
-                        </div>
-                      )}
-
-                      {/* Bloco específico da Exclusão (mantém-se vinculado à regra,
-                          não ao item de cálculo, pois é uma decisão global) */}
-                      {fNature === "calculavel" && fCalculations[0]?.calculation_type === "exclusao" && (
-                        <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
-                          <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Motivo da exclusão *</Label>
-                            <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
-                              <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="convenio_particular">Convênio particular</SelectItem>
-                                <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
-                                <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
-                                <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
-                                <SelectItem value="duplicidade">Duplicidade</SelectItem>
-                                <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
-                                <SelectItem value="outro">Outro</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <label className="flex items-start gap-2 cursor-pointer">
-                            <Checkbox
-                              checked={fAllowsAuthorizedException}
-                              onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
-                            />
-                            <span className="text-xs">
-                              Permite exceção autorizada
-                              <span className="block text-[11px] text-muted-foreground">
-                                Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
-                              </span>
-                            </span>
-                          </label>
-                        </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* Tabelas de exceção vinculadas */}
-                  {/* Limiares de divergência */}
-                  <AccordionItem value="limiares" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">
-                      Limiares de divergência
-                      {(fAlertInherit && fBlockInherit) ? (
-                        <span className="ml-2 text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">HERDANDO GLOBAL</span>
-                      ) : (
-                        <span className="ml-2 text-[10px] font-normal text-info bg-info-soft px-1.5 py-0.5 rounded border border-info/20">PERSONALIZADO</span>
-                      )}
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-1">
-                      <p className="text-xs text-muted-foreground">
-                        Define quando uma diferença de valor deve ser tratada como Alerta ou Bloqueio Crítico.
-                      </p>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Alerta */}
-                        <div className="rounded-md border border-warning/30 bg-warning-soft/10 p-3 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-warning-foreground font-bold">ALERTA (AMARELO)</Label>
-                            <div className="flex items-center gap-1.5">
-                              <Checkbox id="alert-inherit" checked={fAlertInherit} onCheckedChange={(v) => setFAlertInherit(!!v)} />
-                              <Label htmlFor="alert-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>
-                            </div>
-                          </div>
-
-                          {fAlertInherit ? (
-                            <p className="text-xs text-muted-foreground italic">
-                              Global atual: {globalThresholds?.limiar_alerta_valor ?? 1}{globalThresholds?.limiar_alerta_tipo === 'percentual' ? '%' : ' R$'}
-                            </p>
-                          ) : (
-                            <div className="flex gap-2">
-                              <div className="flex-1 space-y-1">
-                                <Label className="text-[10px]">Tipo</Label>
-                                <Select value={fAlertThresholdType} onValueChange={(v: any) => setFAlertThresholdType(v)}>
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="percentual">Percentual (%)</SelectItem>
-                                    <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="flex-1 space-y-1">
-                                <Label className="text-[10px]">Valor</Label>
-                                <Input 
-                                  className="h-8 text-xs" 
-                                  placeholder="0.00" 
-                                  value={fAlertThresholdValue} 
-                                  onChange={(e) => setFAlertThresholdValue(e.target.value)} 
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Bloqueio */}
-                        <div className="rounded-md border border-destructive/30 bg-destructive-soft/10 p-3 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-destructive font-bold">BLOQUEIO (VERMELHO)</Label>
-                            <div className="flex items-center gap-1.5">
-                              <Checkbox id="block-inherit" checked={fBlockInherit} onCheckedChange={(v) => setFBlockInherit(!!v)} />
-                              <Label htmlFor="block-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>
-                            </div>
-                          </div>
-
-                          {fBlockInherit ? (
-                            <p className="text-xs text-muted-foreground italic">
-                              Global atual: {globalThresholds?.limiar_bloqueio_valor ?? 5}{globalThresholds?.limiar_bloqueio_tipo === 'percentual' ? '%' : ' R$'}
-                            </p>
-                          ) : (
-                            <div className="flex gap-2">
-                              <div className="flex-1 space-y-1">
-                                <Label className="text-[10px]">Tipo</Label>
-                                <Select value={fBlockThresholdType} onValueChange={(v: any) => setFBlockThresholdType(v)}>
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="percentual">Percentual (%)</SelectItem>
-                                    <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="flex-1 space-y-1">
-                                <Label className="text-[10px]">Valor</Label>
-                                <Input 
-                                  className="h-8 text-xs" 
-                                  placeholder="0.00" 
-                                  value={fBlockThresholdValue} 
-                                  onChange={(e) => setFBlockThresholdValue(e.target.value)} 
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="excecoes" className="rounded-md border border-border bg-card px-3">
-                    <AccordionTrigger className="text-sm font-semibold">
-                      Tabelas de exceção vinculadas
-                      {fExceptionTableIds.length > 0 && (
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">({fExceptionTableIds.length})</span>
-                      )}
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                      <p className="text-xs text-muted-foreground">
-                        Vincule tabelas do tipo <strong>Códigos sem acordo</strong> ou <strong>Exclusão</strong> que invalidam esta regra.
-                        Quando o item bater nesta regra e o código estiver em uma tabela vinculada, o motor pula o cálculo e aceita o valor pago pelo convênio.
-                        Tabelas só têm efeito quando vinculadas — não há varredura global.
-                      </p>
-                      {(() => {
-                        const eligible = refTables.filter((t) => t.purpose === "sem_acordo" || t.purpose === "exclusao");
-                        if (eligible.length === 0) {
-                          return <p className="text-xs text-muted-foreground italic">Nenhuma tabela com propósito “Códigos sem acordo” ou “Exclusão” cadastrada.</p>;
-                        }
-                        return (
-                          <div className="space-y-1.5">
-                            {eligible.map((t) => {
-                              const checked = fExceptionTableIds.includes(t.id);
-                              const purposeLabel = t.purpose === "sem_acordo" ? "Sem acordo" : "Exclusão";
-                              return (
-                                <label key={t.id} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
-                                  <Checkbox
-                                    checked={checked}
-                                    onCheckedChange={(v) => {
-                                      setFExceptionTableIds((prev) =>
-                                        v ? Array.from(new Set([...prev, t.id])) : prev.filter((id) => id !== t.id)
-                                      );
-                                    }}
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium leading-tight">{t.name}</p>
-                                    <p className="text-xs text-muted-foreground">{purposeLabel}</p>
                                   </div>
-                                </label>
+
+                                  <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                                    <div>
+                                      <Label className="text-sm font-semibold">Médicos avulsos (sem empresa)</Label>
+                                      <p className="text-xs text-muted-foreground">Use quando o acordo segue o médico, independente da PJ que faturar (ex.: Dr. Narcélio recebe o acordo Coluna mesmo faturando por qualquer CNPJ). Casa por nome+CRM em qualquer empresa do item. Pode ser combinado com os vínculos por empresa acima — o motor aceita os dois caminhos (OR).</p>
+                                    </div>
+                                    <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
+                                  </div>
+                                </div>
                               );
-                            })}
+                            })()}
+
+                            {scope === "master" && (
+                              <p className="text-xs text-muted-foreground">Regra master — aplica a todos os itens que passarem pelos filtros acima. Setores, códigos, convênios, especialidades, tipos de pagamento e horários agora são configurados <strong>dentro de cada item de Cálculo</strong>.</p>
+                            )}
                           </div>
-                        );
-                      })()}
-                    </AccordionContent>
-                  </AccordionItem>
+                        ),
+                      },
+                      {
+                        key: "calculo",
+                        label: "Cálculo",
+                        description: fNature === "informativo" ? "Informativa" : `${fCalculations.length} método(s)`,
+                        errorCount: sectionErrors.calculo,
+                        content: (
+                          <div className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
+                            <div className="space-y-1.5">
+                              <Label>Natureza da regra *</Label>
+                              <Select
+                                value={fNature}
+                                onValueChange={(v) => {
+                                  const nat = v as "calculavel" | "informativo";
+                                  setFNature(nat);
+                                  if (nat === "informativo") {
+                                    setFCalculationType("informativo");
+                                    setRefTableId("");
+                                  } else if (fCalculationType === "informativo") {
+                                    setFCalculationType("percentual_sobre_convenio");
+                                  }
+                                }}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="calculavel">Calculável</SelectItem>
+                                  <SelectItem value="informativo">Informativa / bloqueio</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                {fNature === "informativo"
+                                  ? "Regra apenas alerta/bloqueia o validador — não calcula valor esperado."
+                                  : "Você pode adicionar mais de um item de cálculo (bônus, tabela diferenciada, etc.). Cada item pode ter sua própria janela de aplicação (período/dia/horário). Os valores dos itens cujas condições baterem são somados."}
+                              </p>
+                            </div>
 
-                  {/* Códigos específicos: removido — agora dentro de cada cálculo. */}
-                </Accordion>
+                            {fNature === "calculavel" && (
+                              <div className="space-y-4">
+                                <RuleCalculationsEditor
+                                  value={fCalculations}
+                                  onChange={setFCalculations}
+                                  refTables={refTables}
+                                  enabled={true}
+                                />
+                              </div>
+                            )}
 
-            </form>
-                </TabsContent>
-              </Tabs>
+                            {fNature === "calculavel" && fCalculations[0]?.calculation_type === "exclusao" && (
+                              <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
+                                <h3 className="text-[13.5px] font-semibold">Configuração da exclusão</h3>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Motivo da exclusão *</Label>
+                                  <Select value={fExclusionReason || "__none"} onValueChange={(v) => setFExclusionReason(v === "__none" ? "" : v)}>
+                                    <SelectTrigger><SelectValue placeholder="Selecionar motivo" /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="convenio_particular">Convênio particular</SelectItem>
+                                      <SelectItem value="codigo_nao_remuneravel">Código não remunerável</SelectItem>
+                                      <SelectItem value="codigo_sem_acordo">Código sem dobra/acordo</SelectItem>
+                                      <SelectItem value="fora_escopo">Procedimento fora do escopo</SelectItem>
+                                      <SelectItem value="duplicidade">Duplicidade</SelectItem>
+                                      <SelectItem value="ja_no_pacote">Já incluído em pacote</SelectItem>
+                                      <SelectItem value="outro">Outro</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <label className="flex items-start gap-2 cursor-pointer">
+                                  <Checkbox
+                                    checked={fAllowsAuthorizedException}
+                                    onCheckedChange={(c) => setFAllowsAuthorizedException(!!c)}
+                                  />
+                                  <span className="text-xs">
+                                    Permite exceção autorizada
+                                    <span className="block text-[11px] text-muted-foreground">
+                                      Quando marcado, o analista pode liberar o item informando autorizador, justificativa e (opcionalmente) anexo.
+                                    </span>
+                                  </span>
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        ),
+                      },
+                      {
+                        key: "avancado",
+                        label: "Avançado",
+                        description: "Limiares e exceções",
+                        errorCount: 0,
+                        content: (
+                          <div className="space-y-6 max-w-full overflow-hidden p-1 pt-1">
+                            <div>
+                              <div className="flex items-center text-sm font-semibold mb-3">
+                                Limiares de divergência
+                                {(fAlertInherit && fBlockInherit) ? (
+                                  <span className="ml-2 text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">HERDANDO GLOBAL</span>
+                                ) : (
+                                  <span className="ml-2 text-[10px] font-normal text-info bg-info-soft px-1.5 py-0.5 rounded border border-info/20">PERSONALIZADO</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-3">
+                                Define quando uma diferença de valor deve ser tratada como Alerta ou Bloqueio Crítico.
+                              </p>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="rounded-md border border-warning/30 bg-warning-soft/10 p-3 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-warning-foreground font-bold">ALERTA (AMARELO)</Label>
+                                    <div className="flex items-center gap-1.5">
+                                      <Checkbox id="alert-inherit" checked={fAlertInherit} onCheckedChange={(v) => setFAlertInherit(!!v)} />
+                                      <Label htmlFor="alert-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>
+                                    </div>
+                                  </div>
+
+                                  {fAlertInherit ? (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Global atual: {globalThresholds?.limiar_alerta_valor ?? 1}{globalThresholds?.limiar_alerta_tipo === 'percentual' ? '%' : ' R$'}
+                                    </p>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <div className="flex-1 space-y-1">
+                                        <Label className="text-[10px]">Tipo</Label>
+                                        <Select value={fAlertThresholdType} onValueChange={(v: any) => setFAlertThresholdType(v)}>
+                                          <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="percentual">Percentual (%)</SelectItem>
+                                            <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="flex-1 space-y-1">
+                                        <Label className="text-[10px]">Valor</Label>
+                                        <Input
+                                          className="h-8 text-xs"
+                                          placeholder="0.00"
+                                          value={fAlertThresholdValue}
+                                          onChange={(e) => setFAlertThresholdValue(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="rounded-md border border-destructive/30 bg-destructive-soft/10 p-3 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-destructive font-bold">BLOQUEIO (VERMELHO)</Label>
+                                    <div className="flex items-center gap-1.5">
+                                      <Checkbox id="block-inherit" checked={fBlockInherit} onCheckedChange={(v) => setFBlockInherit(!!v)} />
+                                      <Label htmlFor="block-inherit" className="text-[10px] cursor-pointer">Usar valor global</Label>
+                                    </div>
+                                  </div>
+
+                                  {fBlockInherit ? (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Global atual: {globalThresholds?.limiar_bloqueio_valor ?? 5}{globalThresholds?.limiar_bloqueio_tipo === 'percentual' ? '%' : ' R$'}
+                                    </p>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <div className="flex-1 space-y-1">
+                                        <Label className="text-[10px]">Tipo</Label>
+                                        <Select value={fBlockThresholdType} onValueChange={(v: any) => setFBlockThresholdType(v)}>
+                                          <SelectTrigger className="h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="percentual">Percentual (%)</SelectItem>
+                                            <SelectItem value="absoluto">Absoluto (R$)</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="flex-1 space-y-1">
+                                        <Label className="text-[10px]">Valor</Label>
+                                        <Input
+                                          className="h-8 text-xs"
+                                          placeholder="0.00"
+                                          value={fBlockThresholdValue}
+                                          onChange={(e) => setFBlockThresholdValue(e.target.value)}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex items-center text-sm font-semibold mb-2">
+                                Tabelas de exceção vinculadas
+                                {fExceptionTableIds.length > 0 && (
+                                  <span className="ml-2 text-xs font-normal text-muted-foreground">({fExceptionTableIds.length})</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-3">
+                                Vincule tabelas do tipo <strong>Códigos sem acordo</strong> ou <strong>Exclusão</strong> que invalidam esta regra.
+                                Quando o item bater nesta regra e o código estiver em uma tabela vinculada, o motor pula o cálculo e aceita o valor pago pelo convênio.
+                                Tabelas só têm efeito quando vinculadas — não há varredura global.
+                              </p>
+                              {(() => {
+                                const eligible = refTables.filter((t) => t.purpose === "sem_acordo" || t.purpose === "exclusao");
+                                if (eligible.length === 0) {
+                                  return <p className="text-xs text-muted-foreground italic">Nenhuma tabela com propósito "Códigos sem acordo" ou "Exclusão" cadastrada.</p>;
+                                }
+                                return (
+                                  <div className="space-y-1.5">
+                                    {eligible.map((t) => {
+                                      const checked = fExceptionTableIds.includes(t.id);
+                                      const purposeLabel = t.purpose === "sem_acordo" ? "Sem acordo" : "Exclusão";
+                                      return (
+                                        <label key={t.id} className="flex items-start gap-2 rounded-md border border-border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                                          <Checkbox
+                                            checked={checked}
+                                            onCheckedChange={(v) => {
+                                              setFExceptionTableIds((prev) =>
+                                                v ? Array.from(new Set([...prev, t.id])) : prev.filter((id) => id !== t.id)
+                                              );
+                                            }}
+                                          />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium leading-tight">{t.name}</p>
+                                            <p className="text-xs text-muted-foreground">{purposeLabel}</p>
+                                          </div>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </form>
+              </TabsContent>
+            </Tabs>
           </FormDialog>
+
         </>
       }
     />
