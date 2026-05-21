@@ -1637,7 +1637,7 @@ const Rules = () => {
                 </>
               )}
               <TabsContent value="form" className="mt-0">
-                <form id="rule-form" onSubmit={submitRule}>
+                <form id="rule-form" onSubmit={submitRule} className="rule-form-context">
                   <RuleFormStepper
                     isEditing={!!editingId}
                     saving={saving}
