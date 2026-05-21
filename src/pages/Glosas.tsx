@@ -222,7 +222,22 @@ export default function Glosas() {
         ? "Cirurgias e Procedimentos"
         : wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null });
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, cellDates: true });
+
+      // Serializar datas para string ISO antes de salvar no banco (jsonb não aceita Date objects)
+      const rows = rawRows.map(row => {
+        const clean: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(row)) {
+          if (v instanceof Date) {
+            clean[k] = v.toISOString().slice(0, 10);
+          } else if (v === null || v === undefined || v === "") {
+            // omite campos vazios para reduzir tamanho do JSON
+          } else {
+            clean[k] = v;
+          }
+        }
+        return clean;
+      });
 
       if (rows.length === 0) { toast.error("Planilha vazia."); return; }
 
