@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/status";
 import { toast } from "sonner";
 import { Upload, CheckCircle2, AlertTriangle, XCircle, RefreshCw, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CopperButton } from "@/components/ui/copper-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -161,9 +162,9 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button variant="copper" type="button" onClick={() => onConfirm(map)}>
+          <CopperButton onClick={() => onConfirm(map)}>
             Confirmar mapeamento
-          </Button>
+          </CopperButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -572,15 +573,14 @@ export default function Glosas() {
                   e.target.value = "";
                 }}
               />
-              <Button
-                variant="copper"
+              <CopperButton
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
               >
                 {uploading
                   ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
                   : <><Upload size={14} className="mr-1" />Importar glosa</>}
-              </Button>
+              </CopperButton>
             </div>
 
             {debts.length > 0 && (
@@ -748,9 +748,9 @@ export default function Glosas() {
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
                   onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
-                <Button variant="copper" onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
+                <CopperButton onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
                   {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</> : <><Upload size={14} className="mr-1" />Importar base</>}
-                </Button>
+                </CopperButton>
               </div>
             </div>
 
