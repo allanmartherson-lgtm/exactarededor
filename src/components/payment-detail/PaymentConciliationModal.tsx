@@ -1165,7 +1165,7 @@ export function PaymentConciliationModal({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setStep("upload");
+                      setStep("select_base");
                       setParsedRows([]);
                     }}
                   >
