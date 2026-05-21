@@ -141,9 +141,18 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onConfirm(map)} className="!bg-[#9A6B3A] hover:!bg-[#825a30] !text-white !border-none" style={{ background: "#9A6B3A", color: "white", border: "none", fontWeight: 600 }}>
+          <button
+            type="button"
+            onClick={() => onConfirm(map)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "#9A6B3A", color: "white", border: "none",
+              borderRadius: 10, padding: "8px 16px", fontSize: 13,
+              fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
             Confirmar mapeamento
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -407,14 +416,22 @@ export default function Glosas() {
               e.target.value = "";
             }}
           />
-          <Button
+          <button
+            type="button"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="!bg-[#9A6B3A] hover:!bg-[#825a30] !text-white !border-none"
-            style={{ background: "#9A6B3A", color: "white", border: "none", fontWeight: 600 }}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "#9A6B3A", color: "white", border: "none",
+              borderRadius: 10, padding: "8px 16px", fontSize: 13,
+              fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer",
+              opacity: uploading ? 0.7 : 1, fontFamily: "inherit",
+            }}
           >
-            {uploading ? <><RefreshCw size={14} className="animate-spin mr-2" />Importando…</> : <><Upload size={14} className="mr-2" />Importar glosa</>}
-          </Button>
+            {uploading
+              ? <><RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />Importando…</>
+              : <><Upload size={14} />Importar glosa</>}
+          </button>
         </div>
       </div>
 
