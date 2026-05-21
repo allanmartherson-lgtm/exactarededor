@@ -64,7 +64,7 @@ export function RuleListRow({
     const aText = aVal != null ? `${aVal}${aType === "percentual" ? "%" : " R$"}` : "global";
     const bText = bVal != null ? `${bVal}${bType === "percentual" ? "%" : " R$"}` : "global";
     return (
-      <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+      <Badge variant="muted" className="font-normal">
         ⚠ {aText} / 🚫 {bText}
       </Badge>
     );
@@ -74,7 +74,7 @@ export function RuleListRow({
     <div
       className={cn(
         "flex items-start gap-3 px-6 py-4 hover:bg-muted/40 transition-colors",
-        !isLast && "border-b border-border/40",
+        !isLast && "border-b border-border",
         selected && "bg-primary/5",
       )}
     >
@@ -87,40 +87,27 @@ export function RuleListRow({
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <p className="font-medium text-sm truncate">{name}</p>
-            {active === false && (
-              <Badge variant="outline" className="gap-1 font-normal bg-destructive-soft text-destructive border-destructive/30">
-                Inativa
-              </Badge>
-            )}
-            {expired && (
-              <Badge variant="outline" className="gap-1 font-normal bg-warning-soft text-warning-foreground border-warning/30">
-                Expirada
-              </Badge>
-            )}
+            {active === false && <Badge variant="destructive" className="font-normal">Inativa</Badge>}
+            {expired && <Badge variant="warning" className="font-normal">Expirada</Badge>}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             {severity && (
               <Badge
-                variant="outline"
-                className={cn(
-                  "gap-1 font-normal capitalize",
-                  severity === "bloqueio" && "bg-destructive-soft text-destructive border-destructive/30",
-                  severity === "aviso" && "bg-warning-soft text-warning-foreground border-warning/30",
-                  severity === "info" && "bg-info-soft text-info border-info/30",
-                )}
+                variant={severity === "bloqueio" ? "destructive" : severity === "aviso" ? "warning" : "info"}
+                className="font-normal capitalize"
               >
                 {severity}
               </Badge>
             )}
             {calcBadge}
             {(validFrom || validUntil) && (
-              <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+              <Badge variant="muted" className="font-normal">
                 Vigência: {validFrom ?? "—"} → {validUntil ?? "—"}
               </Badge>
             )}
             {renderThresholds()}
             {incomplete && (
-              <Badge variant="outline" className="gap-1 font-normal bg-warning-soft text-warning-foreground border-warning/30">
+              <Badge variant="warning" className="font-normal gap-1">
                 <AlertTriangle className="h-3 w-3" /> Faltam: {missingFields.join(", ")}
               </Badge>
             )}
