@@ -15,7 +15,7 @@ const buttonVariants = cva(
         secondary: "border-[1.5px] border-primary bg-transparent text-primary hover:bg-primary/10 active:bg-primary/15",
         ghost: "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted p-0 h-auto",
         link: "text-primary underline-offset-4 hover:underline focus-visible:underline",
-        copper: "bg-[#9A6B3A] text-white border-none shadow-[var(--shadow-soft)] hover:bg-[#825a30] hover:shadow-[var(--shadow-card)] active:bg-[#6e4c28] disabled:bg-[#9A6B3A]/55 disabled:text-white/80 disabled:shadow-none disabled:opacity-100 disabled:cursor-not-allowed",
+        copper: "bg-copper text-copper-foreground border-none shadow-[var(--shadow-soft)] hover:bg-copper-hover hover:shadow-[var(--shadow-card)] active:bg-copper-active disabled:bg-copper/55 disabled:text-copper-foreground/80 disabled:shadow-none disabled:opacity-100 disabled:cursor-not-allowed",
       },
       size: {
         default: "h-10 px-4 py-2",
