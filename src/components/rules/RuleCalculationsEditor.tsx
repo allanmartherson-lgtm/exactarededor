@@ -439,7 +439,7 @@ function WhenApplySection({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>{label}</span>
-          {active && <span style={{ background: "hsl(var(--primary))", color: "white", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
+          {active && <span style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
         </div>
         <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", display: "inline-block", transform: openSection === id ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
       </button>
