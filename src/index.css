@@ -24,6 +24,13 @@ All colors MUST be HSL.
     --primary-soft: 214 95% 97%;        /* very light blue tint */
     --primary-glow: 217 91% 65%;
 
+    /* Brand secondary: MedPay copper (#9A6B3A) — CTA destacado em fluxos operacionais */
+    --copper: 28 45% 42%;               /* #9A6B3A */
+    --copper-foreground: 0 0% 100%;
+    --copper-hover: 28 46% 35%;         /* #825a30 */
+    --copper-active: 28 47% 29%;        /* #6e4c28 */
+    --copper-soft: 32 80% 96%;          /* #fdf5ec — fundo suave */
+
     --secondary: 214 21% 93%;           /* #E8ECF1 — border / surface */
     --secondary-foreground: 215 19% 35%;/* #475569 */
 
@@ -114,6 +121,13 @@ All colors MUST be HSL.
     --primary-foreground: 0 0% 100%;     /* white on blue — WCAG AA */
     --primary-soft: 222 60% 18%;
     --primary-glow: 217 91% 72%;
+
+    /* Copper — versão para dark surfaces */
+    --copper: 28 55% 55%;
+    --copper-foreground: 0 0% 100%;
+    --copper-hover: 28 55% 48%;
+    --copper-active: 28 55% 42%;
+    --copper-soft: 28 40% 18%;
 
     --secondary: 222 18% 20%;            /* #2a3040 */
     --secondary-foreground: 213 25% 88%; /* #d6dde7 */

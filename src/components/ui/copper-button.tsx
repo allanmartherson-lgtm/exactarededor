@@ -3,7 +3,7 @@ import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * CopperButton — botão padrão MedPay na cor copper (#9A6B3A).
+ * CopperButton — botão padrão MedPay na cor copper (token `--copper`).
  *
  * Encapsula `variant="copper"` num componente dedicado para evitar que
  * outros lugares sobrescrevam o variant ou apliquem `style` inline ad-hoc.
