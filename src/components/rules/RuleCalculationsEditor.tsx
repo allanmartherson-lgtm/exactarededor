@@ -394,6 +394,199 @@ function ComplementosBlock({
   );
 }
 
+
+/* ============================================================
+ *  WhenApplySection — progressive disclosure dos filtros por cálculo
+ * ============================================================ */
+function WhenApplySection({
+  c, onChange, isPacote,
+}: { c: CalcItem; onChange: (p: Partial<CalcItem>) => void; isPacote: boolean }) {
+  const hasCodesFilter = c.code_match_mode !== "any" && c.procedure_codes.length > 0;
+  const hasConvenioFilter = c.agreement_aliases.length > 0;
+  const hasFuncaoFilter = c.doctor_roles.length > 0;
+  const hasPeriodoFilter = c.has_conditions && (
+    c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays ||
+    c.allowed_access_routes.length > 0 || c.sectors.length > 0 || c.specialties.length > 0
+  );
+
+  const [openSection, setOpenSection] = useState<string | null>(
+    hasCodesFilter ? "codigos" : hasConvenioFilter ? "convenio" : hasFuncaoFilter ? "funcao" : hasPeriodoFilter ? "periodo" : null
+  );
+
+  const toggle = (key: string) => setOpenSection(prev => prev === key ? null : key);
+
+  const FilterBtn = ({ id, label, active, children }: { id: string; label: string; active: boolean; children: React.ReactNode }) => (
+    <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 8, overflow: "hidden" }}>
+      <button type="button" onClick={() => toggle(id)} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "9px 14px", background: active ? "#fdf5ec" : "hsl(var(--card))",
+        border: "none", cursor: "pointer", fontFamily: "inherit",
+        borderBottom: openSection === id ? "1px solid hsl(var(--border))" : "none",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: active ? "#9A6B3A" : "hsl(var(--muted-foreground))" }}>{label}</span>
+          {active && <span style={{ background: "#9A6B3A", color: "white", borderRadius: 20, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>ativo</span>}
+        </div>
+        <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", display: "inline-block", transform: openSection === id ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
+      </button>
+      {openSection === id && (
+        <div style={{ padding: "12px 14px", background: "hsl(var(--card))" }}>{children}</div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ borderRadius: 8, border: "1px solid hsl(var(--border) / 0.6)", overflow: "hidden" }}>
+      <div style={{ padding: "9px 14px", background: "hsl(var(--muted) / 0.4)", borderBottom: "1px solid hsl(var(--border))" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "hsl(var(--muted-foreground))" }}>Quando aplicar este cálculo</span>
+        <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Deixe todos fechados para aplicar a qualquer item. Expanda apenas o que precisar restringir.</p>
+      </div>
+      <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6, background: "hsl(var(--card))" }}>
+
+        {!isPacote && (
+          <FilterBtn id="codigos" label="Códigos TUSS / CBHPM" active={hasCodesFilter}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+              <Label className="text-xs">Modo</Label>
+              <Select value={c.code_match_mode} onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}>
+                <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="whitelist">Apenas estes códigos</SelectItem>
+                  <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+                  <SelectItem value="any">Qualquer código</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {c.code_match_mode !== "any" && (
+              <>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <Input placeholder="Digite um código e pressione Enter (ex: 31005497)" className="h-8 text-xs flex-1"
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const t = e.target as HTMLInputElement; const vals = t.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean); const merged = Array.from(new Set([...c.procedure_codes, ...vals])); if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged }); t.value = ""; } }} />
+                  <input type="file" accept=".xlsx,.xls,.csv" id={`import-codes-${c.id ?? c.label}`} className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0]; if (!file) return;
+                    try { const XLSX = await import("xlsx"); const buf = await file.arrayBuffer(); const wb = XLSX.read(buf, { type: "array" }); const found = new Set<string>(); for (const sn of wb.SheetNames) { const sh = wb.Sheets[sn]; const rows = XLSX.utils.sheet_to_json<any>(sh, { header: 1, raw: false, defval: "" }); for (const row of rows as any[][]) { for (const cell of row) { const s = String(cell ?? "").trim(); const m = s.match(/\b\d{8}\b/g); if (m) m.forEach(x => found.add(x)); } } }
+                    if (found.size === 0) { toast.error("Nenhum código TUSS encontrado"); } else { const merged = Array.from(new Set([...c.procedure_codes, ...found])); onChange({ procedure_codes: merged }); toast.success(`${found.size} códigos importados`); }
+                    } catch (err) { toast.error("Erro: " + (err as Error).message); } finally { (e.target as HTMLInputElement).value = ""; }
+                  }} />
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs whitespace-nowrap" onClick={() => document.getElementById(`import-codes-${c.id ?? c.label}`)?.click()}>📎 Importar</Button>
+                </div>
+                {c.procedure_codes.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {c.procedure_codes.map(code => (
+                      <button key={code} type="button" onClick={() => onChange({ procedure_codes: c.procedure_codes.filter(x => x !== code) })}
+                        style={{ fontSize: 10, borderRadius: 20, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))", padding: "2px 8px", cursor: "pointer", fontFamily: "monospace" }}>
+                        {code} ✕
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </FilterBtn>
+        )}
+
+        <FilterBtn id="convenio" label="Convênio" active={hasConvenioFilter}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+            <Label className="text-xs">Modo</Label>
+            <Select value={c.agreement_match_mode} onValueChange={(v) => onChange({ agreement_match_mode: v as CalcItem["agreement_match_mode"] })}>
+              <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="whitelist">Apenas estes convênios</SelectItem>
+                <SelectItem value="blacklist">Todos exceto estes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Input placeholder="Digite o convênio e pressione Enter (ex: Unimed)" className="h-8 text-xs"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const t = e.target as HTMLInputElement; const v = t.value.trim(); if (v && !c.agreement_aliases.includes(v)) onChange({ agreement_aliases: [...c.agreement_aliases, v] }); t.value = ""; } }} />
+          {c.agreement_aliases.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+              {c.agreement_aliases.map(a => (
+                <button key={a} type="button" onClick={() => onChange({ agreement_aliases: c.agreement_aliases.filter(x => x !== a) })}
+                  style={{ fontSize: 10, borderRadius: 20, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))", padding: "2px 8px", cursor: "pointer" }}>
+                  {a} ✕
+                </button>
+              ))}
+            </div>
+          )}
+        </FilterBtn>
+
+        <FilterBtn id="funcao" label="Função do médico" active={hasFuncaoFilter}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {[{ v: "cirurgiao", label: "Cirurgião principal" }, { v: "primeiro_aux", label: "1º auxiliar" }, { v: "demais_aux", label: "Demais auxiliares" }, { v: "instrumentador", label: "Instrumentador" }].map(opt => {
+              const sel = c.doctor_roles.includes(opt.v);
+              return (
+                <button key={opt.v} type="button" onClick={() => onChange({ doctor_roles: sel ? c.doctor_roles.filter(x => x !== opt.v) : [...c.doctor_roles, opt.v] })}
+                  style={{ padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500, border: `1px solid ${sel ? "#9A6B3A" : "hsl(var(--border))"}`, background: sel ? "#fdf5ec" : "hsl(var(--card))", color: sel ? "#9A6B3A" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6 }}>Vazio = qualquer função.</p>
+        </FilterBtn>
+
+        <FilterBtn id="periodo" label="Período, horário e via de acesso" active={hasPeriodoFilter}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Dias / período</Label>
+                <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode, has_conditions: v !== "qualquer" || c.elective_mode !== "qualquer" || c.allowed_access_routes.length > 0 })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(TIME_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Tipo de atendimento</Label>
+                <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode, has_conditions: c.time_mode !== "qualquer" || v !== "qualquer" || c.allowed_access_routes.length > 0 })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            {c.time_mode === "personalizado" && (
+              <div>
+                <Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Dias da semana</Label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {WEEKDAY_LABELS.map(d => {
+                    const checked = c.weekdays.includes(d.v);
+                    return <button key={d.v} type="button" onClick={() => onChange({ weekdays: checked ? c.weekdays.filter(x => x !== d.v) : [...c.weekdays, d.v] })}
+                      style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, border: `1px solid ${checked ? "#9A6B3A" : "hsl(var(--border))"}`, background: checked ? "#fdf5ec" : "hsl(var(--card))", color: checked ? "#9A6B3A" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                      {d.label}
+                    </button>;
+                  })}
+                </div>
+              </div>
+            )}
+            {(c.time_mode === "personalizado" || c.time_mode === "comercial") && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div><Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Horário inicial</Label><Input type="time" value={c.time_start} onChange={e => onChange({ time_start: e.target.value })} /></div>
+                <div><Label className="text-xs" style={{ marginBottom: 4, display: "block" }}>Horário final</Label><Input type="time" value={c.time_end} onChange={e => onChange({ time_end: e.target.value })} /></div>
+              </div>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <Checkbox checked={c.includes_holidays} onCheckedChange={v => onChange({ includes_holidays: !!v, has_conditions: c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || !!v || c.allowed_access_routes.length > 0 })} />
+              <span style={{ fontSize: 12 }}>Incluir feriados</span>
+            </label>
+            <div>
+              <Label className="text-xs" style={{ marginBottom: 6, display: "block" }}>Vias de acesso permitidas</Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].map(route => {
+                  const sel = c.allowed_access_routes.includes(route);
+                  return <button key={route} type="button" onClick={() => { const next = sel ? c.allowed_access_routes.filter(r => r !== route) : [...c.allowed_access_routes, route]; onChange({ allowed_access_routes: next, has_conditions: next.length > 0 || c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays }); }}
+                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, border: `1px solid ${sel ? "#9A6B3A" : "hsl(var(--border))"}`, background: sel ? "#fdf5ec" : "hsl(var(--card))", color: sel ? "#9A6B3A" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                    {route}{sel && " ✕"}
+                  </button>;
+                })}
+              </div>
+              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer via.</p>
+            </div>
+          </div>
+        </FilterBtn>
+
+      </div>
+    </div>
+  );
+}
+
 /* ============================================================
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
@@ -412,12 +605,13 @@ function CalcCard({
   const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
 
   return (
-    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
-      <div className="flex items-center gap-2">
+    <div style={{ borderRadius: 10, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)", overflow: "hidden" }}>
+      {/* Header copper */}
+      <div style={{ background: "#fdf5ec", borderBottom: "1px solid #f0e6d3", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </Button>
-        <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+        <span style={{ color: "#9A6B3A", fontSize: 11 }} className="uppercase tracking-wider font-semibold">
           Cálculo #{index + 1}
         </span>
         <Input
@@ -458,7 +652,7 @@ function CalcCard({
       })()}
 
       {open && (
-        <>
+        <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* === MÉTODO + PARÂMETROS === */}
           <div className="space-y-1.5">
             <Label className="text-xs">Método de cálculo *</Label>
@@ -697,464 +891,12 @@ function CalcCard({
             </div>
           )}
 
-          {/* === FILTROS RESTRITIVOS (códigos / convênios / função) === */}
-          <div className="rounded-md border border-amber-300/40 bg-amber-50/40 dark:bg-amber-950/10 p-3 space-y-3">
-            <div>
-              <Label className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
-                Quando aplicar este cálculo
-              </Label>
-              <p className="text-[11px] text-muted-foreground leading-tight">
-                Restrinja este cálculo específico por código, convênio ou função do médico.
-                Deixe em branco para aplicar a todos. <strong>Cada cálculo tem seu próprio escopo</strong> —
-                use vários cálculos numa mesma regra para cobrir cenários diferentes.
-              </p>
-            </div>
-
-            {/* Códigos */}
-            {isPacote ? (
-              <div className="space-y-1.5">
-                <Label className="text-xs">Códigos TUSS / CBHPM</Label>
-                {(() => {
-                  const main = c.package_main_code.trim();
-                  const inclusos = c.package_included_codes
-                    .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
-                  const extras = (c.extras_codes || "")
-                    .split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
-                  const hasAny = main || inclusos.length > 0 || extras.length > 0;
-                  return (
-                    <div className="flex items-start gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                      <Package className="h-4 w-4 mt-0.5 shrink-0 opacity-70" aria-hidden />
-                      {hasAny ? (
-                        <p className="leading-snug">
-                          <span className="italic">Escopo de código:</span>{" "}
-                          {main && (<><strong className="font-mono not-italic text-foreground">{main}</strong> (principal)</>)}
-                          {main && inclusos.length > 0 && " + "}
-                          {inclusos.length > 0 && (<><strong className="font-mono not-italic text-foreground">{inclusos.join(", ")}</strong> (inclusos)</>)}
-                          {extras.length > 0 && (<> + <strong className="font-mono not-italic text-foreground">{extras.join(", ")}</strong> (extras)</>)}
-                          .
-                        </p>
-                      ) : (
-                        <p className="italic leading-snug">
-                          Escopo de código: defina o código principal e os inclusos no bloco acima.
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Códigos TUSS / CBHPM</Label>
-                <Select
-                  value={c.code_match_mode}
-                  onValueChange={(v) => onChange({ code_match_mode: v as CalcItem["code_match_mode"] })}
-                >
-                  <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="whitelist">Apenas estes códigos</SelectItem>
-                    <SelectItem value="blacklist">Todos exceto estes</SelectItem>
-                    <SelectItem value="any">Qualquer código</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {c.code_match_mode !== "any" && (
-                <>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Digite um código e pressione Enter (ex: 31005497)"
-                      className="h-8 text-xs flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === ",") {
-                          e.preventDefault();
-                          const t = e.target as HTMLInputElement;
-                          const vals = t.value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
-                          const merged = Array.from(new Set([...c.procedure_codes, ...vals]));
-                          if (merged.length !== c.procedure_codes.length) onChange({ procedure_codes: merged });
-                          t.value = "";
-                        }
-                      }}
-                    />
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      id={`import-codes-${c.id ?? c.label}`}
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        try {
-                          const XLSX = await import("xlsx");
-                          const buf = await file.arrayBuffer();
-                          const wb = XLSX.read(buf, { type: "array" });
-                          const found = new Set<string>();
-                          for (const sheetName of wb.SheetNames) {
-                            const sh = wb.Sheets[sheetName];
-                            const rows = XLSX.utils.sheet_to_json<any>(sh, { header: 1, raw: false, defval: "" });
-                            for (const row of rows as any[][]) {
-                              for (const cell of row) {
-                                const s = String(cell ?? "").trim();
-                                // TUSS / CBHPM: exatamente 8 dígitos
-                                const matches = s.match(/\b\d{8}\b/g);
-                                if (matches) matches.forEach(m => found.add(m));
-                              }
-                            }
-                          }
-                          if (found.size === 0) {
-                            toast.error("Nenhum código TUSS (8 dígitos) encontrado na planilha");
-                          } else {
-                            const merged = Array.from(new Set([...c.procedure_codes, ...found]));
-                            const added = merged.length - c.procedure_codes.length;
-                            onChange({ procedure_codes: merged });
-                            toast.success(`${found.size} códigos detectados • ${added} novos adicionados`);
-                          }
-                        } catch (err) {
-                          toast.error("Falha ao ler a planilha: " + (err as Error).message);
-                        } finally {
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs whitespace-nowrap"
-                      onClick={() => document.getElementById(`import-codes-${c.id ?? c.label}`)?.click()}
-                    >
-                      📎 Importar planilha
-                    </Button>
-                  </div>
-                  {c.procedure_codes.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {c.procedure_codes.map(code => (
-                        <button key={code} type="button"
-                          onClick={() => onChange({ procedure_codes: c.procedure_codes.filter(x => x !== code) })}
-                          className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors font-mono"
-                        >{code} ✕</button>
-                      ))}
-                    </div>
-                  )}
-                  {c.code_match_mode === "whitelist"
-                    && c.procedure_codes.length === 0
-                    && c.calculation_type !== "tabela_diferenciada" && (
-                    <p className="text-[11px] text-destructive leading-tight">
-                      ⚠️ <strong>Whitelist sem códigos</strong> faz este cálculo capturar
-                      qualquer item. Liste os códigos específicos ou troque o modo para
-                      "Qualquer código". Permitido apenas em "Tabela diferenciada".
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-            )}
-
-            {/* Convênios */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Convênios</Label>
-                <Select
-                  value={c.agreement_match_mode}
-                  onValueChange={(v) => onChange({ agreement_match_mode: v as CalcItem["agreement_match_mode"] })}
-                >
-                  <SelectTrigger className="h-7 w-[180px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="whitelist">Apenas estes convênios</SelectItem>
-                    <SelectItem value="blacklist">Todos exceto estes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input
-                placeholder="Digite o convênio e pressione Enter (ex: Unimed)"
-                className="h-8 text-xs"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    const t = e.target as HTMLInputElement;
-                    const v = t.value.trim();
-                    if (v && !c.agreement_aliases.includes(v)) {
-                      onChange({ agreement_aliases: [...c.agreement_aliases, v] });
-                    }
-                    t.value = "";
-                  }
-                }}
-              />
-              {c.agreement_aliases.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {c.agreement_aliases.map(a => (
-                    <button key={a} type="button"
-                      onClick={() => onChange({ agreement_aliases: c.agreement_aliases.filter(x => x !== a) })}
-                      className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
-                    >{a} ✕</button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Função do médico */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Função do médico</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { v: "cirurgiao", label: "Cirurgião principal" },
-                  { v: "primeiro_aux", label: "1º auxiliar" },
-                  { v: "demais_aux", label: "Demais auxiliares" },
-                  { v: "instrumentador", label: "Instrumentador" },
-                ].map(opt => {
-                  const sel = c.doctor_roles.includes(opt.v);
-                  return (
-                    <Button key={opt.v} type="button" size="sm"
-                      variant={sel ? "default" : "outline"}
-                      className="h-7 px-3 text-[11px]"
-                      onClick={() => {
-                        const next = sel ? c.doctor_roles.filter(x => x !== opt.v) : [...c.doctor_roles, opt.v];
-                        onChange({ doctor_roles: next });
-                      }}
-                    >{opt.label}</Button>
-                  );
-                })}
-              </div>
-              <p className="text-[10.5px] text-muted-foreground">Vazio = qualquer função.</p>
-            </div>
-          </div>
+          <WhenApplySection c={c} onChange={onChange} isPacote={isPacote} />
 
           {c.calculation_type === "valor_fixo" && (
             <ComplementosBlock c={c} onChange={onChange} />
           )}
-
-          {/* === CONDIÇÕES (vinculadas a ESTE cálculo) === */}
-          <div className="rounded-md border border-border bg-card p-3 space-y-3">
-            <label className="flex items-start gap-2 text-sm cursor-pointer">
-              <Checkbox
-                checked={c.has_conditions}
-                onCheckedChange={(v) => onChange({ has_conditions: !!v })}
-                className="mt-0.5"
-              />
-              <span>
-                Aplica-se a algum período, dia, horário ou via específica?
-                <span className="block text-xs text-muted-foreground">
-                  Marque para restringir este cálculo a determinadas janelas ou vias de acesso.
-                </span>
-              </span>
-            </label>
-
-            {c.has_conditions && (
-              <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Dias / período</Label>
-                    <Select value={c.time_mode} onValueChange={(v) => onChange({ time_mode: v as TimeMode })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(TIME_MODE_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Tipo de atendimento</Label>
-                    <Select value={c.elective_mode} onValueChange={(v) => onChange({ elective_mode: v as ElectiveMode })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(ELECTIVE_MODE_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {c.time_mode === "personalizado" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Dias da semana</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {WEEKDAY_LABELS.map((d) => {
-                        const checked = c.weekdays.includes(d.v);
-                        return (
-                          <Button
-                            key={d.v}
-                            type="button"
-                            size="sm"
-                            variant={checked ? "default" : "outline"}
-                            className="h-7 px-3 text-[11px]"
-                            onClick={() => {
-                              const next = checked ? c.weekdays.filter((x) => x !== d.v) : [...c.weekdays, d.v];
-                              onChange({ weekdays: next });
-                            }}
-                          >
-                            {d.label}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {(c.time_mode === "personalizado" || c.time_mode === "comercial") && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Horário inicial</Label>
-                      <Input
-                        type="time"
-                        value={c.time_start}
-                        onChange={(e) => onChange({ time_start: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Horário final</Label>
-                      <Input
-                        type="time"
-                        value={c.time_end}
-                        onChange={(e) => onChange({ time_end: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={c.includes_holidays}
-                      onCheckedChange={(v) => onChange({ includes_holidays: !!v })}
-                    />
-                    <span className="text-xs">Incluir feriados</span>
-                  </label>
-                </div>
-
-                <div className="space-y-1.5 border-t border-border/40 pt-3">
-                  <Label className="text-xs font-semibold">Vias de acesso permitidas</Label>
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    Restringir este cálculo apenas a vias específicas (ex: "Única ou principal"). 
-                    O motor normaliza variações automaticamente.
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      {["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].map((route) => {
-                        const isSelected = c.allowed_access_routes.includes(route);
-                        return (
-                          <Button
-                            key={route}
-                            type="button"
-                            variant={isSelected ? "default" : "outline"}
-                            size="sm"
-                            className="h-7 text-[10px] px-2 rounded-full"
-                            onClick={() => {
-                              const next = isSelected 
-                                ? c.allowed_access_routes.filter(r => r !== route)
-                                : [...c.allowed_access_routes, route];
-                              onChange({ allowed_access_routes: next });
-                            }}
-                          >
-                            {route}
-                            {isSelected && <span className="ml-1">✕</span>}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                    
-                    <Input
-                      placeholder="Outro nome (se necessário)..."
-                      className="h-8 text-xs"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === ",") {
-                          e.preventDefault();
-                          const input = (e.target as HTMLInputElement).value.trim();
-                          if (input) {
-                            // Normalização automática se o usuário digitar algo que mapeie para os padrões
-                            const n = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                            let normalized = input;
-                            
-                            if (/(unica|principal|unica\/principal|unica ou principal|1[aª]|1[.\s]?via|primeira\s?via|unica\s?\/\s?principal|1\.[aª]\s?via)/i.test(n)) {
-                              normalized = "Única ou Principal";
-                            } else if (/(mesma\s?via|mesma|repetida)/i.test(n)) {
-                              normalized = "Mesma Via";
-                            } else if (/(outra\s?via|via\s?diferente|diferente|2[aª]|segunda\s?via)/i.test(n)) {
-                              normalized = "Outra Via";
-                            } else if (/(sem\s?via|bonus|complemento|n\/a|nao\s?se\s?aplica)/i.test(n)) {
-                              normalized = "Sem Via (Bônus/Complemento)";
-                            }
-
-                            if (!c.allowed_access_routes.includes(normalized)) {
-                              onChange({ allowed_access_routes: [...c.allowed_access_routes, normalized] });
-                            }
-                          }
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }}
-                    />
-
-                    {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].includes(a)).length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {c.allowed_access_routes.filter(a => !["Única ou Principal", "Mesma Via", "Outra Via", "Sem Via (Bônus/Complemento)"].includes(a)).map((a) => (
-                          <button
-                            key={a}
-                            type="button"
-                            onClick={() => onChange({ allowed_access_routes: c.allowed_access_routes.filter((x) => x !== a) })}
-                            className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
-                          >
-                            {a} ✕
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 border-t border-border/40 pt-3">
-                  <Label className="text-xs font-semibold">Restrições Adicionais (Setores e Especialidades)</Label>
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    Opcional: Restringir este cálculo apenas a setores ou especialidades específicas.
-                  </p>
-                  <div className="grid grid-cols-1 gap-4 mt-2">
-                    <div className="space-y-2">
-                      <Label className="text-[11px]">Setores (apenas se informado na produção)</Label>
-                      <MultiSelectChips
-                        options={Object.values(RULE_SECTOR_LABELS)}
-                        values={c.sectors}
-                        onChange={(vals) => onChange({ sectors: vals })}
-                        placeholder="Todos os setores"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[11px]">Especialidades (apenas se informado na produção)</Label>
-                      <div className="space-y-1.5">
-                        <Input
-                          placeholder="Digite a especialidade e pressione Enter"
-                          className="h-8 text-xs"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === ",") {
-                              e.preventDefault();
-                              const val = (e.target as HTMLInputElement).value.trim();
-                              if (val && !c.specialties.includes(val)) {
-                                onChange({ specialties: [...c.specialties, val] });
-                              }
-                              (e.target as HTMLInputElement).value = "";
-                            }
-                          }}
-                        />
-                        {c.specialties.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            {c.specialties.map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => onChange({ specialties: c.specialties.filter((x) => x !== s) })}
-                                className="text-[10px] rounded-full border border-border bg-background px-2 py-0.5 hover:bg-destructive hover:text-white transition-colors"
-                              >
-                                {s} ✕
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
