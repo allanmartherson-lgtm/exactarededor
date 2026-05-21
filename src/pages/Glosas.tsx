@@ -319,6 +319,35 @@ export default function Glosas() {
       const matches = piMap.get(atend) ?? [];
 
       if (matches.length === 0) {
+        // Sem match no payment_items mas registra saldo devedor do médico
+        await supabase.from("glosa_items").update({
+          status: "sem_match",
+        }).eq("batch_id", batchId).eq("attendance_number", atend);
+
+        if (item.doctor_name && item.valor_glosa > 0) {
+          const crmKey = item.doctor_crm || item.doctor_name;
+          const { data: existing } = await supabase
+            .from("glosa_debts")
+            .select("id, total_debt")
+            .eq("doctor_crm", crmKey)
+            .maybeSingle();
+
+          if (existing) {
+            await supabase.from("glosa_debts").update({
+              total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
+              updated_at: new Date().toISOString(),
+              status: "ativo",
+            }).eq("id", existing.id);
+          } else {
+            await supabase.from("glosa_debts").insert({
+              doctor_crm: crmKey,
+              doctor_name: item.doctor_name,
+              total_debt: item.valor_glosa,
+              status: "ativo",
+            });
+          }
+        }
+
         unmatched++;
         continue;
       }
