@@ -297,6 +297,34 @@ export default function Glosas() {
     }
   };
 
+  const reprocessBatch = async (batch: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      toast.info("Reprocessando cruzamento…");
+      const { data: items } = await supabase
+        .from("glosa_items")
+        .select("*")
+        .eq("batch_id", batch.id);
+      if (!items || items.length === 0) {
+        toast.error("Nenhum item encontrado no lote.");
+        return;
+      }
+      const { matched, unmatched } = await crossReferenceGlosa(batch.id, items);
+      await supabase.from("glosa_batches").update({
+        status: "concluido",
+        matched_items: matched,
+        unmatched_items: unmatched,
+      }).eq("id", batch.id);
+      toast.success(`Reprocessado: ${matched} vinculados · ${unmatched} sem match`);
+      loadBatches();
+      loadDebts();
+    } catch (e: any) {
+      toast.error("Erro ao reprocessar", { description: e.message });
+    }
+  };
+
+
+
   const crossReferenceGlosa = async (batchId: string, items: any[]) => {
     let matched = 0;
     let unmatched = 0;
@@ -543,6 +571,20 @@ export default function Glosas() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--bubble-red-fg))", fontVariantNumeric: "tabular-nums" }}>
                       {formatCurrency(batch.total_glosa_amount)}
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => reprocessBatch(batch, e)}
+                      title="Reprocessar cruzamento"
+                      style={{
+                        background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))",
+                        borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600,
+                        color: "hsl(var(--muted-foreground))", cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                      }}
+                    >
+                      <RefreshCw size={11} /> Reprocessar
+                    </button>
+
                   </div>
                 </button>
 
