@@ -58,13 +58,14 @@ All colors MUST be HSL.
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 93% 94%;
 
-    --border: 214 21% 93%;              /* #E8ECF1 — divisórias quietas */
-    --border-strong: 214 24% 84%;       /* #CBD5E1 — hairlines de controle (legível p/ baixa visão) */
+    --border: 214 22% 88%;              /* #D6DCE4 — divisórias agora visíveis (era 93%, baixo contraste) */
+    --border-strong: 215 25% 72%;       /* #9FB0C2 — hairlines de controle (WCAG AA contra bg) */
     --border-highlight: 0 0% 100%;      /* white — linha de luz inferior (efeito carved) */
-    --input: 214 24% 84%;               /* mesma do border-strong p/ controles */
+    --input: 215 25% 72%;               /* mesma do border-strong p/ controles */
     --input-bg: 0 0% 100%;              /* #FFFFFF — fundo de input/select */
     --ring: 217 91% 60%;
-    --track-soft: 214 24% 84%;          /* track unchecked do Switch */
+    --ring-soft: 217 91% 60% / 0.35;    /* anel de foco visível em baixa visão */
+    --track-soft: 215 25% 78%;          /* track unchecked do Switch — mais legível */
     --shadow-inset: inset 0 1px 2px hsl(222 47% 11% / 0.05);
     --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(222 47% 11% / 0.03);
 
@@ -92,11 +93,11 @@ All colors MUST be HSL.
     --bubble-teal-fg: 217 91% 60%;
 
     /* Table-specific surfaces */
-    --table-row-hover: 210 20% 98%;
-    --table-border-light: 214 21% 95%;
+    --table-row-hover: 214 30% 95%;
+    --table-border-light: 214 22% 90%;
 
-    --hover-surface: 210 20% 96%;
-    --shadow-hover: 0 4px 12px hsl(222 47% 11% / 0.05);
+    --hover-surface: 214 28% 93%;        /* hover de linha/botão ghost mais perceptível */
+    --shadow-hover: 0 4px 12px hsl(222 47% 11% / 0.06);
 
     /* Sidebar — light, Apple-like */
     --sidebar-background: 0 0% 100%;
@@ -161,13 +162,14 @@ All colors MUST be HSL.
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 50% 20%;
 
-    --border: 222 18% 22%;               /* #2c3346 — divisórias quietas */
-    --border-strong: 222 16% 32%;        /* hairline visível em dark */
-    --border-highlight: 222 20% 26%;     /* highlight de relevo em dark */
-    --input: 222 16% 32%;
+    --border: 222 16% 30%;               /* #404657 — divisórias visíveis em dark (era 22%) */
+    --border-strong: 222 14% 46%;        /* #67708a — hairline de controle nítido em dark */
+    --border-highlight: 222 22% 32%;     /* highlight de relevo em dark */
+    --input: 222 14% 46%;
     --input-bg: 220 22% 15%;             /* fundo do controle em dark */
-    --ring: 217 91% 65%;
-    --track-soft: 222 16% 28%;
+    --ring: 217 91% 70%;
+    --ring-soft: 217 91% 70% / 0.45;     /* anel de foco mais visível no escuro */
+    --track-soft: 222 14% 38%;
     --shadow-inset: inset 0 1px 2px hsl(0 0% 0% / 0.35);
     --shadow-control: 0 1px 0 hsl(222 20% 30% / 0.6) inset, 0 1px 2px hsl(0 0% 0% / 0.25);
 
@@ -191,11 +193,11 @@ All colors MUST be HSL.
     --bubble-teal-bg: 188 50% 18%;
     --bubble-teal-fg: 188 80% 70%;
 
-    --table-row-hover: 222 20% 16%;
-    --table-border-light: 222 18% 20%;
+    --table-row-hover: 222 22% 19%;
+    --table-border-light: 222 18% 26%;
 
-    --hover-surface: 222 20% 18%;
-    --shadow-hover: 0 4px 14px hsl(0 0% 0% / 0.4);
+    --hover-surface: 222 22% 21%;
+    --shadow-hover: 0 4px 14px hsl(0 0% 0% / 0.45);
 
     /* Sidebar — dark, with readable idle text */
     --sidebar-background: 220 22% 11%;
