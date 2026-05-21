@@ -459,7 +459,7 @@ function CalcCard({
       })()}
 
       {open && (
-        <>
+        <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* === MÉTODO + PARÂMETROS === */}
           <div className="space-y-1.5">
             <Label className="text-xs">Método de cálculo *</Label>
