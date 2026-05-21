@@ -69,7 +69,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/kpis", label: "KPIs", icon: BarChart2, iconName: "BarChart2", roles: ALL_ROLES },
       { to: "/executivo", label: "Executivo", icon: BarChart3, iconName: "BarChart3", roles: ["diretor", "admin"] as const },
       { to: "/recebiveis", label: "Recebíveis", icon: TrendingDown, iconName: "TrendingDown", roles: ["diretor", "admin", "analista"] as const },
-      { to: "/glosas", label: "Glosas", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista"] as const },
+      { to: "/glosas", label: "Glosas e Conciliação", icon: ShieldX, iconName: "ShieldX", roles: ["diretor", "admin", "analista"] as const },
     ],
   },
   {
