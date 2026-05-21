@@ -141,7 +141,7 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onConfirm(map)} style={{ background: "#9A6B3A", color: "white", border: "none" }}>
+          <Button onClick={() => onConfirm(map)} className="!bg-[#9A6B3A] hover:!bg-[#825a30] !text-white !border-none" style={{ background: "#9A6B3A", color: "white", border: "none", fontWeight: 600 }}>
             Confirmar mapeamento
           </Button>
         </DialogFooter>
@@ -410,6 +410,7 @@ export default function Glosas() {
           <Button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
+            className="!bg-[#9A6B3A] hover:!bg-[#825a30] !text-white !border-none"
             style={{ background: "#9A6B3A", color: "white", border: "none", fontWeight: 600 }}
           >
             {uploading ? <><RefreshCw size={14} className="animate-spin mr-2" />Importando…</> : <><Upload size={14} className="mr-2" />Importar glosa</>}
