@@ -556,7 +556,7 @@ export function PaymentConciliationModal({
           company_name: mappedCompany,
           ia_obs: null,
           status: "so_hospital",
-          agreement_text: (it as any).agreement_text ?? null,
+          agreement_text: null,
           applied_rule_label: null,
           applied_calc_method: null,
         };
