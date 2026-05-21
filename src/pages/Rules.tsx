@@ -37,6 +37,7 @@ import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
 import { recordAudit, buildDiff } from "@/lib/audit";
 import { RuleHistoryTab } from "@/components/rules/RuleHistoryTab";
+import { RuleFormStepper } from "@/components/rules/RuleFormStepper";
 import { History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanyCombobox } from "@/components/CompanyCombobox";
