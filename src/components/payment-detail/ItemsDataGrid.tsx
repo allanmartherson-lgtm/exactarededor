@@ -1067,7 +1067,7 @@ function RowMain({
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6"
-                  style={{ color: "#166534" }}
+                  style={{ color: "hsl(var(--success))" }}
                   title="Acatar divergência (status acatado)"
                   onClick={() => onAcceptItem(it)}
                 >
