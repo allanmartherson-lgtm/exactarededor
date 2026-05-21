@@ -141,9 +141,18 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onConfirm(map)} className="!bg-[#9A6B3A] hover:!bg-[#825a30] !text-white !border-none" style={{ background: "#9A6B3A", color: "white", border: "none", fontWeight: 600 }}>
+          <button
+            type="button"
+            onClick={() => onConfirm(map)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "#9A6B3A", color: "white", border: "none",
+              borderRadius: 10, padding: "8px 16px", fontSize: 13,
+              fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
             Confirmar mapeamento
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
