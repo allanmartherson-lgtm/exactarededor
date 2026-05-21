@@ -22,6 +22,7 @@ import {
   FlaskConical,
   Layers,
   TrendingDown,
+  ShieldX,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
