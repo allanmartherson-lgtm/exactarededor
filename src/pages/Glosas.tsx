@@ -571,6 +571,20 @@ export default function Glosas() {
                     <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--bubble-red-fg))", fontVariantNumeric: "tabular-nums" }}>
                       {formatCurrency(batch.total_glosa_amount)}
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => reprocessBatch(batch, e)}
+                      title="Reprocessar cruzamento"
+                      style={{
+                        background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))",
+                        borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600,
+                        color: "hsl(var(--muted-foreground))", cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                      }}
+                    >
+                      <RefreshCw size={11} /> Reprocessar
+                    </button>
+
                   </div>
                 </button>
 
