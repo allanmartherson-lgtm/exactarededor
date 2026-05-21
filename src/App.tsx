@@ -25,6 +25,7 @@ const Payments = lazy(() => import("./pages/Payments.tsx"));
 const NewPayment = lazy(() => import("./pages/NewPayment.tsx"));
 const PaymentDetail = lazy(() => import("./pages/PaymentDetail.tsx"));
 const CompanyAnalysis = lazy(() => import("./pages/CompanyAnalysis.tsx"));
+const Glosas = lazy(() => import("./pages/Glosas.tsx"));
 const Rules = lazy(() => import("./pages/Rules.tsx"));
 const ValidationRules = lazy(() => import("./pages/ValidationRules.tsx"));
 const ReferenceTables = lazy(() => import("./pages/ReferenceTables.tsx"));
