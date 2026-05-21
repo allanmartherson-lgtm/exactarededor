@@ -151,6 +151,13 @@ export function PaymentConciliationModal({
   const [parsedColMap, setParsedColMap] = useState<Record<string, string>>({});
   const [pendingFileName, setPendingFileName] = useState<string>("");
 
+  // Seleção de base importada
+  const [concBases, setConcBases] = useState<any[]>([]);
+  const [selectedBase, setSelectedBase] = useState<any | null>(null);
+  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [loadingBases, setLoadingBases] = useState(false);
+
   const loteCompanies = useMemo(
     () =>
       Array.from(
