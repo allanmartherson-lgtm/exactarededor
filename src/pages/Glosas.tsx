@@ -284,8 +284,13 @@ export default function Glosas() {
         status: "ativo",
       });
 
-      if (error) throw new Error(error.message);
-      toast.success(`Base importada: ${rows.length} linhas`);
+      if (error) {
+        console.error("Erro ao salvar base de conciliação:", error);
+        throw new Error(error.message ?? "Erro desconhecido ao salvar no banco");
+      }
+      toast.success(`Base importada: ${rows.length} linhas`, {
+        description: `${Object.keys(colMap).length} colunas mapeadas · pronta para conciliação`,
+      });
       loadConcBases();
     } catch (e: any) {
       toast.error("Erro ao importar base", { description: e.message });
