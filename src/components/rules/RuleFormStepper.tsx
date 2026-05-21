@@ -52,8 +52,8 @@ export function RuleFormStepper({
                 flex: 1, display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 12px", borderRadius: 8, border: "none", cursor: "pointer",
                 fontFamily: "inherit", transition: "all 0.15s",
-                background: isActive ? "hsl(var(--card))" : "transparent",
-                boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.1), 0 0 0 1px hsl(var(--border))" : "none",
+                background: isActive ? "hsl(var(--primary) / 0.1)" : "transparent",
+                boxShadow: isActive ? "inset 0 0 0 1px hsl(var(--primary) / 0.25)" : "none",
               }}
             >
               <div style={{
@@ -61,17 +61,17 @@ export function RuleFormStepper({
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 11, fontWeight: 700, transition: "all 0.15s",
                 background: hasError ? "hsl(var(--destructive))"
-                  : isDone ? "#9A6B3A"
-                  : isActive ? "#9A6B3A"
+                  : isDone ? "hsl(var(--primary))"
+                  : isActive ? "hsl(var(--primary))"
                   : "hsl(var(--muted-foreground) / 0.2)",
-                color: hasError || isDone || isActive ? "white" : "hsl(var(--muted-foreground))",
+                color: hasError || isDone || isActive ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
               }}>
                 {isDone && !hasError ? <Check size={13} strokeWidth={3} /> : hasError ? "!" : i + 1}
               </div>
               <div style={{ textAlign: "left", minWidth: 0 }}>
                 <div style={{
                   fontSize: 12, fontWeight: isActive ? 700 : 500, lineHeight: 1.2,
-                  color: hasError ? "hsl(var(--destructive))" : isActive ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                  color: hasError ? "hsl(var(--destructive))" : isActive ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>{step.label}</div>
                 <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 1, whiteSpace: "nowrap" }}>{step.description}</div>
@@ -134,7 +134,7 @@ export function RuleFormStepper({
           )}
           <Button
             type="button" onClick={onSubmit} disabled={saving}
-            style={{ background: "#9A6B3A", color: "white", border: "none", opacity: saving ? 0.7 : 1, paddingLeft: 20, paddingRight: 20, fontWeight: 600 }}
+            style={{ opacity: saving ? 0.7 : 1, paddingLeft: 20, paddingRight: 20, fontWeight: 600 }}
           >
             {saving ? "Salvando…" : isEditing ? "Atualizar regra" : "Criar regra"}
           </Button>

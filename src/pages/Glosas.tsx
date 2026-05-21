@@ -573,14 +573,14 @@ export default function Glosas() {
                   e.target.value = "";
                 }}
               />
-              <CopperButton
+              <Button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
               >
                 {uploading
                   ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
                   : <><Upload size={14} className="mr-1" />Importar glosa</>}
-              </CopperButton>
+              </Button>
             </div>
 
             {debts.length > 0 && (
