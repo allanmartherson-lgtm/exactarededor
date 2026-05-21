@@ -274,6 +274,51 @@ export type Database = {
         }
         Relationships: []
       }
+      conciliation_bases: {
+        Row: {
+          col_map: Json | null
+          competence_month: string | null
+          created_at: string | null
+          file_name: string | null
+          id: string
+          raw_data: Json | null
+          reference: string
+          sheet_name: string | null
+          status: string
+          total_rows: number | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          col_map?: Json | null
+          competence_month?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          raw_data?: Json | null
+          reference: string
+          sheet_name?: string | null
+          status?: string
+          total_rows?: number | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          col_map?: Json | null
+          competence_month?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          raw_data?: Json | null
+          reference?: string
+          sheet_name?: string | null
+          status?: string
+          total_rows?: number | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       cost_center_imports: {
         Row: {
           created_count: number
