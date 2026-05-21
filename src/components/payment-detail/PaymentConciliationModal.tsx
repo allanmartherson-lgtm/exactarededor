@@ -1009,7 +1009,7 @@ export function PaymentConciliationModal({
                               checked ? prev.filter(s => s !== sector) : [...prev, sector]
                             )}
                             className="h-4 w-4 rounded"
-                            style={{ accentColor: "#9A6B3A" }}
+                            style={{ accentColor: "hsl(var(--primary))" }}
                           />
                           <span className="text-xs font-medium flex-1 truncate">{sector}</span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{count} linhas</span>
