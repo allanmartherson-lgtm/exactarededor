@@ -610,7 +610,7 @@ function CalcCard({
   index: number; total: number; item: CalcItem; refTables: RefTable[];
   onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const c = item;
   const isPacote = c.calculation_type === "pacote"
     || c.calculation_type === "pacote_fechado"
