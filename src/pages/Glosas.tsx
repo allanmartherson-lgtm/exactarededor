@@ -539,196 +539,256 @@ export default function Glosas() {
   );
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
-            Gestão de <span style={{ fontWeight: 700 }}>Glosas</span>
-          </h1>
-          <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-            Upload, cruzamento e controle de saldo devedor por médico
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Input
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Buscar convênio ou médico…"
-            style={{ width: 220 }}
-          />
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-            onChange={async e => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              await processFile(file);
-              e.target.value = "";
-            }}
-          />
-          <Button
-            variant="copper"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-          >
-            {uploading
-              ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
-              : <><Upload size={14} className="mr-1" />Importar glosa</>}
-          </Button>
-        </div>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
+          Glosas e <span style={{ fontWeight: 700 }}>Conciliação</span>
+        </h1>
+        <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+          Gestão de glosas do convênio e bases de conciliação mensal
+        </p>
       </div>
 
-      {debts.length > 0 && (
-        <section>
-          <SectionLabel>Saldo devedor ativo</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-            {debts.slice(0, 6).map(d => (
-              <SurfaceCard key={d.id} style={{ padding: "16px", borderLeft: "3px solid hsl(var(--bubble-red-fg))" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                  Saldo devedor
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {d.doctor_name}
-                </div>
-                {d.doctor_crm && <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginBottom: 8 }}>CRM {d.doctor_crm}</div>}
-                <div style={{ fontSize: 20, fontWeight: 300, color: "hsl(var(--bubble-red-fg))", fontVariantNumeric: "tabular-nums" }}>
-                  {formatCurrency(d.total_debt)}
-                </div>
-              </SurfaceCard>
-            ))}
-          </div>
-        </section>
-      )}
+      <Tabs defaultValue="glosas">
+        <TabsList>
+          <TabsTrigger value="glosas">Glosas</TabsTrigger>
+          <TabsTrigger value="conciliacao">Bases de Conciliação</TabsTrigger>
+        </TabsList>
 
-      <section>
-        <SectionLabel>Lotes importados</SectionLabel>
-        {loading ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[1,2,3].map(i => <div key={i} style={{ height: 60, background: "hsl(var(--muted))", borderRadius: 8, opacity: 0.3 }} />)}
-          </div>
-        ) : filteredBatches.length === 0 ? (
-          <SurfaceCard style={{ padding: 40, textAlign: "center" }}>
-            <FileText size={32} style={{ color: "hsl(var(--muted-foreground))", margin: "0 auto 12px" }} />
-            <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Nenhum lote de glosa importado ainda.</p>
-            <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Clique em "Importar glosa" para começar.</p>
-          </SurfaceCard>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filteredBatches.map(batch => (
-              <SurfaceCard key={batch.id}>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (expandedBatch === batch.id) {
-                      setExpandedBatch(null);
-                    } else {
-                      setExpandedBatch(batch.id);
-                      await loadBatchItems(batch.id);
-                    }
-                  }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
-                >
-                  <div style={{ color: "hsl(var(--muted-foreground))" }}>
-                    {expandedBatch === batch.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {batch.reference}
-                    </div>
-                    <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                      {batch.total_items} itens · {new Date(batch.created_at).toLocaleDateString("pt-BR")}
-                      {batch.file_name && ` · ${batch.file_name}`}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
-                    {batch.matched_items > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "hsl(var(--bubble-green-fg))" }}>
-                        <CheckCircle2 size={12} /> {batch.matched_items} vinculados
+        <TabsContent value="glosas" className="mt-6">
+          <div className="flex flex-col gap-8">
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              <Input
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Buscar convênio ou médico…"
+                style={{ width: 220 }}
+              />
+              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
+                onChange={async e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  await processFile(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                variant="copper"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading
+                  ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
+                  : <><Upload size={14} className="mr-1" />Importar glosa</>}
+              </Button>
+            </div>
+
+            {debts.length > 0 && (
+              <section>
+                <SectionLabel>Saldo devedor ativo</SectionLabel>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+                  {debts.slice(0, 6).map(d => (
+                    <SurfaceCard key={d.id} style={{ padding: "16px", borderLeft: "3px solid hsl(var(--bubble-red-fg))" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                        Saldo devedor
                       </div>
-                    )}
-                    {batch.unmatched_items > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "hsl(var(--bubble-red-fg))" }}>
-                        <XCircle size={12} /> {batch.unmatched_items} sem match
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {d.doctor_name}
                       </div>
-                    )}
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--bubble-red-fg))", fontVariantNumeric: "tabular-nums" }}>
-                      {formatCurrency(batch.total_glosa_amount)}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => reprocessBatch(batch, e)}
-                      title="Reprocessar cruzamento"
-                      style={{
-                        background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))",
-                        borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600,
-                        color: "hsl(var(--muted-foreground))", cursor: "pointer",
-                        display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
-                      }}
-                    >
-                      <RefreshCw size={11} /> Reprocessar
-                    </button>
+                      {d.doctor_crm && <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginBottom: 8 }}>CRM {d.doctor_crm}</div>}
+                      <div style={{ fontSize: 20, fontWeight: 300, color: "hsl(var(--bubble-red-fg))", fontVariantNumeric: "tabular-nums" }}>
+                        {formatCurrency(d.total_debt)}
+                      </div>
+                    </SurfaceCard>
+                  ))}
+                </div>
+              </section>
+            )}
 
-                  </div>
-                </button>
+            <section>
+              <SectionLabel>Lotes importados</SectionLabel>
+              {loading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[1,2,3].map(i => <div key={i} style={{ height: 60, background: "hsl(var(--muted))", borderRadius: 8, opacity: 0.3 }} />)}
+                </div>
+              ) : filteredBatches.length === 0 ? (
+                <SurfaceCard style={{ padding: 40, textAlign: "center" }}>
+                  <FileText size={32} style={{ color: "hsl(var(--muted-foreground))", margin: "0 auto 12px" }} />
+                  <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Nenhum lote de glosa importado ainda.</p>
+                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Clique em "Importar glosa" para começar.</p>
+                </SurfaceCard>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {filteredBatches.map(batch => (
+                    <SurfaceCard key={batch.id}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (expandedBatch === batch.id) {
+                            setExpandedBatch(null);
+                          } else {
+                            setExpandedBatch(batch.id);
+                            await loadBatchItems(batch.id);
+                          }
+                        }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                      >
+                        <div style={{ color: "hsl(var(--muted-foreground))" }}>
+                          {expandedBatch === batch.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {batch.reference}
+                          </div>
+                          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                            {batch.total_items} itens · {new Date(batch.created_at).toLocaleDateString("pt-BR")}
+                            {batch.file_name && ` · ${batch.file_name}`}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+                          {batch.matched_items > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "hsl(var(--bubble-green-fg))" }}>
+                              <CheckCircle2 size={12} /> {batch.matched_items} vinculados
+                            </div>
+                          )}
+                          {batch.unmatched_items > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "hsl(var(--bubble-red-fg))" }}>
+                              <XCircle size={12} /> {batch.unmatched_items} sem match
+                            </div>
+                          )}
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--bubble-red-fg))", fontVariantNumeric: "tabular-nums" }}>
+                            {formatCurrency(batch.total_glosa_amount)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => reprocessBatch(batch, e)}
+                            title="Reprocessar cruzamento"
+                            style={{
+                              background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))",
+                              borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 600,
+                              color: "hsl(var(--muted-foreground))", cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                            }}
+                          >
+                            <RefreshCw size={11} /> Reprocessar
+                          </button>
 
-                {expandedBatch === batch.id && (
-                  <div style={{ borderTop: "1px solid hsl(var(--border))" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 120px 80px 100px 90px", gap: 8, padding: "8px 18px", background: "hsl(var(--muted) / 0.4)", fontSize: 9, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                      <div />
-                      <div>Procedimento / Médico</div>
-                      <div>Atendimento</div>
-                      <div>Empresa match</div>
-                      <div>Data</div>
-                      <div style={{ textAlign: "right" }}>Valor glosa</div>
-                      <div>Status</div>
-                    </div>
-                    {(batchItems[batch.id] ?? []).map((item, i) => (
-                      <div key={item.id} style={{
-                        display: "grid", gridTemplateColumns: "24px 1fr 120px 120px 80px 100px 90px", gap: 8,
-                        padding: "10px 18px", alignItems: "center",
-                        borderTop: i > 0 ? "1px solid hsl(var(--border) / 0.5)" : "none",
-                      }}>
-                        <div>{statusIcon(item.status)}</div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {item.procedure_name || item.procedure_code || "—"}
+                        </div>
+                      </button>
+
+                      {expandedBatch === batch.id && (
+                        <div style={{ borderTop: "1px solid hsl(var(--border))" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 120px 120px 80px 100px 90px", gap: 8, padding: "8px 18px", background: "hsl(var(--muted) / 0.4)", fontSize: 9, fontWeight: 700, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            <div />
+                            <div>Procedimento / Médico</div>
+                            <div>Atendimento</div>
+                            <div>Empresa match</div>
+                            <div>Data</div>
+                            <div style={{ textAlign: "right" }}>Valor glosa</div>
+                            <div>Status</div>
                           </div>
-                          <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {item.doctor_name || "—"} {item.doctor_crm ? `· CRM ${item.doctor_crm}` : ""}
-                          </div>
-                          {item.motivo_glosa && (
-                            <div style={{ fontSize: 10, color: "hsl(var(--bubble-yellow-fg))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {item.motivo_glosa}
+                          {(batchItems[batch.id] ?? []).map((item, i) => (
+                            <div key={item.id} style={{
+                              display: "grid", gridTemplateColumns: "24px 1fr 120px 120px 80px 100px 90px", gap: 8,
+                              padding: "10px 18px", alignItems: "center",
+                              borderTop: i > 0 ? "1px solid hsl(var(--border) / 0.5)" : "none",
+                            }}>
+                              <div>{statusIcon(item.status)}</div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.procedure_name || item.procedure_code || "—"}
+                                </div>
+                                <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.doctor_name || "—"} {item.doctor_crm ? `· CRM ${item.doctor_crm}` : ""}
+                                </div>
+                                {item.motivo_glosa && (
+                                  <div style={{ fontSize: 10, color: "hsl(var(--bubble-yellow-fg))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {item.motivo_glosa}
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, fontFamily: "monospace", color: "hsl(var(--muted-foreground))" }}>
+                                {item.attendance_number || "—"}
+                              </div>
+                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {item.matched_company_name || "—"}
+                              </div>
+                              <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                {item.procedure_date ? new Date(item.procedure_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—"}
+                              </div>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--bubble-red-fg))", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                                {formatCurrency(item.valor_glosa)}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: item.status === "vinculado" ? "hsl(var(--bubble-green-fg))" : item.status === "sem_match" ? "hsl(var(--bubble-red-fg))" : "hsl(var(--muted-foreground))" }}>
+                                {statusLabel(item.status)}
+                              </div>
+                            </div>
+                          ))}
+                          {(batchItems[batch.id] ?? []).length === 0 && (
+                            <div style={{ padding: "20px", textAlign: "center", fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
+                              Carregando itens…
                             </div>
                           )}
                         </div>
-                        <div style={{ fontSize: 11, fontFamily: "monospace", color: "hsl(var(--muted-foreground))" }}>
-                          {item.attendance_number || "—"}
-                        </div>
-                        <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {item.matched_company_name || "—"}
-                        </div>
-                        <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
-                          {item.procedure_date ? new Date(item.procedure_date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—"}
-                        </div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--bubble-red-fg))", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                          {formatCurrency(item.valor_glosa)}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: item.status === "vinculado" ? "hsl(var(--bubble-green-fg))" : item.status === "sem_match" ? "hsl(var(--bubble-red-fg))" : "hsl(var(--muted-foreground))" }}>
-                          {statusLabel(item.status)}
-                        </div>
-                      </div>
-                    ))}
-                    {(batchItems[batch.id] ?? []).length === 0 && (
-                      <div style={{ padding: "20px", textAlign: "center", fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
-                        Carregando itens…
-                      </div>
-                    )}
-                  </div>
-                )}
-              </SurfaceCard>
-            ))}
+                      )}
+                    </SurfaceCard>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        )}
-      </section>
+        </TabsContent>
+
+        <TabsContent value="conciliacao" className="mt-6">
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+                Bases disponíveis para conciliar qualquer lote. Atualize mensalmente.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
+                  onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
+                <Button variant="copper" onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
+                  {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</> : <><Upload size={14} className="mr-1" />Importar base</>}
+                </Button>
+              </div>
+            </div>
+
+            {concBases.length === 0 ? (
+              <SurfaceCard style={{ padding: 40, textAlign: "center" }}>
+                <FileText size={32} style={{ color: "hsl(var(--muted-foreground))", margin: "0 auto 12px" }} />
+                <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))" }}>Nenhuma base importada ainda.</p>
+                <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Importe a planilha mensal do sistema hospitalar.</p>
+              </SurfaceCard>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {concBases.map(base => (
+                  <SurfaceCard key={base.id} style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{base.reference}</div>
+                      <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                        {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
+                        {base.competence_month && ` · competência ${base.competence_month}`}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} style={{ color: "hsl(var(--bubble-green-fg))" }} />
+                      <span style={{ fontSize: 11, color: "hsl(var(--bubble-green-fg))", fontWeight: 600 }}>Disponível</span>
+                    </div>
+                    <button type="button" onClick={async () => {
+                      if (!confirm("Arquivar esta base?")) return;
+                      await (supabase as any).from("conciliation_bases").update({ status: "arquivado" }).eq("id", base.id);
+                      loadConcBases();
+                    }} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 6, padding: "3px 8px", fontSize: 10, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                      Arquivar
+                    </button>
+                  </SurfaceCard>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <ColumnMappingModal
         open={mappingOpen}
