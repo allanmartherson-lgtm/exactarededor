@@ -199,9 +199,105 @@ export function PaymentConciliationModal({
     }
   }, [paymentId, toast]);
 
+  const loadConcBases = useCallback(async () => {
+    setLoadingBases(true);
+    const { data } = await (supabase as any)
+      .from("conciliation_bases")
+      .select("id, reference, competence_month, file_name, total_rows, created_at, raw_data, col_map")
+      .eq("status", "ativo")
+      .order("created_at", { ascending: false });
+    setConcBases(data ?? []);
+    setLoadingBases(false);
+  }, []);
+
   useEffect(() => {
-    if (open) loadLatestRun();
-  }, [open, loadLatestRun]);
+    if (open) {
+      loadLatestRun();
+      loadConcBases();
+    }
+  }, [open, loadLatestRun, loadConcBases]);
+
+  const handleSelectBase = (base: any) => {
+    setSelectedBase(base);
+    const rows: Record<string, unknown>[] = base.raw_data ?? [];
+    const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+    });
+    const sectors = Array.from(new Set(
+      rows.map(r => sectorCol ? String(r[sectorCol] ?? "").trim() : "").filter(Boolean)
+    )).sort();
+    setAvailableSectors(sectors);
+    setSelectedSectors([]);
+  };
+
+  const handleProcessFromBase = () => {
+    if (!selectedBase) return;
+    const rows: Record<string, unknown>[] = selectedBase.raw_data ?? [];
+    const colMap: Record<string, string> = selectedBase.col_map ?? {};
+
+    const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("setor") || n.includes("centro") || n.includes("custos") || k === "Setor" || k === "M";
+    });
+
+    const filteredRows = selectedSectors.length > 0 && sectorCol
+      ? rows.filter(r => selectedSectors.includes(String(r[sectorCol] ?? "").trim()))
+      : rows;
+
+    const companyCol = colMap["company"] ?? Object.keys(rows[0] ?? {}).find(k => {
+      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return n.includes("terceiro") || n.includes("empresa") || n.includes("prestador");
+    });
+
+    const terceiros = Array.from(new Set(
+      filteredRows.map(r => companyCol ? String(r[companyCol] ?? "").trim() : "").filter(Boolean)
+    )).sort();
+
+    const normFull = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+    const STOPWORDS = new Set(['servicos','medicos','medica','ltda','eireli','ss','me','sa','clinica','instituto','centro','cirurgia','cirurgica','saude','hospitalares','hospitalar','associados','associadas','brasilia','brasil','cuidados','servico','especialidades','geral']);
+    const getIdentifiers = (name: string) => {
+      const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ");
+      return norm.split(/\s+/).filter(w => w.length >= 3 && !STOPWORDS.has(w));
+    };
+    type MatchLevel = "exact" | "high" | "medium" | null;
+    const findMatch = (t: string, candidates: string[]): { company: string | null; level: MatchLevel } => {
+      const normT = normFull(t);
+      const idsT = getIdentifiers(t);
+      const exact = candidates.find(c => normFull(c) === normT);
+      if (exact) return { company: exact, level: "exact" };
+      const sub = candidates.find(c => { const n = normFull(c); return normT.includes(n) || n.includes(normT); });
+      if (sub) return { company: sub, level: "high" };
+      let best: { company: string; score: number } | null = null;
+      for (const c of candidates) {
+        const idsC = getIdentifiers(c);
+        const common = idsT.filter(id => idsC.includes(id));
+        const score = common.reduce((s, id) => s + id.length, 0);
+        const ok = common.length >= 2 || (common.length >= 1 && common.some(id => id.length >= 6));
+        if (ok && score > (best?.score ?? 0)) best = { company: c, score };
+      }
+      if (best) return { company: best.company, level: "medium" };
+      return { company: null, level: null };
+    };
+
+    const autoMapping: Record<string, string | null> = {};
+    const newMatchLevels: Record<string, MatchLevel> = {};
+    for (const t of terceiros) {
+      const { company, level } = findMatch(t, loteCompanies);
+      autoMapping[t] = company;
+      newMatchLevels[t] = level;
+    }
+
+    setParsedRows(filteredRows);
+    setParsedColMap(colMap);
+    setPendingFileName(selectedBase.file_name ?? selectedBase.reference);
+    setHospitalCompanies(terceiros);
+    setCompanyMapping(autoMapping);
+    setMatchLevels(newMatchLevels);
+    setStep("mapping");
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
