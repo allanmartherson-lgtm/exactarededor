@@ -19,7 +19,11 @@ export default {
       },
       colors: {
         border: "hsl(var(--border))",
+        "border-strong": "hsl(var(--border-strong))",
+        "border-highlight": "hsl(var(--border-highlight))",
         input: "hsl(var(--input))",
+        "input-bg": "hsl(var(--input-bg))",
+        "track-soft": "hsl(var(--track-soft))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
