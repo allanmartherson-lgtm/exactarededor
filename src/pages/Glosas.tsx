@@ -218,7 +218,7 @@ export default function Glosas() {
     const wb = XLSX.read(buf, { type: "array", cellDates: true });
     const sheetName = wb.SheetNames.includes("Analitica") ? "Analitica" : wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, raw: false, defval: null, dateNF: "yyyy-mm-dd" });
+    const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, raw: true, defval: null });
 
     let headerRow = 5;
     for (let i = 0; i < Math.min(15, rows.length); i++) {
