@@ -162,9 +162,9 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <CopperButton onClick={() => onConfirm(map)}>
+          <Button onClick={() => onConfirm(map)}>
             Confirmar mapeamento
-          </CopperButton>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
