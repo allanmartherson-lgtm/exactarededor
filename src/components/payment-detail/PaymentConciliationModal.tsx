@@ -837,14 +837,16 @@ export function PaymentConciliationModal({
   };
 
   const triggerNew = () => {
-    setStep("upload");
+    setStep("select_base");
     setRun(null);
     setItems([]);
     setParsedRows([]);
     setCompanyMapping({});
     setHospitalCompanies([]);
     setPendingFileName("");
-    setTimeout(() => fileInputRef.current?.click(), 0);
+    setSelectedBase(null);
+    setAvailableSectors([]);
+    setSelectedSectors([]);
   };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
