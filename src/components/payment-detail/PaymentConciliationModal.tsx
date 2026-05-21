@@ -1036,7 +1036,6 @@ export function PaymentConciliationModal({
               {selectedBase && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button
-                    variant="copper"
                     disabled={!selectedBase}
                     onClick={handleProcessFromBase}
                   >
