@@ -921,30 +921,130 @@ export function PaymentConciliationModal({
             </div>
           )}
 
-          {!loading && step === "upload" && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  {processing ? (
-                    <>
-                      <Loader2 className="h-8 w-8 mx-auto mb-3 text-primary animate-spin" />
-                      <p className="text-sm font-medium">Lendo arquivo...</p>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-                      <p className="text-sm font-medium">Carregar extrato hospitalar</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Arquivo .xlsx ou .csv exportado do sistema hospitalar
-                      </p>
-                      <Button className="mt-4" onClick={() => fileInputRef.current?.click()}>
-                        Selecionar arquivo
-                      </Button>
-                    </>
+          {!loading && step === "select_base" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-1">Selecionar base de conciliação</p>
+                <p className="text-xs text-muted-foreground">Escolha uma base importada em Glosas e Conciliação. Depois filtre pelo setor que deseja conciliar.</p>
+              </div>
+
+              {loadingBases ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando bases…
+                </div>
+              ) : concBases.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm font-medium">Nenhuma base disponível</p>
+                    <p className="text-xs text-muted-foreground mt-1">Importe uma base em <strong>Financeiro → Glosas e Conciliação → Bases de Conciliação</strong>.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {concBases.map(base => {
+                    const isSelected = selectedBase?.id === base.id;
+                    return (
+                      <button
+                        key={base.id}
+                        type="button"
+                        onClick={() => handleSelectBase(base)}
+                        className={cn(
+                          "w-full text-left p-4 rounded-lg border transition-all",
+                          isSelected
+                            ? "border-[#9A6B3A] bg-[#fdf5ec] shadow-sm"
+                            : "border-border bg-card hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{base.reference}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
+                              {base.competence_month && ` · competência ${base.competence_month}`}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <div className="shrink-0 w-5 h-5 rounded-full bg-[#9A6B3A] flex items-center justify-center">
+                              <CheckCircle2 className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedBase && availableSectors.length > 0 && (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Filtrar por setor</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Selecione apenas os setores pertinentes a este lote. Deixe todos desmarcados para incluir a base completa (não recomendado — pode gerar ruído entre tipos de atendimento).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                    {availableSectors.map(sector => {
+                      const checked = selectedSectors.includes(sector);
+                      const count = (selectedBase.raw_data ?? []).filter((r: any) => {
+                        const sectorCol = Object.keys(r).find(k => {
+                          const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                          return n.includes("setor") || n.includes("centro") || n.includes("custos");
+                        });
+                        return sectorCol && String(r[sectorCol] ?? "").trim() === sector;
+                      }).length;
+                      return (
+                        <label
+                          key={sector}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors",
+                            checked ? "border-[#9A6B3A] bg-[#fdf5ec]" : "border-border bg-card hover:bg-muted/40"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setSelectedSectors(prev =>
+                              checked ? prev.filter(s => s !== sector) : [...prev, sector]
+                            )}
+                            className="h-4 w-4 rounded"
+                            style={{ accentColor: "#9A6B3A" }}
+                          />
+                          <span className="text-xs font-medium flex-1 truncate">{sector}</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{count} linhas</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedSectors.length > 0 && (
+                    <p className="text-xs text-[#9A6B3A] font-medium">
+                      {selectedSectors.length} setor(es) selecionado(s) · {
+                        (selectedBase.raw_data ?? []).filter((r: any) => {
+                          const sectorCol = Object.keys(r).find(k => {
+                            const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                            return n.includes("setor") || n.includes("centro") || n.includes("custos");
+                          });
+                          return sectorCol && selectedSectors.includes(String(r[sectorCol] ?? "").trim());
+                        }).length
+                      } linhas serão analisadas
+                    </p>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+
+              {selectedBase && (
+                <div className="flex justify-end pt-2 border-t border-border">
+                  <Button
+                    variant="copper"
+                    disabled={!selectedBase}
+                    onClick={handleProcessFromBase}
+                  >
+                    Continuar → Vincular empresas
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
 
           {!loading && step === "mapping" && (
