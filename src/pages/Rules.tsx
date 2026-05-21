@@ -30,7 +30,8 @@ import {
   RULE_CALCULATION_TYPE_LABELS, RULE_CALCULATION_TYPE_DESCRIPTIONS,
   type RuleCalculationType,
 } from "@/lib/status";
-import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy } from "lucide-react";
+import { Plus, Sparkles, Trash2, Upload, FileText, Filter, ChevronDown, ChevronRight, Search, Pencil, AlertTriangle, Wand2, X, BadgeDollarSign, FileDown, CheckCheck, Copy, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
 import { DoctorsEditor, MultiSelectChips } from "@/components/MultiSelectChips";
 import { DoctorCombobox } from "@/components/DoctorCombobox";
@@ -1515,13 +1516,36 @@ const Rules = () => {
     <>
       <PageHeader title="Regras de Pagamento" icon={BadgeDollarSign} description="A IA usa essas regras para analisar cada pagamento."
         actions={<>
-          <Button variant="outline" onClick={exportAllToPDF}><FileDown className="h-4 w-4 mr-2" /> Exportar Relatório</Button>
-          <Dialog open={globalConfigOpen} onOpenChange={setGlobalConfigOpen}>
-            <DialogTrigger asChild>
+          {/* Menu "Mais ações" — agrupa CTAs secundárias para reduzir ruído visual */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="outline">
-                <Wand2 className="h-4 w-4 mr-2" /> Configurações Gerais
+                <MoreHorizontal className="h-4 w-4 mr-2" /> Mais ações
               </Button>
-            </DialogTrigger>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Importação</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                <Sparkles className="h-4 w-4 mr-2" /> Importar com IA
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={downloadTemplate}>
+                <FileDown className="h-4 w-4 mr-2" /> Baixar modelo
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Configuração</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => setGlobalConfigOpen(true)}>
+                <Wand2 className="h-4 w-4 mr-2" /> Configurações Gerais
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Exportação</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={exportAllToPDF}>
+                <FileDown className="h-4 w-4 mr-2" /> Exportar relatório
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Diálogos controlados pelas entradas do menu acima */}
+          <Dialog open={globalConfigOpen} onOpenChange={setGlobalConfigOpen}>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Limiares padrão de divergência</DialogTitle>
@@ -1578,15 +1602,8 @@ const Rules = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
           <Dialog open={importOpen} onOpenChange={setImportOpen}>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={downloadTemplate}>
-                <FileDown className="h-4 w-4 mr-2" /> Modelo
-              </Button>
-              <DialogTrigger asChild>
-                <Button variant="outline"><Sparkles className="h-4 w-4 mr-2" /> Importar com IA</Button>
-              </DialogTrigger>
-            </div>
             <DialogContent>
               <DialogHeader><DialogTitle>Importar regras com IA</DialogTitle></DialogHeader>
               <Tabs defaultValue="file" className="w-full">
