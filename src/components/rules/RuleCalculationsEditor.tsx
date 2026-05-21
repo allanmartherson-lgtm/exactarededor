@@ -412,12 +412,13 @@ function CalcCard({
   const isPacoteComExtras = isPacote && c.package_subtype === "com_extras";
 
   return (
-    <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
-      <div className="flex items-center gap-2">
+    <div style={{ borderRadius: 10, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px hsl(var(--border) / 0.4)", overflow: "hidden" }}>
+      {/* Header copper */}
+      <div style={{ background: "#fdf5ec", borderBottom: "1px solid #f0e6d3", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8 }}>
         <Button type="button" variant="ghost" size="sm" className="h-7 px-1" onClick={() => setOpen((o) => !o)}>
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </Button>
-        <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+        <span style={{ color: "#9A6B3A", fontSize: 11 }} className="uppercase tracking-wider font-semibold">
           Cálculo #{index + 1}
         </span>
         <Input
