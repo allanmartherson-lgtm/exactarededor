@@ -484,6 +484,247 @@ export type Database = {
         }
         Relationships: []
       }
+      glosa_batches: {
+        Row: {
+          competence_month: string | null
+          convenio: string | null
+          created_at: string | null
+          file_name: string | null
+          id: string
+          matched_items: number | null
+          reference: string
+          status: string
+          total_glosa_amount: number | null
+          total_items: number | null
+          unmatched_items: number | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          competence_month?: string | null
+          convenio?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          matched_items?: number | null
+          reference: string
+          status?: string
+          total_glosa_amount?: number | null
+          total_items?: number | null
+          unmatched_items?: number | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          competence_month?: string | null
+          convenio?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          matched_items?: number | null
+          reference?: string
+          status?: string
+          total_glosa_amount?: number | null
+          total_items?: number | null
+          unmatched_items?: number | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      glosa_debt_items: {
+        Row: {
+          amount: number
+          applied_amount: number | null
+          created_at: string | null
+          debt_id: string
+          glosa_item_id: string
+          id: string
+        }
+        Insert: {
+          amount: number
+          applied_amount?: number | null
+          created_at?: string | null
+          debt_id: string
+          glosa_item_id: string
+          id?: string
+        }
+        Update: {
+          amount?: number
+          applied_amount?: number | null
+          created_at?: string | null
+          debt_id?: string
+          glosa_item_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "glosa_debt_items_debt_id_fkey"
+            columns: ["debt_id"]
+            isOneToOne: false
+            referencedRelation: "glosa_debts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_debt_items_glosa_item_id_fkey"
+            columns: ["glosa_item_id"]
+            isOneToOne: false
+            referencedRelation: "glosa_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      glosa_debts: {
+        Row: {
+          created_at: string | null
+          doctor_crm: string | null
+          doctor_name: string
+          id: string
+          last_applied_at: string | null
+          last_payment_id: string | null
+          status: string
+          total_debt: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          doctor_crm?: string | null
+          doctor_name: string
+          id?: string
+          last_applied_at?: string | null
+          last_payment_id?: string | null
+          status?: string
+          total_debt?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          doctor_crm?: string | null
+          doctor_name?: string
+          id?: string
+          last_applied_at?: string | null
+          last_payment_id?: string | null
+          status?: string
+          total_debt?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "glosa_debts_last_payment_id_fkey"
+            columns: ["last_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      glosa_items: {
+        Row: {
+          applied_at: string | null
+          applied_payment_id: string | null
+          attendance_number: string | null
+          batch_id: string
+          complemento_glosa: string | null
+          convenio: string | null
+          created_at: string | null
+          doctor_crm: string | null
+          doctor_name: string | null
+          id: string
+          matched_at: string | null
+          matched_company_name: string | null
+          matched_payment_id: string | null
+          matched_payment_item_id: string | null
+          motivo_glosa: string | null
+          patient_name: string | null
+          procedure_code: string | null
+          procedure_date: string | null
+          procedure_name: string | null
+          sector: string | null
+          status: string
+          valor_cobrado: number | null
+          valor_glosa: number
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_payment_id?: string | null
+          attendance_number?: string | null
+          batch_id: string
+          complemento_glosa?: string | null
+          convenio?: string | null
+          created_at?: string | null
+          doctor_crm?: string | null
+          doctor_name?: string | null
+          id?: string
+          matched_at?: string | null
+          matched_company_name?: string | null
+          matched_payment_id?: string | null
+          matched_payment_item_id?: string | null
+          motivo_glosa?: string | null
+          patient_name?: string | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          sector?: string | null
+          status?: string
+          valor_cobrado?: number | null
+          valor_glosa?: number
+        }
+        Update: {
+          applied_at?: string | null
+          applied_payment_id?: string | null
+          attendance_number?: string | null
+          batch_id?: string
+          complemento_glosa?: string | null
+          convenio?: string | null
+          created_at?: string | null
+          doctor_crm?: string | null
+          doctor_name?: string | null
+          id?: string
+          matched_at?: string | null
+          matched_company_name?: string | null
+          matched_payment_id?: string | null
+          matched_payment_item_id?: string | null
+          motivo_glosa?: string | null
+          patient_name?: string | null
+          procedure_code?: string | null
+          procedure_date?: string | null
+          procedure_name?: string | null
+          sector?: string | null
+          status?: string
+          valor_cobrado?: number | null
+          valor_glosa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "glosa_items_applied_payment_id_fkey"
+            columns: ["applied_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "glosa_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_matched_payment_item_id_fkey"
+            columns: ["matched_payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_question_attachments: {
         Row: {
           author_id: string | null

@@ -25,6 +25,7 @@ const Payments = lazy(() => import("./pages/Payments.tsx"));
 const NewPayment = lazy(() => import("./pages/NewPayment.tsx"));
 const PaymentDetail = lazy(() => import("./pages/PaymentDetail.tsx"));
 const CompanyAnalysis = lazy(() => import("./pages/CompanyAnalysis.tsx"));
+const Glosas = lazy(() => import("./pages/Glosas.tsx"));
 const Rules = lazy(() => import("./pages/Rules.tsx"));
 const ValidationRules = lazy(() => import("./pages/ValidationRules.tsx"));
 const ReferenceTables = lazy(() => import("./pages/ReferenceTables.tsx"));
@@ -85,6 +86,7 @@ const App = () => (
                   <Route path="/kpis" element={<Kpis />} />
                   <Route path="/executivo" element={<ProtectedRoute roles={["diretor", "admin"]}><ExecutiveDashboard /></ProtectedRoute>} />
                   <Route path="/recebiveis" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><AgingRecebiveis /></ProtectedRoute>} />
+                  <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><Glosas /></ProtectedRoute>} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
