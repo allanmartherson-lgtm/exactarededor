@@ -78,7 +78,7 @@ interface Props {
   paymentItems: PaymentItemRow[];
 }
 
-type Step = "upload" | "mapping" | "result";
+type Step = "select_base" | "upload" | "mapping" | "result";
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
   if (rows.length === 0) return {};
