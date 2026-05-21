@@ -837,3 +837,79 @@ All colors MUST be HSL.
 [data-pivot-th] {
   color: hsl(var(--secondary-foreground)) !important;
 }
+
+/* ============================================================
+ * Formulário de regras — campos com elevação visual real
+ * Aplica APENAS dentro de .rule-form-context
+ * ============================================================ */
+.rule-form-context input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.rule-form-context textarea,
+.rule-form-context [role="combobox"],
+.rule-form-context [data-radix-select-trigger] {
+  background: hsl(0 0% 100%) !important;
+  border: 1.5px solid hsl(214 21% 80%) !important;
+  border-radius: 7px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), inset 0 1px 2px rgba(0,0,0,0.04) !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+  color: hsl(222 47% 11%) !important;
+}
+.rule-form-context input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+.rule-form-context textarea:focus,
+.rule-form-context [role="combobox"]:focus,
+.rule-form-context [data-radix-select-trigger]:focus {
+  border-color: #9A6B3A !important;
+  box-shadow: 0 0 0 3px rgba(154,107,58,0.12), 0 1px 2px rgba(0,0,0,0.06) !important;
+  outline: none !important;
+}
+.rule-form-context input::placeholder,
+.rule-form-context textarea::placeholder {
+  color: hsl(215 16% 65%) !important;
+  font-size: 12.5px !important;
+}
+
+/* Labels dentro do formulário de regras — mais presença */
+.rule-form-context label:not([data-no-style]),
+.rule-form-context .form-label {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: hsl(222 47% 20%) !important;
+  letter-spacing: 0.01em !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+
+/* Selects do shadcn dentro do formulário */
+.rule-form-context [data-radix-select-trigger] {
+  background: hsl(0 0% 100%) !important;
+  border: 1.5px solid hsl(214 21% 80%) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
+}
+.rule-form-context [data-radix-select-trigger][data-state="open"] {
+  border-color: #9A6B3A !important;
+  box-shadow: 0 0 0 3px rgba(154,107,58,0.12) !important;
+}
+
+/* Grupos de campos — separadores visuais */
+.rule-form-context .field-section {
+  background: hsl(0 0% 100%);
+  border: 1px solid hsl(214 21% 88%);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 0 0 0.5px rgba(0,0,0,0.03);
+}
+
+/* Section title dentro de grupos */
+.rule-form-context .field-section-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.07em !important;
+  color: hsl(215 16% 55%) !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid hsl(214 21% 93%) !important;
+  margin-bottom: 4px !important;
+}
+

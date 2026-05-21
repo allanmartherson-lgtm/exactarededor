@@ -1637,7 +1637,7 @@ const Rules = () => {
                 </>
               )}
               <TabsContent value="form" className="mt-0">
-                <form id="rule-form" onSubmit={submitRule}>
+                <form id="rule-form" onSubmit={submitRule} className="rule-form-context">
                   <RuleFormStepper
                     isEditing={!!editingId}
                     saving={saving}
@@ -1726,41 +1726,81 @@ const Rules = () => {
                         description: "Nome, escopo e vigência",
                         errorCount: sectionErrors.identificacao,
                         content: (
-                          <div className="space-y-4 max-w-full overflow-hidden p-1 pt-1">
-                            <div className="flex items-center gap-2 mb-2">
+                          <div className="space-y-4">
+                            {/* Status ativo */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
                               <Checkbox id="rule-active" checked={fActive} onCheckedChange={(v) => setFActive(!!v)} />
-                              <Label htmlFor="rule-active" className="cursor-pointer font-semibold">Regra Ativa</Label>
-                              <span className="text-xs text-muted-foreground">(Inativa = motor ignora esta regra)</span>
+                              <Label htmlFor="rule-active" className="cursor-pointer" style={{ fontWeight: 600, fontSize: 13, color: "hsl(var(--foreground))" }}>
+                                Regra Ativa
+                              </Label>
+                              <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginLeft: 4 }}>(inativa = motor ignora)</span>
                             </div>
-                            <div className="space-y-1.5"><Label>Nome *</Label>
-                              <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5"><Label>Descrição</Label>
-                              <Input maxLength={300} value={fDescription} onChange={(e) => setFDescription(e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5"><Label>Texto da regra *</Label>
-                              <Textarea required rows={3} maxLength={2000} value={fRuleText} onChange={(e) => setFRuleText(e.target.value)} />
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1.5"><Label>Escopo</Label>
-                                <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
-                                  <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent>{Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-                                </Select>
+
+                            {/* Identificação principal */}
+                            <div className="field-section">
+                              <div className="field-section-title">Identificação</div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                                <div style={{ gridColumn: "1 / -1" }} className="space-y-1.5">
+                                  <Label>Nome *</Label>
+                                  <Input required maxLength={100} value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Ex: Repasse Infectologia" />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Escopo</Label>
+                                  <Select value={scope} onValueChange={(v) => setScope(v as RuleScope)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(RULE_SCOPE_LABELS).map(([k, v]) => (
+                                        <SelectItem key={k} value={k}>
+                                          <div>
+                                            <div className="font-medium">{v}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                              {{ master: "Catch-all — aplica quando nenhuma outra regra casar", grupo: "Grupo de PJs ou médicos", especifica: "Um único médico ou empresa" }[k]}
+                                            </div>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Severidade</Label>
+                                  <Select value={fSeverity} onValueChange={(v) => setFSeverity(v as RuleSeverity)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="info">Info — apenas informativo</SelectItem>
+                                      <SelectItem value="aviso">Aviso — alerta amarelo</SelectItem>
+                                      <SelectItem value="bloqueio">Bloqueio — erro vermelho</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
-                              <div className="space-y-1.5"><Label>Severidade</Label>
-                                <Select value={fSeverity} onValueChange={(v) => setFSeverity(v as RuleSeverity)}>
-                                  <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent><SelectItem value="info">Info</SelectItem><SelectItem value="aviso">Aviso</SelectItem><SelectItem value="bloqueio">Bloqueio</SelectItem></SelectContent>
-                                </Select>
+                            </div>
+
+                            {/* Vigência */}
+                            <div className="field-section">
+                              <div className="field-section-title">Vigência</div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                                <div className="space-y-1.5">
+                                  <Label>Início</Label>
+                                  <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Fim</Label>
+                                  <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
+                                </div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1.5"><Label>Vigência — início</Label>
-                                <Input type="date" value={fValidFrom} onChange={(e) => setFValidFrom(e.target.value)} />
+
+                            {/* Descrição e texto */}
+                            <div className="field-section">
+                              <div className="field-section-title">Detalhamento</div>
+                              <div className="space-y-1.5">
+                                <Label>Descrição</Label>
+                                <Input maxLength={300} value={fDescription} onChange={(e) => setFDescription(e.target.value)} placeholder="Resumo breve (opcional)" />
                               </div>
-                              <div className="space-y-1.5"><Label>Vigência — fim</Label>
-                                <Input type="date" value={fValidUntil} onChange={(e) => setFValidUntil(e.target.value)} />
+                              <div className="space-y-1.5">
+                                <Label>Texto operacional *</Label>
+                                <Textarea required rows={3} maxLength={2000} value={fRuleText} onChange={(e) => setFRuleText(e.target.value)} placeholder="Descreva a lógica da regra em linguagem natural…" />
                               </div>
                             </div>
                           </div>
