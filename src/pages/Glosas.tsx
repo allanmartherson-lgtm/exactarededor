@@ -160,18 +160,9 @@ function ColumnMappingModal({ open, onClose, headers, colMap, onConfirm }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <button
-            type="button"
-            onClick={() => onConfirm(map)}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              background: "#9A6B3A", color: "white", border: "none",
-              borderRadius: 10, padding: "8px 16px", fontSize: 13,
-              fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
+          <Button variant="copper" type="button" onClick={() => onConfirm(map)}>
             Confirmar mapeamento
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -328,6 +319,35 @@ export default function Glosas() {
       const matches = piMap.get(atend) ?? [];
 
       if (matches.length === 0) {
+        // Sem match no payment_items mas registra saldo devedor do médico
+        await supabase.from("glosa_items").update({
+          status: "sem_match",
+        }).eq("batch_id", batchId).eq("attendance_number", atend);
+
+        if (item.doctor_name && item.valor_glosa > 0) {
+          const crmKey = item.doctor_crm || item.doctor_name;
+          const { data: existing } = await supabase
+            .from("glosa_debts")
+            .select("id, total_debt")
+            .eq("doctor_crm", crmKey)
+            .maybeSingle();
+
+          if (existing) {
+            await supabase.from("glosa_debts").update({
+              total_debt: (existing.total_debt ?? 0) + item.valor_glosa,
+              updated_at: new Date().toISOString(),
+              status: "ativo",
+            }).eq("id", existing.id);
+          } else {
+            await supabase.from("glosa_debts").insert({
+              doctor_crm: crmKey,
+              doctor_name: item.doctor_name,
+              total_debt: item.valor_glosa,
+              status: "ativo",
+            });
+          }
+        }
+
         unmatched++;
         continue;
       }
@@ -435,22 +455,15 @@ export default function Glosas() {
               e.target.value = "";
             }}
           />
-          <button
-            type="button"
+          <Button
+            variant="copper"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              background: "#9A6B3A", color: "white", border: "none",
-              borderRadius: 10, padding: "8px 16px", fontSize: 13,
-              fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer",
-              opacity: uploading ? 0.7 : 1, fontFamily: "inherit",
-            }}
           >
             {uploading
-              ? <><RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />Importando…</>
-              : <><Upload size={14} />Importar glosa</>}
-          </button>
+              ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
+              : <><Upload size={14} className="mr-1" />Importar glosa</>}
+          </Button>
         </div>
       </div>
 
