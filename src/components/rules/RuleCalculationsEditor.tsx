@@ -395,6 +395,22 @@ function ComplementosBlock({
 }
 
 
+const FieldGroup = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <div style={{
+    background: "hsl(var(--card))",
+    border: "1px solid hsl(var(--border))",
+    borderRadius: 8,
+    padding: "14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    ...style,
+  }}>
+    {children}
+  </div>
+);
+
 /* ============================================================
  *  WhenApplySection — progressive disclosure dos filtros por cálculo
  * ============================================================ */
@@ -409,9 +425,7 @@ function WhenApplySection({
     c.allowed_access_routes.length > 0 || c.sectors.length > 0 || c.specialties.length > 0
   );
 
-  const [openSection, setOpenSection] = useState<string | null>(
-    hasCodesFilter ? "codigos" : hasConvenioFilter ? "convenio" : hasFuncaoFilter ? "funcao" : hasPeriodoFilter ? "periodo" : null
-  );
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   const toggle = (key: string) => setOpenSection(prev => prev === key ? null : key);
 
@@ -654,21 +668,22 @@ function CalcCard({
       {open && (
         <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* === MÉTODO + PARÂMETROS === */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">Método de cálculo *</Label>
-            <Select
-              value={c.calculation_type}
-              onValueChange={(v) => onChange({ calculation_type: v as RuleCalculationType, reference_table_id: v === "tabela_diferenciada" ? c.reference_table_id : "" })}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CALCULABLE_METHODS.map((k) => (
-                  <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">{RULE_CALCULATION_TYPE_DESCRIPTIONS[c.calculation_type]}</p>
-          </div>
+          <FieldGroup>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))", letterSpacing: "0.02em" }}>Método de cálculo *</Label>
+              <Select
+                value={c.calculation_type}
+                onValueChange={(v) => onChange({ calculation_type: v as RuleCalculationType, reference_table_id: v === "tabela_diferenciada" ? c.reference_table_id : "" })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CALCULABLE_METHODS.map((k) => (
+                    <SelectItem key={k} value={k}>{RULE_CALCULATION_TYPE_LABELS[k]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{RULE_CALCULATION_TYPE_DESCRIPTIONS[c.calculation_type]}</p>
+            </div>
 
           {c.calculation_type === "percentual_sobre_convenio" && (
             <div className="space-y-1">
@@ -740,6 +755,7 @@ function CalcCard({
               <Input type="number" step="0.01" value={c.target_amount} onChange={(e) => onChange({ target_amount: e.target.value })} />
             </div>
           )}
+          </FieldGroup>
 
           {isPacote && (
             <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
