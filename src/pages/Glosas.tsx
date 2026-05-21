@@ -187,6 +187,10 @@ export default function Glosas() {
   const [pendingHeaders, setPendingHeaders] = useState<string[]>([]);
   const [pendingFile, setPendingFile] = useState<{ name: string; sheet: string } | null>(null);
 
+  const [concBases, setConcBases] = useState<any[]>([]);
+  const [uploadingConc, setUploadingConc] = useState(false);
+  const concFileRef = useRef<HTMLInputElement>(null);
+
   const loadBatches = useCallback(async () => {
     setLoading(true);
     const { data } = await (supabase as any).from("glosa_batches").select("*").order("created_at", { ascending: false }).limit(20);
@@ -199,11 +203,87 @@ export default function Glosas() {
     setDebts(data ?? []);
   }, []);
 
+  const loadConcBases = useCallback(async () => {
+    const { data } = await (supabase as any)
+      .from("conciliation_bases")
+      .select("id, reference, competence_month, file_name, total_rows, status, created_at")
+      .eq("status", "ativo")
+      .order("created_at", { ascending: false });
+    setConcBases(data ?? []);
+  }, []);
+
+  const uploadConcBase = async (file: File) => {
+    setUploadingConc(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const sheetName = wb.SheetNames.includes("Cirurgias e Procedimentos")
+        ? "Cirurgias e Procedimentos"
+        : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null });
+
+      if (rows.length === 0) { toast.error("Planilha vazia."); return; }
+
+      const aliases: Record<string, string[]> = {
+        attendance: ["atendimento", "nr atendimento", "num. atendimento"],
+        procCode: ["código tuss (8d)", "codigo tuss (8d)", "tuss"],
+        procName: ["procedimento/mat-med", "procedimento"],
+        doctor: ["médico exec.", "medico exec."],
+        date: ["dt. proced.", "data"],
+        value: ["valor", "j"],
+        company: ["terceiro"],
+        patient: ["nome"],
+        agreement: ["convênio", "convenio"],
+      };
+      const normKey = (s: string) =>
+        s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const colMap: Record<string, string> = {};
+      for (const col of Object.keys(rows[0])) {
+        const normCol = normKey(col);
+        for (const [field, aliasList] of Object.entries(aliases)) {
+          if (!colMap[field] && aliasList.some(a => normKey(a) === normCol)) {
+            colMap[field] = col;
+            break;
+          }
+        }
+      }
+
+      let competenceMonth = "";
+      const dateCol = colMap["date"];
+      if (dateCol && rows[0]) {
+        const v = rows[0][dateCol];
+        if (v instanceof Date) competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+      }
+
+      const { error } = await (supabase as any).from("conciliation_bases").insert({
+        reference: `Conciliação ${new Date().toLocaleDateString("pt-BR")} — ${file.name.replace(/\.[^.]+$/, "")}`,
+        competence_month: competenceMonth || null,
+        file_name: file.name,
+        sheet_name: sheetName,
+        uploaded_by: user?.id,
+        total_rows: rows.length,
+        raw_data: rows as any,
+        col_map: colMap,
+        status: "ativo",
+      });
+
+      if (error) throw new Error(error.message);
+      toast.success(`Base importada: ${rows.length} linhas`);
+      loadConcBases();
+    } catch (e: any) {
+      toast.error("Erro ao importar base", { description: e.message });
+    } finally {
+      setUploadingConc(false);
+    }
+  };
+
   useEffect(() => {
-    document.title = "Glosas | MedPay";
+    document.title = "Glosas e Conciliação | MedPay";
     loadBatches();
     loadDebts();
-  }, [loadBatches, loadDebts]);
+    loadConcBases();
+  }, [loadBatches, loadDebts, loadConcBases]);
 
   const processFile = async (file: File) => {
     const buf = await file.arrayBuffer();
