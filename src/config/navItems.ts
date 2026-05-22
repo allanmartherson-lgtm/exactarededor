@@ -104,6 +104,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["diretor", "admin"],
     children: [
       { to: "/usuarios", label: "Usuários", icon: Users, iconName: "Users", roles: ["admin"] },
+      { to: "/produtividade-analistas", label: "Produtividade", icon: BarChart2, iconName: "BarChart2", roles: ["diretor", "admin"] },
       { to: "/saude", label: "Saúde do Motor", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin"] },
       { to: "/anomalias-status", label: "Anomalias de status", icon: AlertTriangle, iconName: "AlertTriangle", roles: ["diretor", "admin"] },
@@ -140,6 +141,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Centros de custo", iconName: "Network" },
   { label: "Prazos e SLA", iconName: "Timer" },
   { label: "Usuários", iconName: "Users" },
+  { label: "Produtividade", iconName: "BarChart2" },
   { label: "Saúde do Motor", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
   { label: "Anomalias de status", iconName: "AlertTriangle" },
