@@ -107,7 +107,7 @@ const HighlightBanner = ({
                   "text-[11px] uppercase tracking-tight font-black h-5 px-1.5",
                   h.observation_type === "impacta_aprovacao"
                     ? "border-amber-600 text-amber-800 bg-amber-200"
-                    : "border-success/50 text-success-foreground bg-success/10"
+                    : "border-success/40 text-success bg-success-soft"
                 )}
               >
                 {h.observation_type === "impacta_aprovacao" ? "⚠️ IMPACTA APROVAÇÃO" : "Justificativa de Override"}

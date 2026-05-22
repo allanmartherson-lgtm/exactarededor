@@ -405,7 +405,7 @@ export function CompanyHistoryPanel({
                           "h-5 px-1.5 text-[10px] uppercase tracking-wider font-bold",
                           e.type === "impacta_aprovacao"
                             ? "border-amber-500/50 text-amber-700 bg-amber-100"
-                            : "border-success/50 text-success-foreground bg-success/10"
+                            : "border-success/40 text-success bg-success-soft"
                         )}
                       >
                         {e.type === "impacta_aprovacao" ? (
