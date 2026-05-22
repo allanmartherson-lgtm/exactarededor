@@ -360,13 +360,16 @@ export function PaymentConciliationModal({
           const idsC = getIdentifiers(c);
           const common = idsT.filter(id => idsC.includes(id));
           const score = common.reduce((s, id) => s + id.length, 0);
-          const hasLongMatch = common.some(id => id.length >= 6);
-          const hasEnough = common.length >= 2 || (common.length >= 1 && hasLongMatch);
+          // Exige ≥2 identificadores em comum. Termo de especialidade isolado
+          // (UROLOGIA, ORTOPEDIA, NEUROLOGIA…) causa falso match quando a PJ
+          // real não está no lote — preferimos deixar sem mapeamento.
+          const hasEnough = common.length >= 2;
           if (hasEnough && score > (bestMatch?.score ?? 0)) {
             bestMatch = { company: c, score };
           }
         }
         if (bestMatch) return { company: bestMatch.company, level: 'medium' };
+
 
         return { company: null, level: null };
       };
