@@ -3,6 +3,7 @@ import { FileWarning } from "lucide-react";
 import { InvoiceAgingSection } from "@/components/nf-cycle/InvoiceAgingSection";
 import { FiscalDeadlineAlerts } from "@/components/nf-cycle/FiscalDeadlineAlerts";
 import { ResendHistorySection } from "@/components/nf-cycle/ResendHistorySection";
+import { CnpjValidationSection } from "@/components/nf-cycle/CnpjValidationSection";
 
 export default function NfCycle() {
   return (
@@ -16,6 +17,7 @@ export default function NfCycle() {
       <div className="p-6 space-y-6">
         <InvoiceAgingSection />
         <FiscalDeadlineAlerts />
+        <CnpjValidationSection />
         <ResendHistorySection />
       </div>
     </div>
