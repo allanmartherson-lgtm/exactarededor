@@ -581,6 +581,7 @@ export const AppLayout = () => {
                 <span className="hidden md:inline">Nova base</span>
               </Button>
             )}
+            <NotificationBell />
             <LayoutToggle />
           </div>
         </header>
