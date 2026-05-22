@@ -47,7 +47,7 @@ serve(async (req) => {
     // 1. Pagamento
     const { data: payment, error: pErr } = await supabase
       .from("payments")
-      .select("id, reference, title, status, total_amount, competence_month, items_count, processing_diagnostics, sla_due_at")
+      .select("id, reference, status, total_amount, competence_month, items_count, processing_diagnostics")
       .eq("id", payment_id)
       .maybeSingle();
 
@@ -109,20 +109,19 @@ serve(async (req) => {
     // 4. Últimas observações (analista/validador/diretor)
     const { data: observations } = await supabase
       .from("payment_observations")
-      .select("observation_type, message, created_at, author_role")
+      .select("observation_type, message, created_at, author_type")
       .eq("payment_id", payment_id)
-      .in("author_role", ["analista", "validador", "diretor"])
+      .in("author_type", ["analista", "validador", "diretor"])
       .order("created_at", { ascending: false })
       .limit(5);
 
     const contexto = {
       lote: {
-        referencia: payment.reference ?? payment.title ?? "—",
+        referencia: payment.reference ?? "—",
         status: payment.status,
         valor_total: Number(payment.total_amount) || 0,
         competencia: payment.competence_month,
         qtd_itens: payment.items_count ?? totalItems,
-        sla_due_at: payment.sla_due_at ?? null,
       },
       itens: {
         total: totalItems,
@@ -142,7 +141,7 @@ serve(async (req) => {
       })),
       observacoes_recentes: (observations ?? []).map((o) => ({
         tipo: o.observation_type,
-        autor: o.author_role,
+        autor: o.author_type,
         mensagem: String(o.message ?? "").slice(0, 300),
         data: o.created_at,
       })),
