@@ -323,6 +323,261 @@ function applySobreposicaoAssistencial(
   return { hits, unresolvedDoctors };
 }
 
+function applyDuplicidadeAtendimento(
+  rule: ValidationRule,
+  items: Item[],
+  findingsByItem: Map<string, Finding[]>,
+  paymentReference: string | null,
+): number {
+  const params = (rule.params ?? {}) as Json;
+  const groups = new Map<string, Item[]>();
+  for (const it of items) {
+    const parts: string[] = [];
+    if (params.compare_attendance) parts.push(it.attendance_number ?? "");
+    if (params.compare_code) parts.push(it.procedure_code ?? "");
+    if (params.compare_date) parts.push((it.procedure_date ?? "").slice(0, 10));
+    if (params.compare_patient) parts.push(normName(it.patient_name ?? ""));
+    if (!params.allow_different_doctors) parts.push(normName(it.doctor_name ?? ""));
+    const key = parts.join("|");
+    if (!key.replaceAll("|", "")) continue;
+    const arr = groups.get(key) ?? [];
+    arr.push(it);
+    groups.set(key, arr);
+  }
+  const now = new Date().toISOString();
+  let hits = 0;
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const [first, ...dupes] = group;
+    for (const dupe of dupes) {
+      const list = findingsByItem.get(dupe.id) ?? [];
+      const snapshot: ConflictingItemSnapshot = {
+        attendance_number: first.attendance_number,
+        patient_name: getPatient(first),
+        procedure_code: first.procedure_code,
+        procedure_name: first.procedure_name,
+        doctor_name: first.doctor_name,
+        procedure_date: first.procedure_date,
+        company_name: first.company_name,
+        payment_id: first.payment_id,
+        payment_reference: paymentReference,
+      };
+      list.push({
+        rule_id: rule.id,
+        rule_name: rule.name,
+        kind: rule.kind,
+        severity: rule.severity,
+        action: rule.action,
+        message: `Duplicidade por atendimento: procedimento ${dupe.procedure_code ?? dupe.procedure_name ?? "—"} cobrado ${group.length}× no atendimento ${dupe.attendance_number ?? "—"}.`,
+        conflicting_item_id: first.id,
+        conflicting_item: snapshot,
+        detected_at: now,
+      });
+      findingsByItem.set(dupe.id, list);
+      hits++;
+    }
+  }
+  return hits;
+}
+
+function applyParecerVirouCirurgia(
+  rule: ValidationRule,
+  items: Item[],
+  findingsByItem: Map<string, Finding[]>,
+  paymentReference: string | null,
+): number {
+  const params = (rule.params ?? {}) as Json;
+  const prazoHoras = Number(params.prazo_horas ?? 48);
+  const mesmoMedico = !!params.mesmo_medico;
+
+  const isParecer = (it: Item) => {
+    const n = normName(it.procedure_name ?? "");
+    return n.includes("parecer") || n.includes("consultoria") || n.includes("interconsulta");
+  };
+  const isCirurgia = (it: Item) => {
+    const n = normName(it.procedure_name ?? "");
+    const s = normName(it.sector ?? "");
+    return n.includes("cirurg") || s.includes("cirurg") || s.includes("hemodin");
+  };
+
+  const cirurgiasByAtt = new Map<string, Item[]>();
+  for (const it of items) {
+    if (!isCirurgia(it) || !it.attendance_number) continue;
+    const arr = cirurgiasByAtt.get(it.attendance_number) ?? [];
+    arr.push(it);
+    cirurgiasByAtt.set(it.attendance_number, arr);
+  }
+
+  const now = new Date().toISOString();
+  let hits = 0;
+
+  for (const it of items) {
+    if (!isParecer(it) || !it.attendance_number) continue;
+    const cirurgias = cirurgiasByAtt.get(it.attendance_number) ?? [];
+    for (const cir of cirurgias) {
+      if (mesmoMedico && normName(it.doctor_name ?? "") !== normName(cir.doctor_name ?? "")) continue;
+      const dtParecer = it.procedure_date ? new Date(it.procedure_date).getTime() : null;
+      const dtCirurgia = cir.procedure_date ? new Date(cir.procedure_date).getTime() : null;
+      if (dtParecer && dtCirurgia) {
+        const diffHoras = Math.abs(dtCirurgia - dtParecer) / 3_600_000;
+        if (diffHoras > prazoHoras) continue;
+      }
+      const list = findingsByItem.get(it.id) ?? [];
+      const snapshot: ConflictingItemSnapshot = {
+        attendance_number: cir.attendance_number,
+        patient_name: getPatient(cir),
+        procedure_code: cir.procedure_code,
+        procedure_name: cir.procedure_name,
+        doctor_name: cir.doctor_name,
+        procedure_date: cir.procedure_date,
+        company_name: cir.company_name,
+        payment_id: cir.payment_id,
+        payment_reference: paymentReference,
+      };
+      list.push({
+        rule_id: rule.id,
+        rule_name: rule.name,
+        kind: rule.kind,
+        severity: rule.severity,
+        action: rule.action,
+        message: `Parecer absorvido pela cirurgia: ${it.procedure_name ?? "parecer"} seguido de cirurgia (${cir.procedure_name ?? "—"}) no atendimento ${it.attendance_number} dentro de ${prazoHoras}h — não pagar separadamente.`,
+        conflicting_item_id: cir.id,
+        conflicting_item: snapshot,
+        detected_at: now,
+      });
+      findingsByItem.set(it.id, list);
+      hits++;
+      break;
+    }
+  }
+  return hits;
+}
+
+function applyRestricaoContratual(
+  rule: ValidationRule,
+  items: Item[],
+  findingsByItem: Map<string, Finding[]>,
+): number {
+  const params = (rule.params ?? {}) as Json;
+  const horaInicio = String(params.hora_inicio ?? "08:00");
+  const horaFim = String(params.hora_fim ?? "17:59");
+  const diasSemana: number[] = Array.isArray(params.dias_semana) ? params.dias_semana as number[] : [1,2,3,4,5];
+  const codigosRestritos: string[] = Array.isArray(params.codigos_restritos) ? params.codigos_restritos as string[] : [];
+  const observacao = String(params.observacao_analista ?? "");
+
+  const [hIni, mIni] = horaInicio.split(":").map(Number);
+  const [hFim, mFim] = horaFim.split(":").map(Number);
+  const minIni = (hIni * 60) + mIni;
+  const minFim = (hFim * 60) + mFim;
+
+  const now = new Date().toISOString();
+  let hits = 0;
+
+  for (const it of items) {
+    if (!it.procedure_date) continue;
+    if (codigosRestritos.length > 0 && it.procedure_code && !codigosRestritos.includes(it.procedure_code)) continue;
+
+    const dt = new Date(it.procedure_date);
+    const diaSemana = dt.getDay();
+    const minItem = dt.getHours() * 60 + dt.getMinutes();
+
+    const diaOk = diasSemana.includes(diaSemana);
+    const horaOk = minItem >= minIni && minItem <= minFim;
+    if (!diaOk || !horaOk) continue;
+
+    const list = findingsByItem.get(it.id) ?? [];
+    list.push({
+      rule_id: rule.id,
+      rule_name: rule.name,
+      kind: rule.kind,
+      severity: rule.severity,
+      action: rule.action,
+      message: `Restrição contratual: procedimento ${it.procedure_code ?? it.procedure_name ?? "—"} em ${it.procedure_date} dentro do horário restrito (${horaInicio}–${horaFim}).${observacao ? " " + observacao : ""}`,
+      detected_at: now,
+    });
+    findingsByItem.set(it.id, list);
+    hits++;
+  }
+  return hits;
+}
+
+async function applyOutlierValor(
+  rule: ValidationRule,
+  items: Item[],
+  findingsByItem: Map<string, Finding[]>,
+  supabase: ReturnType<typeof createClient>,
+): Promise<number> {
+  const params = (rule.params ?? {}) as Json;
+  const criterion = String(params.criterion ?? "percentil");
+  const percentil = Number(params.percentile ?? 95);
+  const pctAboveMean = Number(params.pct_above_mean ?? 50) / 100;
+  const meanMultiplier = Number(params.mean_multiplier ?? 2);
+  const minHistory = Number(params.min_history ?? 10);
+
+  const codes = [...new Set(items.map(i => i.procedure_code).filter(Boolean))];
+  if (codes.length === 0) return 0;
+
+  const { data: history } = await supabase
+    .from("payment_items")
+    .select("procedure_code, gross_amount")
+    .in("procedure_code", codes as string[])
+    .not("gross_amount", "is", null)
+    .limit(10000);
+
+  const byCode = new Map<string, number[]>();
+  for (const h of (history ?? []) as Array<{ procedure_code: string | null; gross_amount: number | null }>) {
+    if (!h.procedure_code || h.gross_amount == null) continue;
+    const arr = byCode.get(h.procedure_code) ?? [];
+    arr.push(Number(h.gross_amount));
+    byCode.set(h.procedure_code, arr);
+  }
+
+  const now = new Date().toISOString();
+  let hits = 0;
+
+  for (const it of items) {
+    if (!it.procedure_code || it.gross_amount == null) continue;
+    const hist = byCode.get(it.procedure_code) ?? [];
+    if (hist.length < minHistory) continue;
+
+    const sorted = [...hist].sort((a, b) => a - b);
+    const mean = hist.reduce((a, b) => a + b, 0) / hist.length;
+    const valor = Number(it.gross_amount);
+
+    let isOutlier = false;
+    let threshold = 0;
+
+    if (criterion === "percentil") {
+      const idx = Math.floor((percentil / 100) * sorted.length);
+      threshold = sorted[Math.min(idx, sorted.length - 1)];
+      isOutlier = valor > threshold;
+    } else if (criterion === "media_pct") {
+      threshold = mean * (1 + pctAboveMean);
+      isOutlier = valor > threshold;
+    } else if (criterion === "multiplo_media") {
+      threshold = mean * meanMultiplier;
+      isOutlier = valor > threshold;
+    }
+
+    if (!isOutlier) continue;
+
+    const list = findingsByItem.get(it.id) ?? [];
+    list.push({
+      rule_id: rule.id,
+      rule_name: rule.name,
+      kind: rule.kind,
+      severity: rule.severity,
+      action: rule.action,
+      message: `Valor fora do padrão histórico: ${it.procedure_code} cobrado R$ ${valor.toFixed(2)} vs. referência histórica R$ ${threshold.toFixed(2)} (${hist.length} registros).`,
+      detected_at: now,
+    });
+    findingsByItem.set(it.id, list);
+    hits++;
+  }
+  return hits;
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
