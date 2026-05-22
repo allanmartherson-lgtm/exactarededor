@@ -1286,15 +1286,22 @@ function ItemDetailsRow({
                       <li key={o.id} className="border-b border-border/40 pb-1.5 last:border-0 min-w-0 flex flex-col items-start">
                         <div className={cn("flex items-center gap-1.5 w-full", TEXT_META)}>
                           <span className="uppercase tracking-wide rounded px-1 py-0.5 bg-muted shrink-0">{authorRoleLabel(o.author_type)}</span>
-                          {o.author_id && profiles[o.author_id] ? (
-                            <span className="text-muted-foreground truncate flex-1 min-w-0">
-                              {profiles[o.author_id]} <span className="opacity-70">({authorRoleLabel(o.author_type)})</span>
-                            </span>
-                          ) : (
-                            (o.author_type === "sistema" || o.author_type === "ia") && (
-                              <span className="text-muted-foreground truncate flex-1 min-w-0">Sistema</span>
-                            )
-                          )}
+                          {(() => {
+                            const resolvedName = o.author_id ? profiles[o.author_id] : null;
+                            const roleLabel = authorRoleLabel(o.author_type);
+                            if (resolvedName) {
+                              return (
+                                <span className="text-muted-foreground truncate flex-1 min-w-0">
+                                  {resolvedName} <span className="opacity-70">({roleLabel})</span>
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="text-muted-foreground truncate flex-1 min-w-0">
+                                {roleLabel}
+                              </span>
+                            );
+                          })()}
                           <span className="shrink-0 ml-auto">{fmtDate(o.created_at)}</span>
                         </div>
                         <p className="mt-1 whitespace-normal break-words w-full">{o.message}</p>
