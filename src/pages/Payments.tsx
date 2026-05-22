@@ -737,6 +737,14 @@ const Payments = () => {
             <div className="flex items-center gap-2 min-w-0">
               <p className="font-medium text-sm truncate">{p.reference}</p>
               <PaymentRiskBadgeInline paymentId={p.id} />
+              <PaymentPriorityBadgeInline
+                paymentId={p.id}
+                slaLevel={sla?.level ?? null}
+                elapsedDays={elapsedMs / 86400000}
+                status={p.status}
+                totalAmount={Number(p.total_amount)}
+                itemsCount={p.items_count}
+              />
 
               {openQuestionCount[p.id] > 0 && (
                 <Tooltip>
@@ -1052,6 +1060,7 @@ const Payments = () => {
                   <SelectItem value="created">Mais recentes</SelectItem>
                   <SelectItem value="elapsed">Tempo parado</SelectItem>
                   <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="priority">Por prioridade</SelectItem>
                 </SelectContent>
               </Select>
             )}
