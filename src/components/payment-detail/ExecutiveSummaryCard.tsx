@@ -124,7 +124,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
               ))}
             </ul>
             {summary.recommended_action && (
-              <p className="text-xs italic text-muted-foreground mt-3 pt-3 border-t border-border/50">
+              <p className="text-xs italic text-foreground/80 mt-3 pt-3 border-t border-border/50">
                 {summary.recommended_action}
               </p>
             )}
