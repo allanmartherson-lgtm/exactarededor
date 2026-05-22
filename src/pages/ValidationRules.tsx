@@ -1234,6 +1234,36 @@ export default function ValidationRules() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico — {historyRule?.name}</DialogTitle>
+          </DialogHeader>
+          {historyLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : historyEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum registro de auditoria encontrado.</p>
+          ) : (
+            <ul className="space-y-3">
+              {historyEntries.map((entry, i) => {
+                const profile = entry.profiles;
+                const actor = profile?.full_name || profile?.email || entry.actor_id?.slice(0, 8) || "—";
+                const actionLabel = entry.action === "create" ? "Criou" : entry.action === "update" ? "Editou" : entry.action === "delete" ? "Excluiu" : entry.action;
+                return (
+                  <li key={i} className="border-b border-border pb-2 last:border-0">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium">{actor}</span>
+                      <span className="text-muted-foreground">{formatDateTimeBR(entry.created_at)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{actionLabel} a regra</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
