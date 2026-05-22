@@ -359,23 +359,30 @@ export const AppLayout = () => {
           className="sticky top-0 z-40 bg-card border-b border-border shadow-soft"
           style={{ height: 56 }}
         >
-          <div className="h-full max-w-[1600px] mx-auto px-5 flex items-center gap-5">
+          <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
+            {MobileNavDrawer}
             <Logo />
-            <TopbarNav items={visibleTopNav} />
+            <div className="hidden md:flex flex-1 min-w-0">
+              <TopbarNav items={visibleTopNav} />
+            </div>
+            <div className="flex-1 md:hidden" />
 
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
               {canCreate && (
                 <Button
                   onClick={() => navigate("/pagamentos/novo")}
-                  className="h-9 px-3 text-[13px] font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="h-9 w-9 md:w-auto md:px-3 text-[13px] font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
                   style={{ borderRadius: 7 }}
+                  aria-label="Nova base"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
-              <ThemeToggle />
-              <LayoutToggle />
+              <div className="hidden md:flex items-center gap-2">
+                <ThemeToggle />
+                <LayoutToggle />
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -411,9 +418,9 @@ export const AppLayout = () => {
 
         <main
           className="flex-1 min-w-0 nav-main"
-          style={{ marginLeft: 0, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
+          style={{ transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
         >
-          <div className="mx-auto w-full" style={{ maxWidth: 1600, padding: "20px 24px" }}>
+          <div className="mx-auto w-full max-w-[1600px] px-3 py-4 md:px-6 md:py-5">
             <Breadcrumbs />
             <Outlet />
           </div>
