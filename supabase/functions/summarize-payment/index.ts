@@ -22,13 +22,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id } = await req.json();
+    const { payment_id, mode: rawMode } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const mode: "general" | "director" = rawMode === "director" ? "director" : "general";
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
