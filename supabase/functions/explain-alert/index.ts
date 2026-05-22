@@ -20,9 +20,9 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -138,37 +138,39 @@ Sua saída deve conter:
 2. Lista de possíveis causas (3 a 5), considerando: tipo de atendimento, quantidade de procedimentos, presença de auxiliares, aplicação de pacote/tabela diferenciada, comparação com histórico.
 3. Sugestão objetiva do que o analista deveria conferir antes de decidir.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: `Contexto do item alertado (JSON):\n${JSON.stringify(contexto, null, 2)}` },
         ],
         tools: [{
-          type: "function",
-          function: {
-            name: "explain_alert",
-            description: "Devolve explicação interpretativa do alerta",
-            parameters: {
-              type: "object",
-              properties: {
-                explanation: { type: "string", description: "Explicação curta (1-2 frases)" },
-                possible_causes: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Lista de 3-5 possíveis causas",
-                },
-                what_to_check: { type: "string", description: "Sugestão objetiva do que o analista deveria conferir" },
+          name: "explain_alert",
+          description: "Devolve explicação interpretativa do alerta",
+          input_schema: {
+            type: "object",
+            properties: {
+              explanation: { type: "string", description: "Explicação curta (1-2 frases)" },
+              possible_causes: {
+                type: "array",
+                items: { type: "string" },
+                description: "Lista de 3-5 possíveis causas",
               },
-              required: ["explanation", "possible_causes", "what_to_check"],
-              additionalProperties: false,
+              what_to_check: { type: "string", description: "Sugestão objetiva do que o analista deveria conferir" },
             },
+            required: ["explanation", "possible_causes", "what_to_check"],
+            additionalProperties: false,
           },
         }],
-        tool_choice: { type: "function", function: { name: "explain_alert" } },
+        tool_choice: { type: "tool", name: "explain_alert" },
       }),
     });
 
@@ -191,10 +193,10 @@ Sua saída deve conter:
     }
 
     const aiData = await aiResp.json();
-    const tc = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    const tc = aiData.content?.find((b: any) => b.type === "tool_use");
     let parsed: { explanation: string; possible_causes: string[]; what_to_check: string } | null = null;
     if (tc) {
-      try { parsed = JSON.parse(tc.function.arguments); } catch (_) { /* noop */ }
+      parsed = tc.input as any;
     }
     if (!parsed) {
       return new Response(JSON.stringify({ error: "IA não retornou estrutura esperada" }), {
