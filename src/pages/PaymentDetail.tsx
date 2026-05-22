@@ -131,7 +131,7 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, roles } = useAuth();
   const location = useLocation();
 
   // Quando o usuário chega via "?highlight=<itemId>" (link a partir de outro
