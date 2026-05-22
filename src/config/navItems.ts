@@ -122,6 +122,8 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "Recebíveis", iconName: "TrendingDown" },
+  { label: "Inteligência Financeira", iconName: "TrendingUp" },
+  { label: "Ciclo de NF", iconName: "FileWarning" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "Regras de Pagamento", iconName: "BadgeDollarSign" },
   { label: "Regras de Validação", iconName: "ShieldCheck" },
