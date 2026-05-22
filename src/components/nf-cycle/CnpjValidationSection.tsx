@@ -17,8 +17,8 @@ interface Row {
   company_name: string | null;
   ai_extracted_cnpj: string | null;
   status: string;
+  companyDoc: string | null;
   payments?: { reference: string | null } | null;
-  companies?: { document: string | null } | null;
 }
 
 export const CnpjValidationSection = () => {
@@ -26,14 +26,21 @@ export const CnpjValidationSection = () => {
   const [marking, setMarking] = useState<string | null>(null);
 
   const load = async () => {
-    const { data } = await supabase
+    const { data: invoices } = await supabase
       .from("invoices")
-      .select("id,payment_id,company_id,company_name,ai_extracted_cnpj,status,payments(reference),companies(document)")
+      .select("id,payment_id,company_id,company_name,ai_extracted_cnpj,status,payments(reference)")
       .eq("status", "recebida")
       .not("ai_extracted_cnpj", "is", null)
       .order("received_at", { ascending: false })
       .limit(200);
-    setRows((data as Row[]) ?? []);
+    const list = (invoices ?? []) as Omit<Row, "companyDoc">[];
+    const ids = Array.from(new Set(list.map((i) => i.company_id).filter(Boolean))) as string[];
+    let docMap = new Map<string, string | null>();
+    if (ids.length > 0) {
+      const { data: comps } = await supabase.from("companies").select("id,document").in("id", ids);
+      docMap = new Map((comps ?? []).map((c: { id: string; document: string | null }) => [c.id, c.document]));
+    }
+    setRows(list.map((r) => ({ ...r, companyDoc: r.company_id ? docMap.get(r.company_id) ?? null : null })));
   };
 
   useEffect(() => {
