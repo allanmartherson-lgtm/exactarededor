@@ -266,9 +266,10 @@ REGRAS:
 
     const generated_at = new Date().toISOString();
     const existingDiag = (payment.processing_diagnostics ?? {}) as Record<string, unknown>;
+    const diagKey = mode === "director" ? "director_briefing" : "executive_summary";
     const nextDiag = {
       ...existingDiag,
-      executive_summary: { ...summary, generated_at },
+      [diagKey]: { ...summary, generated_at },
     };
 
     const { error: updErr } = await supabase
@@ -281,7 +282,7 @@ REGRAS:
     }
 
     return new Response(
-      JSON.stringify({ ok: true, summary: { ...summary, generated_at } }),
+      JSON.stringify({ ok: true, summary: { ...summary, generated_at }, mode }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
