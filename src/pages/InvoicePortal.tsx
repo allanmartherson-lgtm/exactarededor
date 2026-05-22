@@ -427,6 +427,13 @@ const InvoicePortal = () => {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="upload" className="mt-4">
+                  <div className="rounded-lg bg-muted/40 border px-3 py-2.5 text-xs text-muted-foreground space-y-1 mb-3">
+                    <p className="font-medium text-foreground">Como funciona:</p>
+                    <p>1. Emita a NF com o valor exato indicado acima para o CNPJ do hospital.</p>
+                    <p>2. Faça o upload do arquivo PDF ou XML da nota.</p>
+                    <p>3. Após o envio, nosso sistema valida automaticamente o valor. Se conferir, o pagamento é liberado.</p>
+                    <p className="text-warning font-medium">⚠ Qualquer diferença de valor resulta em rejeição automática.</p>
+                  </div>
                   <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-1.5"><Label>Número da NF</Label><Input name="invoice_number" required maxLength={50} /></div>
                     <div className="space-y-1.5"><Label>Arquivo (PDF/XML)</Label><Input name="file" type="file" accept=".pdf,.xml" required /></div>
