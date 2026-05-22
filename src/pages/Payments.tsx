@@ -145,6 +145,7 @@ const Payments = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
   const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
   const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
