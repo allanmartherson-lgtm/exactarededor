@@ -912,13 +912,31 @@ const Payments = () => {
         description="Todos os lotes de pagamento e seu status no fluxo."
       />
       <div className="p-4 md:p-8 w-full mx-auto space-y-4">
+        {/* KPI Summary Bar — terminal-style institutional metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border overflow-hidden rounded-md shadow-sm">
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total em Aberto</p>
+            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{formatCurrency(kpis.totalOpen)}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">{kpis.activeTotal} lote{kpis.activeTotal === 1 ? "" : "s"} ativo{kpis.activeTotal === 1 ? "" : "s"}</p>
+          </div>
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Lotes Atrasados</p>
+            <p className={cn("text-xl font-bold tabular-nums mt-1", kpis.delayed > 0 ? "text-destructive" : "text-foreground")}>{kpis.delayed}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">SLA estourado ou risco</p>
+          </div>
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aguardando Validação</p>
+            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{kpis.waitingValidation}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Fila do validador</p>
+          </div>
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aguardando Aprovação</p>
+            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{kpis.waitingApproval}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">{kpis.competence ? `Comp. ${formatCompetence(`${kpis.competence}-01`)}` : "Fila do diretor"}</p>
+          </div>
+        </div>
         {(() => {
           const activeFilterCount = [
-            !!companyFilter,
-            analystFilter !== "all",
-            typeFilter !== "all",
-            statusFilter !== "all",
-            competenceFilter !== "all",
             delayedOnly,
             ownerGroup !== "all",
             divergenceFilter !== "all",
