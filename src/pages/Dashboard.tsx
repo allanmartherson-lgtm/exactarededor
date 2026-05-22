@@ -476,7 +476,7 @@ const ChipGroup = <T extends string>({
   <div
     role="radiogroup"
     aria-label={ariaLabel}
-    className="inline-flex"
+    className="chip-group inline-flex"
     style={{
       background: "hsl(var(--muted))",
       borderRadius: 8,
