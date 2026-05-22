@@ -51,6 +51,7 @@ import type {
   RuleLite,
 } from "@/hooks/usePaymentDetailData";
 import { cn } from "@/lib/utils";
+import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
 import { authorRoleLabel } from "@/lib/observations";
@@ -695,6 +696,7 @@ export function ItemsDataGrid({
                   <RowMain
                     key={it.id}
                     it={it}
+                    allItems={items}
                     paciente={paciente}
                     expected={expected ?? null}
                     eff={eff}
@@ -789,6 +791,7 @@ export function ItemsDataGrid({
 
 function RowMain({
   it,
+  allItems,
   paciente,
   expected,
   eff,
@@ -814,6 +817,7 @@ function RowMain({
   onUndoAcceptItem,
 }: {
   it: PaymentItemRowData;
+  allItems: PaymentItemRowData[];
   paciente: string;
   expected: number | null;
   eff: ItemAiStatus | "seguido";
@@ -1114,6 +1118,7 @@ function RowMain({
       {isExpanded && (
         <ItemDetailsRow
           it={it}
+          allItems={allItems}
           rulesIndex={rulesIndex}
           rulesByName={rulesByName}
           observations={observations}
@@ -1128,6 +1133,7 @@ function RowMain({
 
 function ItemDetailsRow({
   it,
+  allItems,
   rulesIndex,
   rulesByName,
   observations,
@@ -1136,6 +1142,7 @@ function ItemDetailsRow({
   showTipoEntrada,
 }: {
   it: PaymentItemRowData;
+  allItems: PaymentItemRowData[];
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
@@ -1460,6 +1467,13 @@ function ItemDetailsRow({
                           </Button>
                         </div>
                       </div>
+                    )}
+                    {it.attendance_number && (
+                      <AttendanceCoherencePanel
+                        attendanceNumber={it.attendance_number}
+                        currentItemId={it.id}
+                        items={allItems}
+                      />
                     )}
                   </div>
                 </SafeCard>
