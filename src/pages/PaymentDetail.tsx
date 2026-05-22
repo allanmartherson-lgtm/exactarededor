@@ -34,6 +34,7 @@ import { PaymentPivotSection, type PivotVariant } from "@/components/payment-det
 import { PreAnalysisScoreCard } from "@/components/payment-detail/PreAnalysisScoreCard";
 import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAlerts";
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
+import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
@@ -131,7 +132,7 @@ const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
 const PaymentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, roles } = useAuth();
   const location = useLocation();
 
   // Quando o usuário chega via "?highlight=<itemId>" (link a partir de outro
@@ -1632,6 +1633,7 @@ const PaymentDetail = () => {
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+        {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
         <PreAnalysisScoreCard payment={payment} />
         {id && <DoctorAnomalyAlerts paymentId={id} />}
         {segregationBlocked && (

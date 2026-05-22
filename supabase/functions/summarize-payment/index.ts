@@ -22,13 +22,14 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_id } = await req.json();
+    const { payment_id, mode: rawMode } = await req.json();
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const mode: "general" | "director" = rawMode === "director" ? "director" : "general";
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -60,7 +61,7 @@ serve(async (req) => {
     // 2. Itens — agrega ai_status e por empresa
     const { data: items } = await supabase
       .from("payment_items")
-      .select("ai_status, gross_amount, company_name, doctor_name, sector")
+      .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
       .eq("payment_id", payment_id)
       .limit(20000);
 
@@ -68,6 +69,9 @@ serve(async (req) => {
     const byCompany: Record<string, { total: number; count: number; alerts: number }> = {};
     let totalItems = 0;
     let totalAlerts = 0;
+    let excecoesCount = 0;
+    let excecoesImpacto = 0;
+    const excecoesAmostra: Array<{ medico: string; empresa: string; valor: number; nota: string }> = [];
     for (const it of items ?? []) {
       totalItems++;
       const st = String(it.ai_status ?? "sem_status");
@@ -80,6 +84,19 @@ serve(async (req) => {
       if (isAlert) {
         totalAlerts++;
         byCompany[co].alerts += 1;
+      }
+      if (it.authorized_exception) {
+        excecoesCount++;
+        const impacto = (Number(it.gross_amount) || 0) - (Number(it.expected_amount) || 0);
+        excecoesImpacto += impacto;
+        if (excecoesAmostra.length < 8) {
+          excecoesAmostra.push({
+            medico: String(it.doctor_name ?? "—"),
+            empresa: String(co),
+            valor: impacto,
+            nota: String(it.exception_note ?? "").slice(0, 200),
+          });
+        }
       }
     }
 
@@ -129,9 +146,14 @@ serve(async (req) => {
         mensagem: String(o.message ?? "").slice(0, 300),
         data: o.created_at,
       })),
+      excecoes_autorizadas: {
+        total: excecoesCount,
+        impacto_total: excecoesImpacto,
+        amostra: excecoesAmostra,
+      },
     };
 
-    const systemPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
+    const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
 
 REGRAS:
 - Seja conciso, técnico e prático. Nada de jargão vago.
@@ -145,6 +167,31 @@ REGRAS:
   - alto: 30-60% alertas OU concentração forte em 1 empresa OU SLA apertado
   - critico: >60% alertas OU SLA vencido OU sinais combinados
 - recommended_action: 1 frase com a próxima ação concreta sugerida.`;
+
+    const directorPrompt = `Você é um auditor sênior preparando um BRIEFING DE APROVAÇÃO para o Diretor Financeiro de uma rede hospitalar, em português do Brasil.
+
+CONTEXTO: O lote está em "aguardando_aprovacao". O Diretor precisa decidir entre aprovar, aprovar com ressalva ou devolver ao validador.
+
+REGRAS:
+- Tom formal, executivo, orientado à DECISÃO. Nada de jargão técnico desnecessário.
+- Use somente fatos presentes no contexto JSON. Nunca invente.
+- Headline: 1 frase sintetizando o lote e o nível de confiança para aprovação.
+- Bullets (3 a 6): foque em
+  1) Exceções autorizadas pelos analistas (quantidade, impacto financeiro, padrões)
+  2) Sinais de risco residual (alertas não tratados, concentração em médicos/empresas)
+  3) SLA e pendências
+  4) Sinal de qualidade da revisão (observações da equipe)
+- risk_level (sob a ótica de aprovação):
+  - baixo: revisão completa, exceções justificadas, sem sinais críticos → aprovar tranquilo
+  - medio: pequenas ressalvas, mas sem bloqueador
+  - alto: exceções relevantes sem justificativa clara OU concentração forte → exigir atenção
+  - critico: sinais combinados de risco, lote provavelmente deve ser devolvido
+- recommended_action: OBRIGATORIAMENTE uma destas frases exatas:
+  * "Aprovar o lote"
+  * "Aprovar com ressalva"
+  * "Devolver ao validador para revisão"`;
+
+    const systemPrompt = mode === "director" ? directorPrompt : generalPrompt;
 
     const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -219,9 +266,10 @@ REGRAS:
 
     const generated_at = new Date().toISOString();
     const existingDiag = (payment.processing_diagnostics ?? {}) as Record<string, unknown>;
+    const diagKey = mode === "director" ? "director_briefing" : "executive_summary";
     const nextDiag = {
       ...existingDiag,
-      executive_summary: { ...summary, generated_at },
+      [diagKey]: { ...summary, generated_at },
     };
 
     const { error: updErr } = await supabase
@@ -234,7 +282,7 @@ REGRAS:
     }
 
     return new Response(
-      JSON.stringify({ ok: true, summary: { ...summary, generated_at } }),
+      JSON.stringify({ ok: true, summary: { ...summary, generated_at }, mode }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
