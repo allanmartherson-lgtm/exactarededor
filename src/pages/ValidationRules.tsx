@@ -276,7 +276,7 @@ export default function ValidationRules() {
       supabase.from("companies").select("id, name"),
       supabase
         .from("payment_items")
-        .select("id, gross_amount, payment_id, validation_findings")
+        .select("id, gross_amount, payment_id, validation_findings, ai_status, acatado_status_original")
         .not("validation_findings", "is", null)
         .neq("validation_findings", "[]"),
       supabase
