@@ -141,7 +141,7 @@ serve(async (req) => {
       })),
       observacoes_recentes: (observations ?? []).map((o) => ({
         tipo: o.observation_type,
-        autor: o.author_role,
+        autor: o.author_type,
         mensagem: String(o.message ?? "").slice(0, 300),
         data: o.created_at,
       })),
