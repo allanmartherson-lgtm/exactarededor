@@ -50,6 +50,7 @@ const OverflowAudit = lazy(() => import("./pages/OverflowAudit.tsx"));
 const FinancialIntelligence = lazy(() => import("./pages/FinancialIntelligence.tsx"));
 const NfCycle = lazy(() => import("./pages/NfCycle.tsx"));
 const ObservationInsights = lazy(() => import("./pages/ObservationInsights.tsx"));
+const AnalystProductivity = lazy(() => import("./pages/AnalystProductivity.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,7 @@ const App = () => (
                   <Route path="/centros-de-custo" element={<CostCenters />} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
+                  <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
                   <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
