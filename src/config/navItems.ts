@@ -23,6 +23,7 @@ import {
   Layers,
   TrendingDown,
   ShieldX,
+  FileWarning,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
