@@ -92,7 +92,7 @@ export const CnpjValidationSection = () => {
               </TableHeader>
               <TableBody>
                 {rows.map((r) => {
-                  const ok = matches(r.ai_extracted_cnpj, r.companies?.document);
+                  const ok = matches(r.ai_extracted_cnpj, r.companyDoc);
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.company_name ?? "—"}</TableCell>
@@ -105,7 +105,7 @@ export const CnpjValidationSection = () => {
                         {r.ai_extracted_cnpj ? formatCNPJ(r.ai_extracted_cnpj) : "—"}
                       </TableCell>
                       <TableCell className="tabular-nums text-sm">
-                        {r.companies?.document ? formatCNPJ(r.companies.document) : (
+                        {r.companyDoc ? formatCNPJ(r.companyDoc) : (
                           <span className="text-muted-foreground italic">sem cadastro</span>
                         )}
                       </TableCell>
