@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Zap, ArrowRight, ShieldOff, FileWarning, Cpu,
-  RefreshCcw, Inbox,
+  RefreshCcw, Inbox, Brain,
   type LucideIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
