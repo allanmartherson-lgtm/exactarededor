@@ -1460,15 +1460,16 @@ const Dashboard = () => {
                 : allCols;
             const colCount = Math.max(visibleCols.length, 1);
             return (
-              <div
-                style={{
-                  padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
-                  gap: 0,
-                  minWidth: 0,
-                }}
-              >
+              <div className="pipeline-scroll">
+                <div
+                  style={{
+                    padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+                    gap: 0,
+                    minWidth: 0,
+                  }}
+                >
                 {loading ? (
                   Array.from({ length: colCount }).map((_, i) => (
                     <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
