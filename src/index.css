@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — slate-50, institucional (DF Parecer) */
-    --background: 210 40% 98%;          /* #F8FAFC slate-50 */
+    /* Surfaces — slate-100 (mais contraste contra o branco do card) */
+    --background: 214 32% 94%;          /* #E8EDF3 — fundo levemente mais escuro p/ destacar cards */
     --foreground: 224 71% 12%;          /* #0B1538 deep navy text */
 
     --card: 0 0% 100%;                  /* #FFFFFF */
@@ -71,12 +71,12 @@ All colors MUST be HSL.
 
     --radius: 0.875rem;                 /* 14px */
 
-    /* Gradients & shadows */
+    /* Gradients & shadows — reforçadas p/ dar "vida" aos cards sobre o fundo */
     --gradient-brand: linear-gradient(135deg, hsl(224 76% 33%), hsl(217 91% 50%));
     --gradient-soft: linear-gradient(135deg, hsl(226 100% 96%), hsl(210 40% 98%));
-    --shadow-soft: 0 1px 2px 0 hsl(224 71% 12% / 0.04), 0 1px 3px 0 hsl(224 71% 12% / 0.05);
-    --shadow-card: 0 1px 3px 0 hsl(224 71% 12% / 0.06), 0 1px 2px -1px hsl(224 71% 12% / 0.04);
-    --shadow-elevated: 0 20px 40px -16px hsl(224 76% 33% / 0.18), 0 8px 16px -8px hsl(224 71% 12% / 0.08);
+    --shadow-soft: 0 1px 2px 0 hsl(224 71% 12% / 0.06), 0 2px 6px -1px hsl(224 71% 12% / 0.08);
+    --shadow-card: 0 1px 2px 0 hsl(224 71% 12% / 0.05), 0 4px 12px -2px hsl(224 71% 12% / 0.10), 0 8px 24px -8px hsl(224 71% 12% / 0.06);
+    --shadow-elevated: 0 24px 48px -18px hsl(224 76% 33% / 0.22), 0 10px 20px -8px hsl(224 71% 12% / 0.12);
 
     /* Bubble token pairs (icon backgrounds) — quiet on idle */
     --bubble-purple-bg: 250 90% 97%;
