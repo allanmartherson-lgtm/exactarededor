@@ -30,6 +30,7 @@ import {
 } from "@/lib/paymentFlow";
 import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
 import { PreviousBatchComparison } from "@/components/payment-detail/PreviousBatchComparison";
+import { ValidationChecklist } from "@/components/payment-detail/ValidationChecklist";
 import type {
   GroupRow,
   InvoiceRow,
@@ -574,6 +575,9 @@ export const PaymentGroupCard = ({
               currentTotalAmount={Number(g.total_amount)}
               currentItemsCount={g.items_count ?? 0}
             />
+          )}
+          {paymentId && ["aguardando_validacao", "aguardando_aprovacao"].includes(g.status) && (
+            <ValidationChecklist companyName={g.company_name} paymentId={paymentId} />
           )}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="text-xs text-muted-foreground">
