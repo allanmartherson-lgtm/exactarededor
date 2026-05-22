@@ -2628,6 +2628,10 @@ const PaymentDetail = () => {
             </Card>
           )}
 
+        {isAnalista && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
+          <BatchSuggestPanel items={items} onAcceptBatch={handleAcceptBatch} />
+        )}
+
         {renderHistoryCard()}
       </div>
 
