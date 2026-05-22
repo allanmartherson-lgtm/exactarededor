@@ -14,7 +14,9 @@ import {
   PanelTop,
   ChevronDown,
   Settings,
+  Menu,
 } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavLayout } from "@/contexts/NavLayoutContext";
