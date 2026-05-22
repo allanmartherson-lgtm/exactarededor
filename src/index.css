@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — slate-100 (mais contraste contra o branco do card) */
-    --background: 214 32% 94%;          /* #E8EDF3 — fundo levemente mais escuro p/ destacar cards */
+    /* Surfaces — slate-50/100 intermediário (sutil, mas card branco ainda se destaca) */
+    --background: 214 30% 96.5%;        /* #EEF1F6 — meio termo entre slate-50 e slate-100 */
     --foreground: 224 71% 12%;          /* #0B1538 deep navy text */
 
     --card: 0 0% 100%;                  /* #FFFFFF */
