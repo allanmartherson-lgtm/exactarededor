@@ -450,6 +450,9 @@ const InvoicePortal = () => {
                   </form>
                 </TabsContent>
                 <TabsContent value="question" className="mt-4 space-y-3">
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
+                    💡 <strong>Dúvida antes de emitir?</strong> Use este espaço para confirmar valores ou pedir esclarecimentos antes de emitir a nota — isso evita rejeições.
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Faltou algum item? Valor diferente? Envie sua dúvida para o analista antes de emitir a NF.
                   </p>
