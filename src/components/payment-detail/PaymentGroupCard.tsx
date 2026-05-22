@@ -177,9 +177,43 @@ export const PaymentGroupCard = ({
       <button
         type="button"
         onClick={onToggleExpanded}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+        className="w-full bg-muted/30 hover:bg-muted/50 transition-colors text-left"
         aria-expanded={groupExpandedEffective}
       >
+        {/* MOBILE: layout em 2 linhas */}
+        <div className="flex md:hidden flex-col gap-1 px-3 py-2.5 w-full">
+          <div className="flex items-center gap-2 min-w-0">
+            {groupExpandedEffective ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="font-semibold text-sm truncate flex-1 min-w-0">{g.company_name}</span>
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+              {PAYMENT_STATUS_LABELS[gStatus]}
+            </span>
+          </div>
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 pl-8 text-[11px] text-muted-foreground">
+            <span className="tabular-nums font-medium text-foreground">{formatCurrency(g.total_amount)}</span>
+            <span>· {g.items_count} itens</span>
+            {gCounts.reprovado > 0 && <span className="text-destructive font-medium">✕{gCounts.reprovado}</span>}
+            {gCounts.alerta > 0 && <span className="text-warning font-medium">⚠{gCounts.alerta}</span>}
+            {gCounts.aprovado > 0 && <span className="text-success font-medium">✓{gCounts.aprovado}</span>}
+            {validationAlertCount > 0 && <span className="text-indigo-600 font-medium">⊛{validationAlertCount}</span>}
+            {groupMaxScore > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <span className={cn("w-1.5 h-1.5 rounded-full", riskDotColor[groupRisk] ?? "bg-gray-300")} />
+                <span className="tabular-nums">{groupMaxScore}</span>
+              </span>
+            )}
+            {questionCount > 0 && <span className="text-amber-600 font-medium">💬{questionCount}</span>}
+            {nfDivergent && <span className="text-destructive font-medium">NF ⚠</span>}
+          </div>
+        </div>
+
+        {/* DESKTOP: layout original */}
+        <div className="hidden md:flex items-center justify-between gap-3 px-4 py-3 w-full">
         <div className="flex items-center gap-2 min-w-0">
           {groupExpandedEffective ? (
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -361,6 +395,7 @@ export const PaymentGroupCard = ({
               );
             })()}
           </div>
+        </div>
         </div>
       </button>
 
