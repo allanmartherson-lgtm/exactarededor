@@ -259,6 +259,39 @@ All colors MUST be HSL.
     background: hsl(var(--hover-surface));
   }
 
+  /* ============ Mobile compact dashboard ============
+   * BigStat cards: reduce padding and number size on mobile. */
+  @media (max-width: 767px) {
+    .big-stat-card {
+      padding: 14px !important;
+      gap: 8px !important;
+      border-radius: 10px !important;
+    }
+    .big-stat-card .big-stat-value {
+      font-size: 26px !important;
+    }
+    .big-stat-card .big-stat-icon {
+      width: 30px !important;
+      height: 30px !important;
+      border-radius: 8px !important;
+    }
+    .chip-group {
+      padding: 2px !important;
+    }
+    .chip-group button {
+      padding: 4px 8px !important;
+      font-size: 11px !important;
+    }
+    /* Pipeline columns: allow horizontal scroll on mobile so they don't squish to unreadable size */
+    .pipeline-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pipeline-scroll > * {
+      min-width: 560px;
+    }
+  }
+
   /* ============ Sidebar nav items ============
    * Spec: row, items-center, gap 11px, padding 10px 12px, border-radius 8px,
    * font-size 13.5px. Single line. Tokens only — no hardcoded colors. */

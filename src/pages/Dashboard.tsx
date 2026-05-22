@@ -286,6 +286,7 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
           {label}
         </span>
         <div
+          className="big-stat-icon"
           style={{
             width: 36,
             height: 36,
@@ -301,6 +302,7 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
         </div>
       </div>
       <div
+        className="big-stat-value"
         style={{
           fontSize: 36,
           fontWeight: 300,
@@ -342,14 +344,14 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
       <Link
         to={to}
         style={cardStyle}
-        className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="big-stat-card hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={`${label}: ${value}${mine ? ", sua vez" : hint ? `, ${hint}` : ""}`}
       >
         {inner}
       </Link>
     );
   }
-  return <div style={cardStyle}>{inner}</div>;
+  return <div className="big-stat-card" style={cardStyle}>{inner}</div>;
 };
 
 const BigStatSkeleton = () => (
@@ -474,7 +476,7 @@ const ChipGroup = <T extends string>({
   <div
     role="radiogroup"
     aria-label={ariaLabel}
-    className="inline-flex"
+    className="chip-group inline-flex"
     style={{
       background: "hsl(var(--muted))",
       borderRadius: 8,
@@ -1458,15 +1460,16 @@ const Dashboard = () => {
                 : allCols;
             const colCount = Math.max(visibleCols.length, 1);
             return (
-              <div
-                style={{
-                  padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
-                  gap: 0,
-                  minWidth: 0,
-                }}
-              >
+              <div className="pipeline-scroll">
+                <div
+                  style={{
+                    padding: pipelineDensity === "comfortable" ? "28px 22px" : "18px 22px",
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
+                    gap: 0,
+                    minWidth: 0,
+                  }}
+                >
                 {loading ? (
                   Array.from({ length: colCount }).map((_, i) => (
                     <PipelineColSkeleton key={i} density={pipelineDensity} separated={i > 0} />
@@ -1503,6 +1506,7 @@ const Dashboard = () => {
                     />
                   ))
                 )}
+                </div>
               </div>
             );
           })()}
