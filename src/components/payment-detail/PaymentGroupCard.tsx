@@ -29,6 +29,7 @@ import {
   effectiveItemAiStatus,
 } from "@/lib/paymentFlow";
 import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
+import { PreviousBatchComparison } from "@/components/payment-detail/PreviousBatchComparison";
 import type {
   GroupRow,
   InvoiceRow,
@@ -565,7 +566,15 @@ export const PaymentGroupCard = ({
       })()}
 
       {groupExpandedEffective && (
-        <CardContent className="border-t border-border/60 p-4">
+        <CardContent className="border-t border-border/60 p-4 space-y-3">
+          {paymentId && ["aguardando_validacao", "aguardando_aprovacao", "revisao_analista", "devolvido_analista"].includes(g.status) && (
+            <PreviousBatchComparison
+              companyName={g.company_name}
+              currentPaymentId={paymentId}
+              currentTotalAmount={Number(g.total_amount)}
+              currentItemsCount={g.items_count ?? 0}
+            />
+          )}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="text-xs text-muted-foreground">
               Toda análise, comentários e ações de fluxo desta empresa acontecem na página dedicada — abrir mantém o mesmo conjunto de dados, apenas com o ambiente de trabalho completo.
