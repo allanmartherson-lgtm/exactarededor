@@ -33,6 +33,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
+import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
@@ -265,6 +266,7 @@ export const AppLayout = () => {
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
   const initials = getInitials(user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
+  const canRetryInvoices = roles.includes("analista") || roles.includes("admin");
   const visibleTopNav = filterNav(NAV_ITEMS, roles);
   // Sidebar: flat list of ALL leaves in fixed order, filtered only by leaf-level roles.
   // Groups (Financeiro / Configurações / Acesso) are ignored here — sidebar never groups.
@@ -356,6 +358,7 @@ export const AppLayout = () => {
   if (effectiveLayout === "top") {
     return (
       <div className="min-h-screen bg-background flex flex-col">
+        {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
           className="sticky top-0 z-40 bg-card border-b border-border shadow-soft"
           style={{ height: 56 }}
@@ -434,6 +437,7 @@ export const AppLayout = () => {
   /* ============================ SIDEBAR MODE ============================ */
   return (
     <div className="min-h-screen bg-background">
+      {canRetryInvoices && <InvoiceRetryMonitor />}
       <aside
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{

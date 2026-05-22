@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import {
   Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw,
   Zap, ArrowRight, ShieldOff, FileWarning, Cpu,
-  RefreshCcw, Inbox,
+  RefreshCcw, Inbox, Brain,
   type LucideIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/status";
@@ -142,6 +142,7 @@ export default function HealthMonitoring() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [failedJobs, setFailedJobs] = useState<FailedJob[]>([]);
+  const [aiHealth, setAiHealth] = useState<{ lastAt: string | null; hoursAgo: number | null; modelUsed: string | null; hasGemini: boolean } | null>(null);
   const [retrying, setRetrying] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
@@ -269,6 +270,35 @@ export default function HealthMonitoring() {
         }
       }
       setFailedJobs(Array.from(byPayment.values()));
+
+      // 8. Saúde das funções de IA — últimas análises registradas
+      const { data: aiVersions } = await supabase
+        .from("ai_analysis_versions")
+        .select("model, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      const versions = aiVersions ?? [];
+      const lastAt = versions[0]?.created_at ?? null;
+      const modelCounts = new Map<string, number>();
+      let hasGemini = false;
+      for (const v of versions) {
+        const m = (v.model ?? "desconhecido") as string;
+        modelCounts.set(m, (modelCounts.get(m) ?? 0) + 1);
+        if (m.toLowerCase().includes("gemini")) hasGemini = true;
+      }
+      let modelUsed: string | null = null;
+      let bestCount = 0;
+      for (const [m, c] of modelCounts) {
+        if (c > bestCount) { bestCount = c; modelUsed = m; }
+      }
+      setAiHealth({
+        lastAt,
+        hoursAgo: lastAt ? horasAtras(lastAt) : null,
+        modelUsed,
+        hasGemini,
+      });
+
 
     } finally {
       setLoading(false);
@@ -710,6 +740,57 @@ export default function HealthMonitoring() {
               })}
             </div>
           )}
+        </SurfaceCard>
+      </section>
+
+      {/* ── Seção: Saúde das funções de IA ── */}
+      <section>
+        <SectionLabel>Saúde das funções de IA</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Funções de IA (Claude)"
+            icon={Brain}
+            iconColor="purple"
+            sub="Modelo em uso e atividade recente das edge functions de análise"
+          />
+          <CheckRow
+            icon={Cpu}
+            iconColor={aiHealth?.modelUsed === "claude-sonnet-4-5" ? "green" : aiHealth?.hasGemini ? "yellow" : "teal"}
+            label="Último modelo usado"
+            sub={aiHealth?.modelUsed ?? "Sem dados de modelo"}
+            status={
+              !aiHealth ? "carregando"
+              : aiHealth.modelUsed === "claude-sonnet-4-5" ? "ok"
+              : aiHealth.modelUsed?.toLowerCase().includes("gemini") ? "aviso"
+              : !aiHealth.modelUsed ? "aviso"
+              : "ok"
+            }
+          />
+          <CheckRow
+            icon={Clock}
+            iconColor={
+              !aiHealth?.hoursAgo ? "yellow"
+              : aiHealth.hoursAgo < 24 ? "green"
+              : aiHealth.hoursAgo < 72 ? "yellow"
+              : "red"
+            }
+            label="Última análise executada"
+            sub={aiHealth?.lastAt ? `há ${fmtHoras(aiHealth.hoursAgo ?? 0)}` : "Nenhuma análise registrada"}
+            status={
+              !aiHealth ? "carregando"
+              : aiHealth.hoursAgo == null ? "critico"
+              : aiHealth.hoursAgo < 24 ? "ok"
+              : aiHealth.hoursAgo < 72 ? "aviso"
+              : "critico"
+            }
+          />
+          <CheckRow
+            icon={CheckCircle2}
+            iconColor={aiHealth?.hasGemini ? "yellow" : "green"}
+            label="Migração para Claude"
+            sub={aiHealth?.hasGemini ? "Ainda há itens recentes usando Gemini" : "Todas as últimas análises rodaram em Claude"}
+            status={!aiHealth ? "carregando" : aiHealth.hasGemini ? "aviso" : "ok"}
+          />
         </SurfaceCard>
       </section>
     </div>
