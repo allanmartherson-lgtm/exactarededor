@@ -389,7 +389,7 @@ export function CompanyHistoryPanel({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mb-1">
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide",
+                        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide",
                         e.kind === "assign"
                           ? "bg-warning-soft text-warning-foreground border-warning/40"
                           : visual.badgeClass,

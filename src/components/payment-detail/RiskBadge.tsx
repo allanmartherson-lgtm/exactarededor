@@ -57,7 +57,7 @@ export function RiskBadge({
     <div className="flex items-center gap-1">
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
+          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] tabular-nums whitespace-nowrap cursor-help",
           RISK_BADGE_CLASS[level],
           className,
         )}
