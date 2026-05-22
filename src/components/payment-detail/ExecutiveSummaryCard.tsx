@@ -18,7 +18,7 @@ interface ExecutiveSummary {
 
 interface Props {
   paymentId: string;
-  payment: { processing_diagnostics?: Record<string, unknown> | null } | null;
+  payment: { processing_diagnostics?: unknown } | null;
 }
 
 const STALE_HOURS = 24;
