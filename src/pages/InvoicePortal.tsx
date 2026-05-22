@@ -418,7 +418,7 @@ const InvoicePortal = () => {
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="upload">Enviar nota</TabsTrigger>
                   <TabsTrigger value="question">
-                    <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Tenho uma dúvida
+                    <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Falar com analista
                     {questions.length > 0 && (
                       <span className="ml-1.5 rounded-full bg-warning-soft text-warning-foreground text-[10px] px-1.5">
                         {questions.length}
