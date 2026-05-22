@@ -1591,7 +1591,7 @@ function KpiCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "text-left rounded-2xl border bg-card shadow-card transition-all p-4 flex items-center gap-3 hover:shadow-md",
+        "text-left rounded-xl border bg-card shadow-sm transition-all p-4 flex items-center gap-3 hover:shadow-md",
         toneClasses[tone],
         active && "ring-2 ring-offset-1 ring-current",
       )}

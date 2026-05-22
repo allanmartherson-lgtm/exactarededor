@@ -56,7 +56,7 @@ export const CompanyListLegend = () => {
       <span className="text-border">|</span>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700 cursor-default">
+          <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700 cursor-default">
             ✓ Concluída
           </span>
         </TooltipTrigger>

@@ -1209,7 +1209,7 @@ const PaymentDetail = () => {
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2 text-xs">
                         <span className="font-mono rounded bg-muted px-1.5 py-0.5">v{v.version}</span>
-                        <span className={`inline-flex rounded-full border px-2 py-0.5 ${TONE_CLASSES[itemToneMap[v.ai_status as ItemAiStatus]] ?? TONE_CLASSES.muted}`}>
+                        <span className={`inline-flex rounded-md border px-2 py-0.5 ${TONE_CLASSES[itemToneMap[v.ai_status as ItemAiStatus]] ?? TONE_CLASSES.muted}`}>
                           {v.ai_status}
                         </span>
                         <span className="text-muted-foreground">{itemLabel(v.item_id)}</span>
@@ -1326,7 +1326,7 @@ const PaymentDetail = () => {
                         <span className="font-medium">{it.doctor_name}</span>
                         <span className="text-muted-foreground"> · {it.attendance_number ?? "—"} · {it.procedure_code ?? ""}</span>
                       </div>
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span>
+                      <span className={`inline-flex rounded-md border px-2 py-0.5 ${TONE_CLASSES[itemToneMap[it.ai_status as ItemAiStatus]]}`}>{it.ai_status}</span>
                     </div>
                     <Textarea
                       rows={2}

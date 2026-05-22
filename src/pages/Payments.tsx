@@ -690,7 +690,7 @@ const Payments = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-foreground"
+                      className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-foreground"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <AlertTriangle className="h-3 w-3" /> Questionamento ({openQuestionCount[p.id]})

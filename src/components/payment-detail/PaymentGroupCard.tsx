@@ -190,24 +190,24 @@ export const PaymentGroupCard = ({
           </span>
           <div className="hidden md:flex items-center gap-1 ml-2">
             {gCounts.aprovado > 0 && (
-              <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>
+              <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.success}`}>
                 ✓ {gCounts.aprovado}
               </span>
             )}
             {gCounts.alerta > 0 && (
-              <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.warning}`}>
+              <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.warning}`}>
                 ⚠ {gCounts.alerta}
               </span>
             )}
             {gCounts.reprovado > 0 && (
-              <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>
+              <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>
                 ✕ {gCounts.reprovado}
               </span>
             )}
             {validationAlertCount > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">
+                  <span className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">
                     ⊛ {validationAlertCount}
                   </span>
                 </TooltipTrigger>
@@ -221,7 +221,7 @@ export const PaymentGroupCard = ({
             {nfDivergent && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>
+                  <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${TONE_CLASSES.destructive}`}>
                     <Receipt className="h-3 w-3" /> NF divergente
                   </span>
                 </TooltipTrigger>
@@ -236,7 +236,7 @@ export const PaymentGroupCard = ({
           {questionCount > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ml-1">
+                <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ml-1">
                   <MessageCircle className="h-3 w-3" /> {questionCount}
                 </span>
               </TooltipTrigger>
@@ -330,7 +330,7 @@ export const PaymentGroupCard = ({
                 return (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium cursor-default whitespace-nowrap", cls)}>
+                      <span className={cn("inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium cursor-default whitespace-nowrap", cls)}>
                         <Icon className="h-3 w-3" /> {label}
                       </span>
                     </TooltipTrigger>

@@ -223,7 +223,7 @@ export const PaymentTimeline = ({
         <div className="flex items-center gap-2 flex-wrap text-xs mb-1">
           {isInternalQuestion && (
             <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide text-[10px] font-semibold ${
+              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide text-[10px] font-semibold ${
                 isResolved
                   ? "border-border bg-muted text-muted-foreground"
                   : "border-info/40 bg-info-soft text-info"
@@ -233,7 +233,7 @@ export const PaymentTimeline = ({
               {isResolved ? "Respondida" : "Pergunta"}
             </span>
           )}
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 uppercase tracking-wide ${visual.badgeClass}`}>
+          <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide ${visual.badgeClass}`}>
             <RoleIcon className="h-3 w-3" />
             {authorRoleLabel(o.author_type)}
           </span>
