@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, AlertTriangle, DollarSign, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, AlertTriangle, DollarSign, FileText, History, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -18,7 +19,9 @@ import autoTable from "jspdf-autotable";
 import { MultiSelectChips } from "@/components/MultiSelectChips";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { RULE_SECTOR_LABELS, type RuleSector, PAYMENT_TYPE_LABELS, type PaymentType, formatCurrency } from "@/lib/status";
-import { formatDateTimeBR } from "@/lib/dateUtils";
+import { formatDateTimeBR, formatDateBR } from "@/lib/dateUtils";
+import { useAuth } from "@/contexts/AuthContext";
+import { recordAudit, buildDiff } from "@/lib/audit";
 import type { Database } from "@/integrations/supabase/types";
 
 type ValidationRule = Database["public"]["Tables"]["validation_rules"]["Row"];
@@ -44,11 +47,23 @@ const KIND_LABELS: Record<Kind, string> = {
 // Tipos antigos não listados continuam sendo exibidos em regras já cadastradas.
 const VISIBLE_KINDS: Kind[] = [
   "duplicidade_exata",
+  "duplicidade_atendimento",
   "sobreposicao_assistencial",
   "parecer_virou_cirurgia",
   "restricao_contratual",
   "outlier_valor",
+  "codigo_sem_dobra",
+  "codigo_nao_remuneravel",
+  "item_em_pacote",
+  "particular_sem_excecao",
 ];
+
+const KINDS_NOT_IMPLEMENTED = new Set<Kind>([
+  "codigo_sem_dobra",
+  "codigo_nao_remuneravel",
+  "item_em_pacote",
+  "particular_sem_excecao",
+]);
 
 const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
   duplicidade_exata:
@@ -61,6 +76,14 @@ const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
     "Item pode estar coberto pelo contrato fixo do médico ou empresa. O sistema verifica horário, dia da semana e código TUSS conforme o acordo. Requer confirmação do analista consultando a evolução clínica.",
   outlier_valor:
     "Valor acima do percentil configurado em relação ao histórico do mesmo procedimento. Apenas sinaliza para investigação — não bloqueia.",
+  codigo_sem_dobra:
+    "Código TUSS sem dobra ou acordo contratado — sinaliza para o analista verificar a tabela de exceções.",
+  codigo_nao_remuneravel:
+    "Código listado como não remunerável pelo convênio. Impede pagamento até autorização explícita.",
+  item_em_pacote:
+    "Procedimento já incluído no pacote fechado do mesmo atendimento — não deve ser faturado separadamente.",
+  particular_sem_excecao:
+    "Item de convênio particular cobrado sem exceção autorizada pelo diretor.",
 };
 
 const SEVERITY_LABELS: Record<Severity, string> = {
@@ -104,6 +127,13 @@ const ACTION_TO_SEVERITY: Record<Action, Severity> = {
   alerta_forte: "alerta_forte",
   bloquear: "bloquear",
 };
+
+const ACTION_GROUPS = [
+  { action: "bloquear", label: "🔴 Bloqueios", color: "border-red-200 bg-red-50" },
+  { action: "alerta_forte", label: "🟠 Alertas críticos", color: "border-orange-200 bg-orange-50" },
+  { action: "alerta", label: "🟡 Alertas", color: "border-amber-200 bg-amber-50" },
+  { action: "informar", label: "ℹ️ Informativos", color: "border-slate-200 bg-slate-50" },
+] as const;
 
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
@@ -166,6 +196,10 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
         same_attendance_type: true,
         same_procedure: true,
       } satisfies OutlierParams;
+    case "codigo_sem_dobra": return {};
+    case "codigo_nao_remuneravel": return {};
+    case "item_em_pacote": return {};
+    case "particular_sem_excecao": return {};
     default:
       return {};
   }
@@ -222,10 +256,19 @@ export default function ValidationRules() {
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
   const [ruleImpact, setRuleImpact] = useState<Map<string, { alertas: number; valor: number; lotes: number }>>(new Map());
   const [impactItems, setImpactItems] = useState<any[]>([]);
+  const [expiringPaymentRules, setExpiringPaymentRules] = useState<{ id: string; name: string; valid_until: string }[]>([]);
+  const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>({});
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyRule, setHistoryRule] = useState<ValidationRule | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const { user } = useAuth();
 
   const load = async () => {
     setLoading(true);
-    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+    const in30 = new Date(Date.now() + 30 * 24 * 3600000).toISOString().slice(0, 10);
+    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }, { data: expiring }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
       supabase.from("companies").select("id, name"),
@@ -234,7 +277,17 @@ export default function ValidationRules() {
         .select("id, gross_amount, payment_id, validation_findings")
         .not("validation_findings", "is", null)
         .neq("validation_findings", "[]"),
+      supabase
+        .from("rules")
+        .select("id, name, valid_until")
+        .not("valid_until", "is", null)
+        .gte("valid_until", today)
+        .lte("valid_until", in30)
+        .eq("active", true)
+        .order("valid_until", { ascending: true })
+        .limit(10),
     ]);
+    setExpiringPaymentRules((expiring ?? []) as any);
     setRules(vr ?? []);
     setGroups(ag ?? []);
 
@@ -309,6 +362,7 @@ export default function ValidationRules() {
 
   const save = async () => {
     if (!form.name.trim()) { toast.error("Informe o nome da validação"); return; }
+    const originalRule = form.id ? rules.find(r => r.id === form.id) ?? null : null;
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || null,
@@ -327,9 +381,20 @@ export default function ValidationRules() {
       assistance_group_id: form.kind === "sobreposicao_assistencial" ? form.assistance_group_id : null,
     };
     const res = form.id
-      ? await supabase.from("validation_rules").update(payload).eq("id", form.id)
-      : await supabase.from("validation_rules").insert(payload);
+      ? await supabase.from("validation_rules").update(payload).eq("id", form.id).select("id")
+      : await supabase.from("validation_rules").insert(payload).select("id");
     if (res.error) { toast.error(res.error.message); return; }
+    const savedId = form.id ?? (res.data as any)?.[0]?.id;
+    if (savedId && user) {
+      await recordAudit({
+        entityType: "validation_rule" as any,
+        entityId: savedId,
+        action: form.id ? "update" : "create",
+        actorId: user.id,
+        company: null,
+        diff: buildDiff(originalRule as any, payload as any),
+      });
+    }
     toast.success(form.id ? "Validação atualizada" : "Validação criada");
     setOpen(false);
     load();
@@ -341,6 +406,28 @@ export default function ValidationRules() {
     if (error) { toast.error(error.message); return; }
     toast.success("Validação removida");
     load();
+  };
+
+  const openHistory = async (r: ValidationRule) => {
+    setHistoryRule(r);
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("audit_log")
+      .select("action, actor_id, created_at, diff")
+      .eq("entity_type", "validation_rule")
+      .eq("entity_id", r.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    const entries = data ?? [];
+    const actorIds = Array.from(new Set(entries.map((e: any) => e.actor_id).filter(Boolean)));
+    let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+    if (actorIds.length) {
+      const { data: pr } = await supabase.from("profiles").select("id, full_name, email").in("id", actorIds);
+      (pr ?? []).forEach((p: any) => { profilesMap[p.id] = { full_name: p.full_name, email: p.email }; });
+    }
+    setHistoryEntries(entries.map((e: any) => ({ ...e, profiles: e.actor_id ? profilesMap[e.actor_id] : null })));
+    setHistoryLoading(false);
   };
 
   const exportRuleToPDF = (r: ValidationRule) => {
@@ -796,6 +883,26 @@ export default function ValidationRules() {
         );
       })()}
 
+      {expiringPaymentRules.length > 0 && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
+          <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            {expiringPaymentRules.length} regra(s) de pagamento expira(m) nos próximos 30 dias
+          </p>
+          <ul className="space-y-1">
+            {expiringPaymentRules.map(r => (
+              <li key={r.id} className="text-xs text-amber-800 flex items-center justify-between">
+                <span>{r.name}</span>
+                <span className="font-mono">{formatDateBR(r.valid_until)}</span>
+              </li>
+            ))}
+          </ul>
+          <Link to="/regras/pagamento" className="text-xs text-amber-700 underline">
+            Gerenciar regras de pagamento →
+          </Link>
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-lg border border-border">
         <div className="flex items-center gap-2 text-muted-foreground mr-2">
           <Filter className="h-4 w-4" />
@@ -803,8 +910,8 @@ export default function ValidationRules() {
         </div>
         <div className="relative flex-1 max-w-sm">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por nome, PJ (empresa) ou tipo…" 
+          <Input
+            placeholder="Buscar por nome, PJ (empresa) ou tipo…"
             className="pl-9 bg-background"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
@@ -815,7 +922,7 @@ export default function ValidationRules() {
         </p>
       </div>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 space-y-4">
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
         ) : filteredRules.length === 0 ? (
@@ -823,62 +930,97 @@ export default function ValidationRules() {
             {filterText ? "Nenhuma validação encontrada para esta busca." : "Nenhuma validação cadastrada. Comece criando duplicidade exata e por atendimento."}
           </div>
         ) : (
-          filteredRules.map((r) => (
-            <div key={r.id} className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
-              <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{r.name}</span>
-                  <Badge variant="outline" className={ACTION_BADGE_VARIANT[r.action]}>{ACTION_BADGE_LABELS[r.action]}</Badge>
-                  <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
-                  {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
-                  {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
-                </div>
-                {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Ação: {ACTION_LABELS[r.action]}
-                  {r.require_justification && " · Justificativa obrigatória"}
-                  {r.allows_authorized_exception && " · Permite exceção autorizada"}
-                </p>
-                {r.company_ids && (r.company_ids as string[]).length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {(r.company_ids as string[]).map(id => (
-                      <Badge key={id} variant="secondary" className="text-[10px] py-0 px-1 font-normal opacity-80">
-                        {allCompaniesMap[id] || id.slice(0, 8)}
-                      </Badge>
+          ACTION_GROUPS.map(({ action, label, color }) => {
+            const rulesInGroup = filteredRules.filter(r => r.action === action);
+            if (rulesInGroup.length === 0) return null;
+            const collapsed = !!groupCollapsed[action];
+            const totalAlerts = rulesInGroup.reduce((acc, r) => acc + (ruleImpact.get(r.id)?.alertas ?? 0), 0);
+            return (
+              <div key={action} className={`rounded-lg border ${color}`}>
+                <button
+                  type="button"
+                  onClick={() => setGroupCollapsed(prev => ({ ...prev, [action]: !prev[action] }))}
+                  className="w-full flex items-center gap-2 p-3 text-left"
+                >
+                  {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span className="text-sm font-semibold">{label}</span>
+                  <Badge variant="outline" className="bg-white/70">{rulesInGroup.length} regra{rulesInGroup.length !== 1 ? "s" : ""}</Badge>
+                  {totalAlerts > 0 && (
+                    <Badge variant="outline" className="bg-white/70 text-amber-700 border-amber-200">
+                      {totalAlerts} alerta{totalAlerts !== 1 ? "s" : ""} ativo{totalAlerts !== 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </button>
+                {!collapsed && (
+                  <div className="px-3 pb-3 space-y-2">
+                    {rulesInGroup.map((r) => (
+                      <div key={r.id} className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
+                        <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{r.name}</span>
+                            <Badge variant="outline" className={ACTION_BADGE_VARIANT[r.action]}>{ACTION_BADGE_LABELS[r.action]}</Badge>
+                            <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
+                            {KINDS_NOT_IMPLEMENTED.has(r.kind as Kind) && (
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px]">
+                                ⚠ Motor em breve
+                              </Badge>
+                            )}
+                            {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
+                            {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
+                          </div>
+                          {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Ação: {ACTION_LABELS[r.action]}
+                            {r.require_justification && " · Justificativa obrigatória"}
+                            {r.allows_authorized_exception && " · Permite exceção autorizada"}
+                          </p>
+                          {r.company_ids && (r.company_ids as string[]).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {(r.company_ids as string[]).map(id => (
+                                <Badge key={id} variant="secondary" className="text-[10px] py-0 px-1 font-normal opacity-80">
+                                  {allCompaniesMap[id] || id.slice(0, 8)}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          {(() => {
+                            const impact = ruleImpact.get(r.id);
+                            if (!impact) return null;
+                            return (
+                              <div className="mt-2 flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
+                                  <FileText className="h-3 w-3" />
+                                  <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => openHistory(r)} title="Histórico"><History className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
-                {(() => {
-                  const impact = ruleImpact.get(r.id);
-                  if (!impact) return null;
-                  return (
-                    <div className="mt-2 flex items-center gap-3 flex-wrap">
-                      <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
-                        <FileText className="h-3 w-3" />
-                        <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
 
       {groups.length > 0 && (
         <div className="mt-10">
@@ -942,7 +1084,7 @@ export default function ValidationRules() {
                       </span>
                       <div className="flex flex-col gap-0.5">
                         <SelectPrimitive.ItemText>
-                          <span className="font-medium text-sm">{KIND_LABELS[k]}</span>
+                          <span className="font-medium text-sm">{KIND_LABELS[k]}{KINDS_NOT_IMPLEMENTED.has(k) ? " (em breve)" : ""}</span>
                         </SelectPrimitive.ItemText>
                         {KIND_DESCRIPTIONS[k] && (
                           <span className="text-xs text-muted-foreground whitespace-normal leading-snug">
@@ -1090,6 +1232,36 @@ export default function ValidationRules() {
             <Button variant="outline" onClick={() => setGroupOpen(false)}>Cancelar</Button>
             <Button onClick={saveGroup}>Salvar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico — {historyRule?.name}</DialogTitle>
+          </DialogHeader>
+          {historyLoading ? (
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : historyEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum registro de auditoria encontrado.</p>
+          ) : (
+            <ul className="space-y-3">
+              {historyEntries.map((entry, i) => {
+                const profile = entry.profiles;
+                const actor = profile?.full_name || profile?.email || entry.actor_id?.slice(0, 8) || "—";
+                const actionLabel = entry.action === "create" ? "Criou" : entry.action === "update" ? "Editou" : entry.action === "delete" ? "Excluiu" : entry.action;
+                return (
+                  <li key={i} className="border-b border-border pb-2 last:border-0">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium">{actor}</span>
+                      <span className="text-muted-foreground">{formatDateTimeBR(entry.created_at)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{actionLabel} a regra</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </DialogContent>
       </Dialog>
     </div>
