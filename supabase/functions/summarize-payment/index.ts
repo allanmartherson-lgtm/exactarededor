@@ -47,7 +47,7 @@ serve(async (req) => {
     // 1. Pagamento
     const { data: payment, error: pErr } = await supabase
       .from("payments")
-      .select("id, reference, title, status, total_amount, competence_month, items_count, processing_diagnostics, sla_due_at")
+      .select("id, reference, status, total_amount, competence_month, items_count, processing_diagnostics")
       .eq("id", payment_id)
       .maybeSingle();
 
