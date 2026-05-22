@@ -1114,6 +1114,7 @@ function RowMain({
       {isExpanded && (
         <ItemDetailsRow
           it={it}
+          allItems={allItems}
           rulesIndex={rulesIndex}
           rulesByName={rulesByName}
           observations={observations}
@@ -1128,6 +1129,7 @@ function RowMain({
 
 function ItemDetailsRow({
   it,
+  allItems,
   rulesIndex,
   rulesByName,
   observations,
@@ -1136,6 +1138,7 @@ function ItemDetailsRow({
   showTipoEntrada,
 }: {
   it: PaymentItemRowData;
+  allItems: PaymentItemRowData[];
   rulesIndex: Record<string, RuleLite>;
   rulesByName: Record<string, RuleLite>;
   observations: ObservationRow[];
