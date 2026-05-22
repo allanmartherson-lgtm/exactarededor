@@ -8,75 +8,75 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — Cloud White, Apple-like minimal */
-    --background: 210 20% 98%;          /* #FAFBFC */
-    --foreground: 222 47% 11%;          /* #0F172A */
+    /* Surfaces — slate-50, institucional (DF Parecer) */
+    --background: 210 40% 98%;          /* #F8FAFC slate-50 */
+    --foreground: 224 71% 12%;          /* #0B1538 deep navy text */
 
     --card: 0 0% 100%;                  /* #FFFFFF */
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 224 71% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 71% 12%;
 
-    /* Brand: airy blue (#3B82F6) */
-    --primary: 217 91% 60%;             /* #3B82F6 */
+    /* Brand: navy institucional #1e3a8a */
+    --primary: 224 76% 33%;             /* #1e3a8a blue-900 */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 95% 97%;        /* very light blue tint */
-    --primary-glow: 217 91% 65%;
+    --primary-soft: 226 100% 96%;       /* indigo-50 tint */
+    --primary-glow: 217 91% 60%;        /* blue-500 — usado em gradiente */
 
     /* Brand secondary: MedPay copper (#9A6B3A) — CTA destacado em fluxos operacionais */
     --copper: 28 45% 42%;               /* #9A6B3A */
     --copper-foreground: 0 0% 100%;
-    --copper-hover: 28 46% 35%;         /* #825a30 */
-    --copper-active: 28 47% 29%;        /* #6e4c28 */
-    --copper-soft: 32 80% 96%;          /* #fdf5ec — fundo suave */
+    --copper-hover: 28 46% 35%;
+    --copper-active: 28 47% 29%;
+    --copper-soft: 32 80% 96%;
 
-    --secondary: 214 21% 93%;           /* #E8ECF1 — border / surface */
-    --secondary-foreground: 215 19% 35%;/* #475569 */
+    --secondary: 220 14% 93%;           /* #E5E9F0 — surface neutra */
+    --secondary-foreground: 224 30% 28%;/* #364463 */
 
-    --muted: 210 20% 98%;               /* #FAFBFC */
-    --muted-foreground: 215 16% 47%;    /* #94A3B8 — labels, muted text */
-    --text-tertiary: 213 27% 84%;       /* #CBD5E1 — idle zero numbers */
+    --muted: 210 40% 98%;               /* #F8FAFC */
+    --muted-foreground: 215 16% 47%;    /* #64748B slate-500 */
+    --text-tertiary: 215 20% 78%;       /* #B6C0CE — meta idle */
 
-    --accent: 214 95% 97%;              /* primary @ 5% as bg */
-    --accent-foreground: 217 91% 60%;   /* primary */
+    --accent: 226 100% 96%;             /* primary tint */
+    --accent-foreground: 224 76% 33%;   /* primary */
 
-    /* Status semantics — quiet, only used where it guides the eye */
-    --success: 152 60% 36%;
-    --success-foreground: 152 67% 22%;
-    --success-soft: 150 60% 92%;
+    /* Status semantics — paleta DF Parecer (cyan / green / amber / red) */
+    --success: 142 71% 38%;             /* #16A34A green-600 */
+    --success-foreground: 0 0% 100%;
+    --success-soft: 138 76% 93%;        /* green-50 */
 
-    --warning: 32 95% 44%;
-    --warning-foreground: 26 84% 35%;
-    --warning-soft: 48 96% 89%;
+    --warning: 38 92% 50%;              /* #F59E0B amber-500 */
+    --warning-foreground: 26 84% 18%;
+    --warning-soft: 48 96% 89%;         /* amber-100 */
 
-    --info: 217 91% 60%;
-    --info-foreground: 217 91% 45%;
-    --info-soft: 214 95% 97%;
+    --info: 199 89% 48%;                /* #0EA5E9 sky-500 */
+    --info-foreground: 0 0% 100%;
+    --info-soft: 204 94% 94%;           /* sky-100 */
 
-    --destructive: 0 73% 41%;
+    --destructive: 0 84% 60%;           /* #EF4444 red-500 */
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 93% 94%;
 
-    --border: 214 22% 88%;              /* #D6DCE4 — divisórias agora visíveis (era 93%, baixo contraste) */
-    --border-strong: 215 25% 72%;       /* #9FB0C2 — hairlines de controle (WCAG AA contra bg) */
-    --border-highlight: 0 0% 100%;      /* white — linha de luz inferior (efeito carved) */
-    --input: 215 25% 72%;               /* mesma do border-strong p/ controles */
-    --input-bg: 0 0% 100%;              /* #FFFFFF — fundo de input/select */
-    --ring: 217 91% 60%;
-    --ring-soft: 217 91% 60% / 0.35;    /* anel de foco visível em baixa visão */
-    --track-soft: 215 25% 78%;          /* track unchecked do Switch — mais legível */
-    --shadow-inset: inset 0 1px 2px hsl(222 47% 11% / 0.05);
-    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(222 47% 11% / 0.03);
+    --border: 220 16% 88%;              /* slate-200-ish */
+    --border-strong: 215 20% 68%;       /* hairlines */
+    --border-highlight: 0 0% 100%;
+    --input: 215 20% 68%;
+    --input-bg: 0 0% 100%;
+    --ring: 199 89% 48%;                /* cyan focus ring */
+    --ring-soft: 199 89% 48% / 0.35;
+    --track-soft: 215 20% 78%;
+    --shadow-inset: inset 0 1px 2px hsl(224 71% 12% / 0.05);
+    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(224 71% 12% / 0.04);
 
-    --radius: 0.875rem;                 /* 14px — friendlier, Apple-ish */
+    --radius: 0.875rem;                 /* 14px */
 
-    /* Gradients & shadows — soft elevation */
-    --gradient-brand: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 65%));
-    --gradient-soft: linear-gradient(135deg, hsl(214 95% 97%), hsl(210 20% 98%));
-    --shadow-soft: 0 1px 2px 0 hsl(222 47% 11% / 0.03), 0 1px 3px 0 hsl(222 47% 11% / 0.04);
-    --shadow-card: 0 1px 3px 0 hsl(222 47% 11% / 0.05), 0 1px 2px -1px hsl(222 47% 11% / 0.03);
-    --shadow-elevated: 0 20px 40px -16px hsl(217 91% 60% / 0.15), 0 8px 16px -8px hsl(222 47% 11% / 0.06);
+    /* Gradients & shadows */
+    --gradient-brand: linear-gradient(135deg, hsl(224 76% 33%), hsl(217 91% 50%));
+    --gradient-soft: linear-gradient(135deg, hsl(226 100% 96%), hsl(210 40% 98%));
+    --shadow-soft: 0 1px 2px 0 hsl(224 71% 12% / 0.04), 0 1px 3px 0 hsl(224 71% 12% / 0.05);
+    --shadow-card: 0 1px 3px 0 hsl(224 71% 12% / 0.06), 0 1px 2px -1px hsl(224 71% 12% / 0.04);
+    --shadow-elevated: 0 20px 40px -16px hsl(224 76% 33% / 0.18), 0 8px 16px -8px hsl(224 71% 12% / 0.08);
 
     /* Bubble token pairs (icon backgrounds) — quiet on idle */
     --bubble-purple-bg: 250 90% 97%;
