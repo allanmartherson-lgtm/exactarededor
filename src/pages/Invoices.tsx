@@ -462,6 +462,46 @@ const Invoices = () => {
                       </div>
                     </div>
 
+                    {/* CNPJ check — NF recebida */}
+                    {i.status === "recebida" && i.ai_extracted_cnpj && (() => {
+                      const cadastro = i.company_id ? companyDocs.get(i.company_id) ?? null : null;
+                      const ok = !!cadastro && onlyDigits(cadastro) === onlyDigits(i.ai_extracted_cnpj || "");
+                      if (ok) {
+                        return (
+                          <div className="px-5 pb-2 -mt-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
+                              <ShieldCheck className="h-3 w-3" aria-hidden /> CNPJ conferido
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="mx-5 mb-3 -mt-1 rounded-md border border-destructive/40 bg-destructive/5 p-3 flex items-start gap-2">
+                          <ShieldAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" aria-hidden />
+                          <div className="min-w-0 flex-1 text-[12px]">
+                            <p className="font-medium text-destructive">CNPJ da NF diverge do cadastro</p>
+                            <p className="text-muted-foreground mt-0.5">
+                              NF: <span className="tabular-nums">{formatCNPJ(i.ai_extracted_cnpj)}</span>
+                              {" · "}Cadastro:{" "}
+                              <span className="tabular-nums">
+                                {cadastro ? formatCNPJ(cadastro) : "não cadastrado"}
+                              </span>
+                            </p>
+                          </div>
+                          {canActOnNF && (
+                            <button
+                              type="button"
+                              className="list-row__btn shrink-0"
+                              disabled={busyId === i.id}
+                              onClick={() => markDivergente(i)}
+                            >
+                              Marcar como divergente
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Linha extra ocupando largura inteira: notas/erros/IA */}
                     {(i.reconciliation_notes || i.send_error || i.ai_validation) && (
                       <div className="px-5 pb-3 -mt-2 space-y-1.5 text-[12px]">
