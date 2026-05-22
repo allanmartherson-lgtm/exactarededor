@@ -71,6 +71,7 @@ export function useQueueNotifications() {
       if (opts.kind === "warning") toast.warning(opts.title, payload);
       else if (opts.kind === "success") toast.success(opts.title, payload);
       else toast.info(opts.title, payload);
+      notificationStore.add({ title: opts.title, description: opts.description, kind: opts.kind, paymentId: opts.paymentId });
     };
 
     const handleStatusChange = (
