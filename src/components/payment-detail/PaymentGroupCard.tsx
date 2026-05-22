@@ -29,6 +29,7 @@ import {
   effectiveItemAiStatus,
 } from "@/lib/paymentFlow";
 import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
+import { PreviousBatchComparison } from "@/components/payment-detail/PreviousBatchComparison";
 import type {
   GroupRow,
   InvoiceRow,
