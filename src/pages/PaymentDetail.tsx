@@ -43,6 +43,7 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
+import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import type {
   PaymentItemRow as PaymentItemRowType,
