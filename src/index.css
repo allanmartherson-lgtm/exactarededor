@@ -282,6 +282,14 @@ All colors MUST be HSL.
       padding: 4px 8px !important;
       font-size: 11px !important;
     }
+    /* Pipeline columns: allow horizontal scroll on mobile so they don't squish to unreadable size */
+    .pipeline-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pipeline-scroll > * {
+      min-width: 560px;
+    }
   }
 
   /* ============ Sidebar nav items ============
