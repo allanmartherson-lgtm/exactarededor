@@ -1605,6 +1605,10 @@ const NewPayment = () => {
           </CardContent>
         </Card>
 
+        {uniqueCompanyNames.length > 0 && (
+          <CompanyRiskProfileList companyNames={uniqueCompanyNames} />
+        )}
+
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button onClick={submit} disabled={submitting || allRows.length === 0}>
