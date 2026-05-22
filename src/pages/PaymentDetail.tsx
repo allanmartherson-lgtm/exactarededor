@@ -2548,6 +2548,8 @@ const PaymentDetail = () => {
             group={releaseGroup}
             onSuccess={() => { setReleaseGroup(null); load(); }}
           />
+        </>
+        )}
 
 
           {/* (Footer Executivo foi movido para antes dos filtros operacionais) */}
