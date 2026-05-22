@@ -286,6 +286,7 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
           {label}
         </span>
         <div
+          className="big-stat-icon"
           style={{
             width: 36,
             height: 36,
@@ -301,6 +302,7 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
         </div>
       </div>
       <div
+        className="big-stat-value"
         style={{
           fontSize: 36,
           fontWeight: 300,
