@@ -146,9 +146,14 @@ serve(async (req) => {
         mensagem: String(o.message ?? "").slice(0, 300),
         data: o.created_at,
       })),
+      excecoes_autorizadas: {
+        total: excecoesCount,
+        impacto_total: excecoesImpacto,
+        amostra: excecoesAmostra,
+      },
     };
 
-    const systemPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
+    const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
 
 REGRAS:
 - Seja conciso, técnico e prático. Nada de jargão vago.
@@ -162,6 +167,31 @@ REGRAS:
   - alto: 30-60% alertas OU concentração forte em 1 empresa OU SLA apertado
   - critico: >60% alertas OU SLA vencido OU sinais combinados
 - recommended_action: 1 frase com a próxima ação concreta sugerida.`;
+
+    const directorPrompt = `Você é um auditor sênior preparando um BRIEFING DE APROVAÇÃO para o Diretor Financeiro de uma rede hospitalar, em português do Brasil.
+
+CONTEXTO: O lote está em "aguardando_aprovacao". O Diretor precisa decidir entre aprovar, aprovar com ressalva ou devolver ao validador.
+
+REGRAS:
+- Tom formal, executivo, orientado à DECISÃO. Nada de jargão técnico desnecessário.
+- Use somente fatos presentes no contexto JSON. Nunca invente.
+- Headline: 1 frase sintetizando o lote e o nível de confiança para aprovação.
+- Bullets (3 a 6): foque em
+  1) Exceções autorizadas pelos analistas (quantidade, impacto financeiro, padrões)
+  2) Sinais de risco residual (alertas não tratados, concentração em médicos/empresas)
+  3) SLA e pendências
+  4) Sinal de qualidade da revisão (observações da equipe)
+- risk_level (sob a ótica de aprovação):
+  - baixo: revisão completa, exceções justificadas, sem sinais críticos → aprovar tranquilo
+  - medio: pequenas ressalvas, mas sem bloqueador
+  - alto: exceções relevantes sem justificativa clara OU concentração forte → exigir atenção
+  - critico: sinais combinados de risco, lote provavelmente deve ser devolvido
+- recommended_action: OBRIGATORIAMENTE uma destas frases exatas:
+  * "Aprovar o lote"
+  * "Aprovar com ressalva"
+  * "Devolver ao validador para revisão"`;
+
+    const systemPrompt = mode === "director" ? directorPrompt : generalPrompt;
 
     const aiResp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
