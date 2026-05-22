@@ -48,7 +48,7 @@ const fmtBRL = (n: number) =>
 
 export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
   const allowed = roles.includes("diretor") || roles.includes("admin");
-  const statusOk = payment?.status === "aguardando_aprovacao";
+  const statusOk = ["aguardando_aprovacao", "aprovado_em_revisao"].includes(payment?.status ?? "");
 
   const cached = (payment?.processing_diagnostics as Record<string, unknown> | undefined)?.director_briefing as
     | DirectorBriefing
