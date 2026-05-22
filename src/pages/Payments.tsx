@@ -106,6 +106,35 @@ const PaymentRiskBadgeInline = ({ paymentId, compact = false }: { paymentId: str
   );
 };
 
+/** Badge de prioridade por lote — combina risco + SLA + tempo parado + valor. */
+const PaymentPriorityBadgeInline = ({
+  paymentId,
+  slaLevel,
+  elapsedDays,
+  status,
+  totalAmount,
+  itemsCount,
+}: {
+  paymentId: string;
+  slaLevel: "ok" | "preventivo" | "vencido" | null;
+  elapsedDays: number;
+  status: string;
+  totalAmount: number;
+  itemsCount: number;
+}) => {
+  const risk = usePaymentRisk(paymentId);
+  const priority = calcPriorityScore({
+    slaLevel,
+    elapsedDays,
+    riskScore: risk?.score ?? 0,
+    status,
+    totalAmount,
+    itemsCount,
+  });
+  return <PriorityBadge score={priority} />;
+};
+
+
 const Payments = () => {
   const { roles, user } = useAuth();
   const isAnalista = roles.includes("analista") || roles.includes("admin");
