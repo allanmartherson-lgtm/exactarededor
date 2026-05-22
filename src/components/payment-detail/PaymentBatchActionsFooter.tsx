@@ -347,6 +347,7 @@ export function PaymentBatchActionsFooter({
                 value={approveNote}
                 onChange={(e) => setApproveNote(e.target.value)}
                 rows={3}
+                className="text-base md:text-sm"
               />
             </div>
           </div>
