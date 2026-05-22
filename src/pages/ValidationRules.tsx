@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, AlertTriangle, DollarSign, FileText, History, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, FileDown, Search, Filter, Check, AlertTriangle, DollarSign, FileText, History, Clock, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
