@@ -1633,6 +1633,7 @@ const PaymentDetail = () => {
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+        {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
         <PreAnalysisScoreCard payment={payment} />
         {id && <DoctorAnomalyAlerts paymentId={id} />}
         {segregationBlocked && (
