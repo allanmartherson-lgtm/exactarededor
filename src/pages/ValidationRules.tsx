@@ -128,6 +128,13 @@ const ACTION_TO_SEVERITY: Record<Action, Severity> = {
   bloquear: "bloquear",
 };
 
+const ACTION_GROUPS = [
+  { action: "bloquear", label: "🔴 Bloqueios", color: "border-red-200 bg-red-50" },
+  { action: "alerta_forte", label: "🟠 Alertas críticos", color: "border-orange-200 bg-orange-50" },
+  { action: "alerta", label: "🟡 Alertas", color: "border-amber-200 bg-amber-50" },
+  { action: "informar", label: "ℹ️ Informativos", color: "border-slate-200 bg-slate-50" },
+] as const;
+
 const PAYMENT_TYPE_KEYS: PaymentType[] = ["producao", "remessa", "valor_fixo", "plantao"];
 
 type DupExataParams = { compare_attendance: boolean; compare_patient: boolean; compare_date: boolean; compare_code: boolean; compare_doctor: boolean; compare_role: boolean; compare_access_route: boolean };
