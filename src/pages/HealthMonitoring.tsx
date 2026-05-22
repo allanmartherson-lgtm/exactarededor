@@ -271,6 +271,35 @@ export default function HealthMonitoring() {
       }
       setFailedJobs(Array.from(byPayment.values()));
 
+      // 8. Saúde das funções de IA — últimas análises registradas
+      const { data: aiVersions } = await supabase
+        .from("ai_analysis_versions")
+        .select("model, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      const versions = aiVersions ?? [];
+      const lastAt = versions[0]?.created_at ?? null;
+      const modelCounts = new Map<string, number>();
+      let hasGemini = false;
+      for (const v of versions) {
+        const m = (v.model ?? "desconhecido") as string;
+        modelCounts.set(m, (modelCounts.get(m) ?? 0) + 1);
+        if (m.toLowerCase().includes("gemini")) hasGemini = true;
+      }
+      let modelUsed: string | null = null;
+      let bestCount = 0;
+      for (const [m, c] of modelCounts) {
+        if (c > bestCount) { bestCount = c; modelUsed = m; }
+      }
+      setAiHealth({
+        lastAt,
+        hoursAgo: lastAt ? horasAtras(lastAt) : null,
+        modelUsed,
+        hasGemini,
+      });
+
+
     } finally {
       setLoading(false);
       setLastRefresh(new Date());
