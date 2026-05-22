@@ -15,7 +15,9 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import {
   MessageCircle, Bot, AlertTriangle, CheckCircle2, Wallet,
   Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning, RefreshCw,
+  ShieldCheck, ShieldAlert,
 } from "lucide-react";
+import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
 
 const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
   aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger",
@@ -51,6 +53,8 @@ interface InvoiceRow {
   reconciliation_notes: string | null;
   ai_validation: { divergences?: string[]; confidence?: string; notes?: string } | null;
   ai_extracted_amount: number | null;
+  ai_extracted_cnpj: string | null;
+  company_id: string | null;
   company_name: string | null;
   payments: { reference: string; status: string } | null;
   question_count: number;
