@@ -380,6 +380,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <NotificationBell />
               <div className="hidden md:flex items-center gap-2">
                 <ThemeToggle />
                 <LayoutToggle />
