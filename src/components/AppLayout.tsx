@@ -33,6 +33,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
+import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
