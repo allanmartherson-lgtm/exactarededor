@@ -35,11 +35,12 @@ interface Payment {
 }
 
 interface Props {
-  payment: Payment | null | undefined;
+  payment: { processing_diagnostics?: unknown } | null | undefined;
 }
 
 export function PreAnalysisScoreCard({ payment }: Props) {
-  const pre = payment?.processing_diagnostics?.pre_analysis;
+  const diag = (payment?.processing_diagnostics ?? null) as { pre_analysis?: PreAnalysis } | null;
+  const pre = diag && typeof diag === "object" ? diag.pre_analysis : undefined;
   if (!pre || pre.predictive_score == null) return null;
 
   const level: Level = (pre.score_level ?? "medio") as Level;
