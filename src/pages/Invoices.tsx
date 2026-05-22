@@ -15,7 +15,9 @@ import { InvoiceQuestionsThread, type InvoiceQuestion } from "@/components/Invoi
 import {
   MessageCircle, Bot, AlertTriangle, CheckCircle2, Wallet,
   Copy, Send, Mail, Users, Clock, FileText, ChevronDown, ChevronUp, MailWarning, RefreshCw,
+  ShieldCheck, ShieldAlert,
 } from "lucide-react";
+import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
 
 const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
   aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger",
@@ -51,6 +53,8 @@ interface InvoiceRow {
   reconciliation_notes: string | null;
   ai_validation: { divergences?: string[]; confidence?: string; notes?: string } | null;
   ai_extracted_amount: number | null;
+  ai_extracted_cnpj: string | null;
+  company_id: string | null;
   company_name: string | null;
   payments: { reference: string; status: string } | null;
   question_count: number;
@@ -80,6 +84,7 @@ const Invoices = () => {
   const [resendOpen, setResendOpen] = useState(false);
   const [resendInvoice, setResendInvoice] = useState<InvoiceRow | null>(null);
   const [resendEmail, setResendEmail] = useState("");
+  const [companyDocs, setCompanyDocs] = useState<Map<string, string | null>>(new Map());
 
   const canActOnNF = hasRole("analista") || hasRole("admin") || hasRole("diretor");
 
@@ -99,10 +104,33 @@ const Invoices = () => {
         countByInvoice.set(q.invoice_id, (countByInvoice.get(q.invoice_id) ?? 0) + 1);
       });
     }
+    const companyIds = Array.from(
+      new Set(((invoices ?? []) as { company_id: string | null }[]).map((i) => i.company_id).filter(Boolean)),
+    ) as string[];
+    const docMap = new Map<string, string | null>();
+    if (companyIds.length > 0) {
+      const { data: comps } = await supabase.from("companies").select("id,document").in("id", companyIds);
+      (comps ?? []).forEach((c: { id: string; document: string | null }) => docMap.set(c.id, c.document));
+    }
+    setCompanyDocs(docMap);
     setRows(((invoices ?? []) as unknown as InvoiceRow[]).map((i) => ({
       ...i,
       question_count: countByInvoice.get(i.id) ?? 0,
     })));
+  };
+
+  const markDivergente = async (inv: InvoiceRow) => {
+    setBusyId(inv.id);
+    try {
+      const { error } = await supabase.from("invoices").update({ status: "divergente" }).eq("id", inv.id);
+      if (error) throw error;
+      toast({ title: "NF marcada como divergente" });
+      await load();
+    } catch (e) {
+      toast({ title: "Erro", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
   };
 
   useEffect(() => {
@@ -433,6 +461,46 @@ const Invoices = () => {
                         </span>
                       </div>
                     </div>
+
+                    {/* CNPJ check — NF recebida */}
+                    {i.status === "recebida" && i.ai_extracted_cnpj && (() => {
+                      const cadastro = i.company_id ? companyDocs.get(i.company_id) ?? null : null;
+                      const ok = !!cadastro && onlyDigits(cadastro) === onlyDigits(i.ai_extracted_cnpj || "");
+                      if (ok) {
+                        return (
+                          <div className="px-5 pb-2 -mt-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
+                              <ShieldCheck className="h-3 w-3" aria-hidden /> CNPJ conferido
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="mx-5 mb-3 -mt-1 rounded-md border border-destructive/40 bg-destructive/5 p-3 flex items-start gap-2">
+                          <ShieldAlert className="h-4 w-4 text-destructive mt-0.5 shrink-0" aria-hidden />
+                          <div className="min-w-0 flex-1 text-[12px]">
+                            <p className="font-medium text-destructive">CNPJ da NF diverge do cadastro</p>
+                            <p className="text-muted-foreground mt-0.5">
+                              NF: <span className="tabular-nums">{formatCNPJ(i.ai_extracted_cnpj)}</span>
+                              {" · "}Cadastro:{" "}
+                              <span className="tabular-nums">
+                                {cadastro ? formatCNPJ(cadastro) : "não cadastrado"}
+                              </span>
+                            </p>
+                          </div>
+                          {canActOnNF && (
+                            <button
+                              type="button"
+                              className="list-row__btn shrink-0"
+                              disabled={busyId === i.id}
+                              onClick={() => markDivergente(i)}
+                            >
+                              Marcar como divergente
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Linha extra ocupando largura inteira: notas/erros/IA */}
                     {(i.reconciliation_notes || i.send_error || i.ai_validation) && (
