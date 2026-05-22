@@ -30,6 +30,7 @@ import {
 } from "@/lib/paymentFlow";
 import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
 import { PreviousBatchComparison } from "@/components/payment-detail/PreviousBatchComparison";
+import { ValidationChecklist } from "@/components/payment-detail/ValidationChecklist";
 import type {
   GroupRow,
   InvoiceRow,
