@@ -1467,6 +1467,13 @@ function ItemDetailsRow({
                         </div>
                       </div>
                     )}
+                    {it.attendance_number && (
+                      <AttendanceCoherencePanel
+                        attendanceNumber={it.attendance_number}
+                        currentItemId={it.id}
+                        items={allItems}
+                      />
+                    )}
                   </div>
                 </SafeCard>
               )}
