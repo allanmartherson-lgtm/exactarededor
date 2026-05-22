@@ -355,6 +355,7 @@ export default function ValidationRules() {
 
   const save = async () => {
     if (!form.name.trim()) { toast.error("Informe o nome da validação"); return; }
+    const originalRule = form.id ? rules.find(r => r.id === form.id) ?? null : null;
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || null,
@@ -373,9 +374,20 @@ export default function ValidationRules() {
       assistance_group_id: form.kind === "sobreposicao_assistencial" ? form.assistance_group_id : null,
     };
     const res = form.id
-      ? await supabase.from("validation_rules").update(payload).eq("id", form.id)
-      : await supabase.from("validation_rules").insert(payload);
+      ? await supabase.from("validation_rules").update(payload).eq("id", form.id).select("id")
+      : await supabase.from("validation_rules").insert(payload).select("id");
     if (res.error) { toast.error(res.error.message); return; }
+    const savedId = form.id ?? (res.data as any)?.[0]?.id;
+    if (savedId && user) {
+      await recordAudit({
+        entityType: "validation_rule" as any,
+        entityId: savedId,
+        action: form.id ? "update" : "create",
+        actorId: user.id,
+        company: null,
+        diff: buildDiff(originalRule as any, payload as any),
+      });
+    }
     toast.success(form.id ? "Validação atualizada" : "Validação criada");
     setOpen(false);
     load();
@@ -387,6 +399,28 @@ export default function ValidationRules() {
     if (error) { toast.error(error.message); return; }
     toast.success("Validação removida");
     load();
+  };
+
+  const openHistory = async (r: ValidationRule) => {
+    setHistoryRule(r);
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from("audit_log")
+      .select("action, actor_id, created_at, diff")
+      .eq("entity_type", "validation_rule")
+      .eq("entity_id", r.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    const entries = data ?? [];
+    const actorIds = Array.from(new Set(entries.map((e: any) => e.actor_id).filter(Boolean)));
+    let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+    if (actorIds.length) {
+      const { data: pr } = await supabase.from("profiles").select("id, full_name, email").in("id", actorIds);
+      (pr ?? []).forEach((p: any) => { profilesMap[p.id] = { full_name: p.full_name, email: p.email }; });
+    }
+    setHistoryEntries(entries.map((e: any) => ({ ...e, profiles: e.actor_id ? profilesMap[e.actor_id] : null })));
+    setHistoryLoading(false);
   };
 
   const exportRuleToPDF = (r: ValidationRule) => {
