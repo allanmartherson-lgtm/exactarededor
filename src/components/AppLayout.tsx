@@ -32,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
+import { NotificationBell } from "@/components/NotificationBell";
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
@@ -379,6 +380,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <NotificationBell />
               <div className="hidden md:flex items-center gap-2">
                 <ThemeToggle />
                 <LayoutToggle />
@@ -579,6 +581,7 @@ export const AppLayout = () => {
                 <span className="hidden md:inline">Nova base</span>
               </Button>
             )}
+            <NotificationBell />
             <LayoutToggle />
           </div>
         </header>
