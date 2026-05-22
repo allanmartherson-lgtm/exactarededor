@@ -1506,6 +1506,7 @@ const Dashboard = () => {
                     />
                   ))
                 )}
+                </div>
               </div>
             );
           })()}
