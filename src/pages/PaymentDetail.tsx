@@ -171,6 +171,7 @@ const PaymentDetail = () => {
   const [itemCommentDraft, setItemCommentDraft] = useState<Record<string, string>>({});
   const [itemCommentIsQuestion, setItemCommentIsQuestion] = useState<Record<string, boolean>>({});
   const [itemCommentType, setItemCommentType] = useState<Record<string, ObservationType>>({});
+  const [suggestingFor, setSuggestingFor] = useState<string | null>(null);
   const [compareItemId, setCompareItemId] = useState<string | null>(null);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
@@ -1335,8 +1336,44 @@ const PaymentDetail = () => {
                       rows={2}
                       value={itemCommentDraft[it.id] ?? ""}
                       onChange={(e) => setItemCommentDraft((m) => ({ ...m, [it.id]: e.target.value }))}
-                      placeholder="Sua observação sobre este item..."
+                      placeholder={suggestingFor === it.id ? "Gerando sugestão..." : "Sua observação sobre este item..."}
                     />
+                    {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (
+                      <div className="mt-1.5 flex justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          disabled={suggestingFor === it.id}
+                          onClick={async () => {
+                            setSuggestingFor(it.id);
+                            try {
+                              const { data, error } = await supabase.functions.invoke("explain-alert", {
+                                body: { item_id: it.id, payment_id: it.payment_id },
+                              });
+                              if (error) throw error;
+                              const ai = (data as { ai?: { explanation?: string; what_to_check?: string } } | null)?.ai;
+                              const text = [ai?.explanation, ai?.what_to_check].filter(Boolean).join("\n\n").trim();
+                              if (!text) throw new Error("IA não retornou sugestão");
+                              setItemCommentDraft((m) => ({ ...m, [it.id]: text }));
+                            } catch (e) {
+                              const msg = e instanceof Error ? e.message : "Falha ao gerar sugestão";
+                              toast({ title: "Sugestão IA", description: msg, variant: "destructive" });
+                            } finally {
+                              setSuggestingFor(null);
+                            }
+                          }}
+                        >
+                          {suggestingFor === it.id ? (
+                            <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          Sugerir
+                        </Button>
+                      </div>
+                    )}
                     <div className="mt-2 space-y-2">
                       <ObservationTypeSelector
                         value={itemCommentType[it.id] ?? "informativo"}
