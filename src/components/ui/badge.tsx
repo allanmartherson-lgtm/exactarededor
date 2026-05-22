@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  *    sem hardcode de cores.
  */
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium leading-none tracking-tight tabular-nums whitespace-nowrap shadow-[var(--shadow-soft)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+  "inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 text-xs font-semibold leading-none tracking-tight tabular-nums whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
