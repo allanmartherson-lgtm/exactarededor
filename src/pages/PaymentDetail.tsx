@@ -2204,7 +2204,11 @@ const PaymentDetail = () => {
             )}
 
         {/* Busca dentro do detalhe — filtra grupos/itens por PJ, médico,
-            atendimento, centro de custos, especialidade ou descrição. */}
+            atendimento, centro de custos, especialidade ou descrição.
+            Ocultado na visão Executivo (diretor) — esta visão prioriza
+            apenas o pivot histórico e ações de aprovação. */}
+        {viewMode !== "executivo" && (
+        <>
         {payment.analysis_mode === "empresa_prioritaria" && (
           <Card className="shadow-card border-warning/30 bg-warning-soft/30">
             <CardContent className="p-3 text-xs flex items-start gap-2">
@@ -2544,6 +2548,8 @@ const PaymentDetail = () => {
             group={releaseGroup}
             onSuccess={() => { setReleaseGroup(null); load(); }}
           />
+        </>
+        )}
 
 
           {/* (Footer Executivo foi movido para antes dos filtros operacionais) */}
