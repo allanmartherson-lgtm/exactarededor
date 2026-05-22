@@ -275,12 +275,16 @@ export function PaymentConciliationModal({
         const idsC = getIdentifiers(c);
         const common = idsT.filter(id => idsC.includes(id));
         const score = common.reduce((s, id) => s + id.length, 0);
-        const ok = common.length >= 2 || (common.length >= 1 && common.some(id => id.length >= 6));
+        // Exige ≥2 identificadores em comum. Termo de especialidade isolado
+        // (UROLOGIA, ORTOPEDIA, NEUROLOGIA…) causa falso match quando a PJ
+        // real não está no lote — preferimos deixar sem mapeamento.
+        const ok = common.length >= 2;
         if (ok && score > (best?.score ?? 0)) best = { company: c, score };
       }
       if (best) return { company: best.company, level: "medium" };
       return { company: null, level: null };
     };
+
 
     const autoMapping: Record<string, string | null> = {};
     const newMatchLevels: Record<string, MatchLevel> = {};
