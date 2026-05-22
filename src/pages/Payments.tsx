@@ -919,6 +919,175 @@ const Payments = () => {
               )}
             </div>
           );
+          const filterControls = (
+            <>
+              <CompanyCombobox
+                value={companyFilter}
+                onChange={setCompanyFilter}
+                placeholder="Filtrar por empresa (CNPJ)…"
+                className="min-w-0 md:min-w-[260px] w-full md:w-auto"
+              />
+              <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Analista" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos analistas</SelectItem>
+                  {analystOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos tipos</SelectItem>
+                  {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos status</SelectItem>
+                  {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
+                <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="Competência" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas competências</SelectItem>
+                  {competenceOptions.map((c) => <SelectItem key={c} value={c}>{formatCompetence(`${c}-01`)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={ownerGroup} onValueChange={(v) => {
+                const ov = v as OwnerGroup;
+                setOwnerGroup(ov);
+                const next = new URLSearchParams(searchParams);
+                if (ov === "all") next.delete("status"); else next.set("status", ov);
+                setSearchParams(next, { replace: true });
+              }}>
+                <SelectTrigger className="w-full md:w-[170px]"><SelectValue placeholder="Papel/fila" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Qualquer fila</SelectItem>
+                  <SelectItem value="analista">Com analista</SelectItem>
+                  <SelectItem value="validador">Com validador</SelectItem>
+                  <SelectItem value="diretor">Com diretor</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={divergenceFilter} onValueChange={(v) => setDivergenceFilter(v as typeof divergenceFilter)}>
+                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Divergência" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Divergência: todas</SelectItem>
+                  <SelectItem value="with">Com divergência IA×regra</SelectItem>
+                  <SelectItem value="without">Sem divergência</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={questionedFilter} onValueChange={(v) => setQuestionedFilter(v as typeof questionedFilter)}>
+                <SelectTrigger className="w-full md:w-[170px]"><SelectValue placeholder="NF questionada" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">NF: todas</SelectItem>
+                  <SelectItem value="with">NF questionada</SelectItem>
+                  <SelectItem value="without">Sem questionamento</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant={delayedOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDelayedOnly((v) => !v)}
+              >
+                <AlertTriangle className="h-4 w-4 mr-1" /> Atrasados
+              </Button>
+              <Button
+                variant={openQuestionOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const next = !openQuestionOnly;
+                  setOpenQuestionOnly(next);
+                  const sp = new URLSearchParams(searchParams);
+                  if (next) sp.set("open_questions", "1"); else sp.delete("open_questions");
+                  setSearchParams(sp, { replace: true });
+                }}
+                title="Mostrar apenas lotes com perguntas internas aguardando resposta"
+              >
+                <MessageCircleQuestion className="h-4 w-4 mr-1" /> Com questionamento aberto
+              </Button>
+              {ownerGroup !== "all" && (
+                <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
+                  <UserCheck className="h-3.5 w-3.5" /> {OWNER_LABELS[ownerGroup]}
+                  <button
+                    type="button"
+                    aria-label="Remover filtro de papel"
+                    className="ml-1 hover:opacity-70"
+                    onClick={() => {
+                      setOwnerGroup("all");
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("status");
+                      setSearchParams(next, { replace: true });
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {onlyMine && (
+                <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
+                  <User className="h-3.5 w-3.5" /> Apenas meus
+                  <button
+                    type="button"
+                    aria-label="Remover filtro apenas meus"
+                    className="ml-1 hover:opacity-70"
+                    onClick={() => {
+                      setOnlyMine(false);
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("owner");
+                      setSearchParams(next, { replace: true });
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+              {(companyFilter || analystFilter !== "all" || typeFilter !== "all" || statusFilter !== "all" || competenceFilter !== "all" || delayedOnly || ownerGroup !== "all" || onlyMine || divergenceFilter !== "all" || questionedFilter !== "all") && (
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setCompanyFilter(null);
+                  setAnalystFilter("all"); setTypeFilter("all"); setStatusFilter("all"); setCompetenceFilter("all"); setDelayedOnly(false);
+                  setOwnerGroup("all"); setOnlyMine(false);
+                  setDivergenceFilter("all"); setQuestionedFilter("all");
+                  setSearchParams(new URLSearchParams(), { replace: true });
+                }}>
+                  <X className="h-4 w-4 mr-1" /> Limpar
+                </Button>
+              )}
+              <div className="md:ml-auto flex items-center gap-2 flex-wrap">
+                <Button
+                  variant={archivedView ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const next = !archivedView;
+                    setArchivedView(next);
+                    const sp = new URLSearchParams(searchParams);
+                    if (next) sp.set("archived", "1"); else sp.delete("archived");
+                    setSearchParams(sp, { replace: true });
+                  }}
+                  title={archivedView ? "Voltar para pagamentos ativos" : "Ver pagamentos arquivados (terminais)"}
+                >
+                  {archivedView ? <Inbox className="h-4 w-4 mr-1" /> : <Archive className="h-4 w-4 mr-1" />}
+                  {archivedView ? "Ver ativos" : `Ver arquivados${archivedCount ? ` (${archivedCount})` : ""}`}
+                </Button>
+                {view === "lista" && (
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                    <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created">Mais recentes</SelectItem>
+                      <SelectItem value="elapsed">Tempo parado</SelectItem>
+                      <SelectItem value="status">Status</SelectItem>
+                      <SelectItem value="priority">Por prioridade</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+                <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "lista" | "kanban")} variant="outline" size="sm">
+                  <ToggleGroupItem value="lista">Lista</ToggleGroupItem>
+                  <ToggleGroupItem value="kanban">Kanban</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </>
+          );
           return (
             <>
               {/* MOBILE: barra compacta */}
