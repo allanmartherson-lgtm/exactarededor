@@ -1268,14 +1268,14 @@ export default function CompanyAnalysis() {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10" disabled={busy}>
-                  <Trash2 className="h-4 w-4 mr-1" /> Excluir lote
+                  <Trash2 className="h-4 w-4 mr-1" /> Excluir pagamento da empresa
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                  <AlertDialogTitle>Excluir o pagamento desta empresa?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação remove o lote <strong>{payment.reference}</strong>, todos os itens (incluindo esta empresa) e o histórico permanentemente. Não pode ser desfeita.
+                    Esta ação remove a empresa <strong>{group?.company_name}</strong> do lote <strong>{payment.reference}</strong>, junto com todos os seus itens e histórico. Não pode ser desfeita. Se esta for a única empresa do lote, o lote inteiro será excluído.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
