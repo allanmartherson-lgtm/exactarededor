@@ -30,9 +30,8 @@ interface PreAnalysis {
   sample_months?: number;
 }
 
-interface Payment {
-  processing_diagnostics?: { pre_analysis?: PreAnalysis } | null;
-}
+
+
 
 interface Props {
   payment: { processing_diagnostics?: unknown } | null | undefined;
