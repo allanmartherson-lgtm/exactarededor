@@ -695,12 +695,40 @@ serve(async (req) => {
         const { data: history } = await supabase
           .from("payment_observations")
           .select("author_type, message")
-          .in("author_type", ["validador", "diretor"])
+          .in("author_type", ["analista", "validador", "diretor"])
           .order("created_at", { ascending: false })
-          .limit(20);
+          .limit(30);
         if (!history?.length) return "";
-        return "\n\nObservações recentes de validadores/diretor (contexto):\n" +
+        return "\n\nObservações recentes de analistas/validadores/diretor (contexto):\n" +
           history.map((h: any) => `- (${h.author_type}) ${h.message}`).join("\n");
+      })();
+
+      const correctionContext = isEmpresaPrioritaria ? "" : await (async () => {
+        try {
+          const since = new Date();
+          since.setDate(since.getDate() - 90);
+          const { data: acatados } = await supabase
+            .from("payment_items")
+            .select("procedure_code, company_name")
+            .eq("ai_status", "acatado")
+            .gte("created_at", since.toISOString())
+            .limit(200);
+          if (!acatados?.length) return "";
+          const counts: Record<string, { code: string; company: string; count: number }> = {};
+          for (const row of acatados as any[]) {
+            const code = (row.procedure_code ?? "").toString().trim();
+            const company = (row.company_name ?? "").toString().trim();
+            if (!code || !company) continue;
+            const key = `${code}||${company}`;
+            (counts[key] ||= { code, company, count: 0 }).count++;
+          }
+          const top = Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 10);
+          if (top.length === 0) return "";
+          return "\n\nPadrões historicamente corrigidos pelo analista nos últimos 90 dias (aprenda com isso — evite re-alertar casos análogos):\n" +
+            top.map((t) => `- ${t.code} em "${t.company}": acatado ${t.count}x`).join("\n");
+        } catch {
+          return "";
+        }
       })();
 
       const systemPrompt = `Você é um auditor de pagamentos médicos. 
@@ -710,7 +738,7 @@ MOTOR DETERMINÍSTICO já decidiu a regra e o valor. Sua missão é APONTAR FALH
 - Identifique duplicidades de cobrança no mesmo atendimento.
 - Setor é filtro OPCIONAL. Nunca peça para cadastrar setor se a regra não o exige.
 NUNCA mude status ou valores. Sua saída auxilia a decisão humana.
-${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${historyText}`;
+${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAMENTE." : ""}${correctionContext}${historyText}`;
 
       // A IA é apenas justificativa textual; o motor determinístico já decidiu.
       // Mantemos timeout curto para nunca prender a consolidação da empresa.
