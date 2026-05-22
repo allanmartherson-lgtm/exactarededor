@@ -47,11 +47,23 @@ const KIND_LABELS: Record<Kind, string> = {
 // Tipos antigos não listados continuam sendo exibidos em regras já cadastradas.
 const VISIBLE_KINDS: Kind[] = [
   "duplicidade_exata",
+  "duplicidade_atendimento",
   "sobreposicao_assistencial",
   "parecer_virou_cirurgia",
   "restricao_contratual",
   "outlier_valor",
+  "codigo_sem_dobra",
+  "codigo_nao_remuneravel",
+  "item_em_pacote",
+  "particular_sem_excecao",
 ];
+
+const KINDS_NOT_IMPLEMENTED = new Set<Kind>([
+  "codigo_sem_dobra",
+  "codigo_nao_remuneravel",
+  "item_em_pacote",
+  "particular_sem_excecao",
+]);
 
 const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
   duplicidade_exata:
@@ -64,6 +76,14 @@ const KIND_DESCRIPTIONS: Partial<Record<Kind, string>> = {
     "Item pode estar coberto pelo contrato fixo do médico ou empresa. O sistema verifica horário, dia da semana e código TUSS conforme o acordo. Requer confirmação do analista consultando a evolução clínica.",
   outlier_valor:
     "Valor acima do percentil configurado em relação ao histórico do mesmo procedimento. Apenas sinaliza para investigação — não bloqueia.",
+  codigo_sem_dobra:
+    "Código TUSS sem dobra ou acordo contratado — sinaliza para o analista verificar a tabela de exceções.",
+  codigo_nao_remuneravel:
+    "Código listado como não remunerável pelo convênio. Impede pagamento até autorização explícita.",
+  item_em_pacote:
+    "Procedimento já incluído no pacote fechado do mesmo atendimento — não deve ser faturado separadamente.",
+  particular_sem_excecao:
+    "Item de convênio particular cobrado sem exceção autorizada pelo diretor.",
 };
 
 const SEVERITY_LABELS: Record<Severity, string> = {
