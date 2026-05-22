@@ -215,8 +215,8 @@ const InvoicePortal = () => {
     </div>
   );
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Carregando...</div>;
-  if (info?.error || !info?.invoice) return <div className="min-h-screen flex items-center justify-center"><Card className="max-w-md"><CardContent className="p-8 text-center"><p className="font-medium">Link inválido ou expirado.</p></CardContent></Card></div>;
+  if (loading) return <div className="min-h-dvh flex items-center justify-center text-sm text-muted-foreground">Carregando...</div>;
+  if (info?.error || !info?.invoice) return <div className="min-h-dvh flex items-center justify-center"><Card className="max-w-md"><CardContent className="p-8 text-center"><p className="font-medium">Link inválido ou expirado.</p></CardContent></Card></div>;
 
   const inv = info.invoice;
   const pay = info.payment ?? {};
@@ -258,7 +258,7 @@ const InvoicePortal = () => {
     : now.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-4 flex items-center justify-center">
+    <div className="min-h-dvh bg-gradient-soft p-4 flex items-center justify-center">
       <div className="w-full max-w-lg">
         <header className="text-center mb-6">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand mb-3"><ShieldCheck className="h-6 w-6 text-primary-foreground" /></div>

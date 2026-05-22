@@ -462,7 +462,7 @@ export function PaymentReportModal({
               )}
               Exportar Excel
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar relatório">
               <Search className="h-4 w-4 rotate-45" />
             </Button>
           </div>
