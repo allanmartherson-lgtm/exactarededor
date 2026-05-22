@@ -421,7 +421,7 @@ export const PaymentGroupCard = ({
 
       {groupExpandedEffective && nfDivergent && (
         <div className="border-t border-border/60 bg-destructive/5">
-          <div className="flex items-start gap-2 px-4 py-3 text-xs">
+          <div className="flex items-start gap-2 px-3 py-2 md:px-4 md:py-3 text-xs">
             <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-destructive">
