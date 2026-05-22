@@ -44,6 +44,7 @@ import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
+import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import type {
   PaymentItemRow as PaymentItemRowType,
@@ -2627,6 +2628,10 @@ const PaymentDetail = () => {
               </CardContent>
             </Card>
           )}
+
+        {id && (isDiretor || (isAnalista && groups.some((g) => ["revisao_analista", "devolvido_analista", "aguardando_validacao"].includes(g.status)))) && (
+          <ExceptionPatternSuggest paymentId={id} />
+        )}
 
         {isAnalista && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
           <BatchSuggestPanel items={items} onAcceptBatch={handleAcceptBatch} />
