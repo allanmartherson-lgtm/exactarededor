@@ -28,6 +28,7 @@ import {
   ANALYST_DONE_STATUSES,
   effectiveItemAiStatus,
 } from "@/lib/paymentFlow";
+import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
 import type {
   GroupRow,
   InvoiceRow,
