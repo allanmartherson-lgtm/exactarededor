@@ -117,7 +117,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
             <p className="text-sm font-semibold leading-snug">{summary.headline}</p>
             <ul className="mt-2 space-y-1">
               {summary.bullets.map((b, i) => (
-                <li key={i} className="text-xs text-muted-foreground flex gap-2 leading-relaxed">
+              <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
                   <span aria-hidden className="text-primary mt-[1px]">•</span>
                   <span className="flex-1">{b}</span>
                 </li>
