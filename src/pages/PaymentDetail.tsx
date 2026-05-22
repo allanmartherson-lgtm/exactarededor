@@ -43,6 +43,7 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation, type ObservationType } from "@/lib/observations";
 import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
+import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import type {
   PaymentItemRow as PaymentItemRowType,
@@ -1094,6 +1095,32 @@ const PaymentDetail = () => {
   const canComment = isAnalista || isValidador || isDiretor;
   const myAuthorType: "analista" | "validador" | "diretor" =
     isDiretor ? "diretor" : isValidador ? "validador" : "analista";
+
+  const handleAcceptBatch = async (itemIds: string[], note: string) => {
+    if (!id || !user || itemIds.length === 0) return;
+    if (myAuthorType === "analista") await autoClaim();
+    let okCount = 0;
+    for (const itemId of itemIds) {
+      const item = items.find((i) => i.id === itemId);
+      if (!item) continue;
+      const { error } = await supabase
+        .from("payment_items")
+        .update({ ai_status: "acatado", acatado_status_original: item.ai_status })
+        .eq("id", itemId);
+      if (error) continue;
+      await recordObservation({
+        payment_id: id,
+        item_id: itemId,
+        author_type: myAuthorType,
+        author_id: user.id,
+        message: `Acatado em lote pelo analista. ${note}`,
+        observation_type: "justificativa_override",
+      });
+      okCount++;
+    }
+    toast({ title: `${okCount} ${okCount === 1 ? "item acatado" : "itens acatados"}` });
+    await load();
+  };
 
   const addItemComment = async (itemId: string) => {
     const text = (itemCommentDraft[itemId] ?? "").trim();
@@ -2600,6 +2627,10 @@ const PaymentDetail = () => {
               </CardContent>
             </Card>
           )}
+
+        {isAnalista && groups.some((g) => g.status === "revisao_analista" || g.status === "devolvido_analista") && (
+          <BatchSuggestPanel items={items} onAcceptBatch={handleAcceptBatch} />
+        )}
 
         {renderHistoryCard()}
       </div>
