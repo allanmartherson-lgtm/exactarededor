@@ -84,6 +84,7 @@ const Invoices = () => {
   const [resendOpen, setResendOpen] = useState(false);
   const [resendInvoice, setResendInvoice] = useState<InvoiceRow | null>(null);
   const [resendEmail, setResendEmail] = useState("");
+  const [companyDocs, setCompanyDocs] = useState<Map<string, string | null>>(new Map());
 
   const canActOnNF = hasRole("analista") || hasRole("admin") || hasRole("diretor");
 
@@ -103,10 +104,33 @@ const Invoices = () => {
         countByInvoice.set(q.invoice_id, (countByInvoice.get(q.invoice_id) ?? 0) + 1);
       });
     }
+    const companyIds = Array.from(
+      new Set(((invoices ?? []) as { company_id: string | null }[]).map((i) => i.company_id).filter(Boolean)),
+    ) as string[];
+    const docMap = new Map<string, string | null>();
+    if (companyIds.length > 0) {
+      const { data: comps } = await supabase.from("companies").select("id,document").in("id", companyIds);
+      (comps ?? []).forEach((c: { id: string; document: string | null }) => docMap.set(c.id, c.document));
+    }
+    setCompanyDocs(docMap);
     setRows(((invoices ?? []) as unknown as InvoiceRow[]).map((i) => ({
       ...i,
       question_count: countByInvoice.get(i.id) ?? 0,
     })));
+  };
+
+  const markDivergente = async (inv: InvoiceRow) => {
+    setBusyId(inv.id);
+    try {
+      const { error } = await supabase.from("invoices").update({ status: "divergente" }).eq("id", inv.id);
+      if (error) throw error;
+      toast({ title: "NF marcada como divergente" });
+      await load();
+    } catch (e) {
+      toast({ title: "Erro", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
   };
 
   useEffect(() => {
