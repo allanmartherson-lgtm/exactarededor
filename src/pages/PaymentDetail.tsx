@@ -1900,39 +1900,8 @@ const PaymentDetail = () => {
                 </Card>
               )}
 
-              {/* Card 2 — Análise da IA */}
-              <Card className="shadow-card border-info/30 bg-info-soft/40">
-                <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Análise da última execução completa</p>
-                  {payment.ai_summary ? (
-                    summaryExpanded ? (
-                      <div className="space-y-1.5">
-                        <p className="whitespace-pre-wrap text-foreground/90">{payment.ai_summary}</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button type="button" onClick={() => setSummaryExpanded(false)} className="text-[11px] text-primary hover:underline">Recolher</button>
-                          {!summaryMatchesCounts && (
-                            <>
-                              <span className="italic text-muted-foreground text-[11px]">(resumo pode estar desatualizado)</span>
-                              {canReanalyze && (
-                                <Button size="sm" variant="outline" disabled={reprocessingAi} onClick={() => setReprocessConfirmOpen(true)} className="h-6 px-2 text-[11px] border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80">
-                                  <RefreshCw className={cn("h-3 w-3 mr-1", reprocessingAi && "animate-spin")} />
-                                  {reprocessingAi ? "Reanalisando..." : "Reanalisar lote"}
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setSummaryExpanded(true)} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
-                        <ChevronRight className="h-3 w-3" /> Ver análise da IA
-                      </button>
-                    )
-                  ) : (
-                    <span className="italic text-muted-foreground">Sem análise persistida.</span>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Card 2 removido — substituído pelo ExecutiveSummaryCard */}
+
 
               {/* Card 3 — Alertas assistenciais */}
               <Card className="shadow-card">
