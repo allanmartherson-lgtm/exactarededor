@@ -1671,7 +1671,7 @@ const PaymentDetail = () => {
           </div>
         }
       />
-      <div className="p-3 md:p-8 space-y-6">
+      <div className="p-3 md:p-8 space-y-4 md:space-y-6">
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {/* MOBILE: cards de IA colapsáveis */}
