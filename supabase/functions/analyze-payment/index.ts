@@ -659,7 +659,7 @@ serve(async (req) => {
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     console.time(`${__t} chamada_ia`);
-    if (itemsToReview.length > 0 && LOVABLE_API_KEY) {
+    if (itemsToReview.length > 0 && ANTHROPIC_API_KEY) {
       const itemsForAi = itemsToReview.map((r) => {
         const it = items.find((i) => i.id === r.item_id)!;
         return {
@@ -718,53 +718,55 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const aiTimer = setTimeout(() => aiAbort.abort(), 35_000);
       let aiResp: Response | null = null;
       try {
-        aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        aiResp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         signal: aiAbort.signal,
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY!,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
+          model: "claude-sonnet-4-5",
+          max_tokens: 4096,
+          system: systemPrompt,
           messages: [
-            { role: "system", content: systemPrompt },
             { role: "user", content: `Itens marcados pelo motor (JSON):\n${JSON.stringify(itemsForAi, null, 2)}` },
           ],
           tools: [{
-            type: "function",
-            function: {
-              name: "report_justifications",
-              description: "Justifica cada item já analisado pelo motor",
-              parameters: {
-                type: "object",
-                properties: {
-                  summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
+            name: "report_justifications",
+            description: "Justifica cada item já analisado pelo motor",
+            input_schema: {
+              type: "object",
+              properties: {
+                summary: { type: "string", description: "Resumo OBJETIVO em pt-BR, máx. 2 frases, focado no que o gestor precisa decidir." },
+                items: {
+                  type: "array",
                   items: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
-                        extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
-                      },
-                      required: ["id", "ai_note", "extra_alerts"],
-                      additionalProperties: false,
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      ai_note: { type: "string", description: "Justificativa curta do alerta/reprovação." },
+                      extra_alerts: { type: "array", items: { type: "string" }, description: "Alertas EXTRAS que o motor não capturou. Vazio se nada a acrescentar." },
                     },
+                    required: ["id", "ai_note", "extra_alerts"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["summary", "items"],
-                additionalProperties: false,
               },
+              required: ["summary", "items"],
+              additionalProperties: false,
             },
           }],
-          tool_choice: { type: "function", function: { name: "report_justifications" } },
+          tool_choice: { type: "tool", name: "report_justifications" },
         }),
       });
 
       if (aiResp && aiResp.ok) {
         const aiData = await aiResp.json();
-        const tc = aiData.choices?.[0]?.message?.tool_calls?.[0];
+        const tc = aiData.content?.find((b: any) => b.type === "tool_use");
         if (tc) {
-          const parsed = JSON.parse(tc.function.arguments);
+          const parsed = tc.input;
           for (const it of parsed.items ?? []) {
             aiJustifications[it.id] = {
               extra_alerts: Array.isArray(it.extra_alerts) ? it.extra_alerts : [],
