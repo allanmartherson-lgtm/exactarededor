@@ -1963,12 +1963,11 @@ const PipelineCol = forwardRef<HTMLAnchorElement, {
         fontSize: comfortable ? 10 : 9,
         fontWeight: 600,
         textTransform: "uppercase",
-        letterSpacing: "0.07em",
+        letterSpacing: "0.05em",
         color: "hsl(var(--muted-foreground))",
         textAlign: "center",
-        lineHeight: 1.3,
-        overflowWrap: "anywhere",
-        wordBreak: "break-word",
+        lineHeight: 1.2,
+        whiteSpace: "nowrap",
       }}
     >
       {label}
