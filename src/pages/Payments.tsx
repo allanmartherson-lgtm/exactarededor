@@ -521,6 +521,28 @@ const Payments = () => {
   );
   const activeCount = rows.length - archivedCount;
 
+  // KPIs institucionais (terminal-style summary) — calculados sobre lotes ativos
+  // para refletir o estado operacional da fila, não o histórico arquivado.
+  const kpis = useMemo(() => {
+    const active = rows.filter((r) => !TERMINAL_STATUSES.has(r.status));
+    const totalOpen = active.reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
+    const waitingValidation = active.filter((r) => r.status === "aguardando_validacao").length;
+    const waitingApproval = active.filter((r) => r.status === "aguardando_aprovacao").length;
+    const nowMs = Date.now();
+    const delayed = active.filter((r) => {
+      const since = statusEnteredAt[r.id] ?? r.updated_at ?? r.created_at;
+      return delayLevel(r.status, nowMs - new Date(since).getTime()) !== "none";
+    }).length;
+    // Competência mais frequente entre lotes ativos
+    const counts: Record<string, number> = {};
+    active.forEach((r) => {
+      const c = r.competence_month?.slice(0, 7) ?? r.competence_months?.[0]?.slice(0, 7);
+      if (c) counts[c] = (counts[c] ?? 0) + 1;
+    });
+    const competence = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return { totalOpen, waitingValidation, waitingApproval, delayed, activeTotal: active.length, competence };
+  }, [rows, statusEnteredAt]);
+
   const filtered = useMemo(() => rows.filter((r) => {
     if (deletingIds.has(r.id)) return false;
     // Arquivamento: por default escondemos lotes em estado terminal das
