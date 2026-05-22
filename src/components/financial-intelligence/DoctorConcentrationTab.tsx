@@ -12,7 +12,7 @@ interface ItemRow {
   payment_id: string;
   doctor_name: string;
   gross_amount: number;
-  payments?: { reference: string | null } | null;
+  payments?: { reference: string | null; title: string | null; status: string } | null;
 }
 
 interface Concentration {
@@ -33,11 +33,12 @@ export const DoctorConcentrationTab = () => {
       cutoff.setMonth(cutoff.getMonth() - 6);
       const { data } = await supabase
         .from("payment_items")
-        .select("payment_id,doctor_name,gross_amount,payments(reference)")
+        .select("payment_id,doctor_name,gross_amount,payments!inner(reference,title,status)")
         .gt("gross_amount", 0)
         .gte("created_at", cutoff.toISOString())
-        .limit(10000);
-      setRows((data as ItemRow[]) ?? []);
+        .not("payments.status", "in", '("rascunho","cancelado","rejeitado")')
+        .limit(50000);
+      setRows((data as unknown as ItemRow[]) ?? []);
     })();
   }, []);
 
@@ -49,7 +50,7 @@ export const DoctorConcentrationTab = () => {
     for (const r of rows) {
       const v = Number(r.gross_amount);
       totals.set(r.payment_id, (totals.get(r.payment_id) ?? 0) + v);
-      refMap.set(r.payment_id, r.payments?.reference ?? "—");
+      refMap.set(r.payment_id, r.payments?.reference ?? r.payments?.title ?? "Sem referência");
       const k = `${r.payment_id}|||${r.doctor_name}`;
       perDoctor.set(k, (perDoctor.get(k) ?? 0) + v);
     }
@@ -62,7 +63,7 @@ export const DoctorConcentrationTab = () => {
       if (pct > 30) {
         out.push({
           payment_id: paymentId,
-          reference: refMap.get(paymentId) ?? "—",
+          reference: refMap.get(paymentId) ?? "Sem referência",
           doctor_name: doctor,
           amount,
           total,
@@ -89,38 +90,43 @@ export const DoctorConcentrationTab = () => {
             Nenhum lote com concentração acima de 30% nos últimos 6 meses.
           </p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Lote</TableHead>
-                  <TableHead>Médico</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-right">Total lote</TableHead>
-                  <TableHead className="text-right">% do lote</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {concentrations.slice(0, 100).map((c) => (
-                  <TableRow key={`${c.payment_id}-${c.doctor_name}`}>
-                    <TableCell>
-                      <Link to={`/pagamentos/${c.payment_id}`} className="text-primary hover:underline font-medium">
-                        {c.reference}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{c.doctor_name}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(c.amount)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatBRL(c.total)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant={c.pct > 50 ? "destructive" : "secondary"}>{c.pct.toFixed(1)}%</Badge>
-                    </TableCell>
+          <>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lote</TableHead>
+                    <TableHead>Médico</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-right">Total lote</TableHead>
+                    <TableHead className="text-right">% do lote</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {concentrations.slice(0, 100).map((c) => (
+                    <TableRow key={`${c.payment_id}-${c.doctor_name}`}>
+                      <TableCell>
+                        <Link to={`/pagamentos/${c.payment_id}`} className="text-primary hover:underline font-medium">
+                          {c.reference}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{c.doctor_name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatBRL(c.amount)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatBRL(c.total)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={c.pct > 50 ? "destructive" : "secondary"}>{c.pct.toFixed(1)}%</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3 text-center">
+              Exibindo os {concentrations.length} casos de concentração encontrados nos últimos 6 meses.
+            </p>
+          </>
         )}
       </div>
     </SurfaceCard>
