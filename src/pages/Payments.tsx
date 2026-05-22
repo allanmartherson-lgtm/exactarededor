@@ -14,6 +14,8 @@ import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, Refre
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
+import { PriorityBadge } from "@/components/payment-detail/PriorityBadge";
+import { calcPriorityScore } from "@/lib/paymentPriority";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -106,6 +108,35 @@ const PaymentRiskBadgeInline = ({ paymentId, compact = false }: { paymentId: str
   );
 };
 
+/** Badge de prioridade por lote — combina risco + SLA + tempo parado + valor. */
+const PaymentPriorityBadgeInline = ({
+  paymentId,
+  slaLevel,
+  elapsedDays,
+  status,
+  totalAmount,
+  itemsCount,
+}: {
+  paymentId: string;
+  slaLevel: "ok" | "preventivo" | "vencido" | null;
+  elapsedDays: number;
+  status: string;
+  totalAmount: number;
+  itemsCount: number;
+}) => {
+  const risk = usePaymentRisk(paymentId);
+  const priority = calcPriorityScore({
+    slaLevel,
+    elapsedDays,
+    riskScore: risk?.score ?? 0,
+    status,
+    totalAmount,
+    itemsCount,
+  });
+  return <PriorityBadge score={priority} />;
+};
+
+
 const Payments = () => {
   const { roles, user } = useAuth();
   const isAnalista = roles.includes("analista") || roles.includes("admin");
@@ -152,7 +183,7 @@ const Payments = () => {
   }, [searchParams]);
 
   const [view, setView] = useState<"lista" | "kanban">("lista");
-  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
+  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status" | "priority">("created");
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
@@ -578,6 +609,27 @@ const Payments = () => {
     const arr = [...filtered];
     if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
     else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status));
+    else if (sortBy === "priority") {
+      arr.sort((a, b) => {
+        const pa = calcPriorityScore({
+          slaLevel: slaFor(a)?.level ?? null,
+          elapsedDays: elapsedFor(a) / 86400000,
+          riskScore: 0,
+          status: a.status,
+          totalAmount: Number(a.total_amount),
+          itemsCount: a.items_count,
+        });
+        const pb = calcPriorityScore({
+          slaLevel: slaFor(b)?.level ?? null,
+          elapsedDays: elapsedFor(b) / 86400000,
+          riskScore: 0,
+          status: b.status,
+          totalAmount: Number(b.total_amount),
+          itemsCount: b.items_count,
+        });
+        return pb.score - pa.score;
+      });
+    }
     else arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return arr;
   }, [filtered, sortBy, statusEnteredAt, now]);
@@ -685,6 +737,14 @@ const Payments = () => {
             <div className="flex items-center gap-2 min-w-0">
               <p className="font-medium text-sm truncate">{p.reference}</p>
               <PaymentRiskBadgeInline paymentId={p.id} />
+              <PaymentPriorityBadgeInline
+                paymentId={p.id}
+                slaLevel={sla?.level ?? null}
+                elapsedDays={elapsedMs / 86400000}
+                status={p.status}
+                totalAmount={Number(p.total_amount)}
+                itemsCount={p.items_count}
+              />
 
               {openQuestionCount[p.id] > 0 && (
                 <Tooltip>
@@ -1000,6 +1060,7 @@ const Payments = () => {
                   <SelectItem value="created">Mais recentes</SelectItem>
                   <SelectItem value="elapsed">Tempo parado</SelectItem>
                   <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="priority">Por prioridade</SelectItem>
                 </SelectContent>
               </Select>
             )}
