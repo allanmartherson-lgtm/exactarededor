@@ -49,6 +49,7 @@ const SidebarDiagnostic = lazy(() => import("./pages/SidebarDiagnostic.tsx"));
 const OverflowAudit = lazy(() => import("./pages/OverflowAudit.tsx"));
 const FinancialIntelligence = lazy(() => import("./pages/FinancialIntelligence.tsx"));
 const NfCycle = lazy(() => import("./pages/NfCycle.tsx"));
+const ObservationInsights = lazy(() => import("./pages/ObservationInsights.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -109,6 +110,7 @@ const App = () => (
                   
                   <Route path="/auditoria" element={<ProtectedRoute roles={["diretor", "admin"]}><AuditLog /></ProtectedRoute>} />
                   <Route path="/anomalias-status" element={<ProtectedRoute roles={["diretor", "admin"]}><StatusAnomalies /></ProtectedRoute>} />
+                  <Route path="/insights-observacoes" element={<ProtectedRoute roles={["diretor", "admin"]}><ObservationInsights /></ProtectedRoute>} />
                   <Route path="/wcag-audit" element={<WcagAudit />} />
                   <Route path="/diagnostico/sidebar" element={<SidebarDiagnostic />} />
                   <Route path="/diagnostico/overflow" element={<OverflowAudit />} />
