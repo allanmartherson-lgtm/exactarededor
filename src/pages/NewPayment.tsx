@@ -19,6 +19,8 @@ import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentT
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
+import { fetchCompanyRiskProfiles } from "@/lib/companyRiskProfile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
