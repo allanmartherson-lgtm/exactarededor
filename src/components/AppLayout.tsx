@@ -270,6 +270,81 @@ export const AppLayout = () => {
   const visibleSideNav = flattenNav(NAV_ITEMS).filter((c) =>
     c.roles.some((r) => roles.includes(r)),
   );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Detect mobile (<768px) to force topbar layout on small screens regardless of saved preference.
+  const [isMobile, setIsMobile] = useState<boolean>(
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  // Close mobile drawer on route change
+  useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
+
+  const effectiveLayout = isMobile ? "top" : layout;
+
+  const MobileNavDrawer = (
+    <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 md:hidden text-muted-foreground hover:text-foreground"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-[260px] p-0 flex flex-col">
+        <SheetHeader className="px-4 py-3 border-b border-border">
+          <SheetTitle className="text-left text-sm">Menu</SheetTitle>
+        </SheetHeader>
+        <nav className="flex-1 overflow-y-auto p-2 flex flex-col gap-0.5">
+          {visibleSideNav.map((item) => {
+            const isActive =
+              item.to === "/"
+                ? location.pathname === "/"
+                : location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                onClick={() => setMobileNavOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition-colors",
+                  isActive
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <item.icon size={18} strokeWidth={1.75} className="flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+        <div className="border-t border-border p-3 flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-accent text-accent-foreground text-[11px] font-semibold flex items-center justify-center flex-shrink-0">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-medium truncate text-foreground">{user?.email}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sair" className="h-8 w-8">
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 
   const handleSignOut = async () => {
     await signOut();
