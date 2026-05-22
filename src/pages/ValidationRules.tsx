@@ -299,11 +299,13 @@ export default function ValidationRules() {
       setAllCompaniesMap(map);
     }
 
-    // Agregar impacto financeiro por rule_id
+    // Agregar impacto financeiro + efetividade por rule_id
     const impactByRule = new Map<string, { alertas: number; valor: number; lotes: Set<string> }>();
+    const effByRule = new Map<string, { acatados: number; total: number }>();
     for (const item of itemsWithFindings ?? []) {
       const findings = item.validation_findings as any[];
       if (!Array.isArray(findings)) continue;
+      const isAcatado = (item as any).ai_status === "acatado";
       for (const f of findings) {
         if (!f.rule_id) continue;
         const cur = impactByRule.get(f.rule_id) ?? { alertas: 0, valor: 0, lotes: new Set() };
@@ -311,13 +313,24 @@ export default function ValidationRules() {
         cur.valor += Number(item.gross_amount ?? 0);
         cur.lotes.add(item.payment_id);
         impactByRule.set(f.rule_id, cur);
+
+        const ef = effByRule.get(f.rule_id) ?? { acatados: 0, total: 0 };
+        ef.total += 1;
+        if (isAcatado) ef.acatados += 1;
+        effByRule.set(f.rule_id, ef);
       }
     }
     const impactMap = new Map<string, { alertas: number; valor: number; lotes: number }>();
     impactByRule.forEach((v, k) => {
       impactMap.set(k, { alertas: v.alertas, valor: v.valor, lotes: v.lotes.size });
     });
+    const effMap = new Map<string, { acatados: number; total: number; taxaFalsoPositivo: number }>();
+    effByRule.forEach((v, k) => {
+      const taxaFalsoPositivo = v.total > 0 ? ((v.total - v.acatados) / v.total) * 100 : 0;
+      effMap.set(k, { acatados: v.acatados, total: v.total, taxaFalsoPositivo });
+    });
     setRuleImpact(impactMap);
+    setRuleEffectiveness(effMap);
     setImpactItems(itemsWithFindings ?? []);
 
     setLoading(false);
