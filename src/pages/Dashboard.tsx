@@ -1655,16 +1655,14 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
   return (
     <Link
       to={`/pagamentos/${p.id}`}
+      className="task-row payment-task-row"
       style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 16, padding: "14px 22px",
         borderBottom: "1px solid hsl(var(--border-light, var(--border)))",
         textDecoration: "none", color: "inherit", transition: "background 0.15s ease",
       }}
-      className="task-row"
     >
-      <div className="min-w-0 flex flex-col gap-1" style={{ flex: "0 0 auto", maxWidth: 260 }}>
-        <div className="flex items-center gap-2">
+      <div className="ptr-header min-w-0 flex flex-col gap-1">
+        <div className="flex items-center gap-2 min-w-0">
           <p style={{ fontSize: 13, fontWeight: 500 }} className="truncate">{p.reference}</p>
           {risk && risk.score > 0 && (
             <RiskBadge 
@@ -1672,7 +1670,7 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
               score={risk.score} 
               financialData={risk}
               showLabel={false}
-              className="scale-90"
+              className="scale-90 shrink-0"
             />
           )}
           {qCount > 0 && (
@@ -1703,7 +1701,7 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
           {p.items_count} itens · {formatCurrency(p.total_amount)}
         </p>
       </div>
-      <div className="flex items-center" style={{ gap: 6, flex: 1, minWidth: 0, justifyContent: "center" }}>
+      <div className="ptr-stages flex items-center" style={{ gap: 6, justifyContent: "center" }}>
         {order.map((stage, idx) => {
           const c = stageColor(stages[stage].state);
           const label = stages[stage].state === "returned" ? `${STAGE_LABELS[stage]} • devolvido` : STAGE_LABELS[stage];
@@ -1728,7 +1726,7 @@ const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number })
           );
         })}
       </div>
-      <div style={{ flex: "0 0 auto" }}>
+      <div className="ptr-status" style={{ flex: "0 0 auto" }}>
         <StatusBadge status={p.status} />
       </div>
     </Link>
