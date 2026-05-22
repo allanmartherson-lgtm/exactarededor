@@ -141,7 +141,7 @@ export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
             <p className="text-sm font-semibold leading-snug">{briefing.headline}</p>
             <ul className="mt-2 space-y-1">
               {briefing.bullets.map((b, i) => (
-                <li key={i} className="text-xs text-muted-foreground flex gap-2 leading-relaxed">
+                <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
                   <span aria-hidden className="text-amber-600 mt-[1px]">•</span>
                   <span className="flex-1">{b}</span>
                 </li>
