@@ -994,6 +994,56 @@ const NewPayment = () => {
         .eq("id", payment.id);
     }
 
+    // Score preditivo pré-análise — não bloqueia o fluxo se falhar.
+    (async () => {
+      try {
+        const itemCount = matchedItems.length;
+        if (itemCount === 0) return;
+        const companyNames = Array.from(new Set(matchedItems.map((it) => (it.company_name ?? "").trim()).filter(Boolean)));
+        if (companyNames.length === 0) return;
+        const profilesMap = await fetchCompanyRiskProfiles(companyNames);
+        const profiles = companyNames
+          .map((name) => {
+            const p = profilesMap.get(name);
+            return p ? { company: name, historical_alert_rate: p.alertRate, sample_items: p.totalItems } : null;
+          })
+          .filter((x): x is { company: string; historical_alert_rate: number; sample_items: number } => x !== null);
+        const withHistory = profiles.filter((p) => p.sample_items >= 10);
+        const baseRates = (withHistory.length > 0 ? withHistory : profiles).map((p) => p.historical_alert_rate);
+        const avgRate = baseRates.length > 0 ? baseRates.reduce((a, b) => a + b, 0) / baseRates.length : 0;
+        const baseScore = avgRate * 100;
+        const volumeBonus = itemCount > 100 ? Math.min(15, Math.log10(itemCount / 100) * 5) : 0;
+        const predictiveScore = Math.round(Math.min(100, baseScore + volumeBonus));
+        const scoreLevel: "baixo" | "medio" | "alto" | "critico" =
+          predictiveScore < 20 ? "baixo" :
+          predictiveScore < 50 ? "medio" :
+          predictiveScore < 75 ? "alto" : "critico";
+
+        const { data: cur } = await supabase
+          .from("payments")
+          .select("processing_diagnostics")
+          .eq("id", payment.id)
+          .single();
+        const prevDiag = (cur?.processing_diagnostics ?? {}) as Record<string, unknown>;
+        await supabase.from("payments").update({
+          processing_diagnostics: {
+            ...prevDiag,
+            pre_analysis: {
+              predictive_score: predictiveScore,
+              score_level: scoreLevel,
+              company_profiles: profiles,
+              sample_months: 6,
+              calculated_at: new Date().toISOString(),
+            },
+          },
+        }).eq("id", payment.id);
+      } catch (err) {
+        console.warn("[pre_analysis] cálculo falhou:", err);
+      }
+    })();
+
+
+
     const fileSummary = buckets.map((b) =>
       `${b.file.name} → ${b.matchedCompany ? `${b.matchedCompany.name} (match ${Math.round(b.matchScore * 100)}%)` : `empresa nova: ${b.rawCompanyName}`} · ${b.rows.length} itens`
     ).join(" | ");
