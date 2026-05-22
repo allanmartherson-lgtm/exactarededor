@@ -109,15 +109,15 @@ serve(async (req) => {
     // 4. Últimas observações (analista/validador/diretor)
     const { data: observations } = await supabase
       .from("payment_observations")
-      .select("observation_type, message, created_at, author_role")
+      .select("observation_type, message, created_at, author_type")
       .eq("payment_id", payment_id)
-      .in("author_role", ["analista", "validador", "diretor"])
+      .in("author_type", ["analista", "validador", "diretor"])
       .order("created_at", { ascending: false })
       .limit(5);
 
     const contexto = {
       lote: {
-        referencia: payment.reference ?? payment.title ?? "—",
+        referencia: payment.reference ?? "—",
         status: payment.status,
         valor_total: Number(payment.total_amount) || 0,
         competencia: payment.competence_month,
