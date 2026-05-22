@@ -69,6 +69,9 @@ serve(async (req) => {
     const byCompany: Record<string, { total: number; count: number; alerts: number }> = {};
     let totalItems = 0;
     let totalAlerts = 0;
+    let excecoesCount = 0;
+    let excecoesImpacto = 0;
+    const excecoesAmostra: Array<{ medico: string; empresa: string; valor: number; nota: string }> = [];
     for (const it of items ?? []) {
       totalItems++;
       const st = String(it.ai_status ?? "sem_status");
@@ -81,6 +84,19 @@ serve(async (req) => {
       if (isAlert) {
         totalAlerts++;
         byCompany[co].alerts += 1;
+      }
+      if (it.authorized_exception) {
+        excecoesCount++;
+        const impacto = (Number(it.gross_amount) || 0) - (Number(it.expected_amount) || 0);
+        excecoesImpacto += impacto;
+        if (excecoesAmostra.length < 8) {
+          excecoesAmostra.push({
+            medico: String(it.doctor_name ?? "—"),
+            empresa: String(co),
+            valor: impacto,
+            nota: String(it.exception_note ?? "").slice(0, 200),
+          });
+        }
       }
     }
 
