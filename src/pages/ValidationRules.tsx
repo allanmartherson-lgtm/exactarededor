@@ -255,6 +255,8 @@ export default function ValidationRules() {
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState<{ id?: string; name: string; description: string; specialties: string[]; active: boolean }>({ name: "", description: "", specialties: [], active: true });
   const [ruleImpact, setRuleImpact] = useState<Map<string, { alertas: number; valor: number; lotes: number }>>(new Map());
+  const [ruleEffectiveness, setRuleEffectiveness] = useState<Map<string, { acatados: number; total: number; taxaFalsoPositivo: number }>>(new Map());
+  const [efficiencyOpen, setEfficiencyOpen] = useState(false);
   const [impactItems, setImpactItems] = useState<any[]>([]);
   const [expiringPaymentRules, setExpiringPaymentRules] = useState<{ id: string; name: string; valid_until: string }[]>([]);
   const [groupCollapsed, setGroupCollapsed] = useState<Record<string, boolean>>({});
