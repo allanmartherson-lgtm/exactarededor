@@ -265,11 +265,56 @@ const InvoicePortal = () => {
           <h1 className="text-xl font-semibold">Envio de Nota Fiscal</h1>
           <p className="text-sm text-muted-foreground mt-1">{pay.reference}</p>
         </header>
+
+        {/* Prazo fiscal: 30 dias após aprovação */}
+        {!expired && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+            <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Prazo para emissão da NF</p>
+              <p className="text-xs mt-0.5">
+                Emita e envie a nota fiscal em até <strong>30 dias</strong> a partir da data de aprovação do pagamento. Atrasos podem impedir o processamento.
+              </p>
+            </div>
+          </div>
+        )}
+
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-base">Pedido aprovado</CardTitle>
+            <CardTitle className="text-base">Pedido de Nota Fiscal</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Passos do processo */}
+            {(() => {
+              const steps = [
+                { label: "Pedido enviado", done: true },
+                { label: "NF recebida", done: inv.status !== "aguardando" },
+                { label: "Conciliada", done: inv.status === "conciliada" },
+              ];
+              return (
+                <div className="flex items-start justify-between mb-4 px-1">
+                  {steps.map((s, i) => (
+                    <div key={s.label} className="flex-1 flex flex-col items-center relative">
+                      {i > 0 && (
+                        <div
+                          className={`absolute top-3 right-1/2 w-full h-0.5 ${steps[i - 1].done && s.done ? "bg-emerald-500" : "bg-muted"}`}
+                          aria-hidden
+                        />
+                      )}
+                      <div
+                        className={`relative z-10 h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}
+                      >
+                        {s.done ? "✓" : i + 1}
+                      </div>
+                      <span className={`mt-1.5 text-[11px] text-center ${s.done ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                        {s.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Cabeçalho com dados do pedido — ajuda o recebedor a confirmar
                 que está no link correto antes de enviar a NF. */}
             <dl className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1.5 mb-4">
