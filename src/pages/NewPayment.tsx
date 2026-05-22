@@ -668,6 +668,17 @@ const NewPayment = () => {
   }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
+  const uniqueCompanyNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of allRows) {
+      const n = (r.company_name ?? "").trim();
+      if (n) set.add(n);
+    }
+    return Array.from(set);
+  }, [allRows]);
+
+
+
   // Resumo da pré-validação
   const preValidation = useMemo(() => {
     const byType: Record<string, number> = {};
