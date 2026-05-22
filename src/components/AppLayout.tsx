@@ -266,6 +266,7 @@ export const AppLayout = () => {
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
   const initials = getInitials(user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
+  const canRetryInvoices = roles.includes("analista") || roles.includes("admin");
   const visibleTopNav = filterNav(NAV_ITEMS, roles);
   // Sidebar: flat list of ALL leaves in fixed order, filtered only by leaf-level roles.
   // Groups (Financeiro / Configurações / Acesso) are ignored here — sidebar never groups.
