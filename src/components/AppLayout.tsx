@@ -346,13 +346,13 @@ export const AppLayout = () => {
     </Sheet>
   );
 
-  const handleSignOut = async () => {
+  async function handleSignOut() {
     await signOut();
     navigate("/auth", { replace: true });
-  };
+  }
 
   /* ============================ TOPBAR MODE ============================ */
-  if (layout === "top") {
+  if (effectiveLayout === "top") {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <header
