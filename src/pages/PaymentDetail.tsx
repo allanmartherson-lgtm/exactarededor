@@ -261,6 +261,7 @@ const PaymentDetail = () => {
       /* ignore quota errors */
     }
   }, [id, viewMode]);
+  const [aiCardsOpen, setAiCardsOpen] = useState(false);
   const [approvalBusy, setApprovalBusy] = useState(false);
 
 
