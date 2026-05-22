@@ -742,6 +742,57 @@ export default function HealthMonitoring() {
           )}
         </SurfaceCard>
       </section>
+
+      {/* ── Seção: Saúde das funções de IA ── */}
+      <section>
+        <SectionLabel>Saúde das funções de IA</SectionLabel>
+        <SurfaceCard>
+          <SurfaceCardHeader
+            title="Funções de IA (Claude)"
+            icon={Brain}
+            iconColor="purple"
+            sub="Modelo em uso e atividade recente das edge functions de análise"
+          />
+          <CheckRow
+            icon={Cpu}
+            iconColor={aiHealth?.modelUsed === "claude-sonnet-4-5" ? "green" : aiHealth?.hasGemini ? "yellow" : "teal"}
+            label="Último modelo usado"
+            sub={aiHealth?.modelUsed ?? "Sem dados de modelo"}
+            status={
+              !aiHealth ? "carregando"
+              : aiHealth.modelUsed === "claude-sonnet-4-5" ? "ok"
+              : aiHealth.modelUsed?.toLowerCase().includes("gemini") ? "aviso"
+              : !aiHealth.modelUsed ? "aviso"
+              : "ok"
+            }
+          />
+          <CheckRow
+            icon={Clock}
+            iconColor={
+              !aiHealth?.hoursAgo ? "yellow"
+              : aiHealth.hoursAgo < 24 ? "green"
+              : aiHealth.hoursAgo < 72 ? "yellow"
+              : "red"
+            }
+            label="Última análise executada"
+            sub={aiHealth?.lastAt ? `há ${fmtHoras(aiHealth.hoursAgo ?? 0)}` : "Nenhuma análise registrada"}
+            status={
+              !aiHealth ? "carregando"
+              : aiHealth.hoursAgo == null ? "critico"
+              : aiHealth.hoursAgo < 24 ? "ok"
+              : aiHealth.hoursAgo < 72 ? "aviso"
+              : "critico"
+            }
+          />
+          <CheckRow
+            icon={CheckCircle2}
+            iconColor={aiHealth?.hasGemini ? "yellow" : "green"}
+            label="Migração para Claude"
+            sub={aiHealth?.hasGemini ? "Ainda há itens recentes usando Gemini" : "Todas as últimas análises rodaram em Claude"}
+            status={!aiHealth ? "carregando" : aiHealth.hasGemini ? "aviso" : "ok"}
+          />
+        </SurfaceCard>
+      </section>
     </div>
   );
 }
