@@ -1145,7 +1145,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         expected_amount: r.expected_amount,
         calculation_explanation: r.calculation_explanation,
         gross_amount_at_time: it ? it.gross_amount : null,
-        model: aiJ ? "engine+gemini-2.5-pro" : "engine",
+        model: aiJ ? "engine+claude-sonnet-4-5" : "engine",
         triggered_by: triggeredBy,
       });
 
