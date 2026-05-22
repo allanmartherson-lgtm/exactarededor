@@ -344,14 +344,14 @@ const BigStatCard = ({ label, value, icon: Icon, color, hint, mine, to, companie
       <Link
         to={to}
         style={cardStyle}
-        className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="big-stat-card hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={`${label}: ${value}${mine ? ", sua vez" : hint ? `, ${hint}` : ""}`}
       >
         {inner}
       </Link>
     );
   }
-  return <div style={cardStyle}>{inner}</div>;
+  return <div className="big-stat-card" style={cardStyle}>{inner}</div>;
 };
 
 const BigStatSkeleton = () => (
