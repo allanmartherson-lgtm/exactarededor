@@ -1733,21 +1733,24 @@ const PaymentDetail = () => {
           return (
             <Card className="shadow-card">
               <CardContent className="p-3">
-                <div className="flex flex-wrap items-center text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap md:items-center gap-2 md:gap-0 text-xs">
                   {cells.map((c, i) => (
-                    <div key={i} className="flex items-baseline gap-1.5 px-3 py-0.5 border-r border-border/60 first:pl-0">
+                    <div
+                      key={i}
+                      className="flex flex-col md:flex-row md:items-baseline gap-0.5 md:gap-1.5 md:px-3 md:py-0.5 md:border-r md:border-border/60 md:first:pl-0"
+                    >
                       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
-                      <span className="font-medium">{c.value}</span>
+                      <span className="font-medium truncate">{c.value}</span>
                     </div>
                   ))}
-                  <div className="flex items-center gap-1.5 px-3 py-0.5">
+                  <div className="col-span-2 sm:col-span-3 md:col-span-1 flex flex-col md:flex-row md:items-center gap-0.5 md:gap-1.5 md:px-3 md:py-0.5">
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Responsável</span>
                     {currentResponsibleName ? (
-                      <>
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-semibold">{initials}</span>
-                        <span className="font-medium">{currentResponsibleName}</span>
-                        {isMe && <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">você</span>}
-                      </>
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-semibold shrink-0">{initials}</span>
+                        <span className="font-medium truncate">{currentResponsibleName}</span>
+                        {isMe && <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full shrink-0">você</span>}
+                      </span>
                     ) : (
                       <span className="italic text-muted-foreground">Ninguém assumiu</span>
                     )}
