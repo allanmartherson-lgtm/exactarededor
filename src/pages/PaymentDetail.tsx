@@ -1744,7 +1744,7 @@ const PaymentDetail = () => {
           )}
         </div>
         {/* DESKTOP: cards sempre visíveis */}
-        <div className="hidden md:contents">
+        <div className="hidden md:block space-y-4 md:space-y-6">
           {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
           {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
           <PreAnalysisScoreCard payment={payment} />
