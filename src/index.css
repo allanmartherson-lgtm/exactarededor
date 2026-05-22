@@ -8,75 +8,75 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — Cloud White, Apple-like minimal */
-    --background: 210 20% 98%;          /* #FAFBFC */
-    --foreground: 222 47% 11%;          /* #0F172A */
+    /* Surfaces — slate-50, institucional (DF Parecer) */
+    --background: 210 40% 98%;          /* #F8FAFC slate-50 */
+    --foreground: 224 71% 12%;          /* #0B1538 deep navy text */
 
     --card: 0 0% 100%;                  /* #FFFFFF */
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 224 71% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 71% 12%;
 
-    /* Brand: airy blue (#3B82F6) */
-    --primary: 217 91% 60%;             /* #3B82F6 */
+    /* Brand: navy institucional #1e3a8a */
+    --primary: 224 76% 33%;             /* #1e3a8a blue-900 */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 95% 97%;        /* very light blue tint */
-    --primary-glow: 217 91% 65%;
+    --primary-soft: 226 100% 96%;       /* indigo-50 tint */
+    --primary-glow: 217 91% 60%;        /* blue-500 — usado em gradiente */
 
     /* Brand secondary: MedPay copper (#9A6B3A) — CTA destacado em fluxos operacionais */
     --copper: 28 45% 42%;               /* #9A6B3A */
     --copper-foreground: 0 0% 100%;
-    --copper-hover: 28 46% 35%;         /* #825a30 */
-    --copper-active: 28 47% 29%;        /* #6e4c28 */
-    --copper-soft: 32 80% 96%;          /* #fdf5ec — fundo suave */
+    --copper-hover: 28 46% 35%;
+    --copper-active: 28 47% 29%;
+    --copper-soft: 32 80% 96%;
 
-    --secondary: 214 21% 93%;           /* #E8ECF1 — border / surface */
-    --secondary-foreground: 215 19% 35%;/* #475569 */
+    --secondary: 220 14% 93%;           /* #E5E9F0 — surface neutra */
+    --secondary-foreground: 224 30% 28%;/* #364463 */
 
-    --muted: 210 20% 98%;               /* #FAFBFC */
-    --muted-foreground: 215 16% 47%;    /* #94A3B8 — labels, muted text */
-    --text-tertiary: 213 27% 84%;       /* #CBD5E1 — idle zero numbers */
+    --muted: 210 40% 98%;               /* #F8FAFC */
+    --muted-foreground: 215 16% 47%;    /* #64748B slate-500 */
+    --text-tertiary: 215 20% 78%;       /* #B6C0CE — meta idle */
 
-    --accent: 214 95% 97%;              /* primary @ 5% as bg */
-    --accent-foreground: 217 91% 60%;   /* primary */
+    --accent: 226 100% 96%;             /* primary tint */
+    --accent-foreground: 224 76% 33%;   /* primary */
 
-    /* Status semantics — quiet, only used where it guides the eye */
-    --success: 152 60% 36%;
-    --success-foreground: 152 67% 22%;
-    --success-soft: 150 60% 92%;
+    /* Status semantics — paleta DF Parecer (cyan / green / amber / red) */
+    --success: 142 71% 38%;             /* #16A34A green-600 */
+    --success-foreground: 0 0% 100%;
+    --success-soft: 138 76% 93%;        /* green-50 */
 
-    --warning: 32 95% 44%;
-    --warning-foreground: 26 84% 35%;
-    --warning-soft: 48 96% 89%;
+    --warning: 38 92% 50%;              /* #F59E0B amber-500 */
+    --warning-foreground: 26 84% 18%;
+    --warning-soft: 48 96% 89%;         /* amber-100 */
 
-    --info: 217 91% 60%;
-    --info-foreground: 217 91% 45%;
-    --info-soft: 214 95% 97%;
+    --info: 199 89% 48%;                /* #0EA5E9 sky-500 */
+    --info-foreground: 0 0% 100%;
+    --info-soft: 204 94% 94%;           /* sky-100 */
 
-    --destructive: 0 73% 41%;
+    --destructive: 0 84% 60%;           /* #EF4444 red-500 */
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 93% 94%;
 
-    --border: 214 22% 88%;              /* #D6DCE4 — divisórias agora visíveis (era 93%, baixo contraste) */
-    --border-strong: 215 25% 72%;       /* #9FB0C2 — hairlines de controle (WCAG AA contra bg) */
-    --border-highlight: 0 0% 100%;      /* white — linha de luz inferior (efeito carved) */
-    --input: 215 25% 72%;               /* mesma do border-strong p/ controles */
-    --input-bg: 0 0% 100%;              /* #FFFFFF — fundo de input/select */
-    --ring: 217 91% 60%;
-    --ring-soft: 217 91% 60% / 0.35;    /* anel de foco visível em baixa visão */
-    --track-soft: 215 25% 78%;          /* track unchecked do Switch — mais legível */
-    --shadow-inset: inset 0 1px 2px hsl(222 47% 11% / 0.05);
-    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(222 47% 11% / 0.03);
+    --border: 220 16% 88%;              /* slate-200-ish */
+    --border-strong: 215 20% 68%;       /* hairlines */
+    --border-highlight: 0 0% 100%;
+    --input: 215 20% 68%;
+    --input-bg: 0 0% 100%;
+    --ring: 199 89% 48%;                /* cyan focus ring */
+    --ring-soft: 199 89% 48% / 0.35;
+    --track-soft: 215 20% 78%;
+    --shadow-inset: inset 0 1px 2px hsl(224 71% 12% / 0.05);
+    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(224 71% 12% / 0.04);
 
-    --radius: 0.875rem;                 /* 14px — friendlier, Apple-ish */
+    --radius: 0.875rem;                 /* 14px */
 
-    /* Gradients & shadows — soft elevation */
-    --gradient-brand: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 65%));
-    --gradient-soft: linear-gradient(135deg, hsl(214 95% 97%), hsl(210 20% 98%));
-    --shadow-soft: 0 1px 2px 0 hsl(222 47% 11% / 0.03), 0 1px 3px 0 hsl(222 47% 11% / 0.04);
-    --shadow-card: 0 1px 3px 0 hsl(222 47% 11% / 0.05), 0 1px 2px -1px hsl(222 47% 11% / 0.03);
-    --shadow-elevated: 0 20px 40px -16px hsl(217 91% 60% / 0.15), 0 8px 16px -8px hsl(222 47% 11% / 0.06);
+    /* Gradients & shadows */
+    --gradient-brand: linear-gradient(135deg, hsl(224 76% 33%), hsl(217 91% 50%));
+    --gradient-soft: linear-gradient(135deg, hsl(226 100% 96%), hsl(210 40% 98%));
+    --shadow-soft: 0 1px 2px 0 hsl(224 71% 12% / 0.04), 0 1px 3px 0 hsl(224 71% 12% / 0.05);
+    --shadow-card: 0 1px 3px 0 hsl(224 71% 12% / 0.06), 0 1px 2px -1px hsl(224 71% 12% / 0.04);
+    --shadow-elevated: 0 20px 40px -16px hsl(224 76% 33% / 0.18), 0 8px 16px -8px hsl(224 71% 12% / 0.08);
 
     /* Bubble token pairs (icon backgrounds) — quiet on idle */
     --bubble-purple-bg: 250 90% 97%;
@@ -99,86 +99,84 @@ All colors MUST be HSL.
     --hover-surface: 214 28% 93%;        /* hover de linha/botão ghost mais perceptível */
     --shadow-hover: 0 4px 12px hsl(222 47% 11% / 0.06);
 
-    /* Sidebar — light, Apple-like */
+    /* Sidebar — light, com primary navy */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 16% 47%;
-    --sidebar-muted-foreground: 213 27% 70%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-foreground: 224 30% 36%;
+    --sidebar-muted-foreground: 215 16% 60%;
+    --sidebar-primary: 224 76% 33%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 214 21% 95%;
-    --sidebar-hover-foreground: 215 19% 35%;
-    --sidebar-accent: 214 95% 97%;
-    --sidebar-accent-foreground: 217 91% 60%;
-    --sidebar-border: 214 21% 93%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-hover: 220 14% 95%;
+    --sidebar-hover-foreground: 224 71% 12%;
+    --sidebar-accent: 226 100% 96%;
+    --sidebar-accent-foreground: 224 76% 33%;
+    --sidebar-border: 220 16% 90%;
+    --sidebar-ring: 199 89% 48%;
   }
 
   .dark {
-    /* Dark — readable, neutral surfaces, brand blue accent (matches light) */
-    --background: 222 24% 9%;            /* #11141c */
-    --foreground: 210 30% 96%;           /* #eef2f7 — near-white, high contrast */
+    /* Dark — navy deep surfaces, cyan accent (DF Parecer style) */
+    --background: 224 50% 8%;            /* deep navy */
+    --foreground: 210 30% 96%;
 
-    --card: 220 22% 13%;                 /* #1a1e29 */
+    --card: 224 40% 13%;                 /* navy elevated */
     --card-foreground: 210 30% 96%;
-    --popover: 220 22% 13%;
+    --popover: 224 40% 13%;
     --popover-foreground: 210 30% 96%;
 
-    /* Brand: same airy blue, slightly brighter for dark surfaces */
-    --primary: 217 91% 62%;              /* #3b82f6-ish, still readable on dark */
-    --primary-foreground: 0 0% 100%;     /* white on blue — WCAG AA */
-    --primary-soft: 222 60% 18%;
-    --primary-glow: 217 91% 72%;
+    /* Brand: cyan brilhante em dark (espelhando DF Parecer) */
+    --primary: 199 89% 58%;              /* sky-400 — legível em dark */
+    --primary-foreground: 224 71% 12%;
+    --primary-soft: 224 50% 20%;
+    --primary-glow: 199 89% 68%;
 
-    /* Copper — versão para dark surfaces */
     --copper: 28 55% 55%;
     --copper-foreground: 0 0% 100%;
     --copper-hover: 28 55% 48%;
     --copper-active: 28 55% 42%;
     --copper-soft: 28 40% 18%;
 
-    --secondary: 222 18% 20%;            /* #2a3040 */
-    --secondary-foreground: 213 25% 88%; /* #d6dde7 */
+    --secondary: 224 30% 22%;
+    --secondary-foreground: 213 25% 88%;
 
-    --muted: 222 20% 16%;                /* #21263354 */
-    --muted-foreground: 215 18% 75%;     /* #b3becd — readable secondary text */
-    --text-tertiary: 215 14% 62%;        /* #8b95a6 — meta still readable */
+    --muted: 224 30% 18%;
+    --muted-foreground: 215 18% 75%;
+    --text-tertiary: 215 14% 62%;
 
-    --accent: 222 55% 20%;               /* primary tint as bg */
-    --accent-foreground: 217 95% 80%;
+    --accent: 224 50% 22%;
+    --accent-foreground: 199 89% 75%;
 
-    --success: 152 60% 55%;
+    --success: 142 71% 55%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 152 45% 16%;
+    --success-soft: 142 45% 18%;
 
     --warning: 38 92% 60%;
-    --warning-foreground: 30 80% 10%;    /* dark text on bright amber */
+    --warning-foreground: 30 80% 10%;
     --warning-soft: 36 60% 18%;
 
-    --info: 217 91% 68%;
+    --info: 199 89% 65%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 222 60% 18%;
+    --info-soft: 224 50% 20%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 50% 20%;
 
-    --border: 222 16% 30%;               /* #404657 — divisórias visíveis em dark (era 22%) */
-    --border-strong: 222 14% 46%;        /* #67708a — hairline de controle nítido em dark */
-    --border-highlight: 222 22% 32%;     /* highlight de relevo em dark */
-    --input: 222 14% 46%;
-    --input-bg: 220 22% 15%;             /* fundo do controle em dark */
-    --ring: 217 91% 70%;
-    --ring-soft: 217 91% 70% / 0.45;     /* anel de foco mais visível no escuro */
-    --track-soft: 222 14% 38%;
+    --border: 224 20% 28%;
+    --border-strong: 224 14% 46%;
+    --border-highlight: 224 22% 32%;
+    --input: 224 14% 46%;
+    --input-bg: 224 30% 15%;
+    --ring: 199 89% 65%;
+    --ring-soft: 199 89% 65% / 0.45;
+    --track-soft: 224 14% 38%;
     --shadow-inset: inset 0 1px 2px hsl(0 0% 0% / 0.35);
-    --shadow-control: 0 1px 0 hsl(222 20% 30% / 0.6) inset, 0 1px 2px hsl(0 0% 0% / 0.25);
+    --shadow-control: 0 1px 0 hsl(224 30% 28% / 0.6) inset, 0 1px 2px hsl(0 0% 0% / 0.25);
 
-    --gradient-brand: linear-gradient(135deg, hsl(217 91% 58%), hsl(217 91% 70%));
-    --gradient-soft: linear-gradient(135deg, hsl(222 55% 18%), hsl(222 24% 9%));
-    /* Airy soft elevation in dark: subtle dark base + faint primary glow */
+    --gradient-brand: linear-gradient(135deg, hsl(224 76% 40%), hsl(199 89% 58%));
+    --gradient-soft: linear-gradient(135deg, hsl(224 50% 18%), hsl(224 50% 8%));
     --shadow-soft: 0 1px 2px 0 hsl(0 0% 0% / 0.35), 0 1px 3px 0 hsl(0 0% 0% / 0.25);
-    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(217 91% 50% / 0.08);
-    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.55), 0 8px 24px -8px hsl(217 91% 50% / 0.15);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(199 89% 50% / 0.10);
+    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.55), 0 8px 24px -8px hsl(199 89% 50% / 0.18);
 
     --bubble-purple-bg: 250 40% 22%;
     --bubble-purple-fg: 250 95% 85%;
@@ -199,18 +197,18 @@ All colors MUST be HSL.
     --hover-surface: 222 22% 21%;
     --shadow-hover: 0 4px 14px hsl(0 0% 0% / 0.45);
 
-    /* Sidebar — dark, with readable idle text */
-    --sidebar-background: 220 22% 11%;
+    /* Sidebar — dark, navy/cyan */
+    --sidebar-background: 224 45% 10%;
     --sidebar-foreground: 215 18% 78%;
     --sidebar-muted-foreground: 215 14% 60%;
-    --sidebar-primary: 217 91% 62%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 222 20% 17%;
+    --sidebar-primary: 199 89% 58%;
+    --sidebar-primary-foreground: 224 71% 12%;
+    --sidebar-hover: 224 35% 17%;
     --sidebar-hover-foreground: 210 30% 96%;
-    --sidebar-accent: 222 60% 18%;
-    --sidebar-accent-foreground: 217 91% 75%;
-    --sidebar-border: 222 18% 20%;
-    --sidebar-ring: 217 91% 65%;
+    --sidebar-accent: 224 50% 20%;
+    --sidebar-accent-foreground: 199 89% 75%;
+    --sidebar-border: 224 25% 20%;
+    --sidebar-ring: 199 89% 65%;
   }
 }
 
@@ -221,8 +219,8 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Figtree", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-feature-settings: "cv11", "ss01";
+    font-family: "DM Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
@@ -230,16 +228,15 @@ All colors MUST be HSL.
 
   h1, h2, h3, h4 {
     @apply tracking-tight text-foreground;
-    font-family: "Outfit", "Figtree", system-ui, sans-serif;
+    font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
-  /* Dark mode: lighter heading weight + tighter smoothing avoids the
-     "bold smear" of bright Outfit on dark surfaces — keeps Airy feel. */
+  /* Dark mode: alivia o peso do display em superfícies escuras. */
   .dark h1, .dark h2, .dark h3, .dark h4 {
     font-weight: 550;
-    letter-spacing: -0.018em;
+    letter-spacing: -0.012em;
   }
   .dark body {
     font-weight: 380;
