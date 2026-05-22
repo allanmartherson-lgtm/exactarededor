@@ -14,6 +14,8 @@ import { Search, X, User, Tag, Clock, Building2, AlertTriangle, UserCheck, Refre
 import { DoctorCombobox } from "@/components/DoctorCombobox";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
+import { PriorityBadge } from "@/components/payment-detail/PriorityBadge";
+import { calcPriorityScore } from "@/lib/paymentPriority";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -181,7 +183,7 @@ const Payments = () => {
   }, [searchParams]);
 
   const [view, setView] = useState<"lista" | "kanban">("lista");
-  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status">("created");
+  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status" | "priority">("created");
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
