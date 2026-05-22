@@ -2087,7 +2087,7 @@ const PaymentDetail = () => {
             return (
               <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
                 <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                <span className="text-success-foreground font-medium">Empresas concluídas pelo analista</span>
+                <span className="text-success-foreground font-medium text-slate-500">Empresas concluídas pelo analista</span>
                 <span className="text-muted-foreground text-xs">
                   — {groupsReadyToSend.length} pronta(s) para envio
                   {groupsPendingAnalyst.length > 0 && ` · ${groupsPendingAnalyst.length} ainda pendente(s)`}
