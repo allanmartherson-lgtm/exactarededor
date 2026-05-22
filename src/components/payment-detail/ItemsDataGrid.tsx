@@ -695,6 +695,7 @@ export function ItemsDataGrid({
                   <RowMain
                     key={it.id}
                     it={it}
+                    allItems={items}
                     paciente={paciente}
                     expected={expected ?? null}
                     eff={eff}
@@ -789,6 +790,7 @@ export function ItemsDataGrid({
 
 function RowMain({
   it,
+  allItems,
   paciente,
   expected,
   eff,
@@ -814,6 +816,7 @@ function RowMain({
   onUndoAcceptItem,
 }: {
   it: PaymentItemRowData;
+  allItems: PaymentItemRowData[];
   paciente: string;
   expected: number | null;
   eff: ItemAiStatus | "seguido";
