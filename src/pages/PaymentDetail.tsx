@@ -1567,7 +1567,7 @@ const PaymentDetail = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                className="hidden md:inline-flex border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
                 onClick={() => setIsConciliationOpen(true)}
               >
                 <GitCompare className="h-4 w-4 mr-1.5" />
