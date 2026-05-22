@@ -191,19 +191,21 @@ export function PaymentBatchActionsFooter({
   return (
     <>
       <Card className="shadow-card border-primary/30">
-        <CardContent className="p-4 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground mr-auto">
+        <CardContent className="p-3 md:p-4 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
+          <span className="text-xs md:text-sm text-muted-foreground md:mr-auto">
             Ações do lote — {approvable.length} aprovável(is), {pending.length} pendente(s).
           </span>
-          <Button variant="outline" onClick={openQuestion} disabled={busy}>
-            <MessageCircle className="h-4 w-4 mr-2" /> Questionar
-          </Button>
-          <Button variant="outline" onClick={openReturn} disabled={busy}>
-            <Undo2 className="h-4 w-4 mr-2" /> Devolver
-          </Button>
-          <Button onClick={handleApproveClick} disabled={busy}>
-            <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar
-          </Button>
+          <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
+            <Button variant="outline" onClick={openQuestion} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0 col-span-2 md:col-span-1">
+              <MessageCircle className="h-4 w-4 mr-2" /> Questionar
+            </Button>
+            <Button variant="outline" onClick={openReturn} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0">
+              <Undo2 className="h-4 w-4 mr-2" /> Devolver
+            </Button>
+            <Button onClick={handleApproveClick} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0">
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
