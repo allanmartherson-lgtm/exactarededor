@@ -22,6 +22,7 @@ import {
   FlaskConical,
   Layers,
   TrendingDown,
+  TrendingUp,
   ShieldX,
   FileWarning,
 } from "lucide-react";
