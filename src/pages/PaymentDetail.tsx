@@ -31,6 +31,8 @@ import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgres
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
 import { UnmatchedItemsPanel } from "@/components/payment-detail/UnmatchedItemsPanel";
 import { PaymentPivotSection, type PivotVariant } from "@/components/payment-detail/PaymentPivotSection";
+import { PreAnalysisScoreCard } from "@/components/payment-detail/PreAnalysisScoreCard";
+import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAlerts";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
@@ -1591,6 +1593,8 @@ const PaymentDetail = () => {
       <div className="p-8 space-y-6">
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
+        <PreAnalysisScoreCard payment={payment} />
+        {id && <DoctorAnomalyAlerts paymentId={id} />}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
             <CardContent className="p-3 text-xs flex items-start gap-2">

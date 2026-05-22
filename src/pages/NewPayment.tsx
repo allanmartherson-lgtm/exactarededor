@@ -19,6 +19,8 @@ import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentT
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
 import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
+import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
+import { fetchCompanyRiskProfiles } from "@/lib/companyRiskProfile";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RULE_SECTOR_LABELS, type RuleSector } from "@/lib/status";
 import { normalizeNumericValue } from "@/lib/utils";
@@ -666,6 +668,17 @@ const NewPayment = () => {
   }, [buckets, paymentKind]);
   const total = allRows.reduce((s, r) => s + r.gross_amount, 0);
 
+  const uniqueCompanyNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of allRows) {
+      const n = (r.company_name ?? "").trim();
+      if (n) set.add(n);
+    }
+    return Array.from(set);
+  }, [allRows]);
+
+
+
   // Resumo da pré-validação
   const preValidation = useMemo(() => {
     const byType: Record<string, number> = {};
@@ -980,6 +993,56 @@ const NewPayment = () => {
         .update({ items_count: matchedItems.length, total_amount: matchedTotal })
         .eq("id", payment.id);
     }
+
+    // Score preditivo pré-análise — não bloqueia o fluxo se falhar.
+    (async () => {
+      try {
+        const itemCount = matchedItems.length;
+        if (itemCount === 0) return;
+        const companyNames = Array.from(new Set(matchedItems.map((it) => (it.company_name ?? "").trim()).filter(Boolean)));
+        if (companyNames.length === 0) return;
+        const profilesMap = await fetchCompanyRiskProfiles(companyNames);
+        const profiles = companyNames
+          .map((name) => {
+            const p = profilesMap.get(name);
+            return p ? { company: name, historical_alert_rate: p.alertRate, sample_items: p.totalItems } : null;
+          })
+          .filter((x): x is { company: string; historical_alert_rate: number; sample_items: number } => x !== null);
+        const withHistory = profiles.filter((p) => p.sample_items >= 10);
+        const baseRates = (withHistory.length > 0 ? withHistory : profiles).map((p) => p.historical_alert_rate);
+        const avgRate = baseRates.length > 0 ? baseRates.reduce((a, b) => a + b, 0) / baseRates.length : 0;
+        const baseScore = avgRate * 100;
+        const volumeBonus = itemCount > 100 ? Math.min(15, Math.log10(itemCount / 100) * 5) : 0;
+        const predictiveScore = Math.round(Math.min(100, baseScore + volumeBonus));
+        const scoreLevel: "baixo" | "medio" | "alto" | "critico" =
+          predictiveScore < 20 ? "baixo" :
+          predictiveScore < 50 ? "medio" :
+          predictiveScore < 75 ? "alto" : "critico";
+
+        const { data: cur } = await supabase
+          .from("payments")
+          .select("processing_diagnostics")
+          .eq("id", payment.id)
+          .single();
+        const prevDiag = (cur?.processing_diagnostics ?? {}) as Record<string, unknown>;
+        await supabase.from("payments").update({
+          processing_diagnostics: {
+            ...prevDiag,
+            pre_analysis: {
+              predictive_score: predictiveScore,
+              score_level: scoreLevel,
+              company_profiles: profiles,
+              sample_months: 6,
+              calculated_at: new Date().toISOString(),
+            },
+          },
+        }).eq("id", payment.id);
+      } catch (err) {
+        console.warn("[pre_analysis] cálculo falhou:", err);
+      }
+    })();
+
+
 
     const fileSummary = buckets.map((b) =>
       `${b.file.name} → ${b.matchedCompany ? `${b.matchedCompany.name} (match ${Math.round(b.matchScore * 100)}%)` : `empresa nova: ${b.rawCompanyName}`} · ${b.rows.length} itens`
@@ -1591,6 +1654,10 @@ const NewPayment = () => {
             )}
           </CardContent>
         </Card>
+
+        {uniqueCompanyNames.length > 0 && (
+          <CompanyRiskProfileList companyNames={uniqueCompanyNames} />
+        )}
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
