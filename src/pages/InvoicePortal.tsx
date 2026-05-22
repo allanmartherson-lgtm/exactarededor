@@ -265,11 +265,56 @@ const InvoicePortal = () => {
           <h1 className="text-xl font-semibold">Envio de Nota Fiscal</h1>
           <p className="text-sm text-muted-foreground mt-1">{pay.reference}</p>
         </header>
+
+        {/* Prazo fiscal: 30 dias após aprovação */}
+        {!expired && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+            <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Prazo para emissão da NF</p>
+              <p className="text-xs mt-0.5">
+                Emita e envie a nota fiscal em até <strong>30 dias</strong> a partir da data de aprovação do pagamento. Atrasos podem impedir o processamento.
+              </p>
+            </div>
+          </div>
+        )}
+
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-base">Pedido aprovado</CardTitle>
+            <CardTitle className="text-base">Pedido de Nota Fiscal</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Passos do processo */}
+            {(() => {
+              const steps = [
+                { label: "Pedido enviado", done: true },
+                { label: "NF recebida", done: inv.status !== "aguardando" },
+                { label: "Conciliada", done: inv.status === "conciliada" },
+              ];
+              return (
+                <div className="flex items-start justify-between mb-4 px-1">
+                  {steps.map((s, i) => (
+                    <div key={s.label} className="flex-1 flex flex-col items-center relative">
+                      {i > 0 && (
+                        <div
+                          className={`absolute top-3 right-1/2 w-full h-0.5 ${steps[i - 1].done && s.done ? "bg-emerald-500" : "bg-muted"}`}
+                          aria-hidden
+                        />
+                      )}
+                      <div
+                        className={`relative z-10 h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}
+                      >
+                        {s.done ? "✓" : i + 1}
+                      </div>
+                      <span className={`mt-1.5 text-[11px] text-center ${s.done ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                        {s.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Cabeçalho com dados do pedido — ajuda o recebedor a confirmar
                 que está no link correto antes de enviar a NF. */}
             <dl className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1.5 mb-4">
@@ -308,12 +353,24 @@ const InvoicePortal = () => {
                   <p>✓ Nota recebida e conciliada com sucesso! Valor confere com o pedido.</p>
                 ) : (
                   <>
-                    <p className="font-medium">⚠ Divergência detectada — a nota foi rejeitada.</p>
+                    <p className="font-medium">⚠ Valor da NF diferente do pedido</p>
+                    {(done.ai_amount != null || done.form_diff != null) && (
+                      <div className="grid grid-cols-2 gap-2 rounded-md bg-background/40 p-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Você emitiu</p>
+                          <p className="font-semibold text-foreground">
+                            {done.ai_amount != null ? formatCurrency(done.ai_amount) : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Valor solicitado</p>
+                          <p className="font-semibold text-foreground">{formatCurrency(inv.expected_amount)}</p>
+                        </div>
+                      </div>
+                    )}
                     {done.notes && <p className="text-xs whitespace-pre-wrap">{done.notes}</p>}
                     <p className="text-xs">
-                      Nosso time fiscal <strong>não aceita nenhuma diferença</strong> entre o pedido e a NF emitida.
-                      Por favor, cancele a nota junto à sua contabilidade, emita uma nova com os dados corretos
-                      e reenvie pelo botão abaixo.
+                      O valor que você emitiu é diferente do valor solicitado. Por favor, cancele a NF junto à sua contabilidade, emita uma nova com o valor correto e reenvie aqui.
                     </p>
                     {resetOpen ? resetForm : (
                       reuploadLocked ? (
@@ -361,7 +418,7 @@ const InvoicePortal = () => {
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="upload">Enviar nota</TabsTrigger>
                   <TabsTrigger value="question">
-                    <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Tenho uma dúvida
+                    <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Falar com analista
                     {questions.length > 0 && (
                       <span className="ml-1.5 rounded-full bg-warning-soft text-warning-foreground text-[10px] px-1.5">
                         {questions.length}
@@ -370,6 +427,13 @@ const InvoicePortal = () => {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="upload" className="mt-4">
+                  <div className="rounded-lg bg-muted/40 border px-3 py-2.5 text-xs text-muted-foreground space-y-1 mb-3">
+                    <p className="font-medium text-foreground">Como funciona:</p>
+                    <p>1. Emita a NF com o valor exato indicado acima para o CNPJ do hospital.</p>
+                    <p>2. Faça o upload do arquivo PDF ou XML da nota.</p>
+                    <p>3. Após o envio, nosso sistema valida automaticamente o valor. Se conferir, o pagamento é liberado.</p>
+                    <p className="text-warning font-medium">⚠ Qualquer diferença de valor resulta em rejeição automática.</p>
+                  </div>
                   <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-1.5"><Label>Número da NF</Label><Input name="invoice_number" required maxLength={50} /></div>
                     <div className="space-y-1.5"><Label>Arquivo (PDF/XML)</Label><Input name="file" type="file" accept=".pdf,.xml" required /></div>
@@ -386,6 +450,9 @@ const InvoicePortal = () => {
                   </form>
                 </TabsContent>
                 <TabsContent value="question" className="mt-4 space-y-3">
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
+                    💡 <strong>Dúvida antes de emitir?</strong> Use este espaço para confirmar valores ou pedir esclarecimentos antes de emitir a nota — isso evita rejeições.
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Faltou algum item? Valor diferente? Envie sua dúvida para o analista antes de emitir a NF.
                   </p>
