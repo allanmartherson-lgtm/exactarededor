@@ -134,7 +134,7 @@ export class ErrorBoundary extends Component<Props, State> {
     const { isChunkError, error } = this.state;
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="min-h-dvh flex items-center justify-center bg-background px-6">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="mx-auto w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
             {isChunkError ? (

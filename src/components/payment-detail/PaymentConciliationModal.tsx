@@ -907,7 +907,7 @@ export function PaymentConciliationModal({
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Fechar conciliação">
               <X className="h-4 w-4" />
             </Button>
           </div>
