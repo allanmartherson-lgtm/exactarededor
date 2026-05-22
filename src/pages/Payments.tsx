@@ -890,7 +890,56 @@ const Payments = () => {
         description="Todos os lotes de pagamento e seu status no fluxo."
       />
       <div className="p-4 md:p-8 w-full mx-auto space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
+        {(() => {
+          const activeFilterCount = [
+            !!companyFilter,
+            analystFilter !== "all",
+            typeFilter !== "all",
+            statusFilter !== "all",
+            competenceFilter !== "all",
+            delayedOnly,
+            ownerGroup !== "all",
+            divergenceFilter !== "all",
+            questionedFilter !== "all",
+            openQuestionOnly,
+          ].filter(Boolean).length;
+          const searchInput = (
+            <div className="relative flex-1 min-w-0 md:max-w-sm md:min-w-[220px]">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar referência, PJ, médico…"
+                className="pl-9"
+              />
+              {searching && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                  buscando…
+                </span>
+              )}
+            </div>
+          );
+          return (
+            <>
+              {/* MOBILE: barra compacta */}
+              <div className="flex md:hidden items-center gap-2">
+                {searchInput}
+                <Button
+                  variant={filtersOpen ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFiltersOpen((v) => !v)}
+                  className="shrink-0 relative"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </div>
+              {/* DESKTOP: linha completa de filtros */}
+              <div className="hidden md:flex flex-wrap items-center gap-2">
           <div className="relative max-w-sm flex-1 min-w-[220px]">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
