@@ -261,6 +261,7 @@ const PaymentDetail = () => {
       /* ignore quota errors */
     }
   }, [id, viewMode]);
+  const [aiCardsOpen, setAiCardsOpen] = useState(false);
   const [approvalBusy, setApprovalBusy] = useState(false);
 
 
@@ -1441,13 +1442,26 @@ const PaymentDetail = () => {
         sticky
         actions={
           <div className="flex items-center gap-2">
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
+            <div className="md:hidden">
+              <Select value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)}>
+                <SelectTrigger className="h-8 w-[130px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="detalhe">Detalhe</SelectItem>
+                  <SelectItem value="compacto">Compacto</SelectItem>
+                  <SelectItem value="executivo">Executivo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as PivotVariant)} className="hidden md:block">
               <TabsList>
                 <TabsTrigger value="detalhe">Detalhe</TabsTrigger>
                 <TabsTrigger value="compacto">Compacto</TabsTrigger>
                 <TabsTrigger value="executivo">Executivo</TabsTrigger>
               </TabsList>
             </Tabs>
+
 
             {obs.some((o: any) => o.is_question) && (
               <Button 
@@ -1470,7 +1484,7 @@ const PaymentDetail = () => {
                     variant="outline"
                     size="sm"
                     disabled={reprocessingAi}
-                    className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
+                    className="hidden md:inline-flex border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
                     title="Reaplicar o motor de regras e análise de IA"
                   >
                     <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
@@ -1553,7 +1567,7 @@ const PaymentDetail = () => {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                className="hidden md:inline-flex border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
                 onClick={() => setIsConciliationOpen(true)}
               >
                 <GitCompare className="h-4 w-4 mr-1.5" />
@@ -1657,13 +1671,39 @@ const PaymentDetail = () => {
           </div>
         }
       />
-      <div className="p-8 space-y-6">
+      <div className="p-3 md:p-8 space-y-6">
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
-        {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
-        {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
-        <PreAnalysisScoreCard payment={payment} />
-        {id && <DoctorAnomalyAlerts paymentId={id} />}
+        {/* MOBILE: cards de IA colapsáveis */}
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setAiCardsOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md border bg-primary/5 text-sm font-medium"
+            aria-expanded={aiCardsOpen}
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Análise IA
+            </span>
+            {aiCardsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          {aiCardsOpen && (
+            <div className="space-y-3 mt-2">
+              {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+              {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+              <PreAnalysisScoreCard payment={payment} />
+              {id && <DoctorAnomalyAlerts paymentId={id} />}
+            </div>
+          )}
+        </div>
+        {/* DESKTOP: cards sempre visíveis */}
+        <div className="hidden md:contents">
+          {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+          {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+          <PreAnalysisScoreCard payment={payment} />
+          {id && <DoctorAnomalyAlerts paymentId={id} />}
+        </div>
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
             <CardContent className="p-3 text-xs flex items-start gap-2">
@@ -2217,7 +2257,7 @@ const PaymentDetail = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-full md:w-fit overflow-x-auto flex-nowrap">
               <Button
                 variant={criticalFilter === "all" ? "default" : "ghost"}
                 size="sm"
