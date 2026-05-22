@@ -25,6 +25,7 @@ import {
   TrendingUp,
   ShieldX,
   FileWarning,
+  MessageSquare,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -106,6 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/saude", label: "Saúde do Motor", icon: Activity, iconName: "Activity", roles: ["diretor", "admin"] as const },
       { to: "/auditoria", label: "Auditoria", icon: History, iconName: "History", roles: ["diretor", "admin"] },
       { to: "/anomalias-status", label: "Anomalias de status", icon: AlertTriangle, iconName: "AlertTriangle", roles: ["diretor", "admin"] },
+      { to: "/insights-observacoes", label: "Insights de Observações", icon: MessageSquare, iconName: "MessageSquare", roles: ["diretor", "admin"] },
     ],
   },
 ];
@@ -141,6 +143,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Saúde do Motor", iconName: "Activity" },
   { label: "Auditoria", iconName: "History" },
   { label: "Anomalias de status", iconName: "AlertTriangle" },
+  { label: "Insights de Observações", iconName: "MessageSquare" },
 ];
 
 export const isGroup = (n: NavItem): n is NavGroup => "children" in n;
