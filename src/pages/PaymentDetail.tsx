@@ -1671,13 +1671,39 @@ const PaymentDetail = () => {
           </div>
         }
       />
-      <div className="p-8 space-y-6">
+      <div className="p-3 md:p-8 space-y-6">
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
-        {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
-        {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
-        <PreAnalysisScoreCard payment={payment} />
-        {id && <DoctorAnomalyAlerts paymentId={id} />}
+        {/* MOBILE: cards de IA colapsáveis */}
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setAiCardsOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md border bg-primary/5 text-sm font-medium"
+            aria-expanded={aiCardsOpen}
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Análise IA
+            </span>
+            {aiCardsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          {aiCardsOpen && (
+            <div className="space-y-3 mt-2">
+              {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+              {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+              <PreAnalysisScoreCard payment={payment} />
+              {id && <DoctorAnomalyAlerts paymentId={id} />}
+            </div>
+          )}
+        </div>
+        {/* DESKTOP: cards sempre visíveis */}
+        <div className="hidden md:contents">
+          {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+          {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+          <PreAnalysisScoreCard payment={payment} />
+          {id && <DoctorAnomalyAlerts paymentId={id} />}
+        </div>
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
             <CardContent className="p-3 text-xs flex items-start gap-2">
