@@ -1671,7 +1671,7 @@ const PaymentDetail = () => {
           </div>
         }
       />
-      <div className="p-3 md:p-8 space-y-6">
+      <div className="p-3 md:p-8 space-y-4 md:space-y-6">
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
         {/* MOBILE: cards de IA colapsáveis */}
@@ -2214,7 +2214,7 @@ const PaymentDetail = () => {
           </Card>
         )}
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-2 md:gap-3">
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
               <div className="relative w-full sm:w-[280px]">
                 <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
