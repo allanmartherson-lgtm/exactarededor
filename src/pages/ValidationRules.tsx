@@ -883,6 +883,26 @@ export default function ValidationRules() {
         );
       })()}
 
+      {expiringPaymentRules.length > 0 && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
+          <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            {expiringPaymentRules.length} regra(s) de pagamento expira(m) nos próximos 30 dias
+          </p>
+          <ul className="space-y-1">
+            {expiringPaymentRules.map(r => (
+              <li key={r.id} className="text-xs text-amber-800 flex items-center justify-between">
+                <span>{r.name}</span>
+                <span className="font-mono">{formatDateBR(r.valid_until)}</span>
+              </li>
+            ))}
+          </ul>
+          <Link to="/regras/pagamento" className="text-xs text-amber-700 underline">
+            Gerenciar regras de pagamento →
+          </Link>
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap items-center gap-3 bg-muted/30 p-3 rounded-lg border border-border">
         <div className="flex items-center gap-2 text-muted-foreground mr-2">
           <Filter className="h-4 w-4" />
@@ -890,8 +910,8 @@ export default function ValidationRules() {
         </div>
         <div className="relative flex-1 max-w-sm">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por nome, PJ (empresa) ou tipo…" 
+          <Input
+            placeholder="Buscar por nome, PJ (empresa) ou tipo…"
             className="pl-9 bg-background"
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
@@ -902,7 +922,7 @@ export default function ValidationRules() {
         </p>
       </div>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 space-y-4">
         {loading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
         ) : filteredRules.length === 0 ? (
@@ -910,62 +930,97 @@ export default function ValidationRules() {
             {filterText ? "Nenhuma validação encontrada para esta busca." : "Nenhuma validação cadastrada. Comece criando duplicidade exata e por atendimento."}
           </div>
         ) : (
-          filteredRules.map((r) => (
-            <div key={r.id} className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
-              <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{r.name}</span>
-                  <Badge variant="outline" className={ACTION_BADGE_VARIANT[r.action]}>{ACTION_BADGE_LABELS[r.action]}</Badge>
-                  <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
-                  {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
-                  {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
-                </div>
-                {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Ação: {ACTION_LABELS[r.action]}
-                  {r.require_justification && " · Justificativa obrigatória"}
-                  {r.allows_authorized_exception && " · Permite exceção autorizada"}
-                </p>
-                {r.company_ids && (r.company_ids as string[]).length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {(r.company_ids as string[]).map(id => (
-                      <Badge key={id} variant="secondary" className="text-[10px] py-0 px-1 font-normal opacity-80">
-                        {allCompaniesMap[id] || id.slice(0, 8)}
-                      </Badge>
+          ACTION_GROUPS.map(({ action, label, color }) => {
+            const rulesInGroup = filteredRules.filter(r => r.action === action);
+            if (rulesInGroup.length === 0) return null;
+            const collapsed = !!groupCollapsed[action];
+            const totalAlerts = rulesInGroup.reduce((acc, r) => acc + (ruleImpact.get(r.id)?.alertas ?? 0), 0);
+            return (
+              <div key={action} className={`rounded-lg border ${color}`}>
+                <button
+                  type="button"
+                  onClick={() => setGroupCollapsed(prev => ({ ...prev, [action]: !prev[action] }))}
+                  className="w-full flex items-center gap-2 p-3 text-left"
+                >
+                  {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span className="text-sm font-semibold">{label}</span>
+                  <Badge variant="outline" className="bg-white/70">{rulesInGroup.length} regra{rulesInGroup.length !== 1 ? "s" : ""}</Badge>
+                  {totalAlerts > 0 && (
+                    <Badge variant="outline" className="bg-white/70 text-amber-700 border-amber-200">
+                      {totalAlerts} alerta{totalAlerts !== 1 ? "s" : ""} ativo{totalAlerts !== 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </button>
+                {!collapsed && (
+                  <div className="px-3 pb-3 space-y-2">
+                    {rulesInGroup.map((r) => (
+                      <div key={r.id} className="rounded-lg border border-border bg-card p-4 flex items-start gap-4">
+                        <ShieldCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">{r.name}</span>
+                            <Badge variant="outline" className={ACTION_BADGE_VARIANT[r.action]}>{ACTION_BADGE_LABELS[r.action]}</Badge>
+                            <Badge variant="outline">{KIND_LABELS[r.kind]}</Badge>
+                            {KINDS_NOT_IMPLEMENTED.has(r.kind as Kind) && (
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px]">
+                                ⚠ Motor em breve
+                              </Badge>
+                            )}
+                            {!r.active && <Badge variant="outline" className="bg-muted">Inativa</Badge>}
+                            {r.scope_global && <Badge variant="outline" className="text-xs">Global</Badge>}
+                          </div>
+                          {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Ação: {ACTION_LABELS[r.action]}
+                            {r.require_justification && " · Justificativa obrigatória"}
+                            {r.allows_authorized_exception && " · Permite exceção autorizada"}
+                          </p>
+                          {r.company_ids && (r.company_ids as string[]).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {(r.company_ids as string[]).map(id => (
+                                <Badge key={id} variant="secondary" className="text-[10px] py-0 px-1 font-normal opacity-80">
+                                  {allCompaniesMap[id] || id.slice(0, 8)}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                          {(() => {
+                            const impact = ruleImpact.get(r.id);
+                            if (!impact) return null;
+                            return (
+                              <div className="mt-2 flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
+                                  <FileText className="h-3 w-3" />
+                                  <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => openHistory(r)} title="Histórico"><History className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
-                {(() => {
-                  const impact = ruleImpact.get(r.id);
-                  if (!impact) return null;
-                  return (
-                    <div className="mt-2 flex items-center gap-3 flex-wrap">
-                      <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        <span><strong>{impact.alertas}</strong> alerta{impact.alertas !== 1 ? "s" : ""}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span><strong>{formatCurrency(impact.valor)}</strong> em risco</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 border border-border rounded-md px-2 py-1">
-                        <FileText className="h-3 w-3" />
-                        <span>{impact.lotes} lote{impact.lotes !== 1 ? "s" : ""} afetado{impact.lotes !== 1 ? "s" : ""}</span>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => exportRuleToPDF(r)} title="Exportar PDF"><FileDown className="h-4 w-4 text-blue-600" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => remove(r.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
 
       {groups.length > 0 && (
         <div className="mt-10">
