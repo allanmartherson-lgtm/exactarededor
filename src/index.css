@@ -114,71 +114,69 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Dark — readable, neutral surfaces, brand blue accent (matches light) */
-    --background: 222 24% 9%;            /* #11141c */
-    --foreground: 210 30% 96%;           /* #eef2f7 — near-white, high contrast */
+    /* Dark — navy deep surfaces, cyan accent (DF Parecer style) */
+    --background: 224 50% 8%;            /* deep navy */
+    --foreground: 210 30% 96%;
 
-    --card: 220 22% 13%;                 /* #1a1e29 */
+    --card: 224 40% 13%;                 /* navy elevated */
     --card-foreground: 210 30% 96%;
-    --popover: 220 22% 13%;
+    --popover: 224 40% 13%;
     --popover-foreground: 210 30% 96%;
 
-    /* Brand: same airy blue, slightly brighter for dark surfaces */
-    --primary: 217 91% 62%;              /* #3b82f6-ish, still readable on dark */
-    --primary-foreground: 0 0% 100%;     /* white on blue — WCAG AA */
-    --primary-soft: 222 60% 18%;
-    --primary-glow: 217 91% 72%;
+    /* Brand: cyan brilhante em dark (espelhando DF Parecer) */
+    --primary: 199 89% 58%;              /* sky-400 — legível em dark */
+    --primary-foreground: 224 71% 12%;
+    --primary-soft: 224 50% 20%;
+    --primary-glow: 199 89% 68%;
 
-    /* Copper — versão para dark surfaces */
     --copper: 28 55% 55%;
     --copper-foreground: 0 0% 100%;
     --copper-hover: 28 55% 48%;
     --copper-active: 28 55% 42%;
     --copper-soft: 28 40% 18%;
 
-    --secondary: 222 18% 20%;            /* #2a3040 */
-    --secondary-foreground: 213 25% 88%; /* #d6dde7 */
+    --secondary: 224 30% 22%;
+    --secondary-foreground: 213 25% 88%;
 
-    --muted: 222 20% 16%;                /* #21263354 */
-    --muted-foreground: 215 18% 75%;     /* #b3becd — readable secondary text */
-    --text-tertiary: 215 14% 62%;        /* #8b95a6 — meta still readable */
+    --muted: 224 30% 18%;
+    --muted-foreground: 215 18% 75%;
+    --text-tertiary: 215 14% 62%;
 
-    --accent: 222 55% 20%;               /* primary tint as bg */
-    --accent-foreground: 217 95% 80%;
+    --accent: 224 50% 22%;
+    --accent-foreground: 199 89% 75%;
 
-    --success: 152 60% 55%;
+    --success: 142 71% 55%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 152 45% 16%;
+    --success-soft: 142 45% 18%;
 
     --warning: 38 92% 60%;
-    --warning-foreground: 30 80% 10%;    /* dark text on bright amber */
+    --warning-foreground: 30 80% 10%;
     --warning-soft: 36 60% 18%;
 
-    --info: 217 91% 68%;
+    --info: 199 89% 65%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 222 60% 18%;
+    --info-soft: 224 50% 20%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 50% 20%;
 
-    --border: 222 16% 30%;               /* #404657 — divisórias visíveis em dark (era 22%) */
-    --border-strong: 222 14% 46%;        /* #67708a — hairline de controle nítido em dark */
-    --border-highlight: 222 22% 32%;     /* highlight de relevo em dark */
-    --input: 222 14% 46%;
-    --input-bg: 220 22% 15%;             /* fundo do controle em dark */
-    --ring: 217 91% 70%;
-    --ring-soft: 217 91% 70% / 0.45;     /* anel de foco mais visível no escuro */
-    --track-soft: 222 14% 38%;
+    --border: 224 20% 28%;
+    --border-strong: 224 14% 46%;
+    --border-highlight: 224 22% 32%;
+    --input: 224 14% 46%;
+    --input-bg: 224 30% 15%;
+    --ring: 199 89% 65%;
+    --ring-soft: 199 89% 65% / 0.45;
+    --track-soft: 224 14% 38%;
     --shadow-inset: inset 0 1px 2px hsl(0 0% 0% / 0.35);
-    --shadow-control: 0 1px 0 hsl(222 20% 30% / 0.6) inset, 0 1px 2px hsl(0 0% 0% / 0.25);
+    --shadow-control: 0 1px 0 hsl(224 30% 28% / 0.6) inset, 0 1px 2px hsl(0 0% 0% / 0.25);
 
-    --gradient-brand: linear-gradient(135deg, hsl(217 91% 58%), hsl(217 91% 70%));
-    --gradient-soft: linear-gradient(135deg, hsl(222 55% 18%), hsl(222 24% 9%));
-    /* Airy soft elevation in dark: subtle dark base + faint primary glow */
+    --gradient-brand: linear-gradient(135deg, hsl(224 76% 40%), hsl(199 89% 58%));
+    --gradient-soft: linear-gradient(135deg, hsl(224 50% 18%), hsl(224 50% 8%));
     --shadow-soft: 0 1px 2px 0 hsl(0 0% 0% / 0.35), 0 1px 3px 0 hsl(0 0% 0% / 0.25);
-    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(217 91% 50% / 0.08);
-    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.55), 0 8px 24px -8px hsl(217 91% 50% / 0.15);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(199 89% 50% / 0.10);
+    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.55), 0 8px 24px -8px hsl(199 89% 50% / 0.18);
 
     --bubble-purple-bg: 250 40% 22%;
     --bubble-purple-fg: 250 95% 85%;
