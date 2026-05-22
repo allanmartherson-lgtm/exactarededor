@@ -189,6 +189,10 @@ const defaultParamsFor = (k: Kind): Record<string, unknown> => {
         same_attendance_type: true,
         same_procedure: true,
       } satisfies OutlierParams;
+    case "codigo_sem_dobra": return {};
+    case "codigo_nao_remuneravel": return {};
+    case "item_em_pacote": return {};
+    case "particular_sem_excecao": return {};
     default:
       return {};
   }
