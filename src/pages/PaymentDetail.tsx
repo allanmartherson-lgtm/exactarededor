@@ -1673,49 +1673,7 @@ const PaymentDetail = () => {
       />
       <div className="p-3 md:p-8 space-y-4 md:space-y-6">
 
-        {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
-        {/* MOBILE: cards de IA colapsáveis */}
-        <div className="md:hidden">
-          <button
-            type="button"
-            onClick={() => setAiCardsOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-md border bg-primary/5 text-sm font-medium"
-            aria-expanded={aiCardsOpen}
-          >
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Análise IA
-            </span>
-            {aiCardsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-          {aiCardsOpen && (
-            <div className="space-y-3 mt-2">
-              {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
-              {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
-              <PreAnalysisScoreCard payment={payment} />
-              {id && <DoctorAnomalyAlerts paymentId={id} />}
-            </div>
-          )}
-        </div>
-        {/* DESKTOP: cards sempre visíveis */}
-        <div className="hidden md:contents">
-          {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
-          {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
-          <PreAnalysisScoreCard payment={payment} />
-          {id && <DoctorAnomalyAlerts paymentId={id} />}
-        </div>
-        {segregationBlocked && (
-          <Card className="shadow-card border-warning/40 bg-warning-soft/40">
-            <CardContent className="p-3 text-xs flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-              <span>
-                <strong>Segregação de funções:</strong> você criou este lote, então não pode validar nem aprová-lo.
-                Outro validador/diretor precisa concluir esta etapa.
-              </span>
-            </CardContent>
-          </Card>
-        )}
-        {/* Linha compacta: metadados + responsável */}
+        {/* Linha compacta: metadados + responsável — sempre primeiro */}
         {(() => {
           const currentResponsibleId = assignments[0]?.analyst_id ?? null;
           const currentResponsibleName = currentResponsibleId ? (profiles[currentResponsibleId] || "—") : null;
@@ -1760,6 +1718,49 @@ const PaymentDetail = () => {
             </Card>
           );
         })()}
+
+        {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
+        {/* MOBILE: cards de IA colapsáveis */}
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setAiCardsOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-md border bg-primary/5 text-sm font-medium"
+            aria-expanded={aiCardsOpen}
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Análise IA
+            </span>
+            {aiCardsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          {aiCardsOpen && (
+            <div className="space-y-3 mt-2">
+              {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+              {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+              <PreAnalysisScoreCard payment={payment} />
+              {id && <DoctorAnomalyAlerts paymentId={id} />}
+            </div>
+          )}
+        </div>
+        {/* DESKTOP: cards sempre visíveis */}
+        <div className="hidden md:contents">
+          {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+          {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+          <PreAnalysisScoreCard payment={payment} />
+          {id && <DoctorAnomalyAlerts paymentId={id} />}
+        </div>
+        {segregationBlocked && (
+          <Card className="shadow-card border-warning/40 bg-warning-soft/40">
+            <CardContent className="p-3 text-xs flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <span>
+                <strong>Segregação de funções:</strong> você criou este lote, então não pode validar nem aprová-lo.
+                Outro validador/diretor precisa concluir esta etapa.
+              </span>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Input + dialogs extraídos (acionados pelo menu ···) */}
         <input
