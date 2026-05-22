@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { AlertTriangle, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatCurrency } from "@/lib/format";
-import type { PaymentItemRow } from "@/lib/payments";
+import { formatCurrency } from "@/lib/status";
+import type { PaymentItemRow } from "@/hooks/usePaymentDetailData";
 
 interface Props {
   attendanceNumber: string;
