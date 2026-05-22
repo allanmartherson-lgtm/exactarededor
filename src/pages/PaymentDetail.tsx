@@ -2257,7 +2257,7 @@ const PaymentDetail = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-fit">
+            <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-md border w-full md:w-fit overflow-x-auto flex-nowrap">
               <Button
                 variant={criticalFilter === "all" ? "default" : "ghost"}
                 size="sm"
