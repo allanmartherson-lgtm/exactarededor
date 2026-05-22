@@ -28,6 +28,7 @@ import {
   ANALYST_DONE_STATUSES,
   effectiveItemAiStatus,
 } from "@/lib/paymentFlow";
+import { CompanyRiskBadge } from "@/components/payment-detail/CompanyRiskBadge";
 import type {
   GroupRow,
   InvoiceRow,
@@ -184,7 +185,11 @@ export const PaymentGroupCard = ({
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
           <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="text-base font-semibold truncate flex-1">{g.company_name}</span>
+          <span className="text-base font-semibold truncate">{g.company_name}</span>
+          {["aguardando_validacao", "aguardando_aprovacao", "aprovado_em_revisao"].includes(g.status) && (
+            <CompanyRiskBadge companyName={g.company_name} />
+          )}
+          <span className="flex-1" />
           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
             · {g.items_count} itens · {formatCurrency(g.total_amount)}
           </span>
