@@ -1084,7 +1084,7 @@ export default function ValidationRules() {
                       </span>
                       <div className="flex flex-col gap-0.5">
                         <SelectPrimitive.ItemText>
-                          <span className="font-medium text-sm">{KIND_LABELS[k]}</span>
+                          <span className="font-medium text-sm">{KIND_LABELS[k]}{KINDS_NOT_IMPLEMENTED.has(k) ? " (em breve)" : ""}</span>
                         </SelectPrimitive.ItemText>
                         {KIND_DESCRIPTIONS[k] && (
                           <span className="text-xs text-muted-foreground whitespace-normal leading-snug">
