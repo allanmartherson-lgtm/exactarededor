@@ -353,12 +353,24 @@ const InvoicePortal = () => {
                   <p>✓ Nota recebida e conciliada com sucesso! Valor confere com o pedido.</p>
                 ) : (
                   <>
-                    <p className="font-medium">⚠ Divergência detectada — a nota foi rejeitada.</p>
+                    <p className="font-medium">⚠ Valor da NF diferente do pedido</p>
+                    {(done.ai_amount != null || done.form_diff != null) && (
+                      <div className="grid grid-cols-2 gap-2 rounded-md bg-background/40 p-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Você emitiu</p>
+                          <p className="font-semibold text-foreground">
+                            {done.ai_amount != null ? formatCurrency(done.ai_amount) : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Valor solicitado</p>
+                          <p className="font-semibold text-foreground">{formatCurrency(inv.expected_amount)}</p>
+                        </div>
+                      </div>
+                    )}
                     {done.notes && <p className="text-xs whitespace-pre-wrap">{done.notes}</p>}
                     <p className="text-xs">
-                      Nosso time fiscal <strong>não aceita nenhuma diferença</strong> entre o pedido e a NF emitida.
-                      Por favor, cancele a nota junto à sua contabilidade, emita uma nova com os dados corretos
-                      e reenvie pelo botão abaixo.
+                      O valor que você emitiu é diferente do valor solicitado. Por favor, cancele a NF junto à sua contabilidade, emita uma nova com o valor correto e reenvie aqui.
                     </p>
                     {resetOpen ? resetForm : (
                       reuploadLocked ? (
