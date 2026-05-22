@@ -881,22 +881,36 @@ export default function ValidationRules() {
           }
         }
         const totalLotes = allLotes.size;
+        const totalAcatados = [...ruleEffectiveness.values()].reduce((a, b) => a + b.acatados, 0);
+        const taxaAcateGlobal = totalAlertas > 0 ? (totalAcatados / totalAlertas) * 100 : 0;
         if (totalAlertas === 0) return null;
+        const cards = [
+          { label: "Alertas ativos", value: String(totalAlertas), Icon: AlertTriangle, color: "amber" },
+          { label: "Valor em risco", value: formatCurrency(totalValor), Icon: DollarSign, color: "red" },
+          { label: "Lotes afetados", value: String(totalLotes), Icon: FileText, color: "blue" },
+          { label: "Taxa de acate", value: `${taxaAcateGlobal.toFixed(0)}%`, Icon: CheckCircle2, color: "green", tip: "% de alertas que foram acatados pelo analista" },
+        ] as const;
+        const colorMap: Record<string, string> = {
+          amber: "border-amber-200 bg-amber-50 text-amber-800",
+          red: "border-red-200 bg-red-50 text-red-800",
+          blue: "border-blue-200 bg-blue-50 text-blue-800",
+          green: "border-green-200 bg-green-50 text-green-800",
+        };
         return (
-          <div className="mx-0 mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-900">Impacto financeiro detectado pelas regras de validação</p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  {totalAlertas} alerta{totalAlertas !== 1 ? "s" : ""} ativo{totalAlertas !== 1 ? "s" : ""} em {totalLotes} lote{totalLotes !== 1 ? "s" : ""} — 
-                  <strong> {formatCurrency(totalValor)} em risco</strong> aguardando revisão do analista
-                </p>
+          <div className="mx-0 mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            {cards.map(({ label, value, Icon, color, ...rest }) => (
+              <div key={label} className={`rounded-lg border p-3 ${colorMap[color]}`} title={(rest as any).tip}>
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  <span className="text-xs font-medium">{label}</span>
+                </div>
+                <p className="mt-1 text-xl font-bold tabular-nums">{value}</p>
               </div>
-            </div>
+            ))}
           </div>
         );
       })()}
+
 
       {expiringPaymentRules.length > 0 && (
         <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
