@@ -1050,6 +1050,61 @@ export default function ValidationRules() {
         )}
       </div>
 
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={() => setEfficiencyOpen(v => !v)}
+          className="flex items-center gap-2 text-sm font-medium"
+        >
+          {efficiencyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          📊 Efetividade por regra
+        </button>
+        {efficiencyOpen && (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40">
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 px-3">Regra</th>
+                  <th className="text-right px-3">Alertas</th>
+                  <th className="text-right px-3">Valor em risco</th>
+                  <th className="text-right px-3">Acatados</th>
+                  <th className="text-right px-3">Taxa acate</th>
+                  <th className="text-right px-3">Falso-positivo est.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rules.map(r => {
+                  const impact = ruleImpact.get(r.id);
+                  const eff = ruleEffectiveness.get(r.id);
+                  if (!impact) return null;
+                  const taxaAcate = eff ? (eff.acatados / Math.max(1, eff.total)) * 100 : 0;
+                  const naoAcatados = impact.alertas - (eff?.acatados ?? 0);
+                  return (
+                    <tr key={r.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="py-2 px-3 font-medium">{r.name}</td>
+                      <td className="text-right tabular-nums px-3">{impact.alertas}</td>
+                      <td className="text-right tabular-nums px-3">{formatCurrency(impact.valor)}</td>
+                      <td className="text-right tabular-nums px-3">{eff?.acatados ?? 0}</td>
+                      <td className="text-right px-3">
+                        <span className={taxaAcate > 50 ? "text-green-600" : taxaAcate > 20 ? "text-amber-600" : "text-red-600"}>
+                          {taxaAcate.toFixed(0)}%
+                        </span>
+                      </td>
+                      <td className="text-right text-muted-foreground px-3">{naoAcatados}</td>
+                    </tr>
+                  );
+                }).filter(Boolean)}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-muted-foreground mt-2 px-3 pb-2">
+              * Falso-positivo estimado = alertas não acatados. Taxa de acate baixa pode indicar parâmetros muito sensíveis.
+            </p>
+          </div>
+        )}
+      </div>
+
+
+
 
       {groups.length > 0 && (
         <div className="mt-10">
