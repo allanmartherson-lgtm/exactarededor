@@ -1125,11 +1125,11 @@ const Dashboard = () => {
       <section aria-labelledby="suas-tarefas-heading">
         <SectionLabel>Suas tarefas</SectionLabel>
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3" style={{ gap: 14 }}>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3.5">
             {Array.from({ length: 3 }).map((_, i) => <BigStatSkeleton key={i} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3" style={{ gap: 14 }}>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3.5">
             {/* Card: questionamentos pendentes — só analista */}
             {isAnalista && totalPendingQuestions > 0 && (
               <BigStatCard
