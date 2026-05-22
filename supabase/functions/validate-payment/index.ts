@@ -424,6 +424,23 @@ Deno.serve(async (req) => {
           unresolvedByRule[rule.name] = Array.from(result.unresolvedDoctors);
         }
         appliedRules.push(rule.name);
+      } else if (rule.kind === "duplicidade_atendimento") {
+        const hits = applyDuplicidadeAtendimento(rule, items, findingsByItem, paymentReference);
+        totalHits += hits;
+        appliedRules.push(rule.name);
+      } else if (rule.kind === "parecer_virou_cirurgia") {
+        const hits = applyParecerVirouCirurgia(rule, items, findingsByItem, paymentReference);
+        totalHits += hits;
+        appliedRules.push(rule.name);
+      } else if (rule.kind === "restricao_contratual") {
+        const hits = applyRestricaoContratual(rule, items, findingsByItem);
+        totalHits += hits;
+        appliedRules.push(rule.name);
+      } else if (rule.kind === "outlier_valor") {
+        const hits = await applyOutlierValor(rule, items, findingsByItem, supabase);
+        totalHits += hits;
+        appliedRules.push(rule.name);
+
       } else {
         skippedRules.push({ id: rule.id, name: rule.name, reason: `kind_not_implemented:${rule.kind}` });
       }
