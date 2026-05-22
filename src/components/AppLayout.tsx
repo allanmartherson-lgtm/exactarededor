@@ -358,6 +358,7 @@ export const AppLayout = () => {
   if (effectiveLayout === "top") {
     return (
       <div className="min-h-screen bg-background flex flex-col">
+        {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
           className="sticky top-0 z-40 bg-card border-b border-border shadow-soft"
           style={{ height: 56 }}
