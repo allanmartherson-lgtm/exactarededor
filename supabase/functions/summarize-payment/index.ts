@@ -61,7 +61,7 @@ serve(async (req) => {
     // 2. Itens — agrega ai_status e por empresa
     const { data: items } = await supabase
       .from("payment_items")
-      .select("ai_status, gross_amount, company_name, doctor_name, sector")
+      .select("ai_status, gross_amount, expected_amount, company_name, doctor_name, sector, authorized_exception, exception_note")
       .eq("payment_id", payment_id)
       .limit(20000);
 
