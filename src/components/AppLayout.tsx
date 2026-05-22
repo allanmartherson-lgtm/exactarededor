@@ -127,8 +127,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
   return (
     <nav
       ref={containerRef}
-      className="flex-1 min-w-0 flex items-center"
-      style={{ gap: 1 }}
+      className="flex-1 min-w-0 flex items-center gap-1"
       aria-label="Navegação principal"
     >
       {items.map((item) => {
@@ -140,15 +139,14 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring border-b-2",
+                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
-                    ? "text-primary border-primary font-medium"
-                    : "text-muted-foreground border-transparent hover:text-foreground",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )
               }
-              style={{ padding: "6px 4px", marginRight: 14, fontSize: 13 }}
             >
-              <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
+              <item.icon className="size-4 flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
             </NavLink>
           );
@@ -167,22 +165,20 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring border-b-2",
-                groupActive
-                  ? "text-primary border-primary font-medium"
-                  : "text-muted-foreground border-transparent hover:text-foreground",
+                "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                groupActive || isOpen
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
-              style={{ padding: "6px 4px", marginRight: 14, fontSize: 13 }}
             >
-              <item.icon size={15} strokeWidth={1.75} className="flex-shrink-0" />
+              <item.icon className="size-4 flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
               <ChevronDown
-                size={13}
-                strokeWidth={1.75}
                 className={cn(
-                  "flex-shrink-0 transition-transform duration-150",
+                  "size-3.5 flex-shrink-0 transition-transform duration-150",
                   isOpen && "rotate-180",
                 )}
+                strokeWidth={1.75}
               />
             </button>
 
