@@ -602,7 +602,13 @@ export const PaymentGroupCard = ({
       })()}
 
       {groupExpandedEffective && (
-        <CardContent className="border-t border-border/60 p-4 space-y-3">
+        <CardContent className="border-t border-border/60 p-3 md:p-4 space-y-3">
+          {/* CompanyRiskBadge no mobile — não cabe no header */}
+          {["aguardando_validacao", "aguardando_aprovacao", "aprovado_em_revisao"].includes(g.status) && (
+            <div className="md:hidden">
+              <CompanyRiskBadge companyName={g.company_name} />
+            </div>
+          )}
           {paymentId && ["aguardando_validacao", "aguardando_aprovacao", "revisao_analista", "devolvido_analista"].includes(g.status) && (
             <PreviousBatchComparison
               companyName={g.company_name}
@@ -615,10 +621,10 @@ export const PaymentGroupCard = ({
             <ValidationChecklist companyName={g.company_name} paymentId={paymentId} />
           )}
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-xs text-muted-foreground">
+            <div className="hidden md:block text-xs text-muted-foreground">
               Toda análise, comentários e ações de fluxo desta empresa acontecem na página dedicada — abrir mantém o mesmo conjunto de dados, apenas com o ambiente de trabalho completo.
             </div>
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="w-full md:w-auto">
               <Link to={dedicatedHref}>
                 Abrir análise da empresa <ArrowRight className="h-4 w-4 ml-1.5" />
               </Link>
