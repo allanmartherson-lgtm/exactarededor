@@ -282,14 +282,64 @@ All colors MUST be HSL.
       padding: 4px 8px !important;
       font-size: 11px !important;
     }
-    /* Pipeline columns: allow horizontal scroll on mobile so they don't squish to unreadable size */
+    /* Pipeline columns: allow horizontal scroll on mobile so labels don't break */
     .pipeline-scroll {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      margin: 0 -8px;
+      padding: 0 8px;
     }
     .pipeline-scroll > * {
-      min-width: 560px;
+      min-width: 820px;
     }
+
+    /* Payment task row (Progresso por lote): stack vertically on mobile */
+    .payment-task-row {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 10px !important;
+      padding: 12px 14px !important;
+    }
+    .payment-task-row .ptr-stages {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      justify-content: flex-start !important;
+      padding-bottom: 2px;
+    }
+    .payment-task-row .ptr-status {
+      align-self: flex-start;
+    }
+
+    /* TaskRow (Minhas tarefas) — also stack and reduce padding */
+    .task-row:not(.payment-task-row) {
+      padding: 12px 14px !important;
+      gap: 10px !important;
+      flex-wrap: wrap;
+    }
+
+    /* Section card headers — reduce padding on mobile */
+    .surface-card-header-mobile {
+      padding: 12px 14px !important;
+    }
+  }
+
+  /* Desktop default for payment task row */
+  .payment-task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 22px;
+  }
+  .payment-task-row .ptr-header {
+    flex: 0 0 auto;
+    max-width: 260px;
+    min-width: 0;
+  }
+  .payment-task-row .ptr-stages {
+    flex: 1;
+    min-width: 0;
   }
 
   /* ============ Sidebar nav items ============
