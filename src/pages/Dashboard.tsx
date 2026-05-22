@@ -1079,7 +1079,7 @@ const Dashboard = () => {
   const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "bem-vindo";
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4 md:gap-8">
       {/* PAGE HEADER */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
