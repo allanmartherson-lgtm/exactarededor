@@ -437,6 +437,7 @@ export const AppLayout = () => {
   /* ============================ SIDEBAR MODE ============================ */
   return (
     <div className="min-h-screen bg-background">
+      {canRetryInvoices && <InvoiceRetryMonitor />}
       <aside
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{
