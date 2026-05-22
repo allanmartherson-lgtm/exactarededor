@@ -122,7 +122,6 @@ serve(async (req) => {
         valor_total: Number(payment.total_amount) || 0,
         competencia: payment.competence_month,
         qtd_itens: payment.items_count ?? totalItems,
-        sla_due_at: payment.sla_due_at ?? null,
       },
       itens: {
         total: totalItems,
