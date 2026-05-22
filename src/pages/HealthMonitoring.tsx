@@ -142,6 +142,7 @@ export default function HealthMonitoring() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [failedJobs, setFailedJobs] = useState<FailedJob[]>([]);
+  const [aiHealth, setAiHealth] = useState<{ lastAt: string | null; hoursAgo: number | null; modelUsed: string | null; hasGemini: boolean } | null>(null);
   const [retrying, setRetrying] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
