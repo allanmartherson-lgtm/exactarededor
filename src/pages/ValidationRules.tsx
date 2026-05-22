@@ -259,7 +259,9 @@ export default function ValidationRules() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+    const in30 = new Date(Date.now() + 30 * 24 * 3600000).toISOString().slice(0, 10);
+    const [{ data: vr }, { data: ag }, { data: co }, { data: itemsWithFindings }, { data: expiring }] = await Promise.all([
       supabase.from("validation_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("assistance_groups").select("*").order("name"),
       supabase.from("companies").select("id, name"),
@@ -268,7 +270,17 @@ export default function ValidationRules() {
         .select("id, gross_amount, payment_id, validation_findings")
         .not("validation_findings", "is", null)
         .neq("validation_findings", "[]"),
+      supabase
+        .from("rules")
+        .select("id, name, valid_until")
+        .not("valid_until", "is", null)
+        .gte("valid_until", today)
+        .lte("valid_until", in30)
+        .eq("active", true)
+        .order("valid_until", { ascending: true })
+        .limit(10),
     ]);
+    setExpiringPaymentRules((expiring ?? []) as any);
     setRules(vr ?? []);
     setGroups(ag ?? []);
 
