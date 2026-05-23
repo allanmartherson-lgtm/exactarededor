@@ -737,7 +737,7 @@ const Dashboard = () => {
         : Promise.resolve({ data: [] as any[] } as any),
       supabase.from("sla_settings").select("*").eq("active", true),
       allIds.length
-        ? supabase.from("payment_company_groups").select("payment_id,company_id").in("payment_id", allIds)
+        ? supabase.from("payment_company_groups").select("payment_id,company_id,status").in("payment_id", allIds)
         : Promise.resolve({ data: [] as any[] } as any),
     ]);
     const seen: Record<string, string> = {};
