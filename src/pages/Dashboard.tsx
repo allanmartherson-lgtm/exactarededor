@@ -1116,6 +1116,68 @@ const Dashboard = () => {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [isAnalista, user?.id]);
 
+  // Atividade recente — últimas transições de status do time (sidebar)
+  const [recentActivity, setRecentActivity] = useState<
+    Array<{
+      id: string;
+      payment_id: string;
+      reference: string | null;
+      status_to: PaymentStatus | null;
+      status_from: PaymentStatus | null;
+      changed_at: string;
+      actor_name: string | null;
+    }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchActivity = async () => {
+      const { data } = await supabase
+        .from("payment_status_history")
+        .select("id,payment_id,status_to,status_from,changed_at,changed_by,payments(reference)")
+        .order("changed_at", { ascending: false })
+        .limit(8);
+      if (cancelled || !data) return;
+      const actorIds = Array.from(
+        new Set((data as any[]).map((r) => r.changed_by).filter(Boolean)),
+      ) as string[];
+      let actorMap: Record<string, string> = {};
+      if (actorIds.length) {
+        const { data: pr } = await supabase
+          .from("profiles")
+          .select("id,full_name,email")
+          .in("id", actorIds);
+        (pr ?? []).forEach((p: any) => {
+          actorMap[p.id] = p.full_name || p.email || "—";
+        });
+      }
+      setRecentActivity(
+        (data as any[]).map((r) => ({
+          id: r.id,
+          payment_id: r.payment_id,
+          reference: r.payments?.reference ?? null,
+          status_to: r.status_to,
+          status_from: r.status_from,
+          changed_at: r.changed_at,
+          actor_name: r.changed_by ? actorMap[r.changed_by] ?? null : null,
+        })),
+      );
+    };
+    fetchActivity();
+    const ch = supabase
+      .channel("dash_recent_activity")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "payment_status_history" },
+        () => fetchActivity(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
