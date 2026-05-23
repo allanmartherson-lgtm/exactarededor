@@ -670,6 +670,7 @@ const Dashboard = () => {
   const [allStatusEnteredAt, setAllStatusEnteredAt] = useState<Record<string, { status: PaymentStatus; changed_at: string }>>({});
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  const [groupStatusesByPayment, setGroupStatusesByPayment] = useState<Record<string, PaymentStatus[]>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   // Tempo médio agregado por status (gargalos)
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
