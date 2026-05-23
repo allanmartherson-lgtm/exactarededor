@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldCheck, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { ShieldCheck, RefreshCw, CheckCircle2, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type RiskLevel = "baixo" | "medio" | "alto" | "critico";
