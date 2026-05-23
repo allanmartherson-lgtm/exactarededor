@@ -1963,7 +1963,12 @@ const Dashboard = () => {
           ) : (
             <div>
               {payments.slice(0, 8).map((p) => (
-                <BatchProgressRow key={p.id} p={p} qCount={openQuestionCount[p.id]} />
+                <BatchProgressRow
+                  key={p.id}
+                  p={p}
+                  qCount={openQuestionCount[p.id]}
+                  groupStatuses={groupStatusesByPayment[p.id] ?? []}
+                />
               ))}
             </div>
           )}
