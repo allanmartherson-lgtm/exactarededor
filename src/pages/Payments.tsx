@@ -1271,6 +1271,7 @@ const Payments = () => {
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
                     <SelectTrigger className="w-[170px]"><SelectValue placeholder="Ordenar" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="relevance">Sua vez + maior valor</SelectItem>
                       <SelectItem value="created">Mais recentes</SelectItem>
                       <SelectItem value="elapsed">Tempo parado</SelectItem>
                       <SelectItem value="status">Status</SelectItem>
