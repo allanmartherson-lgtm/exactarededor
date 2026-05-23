@@ -38,6 +38,7 @@ export function PaymentBatchActionsFooter({
   groups,
   currentUserId,
   currentUserName,
+  actorRole,
   onDone,
 }: Props) {
   const [questionOpen, setQuestionOpen] = useState(false);
