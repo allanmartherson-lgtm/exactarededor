@@ -637,6 +637,25 @@ const Payments = () => {
     });
   };
 
+  // Ordem por relevância: prioriza status sob responsabilidade do usuário logado
+  // (analista/validador/diretor), e dentro de cada bucket ordena por valor total desc.
+  const myOwnerStatuses = useMemo(() => {
+    const set = new Set<string>();
+    if (roles.includes("analista") || roles.includes("admin")) STATUSES_BY_OWNER.analista.forEach((s) => set.add(s));
+    if (roles.includes("validador") || roles.includes("admin")) STATUSES_BY_OWNER.validador.forEach((s) => set.add(s));
+    if (roles.includes("diretor") || roles.includes("admin")) STATUSES_BY_OWNER.diretor.forEach((s) => set.add(s));
+    return set;
+  }, [roles]);
+
+  const relevanceBucket = (p: Row): number => {
+    // 0 = sua vez (status do seu papel)
+    if (myOwnerStatuses.has(p.status)) return 0;
+    // 1 = fluxo ativo (não terminal e não pós-NF concluído)
+    if (["lancado", "pago", "arquivado", "rejeitado", "cancelado"].includes(p.status)) return 3;
+    if (["nf_conciliada"].includes(p.status)) return 2;
+    return 1;
+  };
+
   const sortedList = useMemo(() => {
     const arr = [...filtered];
     if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
@@ -662,9 +681,21 @@ const Payments = () => {
         return pb.score - pa.score;
       });
     }
-    else arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    else if (sortBy === "created") arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    else {
+      // relevance (default)
+      arr.sort((a, b) => {
+        const ba = relevanceBucket(a);
+        const bb = relevanceBucket(b);
+        if (ba !== bb) return ba - bb;
+        const va = Number(a.total_amount) || 0;
+        const vb = Number(b.total_amount) || 0;
+        if (vb !== va) return vb - va;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
     return arr;
-  }, [filtered, sortBy, statusEnteredAt, now]);
+  }, [filtered, sortBy, statusEnteredAt, now, myOwnerStatuses]);
 
   // Ordem das colunas do kanban (segue fluxo lógico)
   const KANBAN_ORDER: PaymentStatus[] = [
