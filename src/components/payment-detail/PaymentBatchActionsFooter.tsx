@@ -333,9 +333,13 @@ export function PaymentBatchActionsFooter({
       <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Aprovação parcial</DialogTitle>
+            <DialogTitle>
+              {actorRole === "diretor" ? "Aprovação parcial" : "Encaminhar para o diretor"}
+            </DialogTitle>
             <DialogDescription>
-              {approvable.length} empresa(s) serão aprovadas agora. {pending.length} ficam pendentes com o analista.
+              {actorRole === "diretor"
+                ? `${approvable.length} empresa(s) serão aprovadas agora. ${pending.length} ficam pendentes com o analista.`
+                : `${approvable.length} empresa(s) serão enviadas ao diretor para aprovação final. ${pending.length} ficam pendentes com o analista.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
