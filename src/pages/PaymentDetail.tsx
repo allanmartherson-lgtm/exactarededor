@@ -1043,6 +1043,20 @@ const PaymentDetail = () => {
   const canAssumeNow = canAssumeBatch(payment.status as PaymentStatus, {
     isAnalista, isValidador, isDiretor, isOwner,
   });
+  const batchActionStatuses: PaymentStatus[] = [
+    "aguardando_validacao",
+    "aguardando_aprovacao",
+    "em_questionamento",
+    "aprovado_parcial",
+    "devolvido_analista",
+  ];
+  const batchActionActorRole: "validador" | "diretor" =
+    payment.status === "aguardando_aprovacao" || groups.some((g) => g.status === "aguardando_aprovacao")
+      ? "diretor"
+      : "validador";
+  const canUseBatchActions =
+    batchActionStatuses.includes(payment.status as PaymentStatus) &&
+    (batchActionActorRole === "diretor" ? isDiretor : isValidador);
   // Quando o usuário corrente é validador ou diretor MAS criou o lote,
   // mostramos um aviso de segregação de funções no topo.
   const segregationBlocked = isOwner && (isValidador || isDiretor) && !isAnalista
@@ -2292,14 +2306,13 @@ const PaymentDetail = () => {
           )}
 
           {/* Footer de ações em lote — Questionar / Devolver / Aprovar */}
-          {id && (isValidador || isDiretor) &&
-            (["aguardando_validacao", "aguardando_aprovacao", "em_questionamento", "aprovado_parcial", "devolvido_analista"] as PaymentStatus[]).includes(payment.status as PaymentStatus) && (
+          {id && canUseBatchActions && (
               <PaymentBatchActionsFooter
                 paymentId={id}
                 groups={groups}
                 currentUserId={user!.id}
                 currentUserName={profiles[user!.id] ?? user!.email ?? "Usuário"}
-                actorRole={isDiretor ? "diretor" : "validador"}
+                actorRole={batchActionActorRole}
                 onDone={load}
               />
             )}
