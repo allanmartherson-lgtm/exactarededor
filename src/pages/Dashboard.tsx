@@ -813,35 +813,47 @@ const Dashboard = () => {
 
     (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
       const owner = ownerRoleFor(p.status);
-      // "Minha pendência" só conta enquanto o lote AINDA está na alçada do
-      // papel do usuário. Após aprovado/pago/etc, sai das pendências.
+      const groupStatuses = gByP[p.id] ?? [];
+      const hasGroupInValidacao = groupStatuses.some((s) => s === "aguardando_validacao");
+      const hasGroupInAprovacao = groupStatuses.some((s) => s === "aguardando_aprovacao");
+      // "Minha pendência" considera tanto status do lote quanto status por
+      // empresa — basta UMA empresa do lote estar na fase do papel.
       const isMineRow =
         !!uid && (
           (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-          (owner === "validador" && p.status === "aguardando_validacao") ||
-          (owner === "diretor" && p.status === "aguardando_aprovacao")
+          (hasGroupInValidacao) ||
+          (hasGroupInAprovacao && p.status !== "aguardando_aprovacao" ? false : owner === "diretor" && p.status === "aguardando_aprovacao")
         );
 
       if (isMineRow) {
         const companies = paymentCompaniesMap[p.id] ?? [];
         if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
           companies.forEach(id => mineAnalistaCompaniesSet.add(id));
-        } else if (owner === "validador" && p.status === "aguardando_validacao") {
+        }
+        if (hasGroupInValidacao) {
           companies.forEach(id => mineValidadorCompaniesSet.add(id));
-        } else if (owner === "diretor" && p.status === "aguardando_aprovacao") {
+        }
+        if (owner === "diretor" && p.status === "aguardando_aprovacao") {
           companies.forEach(id => mineDiretorCompaniesSet.add(id));
         }
       }
 
       if (owner === "analista") {
         c.teamAnalise++;
-        if (isMineRow) c.mineAnalista++;
+        if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) c.mineAnalista++;
       } else if (owner === "validador") {
         c.teamValidacao++;
-        if (isMineRow) c.mineValidador++;
       } else if (owner === "diretor") {
         c.teamAprovacao++;
-        if (isMineRow) c.mineDiretor++;
+        if (isMineRow && owner === "diretor") c.mineDiretor++;
+      }
+
+      // Validação por empresa: conta qualquer lote que tenha pelo menos uma
+      // empresa em aguardando_validacao (mesmo que o status do lote esteja
+      // em revisao_analista — situação normal em lotes mistos).
+      if (hasGroupInValidacao) {
+        c.mineValidador++;
+        if (owner !== "validador") c.teamValidacao++;
       }
 
       switch (p.status) {
@@ -866,6 +878,9 @@ const Dashboard = () => {
         case "nf_questionada":
           c.pipeDivergente++; break;
       }
+      // Pipeline: lotes mistos também aparecem em Validação/Aprovação
+      if (p.status !== "aguardando_validacao" && hasGroupInValidacao) c.pipeValidacao++;
+      if (p.status !== "aguardando_aprovacao" && hasGroupInAprovacao) c.pipeAprovacao++;
 
       if (p.status === "devolvido_analista") c.attDevolvidoAnalista++;
       if (p.status === "aprovado_com_ressalva") {
