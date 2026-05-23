@@ -2062,6 +2062,56 @@ const computeStages = (status: PaymentStatus): Record<BatchStage, StageState> =>
   return s;
 };
 
+const stageIndexOfStatus = (s: PaymentStatus): number => {
+  switch (s) {
+    case "rascunho":
+    case "em_analise_ia":
+    case "revisao_analista":
+    case "devolvido_analista":
+      return 0;
+    case "aguardando_validacao":
+      return 1;
+    case "aguardando_aprovacao":
+    case "aprovado_em_revisao":
+      return 2;
+    case "aprovado":
+    case "aprovado_com_ressalva":
+    case "pedido_nf_enviado":
+    case "nf_recebida":
+    case "nf_questionada":
+    case "nf_conciliada":
+    case "nf_divergente":
+    case "pago":
+    case "lancado":
+      return 3;
+    default:
+      return 0;
+  }
+};
+
+const computeAggregatedStages = (
+  groupStatuses: PaymentStatus[],
+  fallback: PaymentStatus,
+): Record<BatchStage, StageState> => {
+  if (!groupStatuses.length) return computeStages(fallback);
+  const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
+  const s: Record<BatchStage, StageState> = {
+    ia: { state: "todo" }, validacao: { state: "todo" },
+    aprovacao: { state: "todo" }, pago: { state: "todo" },
+  };
+  const idxs = groupStatuses.map(stageIndexOfStatus);
+  const hasReturned = groupStatuses.some((g) => g === "devolvido_analista");
+  for (let i = 0; i < order.length; i++) {
+    const anyHere = idxs.some((x) => x === i);
+    const anyPast = idxs.some((x) => x > i);
+    const allPast = idxs.every((x) => x > i);
+    if (anyHere) s[order[i]].state = "current";
+    else if (allPast || anyPast) s[order[i]].state = "done";
+  }
+  if (hasReturned && s.ia.state !== "current") s.ia.state = "returned";
+  return s;
+};
+
 const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: string } => {
   switch (st) {
     case "done": return { bg: "hsl(var(--bubble-green-bg))", fg: "hsl(var(--bubble-green-fg))", border: "hsl(var(--bubble-green-fg) / 0.3)" };
@@ -2073,9 +2123,9 @@ const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: 
   }
 };
 
-const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number }) => {
+const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow; qCount?: number; groupStatuses?: PaymentStatus[] }) => {
   const risk = usePaymentRisk(p.id);
-  const stages = computeStages(p.status);
+  const stages = computeAggregatedStages(groupStatuses, p.status);
   const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
   return (
     <Link
