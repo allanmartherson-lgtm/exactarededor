@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 type RiskLevel = "baixo" | "medio" | "alto" | "critico";
