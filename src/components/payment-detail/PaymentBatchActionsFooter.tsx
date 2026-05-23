@@ -216,7 +216,8 @@ export function PaymentBatchActionsFooter({
               <Undo2 className="h-4 w-4 mr-2" /> Devolver
             </Button>
             <Button onClick={handleApproveClick} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0">
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
             </Button>
           </div>
         </CardContent>
