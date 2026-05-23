@@ -2683,6 +2683,14 @@ const PaymentDetail = () => {
             group={releaseGroup}
             onSuccess={() => { setReleaseGroup(null); load(); }}
           />
+
+          <BulkReleaseInvoiceRequestDialog
+            open={bulkReleaseOpen}
+            onOpenChange={setBulkReleaseOpen}
+            paymentId={id!}
+            groups={groups.filter((g) => g.status === "revisao_pos_aprovacao")}
+            onSuccess={() => { setBulkReleaseOpen(false); load(); }}
+          />
         </>
         )}
 
