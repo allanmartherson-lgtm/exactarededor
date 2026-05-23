@@ -449,21 +449,28 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, in
     minHeight: 92,
     position: "relative",
     overflow: "hidden",
-    // Entrada com stagger automático via nth-child no CSS.
-    animation: "stat-chip-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
-
+    // A entrada (stat-chip-in) é aplicada via classe; chips com alerta usam
+    // `stat-chip-attention` que combina entrada + pulinho + halo periódico.
     transition:
       "transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease, border-color 0.25s ease",
     "--chip-glow": glowColor,
     willChange: "transform",
   } as CSSProperties;
-  const pulseIcon = accent === "amber" || accent === "rose" || mine;
+  const isAttention = accent === "amber" || accent === "rose" || mine;
+  const chipClass = isAttention
+    ? "stat-chip-interactive stat-chip-attention"
+    : "stat-chip-interactive";
   const inner = (
     <>
-
       <div className="flex items-start justify-between gap-2">
         <div
-          className={pulseIcon ? "stat-chip-icon-pulse" : undefined}
+          className={
+            accent === "amber" || accent === "rose"
+              ? "stat-chip-icon-shake"
+              : mine
+              ? "stat-chip-icon-pulse"
+              : undefined
+          }
           style={{
             width: 30,
             height: 30,
