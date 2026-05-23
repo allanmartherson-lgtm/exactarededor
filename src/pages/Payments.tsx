@@ -521,6 +521,28 @@ const Payments = () => {
   );
   const activeCount = rows.length - archivedCount;
 
+  // KPIs institucionais (terminal-style summary) — calculados sobre lotes ativos
+  // para refletir o estado operacional da fila, não o histórico arquivado.
+  const kpis = useMemo(() => {
+    const active = rows.filter((r) => !TERMINAL_STATUSES.has(r.status));
+    const totalOpen = active.reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
+    const waitingValidation = active.filter((r) => r.status === "aguardando_validacao").length;
+    const waitingApproval = active.filter((r) => r.status === "aguardando_aprovacao").length;
+    const nowMs = Date.now();
+    const delayed = active.filter((r) => {
+      const since = statusEnteredAt[r.id] ?? r.updated_at ?? r.created_at;
+      return delayLevel(r.status, nowMs - new Date(since).getTime()) !== "none";
+    }).length;
+    // Competência mais frequente entre lotes ativos
+    const counts: Record<string, number> = {};
+    active.forEach((r) => {
+      const c = r.competence_month?.slice(0, 7) ?? r.competence_months?.[0]?.slice(0, 7);
+      if (c) counts[c] = (counts[c] ?? 0) + 1;
+    });
+    const competence = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    return { totalOpen, waitingValidation, waitingApproval, delayed, activeTotal: active.length, competence };
+  }, [rows, statusEnteredAt]);
+
   const filtered = useMemo(() => rows.filter((r) => {
     if (deletingIds.has(r.id)) return false;
     // Arquivamento: por default escondemos lotes em estado terminal das
@@ -890,13 +912,31 @@ const Payments = () => {
         description="Todos os lotes de pagamento e seu status no fluxo."
       />
       <div className="p-4 md:p-8 w-full mx-auto space-y-4">
+        {/* KPI Summary Bar — terminal-style institutional metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border overflow-hidden rounded-md shadow-sm">
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total em Aberto</p>
+            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{formatCurrency(kpis.totalOpen)}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">{kpis.activeTotal} lote{kpis.activeTotal === 1 ? "" : "s"} ativo{kpis.activeTotal === 1 ? "" : "s"}</p>
+          </div>
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Lotes Atrasados</p>
+            <p className={cn("text-xl font-bold tabular-nums mt-1", kpis.delayed > 0 ? "text-destructive" : "text-foreground")}>{kpis.delayed}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">SLA estourado ou risco</p>
+          </div>
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aguardando Validação</p>
+            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{kpis.waitingValidation}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Fila do validador</p>
+          </div>
+          <div className="bg-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aguardando Aprovação</p>
+            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{kpis.waitingApproval}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">{kpis.competence ? `Comp. ${formatCompetence(`${kpis.competence}-01`)}` : "Fila do diretor"}</p>
+          </div>
+        </div>
         {(() => {
           const activeFilterCount = [
-            !!companyFilter,
-            analystFilter !== "all",
-            typeFilter !== "all",
-            statusFilter !== "all",
-            competenceFilter !== "all",
             delayedOnly,
             ownerGroup !== "all",
             divergenceFilter !== "all",
@@ -1227,13 +1267,160 @@ const Payments = () => {
             </CardContent>
           </Card>
         ) : view === "lista" ? (
-          <Card className="shadow-card">
-            <CardContent className="p-0">
-              <div className="divide-y divide-border">
-                {sortedList.map((p) => renderCard(p))}
+          <>
+            <div className="overflow-hidden border border-border bg-card shadow-sm rounded-md">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <th className="border-b border-border px-3 py-2.5 w-[40px]"></th>
+                      <th className="border-b border-border px-3 py-2.5">Lote / Risco</th>
+                      <th className="border-b border-border px-3 py-2.5 hidden 2xl:table-cell">Responsável / Info</th>
+                      <th className="border-b border-border px-3 py-2.5 hidden md:table-cell">Tempo / Competência</th>
+                      <th className="border-b border-border px-3 py-2.5 text-right hidden md:table-cell">Volumetria</th>
+                      <th className="border-b border-border px-3 py-2.5 text-right">Valor Total</th>
+                      <th className="border-b border-border px-3 py-2.5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[13px] tabular-nums">
+                    {sortedList.map((p) => {
+                      const elapsedMs = elapsedFor(p);
+                      const lvl = delayLevel(p.status, elapsedMs);
+                      const sla = slaFor(p);
+                      const slaLvl = sla?.level ?? "ok";
+                      const finalLvl: "none" | "leve" | "critico" =
+                        slaLvl === "vencido" ? "critico" : slaLvl === "preventivo" ? "leve" : lvl;
+                      const companies = companiesPerPayment[p.id] ?? 0;
+                      const analystName = p.created_by ? analysts[p.created_by] ?? "—" : "—";
+                      const isSelected = selected.has(p.id);
+                      const canDelete = (isAnalista || isDiretor || isAdmin) && ["rascunho", "em_analise_ia", "revisao_analista", "devolvido_analista"].includes(p.status);
+                      return (
+                        <tr
+                          key={p.id}
+                          className={cn(
+                            "group border-b border-border/60 hover:bg-muted/40 transition-colors",
+                            isSelected && "bg-primary/5",
+                            finalLvl === "critico" && "bg-destructive/5",
+                          )}
+                        >
+                          <td className="px-3 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelect(p.id)}
+                              aria-label={`Selecionar ${p.reference}`}
+                            />
+                          </td>
+                          <td className="px-3 py-3 align-middle">
+                            <Link to={`/pagamentos/${p.id}`} className="block group/link">
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <span className="font-semibold text-sm text-foreground group-hover/link:text-primary transition-colors truncate">{p.reference}</span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <PaymentRiskBadgeInline paymentId={p.id} compact />
+                                  {openQuestionCount[p.id] > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-warning-foreground">
+                                      <MessageCircleQuestion className="h-2.5 w-2.5" /> {openQuestionCount[p.id]}
+                                    </span>
+                                  )}
+                                  {p.processing_timeout_occurred && (
+                                    <span className="inline-flex items-center gap-1 rounded border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-destructive">
+                                      <Clock className="h-2.5 w-2.5" /> Limite IA
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </Link>
+                          </td>
+                          <td className="px-3 py-3 align-middle hidden 2xl:table-cell">
+                            <div className="flex flex-col text-[11px]">
+                              <span className="font-medium text-foreground truncate max-w-[180px]">{analystName}</span>
+                              <span className="text-muted-foreground">
+                                {p.payment_type ? PAYMENT_TYPE_LABELS[p.payment_type] : "—"}
+                                {companies > 0 && ` · ${companies} empresa${companies > 1 ? "s" : ""}`}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-middle hidden md:table-cell">
+                            <div className="flex flex-col text-[11px]">
+                              <span
+                                className={cn(
+                                  "font-bold",
+                                  finalLvl === "critico" && "text-destructive",
+                                  finalLvl === "leve" && "text-warning-foreground",
+                                  finalLvl === "none" && "text-foreground",
+                                )}
+                              >
+                                {formatDuration(elapsedMs)} no status
+                              </span>
+                              <span className="text-muted-foreground text-[10px] capitalize">
+                                {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-middle text-right hidden md:table-cell">
+                            <span className="text-muted-foreground">
+                              {p.items_count.toLocaleString("pt-BR")} <span className="text-[10px]">itens</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 align-middle text-right">
+                            <span className="font-bold text-foreground">{formatCurrency(p.total_amount)}</span>
+                          </td>
+                          <td className="px-3 py-3 align-middle">
+                            <div className="flex items-center justify-between gap-2">
+                              <StatusBadge status={p.status} />
+                              {canDelete && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+                                      title="Excluir lote"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir este lote?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação remove o lote <strong>{p.reference}</strong>, todos os seus itens e histórico permanentemente.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deletePayment(p.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Excluir definitivamente
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            {/* Terminal-style pagination footer */}
+            <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground px-1">
+              <div>
+                Exibindo <span className="text-foreground font-bold tabular-nums">{sortedList.length}</span> de{" "}
+                <span className="text-foreground font-bold tabular-nums">{archivedView ? archivedCount : activeCount}</span> lote{(archivedView ? archivedCount : activeCount) === 1 ? "" : "s"}
+                {archivedView ? " arquivado(s)" : " ativo(s)"}
+              </div>
+              {selected.size > 0 && (
+                <div className="text-primary font-bold">
+                  {selected.size} selecionado{selected.size > 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
             {kanbanGroups.map((g) => (
