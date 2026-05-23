@@ -270,36 +270,39 @@ All colors MUST be HSL.
 
   /* ============ KPI CompactStatChip — animações ============ */
   @keyframes stat-chip-in {
-    0% {
-      opacity: 0;
-      transform: translateY(14px) scale(0.94);
-      filter: blur(2px);
-    }
-    60% {
-      opacity: 1;
-      filter: blur(0);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
+    0%   { opacity: 0; transform: translateY(16px) scale(0.92); }
+    60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+    80%  { transform: translateY(1px) scale(0.995); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  /* "Pulinho" periódico para chips que pedem atenção (alertas / sua vez). */
+  @keyframes stat-chip-attention-hop {
+    0%, 88%, 100% { transform: translateY(0); }
+    92%           { transform: translateY(-4px); }
+    96%           { transform: translateY(0); }
   }
   @keyframes stat-chip-badge-pulse {
-    0%, 100% {
-      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55);
-    }
-    50% {
-      box-shadow: 0 0 0 6px hsl(var(--primary) / 0);
-    }
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55); }
+    50%      { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+  }
+  @keyframes stat-chip-alert-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--chip-glow, hsl(var(--destructive) / 0.45)); }
+    50%      { box-shadow: 0 0 0 8px hsl(var(--destructive) / 0); }
   }
   @keyframes stat-chip-icon-pulse {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08); }
+    50%      { transform: scale(1.12); }
+  }
+  @keyframes stat-chip-icon-shake {
+    0%, 90%, 100% { transform: rotate(0deg); }
+    92%  { transform: rotate(-8deg); }
+    94%  { transform: rotate(7deg); }
+    96%  { transform: rotate(-4deg); }
+    98%  { transform: rotate(2deg); }
   }
   .stat-chip-interactive {
     will-change: transform;
-    animation-delay: 0ms;
+    animation: stat-chip-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
   .stat-chip-interactive:nth-child(1) { animation-delay: 0ms; }
   .stat-chip-interactive:nth-child(2) { animation-delay: 60ms; }
@@ -312,46 +315,41 @@ All colors MUST be HSL.
   .stat-chip-interactive:nth-child(9) { animation-delay: 480ms; }
   .stat-chip-interactive:nth-child(10) { animation-delay: 540ms; }
   .stat-chip-interactive:nth-child(11) { animation-delay: 600ms; }
+  /* Após a entrada, chips com alerta/sua vez ganham um pulinho a cada ~5s. */
+  .stat-chip-attention {
+    animation:
+      stat-chip-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+      stat-chip-attention-hop 5s ease-in-out 1.2s infinite,
+      stat-chip-alert-pulse 2.6s ease-in-out 1.2s infinite;
+  }
   .stat-chip-interactive:hover {
-    transform: translateY(-3px) scale(1.015);
+    transform: translateY(-3px) scale(1.02);
     border-color: hsl(var(--primary) / 0.55) !important;
     box-shadow:
       0 12px 30px -12px var(--chip-glow, hsl(var(--foreground) / 0.18)),
       0 0 0 1px var(--chip-glow, hsl(var(--primary) / 0.25));
+    animation-play-state: paused;
   }
   .stat-chip-interactive:active {
     transform: translateY(-1px) scale(1.005);
     transition-duration: 0.08s;
   }
-  .stat-chip-shine {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(
-      120deg,
-      transparent 30%,
-      hsl(var(--foreground) / 0.06) 50%,
-      transparent 70%
-    );
-    transform: translateX(-120%);
-    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .stat-chip-interactive:hover .stat-chip-shine {
-    transform: translateX(120%);
-  }
   .stat-chip-icon-pulse {
     animation: stat-chip-icon-pulse 2.6s ease-in-out infinite;
   }
+  .stat-chip-icon-shake {
+    animation: stat-chip-icon-shake 5s ease-in-out 1.4s infinite;
+    transform-origin: center;
+  }
   @media (prefers-reduced-motion: reduce) {
     .stat-chip-interactive,
-    .stat-chip-shine,
-    .stat-chip-icon-pulse {
+    .stat-chip-attention,
+    .stat-chip-icon-pulse,
+    .stat-chip-icon-shake {
       animation: none !important;
       transition: none !important;
     }
-    .stat-chip-interactive:hover {
-      transform: none;
-    }
+    .stat-chip-interactive:hover { transform: none; }
   }
 
   /* ============ Mobile compact dashboard ============
