@@ -456,21 +456,14 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, in
     "--chip-glow": glowColor,
     willChange: "transform",
   } as CSSProperties;
-  const isAttention = accent === "amber" || accent === "rose" || mine;
-  const chipClass = isAttention
-    ? "stat-chip-interactive stat-chip-attention"
+  const chipClass = mine
+    ? "stat-chip-interactive stat-chip-mine"
     : "stat-chip-interactive";
   const inner = (
     <>
       <div className="flex items-start justify-between gap-2">
         <div
-          className={
-            accent === "amber" || accent === "rose"
-              ? "stat-chip-icon-shake"
-              : mine
-              ? "stat-chip-icon-pulse"
-              : undefined
-          }
+          className={mine ? "stat-chip-icon-pulse" : undefined}
           style={{
             width: 30,
             height: 30,
