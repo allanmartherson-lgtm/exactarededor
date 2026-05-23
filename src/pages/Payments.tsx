@@ -912,28 +912,71 @@ const Payments = () => {
         description="Todos os lotes de pagamento e seu status no fluxo."
       />
       <div className="p-4 md:px-6 md:py-6 w-full mx-auto space-y-4">
-        {/* KPI Summary Bar — terminal-style institutional metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border overflow-hidden rounded-md shadow-sm">
-          <div className="bg-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total em Aberto</p>
-            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{formatCurrency(kpis.totalOpen)}</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">{kpis.activeTotal} lote{kpis.activeTotal === 1 ? "" : "s"} ativo{kpis.activeTotal === 1 ? "" : "s"}</p>
-          </div>
-          <div className="bg-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Lotes Atrasados</p>
-            <p className={cn("text-xl font-bold tabular-nums mt-1", kpis.delayed > 0 ? "text-destructive" : "text-foreground")}>{kpis.delayed}</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">SLA estourado ou risco</p>
-          </div>
-          <div className="bg-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aguardando Validação</p>
-            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{kpis.waitingValidation}</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">Fila do validador</p>
-          </div>
-          <div className="bg-card p-4 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Aguardando Aprovação</p>
-            <p className="text-xl font-bold text-foreground tabular-nums mt-1">{kpis.waitingApproval}</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">{kpis.competence ? `Comp. ${formatCompetence(`${kpis.competence}-01`)}` : "Fila do diretor"}</p>
-          </div>
+        {/* KPI Cards — macOS Ventura style: elevated cards com icon chip colorido */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Total em aberto",
+              value: formatCurrency(kpis.totalOpen),
+              hint: `${kpis.activeTotal} lote${kpis.activeTotal === 1 ? "" : "s"} ativo${kpis.activeTotal === 1 ? "" : "s"}`,
+              icon: Tag,
+              tone: "primary" as const,
+            },
+            {
+              label: "Lotes atrasados",
+              value: String(kpis.delayed),
+              hint: "SLA estourado ou em risco",
+              icon: Clock,
+              tone: "destructive" as const,
+              hintTone: kpis.delayed > 0 ? "destructive" : "muted",
+            },
+            {
+              label: "Aguardando validação",
+              value: String(kpis.waitingValidation),
+              hint: "Na fila do validador",
+              icon: UserCheck,
+              tone: "warning" as const,
+            },
+            {
+              label: "Aguardando aprovação",
+              value: String(kpis.waitingApproval),
+              hint: kpis.competence ? `Comp. ${formatCompetence(`${kpis.competence}-01`)}` : "Na fila do diretor",
+              icon: User,
+              tone: "success" as const,
+            },
+          ].map((kpi) => {
+            const Icon = kpi.icon;
+            const chipMap: Record<string, string> = {
+              primary: "bg-primary/10 text-primary",
+              destructive: "bg-destructive/10 text-destructive",
+              warning: "bg-warning/10 text-warning",
+              success: "bg-success/10 text-success",
+            };
+            return (
+              <div
+                key={kpi.label}
+                className="bg-card p-5 rounded-xl border border-border/40 shadow-soft"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", chipMap[kpi.tone])}>
+                    <Icon className="w-4 h-4" strokeWidth={2} />
+                  </div>
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {kpi.label}
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-foreground tabular-nums">{kpi.value}</div>
+                <div
+                  className={cn(
+                    "text-[11px] mt-1",
+                    (kpi as any).hintTone === "destructive" ? "text-destructive font-medium" : "text-muted-foreground",
+                  )}
+                >
+                  {kpi.hint}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {(() => {
