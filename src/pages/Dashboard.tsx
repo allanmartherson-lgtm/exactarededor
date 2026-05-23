@@ -460,8 +460,7 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, in
   const pulseIcon = accent === "amber" || accent === "rose" || mine;
   const inner = (
     <>
-      {/* shine sweep no hover */}
-      <span aria-hidden className="stat-chip-shine" />
+
       <div className="flex items-start justify-between gap-2">
         <div
           className={pulseIcon ? "stat-chip-icon-pulse" : undefined}
