@@ -757,8 +757,13 @@ const Dashboard = () => {
     (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
     setSlaSettings(sMap);
     const cByP: Record<string, string | null> = {};
-    (groups ?? []).forEach((g: any) => { if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id; });
+    const gByP: Record<string, PaymentStatus[]> = {};
+    (groups ?? []).forEach((g: any) => {
+      if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
+      if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status as PaymentStatus);
+    });
     setCompanyByPayment(cByP);
+    setGroupStatusesByPayment(gByP);
     const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
     if (compIds.length) {
       const { data: ovs } = await supabase.from("company_sla_overrides").select("*").in("company_id", compIds);
