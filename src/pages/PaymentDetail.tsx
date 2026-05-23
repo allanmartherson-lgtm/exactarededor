@@ -1748,7 +1748,6 @@ const PaymentDetail = () => {
           {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
           {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
           <PreAnalysisScoreCard payment={payment} />
-          {id && <DoctorAnomalyAlerts paymentId={id} />}
         </div>
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
@@ -1910,14 +1909,6 @@ const PaymentDetail = () => {
               payment.status === "devolvido_analista");
           const jobConcluido = !!analysisJob;
 
-          // Pizza: aprovado / alerta / reprovado
-          const pieTotal = counts.aprovado + counts.alerta + counts.reprovado;
-          const pieAp = pieTotal > 0 ? (counts.aprovado / pieTotal) * 360 : 0;
-          const pieAl = pieTotal > 0 ? (counts.alerta / pieTotal) * 360 : 0;
-          const pieGradient = pieTotal === 0
-            ? "hsl(var(--muted))"
-            : `conic-gradient(hsl(var(--success)) 0 ${pieAp}deg, hsl(var(--warning)) ${pieAp}deg ${pieAp + pieAl}deg, hsl(var(--destructive)) ${pieAp + pieAl}deg 360deg)`;
-
           // Alertas assistenciais agregados por nome de regra
           const ruleCounts = new Map<string, number>();
           const ruleValues = new Map<string, number>();
@@ -1934,49 +1925,17 @@ const PaymentDetail = () => {
           const totalRuleAlerts = sortedRules.reduce((acc, [, n]) => acc + n, 0);
           const totalRuleValue = Array.from(ruleValues.values()).reduce((a, b) => a + b, 0);
 
-          const gridCols = jobConcluido ? "md:grid-cols-3" : "md:grid-cols-2";
-
           return (
-            <div className={cn("grid grid-cols-1 gap-3", gridCols)}>
-              {/* Card 1 — Pizza (apenas após análise concluída) */}
-              {jobConcluido && (
-                <Card className="shadow-card">
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <div
-                      className="h-20 w-20 shrink-0 rounded-full border border-border/60"
-                      style={{ background: pieGradient }}
-                      aria-label="Distribuição de itens"
-                    />
-                    <div className="text-xs space-y-1 min-w-0 flex-1">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Distribuição dos itens</p>
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-block h-2 w-2 rounded-full bg-success" />
-                        <span className="text-success font-medium">{counts.aprovado}</span>
-                        <span className="text-muted-foreground">aprovado(s)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-block h-2 w-2 rounded-full bg-warning" />
-                        <span className="text-warning font-medium">{counts.alerta}</span>
-                        <span className="text-muted-foreground">alerta(s)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-block h-2 w-2 rounded-full bg-destructive" />
-                        <span className="text-destructive font-medium">{counts.reprovado}</span>
-                        <span className="text-muted-foreground">reprovado(s)</span>
-                      </div>
-                      {counts.pendente > 0 && (
-                        <div className="text-[10px] text-muted-foreground">• {counts.pendente} pendente(s)</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Anomalias Comportamentais — ocupa 2/3 no desktop. No mobile já aparece no collapsible. */}
+              {id && (
+                <div className="hidden md:block md:col-span-2 min-w-0">
+                  <DoctorAnomalyAlerts paymentId={id} />
+                </div>
               )}
 
-              {/* Card 2 removido — substituído pelo ExecutiveSummaryCard */}
-
-
-              {/* Card 3 — Alertas assistenciais */}
-              <Card className="shadow-card">
+              {/* Alertas assistenciais — 1/3 no desktop */}
+              <Card className="shadow-card md:col-span-1">
                 <CardContent className="p-3 text-xs space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas assistenciais</p>
