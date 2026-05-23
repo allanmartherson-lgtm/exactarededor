@@ -24,6 +24,9 @@ interface Props {
   groups: GroupRow[];
   currentUserId: string;
   currentUserName: string;
+  /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
+   *  diretor (validador) ou conclui a aprovação final (diretor). */
+  actorRole: "validador" | "diretor";
   onDone: () => void | Promise<void>;
 }
 
@@ -35,6 +38,7 @@ export function PaymentBatchActionsFooter({
   groups,
   currentUserId,
   currentUserName,
+  actorRole,
   onDone,
 }: Props) {
   const [questionOpen, setQuestionOpen] = useState(false);
@@ -100,7 +104,8 @@ export function PaymentBatchActionsFooter({
   const doApprove = async (groupIds: string[], note: string | null) => {
     if (groupIds.length === 0) return;
     setBusy(true);
-    const { error } = await supabase.rpc("approve_payment", {
+    const rpcName = actorRole === "diretor" ? "approve_payment" : "forward_groups_to_director";
+    const { error } = await supabase.rpc(rpcName as "approve_payment", {
       p_payment_id: paymentId,
       p_group_ids: groupIds,
       p_author_id: currentUserId,
@@ -109,10 +114,18 @@ export function PaymentBatchActionsFooter({
     });
     setBusy(false);
     if (error) {
-      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+      toast({
+        title: actorRole === "diretor" ? "Falha ao aprovar" : "Falha ao encaminhar ao diretor",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
-    toast({ title: `${groupIds.length} empresa(s) aprovada(s)` });
+    toast({
+      title: actorRole === "diretor"
+        ? `${groupIds.length} empresa(s) aprovada(s)`
+        : `${groupIds.length} empresa(s) encaminhada(s) ao diretor`,
+    });
     setApproveOpen(false);
     await onDone();
   };
@@ -203,7 +216,8 @@ export function PaymentBatchActionsFooter({
               <Undo2 className="h-4 w-4 mr-2" /> Devolver
             </Button>
             <Button onClick={handleApproveClick} disabled={busy} className="w-full md:w-auto min-h-[44px] md:min-h-0">
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {actorRole === "diretor" ? "Aprovar" : "Enviar p/ aprovação do diretor"}
             </Button>
           </div>
         </CardContent>
@@ -319,9 +333,13 @@ export function PaymentBatchActionsFooter({
       <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Aprovação parcial</DialogTitle>
+            <DialogTitle>
+              {actorRole === "diretor" ? "Aprovação parcial" : "Encaminhar para o diretor"}
+            </DialogTitle>
             <DialogDescription>
-              {approvable.length} empresa(s) serão aprovadas agora. {pending.length} ficam pendentes com o analista.
+              {actorRole === "diretor"
+                ? `${approvable.length} empresa(s) serão aprovadas agora. ${pending.length} ficam pendentes com o analista.`
+                : `${approvable.length} empresa(s) serão enviadas ao diretor para aprovação final. ${pending.length} ficam pendentes com o analista.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">

@@ -2952,6 +2952,16 @@ export type Database = {
         }[]
       }
       fix_specialties_array: { Args: { arr: string[] }; Returns: string[] }
+      forward_groups_to_director: {
+        Args: {
+          p_author_id: string
+          p_author_name: string
+          p_group_ids: string[]
+          p_note?: string
+          p_payment_id: string
+        }
+        Returns: undefined
+      }
       get_payment_pivot:
         | {
             Args: {

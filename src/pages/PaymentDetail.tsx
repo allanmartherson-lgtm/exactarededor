@@ -2299,6 +2299,7 @@ const PaymentDetail = () => {
                 groups={groups}
                 currentUserId={user!.id}
                 currentUserName={profiles[user!.id] ?? user!.email ?? "Usuário"}
+                actorRole={isDiretor ? "diretor" : "validador"}
                 onDone={load}
               />
             )}
