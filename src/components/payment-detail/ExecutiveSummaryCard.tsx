@@ -53,6 +53,7 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
     cached && isFresh(cached.generated_at) ? cached : null,
   );
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const generate = useCallback(async () => {
     setLoading(true);
