@@ -375,6 +375,145 @@ const BigStatSkeleton = () => (
   </div>
 );
 
+/* ----------------------------------------------------------------
+   CompactStatChip — versão enxuta do BigStatCard usada na nova KPI bar
+   ---------------------------------------------------------------- */
+interface CompactStatChipProps {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  color: BubbleColor;
+  mine?: boolean;
+  to?: string;
+  accent?: "amber" | "rose" | null;
+}
+const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: CompactStatChipProps) => {
+  const accentBorder =
+    accent === "amber"
+      ? "1px solid hsl(var(--warning) / 0.45)"
+      : accent === "rose"
+      ? "1px solid hsl(var(--destructive) / 0.45)"
+      : mine
+      ? "1px solid hsl(var(--primary) / 0.6)"
+      : "1px solid hsl(var(--border))";
+  const valueColor =
+    accent === "amber"
+      ? "hsl(var(--warning-foreground))"
+      : accent === "rose"
+      ? "hsl(var(--destructive))"
+      : "hsl(var(--foreground))";
+  const style: CSSProperties = {
+    background: "hsl(var(--card))",
+    border: accentBorder,
+    borderRadius: 14,
+    padding: "12px 14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    transition: "all 0.2s ease",
+    textDecoration: "none",
+    color: "inherit",
+    minHeight: 92,
+  };
+  const inner = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            ...bubbleStyle(color),
+          }}
+        >
+          <Icon size={15} strokeWidth={2} />
+        </div>
+        {mine && (
+          <span
+            style={{
+              background: "hsl(var(--primary))",
+              color: "hsl(var(--primary-foreground))",
+              borderRadius: 20,
+              fontSize: 9,
+              fontWeight: 700,
+              padding: "2px 7px",
+              lineHeight: 1.3,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Sua vez
+          </span>
+        )}
+      </div>
+      <div>
+        <span
+          style={{
+            display: "block",
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+            color: "hsl(var(--muted-foreground))",
+            textTransform: "uppercase",
+            lineHeight: 1.3,
+            marginBottom: 4,
+          }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+            lineHeight: 1,
+            color: valueColor,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+    </>
+  );
+  if (to) {
+    return (
+      <Link
+        to={to}
+        style={style}
+        className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`${label}: ${value}${mine ? ", sua vez" : ""}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div style={style}>{inner}</div>;
+};
+
+const CompactStatSkeleton = () => (
+  <div
+    style={{
+      background: "hsl(var(--card))",
+      border: "1px solid hsl(var(--border))",
+      borderRadius: 14,
+      padding: "12px 14px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      minHeight: 92,
+    }}
+  >
+    <Skeleton className="h-7 w-7 rounded-lg" />
+    <Skeleton className="h-3 w-20" />
+    <Skeleton className="h-6 w-10" />
+  </div>
+);
+
 /** Surface card used for task list, pipeline, and bottom row. */
 const SurfaceCard = ({
   children,
@@ -977,6 +1116,68 @@ const Dashboard = () => {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [isAnalista, user?.id]);
 
+  // Atividade recente — últimas transições de status do time (sidebar)
+  const [recentActivity, setRecentActivity] = useState<
+    Array<{
+      id: string;
+      payment_id: string;
+      reference: string | null;
+      status_to: PaymentStatus | null;
+      status_from: PaymentStatus | null;
+      changed_at: string;
+      actor_name: string | null;
+    }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchActivity = async () => {
+      const { data } = await supabase
+        .from("payment_status_history")
+        .select("id,payment_id,status_to,status_from,changed_at,changed_by,payments(reference)")
+        .order("changed_at", { ascending: false })
+        .limit(8);
+      if (cancelled || !data) return;
+      const actorIds = Array.from(
+        new Set((data as any[]).map((r) => r.changed_by).filter(Boolean)),
+      ) as string[];
+      let actorMap: Record<string, string> = {};
+      if (actorIds.length) {
+        const { data: pr } = await supabase
+          .from("profiles")
+          .select("id,full_name,email")
+          .in("id", actorIds);
+        (pr ?? []).forEach((p: any) => {
+          actorMap[p.id] = p.full_name || p.email || "—";
+        });
+      }
+      setRecentActivity(
+        (data as any[]).map((r) => ({
+          id: r.id,
+          payment_id: r.payment_id,
+          reference: r.payments?.reference ?? null,
+          status_to: r.status_to,
+          status_from: r.status_from,
+          changed_at: r.changed_at,
+          actor_name: r.changed_by ? actorMap[r.changed_by] ?? null : null,
+        })),
+      );
+    };
+    fetchActivity();
+    const ch = supabase
+      .channel("dash_recent_activity")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "payment_status_history" },
+        () => fetchActivity(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
   // - Analista: lote em status de analista E criado por ele.
@@ -1071,6 +1272,44 @@ const Dashboard = () => {
       .slice(0, 5);
   }, [avgTimeByStatus]);
 
+  // SLA em risco — pagamentos do time todo cujo SLA está vencido ou em alerta preventivo
+  const slaAtRisk = useMemo(() => {
+    const enriched = allPayments
+      .map((p) => {
+        const r = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+        if (!r) return null;
+        if (r.level !== "vencido" && r.level !== "preventivo") return null;
+        const meta = payments.find((x) => x.id === p.id);
+        return {
+          id: p.id,
+          status: p.status,
+          level: r.level,
+          ms: r.ms,
+          reference: meta?.reference ?? null,
+          total_amount: meta?.total_amount ?? null,
+          created_by: p.created_by,
+        };
+      })
+      .filter(Boolean) as Array<{
+        id: string;
+        status: PaymentStatus;
+        level: SlaLevel;
+        ms: number;
+        reference: string | null;
+        total_amount: number | string | null;
+        created_by: string | null;
+      }>;
+    return enriched
+      .sort((a, b) => {
+        const la = a.level === "vencido" ? 2 : 1;
+        const lb = b.level === "vencido" ? 2 : 1;
+        if (la !== lb) return lb - la;
+        return b.ms - a.ms;
+      })
+      .slice(0, 4);
+  }, [allPayments, payments, statusEnteredAt, slaSettings, companyByPayment, companyOverrides]);
+
+
   const myPending =
     (isAnalista ? counts.mineAnalista + counts.mineInvoicesDivergentes + counts.mineInvoicesQuestionadas + counts.mineRessalvas : 0) +
     (isValidador ? counts.mineValidador : 0) +
@@ -1121,151 +1360,101 @@ const Dashboard = () => {
         </Link>
       )}
 
-      {/* SUAS TAREFAS */}
+      {/* SUAS TAREFAS — KPI bar compacta */}
       <section aria-labelledby="suas-tarefas-heading">
         <SectionLabel>Suas tarefas</SectionLabel>
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3.5">
-            {Array.from({ length: 3 }).map((_, i) => <BigStatSkeleton key={i} />)}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <CompactStatSkeleton key={i} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3.5">
-            {/* Card: questionamentos pendentes — só analista */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
             {isAnalista && totalPendingQuestions > 0 && (
-              <BigStatCard
+              <CompactStatChip
                 icon={MessageCircle}
                 color="yellow"
-                label="Questionamentos pendentes"
+                label="Questionamentos"
                 value={totalPendingQuestions}
-                hint={`em ${pendingQuestions.length} lote${pendingQuestions.length > 1 ? 's' : ''}`}
-                mine={true}
+                mine
                 to={`/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`}
               />
             )}
-
-            {/* Card: empresas aguardando liberação de NF — só analista */}
             {isAnalista && totalPendingReleaseNf > 0 && (
-              <BigStatCard
+              <CompactStatChip
                 icon={CheckCircle2}
                 color="teal"
-                label="Aprovadas — liberar NF"
+                label="Liberar NF"
                 value={totalPendingReleaseNf}
-                hint={`em ${pendingReleaseNf.length} lote${pendingReleaseNf.length > 1 ? 's' : ''}`}
-                mine={true}
+                mine
                 to={`/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`}
               />
             )}
-
-            {/* Card: NF enviada — aguardando retorno da empresa */}
             {isAnalista && pendingNfAguardando > 0 && (
-              <BigStatCard
-                icon={Send}
-                color="blue"
-                label="NF enviada — aguard. retorno"
-                value={pendingNfAguardando}
-                hint="pedido enviado à empresa"
-                to="/notas-fiscais"
-              />
+              <CompactStatChip icon={Send} color="blue" label="NF aguard. retorno" value={pendingNfAguardando} to="/notas-fiscais" />
             )}
-
-            {/* Card: NF recebida — aguardando conciliação */}
             {isAnalista && pendingNfRecebida > 0 && (
-              <BigStatCard
-                icon={FileCheck}
-                color="green"
-                label="NF recebida — conciliar"
-                value={pendingNfRecebida}
-                hint="conferir valores e conciliar"
-                mine={true}
-                to="/notas-fiscais"
-              />
+              <CompactStatChip icon={FileCheck} color="green" label="NF p/ conciliar" value={pendingNfRecebida} mine to="/notas-fiscais" />
             )}
-
-            {/* Card: NF conciliada — pronta para lançar */}
             {isAnalista && pendingNfConciliar > 0 && (
-              <BigStatCard
-                icon={CheckCircle2}
-                color="green"
-                label="Pronta para lançar"
-                value={pendingNfConciliar}
-                hint="lançar no financeiro"
-                mine={true}
-                to="/notas-fiscais"
-              />
+              <CompactStatChip icon={CheckCircle2} color="green" label="Pronta p/ lançar" value={pendingNfConciliar} mine to="/notas-fiscais" />
             )}
-
             {isAnalista && (
-              <BigStatCard
+              <CompactStatChip
                 icon={Landmark}
                 color="purple"
                 label="Suas bases"
                 value={counts.mineAnalista}
-                companiesCount={counts.mineAnalistaCompanies}
-                hint={
-                  slaTotals.vencido > 0
-                    ? `${slaTotals.vencido} fora do SLA`
-                    : slaTotals.preventivo > 0
-                    ? `${slaTotals.preventivo} perto do SLA`
-                    : counts.teamAnalise !== counts.mineAnalista ? `${counts.teamAnalise} no time` : "em análise"
-                }
                 mine={counts.mineAnalista > 0}
                 to="/pagamentos?owner=me&status=analista"
               />
             )}
             {isValidador && (
-              <BigStatCard
+              <CompactStatChip
                 icon={ListChecks}
                 color="yellow"
                 label="Para validar"
                 value={counts.mineValidador}
-                companiesCount={counts.mineValidadorCompanies}
                 mine={counts.mineValidador > 0}
                 to="/pagamentos?status=aguardando_validacao"
               />
             )}
             {isDiretor && (
-              <BigStatCard
+              <CompactStatChip
                 icon={ShieldCheck}
                 color="teal"
                 label="Para aprovar"
                 value={counts.mineDiretor}
-                companiesCount={counts.mineDiretorCompanies}
                 mine={counts.mineDiretor > 0}
                 to="/pagamentos?status=aguardando_aprovacao"
               />
             )}
             {isDiretor && (
-              <BigStatCard
+              <CompactStatChip
                 icon={FileText}
                 color="blue"
                 label="Pós-aprovação"
                 value={counts.diretorAprovadoEmRevisao}
-                hint="aguardando analista liberar NF"
                 to="/pagamentos?status=aprovado_em_revisao"
               />
             )}
             {isAnalista && (
-              <BigStatCard
+              <CompactStatChip
                 icon={AlertCircle}
                 color="red"
                 label="Ressalvas"
                 value={counts.mineRessalvas}
-                hint="aprovado com ressalva"
+                accent="amber"
                 mine={counts.mineRessalvas > 0}
                 to="/pagamentos?status=aprovado_com_ressalva"
               />
             )}
             {isAnalista && (
-              <BigStatCard
+              <CompactStatChip
                 icon={FileWarning}
-                color="blue"
+                color="red"
                 label="NFs divergentes"
                 value={counts.mineInvoicesDivergentes}
-                hint={
-                  counts.teamInvoicesDivergentes !== counts.mineInvoicesDivergentes
-                    ? `${counts.teamInvoicesDivergentes} no time`
-                    : "lançar no financeiro"
-                }
+                accent="rose"
                 mine={counts.mineInvoicesDivergentes > 0}
                 to="/notas-fiscais"
               />
@@ -1274,65 +1463,270 @@ const Dashboard = () => {
         )}
       </section>
 
-      {/* TASK LIST — minhas */}
-      <section aria-labelledby="lista-tarefas-heading">
-        <SectionLabel>Pagamentos esperando você</SectionLabel>
-        <SurfaceCard>
-          <SurfaceCardHeader
-            title="Suas tarefas pendentes"
-            icon={FileText}
-            iconColor="teal"
-            countPill={myPending}
-            rightAction={
-              <Link
-                to="/pagamentos?owner=me"
-                style={{
-                  fontSize: 12,
-                  color: "hsl(var(--accent-foreground))",
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                Ver todos <ArrowRight size={13} />
-              </Link>
-            }
-          />
-          {loading ? (
-            <PaymentRowsSkeleton count={3} />
-          ) : myPayments.length === 0 ? (
-            <div
+      {/* SLA EM RISCO — feed de ação imediata */}
+      {!loading && slaAtRisk.length > 0 && (
+        <section aria-labelledby="sla-risco-heading">
+          <div className="flex items-center gap-2 mb-3">
+            <span
+              className="inline-block w-2 h-2 rounded-full animate-pulse"
+              style={{ background: "hsl(var(--destructive))" }}
+            />
+            <h2
+              id="sla-risco-heading"
+              style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}
+            >
+              SLA em risco{" "}
+              <span style={{ color: "hsl(var(--muted-foreground))", fontWeight: 400 }}>
+                · próximas 24h
+              </span>
+            </h2>
+            <span
               style={{
-                padding: "40px 22px",
-                textAlign: "center",
-                fontSize: 13,
-                color: "hsl(var(--muted-foreground))",
+                background: "hsl(var(--destructive-soft))",
+                color: "hsl(var(--destructive))",
+                fontSize: 10,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 20,
               }}
             >
-              Nada esperando por você no momento. 🎉
-            </div>
-          ) : (
-            <div>
-              {myPaymentsRanked.map((p) => {
-                const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
-                return (
-                  <TaskRow
-                    key={p.id}
-                    p={p}
-                    mine
-                    profiles={profiles}
-                    timeMs={sla?.ms}
-                    slaLevel={sla?.level}
-                    qCount={openQuestionCount[p.id]}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </SurfaceCard>
-      </section>
+              {slaAtRisk.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {slaAtRisk.map((s) => {
+              const isVencido = s.level === "vencido";
+              const statusLabel = PAYMENT_STATUS_SHORT[s.status] ?? s.status;
+              return (
+                <Link
+                  key={s.id}
+                  to={`/pagamentos/${s.id}`}
+                  className="flex items-center justify-between gap-3 hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  style={{
+                    background: isVencido ? "hsl(var(--destructive) / 0.04)" : "hsl(var(--card))",
+                    border: isVencido
+                      ? "1px solid hsl(var(--destructive) / 0.3)"
+                      : "1px solid hsl(var(--border))",
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        background: isVencido ? "hsl(var(--destructive))" : "hsl(var(--muted))",
+                        color: isVencido ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      <Timer size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "hsl(var(--foreground))",
+                          marginBottom: 2,
+                        }}
+                        className="truncate"
+                      >
+                        {s.reference ?? "Lote"} · {statusLabel}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: isVencido ? "hsl(var(--destructive))" : "hsl(var(--warning-foreground))",
+                        }}
+                      >
+                        {isVencido ? "Vencido há " : "Há "}{formatShortDuration(s.ms)}
+                        {s.total_amount != null && ` · ${formatCurrency(Number(s.total_amount))}`}
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight size={16} className="text-muted-foreground flex-shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* GRID PRINCIPAL: 8 (tarefas) + 4 (atividade) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+        {/* TASK LIST — minhas (col-span-8) */}
+        <section aria-labelledby="lista-tarefas-heading" className="lg:col-span-8">
+          <SectionLabel>Pagamentos esperando você</SectionLabel>
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Suas tarefas pendentes"
+              icon={FileText}
+              iconColor="teal"
+              countPill={myPending}
+              rightAction={
+                <Link
+                  to="/pagamentos?owner=me"
+                  style={{
+                    fontSize: 12,
+                    color: "hsl(var(--accent-foreground))",
+                    fontWeight: 500,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  Ver todos <ArrowRight size={13} />
+                </Link>
+              }
+            />
+            {loading ? (
+              <PaymentRowsSkeleton count={3} />
+            ) : myPayments.length === 0 ? (
+              <div
+                style={{
+                  padding: "40px 22px",
+                  textAlign: "center",
+                  fontSize: 13,
+                  color: "hsl(var(--muted-foreground))",
+                }}
+              >
+                Nada esperando por você no momento. 🎉
+              </div>
+            ) : (
+              <div>
+                {myPaymentsRanked.map((p) => {
+                  const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+                  return (
+                    <TaskRow
+                      key={p.id}
+                      p={p}
+                      mine
+                      profiles={profiles}
+                      timeMs={sla?.ms}
+                      slaLevel={sla?.level}
+                      qCount={openQuestionCount[p.id]}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </SurfaceCard>
+        </section>
+
+        {/* ATIVIDADE RECENTE — sidebar (col-span-4) */}
+        <aside aria-labelledby="atividade-recente-heading" className="lg:col-span-4">
+          <SectionLabel>Atividade recente</SectionLabel>
+          <SurfaceCard style={{ padding: 20 }}>
+            {recentActivity.length === 0 ? (
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "hsl(var(--muted-foreground))",
+                  textAlign: "center",
+                  padding: "20px 0",
+                }}
+              >
+                Sem atividade recente.
+              </p>
+            ) : (
+              <div className="relative flex flex-col gap-5">
+                <div
+                  className="absolute top-2 bottom-2 w-px"
+                  style={{ left: 11, background: "hsl(var(--border))" }}
+                />
+                {recentActivity.map((a) => {
+                  const isDevol = a.status_to === "devolvido_analista";
+                  const isApprov = a.status_to === "aprovado" || a.status_to === "aprovado_com_ressalva";
+                  const isPaid = a.status_to === "pago" || a.status_to === "nf_conciliada";
+                  const dotColor = isDevol
+                    ? "hsl(var(--destructive))"
+                    : isApprov
+                    ? "hsl(var(--success))"
+                    : isPaid
+                    ? "hsl(var(--success))"
+                    : "hsl(var(--info))";
+                  const dotBg = isDevol
+                    ? "hsl(var(--destructive) / 0.12)"
+                    : isApprov || isPaid
+                    ? "hsl(var(--success) / 0.12)"
+                    : "hsl(var(--info) / 0.12)";
+                  const statusLabel = a.status_to ? (PAYMENT_STATUS_SHORT[a.status_to] ?? a.status_to) : "—";
+                  const elapsed = Date.now() - new Date(a.changed_at).getTime();
+                  return (
+                    <Link
+                      key={a.id}
+                      to={`/pagamentos/${a.payment_id}`}
+                      className="relative pl-8 block hover:bg-muted/30 -mx-2 px-2 py-1 rounded-md transition-colors"
+                      style={{ textDecoration: "none", color: "inherit" }}
+                    >
+                      <div
+                        className="absolute top-1"
+                        style={{
+                          left: 0,
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          background: dotBg,
+                          border: "4px solid hsl(var(--card))",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: dotColor,
+                          }}
+                        />
+                      </div>
+                      <p style={{ fontSize: 12, color: "hsl(var(--foreground))", lineHeight: 1.4 }}>
+                        <span style={{ fontWeight: 600 }}>{a.actor_name ?? "Sistema"}</span>{" "}
+                        <span style={{ color: "hsl(var(--muted-foreground))" }}>→</span>{" "}
+                        <span style={{ fontWeight: 500 }}>{statusLabel}</span>
+                        {a.reference && (
+                          <span style={{ color: "hsl(var(--muted-foreground))" }}> · {a.reference}</span>
+                        )}
+                      </p>
+                      <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                        Há {formatShortDuration(elapsed)}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+            <Link
+              to="/auditoria"
+              className="block w-full mt-5 py-2 text-center rounded-lg transition-colors hover:bg-muted/50"
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                color: "hsl(var(--muted-foreground))",
+                textTransform: "uppercase",
+                border: "1px solid hsl(var(--border))",
+                textDecoration: "none",
+              }}
+            >
+              Ver histórico completo
+            </Link>
+          </SurfaceCard>
+        </aside>
+      </div>
+
 
       {/* TAREFAS EM ABERTO — equipe */}
       <section aria-labelledby="tarefas-equipe-heading">
