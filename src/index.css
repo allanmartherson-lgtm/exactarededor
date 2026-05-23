@@ -8,64 +8,65 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — Pure White: fundo branco absoluto. Hierarquia s\u00f3 por borda/sombra. */
-    --background: 0 0% 100%;            /* #FFFFFF */
-    --foreground: 224 71% 12%;          /* #0B1538 deep navy text */
+    /* Surfaces — Slate & Steel: cinza neutro fam\u00edlia slate (Tailwind) com navy como accent */
+    --background: 210 40% 98%;          /* #F8FAFC slate-50 */
+    --foreground: 222 47% 11%;          /* #0F172A slate-900 */
 
     --card: 0 0% 100%;                  /* #FFFFFF */
-    --card-foreground: 224 71% 12%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Brand: navy institucional #1e3a8a */
+    /* Brand: navy institucional #1e3a8a (mantido) */
     --primary: 224 76% 33%;             /* #1e3a8a blue-900 */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 226 100% 96%;       /* indigo-50 tint */
-    --primary-glow: 217 91% 60%;        /* blue-500 — usado em gradiente */
+    --primary-soft: 214 95% 96%;        /* #EFF6FF blue-50 */
+    --primary-glow: 217 91% 60%;        /* blue-500 */
 
-    /* Brand secondary: MedPay copper (#9A6B3A) — CTA destacado em fluxos operacionais */
-    --copper: 28 45% 42%;               /* #9A6B3A */
+    /* Brand secondary: MedPay copper (#9A6B3A) */
+    --copper: 28 45% 42%;
     --copper-foreground: 0 0% 100%;
     --copper-hover: 28 46% 35%;
     --copper-active: 28 47% 29%;
     --copper-soft: 32 80% 96%;
 
-    --secondary: 220 14% 93%;           /* #E5E9F0 — surface neutra */
-    --secondary-foreground: 224 30% 28%;/* #364463 */
+    --secondary: 214 32% 91%;           /* #E2E8F0 slate-200 */
+    --secondary-foreground: 215 25% 27%;/* #334155 slate-700 */
 
-    --muted: 210 40% 98%;               /* #F8FAFC */
-    --muted-foreground: 215 16% 47%;    /* #64748B slate-500 */
-    --text-tertiary: 215 20% 78%;       /* #B6C0CE — meta idle */
+    --muted: 210 40% 96%;               /* #F1F5F9 slate-100 */
+    --muted-foreground: 215 19% 35%;    /* #475569 slate-600 */
+    --text-tertiary: 215 20% 65%;       /* #94A3B8 slate-400 */
 
-    --accent: 226 100% 96%;             /* primary tint */
+    --accent: 214 95% 96%;              /* #EFF6FF blue-50 */
     --accent-foreground: 224 76% 33%;   /* primary */
 
-    /* Status semantics — paleta DF Parecer (cyan / green / amber / red) */
-    --success: 142 71% 38%;             /* #16A34A green-600 */
+    /* Status semantics */
+    --success: 142 71% 38%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 138 76% 93%;        /* green-50 */
+    --success-soft: 138 76% 93%;
 
-    --warning: 38 92% 50%;              /* #F59E0B amber-500 */
+    --warning: 38 92% 50%;
     --warning-foreground: 26 84% 18%;
-    --warning-soft: 48 96% 89%;         /* amber-100 */
+    --warning-soft: 48 96% 89%;
 
-    --info: 199 89% 48%;                /* #0EA5E9 sky-500 */
+    --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 204 94% 94%;           /* sky-100 */
+    --info-soft: 204 94% 94%;
 
-    --destructive: 0 84% 60%;           /* #EF4444 red-500 */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 0 93% 94%;
 
-    --border: 220 16% 88%;              /* slate-200-ish */
-    --border-strong: 215 20% 68%;       /* hairlines */
+    --border: 214 32% 91%;              /* #E2E8F0 slate-200 */
+    --border-strong: 213 27% 84%;       /* #CBD5E1 slate-300 */
     --border-highlight: 0 0% 100%;
-    --input: 215 20% 68%;
+    --input: 213 27% 84%;               /* #CBD5E1 */
     --input-bg: 0 0% 100%;
-    --ring: 199 89% 48%;                /* cyan focus ring */
-    --ring-soft: 199 89% 48% / 0.35;
+    --ring: 224 76% 33%;                /* navy focus ring */
+    --ring-soft: 224 76% 33% / 0.35;
     --track-soft: 215 20% 78%;
+
     --shadow-inset: inset 0 1px 2px hsl(224 71% 12% / 0.05);
     --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(224 71% 12% / 0.04);
 
