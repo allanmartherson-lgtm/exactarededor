@@ -8,110 +8,117 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — Slate & Steel: cinza neutro fam\u00edlia slate (Tailwind) com navy como accent */
-    --background: 210 40% 98%;          /* #F8FAFC slate-50 */
-    --foreground: 222 47% 11%;          /* #0F172A slate-900 */
+    /* ============================================================
+     * Apple Human Interface Guidelines — Light
+     * systemGroupedBackground sobre surfaces brancas, system blue,
+     * separadores hairline, hierarquia label / secondary / tertiary.
+     * ============================================================ */
 
-    --card: 0 0% 100%;                  /* #FFFFFF */
-    --card-foreground: 222 47% 11%;
+    /* Surfaces */
+    --background: 240 24% 96%;          /* #F2F2F7 systemGroupedBackground */
+    --foreground: 240 6% 11%;           /* #1C1C1E label */
+
+    --card: 0 0% 100%;                  /* #FFFFFF systemBackground */
+    --card-foreground: 240 6% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 240 6% 11%;
 
-    /* Brand: navy institucional #1e3a8a (mantido) */
-    --primary: 224 76% 33%;             /* #1e3a8a blue-900 */
+    /* Brand: system blue */
+    --primary: 211 100% 50%;            /* #007AFF systemBlue */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 95% 96%;        /* #EFF6FF blue-50 */
-    --primary-glow: 217 91% 60%;        /* blue-500 */
+    --primary-soft: 214 100% 95%;       /* #E8F0FE */
+    --primary-glow: 211 100% 60%;
 
-    /* Brand secondary: MedPay copper (#9A6B3A) */
-    --copper: 28 45% 42%;
+    /* Copper (HIG systemOrange como acento secundário cálido) */
+    --copper: 33 100% 50%;              /* #FF9500 systemOrange */
     --copper-foreground: 0 0% 100%;
-    --copper-hover: 28 46% 35%;
-    --copper-active: 28 47% 29%;
-    --copper-soft: 32 80% 96%;
+    --copper-hover: 28 100% 45%;
+    --copper-active: 28 100% 40%;
+    --copper-soft: 36 100% 94%;
 
-    --secondary: 214 32% 91%;           /* #E2E8F0 slate-200 */
-    --secondary-foreground: 215 25% 27%;/* #334155 slate-700 */
+    --secondary: 240 11% 91%;           /* #E5E5EA systemGray5 */
+    --secondary-foreground: 240 4% 25%; /* #3C3C43 label secondary base */
 
-    --muted: 210 40% 96%;               /* #F1F5F9 slate-100 */
-    --muted-foreground: 215 19% 35%;    /* #475569 slate-600 */
-    --text-tertiary: 215 20% 65%;       /* #94A3B8 slate-400 */
+    --muted: 240 24% 96%;               /* #F2F2F7 */
+    --muted-foreground: 240 4% 40%;     /* secondary label resolvida */
+    --text-tertiary: 240 4% 60%;        /* tertiary label resolvida */
 
-    --accent: 214 95% 96%;              /* #EFF6FF blue-50 */
-    --accent-foreground: 224 76% 33%;   /* primary */
+    --accent: 214 100% 95%;             /* #E8F0FE blue tinted */
+    --accent-foreground: 211 100% 45%;  /* system blue dark */
 
-    /* Status semantics */
-    --success: 142 71% 38%;
+    /* Status — HIG semantics */
+    --success: 135 59% 49%;             /* #34C759 systemGreen */
     --success-foreground: 0 0% 100%;
-    --success-soft: 138 76% 93%;
+    --success-soft: 135 60% 92%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 26 84% 18%;
-    --warning-soft: 48 96% 89%;
+    --warning: 33 100% 50%;             /* #FF9500 systemOrange */
+    --warning-foreground: 24 100% 18%;
+    --warning-soft: 36 100% 92%;
 
-    --info: 199 89% 48%;
+    --info: 211 100% 50%;               /* systemBlue */
     --info-foreground: 0 0% 100%;
-    --info-soft: 204 94% 94%;
+    --info-soft: 214 100% 95%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 4 100% 59%;          /* #FF3B30 systemRed */
     --destructive-foreground: 0 0% 100%;
-    --destructive-soft: 0 93% 94%;
+    --destructive-soft: 4 100% 95%;
 
-    --border: 214 32% 91%;              /* #E2E8F0 slate-200 */
-    --border-strong: 213 27% 84%;       /* #CBD5E1 slate-300 */
+    /* Borders hairline (separator rgba(60,60,67,0.18) resolvido sobre branco) */
+    --border: 240 6% 89%;
+    --border-strong: 240 6% 78%;
     --border-highlight: 0 0% 100%;
-    --input: 213 27% 84%;               /* #CBD5E1 */
+    --input: 240 6% 82%;
     --input-bg: 0 0% 100%;
-    --ring: 224 76% 33%;                /* navy focus ring */
-    --ring-soft: 224 76% 33% / 0.35;
-    --track-soft: 215 20% 78%;
+    --ring: 211 100% 50%;
+    --ring-soft: 211 100% 50% / 0.30;
+    --track-soft: 240 6% 82%;
 
-    --shadow-inset: inset 0 1px 2px hsl(224 71% 12% / 0.05);
-    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.6) inset, 0 1px 2px hsl(224 71% 12% / 0.04);
+    --shadow-inset: inset 0 1px 2px hsl(240 6% 11% / 0.04);
+    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.8) inset, 0 1px 2px hsl(240 6% 11% / 0.04);
 
-    --radius: 0.875rem;                 /* 14px */
+    --radius: 0.875rem;                 /* 14px — iOS grouped inset */
 
-    /* Gradients & shadows — reforçadas p/ dar "vida" aos cards sobre o fundo */
-    --gradient-brand: linear-gradient(135deg, hsl(224 76% 33%), hsl(217 91% 50%));
-    --gradient-soft: linear-gradient(135deg, hsl(226 100% 96%), hsl(210 40% 98%));
-    --shadow-soft: 0 1px 2px 0 hsl(224 71% 12% / 0.06), 0 2px 6px -1px hsl(224 71% 12% / 0.08);
-    --shadow-card: 0 1px 2px 0 hsl(224 71% 12% / 0.05), 0 4px 12px -2px hsl(224 71% 12% / 0.10), 0 8px 24px -8px hsl(224 71% 12% / 0.06);
-    --shadow-elevated: 0 24px 48px -18px hsl(224 76% 33% / 0.22), 0 10px 20px -8px hsl(224 71% 12% / 0.12);
+    /* Gradients & elevation — sombras muito sutis, estilo HIG */
+    --gradient-brand: linear-gradient(135deg, hsl(211 100% 50%), hsl(211 100% 60%));
+    --gradient-soft: linear-gradient(135deg, hsl(214 100% 97%), hsl(240 24% 96%));
+    --shadow-soft: 0 1px 2px 0 hsl(240 6% 11% / 0.04), 0 2px 6px -1px hsl(240 6% 11% / 0.05);
+    --shadow-card: 0 1px 3px 0 hsl(240 6% 11% / 0.04), 0 4px 12px -2px hsl(240 6% 11% / 0.06), 0 8px 24px -8px hsl(240 6% 11% / 0.05);
+    --shadow-elevated: 0 20px 48px -18px hsl(240 6% 11% / 0.18), 0 8px 20px -8px hsl(240 6% 11% / 0.10);
 
-    /* Bubble token pairs (icon backgrounds) — quiet on idle */
-    --bubble-purple-bg: 250 90% 97%;
-    --bubble-purple-fg: 250 60% 50%;
-    --bubble-yellow-bg: 48 96% 92%;
-    --bubble-yellow-fg: 26 84% 35%;
-    --bubble-red-bg: 0 93% 96%;
-    --bubble-red-fg: 0 73% 41%;
-    --bubble-blue-bg: 214 95% 97%;
-    --bubble-blue-fg: 217 91% 60%;
-    --bubble-green-bg: 150 60% 95%;
-    --bubble-green-fg: 152 60% 32%;
-    --bubble-teal-bg: 214 95% 97%;
-    --bubble-teal-fg: 217 91% 60%;
+    /* Bubble token pairs (icon backgrounds) — HIG system color families */
+    --bubble-purple-bg: 280 100% 96%;
+    --bubble-purple-fg: 280 70% 50%;    /* #AF52DE systemPurple */
+    --bubble-yellow-bg: 48 100% 92%;
+    --bubble-yellow-fg: 33 100% 40%;
+    --bubble-red-bg: 4 100% 95%;
+    --bubble-red-fg: 4 100% 50%;
+    --bubble-blue-bg: 214 100% 95%;
+    --bubble-blue-fg: 211 100% 50%;
+    --bubble-green-bg: 135 60% 92%;
+    --bubble-green-fg: 135 59% 38%;
+    --bubble-teal-bg: 192 100% 93%;
+    --bubble-teal-fg: 192 100% 38%;     /* #5AC8FA systemTeal */
 
     /* Table-specific surfaces */
-    --table-row-hover: 214 30% 95%;
-    --table-border-light: 214 22% 90%;
+    --table-row-hover: 240 24% 94%;
+    --table-border-light: 240 6% 91%;
 
-    --hover-surface: 214 28% 93%;        /* hover de linha/botão ghost mais perceptível */
-    --shadow-hover: 0 4px 12px hsl(222 47% 11% / 0.06);
+    --hover-surface: 240 11% 93%;
+    --shadow-hover: 0 4px 12px hsl(240 6% 11% / 0.05);
 
-    /* Sidebar — light, com primary navy */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 224 30% 36%;
-    --sidebar-muted-foreground: 215 16% 60%;
-    --sidebar-primary: 224 76% 33%;
+    /* Sidebar — translúcida tipo iPadOS, fundo systemGroupedBackground */
+    --sidebar-background: 240 24% 97%;
+    --sidebar-foreground: 240 4% 25%;
+    --sidebar-muted-foreground: 240 4% 50%;
+    --sidebar-primary: 211 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 220 14% 95%;
-    --sidebar-hover-foreground: 224 71% 12%;
-    --sidebar-accent: 226 100% 96%;
-    --sidebar-accent-foreground: 224 76% 33%;
-    --sidebar-border: 220 16% 90%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-hover: 240 11% 91%;
+    --sidebar-hover-foreground: 240 6% 11%;
+    --sidebar-accent: 214 100% 95%;
+    --sidebar-accent-foreground: 211 100% 45%;
+    --sidebar-border: 240 6% 89%;
+    --sidebar-ring: 211 100% 50%;
   }
 
   .dark {
@@ -220,18 +227,19 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "DM Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
+    letter-spacing: -0.005em;
   }
 
   h1, h2, h3, h4 {
     @apply tracking-tight text-foreground;
-    font-family: "Space Grotesk", "DM Sans", system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   /* Dark mode: alivia o peso do display em superfícies escuras. */
