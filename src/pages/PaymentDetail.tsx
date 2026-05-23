@@ -587,6 +587,46 @@ const PaymentDetail = () => {
     await doSendForValidation(prontos);
   };
 
+  // Analista conclui a análise de várias empresas de uma vez (em massa).
+  // Apenas grupos em `revisao_analista` são elegíveis; passam para `concluida_analista`.
+  // Depois o analista ainda precisa clicar em "Enviar lote para validação" para que
+  // os grupos concluídos sigam ao validador (mesmo comportamento do botão individual
+  // dentro da empresa).
+  const bulkConcludeAnalysis = async (groupIds: string[]) => {
+    if (!id || groupIds.length === 0) return;
+    const targets = groups.filter((g) => groupIds.includes(g.id) && g.status === "revisao_analista");
+    if (targets.length === 0) {
+      toast({ title: "Nenhuma empresa elegível", description: "Selecione empresas em revisão pelo analista.", variant: "destructive" });
+      return;
+    }
+    setBulkConcluding(true);
+    await autoClaim();
+    let ok = 0;
+    for (const g of targets) {
+      const { error: upErr } = await supabase.from("payment_company_groups")
+        .update({ status: "concluida_analista" })
+        .eq("id", g.id);
+      if (upErr) {
+        toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
+        continue;
+      }
+      const obsRes = await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user!.id,
+        message: `[${g.company_name}] Análise concluída pelo analista (em massa).`,
+        status_from: g.status, status_to: "concluida_analista",
+      });
+      if (!obsRes.ok) {
+        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
+      }
+      ok++;
+    }
+    await load();
+    setBulkConcluding(false);
+    setBulkConcludeOpen(false);
+    setBulkConcludeSelected(new Set());
+    toast({ title: "Análise concluída em massa", description: `${ok} empresa(s) marcadas como concluídas. Use "Enviar lote para validação" para encaminhar.` });
+  };
+
   const toggleItemExpanded = (itemId: string) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
