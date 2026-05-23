@@ -2073,6 +2073,104 @@ const PaymentDetail = () => {
         })()}
 
 
+          {isAnalista && groupsPendingAnalyst.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-info-soft border border-info/30 rounded-lg text-sm flex-wrap">
+              <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
+              <span className="font-medium text-slate-600">Concluir análise em massa</span>
+              <span className="text-muted-foreground text-xs">
+                — {groupsPendingAnalyst.length} empresa(s) ainda em revisão. Selecione várias e finalize de uma vez.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || bulkConcluding}
+                onClick={() => {
+                  setBulkConcludeSelected(new Set(groupsPendingAnalyst.map((g) => g.id)));
+                  setBulkConcludeOpen(true);
+                }}
+                className="ml-auto h-7 px-3 text-xs"
+              >
+                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                Selecionar empresas
+              </Button>
+            </div>
+          )}
+
+          <Dialog open={bulkConcludeOpen} onOpenChange={(o) => { if (!o) { setBulkConcludeOpen(false); } }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Concluir análise em massa</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <p className="text-muted-foreground text-xs">
+                  Marque as empresas que você já revisou. Elas serão marcadas como
+                  <strong> concluídas pelo analista</strong> e ficarão prontas para envio ao validador.
+                </p>
+                <div className="flex items-center gap-2 text-xs">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => setBulkConcludeSelected(new Set(groupsPendingAnalyst.map((g) => g.id)))}
+                  >
+                    Marcar todas
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => setBulkConcludeSelected(new Set())}
+                  >
+                    Desmarcar todas
+                  </Button>
+                  <span className="ml-auto text-muted-foreground">
+                    {bulkConcludeSelected.size} de {groupsPendingAnalyst.length} selecionada(s)
+                  </span>
+                </div>
+                <ul className="max-h-72 overflow-y-auto rounded border border-border bg-muted/20 p-2 space-y-1">
+                  {groupsPendingAnalyst.map((g) => {
+                    const checked = bulkConcludeSelected.has(g.id);
+                    return (
+                      <li key={g.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted/50">
+                        <Checkbox
+                          id={`bulk-${g.id}`}
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setBulkConcludeSelected((prev) => {
+                              const n = new Set(prev);
+                              if (v) n.add(g.id); else n.delete(g.id);
+                              return n;
+                            });
+                          }}
+                        />
+                        <label htmlFor={`bulk-${g.id}`} className="flex-1 text-xs cursor-pointer">
+                          <span className="font-medium">{g.company_name}</span>
+                          <span className="text-muted-foreground ml-2">
+                            {g.items_count ?? 0} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setBulkConcludeOpen(false)} disabled={bulkConcluding}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={bulkConcluding || bulkConcludeSelected.size === 0}
+                    onClick={() => bulkConcludeAnalysis(Array.from(bulkConcludeSelected))}
+                  >
+                    {bulkConcluding ? "Concluindo..." : `Concluir ${bulkConcludeSelected.size} empresa(s)`}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {canSendForValidation && (() => {
             const divergentGroups = groupsReadyToSend.filter((g) => {
               const inv = invoices.filter((i) =>
