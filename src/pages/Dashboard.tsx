@@ -670,6 +670,7 @@ const Dashboard = () => {
   const [allStatusEnteredAt, setAllStatusEnteredAt] = useState<Record<string, { status: PaymentStatus; changed_at: string }>>({});
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  const [groupStatusesByPayment, setGroupStatusesByPayment] = useState<Record<string, PaymentStatus[]>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   // Tempo médio agregado por status (gargalos)
   const [avgTimeByStatus, setAvgTimeByStatus] = useState<Record<string, { avgMs: number; count: number }>>({});
@@ -736,7 +737,7 @@ const Dashboard = () => {
         : Promise.resolve({ data: [] as any[] } as any),
       supabase.from("sla_settings").select("*").eq("active", true),
       allIds.length
-        ? supabase.from("payment_company_groups").select("payment_id,company_id").in("payment_id", allIds)
+        ? supabase.from("payment_company_groups").select("payment_id,company_id,status").in("payment_id", allIds)
         : Promise.resolve({ data: [] as any[] } as any),
     ]);
     const seen: Record<string, string> = {};
@@ -756,8 +757,13 @@ const Dashboard = () => {
     (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
     setSlaSettings(sMap);
     const cByP: Record<string, string | null> = {};
-    (groups ?? []).forEach((g: any) => { if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id; });
+    const gByP: Record<string, PaymentStatus[]> = {};
+    (groups ?? []).forEach((g: any) => {
+      if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
+      if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status as PaymentStatus);
+    });
     setCompanyByPayment(cByP);
+    setGroupStatusesByPayment(gByP);
     const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
     if (compIds.length) {
       const { data: ovs } = await supabase.from("company_sla_overrides").select("*").in("company_id", compIds);
@@ -807,35 +813,47 @@ const Dashboard = () => {
 
     (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
       const owner = ownerRoleFor(p.status);
-      // "Minha pendência" só conta enquanto o lote AINDA está na alçada do
-      // papel do usuário. Após aprovado/pago/etc, sai das pendências.
+      const groupStatuses = gByP[p.id] ?? [];
+      const hasGroupInValidacao = groupStatuses.some((s) => s === "aguardando_validacao");
+      const hasGroupInAprovacao = groupStatuses.some((s) => s === "aguardando_aprovacao");
+      // "Minha pendência" considera tanto status do lote quanto status por
+      // empresa — basta UMA empresa do lote estar na fase do papel.
       const isMineRow =
         !!uid && (
           (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-          (owner === "validador" && p.status === "aguardando_validacao") ||
-          (owner === "diretor" && p.status === "aguardando_aprovacao")
+          (hasGroupInValidacao) ||
+          (hasGroupInAprovacao && p.status !== "aguardando_aprovacao" ? false : owner === "diretor" && p.status === "aguardando_aprovacao")
         );
 
       if (isMineRow) {
         const companies = paymentCompaniesMap[p.id] ?? [];
         if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
           companies.forEach(id => mineAnalistaCompaniesSet.add(id));
-        } else if (owner === "validador" && p.status === "aguardando_validacao") {
+        }
+        if (hasGroupInValidacao) {
           companies.forEach(id => mineValidadorCompaniesSet.add(id));
-        } else if (owner === "diretor" && p.status === "aguardando_aprovacao") {
+        }
+        if (owner === "diretor" && p.status === "aguardando_aprovacao") {
           companies.forEach(id => mineDiretorCompaniesSet.add(id));
         }
       }
 
       if (owner === "analista") {
         c.teamAnalise++;
-        if (isMineRow) c.mineAnalista++;
+        if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) c.mineAnalista++;
       } else if (owner === "validador") {
         c.teamValidacao++;
-        if (isMineRow) c.mineValidador++;
       } else if (owner === "diretor") {
         c.teamAprovacao++;
-        if (isMineRow) c.mineDiretor++;
+        if (isMineRow && owner === "diretor") c.mineDiretor++;
+      }
+
+      // Validação por empresa: conta qualquer lote que tenha pelo menos uma
+      // empresa em aguardando_validacao (mesmo que o status do lote esteja
+      // em revisao_analista — situação normal em lotes mistos).
+      if (hasGroupInValidacao) {
+        c.mineValidador++;
+        if (owner !== "validador") c.teamValidacao++;
       }
 
       switch (p.status) {
@@ -860,6 +878,9 @@ const Dashboard = () => {
         case "nf_questionada":
           c.pipeDivergente++; break;
       }
+      // Pipeline: lotes mistos também aparecem em Validação/Aprovação
+      if (p.status !== "aguardando_validacao" && hasGroupInValidacao) c.pipeValidacao++;
+      if (p.status !== "aguardando_aprovacao" && hasGroupInAprovacao) c.pipeAprovacao++;
 
       if (p.status === "devolvido_analista") c.attDevolvidoAnalista++;
       if (p.status === "aprovado_com_ressalva") {
@@ -1193,9 +1214,10 @@ const Dashboard = () => {
     const uid = user?.id;
     if (!uid) return false;
     const owner = ownerRoleFor(p.status);
+    const gs = groupStatusesByPayment[p.id] ?? [];
     if (owner === "analista" && isAnalista && ANALISTA_PENDING.has(p.status) && p.created_by === uid) return true;
-    if (owner === "validador" && isValidador && p.status === "aguardando_validacao") return true;
-    if (owner === "diretor" && isDiretor && p.status === "aguardando_aprovacao") return true;
+    if (isValidador && (p.status === "aguardando_validacao" || gs.some((s) => s === "aguardando_validacao"))) return true;
+    if (isDiretor && (p.status === "aguardando_aprovacao" || gs.some((s) => s === "aguardando_aprovacao"))) return true;
     return false;
   };
 
@@ -1208,7 +1230,11 @@ const Dashboard = () => {
     "nf_questionada", "aprovado_com_ressalva",
   ]);
   const teamOpenPayments = payments
-    .filter((p) => ACTIONABLE_STATUSES.has(p.status))
+    .filter((p) => {
+      if (ACTIONABLE_STATUSES.has(p.status)) return true;
+      const gs = groupStatusesByPayment[p.id] ?? [];
+      return gs.some((s) => ACTIONABLE_STATUSES.has(s));
+    })
     .slice(0, 8);
   const teamOpenTotal =
     counts.teamAnalise + counts.teamValidacao + counts.teamAprovacao;
@@ -1937,7 +1963,12 @@ const Dashboard = () => {
           ) : (
             <div>
               {payments.slice(0, 8).map((p) => (
-                <BatchProgressRow key={p.id} p={p} qCount={openQuestionCount[p.id]} />
+                <BatchProgressRow
+                  key={p.id}
+                  p={p}
+                  qCount={openQuestionCount[p.id]}
+                  groupStatuses={groupStatusesByPayment[p.id] ?? []}
+                />
               ))}
             </div>
           )}
@@ -2031,6 +2062,56 @@ const computeStages = (status: PaymentStatus): Record<BatchStage, StageState> =>
   return s;
 };
 
+const stageIndexOfStatus = (s: PaymentStatus): number => {
+  switch (s) {
+    case "rascunho":
+    case "em_analise_ia":
+    case "revisao_analista":
+    case "devolvido_analista":
+      return 0;
+    case "aguardando_validacao":
+      return 1;
+    case "aguardando_aprovacao":
+    case "aprovado_em_revisao":
+      return 2;
+    case "aprovado":
+    case "aprovado_com_ressalva":
+    case "pedido_nf_enviado":
+    case "nf_recebida":
+    case "nf_questionada":
+    case "nf_conciliada":
+    case "nf_divergente":
+    case "pago":
+    case "lancado":
+      return 3;
+    default:
+      return 0;
+  }
+};
+
+const computeAggregatedStages = (
+  groupStatuses: PaymentStatus[],
+  fallback: PaymentStatus,
+): Record<BatchStage, StageState> => {
+  if (!groupStatuses.length) return computeStages(fallback);
+  const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
+  const s: Record<BatchStage, StageState> = {
+    ia: { state: "todo" }, validacao: { state: "todo" },
+    aprovacao: { state: "todo" }, pago: { state: "todo" },
+  };
+  const idxs = groupStatuses.map(stageIndexOfStatus);
+  const hasReturned = groupStatuses.some((g) => g === "devolvido_analista");
+  for (let i = 0; i < order.length; i++) {
+    const anyHere = idxs.some((x) => x === i);
+    const anyPast = idxs.some((x) => x > i);
+    const allPast = idxs.every((x) => x > i);
+    if (anyHere) s[order[i]].state = "current";
+    else if (allPast || anyPast) s[order[i]].state = "done";
+  }
+  if (hasReturned && s.ia.state !== "current") s.ia.state = "returned";
+  return s;
+};
+
 const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: string } => {
   switch (st) {
     case "done": return { bg: "hsl(var(--bubble-green-bg))", fg: "hsl(var(--bubble-green-fg))", border: "hsl(var(--bubble-green-fg) / 0.3)" };
@@ -2042,9 +2123,9 @@ const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: 
   }
 };
 
-const BatchProgressRow = ({ p, qCount = 0 }: { p: PaymentRow; qCount?: number }) => {
+const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow; qCount?: number; groupStatuses?: PaymentStatus[] }) => {
   const risk = usePaymentRisk(p.id);
-  const stages = computeStages(p.status);
+  const stages = computeAggregatedStages(groupStatuses, p.status);
   const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
   return (
     <Link

@@ -193,6 +193,7 @@ const Payments = () => {
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
+  const [groupStatusesByPayment, setGroupStatusesByPayment] = useState<Record<string, string[]>>({});
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
@@ -344,11 +345,14 @@ const Payments = () => {
       const cByP: Record<string, string | null> = {};
       (groups ?? []).forEach((g: any) => { if (!cByP[g.payment_id]) cByP[g.payment_id] = null; });
       const { data: groupsWithIds } = await supabase
-        .from("payment_company_groups").select("payment_id,company_id").in("payment_id", ids);
+        .from("payment_company_groups").select("payment_id,company_id,status").in("payment_id", ids);
+      const gByP: Record<string, string[]> = {};
       (groupsWithIds ?? []).forEach((g: any) => {
         if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
+        if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status);
       });
       setCompanyByPayment(cByP);
+      setGroupStatusesByPayment(gByP);
 
       // Carrega SLAs e overrides relevantes em paralelo
       const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
@@ -568,21 +572,25 @@ const Payments = () => {
     }
     if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
     if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
-    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (statusFilter !== "all") {
+      const gs = groupStatusesByPayment[r.id] ?? [];
+      if (r.status !== statusFilter && !gs.includes(statusFilter)) return false;
+    }
     if (ownerGroup !== "all") {
       const allowed = STATUSES_BY_OWNER[ownerGroup];
-      if (!allowed.includes(r.status)) return false;
+      const gs = groupStatusesByPayment[r.id] ?? [];
+      const matchesByGroup = gs.some((g) => (allowed as readonly string[]).includes(g));
+      if (!allowed.includes(r.status) && !matchesByGroup) return false;
     }
     // Validação é fila coletiva: qualquer validador vê todos os lotes em aguardando_validacao.
     if (onlyMine) {
-      // Visão coletiva por perfil: "Meus" = lotes na fila do meu papel.
-      // Para analista, isso significa todos os lotes em status do analista
-      // (qualquer analista pode assumir). Validador/diretor idem.
       const myRoleStatuses: PaymentStatus[] = [];
       if (roles.includes("analista") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.analista);
       if (roles.includes("validador") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.validador);
       if (roles.includes("diretor") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.diretor);
-      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status)) return false;
+      const gs = groupStatusesByPayment[r.id] ?? [];
+      const inMineByGroup = gs.some((g) => (myRoleStatuses as readonly string[]).includes(g));
+      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status) && !inMineByGroup) return false;
     }
     if (competenceFilter !== "all") {
       const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
@@ -605,7 +613,7 @@ const Payments = () => {
     }
     if (openQuestionOnly && !(openQuestionCount[r.id] > 0)) return false;
     return true;
-  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount, deletingIds]);
+  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount, deletingIds, groupStatusesByPayment]);
 
   const analystOptions = useMemo(() => {
     const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
