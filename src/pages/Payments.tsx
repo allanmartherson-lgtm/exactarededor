@@ -1275,7 +1275,7 @@ const Payments = () => {
                     <tr className="bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       <th className="border-b border-border px-3 py-2.5 w-[40px]"></th>
                       <th className="border-b border-border px-3 py-2.5">Lote / Risco</th>
-                      <th className="border-b border-border px-3 py-2.5 hidden xl:table-cell">Responsável / Info</th>
+                      <th className="border-b border-border px-3 py-2.5 hidden 2xl:table-cell">Responsável / Info</th>
                       <th className="border-b border-border px-3 py-2.5 hidden md:table-cell">Tempo / Competência</th>
                       <th className="border-b border-border px-3 py-2.5 text-right hidden md:table-cell">Volumetria</th>
                       <th className="border-b border-border px-3 py-2.5 text-right">Valor Total</th>
@@ -1330,7 +1330,7 @@ const Payments = () => {
                               </div>
                             </Link>
                           </td>
-                          <td className="px-3 py-3 align-middle hidden xl:table-cell">
+                          <td className="px-3 py-3 align-middle hidden 2xl:table-cell">
                             <div className="flex flex-col text-[11px]">
                               <span className="font-medium text-foreground truncate max-w-[180px]">{analystName}</span>
                               <span className="text-muted-foreground">
