@@ -59,6 +59,19 @@ export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
   );
   const [loading, setLoading] = useState(false);
   const [exceptions, setExceptions] = useState<{ count: number; impact: number } | null>(null);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(`director-briefing-collapsed:${paymentId}`) === "1";
+  });
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(`director-briefing-collapsed:${paymentId}`, next ? "1" : "0");
+      } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const generate = useCallback(async () => {
     setLoading(true);
