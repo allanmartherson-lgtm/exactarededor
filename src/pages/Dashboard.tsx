@@ -449,9 +449,9 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, in
     minHeight: 92,
     position: "relative",
     overflow: "hidden",
-    // Entrada com stagger por posição na grade.
+    // Entrada com stagger automático via nth-child no CSS.
     animation: "stat-chip-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
-    animationDelay: `${Math.min(index, 11) * 60}ms`,
+
     transition:
       "transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease, border-color 0.25s ease",
     "--chip-glow": glowColor,
