@@ -32,6 +32,10 @@ interface Props {
 
 const PENDING_GROUP_STATUSES = new Set<string>(["em_questionamento", "devolvido_analista"]);
 const ALREADY_DONE_STATUSES = new Set<string>(["aprovado", "rejeitado", "cancelado", "arquivado", "revisao_pos_aprovacao", "pedido_nf_enviado", "nf_recebida", "nf_conciliada", "lancado", "pago"]);
+const ROLE_APPROVABLE_STATUSES: Record<Props["actorRole"], Set<string>> = {
+  validador: new Set(["aguardando_validacao", "em_questionamento", "devolvido_analista"]),
+  diretor: new Set(["aguardando_aprovacao"]),
+};
 
 export function PaymentBatchActionsFooter({
   paymentId,
@@ -59,12 +63,12 @@ export function PaymentBatchActionsFooter({
   const [approveNote, setApproveNote] = useState("");
 
   const approvable = useMemo(
-    () => groups.filter((g) => !PENDING_GROUP_STATUSES.has(String(g.status)) && !ALREADY_DONE_STATUSES.has(String(g.status))),
-    [groups],
+    () => groups.filter((g) => ROLE_APPROVABLE_STATUSES[actorRole].has(String(g.status))),
+    [actorRole, groups],
   );
   const pending = useMemo(
-    () => groups.filter((g) => PENDING_GROUP_STATUSES.has(String(g.status))),
-    [groups],
+    () => groups.filter((g) => !ROLE_APPROVABLE_STATUSES[actorRole].has(String(g.status)) && !ALREADY_DONE_STATUSES.has(String(g.status))),
+    [actorRole, groups],
   );
 
   const openQuestion = () => {
@@ -375,7 +379,7 @@ export function PaymentBatchActionsFooter({
               onClick={() => doApprove(approvable.map((g) => g.id), approveNote.trim() || null)}
               disabled={busy}
             >
-              Confirmar aprovação parcial
+              {actorRole === "diretor" ? "Confirmar aprovação parcial" : "Confirmar envio parcial"}
             </Button>
           </DialogFooter>
         </DialogContent>
