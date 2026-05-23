@@ -375,6 +375,145 @@ const BigStatSkeleton = () => (
   </div>
 );
 
+/* ----------------------------------------------------------------
+   CompactStatChip — versão enxuta do BigStatCard usada na nova KPI bar
+   ---------------------------------------------------------------- */
+interface CompactStatChipProps {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  color: BubbleColor;
+  mine?: boolean;
+  to?: string;
+  accent?: "amber" | "rose" | null;
+}
+const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: CompactStatChipProps) => {
+  const accentBorder =
+    accent === "amber"
+      ? "1px solid hsl(var(--warning) / 0.45)"
+      : accent === "rose"
+      ? "1px solid hsl(var(--destructive) / 0.45)"
+      : mine
+      ? "1px solid hsl(var(--primary) / 0.6)"
+      : "1px solid hsl(var(--border))";
+  const valueColor =
+    accent === "amber"
+      ? "hsl(var(--warning-foreground))"
+      : accent === "rose"
+      ? "hsl(var(--destructive))"
+      : "hsl(var(--foreground))";
+  const style: CSSProperties = {
+    background: "hsl(var(--card))",
+    border: accentBorder,
+    borderRadius: 14,
+    padding: "12px 14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    transition: "all 0.2s ease",
+    textDecoration: "none",
+    color: "inherit",
+    minHeight: 92,
+  };
+  const inner = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            ...bubbleStyle(color),
+          }}
+        >
+          <Icon size={15} strokeWidth={2} />
+        </div>
+        {mine && (
+          <span
+            style={{
+              background: "hsl(var(--primary))",
+              color: "hsl(var(--primary-foreground))",
+              borderRadius: 20,
+              fontSize: 9,
+              fontWeight: 700,
+              padding: "2px 7px",
+              lineHeight: 1.3,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Sua vez
+          </span>
+        )}
+      </div>
+      <div>
+        <span
+          style={{
+            display: "block",
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+            color: "hsl(var(--muted-foreground))",
+            textTransform: "uppercase",
+            lineHeight: 1.3,
+            marginBottom: 4,
+          }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+            lineHeight: 1,
+            color: valueColor,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+    </>
+  );
+  if (to) {
+    return (
+      <Link
+        to={to}
+        style={style}
+        className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={`${label}: ${value}${mine ? ", sua vez" : ""}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div style={style}>{inner}</div>;
+};
+
+const CompactStatSkeleton = () => (
+  <div
+    style={{
+      background: "hsl(var(--card))",
+      border: "1px solid hsl(var(--border))",
+      borderRadius: 14,
+      padding: "12px 14px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      minHeight: 92,
+    }}
+  >
+    <Skeleton className="h-7 w-7 rounded-lg" />
+    <Skeleton className="h-3 w-20" />
+    <Skeleton className="h-6 w-10" />
+  </div>
+);
+
 /** Surface card used for task list, pipeline, and bottom row. */
 const SurfaceCard = ({
   children,
