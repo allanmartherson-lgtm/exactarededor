@@ -26,6 +26,7 @@ import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/ReleaseInvoiceRequestDialog";
+import { BulkReleaseInvoiceRequestDialog } from "@/components/payment-detail/BulkReleaseInvoiceRequestDialog";
 import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
@@ -217,6 +218,7 @@ const PaymentDetail = () => {
   // Contagem de questionamentos abertos por empresa (payment_questions agrupado por company_group_id).
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [releaseGroup, setReleaseGroup] = useState<GroupRow | null>(null);
+  const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -2110,6 +2112,25 @@ const PaymentDetail = () => {
             </div>
           )}
 
+          {isAnalista && groups.some((g) => g.status === "revisao_pos_aprovacao") && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-teal-50 dark:bg-teal-950/30 border border-teal-300/60 dark:border-teal-800 rounded-lg text-sm flex-wrap">
+              <span className="w-2 h-2 rounded-full bg-teal-600 flex-shrink-0" />
+              <span className="font-medium text-teal-900 dark:text-teal-200">Liberar pedidos de NF em massa</span>
+              <span className="text-muted-foreground text-xs">
+                — {groups.filter((g) => g.status === "revisao_pos_aprovacao").length} empresa(s) aprovadas pelo diretor. Selecione e dispare os pedidos de uma vez.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setBulkReleaseOpen(true)}
+                className="ml-auto h-7 px-3 text-xs border-teal-400 text-teal-800 hover:bg-teal-100 dark:text-teal-200 dark:hover:bg-teal-900/40"
+              >
+                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                Selecionar empresas
+              </Button>
+            </div>
+          )}
+
           <Dialog open={bulkConcludeOpen} onOpenChange={(o) => { if (!o) { setBulkConcludeOpen(false); } }}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
@@ -2661,6 +2682,14 @@ const PaymentDetail = () => {
             paymentId={id!}
             group={releaseGroup}
             onSuccess={() => { setReleaseGroup(null); load(); }}
+          />
+
+          <BulkReleaseInvoiceRequestDialog
+            open={bulkReleaseOpen}
+            onOpenChange={setBulkReleaseOpen}
+            paymentId={id!}
+            groups={groups.filter((g) => g.status === "revisao_pos_aprovacao")}
+            onSuccess={() => { setBulkReleaseOpen(false); load(); }}
           />
         </>
         )}
