@@ -540,14 +540,14 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, in
       <Link
         to={to}
         style={style}
-        className="stat-chip-interactive outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className={`${chipClass} outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
         aria-label={`${label}: ${value}${mine ? ", sua vez" : ""}`}
       >
         {inner}
       </Link>
     );
   }
-  return <div style={style} className="stat-chip-interactive">{inner}</div>;
+  return <div style={style} className={chipClass}>{inner}</div>;
 };
 
 
