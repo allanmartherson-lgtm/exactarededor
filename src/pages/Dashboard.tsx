@@ -1214,9 +1214,10 @@ const Dashboard = () => {
     const uid = user?.id;
     if (!uid) return false;
     const owner = ownerRoleFor(p.status);
+    const gs = groupStatusesByPayment[p.id] ?? [];
     if (owner === "analista" && isAnalista && ANALISTA_PENDING.has(p.status) && p.created_by === uid) return true;
-    if (owner === "validador" && isValidador && p.status === "aguardando_validacao") return true;
-    if (owner === "diretor" && isDiretor && p.status === "aguardando_aprovacao") return true;
+    if (isValidador && (p.status === "aguardando_validacao" || gs.some((s) => s === "aguardando_validacao"))) return true;
+    if (isDiretor && (p.status === "aguardando_aprovacao" || gs.some((s) => s === "aguardando_aprovacao"))) return true;
     return false;
   };
 
