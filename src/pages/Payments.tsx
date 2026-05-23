@@ -185,7 +185,7 @@ const Payments = () => {
   }, [searchParams]);
 
   const [view, setView] = useState<"lista" | "kanban">("lista");
-  const [sortBy, setSortBy] = useState<"created" | "elapsed" | "status" | "priority">("created");
+  const [sortBy, setSortBy] = useState<"relevance" | "created" | "elapsed" | "status" | "priority">("relevance");
   // Arquivados: lotes em estado terminal (lancado/pago/rejeitado/cancelado).
   // Default = "ativos" — esconde finalizados das filas de trabalho diárias.
   // Pode ser ligado via querystring (?archived=1) ou pelo toggle na UI.
