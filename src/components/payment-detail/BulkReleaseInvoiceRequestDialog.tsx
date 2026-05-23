@@ -178,8 +178,8 @@ export const BulkReleaseInvoiceRequestDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-4 w-4" /> Liberar pedidos de NF em massa
           </DialogTitle>
@@ -189,90 +189,93 @@ export const BulkReleaseInvoiceRequestDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {loadingEmails ? (
-          <div className="py-8 flex items-center justify-center text-muted-foreground text-sm gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Carregando e-mails…
-          </div>
-        ) : groups.length === 0 ? (
-          <p className="py-6 text-sm text-muted-foreground">Nenhuma empresa elegível.</p>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={
-                    selected.size > 0 && selected.size === eligibleEmailsCount
-                      ? true
-                      : selected.size > 0
-                        ? "indeterminate"
-                        : false
-                  }
-                  onCheckedChange={(v) => toggleAll(v === true)}
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+          {loadingEmails ? (
+            <div className="py-8 flex items-center justify-center text-muted-foreground text-sm gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando e-mails…
+            </div>
+          ) : groups.length === 0 ? (
+            <p className="py-6 text-sm text-muted-foreground">Nenhuma empresa elegível.</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={
+                      selected.size > 0 && selected.size === eligibleEmailsCount
+                        ? true
+                        : selected.size > 0
+                          ? "indeterminate"
+                          : false
+                    }
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                  />
+                  <span className="font-medium">Selecionar todas com e-mail ({eligibleEmailsCount})</span>
+                </label>
+                <span className="text-muted-foreground">
+                  {selected.size} selecionada(s) · {formatCurrency(totalSelectedAmount)}
+                </span>
+              </div>
+
+              <div className="border rounded-md divide-y">
+                {groups.map((g) => {
+                  const emails = (g.company_id && emailsByCompany[g.company_id]) || [];
+                  const hasEmail = emails.length > 0;
+                  return (
+                    <label
+                      key={g.id}
+                      className={`flex items-start gap-3 px-3 py-2.5 ${hasEmail ? "cursor-pointer hover:bg-muted/40" : "opacity-60 cursor-not-allowed"}`}
+                    >
+                      <Checkbox
+                        checked={selected.has(g.id)}
+                        disabled={!hasEmail}
+                        onCheckedChange={() => hasEmail && toggle(g.id)}
+                        className="mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{g.company_name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                        </p>
+                        {hasEmail ? (
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            <CheckCircle2 className="inline h-3 w-3 text-success mr-1" />
+                            {emails[0]}
+                            {emails.length > 1 && ` (+${emails.length - 1} cc)`}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            Sem e-mail cadastrado — libere individualmente para preencher.
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">Mensagem (opcional)</label>
+                <Textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Mensagem aplicada a todos os pedidos…"
+                  rows={3}
                 />
-                <span className="font-medium">Selecionar todas com e-mail ({eligibleEmailsCount})</span>
-              </label>
-              <span className="text-muted-foreground">
-                {selected.size} selecionada(s) · {formatCurrency(totalSelectedAmount)}
-              </span>
+              </div>
+
+              {progress && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Enviando {progress.done} de {progress.total}…
+                </p>
+              )}
             </div>
+          )}
+        </div>
 
-            <div className="max-h-[320px] overflow-y-auto border rounded-md divide-y">
-              {groups.map((g) => {
-                const emails = (g.company_id && emailsByCompany[g.company_id]) || [];
-                const hasEmail = emails.length > 0;
-                return (
-                  <label
-                    key={g.id}
-                    className={`flex items-start gap-3 px-3 py-2.5 ${hasEmail ? "cursor-pointer hover:bg-muted/40" : "opacity-60 cursor-not-allowed"}`}
-                  >
-                    <Checkbox
-                      checked={selected.has(g.id)}
-                      disabled={!hasEmail}
-                      onCheckedChange={() => hasEmail && toggle(g.id)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{g.company_name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}
-                      </p>
-                      {hasEmail ? (
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          <CheckCircle2 className="inline h-3 w-3 text-success mr-1" />
-                          {emails[0]}
-                          {emails.length > 1 && ` (+${emails.length - 1} cc)`}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Sem e-mail cadastrado — libere individualmente para preencher.
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Mensagem (opcional)</label>
-              <Textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Mensagem aplicada a todos os pedidos…"
-                rows={3}
-              />
-            </div>
-
-            {progress && (
-              <p className="text-xs text-muted-foreground text-center">
-                Enviando {progress.done} de {progress.total}…
-              </p>
-            )}
-          </div>
-        )}
-
-        <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t shrink-0">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancelar
           </Button>
