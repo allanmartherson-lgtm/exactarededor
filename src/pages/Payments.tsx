@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
 import { toast } from "sonner";
@@ -1003,71 +1004,105 @@ const Payments = () => {
               )}
             </div>
           );
+          // Conta filtros secundários ativos (mostrados dentro do popover)
+          const advancedCount = [
+            analystFilter !== "all",
+            typeFilter !== "all",
+            competenceFilter !== "all",
+            ownerGroup !== "all",
+            divergenceFilter !== "all",
+            questionedFilter !== "all",
+          ].filter(Boolean).length;
+
+          const advancedFilters = (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Analista</label>
+                <Select value={analystFilter} onValueChange={setAnalystFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Analista" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos analistas</SelectItem>
+                    {analystOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tipo</label>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos tipos</SelectItem>
+                    {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Competência</label>
+                <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Competência" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas competências</SelectItem>
+                    {competenceOptions.map((c) => <SelectItem key={c} value={c}>{formatCompetence(`${c}-01`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Papel / fila</label>
+                <Select value={ownerGroup} onValueChange={(v) => {
+                  const ov = v as OwnerGroup;
+                  setOwnerGroup(ov);
+                  const next = new URLSearchParams(searchParams);
+                  if (ov === "all") next.delete("status"); else next.set("status", ov);
+                  setSearchParams(next, { replace: true });
+                }}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Papel/fila" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Qualquer fila</SelectItem>
+                    <SelectItem value="analista">Com analista</SelectItem>
+                    <SelectItem value="validador">Com validador</SelectItem>
+                    <SelectItem value="diretor">Com diretor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Divergência IA × regra</label>
+                <Select value={divergenceFilter} onValueChange={(v) => setDivergenceFilter(v as typeof divergenceFilter)}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Divergência" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Divergência: todas</SelectItem>
+                    <SelectItem value="with">Com divergência</SelectItem>
+                    <SelectItem value="without">Sem divergência</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">NF questionada</label>
+                <Select value={questionedFilter} onValueChange={(v) => setQuestionedFilter(v as typeof questionedFilter)}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="NF questionada" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">NF: todas</SelectItem>
+                    <SelectItem value="with">NF questionada</SelectItem>
+                    <SelectItem value="without">Sem questionamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          );
+
           const filterControls = (
             <>
+              {/* Primários — sempre visíveis */}
               <CompanyCombobox
                 value={companyFilter}
                 onChange={setCompanyFilter}
                 placeholder="Filtrar por empresa (CNPJ)…"
-                className="min-w-0 md:min-w-[260px] w-full md:w-auto"
+                className="min-w-0 md:min-w-[240px] w-full md:w-auto"
               />
-              <Select value={analystFilter} onValueChange={setAnalystFilter}>
-                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Analista" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos analistas</SelectItem>
-                  {analystOptions.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos tipos</SelectItem>
-                  {Object.entries(PAYMENT_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[200px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos status</SelectItem>
                   {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={competenceFilter} onValueChange={setCompetenceFilter}>
-                <SelectTrigger className="w-full md:w-[160px]"><SelectValue placeholder="Competência" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas competências</SelectItem>
-                  {competenceOptions.map((c) => <SelectItem key={c} value={c}>{formatCompetence(`${c}-01`)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={ownerGroup} onValueChange={(v) => {
-                const ov = v as OwnerGroup;
-                setOwnerGroup(ov);
-                const next = new URLSearchParams(searchParams);
-                if (ov === "all") next.delete("status"); else next.set("status", ov);
-                setSearchParams(next, { replace: true });
-              }}>
-                <SelectTrigger className="w-full md:w-[170px]"><SelectValue placeholder="Papel/fila" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Qualquer fila</SelectItem>
-                  <SelectItem value="analista">Com analista</SelectItem>
-                  <SelectItem value="validador">Com validador</SelectItem>
-                  <SelectItem value="diretor">Com diretor</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={divergenceFilter} onValueChange={(v) => setDivergenceFilter(v as typeof divergenceFilter)}>
-                <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Divergência" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Divergência: todas</SelectItem>
-                  <SelectItem value="with">Com divergência IA×regra</SelectItem>
-                  <SelectItem value="without">Sem divergência</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={questionedFilter} onValueChange={(v) => setQuestionedFilter(v as typeof questionedFilter)}>
-                <SelectTrigger className="w-full md:w-[170px]"><SelectValue placeholder="NF questionada" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">NF: todas</SelectItem>
-                  <SelectItem value="with">NF questionada</SelectItem>
-                  <SelectItem value="without">Sem questionamento</SelectItem>
                 </SelectContent>
               </Select>
               <Button
@@ -1089,8 +1124,47 @@ const Payments = () => {
                 }}
                 title="Mostrar apenas lotes com perguntas internas aguardando resposta"
               >
-                <MessageCircleQuestion className="h-4 w-4 mr-1" /> Com questionamento aberto
+                <MessageCircleQuestion className="h-4 w-4 mr-1" /> Questionamento aberto
               </Button>
+
+              {/* Secundários — dentro de popover "Mais filtros" */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="relative">
+                    <SlidersHorizontal className="h-4 w-4 mr-1" /> Mais filtros
+                    {advancedCount > 0 && (
+                      <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-1">
+                        {advancedCount}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[480px] max-w-[90vw] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold">Filtros avançados</h4>
+                    {advancedCount > 0 && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                        onClick={() => {
+                          setAnalystFilter("all");
+                          setTypeFilter("all");
+                          setCompetenceFilter("all");
+                          setOwnerGroup("all");
+                          setDivergenceFilter("all");
+                          setQuestionedFilter("all");
+                          const next = new URLSearchParams(searchParams);
+                          next.delete("status");
+                          setSearchParams(next, { replace: true });
+                        }}
+                      >
+                        Limpar avançados
+                      </button>
+                    )}
+                  </div>
+                  {advancedFilters}
+                </PopoverContent>
+              </Popover>
               {ownerGroup !== "all" && (
                 <Badge variant="outline" className="gap-1 h-8 px-2 bg-primary/10 border-primary/30 text-primary">
                   <UserCheck className="h-3.5 w-3.5" /> {OWNER_LABELS[ownerGroup]}
