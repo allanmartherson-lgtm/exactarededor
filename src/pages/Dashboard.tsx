@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   usePipelinePreferences,
@@ -386,8 +386,34 @@ interface CompactStatChipProps {
   mine?: boolean;
   to?: string;
   accent?: "amber" | "rose" | null;
+  index?: number;
 }
-const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: CompactStatChipProps) => {
+
+// Conta de 0 → value com easing — dá vida ao número do KPI.
+const useCountUp = (target: number, duration = 900) => {
+  const [display, setDisplay] = useState(0);
+  const fromRef = useRef(0);
+  useEffect(() => {
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = Math.round(from + (target - from) * eased);
+      setDisplay(next);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return display;
+};
+
+const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, index = 0 }: CompactStatChipProps) => {
+  const animated = useCountUp(value);
   const accentBorder =
     accent === "amber"
       ? "1px solid hsl(var(--warning) / 0.45)"
@@ -402,6 +428,14 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: 
       : accent === "rose"
       ? "hsl(var(--destructive))"
       : "hsl(var(--foreground))";
+  const glowColor =
+    accent === "amber"
+      ? "hsl(var(--warning) / 0.35)"
+      : accent === "rose"
+      ? "hsl(var(--destructive) / 0.35)"
+      : mine
+      ? "hsl(var(--primary) / 0.35)"
+      : "hsl(var(--foreground) / 0.18)";
   const style: CSSProperties = {
     background: "hsl(var(--card))",
     border: accentBorder,
@@ -410,15 +444,27 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: 
     display: "flex",
     flexDirection: "column",
     gap: 10,
-    transition: "all 0.2s ease",
     textDecoration: "none",
     color: "inherit",
     minHeight: 92,
-  };
+    position: "relative",
+    overflow: "hidden",
+    // Entrada com stagger automático via nth-child no CSS.
+    animation: "stat-chip-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
+
+    transition:
+      "transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease, border-color 0.25s ease",
+    "--chip-glow": glowColor,
+    willChange: "transform",
+  } as CSSProperties;
+  const pulseIcon = accent === "amber" || accent === "rose" || mine;
   const inner = (
     <>
+      {/* shine sweep no hover */}
+      <span aria-hidden className="stat-chip-shine" />
       <div className="flex items-start justify-between gap-2">
         <div
+          className={pulseIcon ? "stat-chip-icon-pulse" : undefined}
           style={{
             width: 30,
             height: 30,
@@ -444,6 +490,8 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: 
               lineHeight: 1.3,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
+              boxShadow: "0 0 0 0 hsl(var(--primary) / 0.6)",
+              animation: "stat-chip-badge-pulse 2.4s ease-in-out infinite",
             }}
           >
             Sua vez
@@ -467,6 +515,7 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: 
         </span>
         <span
           style={{
+            display: "block",
             fontSize: 24,
             fontWeight: 600,
             letterSpacing: "-0.02em",
@@ -475,7 +524,7 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: 
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {value}
+          {animated}
         </span>
       </div>
     </>
@@ -485,15 +534,16 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent }: 
       <Link
         to={to}
         style={style}
-        className="hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="stat-chip-interactive outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={`${label}: ${value}${mine ? ", sua vez" : ""}`}
       >
         {inner}
       </Link>
     );
   }
-  return <div style={style}>{inner}</div>;
+  return <div style={style} className="stat-chip-interactive">{inner}</div>;
 };
+
 
 const CompactStatSkeleton = () => (
   <div

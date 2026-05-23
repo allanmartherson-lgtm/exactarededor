@@ -268,6 +268,92 @@ All colors MUST be HSL.
     background: hsl(var(--hover-surface));
   }
 
+  /* ============ KPI CompactStatChip — animações ============ */
+  @keyframes stat-chip-in {
+    0% {
+      opacity: 0;
+      transform: translateY(14px) scale(0.94);
+      filter: blur(2px);
+    }
+    60% {
+      opacity: 1;
+      filter: blur(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+  @keyframes stat-chip-badge-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 6px hsl(var(--primary) / 0);
+    }
+  }
+  @keyframes stat-chip-icon-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  .stat-chip-interactive {
+    will-change: transform;
+    animation-delay: 0ms;
+  }
+  .stat-chip-interactive:nth-child(1) { animation-delay: 0ms; }
+  .stat-chip-interactive:nth-child(2) { animation-delay: 60ms; }
+  .stat-chip-interactive:nth-child(3) { animation-delay: 120ms; }
+  .stat-chip-interactive:nth-child(4) { animation-delay: 180ms; }
+  .stat-chip-interactive:nth-child(5) { animation-delay: 240ms; }
+  .stat-chip-interactive:nth-child(6) { animation-delay: 300ms; }
+  .stat-chip-interactive:nth-child(7) { animation-delay: 360ms; }
+  .stat-chip-interactive:nth-child(8) { animation-delay: 420ms; }
+  .stat-chip-interactive:nth-child(9) { animation-delay: 480ms; }
+  .stat-chip-interactive:nth-child(10) { animation-delay: 540ms; }
+  .stat-chip-interactive:nth-child(11) { animation-delay: 600ms; }
+  .stat-chip-interactive:hover {
+    transform: translateY(-3px) scale(1.015);
+    border-color: hsl(var(--primary) / 0.55) !important;
+    box-shadow:
+      0 12px 30px -12px var(--chip-glow, hsl(var(--foreground) / 0.18)),
+      0 0 0 1px var(--chip-glow, hsl(var(--primary) / 0.25));
+  }
+  .stat-chip-interactive:active {
+    transform: translateY(-1px) scale(1.005);
+    transition-duration: 0.08s;
+  }
+  .stat-chip-shine {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      120deg,
+      transparent 30%,
+      hsl(var(--foreground) / 0.06) 50%,
+      transparent 70%
+    );
+    transform: translateX(-120%);
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .stat-chip-interactive:hover .stat-chip-shine {
+    transform: translateX(120%);
+  }
+  .stat-chip-icon-pulse {
+    animation: stat-chip-icon-pulse 2.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stat-chip-interactive,
+    .stat-chip-shine,
+    .stat-chip-icon-pulse {
+      animation: none !important;
+      transition: none !important;
+    }
+    .stat-chip-interactive:hover {
+      transform: none;
+    }
+  }
+
   /* ============ Mobile compact dashboard ============
    * BigStat cards: reduce padding and number size on mobile. */
   @media (max-width: 767px) {
