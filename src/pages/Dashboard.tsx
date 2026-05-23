@@ -1272,6 +1272,44 @@ const Dashboard = () => {
       .slice(0, 5);
   }, [avgTimeByStatus]);
 
+  // SLA em risco — pagamentos do time todo cujo SLA está vencido ou em alerta preventivo
+  const slaAtRisk = useMemo(() => {
+    const enriched = allPayments
+      .map((p) => {
+        const r = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+        if (!r) return null;
+        if (r.level !== "vencido" && r.level !== "preventivo") return null;
+        const meta = payments.find((x) => x.id === p.id);
+        return {
+          id: p.id,
+          status: p.status,
+          level: r.level,
+          ms: r.ms,
+          reference: meta?.reference ?? null,
+          total_amount: meta?.total_amount ?? null,
+          created_by: p.created_by,
+        };
+      })
+      .filter(Boolean) as Array<{
+        id: string;
+        status: PaymentStatus;
+        level: SlaLevel;
+        ms: number;
+        reference: string | null;
+        total_amount: number | string | null;
+        created_by: string | null;
+      }>;
+    return enriched
+      .sort((a, b) => {
+        const la = a.level === "vencido" ? 2 : 1;
+        const lb = b.level === "vencido" ? 2 : 1;
+        if (la !== lb) return lb - la;
+        return b.ms - a.ms;
+      })
+      .slice(0, 4);
+  }, [allPayments, payments, statusEnteredAt, slaSettings, companyByPayment, companyOverrides]);
+
+
   const myPending =
     (isAnalista ? counts.mineAnalista + counts.mineInvoicesDivergentes + counts.mineInvoicesQuestionadas + counts.mineRessalvas : 0) +
     (isValidador ? counts.mineValidador : 0) +
