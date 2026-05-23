@@ -44,6 +44,7 @@ const AuditLog = lazy(() => import("./pages/AuditLog.tsx"));
 const StatusAnomalies = lazy(() => import("./pages/StatusAnomalies.tsx"));
 const SlaSettings = lazy(() => import("./pages/SlaSettings.tsx"));
 const PreviewPalettes = lazy(() => import("./pages/PreviewPalettes.tsx"));
+const PreviewDesignSystems = lazy(() => import("./pages/PreviewDesignSystems.tsx"));
 const WcagAudit = lazy(() => import("./pages/WcagAudit.tsx"));
 const Kpis = lazy(() => import("./pages/Kpis.tsx"));
 const SidebarDiagnostic = lazy(() => import("./pages/SidebarDiagnostic.tsx"));
@@ -80,6 +81,7 @@ const App = () => (
                 <Route path="/portal/nota/:token" element={<InvoicePortal />} />
                 <Route path="/trocar-senha" element={<ForceChangePassword />} />
                 <Route path="/preview-paletas" element={<PreviewPalettes />} />
+                <Route path="/preview-design-systems" element={<PreviewDesignSystems />} />
                 
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
