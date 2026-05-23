@@ -1748,7 +1748,6 @@ const PaymentDetail = () => {
           {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
           {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
           <PreAnalysisScoreCard payment={payment} />
-          {id && <DoctorAnomalyAlerts paymentId={id} />}
         </div>
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
