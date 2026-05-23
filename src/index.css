@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Surfaces — Slate & Steel: cinza neutro puro (#F8FAFC). Para testar Pure White, troque para 0 0% 100%. */
-    --background: 210 40% 98%;          /* #F8FAFC — Slate 50 */
+    /* Surfaces — Pure White: fundo branco absoluto. Hierarquia s\u00f3 por borda/sombra. */
+    --background: 0 0% 100%;            /* #FFFFFF */
     --foreground: 224 71% 12%;          /* #0B1538 deep navy text */
 
     --card: 0 0% 100%;                  /* #FFFFFF */
