@@ -1230,7 +1230,11 @@ const Dashboard = () => {
     "nf_questionada", "aprovado_com_ressalva",
   ]);
   const teamOpenPayments = payments
-    .filter((p) => ACTIONABLE_STATUSES.has(p.status))
+    .filter((p) => {
+      if (ACTIONABLE_STATUSES.has(p.status)) return true;
+      const gs = groupStatusesByPayment[p.id] ?? [];
+      return gs.some((s) => ACTIONABLE_STATUSES.has(s));
+    })
     .slice(0, 8);
   const teamOpenTotal =
     counts.teamAnalise + counts.teamValidacao + counts.teamAprovacao;
