@@ -572,21 +572,25 @@ const Payments = () => {
     }
     if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
     if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
-    if (statusFilter !== "all" && r.status !== statusFilter) return false;
+    if (statusFilter !== "all") {
+      const gs = groupStatusesByPayment[r.id] ?? [];
+      if (r.status !== statusFilter && !gs.includes(statusFilter)) return false;
+    }
     if (ownerGroup !== "all") {
       const allowed = STATUSES_BY_OWNER[ownerGroup];
-      if (!allowed.includes(r.status)) return false;
+      const gs = groupStatusesByPayment[r.id] ?? [];
+      const matchesByGroup = gs.some((g) => (allowed as readonly string[]).includes(g));
+      if (!allowed.includes(r.status) && !matchesByGroup) return false;
     }
     // Validação é fila coletiva: qualquer validador vê todos os lotes em aguardando_validacao.
     if (onlyMine) {
-      // Visão coletiva por perfil: "Meus" = lotes na fila do meu papel.
-      // Para analista, isso significa todos os lotes em status do analista
-      // (qualquer analista pode assumir). Validador/diretor idem.
       const myRoleStatuses: PaymentStatus[] = [];
       if (roles.includes("analista") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.analista);
       if (roles.includes("validador") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.validador);
       if (roles.includes("diretor") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.diretor);
-      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status)) return false;
+      const gs = groupStatusesByPayment[r.id] ?? [];
+      const inMineByGroup = gs.some((g) => (myRoleStatuses as readonly string[]).includes(g));
+      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status) && !inMineByGroup) return false;
     }
     if (competenceFilter !== "all") {
       const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
