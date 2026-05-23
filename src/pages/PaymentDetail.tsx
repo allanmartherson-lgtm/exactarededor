@@ -194,6 +194,9 @@ const PaymentDetail = () => {
   const [validatingRules, setValidatingRules] = useState(false);
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
+  const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
+  const [bulkConcludeSelected, setBulkConcludeSelected] = useState<Set<string>>(new Set());
+  const [bulkConcluding, setBulkConcluding] = useState(false);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
   const [openQuestionInvoiceId, setOpenQuestionInvoiceId] = useState<string | null>(null);
   const [isQuestionsPanelOpen, setIsQuestionsPanelOpen] = useState(false);
@@ -582,6 +585,46 @@ const PaymentDetail = () => {
       return;
     }
     await doSendForValidation(prontos);
+  };
+
+  // Analista conclui a análise de várias empresas de uma vez (em massa).
+  // Apenas grupos em `revisao_analista` são elegíveis; passam para `concluida_analista`.
+  // Depois o analista ainda precisa clicar em "Enviar lote para validação" para que
+  // os grupos concluídos sigam ao validador (mesmo comportamento do botão individual
+  // dentro da empresa).
+  const bulkConcludeAnalysis = async (groupIds: string[]) => {
+    if (!id || groupIds.length === 0) return;
+    const targets = groups.filter((g) => groupIds.includes(g.id) && g.status === "revisao_analista");
+    if (targets.length === 0) {
+      toast({ title: "Nenhuma empresa elegível", description: "Selecione empresas em revisão pelo analista.", variant: "destructive" });
+      return;
+    }
+    setBulkConcluding(true);
+    await autoClaim();
+    let ok = 0;
+    for (const g of targets) {
+      const { error: upErr } = await supabase.from("payment_company_groups")
+        .update({ status: "concluida_analista" })
+        .eq("id", g.id);
+      if (upErr) {
+        toast({ title: `Falha em ${g.company_name}`, description: upErr.message, variant: "destructive" });
+        continue;
+      }
+      const obsRes = await recordObservation({
+        payment_id: id, author_type: "analista", author_id: user!.id,
+        message: `[${g.company_name}] Análise concluída pelo analista (em massa).`,
+        status_from: g.status, status_to: "concluida_analista",
+      });
+      if (!obsRes.ok) {
+        toast({ title: `Histórico não registrado em ${g.company_name}`, description: obsRes.error, variant: "destructive" });
+      }
+      ok++;
+    }
+    await load();
+    setBulkConcluding(false);
+    setBulkConcludeOpen(false);
+    setBulkConcludeSelected(new Set());
+    toast({ title: "Análise concluída em massa", description: `${ok} empresa(s) marcadas como concluídas. Use "Enviar lote para validação" para encaminhar.` });
   };
 
   const toggleItemExpanded = (itemId: string) => {
@@ -2029,6 +2072,104 @@ const PaymentDetail = () => {
           );
         })()}
 
+
+          {isAnalista && groupsPendingAnalyst.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-info-soft border border-info/30 rounded-lg text-sm flex-wrap">
+              <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
+              <span className="font-medium text-slate-600">Concluir análise em massa</span>
+              <span className="text-muted-foreground text-xs">
+                — {groupsPendingAnalyst.length} empresa(s) ainda em revisão. Selecione várias e finalize de uma vez.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || bulkConcluding}
+                onClick={() => {
+                  setBulkConcludeSelected(new Set(groupsPendingAnalyst.map((g) => g.id)));
+                  setBulkConcludeOpen(true);
+                }}
+                className="ml-auto h-7 px-3 text-xs"
+              >
+                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                Selecionar empresas
+              </Button>
+            </div>
+          )}
+
+          <Dialog open={bulkConcludeOpen} onOpenChange={(o) => { if (!o) { setBulkConcludeOpen(false); } }}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Concluir análise em massa</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <p className="text-muted-foreground text-xs">
+                  Marque as empresas que você já revisou. Elas serão marcadas como
+                  <strong> concluídas pelo analista</strong> e ficarão prontas para envio ao validador.
+                </p>
+                <div className="flex items-center gap-2 text-xs">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => setBulkConcludeSelected(new Set(groupsPendingAnalyst.map((g) => g.id)))}
+                  >
+                    Marcar todas
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => setBulkConcludeSelected(new Set())}
+                  >
+                    Desmarcar todas
+                  </Button>
+                  <span className="ml-auto text-muted-foreground">
+                    {bulkConcludeSelected.size} de {groupsPendingAnalyst.length} selecionada(s)
+                  </span>
+                </div>
+                <ul className="max-h-72 overflow-y-auto rounded border border-border bg-muted/20 p-2 space-y-1">
+                  {groupsPendingAnalyst.map((g) => {
+                    const checked = bulkConcludeSelected.has(g.id);
+                    return (
+                      <li key={g.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted/50">
+                        <Checkbox
+                          id={`bulk-${g.id}`}
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            setBulkConcludeSelected((prev) => {
+                              const n = new Set(prev);
+                              if (v) n.add(g.id); else n.delete(g.id);
+                              return n;
+                            });
+                          }}
+                        />
+                        <label htmlFor={`bulk-${g.id}`} className="flex-1 text-xs cursor-pointer">
+                          <span className="font-medium">{g.company_name}</span>
+                          <span className="text-muted-foreground ml-2">
+                            {g.items_count ?? 0} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setBulkConcludeOpen(false)} disabled={bulkConcluding}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={bulkConcluding || bulkConcludeSelected.size === 0}
+                    onClick={() => bulkConcludeAnalysis(Array.from(bulkConcludeSelected))}
+                  >
+                    {bulkConcluding ? "Concluindo..." : `Concluir ${bulkConcludeSelected.size} empresa(s)`}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {canSendForValidation && (() => {
             const divergentGroups = groupsReadyToSend.filter((g) => {
