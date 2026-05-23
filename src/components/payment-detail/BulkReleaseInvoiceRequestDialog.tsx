@@ -188,11 +188,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
             Apenas empresas com e-mail cadastrado podem ser selecionadas.
           </DialogDescription>
         </DialogHeader>
-          <DialogDescription>
-            Selecione as empresas aprovadas pelo diretor para enviar o pedido de NF de uma vez.
-            Apenas empresas com e-mail cadastrado podem ser selecionadas.
-          </DialogDescription>
-        </DialogHeader>
+
 
         <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
           {loadingEmails ? (
