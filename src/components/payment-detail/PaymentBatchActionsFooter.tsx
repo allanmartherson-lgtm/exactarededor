@@ -24,6 +24,9 @@ interface Props {
   groups: GroupRow[];
   currentUserId: string;
   currentUserName: string;
+  /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
+   *  diretor (validador) ou conclui a aprovação final (diretor). */
+  actorRole: "validador" | "diretor";
   onDone: () => void | Promise<void>;
 }
 
