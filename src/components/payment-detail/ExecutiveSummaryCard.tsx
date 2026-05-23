@@ -82,11 +82,23 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentId]);
 
+  const canToggle = !!summary && (summary.bullets?.length > 0 || !!summary.recommended_action);
+
   return (
     <Card className="shadow-card border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => canToggle && setExpanded((v) => !v)}
+            disabled={!canToggle}
+            aria-expanded={expanded}
+            aria-controls="executive-summary-body"
+            className={cn(
+              "flex items-center gap-2 min-w-0 text-left rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              canToggle ? "cursor-pointer" : "cursor-default",
+            )}
+          >
             <Sparkles className="h-4 w-4 text-primary shrink-0" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Resumo IA</span>
             {summary && (
@@ -94,7 +106,15 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
                 {riskLabel[summary.risk_level]}
               </Badge>
             )}
-          </div>
+            {canToggle && (
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform shrink-0",
+                  expanded && "rotate-180",
+                )}
+              />
+            )}
+          </button>
           <Button
             variant="ghost"
             size="sm"
@@ -108,31 +128,41 @@ export const ExecutiveSummaryCard = ({ paymentId, payment }: Props) => {
         </div>
 
         {loading && !summary ? (
-          <div className="space-y-2">
+          <div className="space-y-2 mt-2">
             <Skeleton className="h-4 w-4/5" />
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-11/12" />
-            <Skeleton className="h-3 w-3/4" />
           </div>
         ) : summary ? (
-          <>
-            <p className="text-sm font-semibold leading-snug">{summary.headline}</p>
-            <ul className="mt-2 space-y-1">
-              {summary.bullets.map((b, i) => (
-              <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
-                  <span aria-hidden className="text-primary mt-[1px]">•</span>
-                  <span className="flex-1">{b}</span>
-                </li>
-              ))}
-            </ul>
-            {summary.recommended_action && (
-              <p className="text-xs italic text-foreground/80 mt-3 pt-3 border-t border-border/50">
-                {summary.recommended_action}
-              </p>
+          <div id="executive-summary-body" className="mt-2">
+            <p
+              className={cn(
+                "text-sm font-semibold leading-snug",
+                !expanded && "line-clamp-2",
+              )}
+            >
+              {summary.headline}
+            </p>
+            {expanded && (
+              <>
+                <ul className="mt-2 space-y-1">
+                  {summary.bullets.map((b, i) => (
+                    <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
+                      <span aria-hidden className="text-primary mt-[1px]">•</span>
+                      <span className="flex-1">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+                {summary.recommended_action && (
+                  <p className="text-xs italic text-foreground/80 mt-3 pt-3 border-t border-border/50">
+                    {summary.recommended_action}
+                  </p>
+                )}
+              </>
             )}
-          </>
+          </div>
         ) : (
-          <p className="text-xs text-muted-foreground">Não foi possível gerar o resumo.</p>
+          <p className="text-xs text-muted-foreground mt-2">Não foi possível gerar o resumo.</p>
         )}
       </CardContent>
     </Card>
