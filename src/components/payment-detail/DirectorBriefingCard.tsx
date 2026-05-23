@@ -119,8 +119,14 @@ export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
   return (
     <Card className="shadow-card border-amber-300 bg-amber-50/30 dark:bg-amber-950/10 dark:border-amber-800">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="flex items-center gap-2 min-w-0 flex-wrap text-left flex-1 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+            aria-expanded={!collapsed}
+            aria-controls="director-briefing-body"
+          >
             <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
               Briefing para Aprovação
@@ -130,11 +136,19 @@ export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
                 {riskLabel[briefing.risk_level]}
               </Badge>
             )}
-          </div>
+            {collapsed && briefing && (
+              <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+                — {briefing.headline}
+              </span>
+            )}
+            <span className="ml-auto inline-flex items-center text-amber-700 dark:text-amber-300">
+              {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </span>
+          </button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={generate}
+            onClick={(e) => { e.stopPropagation(); generate(); }}
             disabled={loading}
             className="h-7 px-2 shrink-0"
             aria-label="Regenerar briefing"
@@ -143,55 +157,59 @@ export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
           </Button>
         </div>
 
-        {loading && !briefing ? (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-4/5" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-11/12" />
+        {!collapsed && (
+          <div id="director-briefing-body" className="mt-2">
+            {loading && !briefing ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-11/12" />
+              </div>
+            ) : briefing ? (
+              <>
+                <p className="text-sm font-semibold leading-snug">{briefing.headline}</p>
+                <ul className="mt-2 space-y-1">
+                  {briefing.bullets.map((b, i) => (
+                    <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
+                      <span aria-hidden className="text-amber-600 mt-[1px]">•</span>
+                      <span className="flex-1">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {exceptions && exceptions.count > 0 && (
+                  <div className="mt-3 pt-3 border-t border-amber-300/60 dark:border-amber-800/60">
+                    <p className="text-xs">
+                      <span className="font-semibold text-amber-700 dark:text-amber-300">
+                        {exceptions.count} exceç{exceptions.count === 1 ? "ão" : "ões"} autorizada{exceptions.count === 1 ? "" : "s"}
+                      </span>{" "}
+                      <span className="text-muted-foreground">
+                        pelos analistas (impacto: {fmtBRL(exceptions.impact)})
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {briefing.recommended_action && (
+                  <div className="mt-3 pt-3 border-t border-amber-300/60 dark:border-amber-800/60 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs italic text-muted-foreground flex-1 min-w-[200px]">
+                      {briefing.recommended_action}
+                    </p>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-success/40 text-success hover:bg-success-soft" disabled>
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Aprovar
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10" disabled>
+                        <XCircle className="h-3.5 w-3.5 mr-1" /> Devolver
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">Não foi possível gerar o briefing.</p>
+            )}
           </div>
-        ) : briefing ? (
-          <>
-            <p className="text-sm font-semibold leading-snug">{briefing.headline}</p>
-            <ul className="mt-2 space-y-1">
-              {briefing.bullets.map((b, i) => (
-                <li key={i} className="text-xs text-foreground/90 flex gap-2 leading-relaxed">
-                  <span aria-hidden className="text-amber-600 mt-[1px]">•</span>
-                  <span className="flex-1">{b}</span>
-                </li>
-              ))}
-            </ul>
-
-            {exceptions && exceptions.count > 0 && (
-              <div className="mt-3 pt-3 border-t border-amber-300/60 dark:border-amber-800/60">
-                <p className="text-xs">
-                  <span className="font-semibold text-amber-700 dark:text-amber-300">
-                    {exceptions.count} exceç{exceptions.count === 1 ? "ão" : "ões"} autorizada{exceptions.count === 1 ? "" : "s"}
-                  </span>{" "}
-                  <span className="text-muted-foreground">
-                    pelos analistas (impacto: {fmtBRL(exceptions.impact)})
-                  </span>
-                </p>
-              </div>
-            )}
-
-            {briefing.recommended_action && (
-              <div className="mt-3 pt-3 border-t border-amber-300/60 dark:border-amber-800/60 flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-xs italic text-muted-foreground flex-1 min-w-[200px]">
-                  {briefing.recommended_action}
-                </p>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" className="h-7 text-xs border-success/40 text-success hover:bg-success-soft" disabled>
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Aprovar
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10" disabled>
-                    <XCircle className="h-3.5 w-3.5 mr-1" /> Devolver
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">Não foi possível gerar o briefing.</p>
         )}
       </CardContent>
     </Card>
