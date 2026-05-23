@@ -344,11 +344,14 @@ const Payments = () => {
       const cByP: Record<string, string | null> = {};
       (groups ?? []).forEach((g: any) => { if (!cByP[g.payment_id]) cByP[g.payment_id] = null; });
       const { data: groupsWithIds } = await supabase
-        .from("payment_company_groups").select("payment_id,company_id").in("payment_id", ids);
+        .from("payment_company_groups").select("payment_id,company_id,status").in("payment_id", ids);
+      const gByP: Record<string, string[]> = {};
       (groupsWithIds ?? []).forEach((g: any) => {
         if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
+        if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status);
       });
       setCompanyByPayment(cByP);
+      setGroupStatusesByPayment(gByP);
 
       // Carrega SLAs e overrides relevantes em paralelo
       const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
