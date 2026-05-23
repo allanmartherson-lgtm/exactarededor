@@ -104,7 +104,8 @@ export function PaymentBatchActionsFooter({
   const doApprove = async (groupIds: string[], note: string | null) => {
     if (groupIds.length === 0) return;
     setBusy(true);
-    const { error } = await supabase.rpc("approve_payment", {
+    const rpcName = actorRole === "diretor" ? "approve_payment" : "forward_groups_to_director";
+    const { error } = await supabase.rpc(rpcName as "approve_payment", {
       p_payment_id: paymentId,
       p_group_ids: groupIds,
       p_author_id: currentUserId,
@@ -113,10 +114,18 @@ export function PaymentBatchActionsFooter({
     });
     setBusy(false);
     if (error) {
-      toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" });
+      toast({
+        title: actorRole === "diretor" ? "Falha ao aprovar" : "Falha ao encaminhar ao diretor",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
-    toast({ title: `${groupIds.length} empresa(s) aprovada(s)` });
+    toast({
+      title: actorRole === "diretor"
+        ? `${groupIds.length} empresa(s) aprovada(s)`
+        : `${groupIds.length} empresa(s) encaminhada(s) ao diretor`,
+    });
     setApproveOpen(false);
     await onDone();
   };
