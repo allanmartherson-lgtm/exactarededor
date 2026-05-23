@@ -26,6 +26,7 @@ import { RuleTestModal } from "@/components/payment-detail/RuleTestModal";
 
 import { PaymentGroupCard } from "@/components/payment-detail/PaymentGroupCard";
 import { ReleaseInvoiceRequestDialog } from "@/components/payment-detail/ReleaseInvoiceRequestDialog";
+import { BulkReleaseInvoiceRequestDialog } from "@/components/payment-detail/BulkReleaseInvoiceRequestDialog";
 import { CompanyListLegend } from "@/components/payment-detail/CompanyListLegend";
 import { AnalysisProgressBar } from "@/components/payment-detail/AnalysisProgressBar";
 import { UnregisteredCompaniesPanel } from "@/components/payment-detail/UnregisteredCompaniesPanel";
