@@ -203,13 +203,22 @@ export function PaymentConciliationModal({
       if (error) throw error;
       if (data) {
         setRun(data as ReconciliationRun);
-        const { data: its } = await (supabase as any)
-          .from("reconciliation_items")
-          .select("*")
-          .eq("run_id", data.id)
-          .order("created_at")
-          .limit(5000);
-        setItems((its ?? []) as ReconciliationItem[]);
+        // Paginação: PostgREST tem cap de 1000 por request, então buscamos em lotes
+        const all: ReconciliationItem[] = [];
+        const pageSize = 1000;
+        for (let from = 0; from < 20000; from += pageSize) {
+          const { data: page, error: pageErr } = await (supabase as any)
+            .from("reconciliation_items")
+            .select("*")
+            .eq("run_id", data.id)
+            .order("created_at")
+            .range(from, from + pageSize - 1);
+          if (pageErr) throw pageErr;
+          const rows = (page ?? []) as ReconciliationItem[];
+          all.push(...rows);
+          if (rows.length < pageSize) break;
+        }
+        setItems(all);
         setStep("result");
       } else {
         setRun(null);
