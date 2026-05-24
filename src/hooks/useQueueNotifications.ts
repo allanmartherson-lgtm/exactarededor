@@ -16,6 +16,33 @@ type PaymentRow = {
   reference: string | null;
   status: string;
 };
+type PaymentReferenceJoin = { reference: string | null } | { reference: string | null }[] | null;
+type PendingCompanyQuestionRow = {
+  id: string;
+  payment_id: string;
+  message: string | null;
+  author_name: string | null;
+  payment?: PaymentReferenceJoin;
+};
+type PaymentObservationQuestionRow = {
+  id: string;
+  payment_id: string;
+  message: string | null;
+  author_type: string | null;
+  is_question: boolean;
+  resolved_at: string | null;
+};
+type InvoiceQuestionRow = {
+  id: string;
+  payment_id: string;
+  message: string | null;
+  author_type: string | null;
+};
+
+const paymentReference = (payment?: PaymentReferenceJoin) => {
+  const row = Array.isArray(payment) ? payment[0] : payment;
+  return row?.reference ?? null;
+};
 
 /**
  * Notificações em tempo real para a fila do analista.
@@ -57,7 +84,7 @@ export function useQueueNotifications() {
       paymentId: string;
       path?: string;
       questionSource?: "interno" | "empresa";
-    }) => {
+    }, showToast = true) => {
       if (seenRef.current.has(key)) return;
       seenRef.current.add(key);
       // Limpa cache antigo para não crescer indefinidamente.
@@ -65,14 +92,16 @@ export function useQueueNotifications() {
         const arr = Array.from(seenRef.current);
         seenRef.current = new Set(arr.slice(-100));
       }
-      const action = {
-        label: "Abrir",
-        onClick: () => navigate(opts.path ?? `/pagamentos/${opts.paymentId}`),
-      };
-      const payload = { description: opts.description, action };
-      if (opts.kind === "warning") toast.warning(opts.title, payload);
-      else if (opts.kind === "success") toast.success(opts.title, payload);
-      else toast.info(opts.title, payload);
+      if (showToast) {
+        const action = {
+          label: "Abrir",
+          onClick: () => navigate(opts.path ?? `/pagamentos/${opts.paymentId}`),
+        };
+        const payload = { description: opts.description, action };
+        if (opts.kind === "warning") toast.warning(opts.title, payload);
+        else if (opts.kind === "success") toast.success(opts.title, payload);
+        else toast.info(opts.title, payload);
+      }
       notificationStore.add({
         title: opts.title,
         description: opts.description,
@@ -82,6 +111,34 @@ export function useQueueNotifications() {
         questionSource: opts.questionSource,
       });
     };
+
+    const loadPendingCompanyQuestions = async () => {
+      if (!isAnalista) return;
+      const { data } = await supabase
+        .from("invoice_questions")
+        .select("id, payment_id, message, author_name, created_at, payment:payments!inner(reference)")
+        .eq("author_type", "recebedor")
+        .is("read_at", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      ((data ?? []) as PendingCompanyQuestionRow[]).reverse().forEach((q) => {
+        const ref = paymentReference(q.payment);
+        const label = ref ? `Lote ${ref}` : "Lote";
+        const author = q.author_name ? `${q.author_name} · ` : "";
+        const preview = (q.message ?? "").toString().slice(0, 120);
+        fire(`inv-question:${q.id}`, {
+          title: "Empresa enviou um questionamento na NF",
+          description: `${label} · ${author}${preview}`,
+          kind: "question",
+          paymentId: q.payment_id,
+          path: `/pagamentos/${q.payment_id}`,
+          questionSource: "empresa",
+        }, false);
+      });
+    };
+
+    void loadPendingCompanyQuestions();
 
     const handleStatusChange = (
       newStatus: string,
@@ -212,8 +269,8 @@ export function useQueueNotifications() {
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "payment_observations" },
           (payload) => {
-            const n = payload.new as any;
-            const o = payload.old as any;
+            const n = payload.new as PaymentObservationQuestionRow;
+            const o = payload.old as Partial<PaymentObservationQuestionRow> | null;
             // Se foi marcada como resolvida agora
             if (n.is_question && n.resolved_at && (!o || !o.resolved_at)) {
               handleQuestionResolved(n.payment_id);
@@ -225,10 +282,10 @@ export function useQueueNotifications() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "payment_observations" },
           async (payload) => {
-            const n = payload.new as any;
+            const n = payload.new as PaymentObservationQuestionRow;
             if (!n.is_question) return;
             // Roteia para o "outro lado": se quem perguntou é analista, avisa validador/diretor; e vice-versa.
-            const askerRole = n.author_type as string;
+            const askerRole = n.author_type ?? "";
             const targetIsAnalista = askerRole === "validador" || askerRole === "diretor";
             const targetIsValidador = askerRole === "analista" || askerRole === "diretor";
             const targetIsDiretor = askerRole === "analista" || askerRole === "validador";
@@ -255,7 +312,7 @@ export function useQueueNotifications() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "invoice_questions" },
           async (payload) => {
-            const n = payload.new as any;
+            const n = payload.new as InvoiceQuestionRow;
             if (n.author_type !== "recebedor") return;
             if (!isAnalista) return;
             const { data: p } = await supabase
@@ -267,7 +324,7 @@ export function useQueueNotifications() {
               description: `${label} · ${preview}`,
               kind: "question",
               paymentId: n.payment_id,
-              path: `/notas-fiscais?payment=${n.payment_id}`,
+              path: `/pagamentos/${n.payment_id}`,
               questionSource: "empresa",
             });
           }
