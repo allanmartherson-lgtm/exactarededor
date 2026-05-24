@@ -425,7 +425,7 @@ const CompactStatChip = ({ label, value, icon: Icon, color, mine, to, accent, in
       : "1px solid hsl(var(--border))";
   const valueColor =
     accent === "amber"
-      ? "hsl(var(--warning-foreground))"
+      ? "hsl(var(--warning-text))"
       : accent === "rose"
       ? "hsl(var(--destructive))"
       : "hsl(var(--foreground))";
