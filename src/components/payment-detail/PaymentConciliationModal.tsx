@@ -1581,6 +1581,7 @@ function KpiCard({
   hint,
   active,
   onClick,
+  iconClassName,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   tone: "success" | "warning" | "destructive" | "info";
@@ -1589,6 +1590,7 @@ function KpiCard({
   hint?: string;
   active?: boolean;
   onClick?: () => void;
+  iconClassName?: string;
 }) {
   const toneClasses: Record<string, string> = {
     success: "border-success/40 bg-success/10 text-success",
