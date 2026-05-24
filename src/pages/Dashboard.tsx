@@ -1903,6 +1903,9 @@ const Dashboard = () => {
         </SurfaceCard>
       </section>
 
+      {/* ÚLTIMOS QUESTIONAMENTOS */}
+      <RecentQuestionsPanel />
+
       {/* PIPELINE */}
       <section aria-labelledby="pipeline-heading">
         <SectionLabel>Pipeline da equipe</SectionLabel>
