@@ -62,8 +62,8 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+      <PopoverContent align="end" className="w-[420px] p-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <p className="text-[13px] font-medium">Notificações</p>
           {items.some((n) => !n.read) && (
             <button
@@ -74,7 +74,7 @@ export function NotificationBell() {
             </button>
           )}
         </div>
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-[520px] overflow-y-auto">
           {items.length === 0 ? (
             <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
               Nenhuma notificação nesta sessão
@@ -90,14 +90,14 @@ export function NotificationBell() {
                     navigate(n.path ?? `/pagamentos/${n.paymentId}`);
                   }}
                   className={cn(
-                    "w-full text-left flex gap-2.5 px-3 py-2.5 border-b border-border last:border-b-0 hover:bg-muted/60 transition-colors",
+                    "w-full text-left flex gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-muted/60 transition-colors",
                     !n.read && "bg-accent/40",
                   )}
                 >
                   <Icon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", cls)} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-[12.5px] font-medium text-foreground truncate">{n.title}</p>
+                      <p className="text-[12.5px] font-medium text-foreground line-clamp-2 break-words leading-snug">{n.title}</p>
                       {n.kind === "question" && n.questionSource && (
                         <span
                           className={cn(
@@ -116,9 +116,9 @@ export function NotificationBell() {
                       )}
                     </div>
                     {n.description && (
-                      <p className="text-[11.5px] text-muted-foreground line-clamp-2">{n.description}</p>
+                      <p className="text-[12px] text-muted-foreground line-clamp-3 leading-relaxed mt-0.5">{n.description}</p>
                     )}
-                    <p className="text-[10.5px] text-muted-foreground mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-1">
                       {relativeTime(n.createdAt)}
                     </p>
                   </div>
