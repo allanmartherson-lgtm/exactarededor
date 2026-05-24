@@ -87,7 +87,7 @@ export function NotificationBell() {
                   key={n.id}
                   onClick={() => {
                     setOpen(false);
-                    navigate(`/pagamentos/${n.paymentId}`);
+                    navigate(n.path ?? `/pagamentos/${n.paymentId}`);
                   }}
                   className={cn(
                     "w-full text-left flex gap-2.5 px-3 py-2.5 border-b border-border last:border-b-0 hover:bg-muted/60 transition-colors",
@@ -96,7 +96,25 @@ export function NotificationBell() {
                 >
                   <Icon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", cls)} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12.5px] font-medium text-foreground truncate">{n.title}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[12.5px] font-medium text-foreground truncate">{n.title}</p>
+                      {n.kind === "question" && n.questionSource && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-0.5 text-[9.5px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border",
+                            n.questionSource === "empresa"
+                              ? "bg-warning-soft text-warning-foreground border-warning/30"
+                              : "bg-info-soft text-info border-info/30",
+                          )}
+                        >
+                          {n.questionSource === "empresa" ? (
+                            <><Building2 className="h-2.5 w-2.5" /> Empresa</>
+                          ) : (
+                            <>Interno</>
+                          )}
+                        </span>
+                      )}
+                    </div>
                     {n.description && (
                       <p className="text-[11.5px] text-muted-foreground line-clamp-2">{n.description}</p>
                     )}
