@@ -1452,6 +1452,456 @@ const Dashboard = () => {
 
   const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "bem-vindo";
 
+  // Modo de dashboard por perfil — admin vê o do diretor (visão máxima)
+  const dashboardMode: "analista" | "validador" | "diretor" =
+    isDiretor || roles.includes("admin")
+      ? "diretor"
+      : isValidador
+      ? "validador"
+      : "analista";
+
+  // ============================================================
+  // VIEW: VALIDADOR
+  // ============================================================
+  if (dashboardMode === "validador") {
+    return (
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
+            Olá, <span style={{ fontWeight: 700 }}>{firstName}</span>
+          </h1>
+          <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+            Visão da equipe · {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+        </div>
+
+        {anomaliesOpen > 0 && (
+          <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <span className="font-semibold">{anomaliesOpen}</span>
+              anomalia{anomaliesOpen > 1 ? "s" : ""} de status pendente{anomaliesOpen > 1 ? "s" : ""} — clique para revisar.
+            </div>
+            <span className="text-xs text-destructive/80">Abrir →</span>
+          </Link>
+        )}
+
+        {counts.mineValidador > 0 && (
+          <section>
+            <SectionLabel>Sua fila de validação</SectionLabel>
+            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 10, display: "flex", overflow: "hidden" }}>
+              <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(213 94% 40%)", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(213 97% 95%)", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
+                  Para validar
+                </div>
+                <Link to="/pagamentos?status=aguardando_validacao" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
+                  <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes aguardando</span>
+                  <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--sidebar-primary))", fontVariantNumeric: "tabular-nums" }}>{counts.mineValidador}</span>
+                  <span style={{ fontSize: 9, fontWeight: 500, color: "hsl(213 94% 40%)" }}>↑ ação necessária</span>
+                </Link>
+              </div>
+              {slaTotals.vencido > 0 && (
+                <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--destructive))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--destructive-soft))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
+                    SLA vencido
+                  </div>
+                  <Link to="/pagamentos?filter=sla_vencido" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
+                    <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes fora do prazo</span>
+                    <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--destructive))", fontVariantNumeric: "tabular-nums" }}>{slaTotals.vencido}</span>
+                  </Link>
+                </div>
+              )}
+              {slaTotals.preventivo > 0 && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--warning))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--warning-soft))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
+                    SLA em risco
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", flex: 1 }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Próximos do prazo</span>
+                    <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--warning))", fontVariantNumeric: "tabular-nums" }}>{slaTotals.preventivo}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        <section aria-labelledby="pipeline-equipe-validador">
+          <SectionLabel>Pipeline da equipe</SectionLabel>
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Distribuição de lotes por etapa"
+              icon={Users}
+              iconColor="purple"
+              countPill={teamOpenTotal}
+              rightAction={
+                <Link to="/pagamentos" style={{ fontSize: 12, color: "hsl(var(--accent-foreground))", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  Ver todos <ArrowRight size={13} />
+                </Link>
+              }
+            />
+            {(() => {
+              const cols = [
+                { icon: FileText, color: "purple" as BubbleColor, label: "Análise IA", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
+                { icon: ListChecks, color: "yellow" as BubbleColor, label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
+                { icon: ShieldCheck, color: "blue" as BubbleColor, label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
+                { icon: Send, color: "teal" as BubbleColor, label: "Aguard. NF", value: counts.pipeAguardandoEnvio, to: "/pagamentos?status=aprovado" },
+                { icon: FileText, color: "green" as BubbleColor, label: "NF Solicitada", value: counts.pipeNFSolicitada, to: "/pagamentos?status=pedido_nf_enviado" },
+                { icon: AlertCircle, color: "red" as BubbleColor, label: "Divergente", value: counts.pipeDivergente, to: "/pagamentos?status=nf_questionada" },
+              ];
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`, padding: "18px 22px", gap: 0 }}>
+                  {cols.map((col, i) => (
+                    <PipelineCol
+                      key={col.label}
+                      {...col}
+                      density="comfortable"
+                      separated={i > 0}
+                      delayed={
+                        col.label === "Análise IA"
+                          ? (slaTotals.perStatusVencido["em_analise_ia"] ?? 0) + (slaTotals.perStatusVencido["revisao_analista"] ?? 0)
+                          : col.label === "Validação"
+                          ? slaTotals.perStatusVencido["aguardando_validacao"] ?? 0
+                          : col.label === "Aprovação"
+                          ? slaTotals.perStatusVencido["aguardando_aprovacao"] ?? 0
+                          : 0
+                      }
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+          </SurfaceCard>
+        </section>
+
+        {slaAtRisk.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: "hsl(var(--destructive))" }} />
+              <h2 style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>
+                SLA em risco <span style={{ color: "hsl(var(--muted-foreground))", fontWeight: 400 }}>· equipe toda</span>
+              </h2>
+              <span style={{ background: "hsl(var(--destructive-soft))", color: "hsl(var(--destructive))", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>{slaAtRisk.length}</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {slaAtRisk.map((s) => {
+                const isVencido = s.level === "vencido";
+                const statusLabel = PAYMENT_STATUS_SHORT[s.status] ?? s.status;
+                return (
+                  <Link
+                    key={s.id}
+                    to={`/pagamentos/${s.id}`}
+                    className="flex items-center justify-between gap-3 hover-card-lift outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    style={{
+                      background: isVencido ? "hsl(var(--destructive) / 0.04)" : "hsl(var(--card))",
+                      border: isVencido ? "1px solid hsl(var(--destructive) / 0.3)" : "1px solid hsl(var(--border))",
+                      borderRadius: 12,
+                      padding: "12px 14px",
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div style={{ width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: isVencido ? "hsl(var(--destructive))" : "hsl(var(--muted))", color: isVencido ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))" }}>
+                        <Timer size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", marginBottom: 2 }} className="truncate">{s.reference ?? "Lote"} · {statusLabel}</p>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: isVencido ? "hsl(var(--destructive))" : "hsl(var(--warning-foreground))" }}>
+                          {isVencido ? "Vencido há " : "Há "}{formatShortDuration(s.ms)}
+                          {s.created_by && profiles[s.created_by] && ` · Analista: ${profiles[s.created_by]}`}
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight size={16} className="text-muted-foreground flex-shrink-0" />
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <SurfaceCard>
+            <SurfaceCardHeader title="Perguntas abertas da equipe" icon={MessageCircle} iconColor="yellow" countPill={teamOpenQuestionsCount} />
+            <div style={{ padding: "16px 22px" }}>
+              {teamOpenQuestionsCount === 0 ? (
+                <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>Nenhuma pergunta em aberto.</p>
+              ) : (
+                <div>
+                  <p style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: 500 }}>
+                    {teamOpenQuestionsCount} pergunta{teamOpenQuestionsCount > 1 ? "s" : ""} aguardando resposta
+                  </p>
+                  <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+                    Verifique os lotes com questionamentos pendentes.
+                  </p>
+                  <Link to="/pagamentos?filter=com_pergunta" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 12, fontSize: 12, fontWeight: 500, color: "hsl(var(--accent-foreground))", textDecoration: "none" }}>
+                    Ver lotes com perguntas <ArrowRight size={13} />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </SurfaceCard>
+          <SurfaceCard>
+            <SurfaceCardHeader title="Gargalos do processo" icon={Flame} iconColor="red" />
+            {loading ? (
+              <div style={{ padding: 22 }}>
+                <Skeleton className="h-4 w-1/2 mb-3" />
+                <Skeleton className="h-4 w-2/3 mb-3" />
+                <Skeleton className="h-4 w-1/3" />
+              </div>
+            ) : (
+              <BottlenecksList rows={bottlenecks} />
+            )}
+          </SurfaceCard>
+        </div>
+
+        <section>
+          <SectionLabel>Atividade recente da equipe</SectionLabel>
+          <SurfaceCard style={{ padding: 20 }}>
+            {recentActivity.length === 0 ? (
+              <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", textAlign: "center", padding: "20px 0" }}>Sem atividade recente.</p>
+            ) : (
+              <div className="relative flex flex-col gap-5">
+                <div className="absolute top-2 bottom-2 w-px" style={{ left: 11, background: "hsl(var(--border))" }} />
+                {recentActivity.map((a) => {
+                  const isDevol = a.status_to === "devolvido_analista";
+                  const isApprov = a.status_to === "aprovado" || a.status_to === "aprovado_com_ressalva";
+                  const dotColor = isDevol ? "hsl(var(--destructive))" : isApprov ? "hsl(var(--success))" : "hsl(var(--info))";
+                  const dotBg = isDevol ? "hsl(var(--destructive) / 0.12)" : isApprov ? "hsl(var(--success) / 0.12)" : "hsl(var(--info) / 0.12)";
+                  const statusLabel = a.status_to ? (PAYMENT_STATUS_SHORT[a.status_to] ?? a.status_to) : "—";
+                  const elapsed = Date.now() - new Date(a.changed_at).getTime();
+                  return (
+                    <Link key={a.id} to={`/pagamentos/${a.payment_id}`} className="relative pl-8 block hover:bg-muted/30 -mx-2 px-2 py-1 rounded-md transition-colors" style={{ textDecoration: "none", color: "inherit" }}>
+                      <div className="absolute top-1" style={{ left: 0, width: 24, height: 24, borderRadius: "50%", background: dotBg, border: "4px solid hsl(var(--card))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor }} />
+                      </div>
+                      <p style={{ fontSize: 12, color: "hsl(var(--foreground))", lineHeight: 1.4 }}>
+                        <span style={{ fontWeight: 600 }}>{a.actor_name ?? "Sistema"}</span>{" "}
+                        <span style={{ color: "hsl(var(--muted-foreground))" }}>→</span>{" "}
+                        <span style={{ fontWeight: 500 }}>{statusLabel}</span>
+                        {a.reference && <span style={{ color: "hsl(var(--muted-foreground))" }}> · {a.reference}</span>}
+                      </p>
+                      <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>Há {formatShortDuration(elapsed)}</p>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+            <Link to="/auditoria" className="block w-full mt-5 py-2 text-center rounded-lg transition-colors hover:bg-muted/50" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", border: "1px solid hsl(var(--border))", textDecoration: "none" }}>
+              Ver histórico completo
+            </Link>
+          </SurfaceCard>
+        </section>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // VIEW: DIRETOR
+  // ============================================================
+  if (dashboardMode === "diretor") {
+    const paymentTotalsById = new Map(payments.map((p) => [p.id, Number(p.total_amount ?? 0)]));
+    const totalValorEmProcessamento = allPayments
+      .filter((p) => !TERMINAL_STATUSES.has(p.status))
+      .reduce((sum, p) => sum + (paymentTotalsById.get(p.id) ?? 0), 0);
+
+    const totalAprovados30d = recentApprovedData.length;
+    const valorAprovado30d = recentApprovedData.reduce((s, p) => s + Number(p.total_amount ?? 0), 0);
+    const taxaAprovacao =
+      totalAprovados30d + recentRejectedCount > 0
+        ? Math.round((totalAprovados30d / Math.max(totalAprovados30d + recentRejectedCount, 1)) * 100)
+        : null;
+    const lotesEmAberto = counts.teamAnalise + counts.teamValidacao + counts.teamAprovacao;
+
+    return (
+      <div className="flex flex-col gap-4 md:gap-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 300, letterSpacing: "-0.02em", color: "hsl(var(--foreground))", lineHeight: 1.2 }}>
+              Olá, <span style={{ fontWeight: 700 }}>{firstName}</span>
+            </h1>
+            <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+              Visão executiva · {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
+          </div>
+        </div>
+
+        {anomaliesOpen > 0 && (
+          <Link to="/anomalias-status" className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive-soft px-4 py-3 hover:bg-destructive/10 transition-colors">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <span className="font-semibold">{anomaliesOpen}</span>
+              anomalia{anomaliesOpen > 1 ? "s" : ""} de status pendente{anomaliesOpen > 1 ? "s" : ""} — requer atenção.
+            </div>
+            <span className="text-xs text-destructive/80">Revisar →</span>
+          </Link>
+        )}
+
+        <section>
+          <SectionLabel>Visão geral do processo</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-blue-bg))", color: "hsl(var(--bubble-blue-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <FileText size={15} />
+              </div>
+              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Em andamento</div>
+              <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{lotesEmAberto}</div>
+              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>lotes no fluxo</div>
+            </div>
+
+            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-purple-bg))", color: "hsl(var(--bubble-purple-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <CreditCard size={15} />
+              </div>
+              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Em processamento</div>
+              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(totalValorEmProcessamento)}</div>
+              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>valor total pendente</div>
+            </div>
+
+            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-green-bg))", color: "hsl(var(--bubble-green-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <CheckCircle size={15} />
+              </div>
+              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Aprovados (30d)</div>
+              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(valorAprovado30d)}</div>
+              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>{totalAprovados30d} lotes aprovados</div>
+            </div>
+
+            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--bubble-green-bg))" : "hsl(var(--bubble-yellow-bg))", color: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--bubble-green-fg))" : "hsl(var(--bubble-yellow-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <CheckCircle2 size={15} />
+              </div>
+              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Taxa aprovação</div>
+              <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--success))" : "hsl(var(--warning))", fontVariantNumeric: "tabular-nums" }}>
+                {taxaAprovacao !== null ? `${taxaAprovacao}%` : "—"}
+              </div>
+              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>últimos 30 dias</div>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <section className="lg:col-span-7">
+            <SectionLabel>Distribuição do pipeline</SectionLabel>
+            <SurfaceCard>
+              {(() => {
+                const cols = [
+                  { icon: FileText, color: "purple" as BubbleColor, label: "Análise", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
+                  { icon: ListChecks, color: "yellow" as BubbleColor, label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
+                  { icon: ShieldCheck, color: "blue" as BubbleColor, label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
+                  { icon: Send, color: "teal" as BubbleColor, label: "NF", value: counts.pipeNFSolicitada + counts.pipeAguardandoEnvio, to: "/pagamentos?status=pedido_nf_enviado" },
+                  { icon: CheckCircle, color: "green" as BubbleColor, label: "Concluído", value: counts.pipePago + counts.pipeNFConciliada, to: "/pagamentos?status=pago" },
+                ];
+                return (
+                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`, padding: "18px 16px", gap: 0 }}>
+                    {cols.map((col, i) => (
+                      <PipelineCol
+                        key={col.label}
+                        {...col}
+                        density="comfortable"
+                        separated={i > 0}
+                        delayed={
+                          col.label === "Análise"
+                            ? (slaTotals.perStatusVencido["em_analise_ia"] ?? 0) + (slaTotals.perStatusVencido["revisao_analista"] ?? 0)
+                            : col.label === "Validação"
+                            ? slaTotals.perStatusVencido["aguardando_validacao"] ?? 0
+                            : col.label === "Aprovação"
+                            ? slaTotals.perStatusVencido["aguardando_aprovacao"] ?? 0
+                            : 0
+                        }
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
+            </SurfaceCard>
+          </section>
+
+          <aside className="lg:col-span-5">
+            <SectionLabel>Alertas críticos</SectionLabel>
+            <SurfaceCard style={{ height: "100%" }}>
+              {slaTotals.vencido === 0 && slaTotals.preventivo === 0 ? (
+                <div style={{ padding: "32px 22px", textAlign: "center", fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
+                  ✓ Nenhum lote com SLA em risco
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: "flex", gap: 0 }}>
+                    <div style={{ flex: 1, padding: "16px 20px", borderRight: "0.5px solid hsl(var(--border))" }}>
+                      <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>SLA vencido</div>
+                      <div style={{ fontSize: 28, fontWeight: 600, color: "hsl(var(--destructive))", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{slaTotals.vencido}</div>
+                      <Link to="/pagamentos?filter=sla_vencido" style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 8, fontSize: 11, color: "hsl(var(--destructive))", textDecoration: "none", fontWeight: 500 }}>
+                        Ver lotes <ArrowRight size={11} />
+                      </Link>
+                    </div>
+                    <div style={{ flex: 1, padding: "16px 20px" }}>
+                      <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Em risco</div>
+                      <div style={{ fontSize: 28, fontWeight: 600, color: "hsl(var(--warning))", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{slaTotals.preventivo}</div>
+                    </div>
+                  </div>
+                  <div style={{ borderTop: "0.5px solid hsl(var(--border))", padding: "12px 20px" }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: "hsl(var(--muted-foreground))", marginBottom: 8 }}>Etapas mais atrasadas</div>
+                    {Object.entries(slaTotals.perStatusVencido).slice(0, 3).map(([status, count]) => (
+                      <div key={status} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: "hsl(var(--foreground))" }}>{PAYMENT_STATUS_SHORT[status as PaymentStatus] ?? status}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--destructive))" }}>{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </SurfaceCard>
+          </aside>
+        </div>
+
+        <section>
+          <SectionLabel>Onde o processo mais trava</SectionLabel>
+          <SurfaceCard>
+            <SurfaceCardHeader title="Gargalos por etapa (tempo médio)" icon={Flame} iconColor="red" />
+            {loading ? (
+              <div style={{ padding: 22 }}>
+                <Skeleton className="h-4 w-1/2 mb-3" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ) : (
+              <BottlenecksList rows={bottlenecks} />
+            )}
+          </SurfaceCard>
+        </section>
+
+        {counts.mineDiretor > 0 && (
+          <section>
+            <SectionLabel>Aguardando sua aprovação</SectionLabel>
+            <SurfaceCard>
+              <SurfaceCardHeader
+                title={`${counts.mineDiretor} lote${counts.mineDiretor > 1 ? "s" : ""} aguardando aprovação`}
+                icon={ShieldCheck}
+                iconColor="teal"
+                rightAction={
+                  <Link to="/pagamentos?status=aguardando_aprovacao" style={{ fontSize: 12, color: "hsl(var(--accent-foreground))", fontWeight: 500, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    Ver todos <ArrowRight size={13} />
+                  </Link>
+                }
+              />
+              {myPayments.length > 0 && (
+                <div>
+                  {myPayments.slice(0, 4).map((p) => {
+                    const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+                    return (
+                      <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} />
+                    );
+                  })}
+                </div>
+              )}
+            </SurfaceCard>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  // ============================================================
+  // VIEW: ANALISTA (default — JSX abaixo intacto)
+  // ============================================================
   return (
     <div className="flex flex-col gap-4 md:gap-8">
       {/* PAGE HEADER */}
