@@ -254,8 +254,8 @@ const PaymentDetail = () => {
     if (!id) return "detalhe";
     const saved = typeof window !== "undefined" ? localStorage.getItem(`medpay:payment-view:${id}`) : null;
     if (saved === "detalhe" || saved === "compacto" || saved === "executivo") return saved;
-    if (hasRole("diretor")) return "executivo";
-    if (hasRole("validador")) return "compacto";
+    if (hasRole("validador") && !hasRole("analista")) return "compacto";
+    if (hasRole("diretor") && !hasRole("analista")) return "executivo";
     return "detalhe";
   });
   useEffect(() => {
