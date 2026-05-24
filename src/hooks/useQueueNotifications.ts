@@ -296,7 +296,7 @@ export function useQueueNotifications() {
               description: `${label} · ${preview}`,
               kind: "question",
               paymentId: n.payment_id,
-              path: `/notas-fiscais?payment=${n.payment_id}`,
+              path: `/pagamentos/${n.payment_id}`,
               questionSource: "empresa",
             });
           }
