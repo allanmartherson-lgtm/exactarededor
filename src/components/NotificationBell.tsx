@@ -28,9 +28,10 @@ function relativeTime(d: Date): string {
 }
 
 const KIND_ICON = {
-  info: { Icon: Info, cls: "text-blue-500" },
-  warning: { Icon: AlertTriangle, cls: "text-amber-500" },
-  success: { Icon: CheckCircle2, cls: "text-emerald-500" },
+  info: { Icon: Info, cls: "text-info" },
+  warning: { Icon: AlertTriangle, cls: "text-warning-foreground" },
+  success: { Icon: CheckCircle2, cls: "text-success" },
+  question: { Icon: MessageCircleQuestion, cls: "text-info" },
 } as const;
 
 export function NotificationBell() {
