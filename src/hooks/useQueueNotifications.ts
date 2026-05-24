@@ -220,6 +220,58 @@ export function useQueueNotifications() {
             }
           }
         )
+        // Novo questionamento INTERNO (analista/validador/diretor)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "payment_observations" },
+          async (payload) => {
+            const n = payload.new as any;
+            if (!n.is_question) return;
+            // Roteia para o "outro lado": se quem perguntou é analista, avisa validador/diretor; e vice-versa.
+            const askerRole = n.author_type as string;
+            const targetIsAnalista = askerRole === "validador" || askerRole === "diretor";
+            const targetIsValidador = askerRole === "analista" || askerRole === "diretor";
+            const targetIsDiretor = askerRole === "analista" || askerRole === "validador";
+            if (
+              !((isAnalista && targetIsAnalista) ||
+                (isValidador && targetIsValidador) ||
+                (isDiretor && targetIsDiretor))
+            ) return;
+            const { data: p } = await supabase
+              .from("payments").select("reference").eq("id", n.payment_id).maybeSingle();
+            const label = p?.reference ? `Lote ${p.reference}` : "Lote";
+            const preview = (n.message ?? "").toString().slice(0, 120);
+            fire(`obs-question:${n.id}`, {
+              title: "Novo questionamento interno",
+              description: `${label} · ${preview}`,
+              kind: "question",
+              paymentId: n.payment_id,
+              questionSource: "interno",
+            });
+          }
+        )
+        // Pergunta da EMPRESA na NF (recebedor) — alerta o analista
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "invoice_questions" },
+          async (payload) => {
+            const n = payload.new as any;
+            if (n.author_type !== "recebedor") return;
+            if (!isAnalista) return;
+            const { data: p } = await supabase
+              .from("payments").select("reference").eq("id", n.payment_id).maybeSingle();
+            const label = p?.reference ? `Lote ${p.reference}` : "Lote";
+            const preview = (n.message ?? "").toString().slice(0, 120);
+            fire(`inv-question:${n.id}`, {
+              title: "Empresa enviou um questionamento na NF",
+              description: `${label} · ${preview}`,
+              kind: "question",
+              paymentId: n.payment_id,
+              path: `/notas-fiscais?payment=${n.payment_id}`,
+              questionSource: "empresa",
+            });
+          }
+        )
         .subscribe();
 
     return () => {
