@@ -592,6 +592,7 @@ const Invoices = () => {
                 invoiceId={openInvoice.id}
                 paymentId={openInvoice.payment_id}
                 initial={openQuestions}
+                onSent={() => { void load(); }}
               />
             </div>
           )}
