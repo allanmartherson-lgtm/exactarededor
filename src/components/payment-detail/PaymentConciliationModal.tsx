@@ -190,7 +190,7 @@ export function PaymentConciliationModal({
     [paymentItems],
   );
 
-  const loadLatestRun = useCallback(async () => {
+  const loadLatestRun = async () => {
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
@@ -222,9 +222,9 @@ export function PaymentConciliationModal({
     } finally {
       setLoading(false);
     }
-  }, [paymentId, toast]);
+  };
 
-  const loadConcBases = useCallback(async () => {
+  const loadConcBases = async () => {
     setLoadingBases(true);
     const { data } = await (supabase as any)
       .from("conciliation_bases")
@@ -233,14 +233,15 @@ export function PaymentConciliationModal({
       .order("created_at", { ascending: false });
     setConcBases(data ?? []);
     setLoadingBases(false);
-  }, []);
+  };
 
   useEffect(() => {
     if (open) {
       loadLatestRun();
       loadConcBases();
     }
-  }, [open, loadLatestRun, loadConcBases]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleSelectBase = (base: any) => {
     setSelectedBase(base);
