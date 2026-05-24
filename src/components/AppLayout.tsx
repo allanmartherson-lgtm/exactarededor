@@ -349,33 +349,37 @@ export const AppLayout = () => {
     };
     const IconCmp = Icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; "aria-hidden"?: boolean }>;
     return (
-      <NavLink
-        key={to}
-        to={to}
-        end={to === "/"}
-        onClick={onClick}
-        aria-label={label}
-        className="outline-none focus-visible:ring-2 focus-visible:ring-ring sidebar-nav-link"
-        style={linkStyle}
-      >
-        <IconCmp
-          size={17}
-          strokeWidth={1.75}
-          aria-hidden
-          style={{ width: 17, height: 17, flexShrink: 0, color: "inherit" }}
-        />
-        <span
-          style={{
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            minWidth: 0,
-            color: "inherit",
-          }}
-        >
-          {label}
-        </span>
-      </NavLink>
+      <Tooltip key={to}>
+        <TooltipTrigger asChild>
+          <NavLink
+            to={to}
+            end={to === "/"}
+            onClick={onClick}
+            aria-label={label}
+            className="outline-none focus-visible:ring-2 focus-visible:ring-ring sidebar-nav-link"
+            style={linkStyle}
+          >
+            <IconCmp
+              size={17}
+              strokeWidth={1.75}
+              aria-hidden
+              style={{ width: 17, height: 17, flexShrink: 0, color: "inherit" }}
+            />
+            <span
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+                color: "inherit",
+              }}
+            >
+              {label}
+            </span>
+          </NavLink>
+        </TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
     );
   };
 
