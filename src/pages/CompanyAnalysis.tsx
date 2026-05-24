@@ -1838,7 +1838,7 @@ function Stat({
       value: "text-foreground",
     },
     warning: {
-      chip: "bg-warning-soft text-warning-foreground",
+      chip: "bg-warning-soft text-warning-text",
       bar: "bg-warning",
       value: "text-warning-foreground",
     },

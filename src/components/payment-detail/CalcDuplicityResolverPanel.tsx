@@ -79,7 +79,7 @@ export function CalcDuplicityResolverPanel({
       </div>
 
       {resolutionStale && (
-        <div className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning-soft px-2 py-1.5 text-warning-foreground text-xs">
+        <div className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning-soft px-2 py-1.5 text-warning-text text-xs">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>A regra foi alterada desde a resolução anterior. Confirme novamente qual cálculo aplicar.</span>
         </div>

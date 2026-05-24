@@ -444,7 +444,7 @@ export const PaymentGroupCard = ({
             "border-t flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs",
             groupRisk === "critico"
               ? "border-destructive/30 bg-destructive-soft text-destructive"
-              : "border-warning/30 bg-warning-soft text-warning-foreground",
+              : "border-warning/30 bg-warning-soft text-warning-text",
           )}
           role={groupRisk === "critico" ? "alert" : "status"}
         >

@@ -33,7 +33,7 @@ type Anomaly = {
 const SEVERITY_BADGE: Record<string, string> = {
   critica: "bg-destructive text-destructive-foreground",
   alta: "bg-destructive-soft text-destructive border-destructive/30",
-  media: "bg-warning-soft text-warning-foreground border-warning/30",
+  media: "bg-warning-soft text-warning-text border-warning/30",
   baixa: "bg-muted text-muted-foreground",
 };
 

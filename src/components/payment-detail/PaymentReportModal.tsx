@@ -486,7 +486,7 @@ export function PaymentReportModal({
 
             <Card className="border-warning/30 bg-warning/5">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-warning/10 rounded-full text-warning-foreground">
+                <div className="p-2 bg-warning/10 rounded-full text-warning-text">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
@@ -803,7 +803,7 @@ export function PaymentReportModal({
                             <TableCell className="align-top py-2">
                               <Badge
                                 variant="outline"
-                                className="text-[9px] px-1.5 py-0.5 whitespace-nowrap border-warning/40 text-warning-foreground bg-warning/5"
+                                className="text-[9px] px-1.5 py-0.5 whitespace-nowrap border-warning/40 text-warning-text bg-warning/5"
                               >
                                 {kindLabel}
                               </Badge>

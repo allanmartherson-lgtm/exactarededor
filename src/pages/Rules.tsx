@@ -2614,7 +2614,7 @@ const Rules = () => {
                 </div>
 
 
-                <div className="rounded-md border border-dashed border-warning/50 bg-warning/5 p-2 mb-3 text-xs text-warning-foreground">
+                <div className="rounded-md border border-dashed border-warning/50 bg-warning/5 p-2 mb-3 text-xs text-warning-text">
                   ⚠ Tabela vinculada, multiplicador, deflator, bônus, valor fixo, % convênio, códigos extras e códigos de procedimento devem ser configurados <strong>no Cálculo</strong> após salvar a regra (botão Editar → aba Cálculos).
                 </div>
 

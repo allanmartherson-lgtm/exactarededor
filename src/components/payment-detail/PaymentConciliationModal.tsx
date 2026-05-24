@@ -137,7 +137,7 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
 
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   conciliado: "bg-success/10 text-success border-success/30",
-  valor_divergente: "bg-warning/10 text-warning-foreground border-warning/30",
+  valor_divergente: "bg-warning/10 text-warning-text border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
   so_medpay: "bg-primary/10 text-primary border-primary/30",
 };
@@ -1376,7 +1376,7 @@ export function PaymentConciliationModal({
                       ? <span className="text-[10px] font-semibold text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded-full shrink-0">Auto ✓</span>
                       : level === 'high'
                       ? <span className="text-[10px] font-semibold text-success bg-success/10 border border-success/30 px-1.5 py-0.5 rounded-full shrink-0">Match ✓</span>
-                      : <span className="text-[10px] font-semibold text-warning-foreground bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded-full shrink-0">Confirmar</span>
+                      : <span className="text-[10px] font-semibold text-warning-text bg-warning/10 border border-warning/30 px-1.5 py-0.5 rounded-full shrink-0">Confirmar</span>
                     : <span className="text-[10px] font-semibold text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-full shrink-0">Ignorar</span>;
 
                   return (

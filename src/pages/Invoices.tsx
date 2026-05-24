@@ -393,7 +393,7 @@ const Invoices = () => {
                         {i.question_count > 0 && (
                           <button
                             type="button"
-                            className="list-row__btn border-warning/60 bg-warning-soft text-warning-foreground hover:bg-warning-soft/80"
+                            className="list-row__btn border-warning/60 bg-warning-soft text-warning-text hover:bg-warning-soft/80"
                             onClick={() => openThread(i)}
                             title="Abrir conversa sobre esta NF"
                           >

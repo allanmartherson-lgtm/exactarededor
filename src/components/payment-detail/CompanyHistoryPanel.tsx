@@ -391,7 +391,7 @@ export function CompanyHistoryPanel({
                       className={cn(
                         "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 uppercase tracking-wide",
                         e.kind === "assign"
-                          ? "bg-warning-soft text-warning-foreground border-warning/40"
+                          ? "bg-warning-soft text-warning-text border-warning/40"
                           : visual.badgeClass,
                       )}
                     >
