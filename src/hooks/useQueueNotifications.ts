@@ -269,8 +269,8 @@ export function useQueueNotifications() {
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "payment_observations" },
           (payload) => {
-            const n = payload.new as any;
-            const o = payload.old as any;
+            const n = payload.new as PaymentObservationQuestionRow;
+            const o = payload.old as Partial<PaymentObservationQuestionRow> | null;
             // Se foi marcada como resolvida agora
             if (n.is_question && n.resolved_at && (!o || !o.resolved_at)) {
               handleQuestionResolved(n.payment_id);
@@ -282,10 +282,10 @@ export function useQueueNotifications() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "payment_observations" },
           async (payload) => {
-            const n = payload.new as any;
+            const n = payload.new as PaymentObservationQuestionRow;
             if (!n.is_question) return;
             // Roteia para o "outro lado": se quem perguntou é analista, avisa validador/diretor; e vice-versa.
-            const askerRole = n.author_type as string;
+            const askerRole = n.author_type ?? "";
             const targetIsAnalista = askerRole === "validador" || askerRole === "diretor";
             const targetIsValidador = askerRole === "analista" || askerRole === "diretor";
             const targetIsDiretor = askerRole === "analista" || askerRole === "validador";
@@ -312,7 +312,7 @@ export function useQueueNotifications() {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "invoice_questions" },
           async (payload) => {
-            const n = payload.new as any;
+            const n = payload.new as InvoiceQuestionRow;
             if (n.author_type !== "recebedor") return;
             if (!isAnalista) return;
             const { data: p } = await supabase
