@@ -1981,12 +1981,20 @@ const PaymentDetail = () => {
 
           return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Anomalias Comportamentais — ocupa 2/3 no desktop. No mobile já aparece no collapsible. */}
-              {id && (
-                <div className="hidden md:block md:col-span-2 min-w-0">
-                  <DoctorAnomalyAlerts paymentId={id} />
+              {/* Coluna principal (2/3): cards de IA + Anomalias. No mobile, IA já aparece no collapsible. */}
+              <div className="md:col-span-2 min-w-0 space-y-4">
+                <div className="hidden md:block space-y-4">
+                  {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+                  {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+                  <PreAnalysisScoreCard payment={payment} />
                 </div>
-              )}
+                {id && (
+                  <div className="hidden md:block">
+                    <DoctorAnomalyAlerts paymentId={id} />
+                  </div>
+                )}
+              </div>
+
 
               {/* Alertas assistenciais — 1/3 no desktop */}
               <Card className="shadow-card md:col-span-1">
