@@ -871,6 +871,8 @@ const Dashboard = () => {
       const hasGroupInAprovacao = groupStatuses.some((s) => s === "aguardando_aprovacao");
       // "Minha pendência" considera tanto status do lote quanto status por
       // empresa — basta UMA empresa do lote estar na fase do papel.
+      const isValidadorRole = roles.includes("validador") || roles.includes("admin");
+      const isDiretorRole = roles.includes("diretor") || roles.includes("admin");
       const isMineRow =
         !!uid && (
           (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
