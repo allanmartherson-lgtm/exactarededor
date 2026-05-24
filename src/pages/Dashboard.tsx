@@ -901,7 +901,7 @@ const Dashboard = () => {
       } else if (owner === "diretor") {
         c.teamAprovacao++;
       }
-      if (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)) {
+      if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
         c.mineDiretor++;
       }
 
