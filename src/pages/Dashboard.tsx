@@ -1656,6 +1656,7 @@ const Dashboard = () => {
                   padding: '8px 14px',
                   background: highlighted ? 'hsl(213 97% 95%)' : 'hsl(var(--muted))',
                   borderBottom: '0.5px solid hsl(var(--border))',
+                  textAlign: 'center' as const,
                 }}>
                   {title}
                 </div>
