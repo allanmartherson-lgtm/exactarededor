@@ -656,7 +656,7 @@ const Dashboard = () => {
   const { roles, user } = useAuth();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
-  const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
+  const [counts, setCounts] = useState<DashboardCounts>(initialDashboardCounts());
   const [allPayments, setAllPayments] = useState<
     Array<{ id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string; updated_at?: string | null }>
   >([]);
@@ -848,7 +848,7 @@ const Dashboard = () => {
 
     setCounts(c);
     setLoading(false);
-  }, [user?.id, initialCounts, roles]);
+  }, [user?.id, initialDashboardCounts(), roles]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
@@ -886,7 +886,7 @@ const Dashboard = () => {
       pipelineOwner === "all"
         ? true
         : ACTION_QUEUE[pipelineOwner].has(p.status);
-    const c = { ...initialCounts };
+    const c = { ...initialDashboardCounts() };
     for (const p of allPayments) {
       if (deletingIds.has(p.id)) continue;
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
