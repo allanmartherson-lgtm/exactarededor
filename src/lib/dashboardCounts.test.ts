@@ -104,14 +104,14 @@ describe("computeDashboardCounts — mineDiretor", () => {
 });
 
 describe("computeDashboardCounts — mineAnalista", () => {
-  it("só conta lotes pendentes do analista criados por ele", () => {
+  it("só conta lotes pendentes do analista criados por ele (owner === analista)", () => {
     const r = computeDashboardCounts({
       payments: [
         make("p1", "revisao_analista", UID),
         make("p2", "revisao_analista", OTHER),
         make("p3", "em_analise_ia", UID),
-        make("p4", "nf_questionada", UID),
-        make("p5", "aprovado_em_revisao", UID), // NÃO é pending status
+        make("p4", "nf_questionada", UID), // owner === "—" → não conta em mineAnalista
+        make("p5", "aprovado_em_revisao", UID), // owner=analista mas não pending
       ],
       groupsByPayment: {},
       companiesByPayment: {
@@ -122,9 +122,10 @@ describe("computeDashboardCounts — mineAnalista", () => {
       uid: UID,
       roles: ["analista"],
     });
-    expect(r.mineAnalista).toBe(3);
-    expect(r.mineAnalistaCompanies).toBe(3); // c1, c2, c3
+    expect(r.mineAnalista).toBe(2); // p1 + p3
+    expect(r.mineAnalistaCompanies).toBe(2); // {c1, c2}
   });
+
 });
 
 describe("computeDashboardCounts — mineValidador", () => {
