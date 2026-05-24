@@ -1041,6 +1041,15 @@ export function PaymentConciliationModal({
               )}
 
               {selectedBase && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                  <span>
+                    <strong className="text-foreground">Lógica de cruzamento:</strong> o sistema cruza por <strong className="text-foreground">Nº de atendimento + código TUSS</strong>. Itens sem esses dois campos na planilha hospitalar aparecerão como "Só no hospital". Verifique se a coluna de atendimento e código TUSS estão preenchidas na base importada.
+                  </span>
+                </div>
+              )}
+
+              {selectedBase && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button
                     disabled={!selectedBase}
