@@ -1381,7 +1381,7 @@ export function PaymentConciliationModal({
                                 </span>
                               )}
                               {counts.so_medpay > 0 && (
-                                <span className="text-info ml-2">
+                                <span className="text-primary ml-2">
                                   · {counts.so_medpay} só no MedPay
                                 </span>
                               )}
