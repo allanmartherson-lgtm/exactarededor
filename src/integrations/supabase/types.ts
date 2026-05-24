@@ -1946,6 +1946,8 @@ export type Database = {
           procedure_code: string | null
           procedure_date: string | null
           procedure_name: string | null
+          quantity: number | null
+          role: string | null
           run_id: string
           status: string
           valor_hospital: number
@@ -1966,6 +1968,8 @@ export type Database = {
           procedure_code?: string | null
           procedure_date?: string | null
           procedure_name?: string | null
+          quantity?: number | null
+          role?: string | null
           run_id: string
           status?: string
           valor_hospital?: number
@@ -1986,6 +1990,8 @@ export type Database = {
           procedure_code?: string | null
           procedure_date?: string | null
           procedure_name?: string | null
+          quantity?: number | null
+          role?: string | null
           run_id?: string
           status?: string
           valor_hospital?: number

@@ -550,16 +550,18 @@ export function PaymentConciliationModal({
 
       const normalizeCode = (code: unknown): string => {
         if (code == null || code === '') return '';
-        const num = parseFloat(String(code));
-        if (!isNaN(num) && isFinite(num)) return String(Math.round(num));
-        return String(code).replace(/\D/g, '');
+        const str = String(code).trim();
+        const num = Number(str);
+        if (!isNaN(num) && isFinite(num) && num > 0) return String(Math.round(num));
+        return str.replace(/\D/g, '');
       };
 
       const normAtt = (att: unknown): string => {
         if (att == null || att === '') return '';
-        const n = Number(att);
-        if (!isNaN(n) && isFinite(n)) return String(Math.round(n));
-        return String(att).replace(/\D/g, '');
+        const str = String(att).trim();
+        const num = Number(str);
+        if (!isNaN(num) && isFinite(num) && num > 0) return String(Math.round(num));
+        return str.replace(/\D/g, '');
       };
 
       const makeKey = (att: unknown, code: unknown): string =>
@@ -572,6 +574,18 @@ export function PaymentConciliationModal({
         if (!medpayByKey.has(k)) medpayByKey.set(k, []);
         medpayByKey.get(k)!.push(it);
       }
+
+      // Debug: mostrar primeiros 3 pares de chaves de cada base
+      const sampleHospKeys = rowsParaCruzamento.slice(0, 3).map(row => {
+        const att = getCell(row, "attendance");
+        const code = getCell(row, "procCode");
+        return `hosp:${normAtt(att)}|${normalizeCode(code)}`;
+      });
+      const sampleMedKeys = Array.from(medpayByKey.keys()).slice(0, 3);
+      console.log('[Cruzamento] Chaves hospital (amostra):', sampleHospKeys);
+      console.log('[Cruzamento] Chaves MedPay (amostra):', sampleMedKeys);
+      console.log('[Cruzamento] Total chaves MedPay:', medpayByKey.size);
+
 
       const matchedMedpayIds = new Set<string>();
       const toInsert: Array<Record<string, unknown>> = [];
@@ -616,7 +630,10 @@ export function PaymentConciliationModal({
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
           doctor_name: doctor ? String(doctor) : null,
+          role: getCell(row, "role") ? String(getCell(row, "role")) : null,
+          quantity: getCell(row, "quantity") ? Number(String(getCell(row, "quantity")).replace(",", ".")) || null : null,
           procedure_date: dateStr,
+
           valor_hospital: valHosp,
           valor_medpay: 0,
           payment_item_id: null,
