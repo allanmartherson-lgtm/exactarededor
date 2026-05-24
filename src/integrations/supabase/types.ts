@@ -822,6 +822,7 @@ export type Database = {
       }
       invoice_questions: {
         Row: {
+          answered_at: string | null
           author_id: string | null
           author_name: string | null
           author_type: string
@@ -833,6 +834,7 @@ export type Database = {
           read_at: string | null
         }
         Insert: {
+          answered_at?: string | null
           author_id?: string | null
           author_name?: string | null
           author_type: string
@@ -844,6 +846,7 @@ export type Database = {
           read_at?: string | null
         }
         Update: {
+          answered_at?: string | null
           author_id?: string | null
           author_name?: string | null
           author_type?: string

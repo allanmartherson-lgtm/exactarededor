@@ -1,0 +1,1 @@
+ALTER TABLE public.invoice_questions ADD COLUMN IF NOT EXISTS answered_at timestamptz;
