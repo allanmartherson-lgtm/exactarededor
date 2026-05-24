@@ -723,7 +723,11 @@ export function PaymentConciliationModal({
       await loadLatestRun();
       setStep("result");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error
+        ? err.message
+        : typeof err === "object" && err !== null && "message" in err
+        ? String((err as { message: unknown }).message)
+        : String(err);
       toast({ title: "Falha na conciliação", description: msg, variant: "destructive" });
     } finally {
       setProcessing(false);
