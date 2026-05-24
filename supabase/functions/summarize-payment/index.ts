@@ -158,13 +158,21 @@ REGRAS:
 - Seja conciso, técnico e prático. Nada de jargão vago.
 - Use somente fatos presentes no contexto JSON. Nunca invente números, regras ou empresas.
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
-- Headline: 1 frase com o valor total, qtd de empresas e principal sinal (ex: "% em alerta").
-- Bullets: 3 a 5 pontos com os achados mais relevantes (concentração, riscos, SLA, observações).
-- risk_level: classifique baseado em % de alertas, distribuição entre empresas e SLA.
-  - baixo: <10% alertas, SLA folgado
-  - medio: 10-30% alertas
-  - alto: 30-60% alertas OU concentração forte em 1 empresa OU SLA apertado
-  - critico: >60% alertas OU SLA vencido OU sinais combinados
+
+INSTRUÇÕES PARA O RESUMO:
+- Foque em riscos FINANCEIROS: distorções de valores, itens com divergência significativa (>10%), regras sem match, outliers de valor por médico ou procedimento.
+- NÃO considere concentração de prestadores numa empresa como risco — em hospitais, é completamente normal que uma empresa tenha muitos médicos.
+- Destaque: (1) itens reprovados e o motivo principal, (2) regras de validação que geraram mais alertas, (3) médicos ou procedimentos com valor muito acima/abaixo do esperado, (4) qualquer divergência que exija atenção do revisor.
+- Ignore dados puramente operacionais/quantitativos como "X% dos itens são aprovados" sem adicionar contexto de por que isso é ou não relevante.
+- O risco deve refletir a probabilidade de erro financeiro, não volume de dados.
+
+- Headline: 1 frase com o valor total, qtd de empresas e principal sinal financeiro (ex: "% itens com divergência").
+- Bullets: 3 a 5 pontos com achados financeiros relevantes (divergências, outliers, regras sem match, exceções).
+- risk_level: classifique baseado em probabilidade de erro financeiro.
+  - baixo: <10% itens com divergência, sem outliers relevantes
+  - medio: 10-30% divergências OU poucos outliers
+  - alto: 30-60% divergências OU outliers significativos OU muitas regras sem match
+  - critico: >60% divergências OU sinais combinados de erro financeiro
 - recommended_action: 1 frase com a próxima ação concreta sugerida.`;
 
     const directorPrompt = `Você é um auditor sênior preparando um BRIEFING DE APROVAÇÃO para o Diretor Financeiro de uma rede hospitalar, em português do Brasil.

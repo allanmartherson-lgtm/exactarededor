@@ -871,11 +871,13 @@ const Dashboard = () => {
       const hasGroupInAprovacao = groupStatuses.some((s) => s === "aguardando_aprovacao");
       // "Minha pendência" considera tanto status do lote quanto status por
       // empresa — basta UMA empresa do lote estar na fase do papel.
+      const isValidadorRole = roles.includes("validador") || roles.includes("admin");
+      const isDiretorRole = roles.includes("diretor") || roles.includes("admin");
       const isMineRow =
         !!uid && (
           (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-          (hasGroupInValidacao) ||
-          (hasGroupInAprovacao && p.status !== "aguardando_aprovacao" ? false : owner === "diretor" && p.status === "aguardando_aprovacao")
+          (isValidadorRole && hasGroupInValidacao) ||
+          (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao))
         );
 
       if (isMineRow) {
@@ -883,22 +885,24 @@ const Dashboard = () => {
         if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
           companies.forEach(id => mineAnalistaCompaniesSet.add(id));
         }
-        if (hasGroupInValidacao) {
+        if (isValidadorRole && hasGroupInValidacao) {
           companies.forEach(id => mineValidadorCompaniesSet.add(id));
         }
-        if (owner === "diretor" && p.status === "aguardando_aprovacao") {
+        if (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)) {
           companies.forEach(id => mineDiretorCompaniesSet.add(id));
         }
       }
 
       if (owner === "analista") {
         c.teamAnalise++;
-        if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) c.mineAnalista++;
+        if (ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) c.mineAnalista++;
       } else if (owner === "validador") {
         c.teamValidacao++;
       } else if (owner === "diretor") {
         c.teamAprovacao++;
-        if (isMineRow && owner === "diretor") c.mineDiretor++;
+      }
+      if (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)) {
+        c.mineDiretor++;
       }
 
       // Validação por empresa: conta qualquer lote que tenha pelo menos uma
