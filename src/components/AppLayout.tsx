@@ -557,7 +557,7 @@ export const AppLayout = () => {
           style={{ transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
         >
           <div className="mx-auto w-full max-w-[1600px] px-3 py-4 md:px-6 md:py-5">
-            <Breadcrumbs />
+            <div className="mb-4"><Breadcrumbs /></div>
             <Outlet />
           </div>
         </main>
