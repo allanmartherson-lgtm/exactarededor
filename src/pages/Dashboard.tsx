@@ -728,6 +728,9 @@ const Dashboard = () => {
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [recentApprovedData, setRecentApprovedData] = useState<Array<{ id: string; total_amount: number | null; approved_at: string | null }>>([]);
+  const [recentRejectedCount, setRecentRejectedCount] = useState(0);
+  const [teamOpenQuestionsCount, setTeamOpenQuestionsCount] = useState(0);
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
