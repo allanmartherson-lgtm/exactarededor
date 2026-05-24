@@ -95,6 +95,7 @@ const COL_FIELDS: Array<{
   { key: "company",    label: "Empresa (PJ)",   required: false, description: "Nome da empresa prestadora — usado no vínculo de empresas" },
   { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
   { key: "date",       label: "Data proc.",     required: false, description: "Data do procedimento — enriquecimento" },
+  { key: "agreement",  label: "Convênio",       required: false, description: "Convênio/plano de saúde — enriquece a análise e o relatório" },
 ];
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
@@ -206,7 +207,8 @@ export function PaymentConciliationModal({
           .from("reconciliation_items")
           .select("*")
           .eq("run_id", data.id)
-          .order("created_at");
+          .order("created_at")
+          .limit(5000);
         setItems((its ?? []) as ReconciliationItem[]);
         setStep("result");
       } else {
@@ -640,7 +642,7 @@ export function PaymentConciliationModal({
           company_name: mappedCompany,
           ia_obs: null,
           status: "so_hospital",
-          agreement_text: null,
+          agreement_text: getCell(row, "agreement") ? String(getCell(row, "agreement")) : null,
           applied_rule_label: null,
           applied_calc_method: null,
         };

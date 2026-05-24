@@ -147,7 +147,13 @@ export const InvoiceQuestionsThread = ({
       return;
     }
     const questionId = (data as InvoiceQuestion).id;
-    // Sobe os anexos (se houver) e registra na tabela.
+    // Marca perguntas pendentes do recebedor como respondidas
+    await supabase
+      .from("invoice_questions")
+      .update({ answered_at: new Date().toISOString() })
+      .eq("invoice_id", invoiceId)
+      .eq("author_type", "recebedor")
+      .is("answered_at", null);
     const uploaded: QuestionAttachment[] = [];
     for (const f of attachments) {
       const ext = f.name.split(".").pop() ?? "bin";

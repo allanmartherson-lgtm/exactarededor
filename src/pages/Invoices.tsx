@@ -98,8 +98,10 @@ const Invoices = () => {
     if (ids.length > 0) {
       const { data: qs } = await supabase
         .from("invoice_questions")
-        .select("invoice_id")
-        .in("invoice_id", ids);
+        .select("invoice_id, author_type, answered_at")
+        .in("invoice_id", ids)
+        .eq("author_type", "recebedor")
+        .is("answered_at", null);
       (qs ?? []).forEach((q: { invoice_id: string }) => {
         countByInvoice.set(q.invoice_id, (countByInvoice.get(q.invoice_id) ?? 0) + 1);
       });
@@ -590,6 +592,7 @@ const Invoices = () => {
                 invoiceId={openInvoice.id}
                 paymentId={openInvoice.payment_id}
                 initial={openQuestions}
+                onSent={() => { void load(); }}
               />
             </div>
           )}
