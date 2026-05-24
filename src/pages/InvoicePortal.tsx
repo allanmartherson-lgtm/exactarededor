@@ -420,7 +420,7 @@ const InvoicePortal = () => {
                   <TabsTrigger value="question">
                     <MessageCircleQuestion className="h-3.5 w-3.5 mr-1.5" /> Falar com analista
                     {questions.length > 0 && (
-                      <span className="ml-1.5 rounded-full bg-warning-soft text-warning-foreground text-[10px] px-1.5">
+                      <span className="ml-1.5 rounded-full bg-warning-soft text-warning-text text-[10px] px-1.5">
                         {questions.length}
                       </span>
                     )}

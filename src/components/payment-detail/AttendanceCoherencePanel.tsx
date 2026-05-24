@@ -57,7 +57,7 @@ export function AttendanceCoherencePanel({ attendanceNumber, currentItemId, item
           {alerts.map((a) => (
             <div
               key={a}
-              className="flex items-start gap-1.5 text-[11px] rounded border border-warning/30 bg-warning-soft/20 px-2 py-1 text-warning-foreground"
+              className="flex items-start gap-1.5 text-[11px] rounded border border-warning/30 bg-warning-soft/20 px-2 py-1 text-warning-text"
             >
               <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
               <span>{a}</span>

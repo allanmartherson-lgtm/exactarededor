@@ -103,7 +103,7 @@ export function NotificationBell() {
                           className={cn(
                             "inline-flex items-center gap-0.5 text-[9.5px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border",
                             n.questionSource === "empresa"
-                              ? "bg-warning-soft text-warning-foreground border-warning/30"
+                              ? "bg-warning-soft text-warning-text border-warning/30"
                               : "bg-info-soft text-info border-info/30",
                           )}
                         >

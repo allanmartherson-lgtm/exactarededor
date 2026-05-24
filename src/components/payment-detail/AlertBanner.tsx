@@ -22,7 +22,7 @@ export const SEVERITY_CLASSES: Record<AlertSeverity, string> = {
   critico:
     "border-destructive/40 bg-destructive-soft text-destructive ring-1 ring-destructive/20",
   alerta:
-    "border-warning/30 bg-warning-soft text-warning-foreground",
+    "border-warning/30 bg-warning-soft text-warning-text",
   informativo:
     "border-border/60 bg-muted/40 text-muted-foreground",
 };

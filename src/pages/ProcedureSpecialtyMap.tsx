@@ -33,7 +33,7 @@ type Row = {
 const STATUS_ORDER: Record<Row["status"], number> = { sugerido: 0, aprovado: 1, rejeitado: 2 };
 
 const STATUS_BADGE: Record<Row["status"], string> = {
-  sugerido: "bg-warning-soft text-warning-foreground border-warning/30",
+  sugerido: "bg-warning-soft text-warning-text border-warning/30",
   aprovado: "bg-success-soft text-success-foreground border-success/30",
   rejeitado: "bg-muted text-muted-foreground border-border",
 };

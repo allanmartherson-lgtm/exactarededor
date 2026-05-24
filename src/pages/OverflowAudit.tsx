@@ -123,7 +123,7 @@ const Cell = ({
           </Badge>
         )}
         {result.status === "error" && (
-          <Badge variant="outline" className="text-warning-foreground border-warning/40 bg-warning/10">
+          <Badge variant="outline" className="text-warning-text border-warning/40 bg-warning/10">
             erro
           </Badge>
         )}

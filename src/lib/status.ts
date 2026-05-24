@@ -63,7 +63,7 @@ export const PAYMENT_STATUS_TONES: Record<PaymentStatus, Tone> = {
 export const TONE_CLASSES: Record<Tone, string> = {
   info: "bg-info-soft text-info border-info/20",
   success: "bg-success-soft text-success border-success/20",
-  warning: "bg-warning-soft text-warning-foreground border-warning/30",
+  warning: "bg-warning-soft text-warning-text border-warning/30",
   destructive: "bg-destructive-soft text-destructive border-destructive/20",
   muted: "bg-muted text-muted-foreground border-border",
   primary: "bg-primary-soft text-primary border-primary/20",

@@ -730,7 +730,7 @@ const Payments = () => {
         <span className={cn(
           "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px]",
           finalLvl === "critico" && "bg-destructive-soft text-destructive",
-          finalLvl === "leve" && "bg-warning-soft text-warning-foreground",
+          finalLvl === "leve" && "bg-warning-soft text-warning-text",
           finalLvl === "none" && "text-muted-foreground",
         )}>
           <Clock className="h-2.5 w-2.5 shrink-0" />{" "}
@@ -755,7 +755,7 @@ const Payments = () => {
             badge={openQuestionCount[p.id] > 0 ? (
               <span
                 title={`${openQuestionCount[p.id]} questionamento(s) aguardando resposta`}
-                className="inline-flex items-center gap-0.5 rounded-bl-md border-l border-b border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-warning-foreground shrink-0 shadow-sm"
+                className="inline-flex items-center gap-0.5 rounded-bl-md border-l border-b border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-semibold text-warning-text shrink-0 shadow-sm"
               >
                 <AlertTriangle className="h-2 w-2" />
               </span>
@@ -813,7 +813,7 @@ const Payments = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-foreground"
+                      className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning-text"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <AlertTriangle className="h-3 w-3" /> Questionamento ({openQuestionCount[p.id]})
@@ -878,7 +878,7 @@ const Payments = () => {
                 className={cn(
                   "gap-1 font-normal",
                   finalLvl === "critico" && "bg-destructive-soft text-destructive border-destructive/30",
-                  finalLvl === "leve" && "bg-warning-soft text-warning-foreground border-warning/30",
+                  finalLvl === "leve" && "bg-warning-soft text-warning-text border-warning/30",
                   finalLvl === "none" && "text-muted-foreground",
                 )}
               >
@@ -891,7 +891,7 @@ const Payments = () => {
                   className={cn(
                     "gap-1 font-normal",
                     sla.level === "vencido" && "bg-destructive-soft text-destructive border-destructive/30",
-                    sla.level === "preventivo" && "bg-warning-soft text-warning-foreground border-warning/30",
+                    sla.level === "preventivo" && "bg-warning-soft text-warning-text border-warning/30",
                     sla.level === "ok" && "text-muted-foreground",
                   )}
                 >
@@ -1475,7 +1475,7 @@ const Payments = () => {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <PaymentRiskBadgeInline paymentId={p.id} compact />
                                   {openQuestionCount[p.id] > 0 && (
-                                    <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-warning-foreground">
+                                    <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning-soft px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-warning-text">
                                       <MessageCircleQuestion className="h-2.5 w-2.5" /> {openQuestionCount[p.id]}
                                     </span>
                                   )}

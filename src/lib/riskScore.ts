@@ -117,7 +117,7 @@ export const RISK_EMOJI: Record<RiskLevel, string> = {
 
 export const RISK_BADGE_CLASS: Record<RiskLevel, string> = {
   critico: "bg-destructive-soft text-destructive border-destructive/40 ring-1 ring-destructive/20 font-semibold",
-  alto: "bg-warning-soft text-warning-foreground border-warning/30",
+  alto: "bg-warning-soft text-warning-text border-warning/30",
   medio: "bg-muted text-muted-foreground border-border",
   baixo: "bg-muted/50 text-muted-foreground border-border/60",
 };

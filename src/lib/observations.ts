@@ -64,12 +64,12 @@ const ROLE_VISUALS: Record<string, RoleVisual> = {
   },
   diretor: {
     label: "Diretor", Icon: UserCog,
-    badgeClass: "bg-warning-soft text-warning-foreground border-warning/40",
+    badgeClass: "bg-warning-soft text-warning-text border-warning/40",
     borderClass: "border-l-warning", dotClass: "bg-warning",
   },
   admin: {
     label: "Administrador", Icon: UserCog,
-    badgeClass: "bg-warning-soft text-warning-foreground border-warning/40",
+    badgeClass: "bg-warning-soft text-warning-text border-warning/40",
     borderClass: "border-l-warning", dotClass: "bg-warning",
   },
 };
