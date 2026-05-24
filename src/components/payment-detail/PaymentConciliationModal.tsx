@@ -207,7 +207,8 @@ export function PaymentConciliationModal({
           .from("reconciliation_items")
           .select("*")
           .eq("run_id", data.id)
-          .order("created_at");
+          .order("created_at")
+          .limit(5000);
         setItems((its ?? []) as ReconciliationItem[]);
         setStep("result");
       } else {
