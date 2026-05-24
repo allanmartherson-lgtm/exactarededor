@@ -1801,9 +1801,15 @@ function KpiCard({
 }) {
   const toneClasses: Record<string, string> = {
     success: "border-success/40 bg-success/10 text-success",
-    warning: "border-warning/40 bg-warning/10 text-warning-foreground",
+    warning: "border-warning/40 bg-warning/10 text-warning",
     destructive: "border-destructive/40 bg-destructive/10 text-destructive",
     info: "border-primary/40 bg-primary/10 text-primary",
+  };
+  const iconBgClasses: Record<string, string> = {
+    success: "bg-success/20",
+    warning: "bg-warning/20",
+    destructive: "bg-destructive/20",
+    info: "bg-primary/20",
   };
   return (
     <button
@@ -1815,7 +1821,7 @@ function KpiCard({
         active && "ring-2 ring-offset-1 ring-current",
       )}
     >
-      <div className="p-2 rounded-full bg-current/10 shrink-0">
+      <div className={cn("p-2 rounded-full shrink-0", iconBgClasses[tone])}>
         <Icon className="h-5 w-5" style={{ color: "currentColor" }} />
       </div>
       <div>
