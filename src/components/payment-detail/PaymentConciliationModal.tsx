@@ -1472,11 +1472,11 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={7} className="bg-info/5 px-4 py-3">
+                                          <TableCell colSpan={7} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
-                                              <Lightbulb className="h-4 w-4 text-info shrink-0 mt-0.5" />
+                                              <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
-                                                <p className="text-[11px] font-semibold uppercase tracking-wider text-info mb-1">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                                   Análise IA
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs}</p>
