@@ -38,7 +38,7 @@ import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
 export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
-const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(215 25% 27%), hsl(222 47% 11%))";
+const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(var(--secondary-foreground)), hsl(var(--foreground)))";
 
 function getInitials(email?: string | null) {
   if (!email) return "AA";
