@@ -1068,8 +1068,13 @@ export function PaymentConciliationModal({
               </div>
 
               {loadingBases ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando bases…
+                <div className="space-y-2" aria-busy="true" aria-label="Carregando bases">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-4 rounded-lg border border-border bg-card space-y-2">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ))}
                 </div>
               ) : concBases.length === 0 ? (
                 <Card>
