@@ -1147,6 +1147,35 @@ const Dashboard = () => {
   }, [isAnalista, user?.id]);
   const totalPendingReleaseNf = pendingReleaseNf.reduce((sum, p) => sum + p.count, 0);
 
+  // Perguntas da EMPRESA (recebedor) na NF — não lidas pelo time interno
+  const [companyInvoiceQuestions, setCompanyInvoiceQuestions] = useState<{ count: number; firstPaymentId: string | null }>({ count: 0, firstPaymentId: null });
+  useEffect(() => {
+    if (!isAnalista || !user?.id) return;
+    let cancelled = false;
+    const fetchIQ = async () => {
+      const { data } = await supabase
+        .from("invoice_questions")
+        .select("id, payment_id, payment:payments!inner(created_by)")
+        .eq("author_type", "recebedor")
+        .is("read_at", null)
+        .eq("payments.created_by", user.id);
+      if (cancelled) return;
+      const rows = (data ?? []) as Array<{ id: string; payment_id: string }>;
+      setCompanyInvoiceQuestions({
+        count: rows.length,
+        firstPaymentId: rows[0]?.payment_id ?? null,
+      });
+    };
+    fetchIQ();
+    const ch = supabase
+      .channel("dash_invoice_questions")
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => fetchIQ())
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [isAnalista, user?.id]);
+
+
+
   // Contagem de invoices por status de NF para o analista
   const [pendingNfAguardando, setPendingNfAguardando] = useState<number>(0);
   const [pendingNfRecebida, setPendingNfRecebida] = useState<number>(0);
@@ -1448,10 +1477,21 @@ const Dashboard = () => {
               <CompactStatChip
                 icon={MessageCircle}
                 color="yellow"
-                label="Questionamentos"
+                label="Questionam. internos"
                 value={totalPendingQuestions}
                 mine
                 to={`/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`}
+              />
+            )}
+            {isAnalista && companyInvoiceQuestions.count > 0 && (
+              <CompactStatChip
+                icon={MessageCircle}
+                color="red"
+                accent="amber"
+                label="Pergunta da empresa (NF)"
+                value={companyInvoiceQuestions.count}
+                mine
+                to={companyInvoiceQuestions.firstPaymentId ? `/notas-fiscais?payment=${companyInvoiceQuestions.firstPaymentId}` : "/notas-fiscais"}
               />
             )}
             {isAnalista && totalPendingReleaseNf > 0 && (
