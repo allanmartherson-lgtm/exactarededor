@@ -95,6 +95,7 @@ const COL_FIELDS: Array<{
   { key: "company",    label: "Empresa (PJ)",   required: false, description: "Nome da empresa prestadora — usado no vínculo de empresas" },
   { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
   { key: "date",       label: "Data proc.",     required: false, description: "Data do procedimento — enriquecimento" },
+  { key: "agreement",  label: "Convênio",       required: false, description: "Convênio/plano de saúde — enriquece a análise e o relatório" },
 ];
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
