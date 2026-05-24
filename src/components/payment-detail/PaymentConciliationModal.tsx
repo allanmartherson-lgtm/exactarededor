@@ -1055,8 +1055,8 @@ export function PaymentConciliationModal({
 
           {!loading && step === "mapping" && (
             <div className="space-y-5">
-              <div className="flex items-center gap-3 p-4 bg-info-soft/40 border border-info/20 rounded-lg">
-                <div className="p-2 rounded-full bg-info/10 text-info shrink-0">
+              <div className="flex items-center gap-3 p-4 bg-muted/40 border border-border rounded-lg">
+                <div className="p-2 rounded-full bg-primary/10 text-primary shrink-0">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div>
