@@ -1,9 +1,15 @@
+export type NotificationKind = "info" | "warning" | "success" | "question";
+
 export interface AppNotification {
   id: string;
   title: string;
   description?: string;
-  kind: "info" | "warning" | "success";
+  kind: NotificationKind;
   paymentId: string;
+  /** Caminho customizado para abrir; se omitido, abre /pagamentos/{paymentId}. */
+  path?: string;
+  /** Subtipo do questionamento, para o sino diferenciar visualmente. */
+  questionSource?: "interno" | "empresa";
   createdAt: Date;
   read: boolean;
 }
