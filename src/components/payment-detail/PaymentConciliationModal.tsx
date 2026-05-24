@@ -1581,7 +1581,7 @@ function KpiCard({
   active,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   tone: "success" | "warning" | "destructive" | "info";
   label: string;
   value: string;
@@ -1605,8 +1605,8 @@ function KpiCard({
         active && "ring-2 ring-offset-1 ring-current",
       )}
     >
-      <div className={cn("p-2 rounded-full bg-background/60")}>
-        <Icon className="h-5 w-5" />
+      <div className="p-2 rounded-full bg-current/10 shrink-0">
+        <Icon className="h-5 w-5" style={{ color: "currentColor" }} />
       </div>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
