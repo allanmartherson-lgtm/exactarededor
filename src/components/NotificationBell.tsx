@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Bell, Info, AlertTriangle, CheckCircle2, MessageCircleQuestion, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
