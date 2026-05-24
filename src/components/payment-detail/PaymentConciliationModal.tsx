@@ -78,7 +78,24 @@ interface Props {
   paymentItems: PaymentItemRow[];
 }
 
-type Step = "select_base" | "upload" | "mapping" | "result";
+type Step = "select_base" | "col_mapping" | "upload" | "mapping" | "result";
+
+const COL_FIELDS: Array<{
+  key: string;
+  label: string;
+  required: boolean;
+  description: string;
+}> = [
+  { key: "attendance", label: "Nº atendimento", required: true, description: "Número do atendimento hospitalar — chave principal de cruzamento" },
+  { key: "procCode",   label: "Código TUSS",    required: true, description: "Código TUSS/CBHPM do procedimento — chave secundária de cruzamento" },
+  { key: "value",      label: "Valor repasse",  required: true, description: "Valor cobrado pelo hospital — base da comparação financeira" },
+  { key: "doctor",     label: "Médico executante", required: false, description: "Nome do médico — usado para enriquecer o resultado e filtros futuros" },
+  { key: "role",       label: "Função / papel", required: false, description: "Papel do profissional (cirurgião, anestesista…) — diferencia quando o mesmo médico atua em funções distintas" },
+  { key: "quantity",   label: "Quantidade",     required: false, description: "Quantidade do procedimento — detecta duplicidades (ex: 1 proc × 3 qty)" },
+  { key: "company",    label: "Empresa (PJ)",   required: false, description: "Nome da empresa prestadora — usado no vínculo de empresas" },
+  { key: "patient",    label: "Paciente",       required: false, description: "Nome do paciente — enriquecimento" },
+  { key: "date",       label: "Data proc.",     required: false, description: "Data do procedimento — enriquecimento" },
+];
 
 const detectColumns = (rows: Record<string, unknown>[]): Record<string, string> => {
   if (rows.length === 0) return {};
@@ -158,6 +175,12 @@ export function PaymentConciliationModal({
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
   const [loadingBases, setLoadingBases] = useState(false);
 
+  // Mapeamento de colunas: campo interno → coluna real da planilha
+  const [colMapping, setColMapping] = useState<Record<string, string>>({});
+  const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [colSamples, setColSamples] = useState<Record<string, string>>({});
+  const [saveColMapping, setSaveColMapping] = useState(true);
+
   const loteCompanies = useMemo(
     () =>
       Array.from(
@@ -229,12 +252,37 @@ export function PaymentConciliationModal({
     )).sort();
     setAvailableSectors(sectors);
     setSelectedSectors([]);
+
+    const cols = Object.keys(rows[0] ?? {});
+    setAvailableColumns(cols);
+
+    const samples: Record<string, string> = {};
+    for (const col of cols) {
+      for (const row of rows.slice(0, 10)) {
+        const v = String(row[col] ?? "").trim();
+        if (v) { samples[col] = v.slice(0, 30); break; }
+      }
+    }
+    setColSamples(samples);
+
+    const saved: Record<string, string> = base.col_map ?? {};
+    const autoDetected = detectColumns(rows);
+    const initial: Record<string, string> = {};
+    for (const field of COL_FIELDS) {
+      initial[field.key] = saved[field.key] || autoDetected[field.key] || "";
+    }
+    for (const [k, v] of Object.entries(saved)) {
+      if (!(k in initial)) initial[k] = v;
+    }
+    for (const [k, v] of Object.entries(autoDetected)) {
+      if (!(k in initial) || !initial[k]) initial[k] = v;
+    }
+    setColMapping(initial);
   };
 
   const handleProcessFromBase = () => {
     if (!selectedBase) return;
     const rows: Record<string, unknown>[] = selectedBase.raw_data ?? [];
-    const colMap: Record<string, string> = selectedBase.col_map ?? {};
 
     const sectorCol = Object.keys(rows[0] ?? {}).find(k => {
       const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -245,13 +293,32 @@ export function PaymentConciliationModal({
       ? rows.filter(r => selectedSectors.includes(String(r[sectorCol] ?? "").trim()))
       : rows;
 
-    const companyCol = colMap["company"] ?? Object.keys(rows[0] ?? {}).find(k => {
-      const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-      return n.includes("terceiro") || n.includes("empresa") || n.includes("prestador");
-    });
+    setParsedRows(filteredRows);
+    setPendingFileName(selectedBase.file_name ?? selectedBase.reference);
+    setStep("col_mapping");
+  };
 
+  const handleConfirmColMapping = async () => {
+    const missing = COL_FIELDS.filter(f => f.required && !colMapping[f.key]);
+    if (missing.length > 0) {
+      toast({
+        title: "Campos obrigatórios não mapeados",
+        description: `Configure: ${missing.map(f => f.label).join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (saveColMapping && selectedBase) {
+      await (supabase as any)
+        .from("conciliation_bases")
+        .update({ col_map: colMapping })
+        .eq("id", selectedBase.id);
+    }
+
+    const companyCol = colMapping["company"] || "";
     const terceiros = Array.from(new Set(
-      filteredRows.map(r => companyCol ? String(r[companyCol] ?? "").trim() : "").filter(Boolean)
+      parsedRows.map(r => companyCol ? String(r[companyCol] ?? "").trim() : "").filter(Boolean)
     )).sort();
 
     const normFull = (s: string) =>
@@ -275,16 +342,11 @@ export function PaymentConciliationModal({
         const idsC = getIdentifiers(c);
         const common = idsT.filter(id => idsC.includes(id));
         const score = common.reduce((s, id) => s + id.length, 0);
-        // Exige ≥2 identificadores em comum. Termo de especialidade isolado
-        // (UROLOGIA, ORTOPEDIA, NEUROLOGIA…) causa falso match quando a PJ
-        // real não está no lote — preferimos deixar sem mapeamento.
-        const ok = common.length >= 2;
-        if (ok && score > (best?.score ?? 0)) best = { company: c, score };
+        if (common.length >= 2 && score > (best?.score ?? 0)) best = { company: c, score };
       }
       if (best) return { company: best.company, level: "medium" };
       return { company: null, level: null };
     };
-
 
     const autoMapping: Record<string, string | null> = {};
     const newMatchLevels: Record<string, MatchLevel> = {};
@@ -294,9 +356,7 @@ export function PaymentConciliationModal({
       newMatchLevels[t] = level;
     }
 
-    setParsedRows(filteredRows);
-    setParsedColMap(colMap);
-    setPendingFileName(selectedBase.file_name ?? selectedBase.reference);
+    setParsedColMap(colMapping);
     setHospitalCompanies(terceiros);
     setCompanyMapping(autoMapping);
     setMatchLevels(newMatchLevels);
@@ -556,6 +616,8 @@ export function PaymentConciliationModal({
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
           doctor_name: doctor ? String(doctor) : null,
+          role: getCell(row, "role") ? String(getCell(row, "role")) : null,
+          quantity: getCell(row, "quantity") ? Number(getCell(row, "quantity")) || null : null,
           procedure_date: dateStr,
           valor_hospital: valHosp,
           valor_medpay: 0,
@@ -854,6 +916,10 @@ export function PaymentConciliationModal({
     setSelectedBase(null);
     setAvailableSectors([]);
     setSelectedSectors([]);
+    setColMapping({});
+    setAvailableColumns([]);
+    setColSamples({});
+    setSaveColMapping(true);
   };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
@@ -1059,6 +1125,119 @@ export function PaymentConciliationModal({
                   </Button>
                 </div>
               )}
+            </div>
+          )}
+
+          {!loading && step === "col_mapping" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-1">Mapear colunas da planilha</p>
+                <p className="text-xs text-muted-foreground">
+                  O sistema detectou automaticamente as colunas abaixo. Confirme ou corrija cada vínculo antes de continuar.
+                  Campos marcados com <span className="text-destructive font-medium">*</span> são obrigatórios para o cruzamento.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border overflow-hidden">
+                <div className="grid grid-cols-[200px_1fr_160px_32px] gap-3 px-4 py-2 bg-muted/60 border-b border-border">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Campo MedPay</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Coluna na planilha</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amostra</span>
+                  <span />
+                </div>
+
+                {COL_FIELDS.map((field) => {
+                  const mapped = colMapping[field.key] || "";
+                  const sample = mapped ? (colSamples[mapped] ?? "—") : "—";
+                  const isMissing = field.required && !mapped;
+                  const isDetected = !!mapped;
+
+                  return (
+                    <div
+                      key={field.key}
+                      className={cn(
+                        "grid grid-cols-[200px_1fr_160px_32px] gap-3 px-4 py-3 border-b border-border last:border-b-0 items-center",
+                        isMissing ? "bg-destructive/5" : "bg-card"
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground flex items-center gap-1">
+                          {field.required && <span className="text-destructive">*</span>}
+                          {field.label}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{field.description}</p>
+                      </div>
+
+                      <select
+                        value={mapped}
+                        onChange={(e) => setColMapping(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        className={cn(
+                          "h-8 text-xs border rounded-md px-2 w-full bg-background",
+                          isMissing ? "border-destructive text-destructive" : "border-border text-foreground"
+                        )}
+                      >
+                        <option value="">— não mapeado —</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col}>{col}</option>
+                        ))}
+                      </select>
+
+                      <span className="text-[11px] text-muted-foreground truncate" title={sample}>{sample}</span>
+
+                      <div className="flex items-center justify-center">
+                        {isMissing ? (
+                          <span className="w-5 h-5 rounded-full bg-destructive/10 border border-destructive/30 flex items-center justify-center text-[10px] text-destructive font-bold">!</span>
+                        ) : isDetected ? (
+                          <span className="w-5 h-5 rounded-full bg-success/10 border border-success/30 flex items-center justify-center text-[10px] text-success">✓</span>
+                        ) : (
+                          <span className="w-5 h-5 rounded-full bg-muted border border-border" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <label className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-border rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveColMapping}
+                  onChange={(e) => setSaveColMapping(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                <div>
+                  <span className="text-xs font-medium text-foreground">Lembrar este mapeamento</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Salva o vínculo de colunas nesta base. Na próxima conciliação com este arquivo, os campos já virão preenchidos.
+                  </p>
+                </div>
+              </label>
+
+              {COL_FIELDS.filter(f => !f.required && !colMapping[f.key]).length > 0 && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Campos opcionais não mapeados serão ignorados no resultado. Médico e quantidade enriquecem a análise mas não afetam o cruzamento.
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("select_base")}
+                >
+                  ← Voltar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmColMapping}
+                  disabled={COL_FIELDS.some(f => f.required && !colMapping[f.key])}
+                >
+                  Confirmar e vincular empresas →
+                </Button>
+              </div>
             </div>
           )}
 
