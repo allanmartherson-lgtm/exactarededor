@@ -1477,10 +1477,21 @@ const Dashboard = () => {
               <CompactStatChip
                 icon={MessageCircle}
                 color="yellow"
-                label="Questionamentos"
+                label="Questionam. internos"
                 value={totalPendingQuestions}
                 mine
                 to={`/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`}
+              />
+            )}
+            {isAnalista && companyInvoiceQuestions.count > 0 && (
+              <CompactStatChip
+                icon={MessageCircle}
+                color="red"
+                accent="amber"
+                label="Pergunta da empresa (NF)"
+                value={companyInvoiceQuestions.count}
+                mine
+                to={companyInvoiceQuestions.firstPaymentId ? `/notas-fiscais?payment=${companyInvoiceQuestions.firstPaymentId}` : "/notas-fiscais"}
               />
             )}
             {isAnalista && totalPendingReleaseNf > 0 && (
