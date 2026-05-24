@@ -676,6 +676,7 @@ const Dashboard = () => {
   const [recentApprovedData, setRecentApprovedData] = useState<Array<{ id: string; total_amount: number | null; approved_at: string | null }>>([]);
   const [recentRejectedCount, setRecentRejectedCount] = useState(0);
   const [teamOpenQuestionsCount, setTeamOpenQuestionsCount] = useState(0);
+  const [diretorAprovacaoPayments, setDiretorAprovacaoPayments] = useState<PaymentRow[]>([]);
   const {
     owner: pipelineOwner,
     window: pipelineWindow,
@@ -817,6 +818,20 @@ const Dashboard = () => {
       roles,
     });
     void invQuest;
+
+    if (roles.includes("diretor") || roles.includes("admin")) {
+      const { data: aprovPays } = await supabase
+        .from("payments")
+        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+        .eq("status", "aguardando_aprovacao")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setDiretorAprovacaoPayments((aprovPays ?? []) as PaymentRow[]);
+    } else {
+      setDiretorAprovacaoPayments([]);
+    }
+
+
 
 
     // Queries adicionais para validador/diretor (visão da equipe)
@@ -1740,16 +1755,22 @@ const Dashboard = () => {
                   </Link>
                 }
               />
-              {myPayments.length > 0 && (
-                <div>
-                  {myPayments.slice(0, 4).map((p) => {
-                    const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
-                    return (
-                      <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} />
-                    );
-                  })}
-                </div>
-              )}
+              {(() => {
+                const combined = [
+                  ...diretorAprovacaoPayments,
+                  ...myPayments.filter((p) => !diretorAprovacaoPayments.some((d) => d.id === p.id)),
+                ].slice(0, 4);
+                return combined.length > 0 && (
+                  <div>
+                    {combined.map((p) => {
+                      const sla = slaForPayment({ id: p.id, status: p.status, created_at: p.created_at });
+                      return (
+                        <TaskRow key={p.id} p={p} mine profiles={profiles} timeMs={sla?.ms} slaLevel={sla?.level} qCount={openQuestionCount[p.id]} />
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </SurfaceCard>
           </section>
         )}
