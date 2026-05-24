@@ -1581,10 +1581,10 @@ function KpiCard({
   onClick?: () => void;
 }) {
   const toneClasses: Record<string, string> = {
-    success: "border-success/30 bg-success/5 text-success",
-    warning: "border-warning/30 bg-warning/5 text-warning-foreground",
-    destructive: "border-destructive/30 bg-destructive/5 text-destructive",
-    info: "border-info/30 bg-info/5 text-info",
+    success: "border-success/40 bg-success/10 text-success",
+    warning: "border-warning/40 bg-warning/10 text-warning-foreground",
+    destructive: "border-destructive/40 bg-destructive/10 text-destructive",
+    info: "border-primary/40 bg-primary/10 text-primary",
   };
   return (
     <button
