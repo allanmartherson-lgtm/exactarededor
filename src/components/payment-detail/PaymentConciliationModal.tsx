@@ -972,8 +972,8 @@ export function PaymentConciliationModal({
                             </p>
                           </div>
                           {isSelected && (
-                            <div className="shrink-0 w-5 h-5 rounded-full bg-[#9A6B3A] flex items-center justify-center">
-                              <CheckCircle2 className="h-3 w-3 text-white" />
+                            <div className="shrink-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
                             </div>
                           )}
                         </div>
