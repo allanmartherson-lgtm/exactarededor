@@ -959,7 +959,7 @@ export function PaymentConciliationModal({
                         className={cn(
                           "w-full text-left p-4 rounded-lg border transition-all",
                           isSelected
-                            ? "border-[#9A6B3A] bg-[#fdf5ec] shadow-sm"
+                            ? "border-primary/60 bg-accent/60 shadow-sm"
                             : "border-border bg-card hover:bg-muted/40"
                         )}
                       >
@@ -1006,7 +1006,7 @@ export function PaymentConciliationModal({
                           key={sector}
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors",
-                            checked ? "border-[#9A6B3A] bg-[#fdf5ec]" : "border-border bg-card hover:bg-muted/40"
+                            checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40"
                           )}
                         >
                           <input
