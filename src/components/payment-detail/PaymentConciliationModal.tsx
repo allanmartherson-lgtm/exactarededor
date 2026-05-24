@@ -616,6 +616,8 @@ export function PaymentConciliationModal({
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
           doctor_name: doctor ? String(doctor) : null,
+          role: getCell(row, "role") ? String(getCell(row, "role")) : null,
+          quantity: getCell(row, "quantity") ? Number(getCell(row, "quantity")) || null : null,
           procedure_date: dateStr,
           valor_hospital: valHosp,
           valor_medpay: 0,
@@ -914,6 +916,10 @@ export function PaymentConciliationModal({
     setSelectedBase(null);
     setAvailableSectors([]);
     setSelectedSectors([]);
+    setColMapping({});
+    setAvailableColumns([]);
+    setColSamples({});
+    setSaveColMapping(true);
   };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
@@ -1119,6 +1125,119 @@ export function PaymentConciliationModal({
                   </Button>
                 </div>
               )}
+            </div>
+          )}
+
+          {!loading && step === "col_mapping" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-1">Mapear colunas da planilha</p>
+                <p className="text-xs text-muted-foreground">
+                  O sistema detectou automaticamente as colunas abaixo. Confirme ou corrija cada vínculo antes de continuar.
+                  Campos marcados com <span className="text-destructive font-medium">*</span> são obrigatórios para o cruzamento.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border overflow-hidden">
+                <div className="grid grid-cols-[200px_1fr_160px_32px] gap-3 px-4 py-2 bg-muted/60 border-b border-border">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Campo MedPay</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Coluna na planilha</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amostra</span>
+                  <span />
+                </div>
+
+                {COL_FIELDS.map((field) => {
+                  const mapped = colMapping[field.key] || "";
+                  const sample = mapped ? (colSamples[mapped] ?? "—") : "—";
+                  const isMissing = field.required && !mapped;
+                  const isDetected = !!mapped;
+
+                  return (
+                    <div
+                      key={field.key}
+                      className={cn(
+                        "grid grid-cols-[200px_1fr_160px_32px] gap-3 px-4 py-3 border-b border-border last:border-b-0 items-center",
+                        isMissing ? "bg-destructive/5" : "bg-card"
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground flex items-center gap-1">
+                          {field.required && <span className="text-destructive">*</span>}
+                          {field.label}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{field.description}</p>
+                      </div>
+
+                      <select
+                        value={mapped}
+                        onChange={(e) => setColMapping(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        className={cn(
+                          "h-8 text-xs border rounded-md px-2 w-full bg-background",
+                          isMissing ? "border-destructive text-destructive" : "border-border text-foreground"
+                        )}
+                      >
+                        <option value="">— não mapeado —</option>
+                        {availableColumns.map(col => (
+                          <option key={col} value={col}>{col}</option>
+                        ))}
+                      </select>
+
+                      <span className="text-[11px] text-muted-foreground truncate" title={sample}>{sample}</span>
+
+                      <div className="flex items-center justify-center">
+                        {isMissing ? (
+                          <span className="w-5 h-5 rounded-full bg-destructive/10 border border-destructive/30 flex items-center justify-center text-[10px] text-destructive font-bold">!</span>
+                        ) : isDetected ? (
+                          <span className="w-5 h-5 rounded-full bg-success/10 border border-success/30 flex items-center justify-center text-[10px] text-success">✓</span>
+                        ) : (
+                          <span className="w-5 h-5 rounded-full bg-muted border border-border" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <label className="flex items-center gap-3 px-3 py-2.5 bg-muted/40 border border-border rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveColMapping}
+                  onChange={(e) => setSaveColMapping(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                <div>
+                  <span className="text-xs font-medium text-foreground">Lembrar este mapeamento</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Salva o vínculo de colunas nesta base. Na próxima conciliação com este arquivo, os campos já virão preenchidos.
+                  </p>
+                </div>
+              </label>
+
+              {COL_FIELDS.filter(f => !f.required && !colMapping[f.key]).length > 0 && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Campos opcionais não mapeados serão ignorados no resultado. Médico e quantidade enriquecem a análise mas não afetam o cruzamento.
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStep("select_base")}
+                >
+                  ← Voltar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmColMapping}
+                  disabled={COL_FIELDS.some(f => f.required && !colMapping[f.key])}
+                >
+                  Confirmar e vincular empresas →
+                </Button>
+              </div>
             </div>
           )}
 
