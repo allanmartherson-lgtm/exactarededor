@@ -57,7 +57,7 @@ export function useQueueNotifications() {
       paymentId: string;
       path?: string;
       questionSource?: "interno" | "empresa";
-    }) => {
+    }, showToast = true) => {
       if (seenRef.current.has(key)) return;
       seenRef.current.add(key);
       // Limpa cache antigo para não crescer indefinidamente.
@@ -65,14 +65,16 @@ export function useQueueNotifications() {
         const arr = Array.from(seenRef.current);
         seenRef.current = new Set(arr.slice(-100));
       }
-      const action = {
-        label: "Abrir",
-        onClick: () => navigate(opts.path ?? `/pagamentos/${opts.paymentId}`),
-      };
-      const payload = { description: opts.description, action };
-      if (opts.kind === "warning") toast.warning(opts.title, payload);
-      else if (opts.kind === "success") toast.success(opts.title, payload);
-      else toast.info(opts.title, payload);
+      if (showToast) {
+        const action = {
+          label: "Abrir",
+          onClick: () => navigate(opts.path ?? `/pagamentos/${opts.paymentId}`),
+        };
+        const payload = { description: opts.description, action };
+        if (opts.kind === "warning") toast.warning(opts.title, payload);
+        else if (opts.kind === "success") toast.success(opts.title, payload);
+        else toast.info(opts.title, payload);
+      }
       notificationStore.add({
         title: opts.title,
         description: opts.description,
@@ -82,6 +84,33 @@ export function useQueueNotifications() {
         questionSource: opts.questionSource,
       });
     };
+
+    const loadPendingCompanyQuestions = async () => {
+      if (!isAnalista) return;
+      const { data } = await supabase
+        .from("invoice_questions")
+        .select("id, payment_id, message, author_name, created_at, payment:payments!inner(reference)")
+        .eq("author_type", "recebedor")
+        .is("read_at", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      ((data ?? []) as any[]).reverse().forEach((q) => {
+        const label = q.payment?.reference ? `Lote ${q.payment.reference}` : "Lote";
+        const author = q.author_name ? `${q.author_name} · ` : "";
+        const preview = (q.message ?? "").toString().slice(0, 120);
+        fire(`inv-question:${q.id}`, {
+          title: "Empresa enviou um questionamento na NF",
+          description: `${label} · ${author}${preview}`,
+          kind: "question",
+          paymentId: q.payment_id,
+          path: `/pagamentos/${q.payment_id}`,
+          questionSource: "empresa",
+        }, false);
+      });
+    };
+
+    void loadPendingCompanyQuestions();
 
     const handleStatusChange = (
       newStatus: string,
