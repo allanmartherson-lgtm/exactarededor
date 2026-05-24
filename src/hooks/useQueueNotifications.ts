@@ -53,8 +53,10 @@ export function useQueueNotifications() {
     const fire = (key: string, opts: {
       title: string;
       description?: string;
-      kind: "info" | "warning" | "success";
+      kind: "info" | "warning" | "success" | "question";
       paymentId: string;
+      path?: string;
+      questionSource?: "interno" | "empresa";
     }) => {
       if (seenRef.current.has(key)) return;
       seenRef.current.add(key);
@@ -65,13 +67,20 @@ export function useQueueNotifications() {
       }
       const action = {
         label: "Abrir",
-        onClick: () => navigate(`/pagamentos/${opts.paymentId}`),
+        onClick: () => navigate(opts.path ?? `/pagamentos/${opts.paymentId}`),
       };
       const payload = { description: opts.description, action };
       if (opts.kind === "warning") toast.warning(opts.title, payload);
       else if (opts.kind === "success") toast.success(opts.title, payload);
       else toast.info(opts.title, payload);
-      notificationStore.add({ title: opts.title, description: opts.description, kind: opts.kind, paymentId: opts.paymentId });
+      notificationStore.add({
+        title: opts.title,
+        description: opts.description,
+        kind: opts.kind,
+        paymentId: opts.paymentId,
+        path: opts.path,
+        questionSource: opts.questionSource,
+      });
     };
 
     const handleStatusChange = (
