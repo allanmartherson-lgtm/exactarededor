@@ -3259,9 +3259,9 @@ const AttentionTile = ({
           value: "hsl(var(--destructive))",
         }
       : {
-          border: "hsl(var(--warning, 38 92% 50%) / 0.45)",
-          bg: "hsl(var(--warning, 38 92% 50%) / 0.08)",
-          icon: "hsl(var(--warning, 38 92% 50%))",
+          border: "hsl(var(--warning) / 0.45)",
+          bg: "hsl(var(--warning) / 0.08)",
+          icon: "hsl(var(--warning))",
           value: "hsl(var(--foreground))",
         };
   return (
