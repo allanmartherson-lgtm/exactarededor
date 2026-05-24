@@ -10,13 +10,13 @@ All colors MUST be HSL.
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
     --background: 220 14% 96%;
-    --foreground: 222 47% 11%;
+    --foreground: 222 35% 18%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222 35% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222 35% 18%;
 
     /* ── Brand: slate-900 como primário ─────────────────── */
     --primary: 222 47% 11%;
@@ -36,11 +36,11 @@ All colors MUST be HSL.
     --copper-soft: 36 100% 94%;
 
     --secondary: 220 13% 91%;
-    --secondary-foreground: 215 25% 27%;
+    --secondary-foreground: 215 20% 38%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 215 16% 47%;
-    --text-tertiary: 215 14% 63%;
+    --muted-foreground: 215 14% 50%;
+    --text-tertiary: 215 16% 42%;
 
     --accent: 213 97% 87%;
     --accent-foreground: 213 94% 30%;
@@ -111,12 +111,12 @@ All colors MUST be HSL.
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 25% 27%;
     --sidebar-muted-foreground: 215 14% 56%;
-    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary: 222 35% 18%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-hover: 220 14% 96%;
     --sidebar-hover-foreground: 222 47% 11%;
-    --sidebar-accent: 213 97% 93%;
-    --sidebar-accent-foreground: 213 94% 30%;
+    --sidebar-accent: 220 10% 94%;
+    --sidebar-accent-foreground: 222 35% 18%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 213 94% 68%;
   }
@@ -124,13 +124,13 @@ All colors MUST be HSL.
   .dark {
     /* ── Superfícies — navy suave, não preto saturado ─────── */
     --background: 222 20% 10%;
-    --foreground: 215 20% 88%;
+    --foreground: 215 25% 92%;
 
     --card: 222 18% 14%;
-    --card-foreground: 215 20% 88%;
+    --card-foreground: 215 25% 92%;
 
     --popover: 222 18% 16%;
-    --popover-foreground: 215 20% 88%;
+    --popover-foreground: 215 25% 92%;
 
     /* ── Primary: azul acessível no escuro ──────────────────── */
     --primary: 213 85% 65%;
@@ -150,11 +150,11 @@ All colors MUST be HSL.
     --copper-soft: 28 35% 20%;
 
     --secondary: 222 16% 20%;
-    --secondary-foreground: 215 18% 75%;
+    --secondary-foreground: 215 18% 78%;
 
     --muted: 222 16% 17%;
-    --muted-foreground: 215 12% 55%;
-    --text-tertiary: 215 10% 45%;
+    --muted-foreground: 215 12% 62%;
+    --text-tertiary: 215 12% 55%;
 
     --accent: 222 25% 22%;
     --accent-foreground: 213 85% 72%;
@@ -222,12 +222,12 @@ All colors MUST be HSL.
     --sidebar-background: 222 22% 11%;
     --sidebar-foreground: 215 14% 62%;
     --sidebar-muted-foreground: 215 10% 48%;
-    --sidebar-primary: 213 85% 65%;
+    --sidebar-primary: 215 25% 88%;
     --sidebar-primary-foreground: 222 20% 10%;
     --sidebar-hover: 222 16% 18%;
     --sidebar-hover-foreground: 215 20% 88%;
-    --sidebar-accent: 222 25% 22%;
-    --sidebar-accent-foreground: 213 85% 72%;
+    --sidebar-accent: 222 18% 20%;
+    --sidebar-accent-foreground: 215 25% 88%;
     --sidebar-border: 222 14% 18%;
     --sidebar-ring: 213 85% 65%;
   }
