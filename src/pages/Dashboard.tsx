@@ -848,7 +848,7 @@ const Dashboard = () => {
 
     setCounts(c);
     setLoading(false);
-  }, [user?.id, initialDashboardCounts(), roles]);
+  }, [user?.id, roles]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
