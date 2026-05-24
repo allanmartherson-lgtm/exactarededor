@@ -108,7 +108,7 @@ const SEVERITY_VARIANT: Record<Severity, string> = {
 };
 
 const ACTION_BADGE_VARIANT: Record<Action, string> = {
-  informar: "bg-slate-100 text-slate-600 border-slate-200",
+  informar: "bg-slate-100 text-muted-foreground border-slate-200",
   alerta: "bg-amber-100 text-amber-700 border-amber-200",
   alerta_forte: "bg-orange-100 text-orange-700 border-orange-200",
   bloquear: "bg-red-100 text-red-700 border-red-200",

@@ -2095,7 +2095,7 @@ const PaymentDetail = () => {
           {isAnalista && groupsPendingAnalyst.length > 0 && (
             <div className="flex items-center gap-3 px-4 py-2 bg-info-soft border border-info/30 rounded-lg text-sm flex-wrap">
               <span className="w-2 h-2 rounded-full bg-info flex-shrink-0" />
-              <span className="font-medium text-slate-600">Concluir análise em massa</span>
+              <span className="font-medium text-muted-foreground">Concluir análise em massa</span>
               <span className="text-muted-foreground text-xs">
                 — {groupsPendingAnalyst.length} empresa(s) ainda em revisão. Selecione várias e finalize de uma vez.
               </span>
@@ -2225,7 +2225,7 @@ const PaymentDetail = () => {
             return (
               <div className="flex items-center gap-3 px-4 py-2 bg-success-soft border border-success/30 rounded-lg text-sm flex-wrap">
                 <span className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
-                <span className="text-success-foreground font-medium text-slate-500">Empresas concluídas pelo analista</span>
+                <span className="text-success-foreground font-medium text-muted-foreground">Empresas concluídas pelo analista</span>
                 <span className="text-muted-foreground text-xs">
                   — {groupsReadyToSend.length} pronta(s) para envio
                   {groupsPendingAnalyst.length > 0 && ` · ${groupsPendingAnalyst.length} ainda pendente(s)`}

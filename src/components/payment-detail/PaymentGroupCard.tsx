@@ -360,7 +360,7 @@ export const PaymentGroupCard = ({
                 },
                 lancado: {
                   Icon: Banknote,
-                  cls: "border-slate-300 bg-slate-100 text-slate-700",
+                  cls: "border-slate-300 bg-slate-100 text-foreground",
                   label: "Lançado",
                   tip: "Lançamento contábil concluído.",
                 },
