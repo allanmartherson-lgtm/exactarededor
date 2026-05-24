@@ -1802,12 +1802,7 @@ const PaymentDetail = () => {
             </div>
           )}
         </div>
-        {/* DESKTOP: cards sempre visíveis */}
-        <div className="hidden md:block space-y-4 md:space-y-6">
-          {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
-          {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
-          <PreAnalysisScoreCard payment={payment} />
-        </div>
+        {/* DESKTOP: cards de IA + alertas assistenciais lado a lado (renderizados juntos abaixo no grid). */}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
             <CardContent className="p-3 text-xs flex items-start gap-2">
