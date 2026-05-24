@@ -126,19 +126,21 @@ export function CompanyQuestionsThread({ paymentId, companyGroupId, isAnalista: 
           </div>
         )}
 
-        <div className="space-y-2 pt-2 border-t">
-          <Textarea
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            placeholder="Escreva uma resposta..."
-            rows={3}
-          />
-          <div className="flex justify-end">
-            <Button size="sm" onClick={submit} disabled={busy || reply.trim().length === 0}>
-              Responder
-            </Button>
+        {(roles.includes("validador") || roles.includes("diretor") || roles.includes("admin")) && (
+          <div className="space-y-2 pt-2 border-t">
+            <Textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder="Escreva uma resposta..."
+              rows={3}
+            />
+            <div className="flex justify-end">
+              <Button size="sm" onClick={submit} disabled={busy || reply.trim().length === 0}>
+                Responder
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
