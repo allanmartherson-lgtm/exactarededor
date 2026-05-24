@@ -1021,8 +1021,42 @@ export function PaymentConciliationModal({
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-muted/10">
           {loading && (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Carregando...
+            <div className="space-y-6" aria-busy="true" aria-label="Carregando conciliação">
+              {/* Banner da base */}
+              <Skeleton className="h-12 w-full rounded-lg" />
+              {/* KPI cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-[88px] rounded-xl" />
+                ))}
+              </div>
+              {/* Impacto financeiro */}
+              <Card>
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="h-3 w-32" />
+                      <Skeleton className="h-6 w-28" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+              {/* Tabs filtro */}
+              <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-28 rounded-full" />
+                ))}
+              </div>
+              {/* Linhas da tabela */}
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full rounded-md" />
+                ))}
+              </div>
+              <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Carregando itens da conciliação…
+              </p>
             </div>
           )}
 
