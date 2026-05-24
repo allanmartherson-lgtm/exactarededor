@@ -120,7 +120,7 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   conciliado: "bg-success/10 text-success border-success/30",
   valor_divergente: "bg-warning/10 text-warning-foreground border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
-  so_medpay: "bg-info/10 text-info border-info/30",
+  so_medpay: "bg-primary/10 text-primary border-primary/30",
 };
 
 export function PaymentConciliationModal({
