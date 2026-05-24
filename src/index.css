@@ -8,134 +8,135 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* ============================================================
-     * Apple Human Interface Guidelines — Light
-     * systemGroupedBackground sobre surfaces brancas, system blue,
-     * separadores hairline, hierarquia label / secondary / tertiary.
-     * ============================================================ */
+    /* ── Superfícies ─────────────────────────────────────── */
+    --background: 220 14% 96%;
+    --foreground: 222 47% 11%;
 
-    /* Surfaces */
-    --background: 240 24% 96%;          /* #F2F2F7 systemGroupedBackground */
-    --foreground: 240 6% 11%;           /* #1C1C1E label */
-
-    --card: 0 0% 100%;                  /* #FFFFFF systemBackground */
-    --card-foreground: 240 6% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 11%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Brand: system blue */
-    --primary: 211 100% 50%;            /* #007AFF systemBlue */
+    /* ── Brand: slate-900 como primário ─────────────────── */
+    --primary: 222 47% 11%;
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 100% 95%;       /* #E8F0FE */
-    --primary-glow: 211 100% 60%;
+    --primary-soft: 214 100% 97%;
+    --primary-glow: 215 20% 35%;
 
-    /* Copper (HIG systemOrange como acento secundário cálido) */
-    --copper: 33 100% 50%;              /* #FF9500 systemOrange */
+    /* ── Accent azul para estados ativos/links ──────────── */
+    --accent-blue: 213 94% 68%;
+    --accent-blue-soft: 213 97% 87%;
+
+    /* ── Copper ─────────────────────────────────────────── */
+    --copper: 33 100% 50%;
     --copper-foreground: 0 0% 100%;
     --copper-hover: 28 100% 45%;
     --copper-active: 28 100% 40%;
     --copper-soft: 36 100% 94%;
 
-    --secondary: 240 11% 91%;           /* #E5E5EA systemGray5 */
-    --secondary-foreground: 240 4% 25%; /* #3C3C43 label secondary base */
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 215 25% 27%;
 
-    --muted: 240 24% 96%;               /* #F2F2F7 */
-    --muted-foreground: 240 4% 40%;     /* secondary label resolvida */
-    --text-tertiary: 240 4% 60%;        /* tertiary label resolvida */
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 16% 47%;
+    --text-tertiary: 215 14% 63%;
 
-    --accent: 214 100% 95%;             /* #E8F0FE blue tinted */
-    --accent-foreground: 211 100% 45%;  /* system blue dark */
+    --accent: 213 97% 87%;
+    --accent-foreground: 213 94% 30%;
 
-    /* Status — HIG semantics */
-    --success: 135 59% 49%;             /* #34C759 systemGreen */
+    /* ── Status ─────────────────────────────────────────── */
+    --success: 142 72% 29%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 135 60% 92%;
+    --success-soft: 141 84% 93%;
+    --success-text: 142 72% 29%;
 
-    --warning: 33 100% 50%;             /* #FF9500 systemOrange */
-    --warning-foreground: 24 100% 18%;
-    --warning-soft: 36 100% 92%;
+    --warning: 32 95% 44%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 34 100% 92%;
+    --warning-text: 32 95% 44%;
 
-    --info: 211 100% 50%;               /* systemBlue */
+    --info: 213 94% 68%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 214 100% 95%;
+    --info-soft: 213 97% 93%;
+    --info-text: 213 94% 40%;
 
-    --destructive: 4 100% 59%;          /* #FF3B30 systemRed */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-soft: 4 100% 95%;
+    --destructive-soft: 0 86% 97%;
+    --destructive-text: 350 89% 40%;
 
-    /* Borders hairline (separator rgba(60,60,67,0.18) resolvido sobre branco) */
-    --border: 240 6% 89%;
-    --border-strong: 240 6% 78%;
+    /* ── Bordas ─────────────────────────────────────────── */
+    --border: 220 13% 91%;
+    --border-strong: 215 16% 80%;
     --border-highlight: 0 0% 100%;
-    --input: 240 6% 82%;
+    --input: 215 16% 80%;
     --input-bg: 0 0% 100%;
-    --ring: 211 100% 50%;
-    --ring-soft: 211 100% 50% / 0.30;
-    --track-soft: 240 6% 82%;
+    --ring: 213 94% 68%;
+    --ring-soft: 213 94% 68% / 0.25;
+    --track-soft: 215 16% 80%;
 
-    --shadow-inset: inset 0 1px 2px hsl(240 6% 11% / 0.04);
-    --shadow-control: 0 1px 0 hsl(0 0% 100% / 0.8) inset, 0 1px 2px hsl(240 6% 11% / 0.04);
+    --radius: 0.5rem;
 
-    --radius: 0.875rem;                 /* 14px — iOS grouped inset */
+    /* ── Sombras ────────────────────────────────────────── */
+    --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.03);
+    --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.05), 0 1px 2px -1px rgb(15 23 42 / 0.05);
+    --shadow-elevated: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+    --shadow-inset: inset 0 1px 2px rgb(15 23 42 / 0.04);
+    --shadow-control: 0 1px 2px rgb(15 23 42 / 0.04);
+    --gradient-brand: linear-gradient(135deg, hsl(222 47% 11%), hsl(215 20% 25%));
+    --gradient-soft: linear-gradient(135deg, hsl(220 14% 98%), hsl(220 14% 96%));
 
-    /* Gradients & elevation — sombras muito sutis, estilo HIG */
-    --gradient-brand: linear-gradient(135deg, hsl(211 100% 50%), hsl(211 100% 60%));
-    --gradient-soft: linear-gradient(135deg, hsl(214 100% 97%), hsl(240 24% 96%));
-    --shadow-soft: 0 1px 2px 0 hsl(240 6% 11% / 0.04), 0 2px 6px -1px hsl(240 6% 11% / 0.05);
-    --shadow-card: 0 1px 3px 0 hsl(240 6% 11% / 0.04), 0 4px 12px -2px hsl(240 6% 11% / 0.06), 0 8px 24px -8px hsl(240 6% 11% / 0.05);
-    --shadow-elevated: 0 20px 48px -18px hsl(240 6% 11% / 0.18), 0 8px 20px -8px hsl(240 6% 11% / 0.10);
-
-    /* Bubble token pairs (icon backgrounds) — HIG system color families */
-    --bubble-purple-bg: 280 100% 96%;
-    --bubble-purple-fg: 280 70% 50%;    /* #AF52DE systemPurple */
+    /* ── Bubble tokens ──────────────────────────────────── */
+    --bubble-purple-bg: 262 83% 94%;
+    --bubble-purple-fg: 263 70% 50%;
     --bubble-yellow-bg: 48 100% 92%;
-    --bubble-yellow-fg: 33 100% 40%;
-    --bubble-red-bg: 4 100% 95%;
-    --bubble-red-fg: 4 100% 50%;
-    --bubble-blue-bg: 214 100% 95%;
-    --bubble-blue-fg: 211 100% 50%;
-    --bubble-green-bg: 135 60% 92%;
-    --bubble-green-fg: 135 59% 38%;
-    --bubble-teal-bg: 192 100% 93%;
-    --bubble-teal-fg: 192 100% 38%;     /* #5AC8FA systemTeal */
+    --bubble-yellow-fg: 32 95% 40%;
+    --bubble-red-bg: 0 86% 97%;
+    --bubble-red-fg: 0 72% 45%;
+    --bubble-blue-bg: 213 97% 93%;
+    --bubble-blue-fg: 213 94% 40%;
+    --bubble-green-bg: 141 84% 93%;
+    --bubble-green-fg: 142 72% 29%;
+    --bubble-teal-bg: 187 76% 90%;
+    --bubble-teal-fg: 187 76% 30%;
 
-    /* Table-specific surfaces */
-    --table-row-hover: 240 24% 94%;
-    --table-border-light: 240 6% 91%;
+    /* ── Table ──────────────────────────────────────────── */
+    --table-row-hover: 220 14% 98%;
+    --table-border-light: 220 13% 93%;
+    --hover-surface: 220 14% 97%;
+    --shadow-hover: 0 2px 8px rgb(15 23 42 / 0.06);
 
-    --hover-surface: 240 11% 93%;
-    --shadow-hover: 0 4px 12px hsl(240 6% 11% / 0.05);
-
-    /* Sidebar — translúcida tipo iPadOS, fundo systemGroupedBackground */
-    --sidebar-background: 240 24% 97%;
-    --sidebar-foreground: 240 4% 25%;
-    --sidebar-muted-foreground: 240 4% 50%;
-    --sidebar-primary: 211 100% 50%;
+    /* ── Sidebar ────────────────────────────────────────── */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-muted-foreground: 215 14% 56%;
+    --sidebar-primary: 222 47% 11%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 240 11% 91%;
-    --sidebar-hover-foreground: 240 6% 11%;
-    --sidebar-accent: 214 100% 95%;
-    --sidebar-accent-foreground: 211 100% 45%;
-    --sidebar-border: 240 6% 89%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-hover: 220 14% 96%;
+    --sidebar-hover-foreground: 222 47% 11%;
+    --sidebar-accent: 213 97% 93%;
+    --sidebar-accent-foreground: 213 94% 30%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 213 94% 68%;
   }
 
   .dark {
-    /* Dark — navy deep surfaces, cyan accent (DF Parecer style) */
-    --background: 224 50% 8%;            /* deep navy */
-    --foreground: 210 30% 96%;
+    --background: 224 71% 6%;
+    --foreground: 213 31% 91%;
 
-    --card: 224 40% 13%;                 /* navy elevated */
-    --card-foreground: 210 30% 96%;
-    --popover: 224 40% 13%;
-    --popover-foreground: 210 30% 96%;
+    --card: 224 39% 10%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 39% 10%;
+    --popover-foreground: 213 31% 91%;
 
-    /* Brand: cyan brilhante em dark (espelhando DF Parecer) */
-    --primary: 199 89% 58%;              /* sky-400 — legível em dark */
-    --primary-foreground: 224 71% 12%;
-    --primary-soft: 224 50% 20%;
-    --primary-glow: 199 89% 68%;
+    --primary: 213 94% 68%;
+    --primary-foreground: 224 71% 6%;
+    --primary-soft: 224 39% 16%;
+    --primary-glow: 213 94% 75%;
+
+    --accent-blue: 213 94% 68%;
+    --accent-blue-soft: 224 39% 18%;
 
     --copper: 28 55% 55%;
     --copper-foreground: 0 0% 100%;
@@ -143,80 +144,81 @@ All colors MUST be HSL.
     --copper-active: 28 55% 42%;
     --copper-soft: 28 40% 18%;
 
-    --secondary: 224 30% 22%;
-    --secondary-foreground: 213 25% 88%;
+    --secondary: 223 27% 19%;
+    --secondary-foreground: 213 27% 84%;
 
-    --muted: 224 30% 18%;
-    --muted-foreground: 215 18% 75%;
-    --text-tertiary: 215 14% 62%;
+    --muted: 224 27% 14%;
+    --muted-foreground: 215 14% 56%;
+    --text-tertiary: 215 12% 44%;
 
-    --accent: 224 50% 22%;
-    --accent-foreground: 199 89% 75%;
+    --accent: 224 39% 18%;
+    --accent-foreground: 213 94% 75%;
 
-    --success: 142 71% 55%;
+    --success: 141 84% 59%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 142 45% 18%;
+    --success-soft: 141 45% 14%;
+    --success-text: 141 84% 59%;
 
-    --warning: 38 92% 60%;
+    --warning: 38 92% 56%;
     --warning-foreground: 30 80% 10%;
-    --warning-soft: 36 60% 18%;
+    --warning-soft: 35 55% 16%;
+    --warning-text: 38 92% 65%;
 
-    --info: 199 89% 65%;
+    --info: 213 94% 68%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 224 50% 20%;
+    --info-soft: 224 39% 18%;
+    --info-text: 213 94% 75%;
 
-    --destructive: 0 84% 65%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --destructive-soft: 0 50% 20%;
+    --destructive-soft: 0 46% 17%;
+    --destructive-text: 0 84% 75%;
 
-    --border: 224 20% 28%;
-    --border-strong: 224 14% 46%;
-    --border-highlight: 224 22% 32%;
-    --input: 224 14% 46%;
-    --input-bg: 224 30% 15%;
-    --ring: 199 89% 65%;
-    --ring-soft: 199 89% 65% / 0.45;
-    --track-soft: 224 14% 38%;
-    --shadow-inset: inset 0 1px 2px hsl(0 0% 0% / 0.35);
-    --shadow-control: 0 1px 0 hsl(224 30% 28% / 0.6) inset, 0 1px 2px hsl(0 0% 0% / 0.25);
+    --border: 224 18% 22%;
+    --border-strong: 224 12% 38%;
+    --border-highlight: 224 22% 28%;
+    --input: 224 12% 38%;
+    --input-bg: 224 27% 12%;
+    --ring: 213 94% 68%;
+    --ring-soft: 213 94% 68% / 0.35;
+    --track-soft: 224 12% 32%;
+    --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-control: 0 1px 2px rgb(0 0 0 / 0.2);
+    --gradient-brand: linear-gradient(135deg, hsl(224 60% 22%), hsl(213 94% 40%));
+    --gradient-soft: linear-gradient(135deg, hsl(224 39% 14%), hsl(224 71% 6%));
+    --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 0 rgb(0 0 0 / 0.2);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.2);
+    --shadow-elevated: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.3);
 
-    --gradient-brand: linear-gradient(135deg, hsl(224 76% 40%), hsl(199 89% 58%));
-    --gradient-soft: linear-gradient(135deg, hsl(224 50% 18%), hsl(224 50% 8%));
-    --shadow-soft: 0 1px 2px 0 hsl(0 0% 0% / 0.35), 0 1px 3px 0 hsl(0 0% 0% / 0.25);
-    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.4), 0 2px 8px -2px hsl(199 89% 50% / 0.10);
-    --shadow-elevated: 0 20px 40px -16px hsl(0 0% 0% / 0.55), 0 8px 24px -8px hsl(199 89% 50% / 0.18);
+    --bubble-purple-bg: 262 40% 20%;
+    --bubble-purple-fg: 262 85% 80%;
+    --bubble-yellow-bg: 35 55% 16%;
+    --bubble-yellow-fg: 38 92% 70%;
+    --bubble-red-bg: 0 46% 17%;
+    --bubble-red-fg: 0 84% 75%;
+    --bubble-blue-bg: 224 39% 18%;
+    --bubble-blue-fg: 213 94% 75%;
+    --bubble-green-bg: 141 45% 14%;
+    --bubble-green-fg: 141 84% 65%;
+    --bubble-teal-bg: 187 45% 15%;
+    --bubble-teal-fg: 187 76% 65%;
 
-    --bubble-purple-bg: 250 40% 22%;
-    --bubble-purple-fg: 250 95% 85%;
-    --bubble-yellow-bg: 36 60% 18%;
-    --bubble-yellow-fg: 38 92% 68%;
-    --bubble-red-bg: 0 50% 20%;
-    --bubble-red-fg: 0 90% 78%;
-    --bubble-blue-bg: 222 60% 20%;
-    --bubble-blue-fg: 217 91% 75%;
-    --bubble-green-bg: 152 45% 16%;
-    --bubble-green-fg: 152 65% 65%;
-    --bubble-teal-bg: 188 50% 18%;
-    --bubble-teal-fg: 188 80% 70%;
+    --table-row-hover: 224 22% 14%;
+    --table-border-light: 224 16% 20%;
+    --hover-surface: 224 22% 15%;
+    --shadow-hover: 0 4px 12px rgb(0 0 0 / 0.4);
 
-    --table-row-hover: 222 22% 19%;
-    --table-border-light: 222 18% 26%;
-
-    --hover-surface: 222 22% 21%;
-    --shadow-hover: 0 4px 14px hsl(0 0% 0% / 0.45);
-
-    /* Sidebar — dark, navy/cyan */
-    --sidebar-background: 224 45% 10%;
-    --sidebar-foreground: 215 18% 78%;
-    --sidebar-muted-foreground: 215 14% 60%;
-    --sidebar-primary: 199 89% 58%;
-    --sidebar-primary-foreground: 224 71% 12%;
-    --sidebar-hover: 224 35% 17%;
-    --sidebar-hover-foreground: 210 30% 96%;
-    --sidebar-accent: 224 50% 20%;
-    --sidebar-accent-foreground: 199 89% 75%;
-    --sidebar-border: 224 25% 20%;
-    --sidebar-ring: 199 89% 65%;
+    --sidebar-background: 224 50% 8%;
+    --sidebar-foreground: 215 16% 65%;
+    --sidebar-muted-foreground: 215 12% 50%;
+    --sidebar-primary: 213 94% 68%;
+    --sidebar-primary-foreground: 224 71% 6%;
+    --sidebar-hover: 224 32% 14%;
+    --sidebar-hover-foreground: 213 31% 91%;
+    --sidebar-accent: 224 39% 18%;
+    --sidebar-accent-foreground: 213 94% 75%;
+    --sidebar-border: 224 22% 16%;
+    --sidebar-ring: 213 94% 68%;
   }
 }
 
