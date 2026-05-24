@@ -876,8 +876,8 @@ const Dashboard = () => {
       const isMineRow =
         !!uid && (
           (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-          (isValidadorRole && hasGroupInValidacao) ||
-          (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao))
+          hasGroupInValidacao ||
+          (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)
         );
 
       if (isMineRow) {
@@ -888,7 +888,7 @@ const Dashboard = () => {
         if (isValidadorRole && hasGroupInValidacao) {
           companies.forEach(id => mineValidadorCompaniesSet.add(id));
         }
-        if (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)) {
+        if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
           companies.forEach(id => mineDiretorCompaniesSet.add(id));
         }
       }
@@ -901,7 +901,7 @@ const Dashboard = () => {
       } else if (owner === "diretor") {
         c.teamAprovacao++;
       }
-      if (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)) {
+      if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
         c.mineDiretor++;
       }
 
