@@ -11,6 +11,13 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
+import {
+  computeDashboardCounts,
+  initialDashboardCounts,
+  ownerRoleFor,
+  type DashboardCounts,
+  type OwnerRole,
+} from "@/lib/dashboardCounts";
 import { cn } from "@/lib/utils";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
@@ -101,23 +108,6 @@ interface PaymentRow {
   payment_type?: string | null;
 }
 
-type OwnerRole = "analista" | "validador" | "diretor" | "—";
-const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
-  switch (status) {
-    case "rascunho":
-    case "em_analise_ia":
-    case "revisao_analista":
-    case "devolvido_analista":
-    case "aprovado_em_revisao":
-      return "analista";
-    case "aguardando_validacao":
-      return "validador";
-    case "aguardando_aprovacao":
-      return "diretor";
-    default:
-      return "—";
-  }
-};
 const ownerLabel: Record<OwnerRole, string> = {
   analista: "Analista",
   validador: "Validador",
@@ -125,51 +115,6 @@ const ownerLabel: Record<OwnerRole, string> = {
   "—": "—",
 };
 
-interface DashboardCounts {
-  mineAnalista: number;
-  mineAnalistaCompanies: number;
-  mineValidador: number;
-  mineValidadorCompanies: number;
-  mineDiretor: number;
-  mineDiretorCompanies: number;
-  mineInvoicesDivergentes: number;
-  mineInvoicesQuestionadas: number;
-  mineRessalvas: number;
-  teamAnalise: number;
-  teamValidacao: number;
-  teamAprovacao: number;
-  teamInvoicesDivergentes: number;
-  pipeAnaliseIA: number;
-  pipeValidacao: number;
-  pipeAprovacao: number;
-  pipeAguardandoEnvio: number;
-  pipeNFSolicitada: number;
-  pipeNFRecebida: number;
-  pipeNFConciliada: number;
-  pipePago: number;
-  pipeDivergente: number;
-  attDevolvidoAnalista: number;
-  attRessalvas: number;
-  attNFQuestionada: number;
-  attNFDivergente: number;
-  attRejeitados: number;
-  /** Acompanhamento do diretor: lotes já aprovados aguardando revisão final do analista. Somente leitura. */
-  diretorAprovadoEmRevisao: number;
-}
-
-const initialCounts: DashboardCounts = {
-  mineAnalista: 0, mineAnalistaCompanies: 0,
-  mineValidador: 0, mineValidadorCompanies: 0,
-  mineDiretor: 0, mineDiretorCompanies: 0,
-  mineInvoicesDivergentes: 0, mineInvoicesQuestionadas: 0, mineRessalvas: 0,
-  teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, teamInvoicesDivergentes: 0,
-  pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
-  pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
-  pipeDivergente: 0,
-  attDevolvidoAnalista: 0, attRessalvas: 0, attNFQuestionada: 0,
-  attNFDivergente: 0, attRejeitados: 0,
-  diretorAprovadoEmRevisao: 0,
-};
 
 // ===== util: formato compacto de duração =====
 const formatShortDuration = (ms: number) => {
@@ -711,7 +656,7 @@ const Dashboard = () => {
   const { roles, user } = useAuth();
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
-  const [counts, setCounts] = useState<DashboardCounts>(initialCounts);
+  const [counts, setCounts] = useState<DashboardCounts>(initialDashboardCounts());
   const [allPayments, setAllPayments] = useState<
     Array<{ id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null; created_at: string; updated_at?: string | null }>
   >([]);
@@ -847,11 +792,6 @@ const Dashboard = () => {
     // Separação estrita: "minhas" = pagamentos efetivamente atribuídos ao
     // usuário logado (created_by/validated_by). A fila coletiva do papel
     // aparece em "Tarefas em aberto" e no Pipeline da equipe.
-    const c: DashboardCounts = { ...initialCounts };
-    const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-      "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
-    ]);
-
     // Mapeia empresas por pagamento para contagem distinta nos cards de ação
     const paymentCompaniesMap: Record<string, string[]> = {};
     (groups ?? []).forEach((g: any) => {
@@ -860,110 +800,24 @@ const Dashboard = () => {
       }
     });
 
-    const mineAnalistaCompaniesSet = new Set<string>();
-    const mineValidadorCompaniesSet = new Set<string>();
-    const mineDiretorCompaniesSet = new Set<string>();
-
-    (all ?? []).forEach((p: { id: string; status: PaymentStatus; created_by: string | null; validated_by: string | null }) => {
-      const owner = ownerRoleFor(p.status);
-      const groupStatuses = gByP[p.id] ?? [];
-      const hasGroupInValidacao = groupStatuses.some((s) => s === "aguardando_validacao");
-      const hasGroupInAprovacao = groupStatuses.some((s) => s === "aguardando_aprovacao");
-      // "Minha pendência" considera tanto status do lote quanto status por
-      // empresa — basta UMA empresa do lote estar na fase do papel.
-      const isValidadorRole = roles.includes("validador") || roles.includes("admin");
-      const isDiretorRole = roles.includes("diretor") || roles.includes("admin");
-      const isMineRow =
-        !!uid && (
-          (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) ||
-          hasGroupInValidacao ||
-          (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)
-        );
-
-      if (isMineRow) {
-        const companies = paymentCompaniesMap[p.id] ?? [];
-        if (owner === "analista" && ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) {
-          companies.forEach(id => mineAnalistaCompaniesSet.add(id));
-        }
-        if (isValidadorRole && hasGroupInValidacao) {
-          companies.forEach(id => mineValidadorCompaniesSet.add(id));
-        }
-        if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
-          companies.forEach(id => mineDiretorCompaniesSet.add(id));
-        }
-      }
-
-      if (owner === "analista") {
-        c.teamAnalise++;
-        if (ANALISTA_PENDING_STATUSES.has(p.status) && p.created_by === uid) c.mineAnalista++;
-      } else if (owner === "validador") {
-        c.teamValidacao++;
-      } else if (owner === "diretor") {
-        c.teamAprovacao++;
-      }
-      if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
-        c.mineDiretor++;
-      }
-
-      // Validação por empresa: conta qualquer lote que tenha pelo menos uma
-      // empresa em aguardando_validacao (mesmo que o status do lote esteja
-      // em revisao_analista — situação normal em lotes mistos).
-      if (hasGroupInValidacao) {
-        c.mineValidador++;
-        if (owner !== "validador") c.teamValidacao++;
-      }
-
-      switch (p.status) {
-        case "em_analise_ia":
-        case "revisao_analista":
-          c.pipeAnaliseIA++; break;
-        case "aguardando_validacao":
-          c.pipeValidacao++; break;
-        case "aguardando_aprovacao":
-          c.pipeAprovacao++; break;
-        case "aprovado":
-        case "aprovado_em_revisao":
-          c.pipeAguardandoEnvio++; break;
-        case "pedido_nf_enviado":
-          c.pipeNFSolicitada++; break;
-        case "nf_recebida":
-          c.pipeNFRecebida++; break;
-        case "nf_conciliada":
-          c.pipeNFConciliada++; break;
-        case "pago":
-          c.pipePago++; break;
-        case "nf_questionada":
-          c.pipeDivergente++; break;
-      }
-      // Pipeline: lotes mistos também aparecem em Validação/Aprovação
-      if (p.status !== "aguardando_validacao" && hasGroupInValidacao) c.pipeValidacao++;
-      if (p.status !== "aguardando_aprovacao" && hasGroupInAprovacao) c.pipeAprovacao++;
-
-      if (p.status === "devolvido_analista") c.attDevolvidoAnalista++;
-      if (p.status === "aprovado_com_ressalva") {
-        c.attRessalvas++;
-        if (isMineRow) c.mineRessalvas++;
-      }
-      if (p.status === "nf_questionada") {
-        c.attNFQuestionada++;
-        if (isMineRow) c.mineInvoicesQuestionadas++;
-      }
-      if (p.status === "rejeitado") c.attRejeitados++;
-      if (p.status === "aprovado_em_revisao") c.diretorAprovadoEmRevisao++;
-    });
-
-    c.mineAnalistaCompanies = mineAnalistaCompaniesSet.size;
-    c.mineValidadorCompanies = mineValidadorCompaniesSet.size;
-    c.mineDiretorCompanies = mineDiretorCompaniesSet.size;
-
-    (invDiv ?? []).forEach((row: any) => {
-      c.teamInvoicesDivergentes++;
-      c.attNFDivergente++;
-      const cb = row?.payment?.created_by ?? null;
-      if (uid && cb === uid) c.mineInvoicesDivergentes++;
+    // Lógica pura extraída em src/lib/dashboardCounts.ts (testada).
+    const c: DashboardCounts = computeDashboardCounts({
+      payments: (all ?? []) as Array<{
+        id: string;
+        status: PaymentStatus;
+        created_by: string | null;
+        validated_by: string | null;
+      }>,
+      groupsByPayment: gByP,
+      companiesByPayment: paymentCompaniesMap,
+      invoiceDivergent: (invDiv ?? []).map((row: any) => ({
+        payment_created_by: row?.payment?.created_by ?? null,
+      })),
+      uid: uid ?? null,
+      roles,
     });
     void invQuest;
-    void uid;
+
 
     // Queries adicionais para validador/diretor (visão da equipe)
     const isElevated =
@@ -994,7 +848,7 @@ const Dashboard = () => {
 
     setCounts(c);
     setLoading(false);
-  }, [user?.id, initialCounts, roles]);
+  }, [user?.id, roles]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
@@ -1032,7 +886,7 @@ const Dashboard = () => {
       pipelineOwner === "all"
         ? true
         : ACTION_QUEUE[pipelineOwner].has(p.status);
-    const c = { ...initialCounts };
+    const c = { ...initialDashboardCounts() };
     for (const p of allPayments) {
       if (deletingIds.has(p.id)) continue;
       if (cutoff != null && new Date(p.created_at).getTime() < cutoff) continue;
