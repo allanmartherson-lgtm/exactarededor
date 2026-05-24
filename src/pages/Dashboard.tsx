@@ -961,9 +961,36 @@ const Dashboard = () => {
     void invQuest;
     void uid;
 
+    // Queries adicionais para validador/diretor (visão da equipe)
+    const isElevated =
+      roles.includes("validador") || roles.includes("diretor") || roles.includes("admin");
+    if (isElevated) {
+      const sinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: rApproved }, { data: rRejected }, { data: tQuestions }] = await Promise.all([
+        supabase
+          .from("payments")
+          .select("id,total_amount,approved_at")
+          .not("approved_at", "is", null)
+          .gte("approved_at", sinceIso),
+        supabase
+          .from("payments")
+          .select("id")
+          .eq("status", "rejeitado")
+          .gte("updated_at", sinceIso),
+        supabase
+          .from("payment_observations")
+          .select("payment_id")
+          .eq("is_question", true)
+          .is("resolved_at", null),
+      ]);
+      setRecentApprovedData((rApproved ?? []) as Array<{ id: string; total_amount: number | null; approved_at: string | null }>);
+      setRecentRejectedCount((rRejected ?? []).length);
+      setTeamOpenQuestionsCount((tQuestions ?? []).length);
+    }
+
     setCounts(c);
     setLoading(false);
-  }, [user?.id, initialCounts]);
+  }, [user?.id, initialCounts, roles]);
 
   useEffect(() => {
     document.title = "Dashboard | MedPay Approval";
