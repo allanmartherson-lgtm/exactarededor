@@ -1465,117 +1465,284 @@ const Dashboard = () => {
         </Link>
       )}
 
-      {/* SUAS TAREFAS — KPI bar compacta */}
+      {/* SUAS TAREFAS — Scorecard agrupado */}
       <section aria-labelledby="suas-tarefas-heading">
         <SectionLabel>Suas tarefas</SectionLabel>
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
-            {Array.from({ length: 6 }).map((_, i) => <CompactStatSkeleton key={i} />)}
+          <div style={{
+            background: 'hsl(var(--card))',
+            border: '0.5px solid hsl(var(--border))',
+            borderRadius: 10,
+            display: 'flex',
+            gap: 0,
+            overflow: 'hidden',
+          }}>
+            {['Ações — sua vez', 'Em trânsito', 'Alertas'].map((g, gi) => (
+              <div key={g} style={{
+                flex: gi === 0 ? 2 : 1,
+                borderRight: gi < 2 ? '0.5px solid hsl(var(--border))' : undefined,
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+                <div style={{
+                  fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground))',
+                  letterSpacing: '0.07em', textTransform: 'uppercase',
+                  padding: '8px 12px', background: 'hsl(var(--muted))',
+                  borderBottom: '0.5px solid hsl(var(--border))',
+                }}>{g}</div>
+                <div style={{ display: 'flex' }}>
+                  {Array.from({ length: gi === 0 ? 3 : gi === 1 ? 1 : 2 }).map((_, i) => (
+                    <div key={i} style={{
+                      flex: 1, padding: '10px 12px',
+                      borderRight: i < (gi === 0 ? 2 : 0) ? '0.5px solid hsl(var(--border))' : undefined,
+                      display: 'flex', flexDirection: 'column', gap: 4,
+                    }}>
+                      <Skeleton className="h-2.5 w-16" />
+                      <Skeleton className="h-6 w-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
-            {isAnalista && totalPendingQuestions > 0 && (
-              <CompactStatChip
-                icon={MessageCircle}
-                color="yellow"
-                label="Questionam. internos"
-                value={totalPendingQuestions}
-                mine
-                to={`/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`}
-              />
-            )}
-            {isAnalista && companyInvoiceQuestions.count > 0 && (
-              <CompactStatChip
-                icon={MessageCircle}
-                color="red"
-                accent="amber"
-                label="Pergunta da empresa (NF)"
-                value={companyInvoiceQuestions.count}
-                mine
-                to={companyInvoiceQuestions.firstPaymentId ? `/notas-fiscais?payment=${companyInvoiceQuestions.firstPaymentId}` : "/notas-fiscais"}
-              />
-            )}
-            {isAnalista && totalPendingReleaseNf > 0 && (
-              <CompactStatChip
-                icon={CheckCircle2}
-                color="teal"
-                label="Liberar NF"
-                value={totalPendingReleaseNf}
-                mine
-                to={`/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`}
-              />
-            )}
-            {isAnalista && pendingNfAguardando > 0 && (
-              <CompactStatChip icon={Send} color="blue" label="NF aguard. retorno" value={pendingNfAguardando} to="/notas-fiscais" />
-            )}
-            {isAnalista && pendingNfRecebida > 0 && (
-              <CompactStatChip icon={FileCheck} color="green" label="NF p/ conciliar" value={pendingNfRecebida} mine to="/notas-fiscais" />
-            )}
-            {isAnalista && pendingNfConciliar > 0 && (
-              <CompactStatChip icon={CheckCircle2} color="green" label="Pronta p/ lançar" value={pendingNfConciliar} mine to="/notas-fiscais" />
-            )}
-            {isAnalista && (
-              <CompactStatChip
-                icon={Landmark}
-                color="purple"
-                label="Suas bases"
-                value={counts.mineAnalista}
-                mine={counts.mineAnalista > 0}
-                to="/pagamentos?owner=me&status=analista"
-              />
-            )}
-            {isValidador && (
-              <CompactStatChip
-                icon={ListChecks}
-                color="yellow"
-                label="Para validar"
-                value={counts.mineValidador}
-                mine={counts.mineValidador > 0}
-                to="/pagamentos?status=aguardando_validacao"
-              />
-            )}
-            {isDiretor && (
-              <CompactStatChip
-                icon={ShieldCheck}
-                color="teal"
-                label="Para aprovar"
-                value={counts.mineDiretor}
-                mine={counts.mineDiretor > 0}
-                to="/pagamentos?status=aguardando_aprovacao"
-              />
-            )}
-            {isDiretor && (
-              <CompactStatChip
-                icon={FileText}
-                color="blue"
-                label="Pós-aprovação"
-                value={counts.diretorAprovadoEmRevisao}
-                to="/pagamentos?status=aprovado_em_revisao"
-              />
-            )}
-            {isAnalista && (
-              <CompactStatChip
-                icon={AlertCircle}
-                color="red"
-                label="Ressalvas"
-                value={counts.mineRessalvas}
-                accent="amber"
-                mine={counts.mineRessalvas > 0}
-                to="/pagamentos?status=aprovado_com_ressalva"
-              />
-            )}
-            {isAnalista && (
-              <CompactStatChip
-                icon={FileWarning}
-                color="red"
-                label="NFs divergentes"
-                value={counts.mineInvoicesDivergentes}
-                accent="rose"
-                mine={counts.mineInvoicesDivergentes > 0}
-                to="/notas-fiscais"
-              />
-            )}
-          </div>
+          (() => {
+            type ScoreItemData = {
+              label: string;
+              value: number;
+              to: string;
+              icon: LucideIcon;
+              color: BubbleColor;
+              accent?: 'amber' | 'rose';
+            };
+
+            const acaoItems: ScoreItemData[] = [];
+            if (isAnalista && totalPendingQuestions > 0) acaoItems.push({
+              label: 'Questionam. internos', value: totalPendingQuestions,
+              to: `/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`,
+              icon: MessageCircle, color: 'yellow',
+            });
+            if (isAnalista && companyInvoiceQuestions.count > 0) acaoItems.push({
+              label: 'Pergunta empresa (NF)', value: companyInvoiceQuestions.count,
+              to: companyInvoiceQuestions.firstPaymentId ? `/notas-fiscais?payment=${companyInvoiceQuestions.firstPaymentId}` : '/notas-fiscais',
+              icon: MessageCircle, color: 'red',
+            });
+            if (isAnalista && totalPendingReleaseNf > 0) acaoItems.push({
+              label: 'Liberar NF', value: totalPendingReleaseNf,
+              to: `/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`,
+              icon: CheckCircle2, color: 'teal',
+            });
+            if (isAnalista && pendingNfRecebida > 0) acaoItems.push({
+              label: 'NF p/ conciliar', value: pendingNfRecebida,
+              to: '/notas-fiscais', icon: FileCheck, color: 'green',
+            });
+            if (isAnalista && pendingNfConciliar > 0) acaoItems.push({
+              label: 'Pronta p/ lançar', value: pendingNfConciliar,
+              to: '/notas-fiscais', icon: CheckCircle2, color: 'green',
+            });
+            if (isAnalista && counts.mineAnalista > 0) acaoItems.push({
+              label: 'Suas bases', value: counts.mineAnalista,
+              to: '/pagamentos?owner=me&status=analista', icon: Landmark, color: 'purple',
+            });
+            if (isValidador && counts.mineValidador > 0) acaoItems.push({
+              label: 'Para validar', value: counts.mineValidador,
+              to: '/pagamentos?status=aguardando_validacao', icon: ListChecks, color: 'yellow',
+            });
+            if (isDiretor && counts.mineDiretor > 0) acaoItems.push({
+              label: 'Para aprovar', value: counts.mineDiretor,
+              to: '/pagamentos?status=aguardando_aprovacao', icon: ShieldCheck, color: 'teal',
+            });
+
+            const transitoItems: ScoreItemData[] = [];
+            if (isAnalista && pendingNfAguardando > 0) transitoItems.push({
+              label: 'NF aguard. retorno', value: pendingNfAguardando,
+              to: '/notas-fiscais', icon: Send, color: 'blue',
+            });
+            if (isDiretor && counts.diretorAprovadoEmRevisao > 0) transitoItems.push({
+              label: 'Pós-aprovação', value: counts.diretorAprovadoEmRevisao,
+              to: '/pagamentos?status=aprovado_em_revisao', icon: FileText, color: 'blue',
+            });
+
+            const alertaItems: ScoreItemData[] = [];
+            if (isAnalista) alertaItems.push({
+              label: 'Ressalvas', value: counts.mineRessalvas,
+              to: '/pagamentos?status=aprovado_com_ressalva', icon: AlertCircle, color: 'red', accent: 'amber',
+            });
+            if (isAnalista) alertaItems.push({
+              label: 'NFs divergentes', value: counts.mineInvoicesDivergentes,
+              to: '/notas-fiscais', icon: FileWarning, color: 'red', accent: 'rose',
+            });
+
+            const hasAcoes = acaoItems.length > 0;
+            const hasTransito = transitoItems.length > 0;
+            const hasAlertas = alertaItems.length > 0;
+
+            if (!hasAcoes && !hasTransito && !hasAlertas) {
+              return (
+                <div style={{
+                  background: 'hsl(var(--card))',
+                  border: '0.5px solid hsl(var(--border))',
+                  borderRadius: 10,
+                  padding: '20px',
+                  textAlign: 'center',
+                  fontSize: 13,
+                  color: 'hsl(var(--muted-foreground))',
+                }}>
+                  Nenhuma tarefa pendente. 🎉
+                </div>
+              );
+            }
+
+            const ScoreItem = ({ item, isHighlighted }: { item: ScoreItemData; isHighlighted: boolean }) => {
+              const isZero = item.value === 0;
+              const valueColor = isZero
+                ? 'hsl(var(--muted-foreground))'
+                : isHighlighted
+                ? 'hsl(var(--sidebar-primary))'
+                : 'hsl(var(--foreground))';
+              return (
+                <Link
+                  to={item.to}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: 4,
+                    padding: '10px 14px', textDecoration: 'none', color: 'inherit',
+                    background: isHighlighted && !isZero ? 'hsl(213 97% 96%)' : 'transparent',
+                    transition: 'background 0.12s',
+                    height: '100%',
+                  }}
+                  className="hover:bg-muted/50"
+                >
+                  <span style={{
+                    fontSize: 9.5, fontWeight: 500,
+                    color: 'hsl(var(--muted-foreground))',
+                    letterSpacing: '0.04em', textTransform: 'uppercase',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>
+                    {item.label}
+                  </span>
+                  <span style={{
+                    fontSize: 22, fontWeight: 600, lineHeight: 1,
+                    color: valueColor,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {item.value}
+                  </span>
+                  {isHighlighted && !isZero && (
+                    <span style={{ fontSize: 9, fontWeight: 500, color: 'hsl(213 94% 40%)' }}>
+                      ↑ aguardando você
+                    </span>
+                  )}
+                </Link>
+              );
+            };
+
+            const ScoreGroup = ({ title, items, highlighted, flex, isLast }: {
+              title: string;
+              items: ScoreItemData[];
+              highlighted: boolean;
+              flex: number;
+              isLast: boolean;
+            }) => (
+              <div style={{
+                flex,
+                display: 'flex',
+                flexDirection: 'column',
+                borderRight: isLast ? undefined : '0.5px solid hsl(var(--border))',
+              }}>
+                <div style={{
+                  fontSize: 9, fontWeight: 600,
+                  color: highlighted ? 'hsl(213 94% 40%)' : 'hsl(var(--muted-foreground))',
+                  letterSpacing: '0.07em', textTransform: 'uppercase',
+                  padding: '8px 14px',
+                  background: highlighted ? 'hsl(213 97% 95%)' : 'hsl(var(--muted))',
+                  borderBottom: '0.5px solid hsl(var(--border))',
+                }}>
+                  {title}
+                </div>
+                <div style={{ display: 'flex', flex: 1 }}>
+                  {items.map((item, i) => (
+                    <div key={item.label} style={{
+                      flex: 1,
+                      borderRight: i < items.length - 1 ? '0.5px solid hsl(var(--border))' : undefined,
+                    }}>
+                      {highlighted ? (
+                        <ScoreItem item={item} isHighlighted={highlighted} />
+                      ) : (
+                        <Link
+                          to={item.to}
+                          style={{
+                            display: 'flex', flexDirection: 'column', gap: 4,
+                            padding: '10px 14px', textDecoration: 'none', color: 'inherit',
+                            transition: 'background 0.12s',
+                            height: '100%',
+                          }}
+                          className="hover:bg-muted/50"
+                        >
+                          <span style={{
+                            fontSize: 9.5, fontWeight: 500,
+                            color: 'hsl(var(--muted-foreground))',
+                            letterSpacing: '0.04em', textTransform: 'uppercase',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>
+                            {item.label}
+                          </span>
+                          <span style={{
+                            fontSize: 22, fontWeight: 600, lineHeight: 1,
+                            fontVariantNumeric: 'tabular-nums',
+                            color: item.value > 0
+                              ? (item.accent === 'rose' ? 'hsl(var(--destructive))'
+                                : item.accent === 'amber' ? 'hsl(var(--warning))'
+                                : 'hsl(var(--foreground))')
+                              : 'hsl(var(--muted-foreground))',
+                          }}>
+                            {item.value}
+                          </span>
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+
+            return (
+              <div style={{
+                background: 'hsl(var(--card))',
+                border: '0.5px solid hsl(var(--border))',
+                borderRadius: 10,
+                display: 'flex',
+                overflow: 'hidden',
+              }}>
+                {hasAcoes && (
+                  <ScoreGroup
+                    title="Ações — sua vez"
+                    items={acaoItems}
+                    highlighted={true}
+                    flex={Math.max(acaoItems.length, 2)}
+                    isLast={!hasTransito && !hasAlertas}
+                  />
+                )}
+                {hasTransito && (
+                  <ScoreGroup
+                    title="Em trânsito"
+                    items={transitoItems}
+                    highlighted={false}
+                    flex={Math.max(transitoItems.length, 1)}
+                    isLast={!hasAlertas}
+                  />
+                )}
+                {hasAlertas && (
+                  <ScoreGroup
+                    title="Alertas"
+                    items={alertaItems}
+                    highlighted={false}
+                    flex={Math.max(alertaItems.length, 1)}
+                    isLast={true}
+                  />
+                )}
+              </div>
+            );
+          })()
         )}
       </section>
 
