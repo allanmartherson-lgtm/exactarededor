@@ -1581,7 +1581,7 @@ function KpiCard({
   active,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   tone: "success" | "warning" | "destructive" | "info";
   label: string;
   value: string;
