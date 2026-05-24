@@ -106,7 +106,7 @@ export const Breadcrumbs = () => {
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-4">
+    <nav aria-label="Breadcrumb">
       <ol className="flex items-center flex-wrap gap-1 text-[12.5px] text-muted-foreground">
         {crumbs.map((c, i) => {
           const isLast = i === crumbs.length - 1;
