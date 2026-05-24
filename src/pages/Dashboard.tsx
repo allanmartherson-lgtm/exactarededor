@@ -108,23 +108,6 @@ interface PaymentRow {
   payment_type?: string | null;
 }
 
-type OwnerRole = "analista" | "validador" | "diretor" | "—";
-const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
-  switch (status) {
-    case "rascunho":
-    case "em_analise_ia":
-    case "revisao_analista":
-    case "devolvido_analista":
-    case "aprovado_em_revisao":
-      return "analista";
-    case "aguardando_validacao":
-      return "validador";
-    case "aguardando_aprovacao":
-      return "diretor";
-    default:
-      return "—";
-  }
-};
 const ownerLabel: Record<OwnerRole, string> = {
   analista: "Analista",
   validador: "Validador",
@@ -132,51 +115,6 @@ const ownerLabel: Record<OwnerRole, string> = {
   "—": "—",
 };
 
-interface DashboardCounts {
-  mineAnalista: number;
-  mineAnalistaCompanies: number;
-  mineValidador: number;
-  mineValidadorCompanies: number;
-  mineDiretor: number;
-  mineDiretorCompanies: number;
-  mineInvoicesDivergentes: number;
-  mineInvoicesQuestionadas: number;
-  mineRessalvas: number;
-  teamAnalise: number;
-  teamValidacao: number;
-  teamAprovacao: number;
-  teamInvoicesDivergentes: number;
-  pipeAnaliseIA: number;
-  pipeValidacao: number;
-  pipeAprovacao: number;
-  pipeAguardandoEnvio: number;
-  pipeNFSolicitada: number;
-  pipeNFRecebida: number;
-  pipeNFConciliada: number;
-  pipePago: number;
-  pipeDivergente: number;
-  attDevolvidoAnalista: number;
-  attRessalvas: number;
-  attNFQuestionada: number;
-  attNFDivergente: number;
-  attRejeitados: number;
-  /** Acompanhamento do diretor: lotes já aprovados aguardando revisão final do analista. Somente leitura. */
-  diretorAprovadoEmRevisao: number;
-}
-
-const initialCounts: DashboardCounts = {
-  mineAnalista: 0, mineAnalistaCompanies: 0,
-  mineValidador: 0, mineValidadorCompanies: 0,
-  mineDiretor: 0, mineDiretorCompanies: 0,
-  mineInvoicesDivergentes: 0, mineInvoicesQuestionadas: 0, mineRessalvas: 0,
-  teamAnalise: 0, teamValidacao: 0, teamAprovacao: 0, teamInvoicesDivergentes: 0,
-  pipeAnaliseIA: 0, pipeValidacao: 0, pipeAprovacao: 0,
-  pipeAguardandoEnvio: 0, pipeNFSolicitada: 0, pipeNFRecebida: 0, pipeNFConciliada: 0, pipePago: 0,
-  pipeDivergente: 0,
-  attDevolvidoAnalista: 0, attRessalvas: 0, attNFQuestionada: 0,
-  attNFDivergente: 0, attRejeitados: 0,
-  diretorAprovadoEmRevisao: 0,
-};
 
 // ===== util: formato compacto de duração =====
 const formatShortDuration = (ms: number) => {
