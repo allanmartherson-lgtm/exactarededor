@@ -1278,7 +1278,7 @@ export function PaymentConciliationModal({
               <Card>
                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
                       Risco pagamento a mais
                     </p>
                     <p className="text-lg font-bold text-destructive mt-1">
@@ -1286,7 +1286,7 @@ export function PaymentConciliationModal({
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
                       Risco pagamento a menos
                     </p>
                     <p className="text-lg font-bold text-success mt-1">
@@ -1294,7 +1294,7 @@ export function PaymentConciliationModal({
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">
                       Divergência de valores
                     </p>
                     <p className="text-lg font-bold text-warning-foreground mt-1">
@@ -1609,7 +1609,7 @@ function KpiCard({
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wider">{label}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">{label}</p>
         <p className="text-lg font-bold text-foreground">{value}</p>
         {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       </div>
