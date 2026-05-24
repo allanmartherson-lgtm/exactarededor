@@ -80,6 +80,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "accent-blue": "hsl(var(--accent-blue))",
+        "accent-blue-soft": "hsl(var(--accent-blue-soft))",
+        "success-text": "hsl(var(--success-text))",
+        "warning-text": "hsl(var(--warning-text))",
+        "info-text": "hsl(var(--info-text))",
+        "destructive-text": "hsl(var(--destructive-text))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
