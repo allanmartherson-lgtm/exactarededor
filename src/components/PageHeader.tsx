@@ -51,10 +51,13 @@ export const PageHeader = ({
     <div
       className={
         sticky
-          ? "border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-6 py-3 sticky z-30 shadow-sm"
+          ? "border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 px-6 py-3 sticky z-30"
           : "border-b border-border bg-card px-6 py-4"
       }
-      style={sticky ? { top: stickyOffset } : undefined}
+      style={{
+        marginBottom: 16,
+        ...(sticky ? { top: stickyOffset } : {}),
+      }}
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3">
@@ -79,9 +82,28 @@ export const PageHeader = ({
             </span>
           )}
           <div>
-            <h1 className={sticky ? "text-lg font-semibold tracking-tight" : "text-xl font-semibold tracking-tight"}>{title}</h1>
+            <h1
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: "hsl(var(--foreground))",
+                letterSpacing: "-0.01em",
+                lineHeight: 1.3,
+              }}
+            >
+              {title}
+            </h1>
             {description && (
-              <p className={sticky ? "text-xs text-muted-foreground mt-0.5" : "text-sm text-muted-foreground mt-1"}>{description}</p>
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "hsl(var(--muted-foreground))",
+                  marginTop: 2,
+                  lineHeight: 1.4,
+                }}
+              >
+                {description}
+              </p>
             )}
           </div>
         </div>

@@ -38,8 +38,8 @@ export const SurfaceCard = ({
     className={className}
     style={{
       background: "hsl(var(--card))",
-      border: "1px solid hsl(var(--border))",
-      borderRadius: 12,
+      border: "0.5px solid hsl(var(--border))",
+      borderRadius: 8,
       ...style,
     }}
   >

@@ -1,17 +1,20 @@
 import { StatTile, StatTileSkeleton, type StatTileProps } from "@/components/ui/stat-tile";
-import { TONE_CLASSES } from "@/lib/status";
 
 export type StatCardTone = "info" | "warning" | "success";
 
-const toneBg: Record<StatCardTone, string> = {
-  info: "bg-info-soft text-info",
-  warning: "bg-warning-soft text-warning-foreground",
-  success: "bg-success-soft text-success",
+// Bubble tokens já definidos em index.css (--bubble-*-bg / --bubble-*-fg).
+const toneBubble: Record<StatCardTone, { bg: string; fg: string }> = {
+  info: { bg: "hsl(var(--bubble-blue-bg))", fg: "hsl(var(--bubble-blue-fg))" },
+  warning: { bg: "hsl(var(--bubble-yellow-bg))", fg: "hsl(var(--bubble-yellow-fg))" },
+  success: { bg: "hsl(var(--bubble-green-bg))", fg: "hsl(var(--bubble-green-fg))" },
 };
 
 // Idle (zero-state, non-highlighted) icon styling — silenced grayscale so the
 // active card naturally draws the eye. Apple-like: only what matters has color.
-const idleBg = "bg-muted text-[hsl(var(--text-tertiary))]";
+const idleBubble = {
+  bg: "hsl(var(--muted))",
+  fg: "hsl(var(--text-tertiary))",
+};
 
 export interface StatCardProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -26,19 +29,27 @@ export interface StatCardProps {
 
 /**
  * StatCard — variante de domínio do StatTile usada no Dashboard.
- * Apple-like aesthetic: cards inativos (valor 0 e não destacados) usam o
- * ícone em tom muted para reduzir ruído visual; o destacado mantém a
- * cor de tom para guiar o olho.
+ * Visual premium: bubble 32×32 com border-radius 8, número tabular 22px/600,
+ * sem shadow grande, border 0.5px hairline (herdado do Card base).
  */
 export const StatCard = ({ icon: Icon, label, value, tone, hint, mine, to }: StatCardProps) => {
   const isIdle = value === 0 && !mine;
+  const colors = isIdle ? idleBubble : toneBubble[tone];
   const iconNode = (
     <div
-      className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center ${
-        isIdle ? idleBg : toneBg[tone]
-      }`}
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: colors.bg,
+        color: colors.fg,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
     >
-      <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+      <Icon className="h-4 w-4" />
     </div>
   );
 

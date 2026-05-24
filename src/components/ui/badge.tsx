@@ -6,32 +6,28 @@ import { cn } from "@/lib/utils";
 /**
  * Badge — padrão único de chip/pill/indicador de status.
  *
- * Regras (mantidas em todos os temas):
- *  - `rounded-full` (formato pill consistente)
- *  - sombra suave `shadow-[var(--shadow-soft)]`
- *  - tipografia tabular para números, peso médio
- *  - variantes de status usam tokens `-soft` (fundo) + cor da família
- *    correspondente (texto), garantindo legibilidade em light/dark
- *    sem hardcode de cores.
+ * Visual premium: pill (rounded-full), sem border, padding 2px 8px,
+ * font-size 10.5px / weight 500. Variantes de status usam pares
+ * `--*-soft` (fundo) + `--*-text` (texto) para manter contraste em
+ * light/dark sem hardcode.
  */
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 text-xs font-semibold leading-none tracking-tight tabular-nums whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+  "inline-flex items-center gap-1 rounded-full border-0 px-2 py-[2px] text-[10.5px] font-medium leading-[1.6] tracking-tight tabular-nums whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        default: "bg-secondary text-secondary-foreground",
+        secondary: "bg-secondary text-secondary-foreground",
         destructive:
-          "border-transparent bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive-soft))]/80",
-        outline: "border-border text-foreground bg-background",
+          "bg-[hsl(var(--destructive-soft))] text-[hsl(var(--destructive-text))]",
+        outline: "border border-border text-foreground bg-background",
         success:
-          "border-transparent bg-[hsl(var(--success-soft))] text-[hsl(var(--success))] hover:bg-[hsl(var(--success-soft))]/80",
+          "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-text))]",
         warning:
-          "border-transparent bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning-soft))]/80",
+          "bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning-text))]",
         info:
-          "border-transparent bg-[hsl(var(--info-soft))] text-[hsl(var(--info))] hover:bg-[hsl(var(--info-soft))]/80",
-        muted:
-          "border-transparent bg-muted text-muted-foreground hover:bg-muted/80",
+          "bg-[hsl(var(--info-soft))] text-[hsl(var(--info-text))]",
+        muted: "bg-muted text-muted-foreground",
       },
     },
     defaultVariants: {
