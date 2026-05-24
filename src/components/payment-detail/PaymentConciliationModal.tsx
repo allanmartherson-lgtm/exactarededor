@@ -1507,7 +1507,7 @@ export function PaymentConciliationModal({
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Divergência de valores
                     </p>
-                    <p className="text-lg font-bold text-warning-foreground mt-1">
+                    <p className="text-lg font-bold text-warning mt-1">
                       {formatCurrency(Number(run.divergencia_valor))}
                     </p>
                   </div>
