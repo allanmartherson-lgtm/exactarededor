@@ -165,10 +165,10 @@ All colors MUST be HSL.
     --success-soft: 142 30% 16%;
     --success-text: 142 60% 62%;
 
-    --warning: 38 80% 58%;
-    --warning-foreground: 30 80% 10%;
-    --warning-soft: 35 40% 18%;
-    --warning-text: 38 80% 65%;
+    --warning: 40 92% 62%;
+    --warning-foreground: 30 80% 8%;
+    --warning-soft: 35 55% 22%;
+    --warning-text: 42 95% 78%;
 
     --info: 213 85% 65%;
     --info-foreground: 0 0% 100%;
