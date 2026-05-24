@@ -1239,6 +1239,7 @@ export function PaymentConciliationModal({
                 />
                 <KpiCard
                   icon={AlertTriangle}
+                  iconClassName="text-slate-200"
                   tone="warning"
                   label="Valor divergente"
                   value={`${run.valor_divergente} itens`}
@@ -1606,7 +1607,7 @@ function KpiCard({
       )}
     >
       <div className={cn("p-2 rounded-full bg-background/60")}>
-        <Icon className="h-5 w-5" />
+        <Icon className={cn("h-5 w-5", iconClassName)} />
       </div>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">{label}</p>
