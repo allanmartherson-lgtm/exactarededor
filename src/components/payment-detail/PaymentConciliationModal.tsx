@@ -616,8 +616,6 @@ export function PaymentConciliationModal({
           procedure_code: code ? String(code) : null,
           procedure_name: procName ? String(procName) : null,
           doctor_name: doctor ? String(doctor) : null,
-          role: getCell(row, "role") ? String(getCell(row, "role")) : null,
-          quantity: getCell(row, "quantity") ? Number(getCell(row, "quantity")) || null : null,
           procedure_date: dateStr,
           valor_hospital: valHosp,
           valor_medpay: 0,
