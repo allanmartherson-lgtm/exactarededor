@@ -1239,7 +1239,6 @@ export function PaymentConciliationModal({
                 />
                 <KpiCard
                   icon={AlertTriangle}
-                  iconClassName="text-slate-200"
                   tone="warning"
                   label="Valor divergente"
                   value={`${run.valor_divergente} itens`}
@@ -1581,7 +1580,6 @@ function KpiCard({
   hint,
   active,
   onClick,
-  iconClassName,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   tone: "success" | "warning" | "destructive" | "info";
@@ -1590,7 +1588,6 @@ function KpiCard({
   hint?: string;
   active?: boolean;
   onClick?: () => void;
-  iconClassName?: string;
 }) {
   const toneClasses: Record<string, string> = {
     success: "border-success/40 bg-success/10 text-success",
@@ -1609,7 +1606,7 @@ function KpiCard({
       )}
     >
       <div className={cn("p-2 rounded-full bg-background/60")}>
-        <Icon className={cn("h-5 w-5", iconClassName)} />
+        <Icon className="h-5 w-5" />
       </div>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
