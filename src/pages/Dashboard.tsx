@@ -11,6 +11,13 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency, formatDate, formatCompetence, type PaymentStatus } from "@/lib/status";
+import {
+  computeDashboardCounts,
+  initialDashboardCounts,
+  ownerRoleFor,
+  type DashboardCounts,
+  type OwnerRole,
+} from "@/lib/dashboardCounts";
 import { cn } from "@/lib/utils";
 import { evaluateSla, type SlaSetting, type CompanySlaOverride, type SlaLevel } from "@/lib/sla";
 import { TERMINAL_STATUSES } from "@/lib/paymentFlow";
