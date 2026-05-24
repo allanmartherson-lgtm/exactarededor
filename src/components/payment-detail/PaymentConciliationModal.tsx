@@ -120,7 +120,7 @@ const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   conciliado: "bg-success/10 text-success border-success/30",
   valor_divergente: "bg-warning/10 text-warning-foreground border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
-  so_medpay: "bg-info/10 text-info border-info/30",
+  so_medpay: "bg-primary/10 text-primary border-primary/30",
 };
 
 export function PaymentConciliationModal({
@@ -959,7 +959,7 @@ export function PaymentConciliationModal({
                         className={cn(
                           "w-full text-left p-4 rounded-lg border transition-all",
                           isSelected
-                            ? "border-[#9A6B3A] bg-[#fdf5ec] shadow-sm"
+                            ? "border-primary/60 bg-accent/60 shadow-sm"
                             : "border-border bg-card hover:bg-muted/40"
                         )}
                       >
@@ -1006,7 +1006,7 @@ export function PaymentConciliationModal({
                           key={sector}
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors",
-                            checked ? "border-[#9A6B3A] bg-[#fdf5ec]" : "border-border bg-card hover:bg-muted/40"
+                            checked ? "border-primary/60 bg-accent/60" : "border-border bg-card hover:bg-muted/40"
                           )}
                         >
                           <input
@@ -1041,6 +1041,15 @@ export function PaymentConciliationModal({
               )}
 
               {selectedBase && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                  <span>
+                    <strong className="text-foreground">Lógica de cruzamento:</strong> o sistema cruza por <strong className="text-foreground">Nº de atendimento + código TUSS</strong>. Itens sem esses dois campos na planilha hospitalar aparecerão como "Só no hospital". Verifique se a coluna de atendimento e código TUSS estão preenchidas na base importada.
+                  </span>
+                </div>
+              )}
+
+              {selectedBase && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button
                     disabled={!selectedBase}
@@ -1055,8 +1064,8 @@ export function PaymentConciliationModal({
 
           {!loading && step === "mapping" && (
             <div className="space-y-5">
-              <div className="flex items-center gap-3 p-4 bg-info-soft/40 border border-info/20 rounded-lg">
-                <div className="p-2 rounded-full bg-info/10 text-info shrink-0">
+              <div className="flex items-center gap-3 p-4 bg-muted/40 border border-border rounded-lg">
+                <div className="p-2 rounded-full bg-primary/10 text-primary shrink-0">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div>
@@ -1381,7 +1390,7 @@ export function PaymentConciliationModal({
                                 </span>
                               )}
                               {counts.so_medpay > 0 && (
-                                <span className="text-info ml-2">
+                                <span className="text-primary ml-2">
                                   · {counts.so_medpay} só no MedPay
                                 </span>
                               )}
@@ -1472,11 +1481,11 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={7} className="bg-info/5 px-4 py-3">
+                                          <TableCell colSpan={7} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
-                                              <Lightbulb className="h-4 w-4 text-info shrink-0 mt-0.5" />
+                                              <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
-                                                <p className="text-[11px] font-semibold uppercase tracking-wider text-info mb-1">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                                   Análise IA
                                                 </p>
                                                 <p className="text-[12px]">{it.ia_obs}</p>
@@ -1581,10 +1590,10 @@ function KpiCard({
   onClick?: () => void;
 }) {
   const toneClasses: Record<string, string> = {
-    success: "border-success/30 bg-success/5 text-success",
-    warning: "border-warning/30 bg-warning/5 text-warning-foreground",
-    destructive: "border-destructive/30 bg-destructive/5 text-destructive",
-    info: "border-info/30 bg-info/5 text-info",
+    success: "border-success/40 bg-success/10 text-success",
+    warning: "border-warning/40 bg-warning/10 text-warning-foreground",
+    destructive: "border-destructive/40 bg-destructive/10 text-destructive",
+    info: "border-primary/40 bg-primary/10 text-primary",
   };
   return (
     <button
