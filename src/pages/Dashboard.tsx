@@ -888,7 +888,7 @@ const Dashboard = () => {
         if (isValidadorRole && hasGroupInValidacao) {
           companies.forEach(id => mineValidadorCompaniesSet.add(id));
         }
-        if (isDiretorRole && (p.status === "aguardando_aprovacao" || hasGroupInAprovacao)) {
+        if (p.status === "aguardando_aprovacao" || hasGroupInAprovacao) {
           companies.forEach(id => mineDiretorCompaniesSet.add(id));
         }
       }
