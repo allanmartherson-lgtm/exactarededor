@@ -16,6 +16,33 @@ type PaymentRow = {
   reference: string | null;
   status: string;
 };
+type PaymentReferenceJoin = { reference: string | null } | { reference: string | null }[] | null;
+type PendingCompanyQuestionRow = {
+  id: string;
+  payment_id: string;
+  message: string | null;
+  author_name: string | null;
+  payment?: PaymentReferenceJoin;
+};
+type PaymentObservationQuestionRow = {
+  id: string;
+  payment_id: string;
+  message: string | null;
+  author_type: string | null;
+  is_question: boolean;
+  resolved_at: string | null;
+};
+type InvoiceQuestionRow = {
+  id: string;
+  payment_id: string;
+  message: string | null;
+  author_type: string | null;
+};
+
+const paymentReference = (payment?: PaymentReferenceJoin) => {
+  const row = Array.isArray(payment) ? payment[0] : payment;
+  return row?.reference ?? null;
+};
 
 /**
  * Notificações em tempo real para a fila do analista.
@@ -95,8 +122,9 @@ export function useQueueNotifications() {
         .order("created_at", { ascending: false })
         .limit(20);
 
-      ((data ?? []) as any[]).reverse().forEach((q) => {
-        const label = q.payment?.reference ? `Lote ${q.payment.reference}` : "Lote";
+      ((data ?? []) as PendingCompanyQuestionRow[]).reverse().forEach((q) => {
+        const ref = paymentReference(q.payment);
+        const label = ref ? `Lote ${ref}` : "Lote";
         const author = q.author_name ? `${q.author_name} · ` : "";
         const preview = (q.message ?? "").toString().slice(0, 120);
         fire(`inv-question:${q.id}`, {
