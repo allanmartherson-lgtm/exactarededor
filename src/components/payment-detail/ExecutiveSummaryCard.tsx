@@ -1,3 +1,8 @@
+// NOTA: O prompt de geração do resumo executivo é montado server-side em
+// `supabase/functions/summarize-payment/index.ts` (constante `generalPrompt`).
+// Ajustes nas INSTRUÇÕES PARA O RESUMO devem ser feitos lá. Foco: riscos
+// FINANCEIROS (divergências, regras sem match, outliers). Concentração de
+// médicos numa empresa NÃO é risco — em hospitais isso é normal.
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
