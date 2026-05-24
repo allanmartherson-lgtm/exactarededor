@@ -1490,13 +1490,13 @@ const Dashboard = () => {
             <SectionLabel>Sua fila de validação</SectionLabel>
             <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 10, display: "flex", overflow: "hidden" }}>
               <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(213 94% 40%)", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(213 97% 95%)", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
+                <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--accent-foreground))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--accent))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
                   Para validar
                 </div>
                 <Link to="/pagamentos?status=aguardando_validacao" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
                   <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes aguardando</span>
                   <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--sidebar-primary))", fontVariantNumeric: "tabular-nums" }}>{counts.mineValidador}</span>
-                  <span style={{ fontSize: 9, fontWeight: 500, color: "hsl(213 94% 40%)" }}>↑ ação necessária</span>
+                  <span style={{ fontSize: 9, fontWeight: 500, color: "hsl(var(--accent-foreground))" }}>↑ ação necessária</span>
                 </Link>
               </div>
               {slaTotals.vencido > 0 && (
@@ -2086,7 +2086,7 @@ const Dashboard = () => {
                   style={{
                     display: 'flex', flexDirection: 'column', gap: 4,
                     padding: '10px 14px', textDecoration: 'none', color: 'inherit',
-                    background: isHighlighted && !isZero ? 'hsl(213 97% 96%)' : 'transparent',
+                    background: isHighlighted && !isZero ? 'hsl(var(--accent))' : 'transparent',
                     transition: 'background 0.12s',
                     height: '100%',
                   }}
@@ -2108,7 +2108,7 @@ const Dashboard = () => {
                     {item.value}
                   </span>
                   {isHighlighted && !isZero && (
-                    <span style={{ fontSize: 9, fontWeight: 500, color: 'hsl(213 94% 40%)' }}>
+                    <span style={{ fontSize: 9, fontWeight: 500, color: 'hsl(var(--accent-foreground))' }}>
                       ↑ aguardando você
                     </span>
                   )}
@@ -2131,10 +2131,10 @@ const Dashboard = () => {
               }}>
                 <div style={{
                   fontSize: 9, fontWeight: 600,
-                  color: highlighted ? 'hsl(213 94% 40%)' : 'hsl(var(--muted-foreground))',
+                  color: highlighted ? 'hsl(var(--accent-foreground))' : 'hsl(var(--muted-foreground))',
                   letterSpacing: '0.07em', textTransform: 'uppercase',
                   padding: '8px 14px',
-                  background: highlighted ? 'hsl(213 97% 95%)' : 'hsl(var(--muted))',
+                  background: highlighted ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
                   borderBottom: '0.5px solid hsl(var(--border))',
                   textAlign: 'center' as const,
                 }}>
