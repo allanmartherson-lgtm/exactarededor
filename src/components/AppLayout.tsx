@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
 import {
-  LayoutDashboard,
   ShieldCheck,
   Sun,
   Moon,
@@ -39,6 +38,8 @@ import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
 export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
+const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(215 25% 27%), hsl(222 47% 11%))";
+
 function getInitials(email?: string | null) {
   if (!email) return "AA";
   const name = email.split("@")[0].replace(/[._-]+/g, " ").trim();
@@ -54,15 +55,34 @@ const Logo = () => (
     className="flex items-center gap-2.5 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
   >
     <div
-      className="flex items-center justify-center flex-shrink-0 bg-primary"
-      style={{ width: 30, height: 30, borderRadius: 8 }}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 7,
+        background: "hsl(var(--foreground))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
     >
-      <ShieldCheck className="h-4 w-4 text-primary-foreground" />
+      <ShieldCheck className="h-3.5 w-3.5 text-primary-foreground" />
     </div>
     <div className="min-w-0 leading-tight">
-      <p className="font-medium text-[13px] text-foreground leading-none">MedPay</p>
-      <p className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5 leading-none">
-        Approval Flow
+      <p style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", lineHeight: 1 }}>
+        MedPay
+      </p>
+      <p
+        style={{
+          fontSize: 9,
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          color: "hsl(var(--muted-foreground))",
+          marginTop: 3,
+          lineHeight: 1,
+        }}
+      >
+        Approval
       </p>
     </div>
   </NavLink>
@@ -78,7 +98,7 @@ const LayoutToggle = () => {
           variant="ghost"
           size="icon"
           onClick={toggleLayout}
-          className="h-9 w-9 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
           aria-label="Alternar layout"
         >
           <NextIcon className="h-4 w-4" />
@@ -96,7 +116,7 @@ const ThemeToggle = () => {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      className="h-9 w-9 text-muted-foreground hover:text-foreground"
+      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
       aria-label={theme === "dark" ? "Mudar para modo claro" : "Mudar para modo escuro"}
     >
       {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -131,7 +151,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
   return (
     <nav
       ref={containerRef}
-      className="flex-1 min-w-0 flex items-center gap-1"
+      className="flex-1 min-w-0 flex items-center gap-0.5"
       aria-label="Navegação principal"
     >
       {items.map((item) => {
@@ -143,9 +163,9 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )
               }
@@ -169,9 +189,9 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
@@ -191,13 +211,13 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
                 role="menu"
                 className="absolute left-0 top-full mt-1 animate-fade-in"
                 style={{
-                  minWidth: 200,
+                  minWidth: 192,
                   zIndex: 200,
                   background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 10,
-                  boxShadow: "0 8px 24px hsl(var(--foreground) / 0.08)",
-                  padding: 6,
+                  border: "0.5px solid hsl(var(--border))",
+                  borderRadius: 8,
+                  boxShadow: "var(--shadow-elevated)",
+                  padding: 4,
                 }}
               >
                 {item.children.map((c) => {
@@ -212,36 +232,23 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
                       role="menuitem"
                       onClick={() => setOpenKey(null)}
                       className={cn(
-                        "flex items-center gap-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring relative",
-                        childActive
-                          ? "font-medium"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        "flex items-center gap-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        !childActive && "text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                       style={{
-                        padding: "8px 12px",
-                        paddingLeft: childActive ? 18 : 12,
-                        borderRadius: 7,
-                        fontSize: 13,
+                        padding: "7px 10px",
+                        borderRadius: 6,
+                        fontSize: 12.5,
+                        fontWeight: childActive ? 500 : 400,
                         background: childActive ? "hsl(var(--accent))" : undefined,
                         color: childActive ? "hsl(var(--accent-foreground))" : undefined,
                       }}
                     >
-                      {childActive && (
-                        <span
-                          aria-hidden
-                          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full"
-                          style={{
-                            width: 5,
-                            height: 5,
-                            background: "hsl(var(--primary))",
-                          }}
-                        />
-                      )}
                       <c.icon
-                        size={16}
+                        size={15}
                         strokeWidth={1.75}
                         className="flex-shrink-0"
-                        style={{ color: childActive ? "hsl(var(--accent-foreground))" : "hsl(var(--muted-foreground))" }}
+                        style={{ color: "inherit" }}
                       />
                       <span className="truncate">{c.label}</span>
                     </NavLink>
@@ -256,6 +263,22 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
   );
 };
 
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <p
+    style={{
+      fontSize: 9.5,
+      fontWeight: 500,
+      color: "hsl(var(--muted-foreground))",
+      letterSpacing: "0.07em",
+      textTransform: "uppercase",
+      padding: "12px 12px 4px",
+      lineHeight: 1,
+    }}
+  >
+    {children}
+  </p>
+);
+
 export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   // Notificações realtime de fila/devolução para o usuário logado.
@@ -269,10 +292,11 @@ export const AppLayout = () => {
   const canRetryInvoices = roles.includes("analista") || roles.includes("admin");
   const visibleTopNav = filterNav(NAV_ITEMS, roles);
   // Sidebar: flat list of ALL leaves in fixed order, filtered only by leaf-level roles.
-  // Groups (Financeiro / Configurações / Acesso) are ignored here — sidebar never groups.
   const visibleSideNav = flattenNav(NAV_ITEMS).filter((c) =>
     c.roles.some((r) => roles.includes(r)),
   );
+  // Grouped variant for sidebar with section labels (preserves NAV_ITEMS structure).
+  const groupedSideNav = filterNav(NAV_ITEMS, roles);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Detect mobile (<768px) to force topbar layout on small screens regardless of saved preference.
@@ -289,6 +313,71 @@ export const AppLayout = () => {
   useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
   const effectiveLayout = isMobile ? "top" : layout;
+
+  const renderSideLink = (
+    to: string,
+    label: string,
+    Icon: NavItem extends infer T ? T extends { icon: infer I } ? I : never : never,
+    onClick?: () => void,
+  ) => {
+    const isActive =
+      to === "/"
+        ? location.pathname === "/"
+        : location.pathname === to || location.pathname.startsWith(to + "/");
+    const linkStyle: React.CSSProperties = {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+      padding: "8px 12px",
+      paddingLeft: isActive ? 9 : 12,
+      borderRadius: 6,
+      fontSize: 13,
+      lineHeight: 1.2,
+      cursor: "pointer",
+      textDecoration: "none",
+      whiteSpace: "nowrap",
+      transition: "all 0.12s ease",
+      borderLeft: isActive
+        ? "3px solid hsl(var(--sidebar-primary))"
+        : "3px solid transparent",
+      background: isActive ? "hsl(var(--sidebar-accent))" : "transparent",
+      color: isActive
+        ? "hsl(var(--sidebar-accent-foreground))"
+        : "hsl(var(--sidebar-muted-foreground))",
+      fontWeight: isActive ? 500 : 400,
+    };
+    const IconCmp = Icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; "aria-hidden"?: boolean }>;
+    return (
+      <NavLink
+        key={to}
+        to={to}
+        end={to === "/"}
+        onClick={onClick}
+        aria-label={label}
+        className="outline-none focus-visible:ring-2 focus-visible:ring-ring sidebar-nav-link"
+        style={linkStyle}
+      >
+        <IconCmp
+          size={17}
+          strokeWidth={1.75}
+          aria-hidden
+          style={{ width: 17, height: 17, flexShrink: 0, color: "inherit" }}
+        />
+        <span
+          style={{
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
+            color: "inherit",
+          }}
+        >
+          {label}
+        </span>
+      </NavLink>
+    );
+  };
 
   const MobileNavDrawer = (
     <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -332,7 +421,21 @@ export const AppLayout = () => {
           })}
         </nav>
         <div className="border-t border-border p-3 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-accent text-accent-foreground text-[11px] font-semibold flex items-center justify-center flex-shrink-0">
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: AVATAR_GRADIENT,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "#fff",
+              flexShrink: 0,
+            }}
+          >
             {initials}
           </div>
           <div className="min-w-0 flex-1">
@@ -360,8 +463,12 @@ export const AppLayout = () => {
       <div className="min-h-screen bg-background flex flex-col">
         {canRetryInvoices && <InvoiceRetryMonitor />}
         <header
-          className="sticky top-0 z-40 bg-card border-b border-border shadow-soft"
-          style={{ height: 56 }}
+          className="sticky top-0 z-40"
+          style={{
+            height: 48,
+            background: "hsl(var(--card))",
+            borderBottom: "0.5px solid hsl(var(--border))",
+          }}
         >
           <div className="h-full max-w-[1600px] mx-auto px-3 md:px-5 flex items-center gap-2 md:gap-5">
             {MobileNavDrawer}
@@ -371,12 +478,17 @@ export const AppLayout = () => {
             </div>
             <div className="flex-1 md:hidden" />
 
-            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 md:gap-1.5 flex-shrink-0">
               {canCreate && (
                 <Button
                   onClick={() => navigate("/pagamentos/novo")}
-                  className="h-9 w-9 md:w-auto md:px-3 text-[13px] font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                  style={{ borderRadius: 7 }}
+                  className="h-8 w-8 md:w-auto md:px-3 text-[12px] font-medium gap-1.5"
+                  style={{
+                    borderRadius: 6,
+                    background: "hsl(var(--foreground))",
+                    color: "hsl(var(--primary-foreground))",
+                    border: "none",
+                  }}
                   aria-label="Nova base"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -384,7 +496,7 @@ export const AppLayout = () => {
                 </Button>
               )}
               <NotificationBell />
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
                 <LayoutToggle />
               </div>
@@ -392,7 +504,22 @@ export const AppLayout = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-[12px] font-medium flex items-center justify-center hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      background: AVATAR_GRADIENT,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "none",
+                      cursor: "pointer",
+                      outline: "none",
+                    }}
+                    className="focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Menu do usuário"
                   >
                     {initials}
@@ -442,8 +569,8 @@ export const AppLayout = () => {
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{
           width: 240,
-          background: "hsl(var(--card))",
-          borderRight: "1px solid hsl(var(--border))",
+          background: "hsl(var(--sidebar-background))",
+          borderRight: "1px solid hsl(var(--sidebar-border))",
           zIndex: 40,
         }}
         aria-label="Navegação lateral"
@@ -452,79 +579,30 @@ export const AppLayout = () => {
         <div
           className="flex items-center"
           style={{
-            height: 56,
+            height: 48,
             padding: "0 16px",
-            borderBottom: "1px solid hsl(var(--border))",
+            borderBottom: "1px solid hsl(var(--sidebar-border))",
           }}
         >
           <Logo />
         </div>
 
-        {/* Nav list */}
+        {/* Nav list (grouped with section labels) */}
         <nav
           className="flex-1 overflow-y-auto"
-          style={{ padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}
+          style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 1 }}
         >
-          {visibleSideNav.map((item) => {
-            const isActive =
-              item.to === "/"
-                ? location.pathname === "/"
-                : location.pathname === item.to ||
-                  location.pathname.startsWith(item.to + "/");
-            const linkStyle: React.CSSProperties = {
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 11,
-              padding: "10px 12px",
-              paddingLeft: isActive ? 9 : 12,
-              borderRadius: 8,
-              fontSize: 13.5,
-              lineHeight: 1.2,
-              cursor: "pointer",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              transition: "all 0.12s ease",
-              borderLeft: isActive
-                ? "3px solid hsl(var(--primary))"
-                : "3px solid transparent",
-              background: isActive ? "hsl(var(--accent))" : "transparent",
-              color: isActive
-                ? "hsl(var(--accent-foreground))"
-                : "hsl(var(--secondary-foreground))",
-              fontWeight: isActive ? 500 : 400,
-            };
+          {groupedSideNav.map((item, idx) => {
+            if (!isGroup(item)) {
+              return renderSideLink(item.to, item.label, item.icon as never);
+            }
             return (
-            <Tooltip key={item.to}>
-              <TooltipTrigger asChild>
-                <NavLink
-                  to={item.to}
-                  end={item.to === "/"}
-                  aria-label={item.label}
-                  className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  style={linkStyle}
-                >
-                  <item.icon
-                    size={18}
-                    strokeWidth={1.75}
-                    aria-hidden
-                    style={{ width: 18, height: 18, flexShrink: 0, color: "inherit" }}
-                  />
-                  <span
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      minWidth: 0,
-                      color: "inherit",
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                </NavLink>
-              </TooltipTrigger>
-              <TooltipContent side="right">{item.label}</TooltipContent>
-            </Tooltip>
+              <div key={item.label} style={{ marginTop: idx === 0 ? 0 : 6 }}>
+                <SectionLabel>{item.label}</SectionLabel>
+                {item.children.map((c) =>
+                  renderSideLink(c.to, c.label, c.icon as never),
+                )}
+              </div>
             );
           })}
         </nav>
@@ -534,33 +612,57 @@ export const AppLayout = () => {
           className="flex flex-col gap-2"
           style={{
             padding: 12,
-            borderTop: "1px solid hsl(var(--border))",
+            borderTop: "1px solid hsl(var(--sidebar-border))",
           }}
         >
           <div className="flex items-center gap-2 min-w-0">
             <div
-              className="h-8 w-8 rounded-full bg-accent text-accent-foreground text-[11px] font-semibold flex items-center justify-center flex-shrink-0"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: AVATAR_GRADIENT,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                fontWeight: 600,
+                color: "#fff",
+                flexShrink: 0,
+              }}
             >
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-medium truncate text-foreground">{user?.email}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  color: "hsl(var(--foreground))",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {user?.email}
+              </p>
+              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>
                 {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
               </p>
             </div>
-          </div>
-          <div className="flex items-center justify-between gap-1">
-            <ThemeToggle />
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={handleSignOut}
-              className="text-[12px] h-9 text-muted-foreground hover:text-foreground gap-1.5"
+              aria-label="Sair"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sair
             </Button>
+          </div>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <LayoutToggle />
           </div>
         </div>
       </aside>
@@ -571,28 +673,44 @@ export const AppLayout = () => {
       >
         {/* Slim top bar */}
         <header
-          className="sticky top-0 z-30 bg-card border-b border-border"
-          style={{ height: 56 }}
+          className="sticky top-0 z-30"
+          style={{
+            height: 48,
+            background: "hsl(var(--card))",
+            borderBottom: "1px solid hsl(var(--border))",
+          }}
         >
-          <div className="h-full flex items-center justify-end gap-2" style={{ padding: "0 32px" }}>
-            {canCreate && (
-              <Button
-                onClick={() => navigate("/pagamentos/novo")}
-                className="h-9 px-3 text-[13px] font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                style={{ borderRadius: 7 }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Nova base</span>
-              </Button>
-            )}
-            <NotificationBell />
-            <LayoutToggle />
+          <div
+            className="h-full flex items-center gap-3"
+            style={{ padding: "0 24px" }}
+          >
+            <div className="flex-1 min-w-0 flex items-center">
+              <Breadcrumbs />
+            </div>
+            <div className="flex items-center gap-1.5">
+              {canCreate && (
+                <Button
+                  onClick={() => navigate("/pagamentos/novo")}
+                  className="h-8 px-3 text-[12px] font-medium gap-1.5"
+                  style={{
+                    borderRadius: 6,
+                    background: "hsl(var(--foreground))",
+                    color: "hsl(var(--primary-foreground))",
+                    border: "none",
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden md:inline">Nova base</span>
+                </Button>
+              )}
+              <NotificationBell />
+              <LayoutToggle />
+            </div>
           </div>
         </header>
 
         <main className="flex-1 min-w-0">
           <div style={{ padding: "20px 28px", maxWidth: 1600, margin: "0 auto" }}>
-            <Breadcrumbs />
             <Outlet />
           </div>
         </main>
