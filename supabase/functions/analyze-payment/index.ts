@@ -8,6 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzePaymentItems,
   extendSectorMap,
+  inferItemSector,
   normName,
   type ItemInput,
   type RuleInput,
@@ -192,7 +193,8 @@ serve(async (req) => {
         convenio_value_totalized,
         ai_status,
         item_hash,
-        ai_findings
+        ai_findings,
+        raw_data
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
@@ -349,6 +351,12 @@ serve(async (req) => {
       const resolved = resolveMedicalSpecialty(it);
       // Anota fonte para persistir em ai_findings depois
       (it as any).__resolved_specialty = resolved;
+      const persistedSector = it.sector ?? null;
+      const rawSector = typeof it.raw_data?.Setor === "string" ? it.raw_data.Setor : null;
+      const recoveredSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
+        ? persistedSector
+        : rawSector;
+
       return ({
       id: it.id,
       doctor_name: it.doctor_name,
@@ -379,7 +387,7 @@ serve(async (req) => {
       agreement_name: it.agreement_text ?? null,
       // Especialidade MÉDICA resolvida (NÃO é o tipo_item).
       specialty: resolved.value,
-      sector: it.sector ?? null,
+      sector: recoveredSector,
       attendance_character: it.attendance_character ?? null,
       convenio_value_totalized: it.convenio_value_totalized ?? false,
       // Sub-Onda 2C — passa resolução prévia (se houver) para o motor.
@@ -1144,10 +1152,15 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       // verdade — o motor apenas INFERE para itens sem setor (legados).
       // Auditoria do que o motor inferiu fica em ai_findings.engine.inferred_sector.
       const originalItem = itemsById[r.item_id];
-      const originalSector = originalItem?.sector ?? null;
+      const rawItem = itemsRawById[r.item_id];
+      const persistedSector = originalItem?.sector ?? null;
+      const rawSector = typeof rawItem?.raw_data?.Setor === "string" ? rawItem.raw_data.Setor : null;
+      const originalSector = persistedSector && !["outro", "outros"].includes(normName(persistedSector))
+        ? persistedSector
+        : rawSector;
       const inferredSector = (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null;
       const sectorToPersist = originalSector && String(originalSector).trim() !== ""
-        ? originalSector
+        ? inferItemSector({ ...(originalItem as ItemInput), sector: originalSector }, ctx)
         : inferredSector;
 
       itemUpdates.push({
