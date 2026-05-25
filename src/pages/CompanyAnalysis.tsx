@@ -1444,9 +1444,13 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
-      {/* Thread de questionamentos — visível para todos os papéis (analista/validador/diretor) */}
+      {/* Thread de questionamentos — analista só vê quando há perguntas; validador/diretor sempre veem (podem iniciar). */}
       {id && groupId && (
-        <CompanyQuestionsThread paymentId={id} companyGroupId={groupId} />
+        <CompanyQuestionsThread
+          paymentId={id}
+          companyGroupId={groupId}
+          hideIfEmpty={isAnalista && !isAdminOrDiretor && !isValidador}
+        />
       )}
 
       {/* ABAS */}
