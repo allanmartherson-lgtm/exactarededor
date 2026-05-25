@@ -1316,6 +1316,34 @@ function ItemDetailsRow({
                   )}
                 </div>
               )}
+              {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {
+                const getNextStep = (): string => {
+                  if (priority === "sem_regra") {
+                    return "Nenhuma regra cadastrada cobre este procedimento neste setor. Verifique se o código TUSS está correto ou se é necessário cadastrar uma nova regra para este caso.";
+                  }
+                  if (priority === "conflito") {
+                    return "Duas ou mais regras com a mesma prioridade se aplicam. Revise as regras conflitantes ou acate como exceção com justificativa.";
+                  }
+                  if (it.ai_status === "reprovado" && diffPct != null && Math.abs(diffPct) > 0.1) {
+                    return `Divergência de ${(Math.abs(diffPct) * 100).toFixed(1)}% em relação ao valor esperado. Se o valor está correto, autorize como exceção com justificativa. Se está errado, corrija na planilha original e reimporte.`;
+                  }
+                  if (it.ai_status === "alerta") {
+                    return "Alerta ativo: confira se o valor está dentro da faixa esperada para este procedimento. Se correto, acate com justificativa para registrar a decisão.";
+                  }
+                  if (it.ai_status === "reprovado") {
+                    return "Item reprovado. Verifique os alertas acima, corrija na fonte se necessário, ou acate com justificativa documentando a decisão.";
+                  }
+                  return "";
+                };
+                const step = getNextStep();
+                if (!step) return null;
+                return (
+                  <SafeCard className="border-info/30 bg-info-soft/40">
+                    <Label icon={ChevronRight}>Próximo passo sugerido</Label>
+                    <p className="text-muted-foreground mt-1.5">{step}</p>
+                  </SafeCard>
+                );
+              })()}
               <SafeCard>
                 <Label>Histórico deste item ({itemObs.length})</Label>
                 {itemObs.length === 0 ? (
