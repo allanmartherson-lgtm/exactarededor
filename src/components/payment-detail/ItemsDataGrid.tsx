@@ -1339,10 +1339,7 @@ function ItemDetailsRow({
                 if (!step) return null;
                 return (
                   <SafeCard className="border-info/30 bg-info-soft/40">
-                    <Label className="flex items-center gap-1">
-                      <ChevronRight className="h-3 w-3" />
-                      Próximo passo sugerido
-                    </Label>
+                    <Label icon={ChevronRight}>Próximo passo sugerido</Label>
                     <p className="text-muted-foreground mt-1.5">{step}</p>
                   </SafeCard>
                 );
