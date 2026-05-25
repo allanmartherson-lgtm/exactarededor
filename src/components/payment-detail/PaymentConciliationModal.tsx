@@ -724,7 +724,7 @@ export function PaymentConciliationModal({
       for (const it of paymentItems) {
         if (matchedMedpayIds.has(it.id)) continue;
         if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
-        const valMed = Number((it as any).gross_amount ?? 0);
+        const valMed = Number((it as any).procedure_amount ?? (it as any).gross_amount ?? 0);
         toInsert.push({
           payment_item_id: it.id,
           attendance_number: it.attendance_number ?? null,
