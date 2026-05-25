@@ -2369,6 +2369,13 @@ const PaymentDetail = () => {
 
           {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+          {isAnalista && id && (
+            <ProductionValidationPanel
+              paymentId={id}
+              currentUserId={user!.id}
+              onChanged={load}
+            />
+          )}
 
           {skippedCompanies.length > 0 && (
             <Alert variant="warning" className="relative">
