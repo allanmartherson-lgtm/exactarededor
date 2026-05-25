@@ -465,9 +465,9 @@ export const AppLayout = () => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-medium truncate text-foreground">{user?.email}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <span style={getRoleBadgeStyle(primaryRole)}>
               {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-            </p>
+            </span>
           </div>
           <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sair" className="h-8 w-8">
             <LogOut className="h-4 w-4" />
