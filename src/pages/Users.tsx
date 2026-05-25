@@ -599,7 +599,7 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => loadUserSettings(u.id, u.full_name || u.email)}
+                      onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
                       title="Configurar notificações por e-mail/WhatsApp para este usuário"
                     >
                       <Bell className="h-3.5 w-3.5 mr-1.5" />
