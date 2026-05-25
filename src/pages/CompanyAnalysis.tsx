@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { ItemsDataGrid } from "@/components/payment-detail/ItemsDataGrid";
 import { CompanyHistoryPanel } from "@/components/payment-detail/CompanyHistoryPanel";
 import { PaymentReportModal } from "@/components/payment-detail/PaymentReportModal";
+import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -205,6 +206,34 @@ export default function CompanyAnalysis() {
   // pré-filtrado para esta empresa via `items`/`groups` reduzidos. Garante
   // que o relatório por empresa reflita exatamente o relatório do lote.
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    const check = async () => {
+      const { count } = await (supabase as any)
+        .from("reconciliation_runs")
+        .select("id", { count: "exact", head: true })
+        .eq("payment_id", id);
+      if (active) setHasReconciliationRun((count ?? 0) > 0);
+    };
+    check();
+    const ch = supabase
+      .channel(`recon-runs-company:${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reconciliation_runs", filter: `payment_id=eq.${id}` }, check)
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(ch); };
+  }, [id]);
+
+  const handleOpenConciliation = () => {
+    if (hasReconciliationRun === false) {
+      toast.info("Lote sem conciliação", { description: "Ainda não foi feita nenhuma rodada de conciliação para este lote." });
+      return;
+    }
+    setIsConciliationOpen(true);
+  };
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
 
@@ -1185,6 +1214,16 @@ export default function CompanyAnalysis() {
             <Download className="h-4 w-4 mr-2" /> Exportar relatório
           </Button>
 
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || hasReconciliationRun === null}
+            onClick={handleOpenConciliation}
+            title={hasReconciliationRun === false ? "Lote sem conciliação" : "Ver conciliação desta empresa"}
+          >
+            <GitCompareArrows className="h-4 w-4 mr-2" /> Conciliação desta empresa
+          </Button>
+
           {canReimport && (
             <>
               <input
@@ -1807,6 +1846,17 @@ export default function CompanyAnalysis() {
           analystName={user?.id ? profiles[user.id] : undefined}
           observations={obs}
           profiles={profiles}
+        />
+      )}
+
+      {payment && group && (
+        <PaymentConciliationModal
+          open={isConciliationOpen}
+          onOpenChange={setIsConciliationOpen}
+          paymentId={payment.id}
+          paymentReference={payment.reference}
+          paymentItems={items}
+          initialCompany={group.company_name}
         />
       )}
     </div>
