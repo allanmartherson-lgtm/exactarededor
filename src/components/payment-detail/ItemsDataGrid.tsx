@@ -348,11 +348,12 @@ export function ItemsDataGrid({
   }, [activeId, filtered, expandedId]);
 
   return (
-    // h-[calc(100vh-220px)] + max-h: garante que o grid tenha altura própria
-    // mesmo quando o pai (ex.: CardContent dentro do scroll da página) não
-    // define altura. Sem isso, o flex-1/overflow-auto interno nunca ativa e
-    // o scroll vai parar no fim da página em planilhas grandes.
-    <div className={cn("flex flex-col min-h-0 h-[calc(100vh-220px)] max-h-[calc(100vh-220px)]", className)}>
+    // Altura própria pra ativar o scroll interno mesmo dentro de um pai sem altura.
+    // Reduzimos o offset (de 220 → 170) pra dar mais área vertical à tabela e
+    // manter o scrollbar horizontal sempre visível, sem precisar rolar até o fim
+    // da página em pagamentos grandes.
+    <div className={cn("flex flex-col min-h-0 h-[calc(100vh-170px)] max-h-[calc(100vh-170px)]", className)}>
+
       {showToolbar && (
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 bg-muted/20">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
