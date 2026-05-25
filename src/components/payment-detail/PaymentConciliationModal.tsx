@@ -844,13 +844,13 @@ export function PaymentConciliationModal({
     return Array.from(new Set(base.map((i) => i.doctor_name ?? "").filter(Boolean))).sort();
   }, [items, initialCompany]);
 
-  const filteredItems = useMemo(() => {
+  // Escopo = todos os filtros EXCETO o activeFilter (tabs/KPIs por status).
+  // KPIs, totais financeiros, contagens das abas e exportações recalculam
+  // sobre este escopo — assim a tela "se comporta conforme filtro".
+  const scopedItems = useMemo(() => {
     let base = items;
     if (initialCompany) {
       base = base.filter((it) => (it.company_name ?? "") === initialCompany);
-    }
-    if (activeFilter !== "todos") {
-      base = base.filter((it) => it.status === activeFilter);
     }
     if (doctorFilter !== "todos") {
       base = base.filter((it) => (it.doctor_name ?? "") === doctorFilter);
@@ -880,9 +880,42 @@ export function PaymentConciliationModal({
       );
     }
     return base;
-  }, [items, activeFilter, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+  }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+
+  const scopedStats = useMemo(() => {
+    let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_medpay = 0;
+    let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
+    for (const it of scopedItems) {
+      if (it.status === "conciliado") conciliado++;
+      else if (it.status === "valor_divergente") valor_divergente++;
+      else if (it.status === "so_hospital") so_hospital++;
+      else if (it.status === "so_medpay") so_medpay++;
+      const vm = Number(it.valor_medpay) || 0;
+      const vh = Number(it.valor_hospital) || 0;
+      if (it.status === "valor_divergente") {
+        const diff = vh - vm;
+        divergencia_valor += Math.abs(diff);
+        if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+      } else if (it.status === "so_hospital") {
+        risco_mais += vh;
+      } else if (it.status === "so_medpay") {
+        risco_menos += vm;
+      }
+    }
+    return {
+      total: scopedItems.length,
+      conciliado, valor_divergente, so_hospital, so_medpay,
+      risco_mais, risco_menos, divergencia_valor,
+    };
+  }, [scopedItems]);
+
+  const filteredItems = useMemo(() => {
+    if (activeFilter === "todos") return scopedItems;
+    return scopedItems.filter((it) => it.status === activeFilter);
+  }, [scopedItems, activeFilter]);
 
   const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || minValue || maxValue);
+  const isScoped = !!initialCompany || hasExtraFilters;
   const clearExtraFilters = () => {
     setSearchTerm("");
     setDoctorFilter("todos");
