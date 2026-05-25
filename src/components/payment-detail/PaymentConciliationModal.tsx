@@ -926,7 +926,7 @@ export function PaymentConciliationModal({
   const handleExport = () => {
     if (!run) return;
 
-    const data = items.map((it) => ({
+    const data = filteredItems.map((it) => ({
       "Status": STATUS_LABEL[it.status],
       "Empresa": it.company_name ?? "",
       "Médico": it.doctor_name ?? "",
