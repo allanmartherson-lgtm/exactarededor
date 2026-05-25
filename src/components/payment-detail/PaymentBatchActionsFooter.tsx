@@ -44,12 +44,22 @@ export function PaymentBatchActionsFooter({
   currentUserId,
   currentUserName,
   actorRole,
+  items,
   onDone,
 }: Props) {
   const [questionOpen, setQuestionOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const pendencias = useMemo(() => {
+    const list = items ?? [];
+    const reprovados = list.filter((i) => i.ai_status === "reprovado").length;
+    const alertas = list.filter((i) => i.ai_status === "alerta").length;
+    const pendentes = list.filter((i) => i.ai_status === "pendente").length;
+    return { reprovados, alertas, pendentes, temPendencias: reprovados + alertas + pendentes > 0 };
+  }, [items]);
 
   // ===== Question dialog state =====
   const [qSelected, setQSelected] = useState<Set<string>>(new Set());
