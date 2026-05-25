@@ -98,7 +98,7 @@ export function PaymentBatchActionsFooter({
     setReturnOpen(true);
   };
 
-  const handleApproveClick = async () => {
+  const proceedApprove = async () => {
     if (approvable.length === 0 && pending.length === 0) {
       toast({ title: "Lote já foi processado", variant: "destructive" });
       return;
@@ -114,6 +114,14 @@ export function PaymentBatchActionsFooter({
     }
     setApproveNote("");
     setApproveOpen(true);
+  };
+
+  const handleApproveClick = async () => {
+    if (actorRole === "validador" && pendencias.temPendencias) {
+      setGateOpen(true);
+      return;
+    }
+    await proceedApprove();
   };
 
   const doApprove = async (groupIds: string[], note: string | null) => {
