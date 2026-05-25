@@ -197,6 +197,8 @@ interface FileBucket {
   manualOverride?: boolean;
   /** Mapeamento de setor identificado na planilha para o setor do sistema */
   sectorMapping?: string | null;
+  /** true quando NENHUMA linha da planilha trouxe coluna de setor preenchida — exige mapeamento manual antes do envio. */
+  sectorMissing?: boolean;
   /** Se verdadeiro, o valor do convênio nesta planilha já é o total (Unitário * Qtd). */
   convenioValueTotalized?: boolean;
   /** Override manual de colunas quando o auto-detect falha em planilhas atípicas. */
@@ -472,6 +474,10 @@ const NewPayment = () => {
       }
     }
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    // Considera "setor ausente" quando nenhuma linha trouxe coluna setor preenchida
+    // OU quando o setor dominante não bate com nenhum slug conhecido do sistema.
+    const dominantMapped = dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null;
+    const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
     return {
       file: f,
@@ -479,7 +485,8 @@ const NewPayment = () => {
       rawCompanyName,
       matchedCompany: company ? { id: company.id, name: company.name } : null,
       matchScore: score,
-      sectorMapping: dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null,
+      sectorMapping: dominantMapped,
+      sectorMissing,
       rawMatrix: matrix,
       headerRowIndex: headerIdx,
     };
@@ -501,7 +508,12 @@ const NewPayment = () => {
         ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
       const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName);
-      return { ...bucket, rows, headerRowIndex: newHeaderIdx };
+      const sc: Record<string, number> = {};
+      for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
+      const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const dominantMapped = dominantRaw ? (RULE_SECTOR_LABELS as any)[dominantRaw] ? dominantRaw : null : null;
+      const sectorMissing = rows.length > 0 && (Object.keys(sc).length === 0 || dominantMapped === null);
+      return { ...bucket, rows, headerRowIndex: newHeaderIdx, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
     }));
     toast({ title: "Cabeçalho atualizado", description: `Linha ${newHeaderIdx + 1} usada como cabeçalho.` });
   };
@@ -813,6 +825,15 @@ const NewPayment = () => {
     if (preValidation.warnings > 0) {
       const ok = confirm(`A base contém ${preValidation.warnings} alerta(s) leve(s) (ex.: complemento sem atendimento, tipo não identificado). Deseja prosseguir?`);
       if (!ok) return;
+    }
+    const unmappedSectorBuckets = buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
+    if (unmappedSectorBuckets.length > 0) {
+      toast({
+        title: "Setor não identificado",
+        description: `Mapeie o setor manualmente nos arquivos: ${unmappedSectorBuckets.map((b) => b.file.name).join(", ")}.`,
+        variant: "destructive",
+      });
+      return;
     }
     if (sectorConflicts.length > 0) {
       const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
@@ -1382,11 +1403,13 @@ const NewPayment = () => {
                             <PopoverTrigger asChild>
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                                variant={b.sectorMissing && !b.sectorMapping ? "outline" : "ghost"}
+                                className={`h-6 px-2 text-[11px] ${b.sectorMissing && !b.sectorMapping ? "border-destructive text-destructive hover:text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
                               >
                                 <Pencil className="h-3 w-3 mr-1" />
-                                Setor: {b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}
+                                {b.sectorMissing && !b.sectorMapping
+                                  ? "Setor: mapear (obrigatório)"
+                                  : `Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-64 p-3" align="end">
