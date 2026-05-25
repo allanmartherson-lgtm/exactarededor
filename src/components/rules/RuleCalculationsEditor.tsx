@@ -652,6 +652,14 @@ function CalcCard({
         </span>
         <Button
           type="button" variant="ghost" size="sm"
+          className="h-7 px-2"
+          onClick={onDuplicate}
+          title="Duplicar este cálculo"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button" variant="ghost" size="sm"
           className={cn("h-7 px-2 text-destructive", total === 1 && "opacity-60")}
           onClick={onRemove}
           title={total === 1 ? "Limpar este cálculo" : "Remover cálculo"}
