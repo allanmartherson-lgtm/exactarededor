@@ -1001,7 +1001,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const resolvedSpec = itRaw?.__resolved_specialty as { value: string | null; source: string } | undefined;
       const decisionFields = {
         used: {
-          sector: it?.classification_sector ?? null,
+          // `sector` agora reflete o setor REAL persistido em payment_items
+          // (vindo da planilha). `classification_sector` é a heurística
+          // determinística (ex.: tabela de hemodinâmica) e `inferred_sector`
+          // é o que o motor calculou quando o item não tinha setor —
+          // separamos para que o trace deixe claro qual valor foi usado.
+          sector: it?.sector ?? null,
+          classification_sector: it?.classification_sector ?? null,
+          inferred_sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
           procedure_code: it?.procedure_code ?? null,
           doctor_document: it?.doctor_document ?? null,
           doctor_name: it?.doctor_name ?? null,
@@ -1022,6 +1029,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           procedure_name: { used: false, reason: "Apenas informacional; matching é por procedure_code." },
         },
       };
+
       const findings = {
         alerts: finalAlerts,
         matched_rules: matchedRules,
@@ -1131,6 +1139,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         ? null
         : ((r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null);
 
+      // SECTOR: nunca sobrescrever `payment_items.sector` quando o item já
+      // tem setor vindo da planilha. O setor da base importada é a fonte da
+      // verdade — o motor apenas INFERE para itens sem setor (legados).
+      // Auditoria do que o motor inferiu fica em ai_findings.engine.inferred_sector.
+      const originalItem = itemsById[r.item_id];
+      const originalSector = originalItem?.sector ?? null;
+      const inferredSector = (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null;
+      const sectorToPersist = originalSector && String(originalSector).trim() !== ""
+        ? originalSector
+        : inferredSector;
+
       itemUpdates.push({
         id: r.item_id,
         ai_status: finalStatus,
@@ -1138,14 +1157,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           ...findings,
           engine: {
             ...(findings.engine || {}),
-            inferred_sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
+            inferred_sector: inferredSector,
+            original_sector: originalSector,
           }
         },
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
-        sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
+        sector: sectorToPersist,
         applied_rule_id: r.matched_rule_id ?? null,
         applied_rule_label: r.matched_rule_name ?? null,
+
         applied_calc_id: appliedCalcId,
         applied_calc_method: appliedCalcMethod,
         expected_amount: isCalcDuplicityBlock ? null : (r.expected_amount ?? null),

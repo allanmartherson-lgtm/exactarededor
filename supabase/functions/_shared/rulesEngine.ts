@@ -494,13 +494,22 @@ function collectCalcCodes(r: RuleInput): {
     const codes = Array.isArray(c.procedure_codes) ? c.procedure_codes : [];
     const keywords: string[] = Array.isArray((c as any).procedure_keywords) ? (c as any).procedure_keywords.map(String) : [];
     const mode = c.code_match_mode ?? "whitelist";
-    
+
     if (mode === "any" || (codes.length === 0 && keywords.length === 0)) {
       hasFallback = true;
+    } else if (mode === "blacklist") {
+      // Cálculo em blacklist é semanticamente catch-all: aceita QUALQUER código,
+      // exceto os listados. No nível da regra, isso significa que a regra
+      // continua candidata mesmo para códigos fora das whitelists dos outros
+      // cálculos. O filtro real da blacklist é aplicado por-cálculo depois.
+      hasFallback = true;
+      // Marcamos hasAnyCodes só para rastreio, mas NÃO incluímos os códigos
+      // da blacklist em allCodes — isso evita matches espúrios em matchesProcedureCode.
+      if (codes.length > 0) hasAnyCodes = true;
     } else {
       if (codes.length > 0) {
         hasAnyCodes = true;
-        if (mode !== "blacklist") codes.forEach((x) => allCodes.add(x));
+        codes.forEach((x) => allCodes.add(x));
       }
       if (keywords.length > 0) {
         hasAnyKeywords = true;
@@ -508,6 +517,7 @@ function collectCalcCodes(r: RuleInput): {
       }
     }
   }
+
   return { 
     hasAnyCodes, 
     hasAnyKeywords,
