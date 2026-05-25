@@ -39,6 +39,7 @@ const Doctors = lazy(() => import("./pages/Doctors.tsx"));
 const ProcedureSpecialtyMap = lazy(() => import("./pages/ProcedureSpecialtyMap.tsx"));
 const Sectors = lazy(() => import("./pages/Sectors.tsx"));
 const CostCenters = lazy(() => import("./pages/CostCenters.tsx"));
+const PaymentTypes = lazy(() => import("./pages/PaymentTypes.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.tsx"));
 const StatusAnomalies = lazy(() => import("./pages/StatusAnomalies.tsx"));
@@ -110,6 +111,7 @@ const App = () => (
                   <Route path="/mapa-especialidades" element={<ProtectedRoute roles={["diretor", "admin"]}><ProcedureSpecialtyMap /></ProtectedRoute>} />
                   <Route path="/setores" element={<ProtectedRoute roles={["diretor", "admin"]}><Sectors /></ProtectedRoute>} />
                   <Route path="/centros-de-custo" element={<CostCenters />} />
+                  <Route path="/tipos-pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><PaymentTypes /></ProtectedRoute>} />
                   <Route path="/prazos-sla" element={<ProtectedRoute roles={["diretor", "admin"]}><SlaSettings /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute roles={["admin"]}><Users /></ProtectedRoute>} />
                   <Route path="/produtividade-analistas" element={<ProtectedRoute roles={["diretor", "admin"]}><AnalystProductivity /></ProtectedRoute>} />

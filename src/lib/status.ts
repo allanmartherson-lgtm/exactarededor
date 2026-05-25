@@ -224,17 +224,21 @@ export const formatDate = (value: string | null | undefined) => {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 };
 
-export type PaymentType = Database["public"]["Enums"]["payment_type"];
+// payment_type passou a ser texto livre vinculado à tabela mestre public.payment_types.
+// Mantemos os 4 códigos seed como fallback de label/descrição para componentes
+// síncronos (badges em listagens, snapshots de auditoria). Componentes que precisam
+// da lista completa e atualizada devem ler de payment_types via usePaymentTypes().
+export type PaymentType = string;
 export type PaymentKind = Database["public"]["Enums"]["payment_kind"];
 
-export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
+export const PAYMENT_TYPE_LABELS: Record<string, string> = {
   producao: "Produção",
   remessa: "Remessa",
   valor_fixo: "Valor fixo",
   plantao: "Plantão",
 };
 
-export const PAYMENT_TYPE_DESCRIPTIONS: Record<PaymentType, string> = {
+export const PAYMENT_TYPE_DESCRIPTIONS: Record<string, string> = {
   producao: "Mês seguinte ao mês em que houve a produção",
   remessa: "Pago só após faturamento e envio da cobrança ao convênio",
   valor_fixo: "Coordenação, assessoria e similares",

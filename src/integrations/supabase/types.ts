@@ -1775,6 +1775,45 @@ export type Database = {
           },
         ]
       }
+      payment_types: {
+        Row: {
+          active: boolean
+          code: string
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_unmatched_items: {
         Row: {
           access_route: string | null
@@ -1906,7 +1945,7 @@ export type Database = {
           items_count: number
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
-          payment_type: Database["public"]["Enums"]["payment_type"] | null
+          payment_type: string | null
           processing_diagnostics: Json | null
           processing_timeout_occurred: boolean | null
           reference: string
@@ -1935,7 +1974,7 @@ export type Database = {
           items_count?: number
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
-          payment_type?: Database["public"]["Enums"]["payment_type"] | null
+          payment_type?: string | null
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
           reference: string
@@ -1964,7 +2003,7 @@ export type Database = {
           items_count?: number
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
-          payment_type?: Database["public"]["Enums"]["payment_type"] | null
+          payment_type?: string | null
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
           reference?: string
@@ -3498,7 +3537,6 @@ export type Database = {
         | "em_questionamento"
         | "aprovado_parcial"
         | "revisao_pos_aprovacao"
-      payment_type: "producao" | "remessa" | "valor_fixo" | "plantao"
       reference_table_kind:
         | "simples"
         | "cbhpm"
@@ -3727,7 +3765,6 @@ export const Constants = {
         "aprovado_parcial",
         "revisao_pos_aprovacao",
       ],
-      payment_type: ["producao", "remessa", "valor_fixo", "plantao"],
       reference_table_kind: [
         "simples",
         "cbhpm",
