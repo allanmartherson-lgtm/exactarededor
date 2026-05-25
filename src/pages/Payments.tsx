@@ -171,6 +171,24 @@ const Payments = () => {
   });
   const [onlyMine, setOnlyMine] = useState(() => searchParams.get("owner") === "me");
 
+  // Filtro automático na primeira abertura: aplica ownerGroup conforme papel
+  // se não houver ?status= na querystring. Admin não recebe auto-filtro.
+  // Prioridade: diretor > validador > analista.
+  useEffect(() => {
+    const st = searchParams.get("status");
+    if (st) return;
+    if (roles.includes("admin")) return;
+    let auto: OwnerGroup | null = null;
+    if (roles.includes("diretor")) auto = "diretor";
+    else if (roles.includes("validador")) auto = "validador";
+    if (!auto) return;
+    setOwnerGroup(auto);
+    const next = new URLSearchParams(searchParams);
+    next.set("status", auto);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Sincroniza filtros simples vindos de outras telas (ex: Dashboard)
   useEffect(() => {
     setDelayedOnly(searchParams.get("delayed") === "1");
