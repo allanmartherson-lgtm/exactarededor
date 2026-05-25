@@ -287,6 +287,27 @@ export const AppLayout = () => {
   const location = useLocation();
   const { layout } = useNavLayout();
   const primaryRole = (["admin", "diretor", "validador", "analista"] as const).find((r) => roles.includes(r));
+  const getRoleBadgeStyle = (role: string | undefined): React.CSSProperties => {
+    const map: Record<string, { bg: string; fg: string }> = {
+      admin: { bg: "hsl(var(--bubble-purple-bg))", fg: "hsl(var(--bubble-purple-fg))" },
+      diretor: { bg: "hsl(var(--bubble-yellow-bg))", fg: "hsl(var(--bubble-yellow-fg))" },
+      validador: { bg: "hsl(var(--bubble-blue-bg))", fg: "hsl(var(--bubble-blue-fg))" },
+      analista: { bg: "hsl(var(--bubble-teal-bg))", fg: "hsl(var(--bubble-teal-fg))" },
+    };
+    const c = (role && map[role]) || { bg: "hsl(var(--muted))", fg: "hsl(var(--muted-foreground))" };
+    return {
+      background: c.bg,
+      color: c.fg,
+      fontSize: 9,
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: "0.06em",
+      padding: "2px 7px",
+      borderRadius: 20,
+      lineHeight: 1.4,
+      display: "inline-block",
+    };
+  };
   const initials = getInitials(user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
   const canRetryInvoices = roles.includes("analista") || roles.includes("admin");
@@ -444,9 +465,9 @@ export const AppLayout = () => {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-medium truncate text-foreground">{user?.email}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <span style={getRoleBadgeStyle(primaryRole)}>
               {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-            </p>
+            </span>
           </div>
           <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Sair" className="h-8 w-8">
             <LogOut className="h-4 w-4" />
@@ -533,9 +554,9 @@ export const AppLayout = () => {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-[13px] font-medium truncate">{user?.email}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <span style={getRoleBadgeStyle(primaryRole)}>
                         {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-                      </p>
+                      </span>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -650,9 +671,9 @@ export const AppLayout = () => {
               >
                 {user?.email}
               </p>
-              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>
+              <span style={getRoleBadgeStyle(primaryRole)}>
                 {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-              </p>
+              </span>
             </div>
             <Button
               variant="ghost"
