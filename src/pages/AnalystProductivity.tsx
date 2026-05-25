@@ -164,7 +164,7 @@ export default function AnalystProductivity() {
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-left">
                 <tr>
-                  <th className="px-3 py-2">Analista</th>
+                  <th className="px-3 py-2">Membro da equipe</th>
                   <th className="px-3 py-2 text-right">Lotes processados</th>
                   <th className="px-3 py-2 text-right">Validações</th>
                   <th className="px-3 py-2 text-right">Aprovações</th>
