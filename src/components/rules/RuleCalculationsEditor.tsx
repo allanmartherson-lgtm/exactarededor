@@ -207,6 +207,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
           refTables={refTables}
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
+          onDuplicate={() => duplicate(i)}
         />
       ))}
       <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
