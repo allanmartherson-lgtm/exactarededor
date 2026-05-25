@@ -167,6 +167,12 @@ export function PaymentConciliationModal({
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
 
+  // Busca e filtros adicionais (texto livre, médico, faixa de valor)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState<string>("todos");
+  const [minValue, setMinValue] = useState<string>("");
+  const [maxValue, setMaxValue] = useState<string>("");
+
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
   const [hospitalCompanies, setHospitalCompanies] = useState<string[]>([]);
