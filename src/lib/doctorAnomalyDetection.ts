@@ -129,7 +129,7 @@ export async function detectDoctorSectorAnomalies(
     if (curTotal === 0) continue;
     const curEntries = Object.entries(cur).sort((a, b) => b[1] - a[1]);
     const [curTopSector, curTopCount] = curEntries[0];
-    if (curTopSector === histTopSector) continue;
+    if (normalizeSector(curTopSector) === normalizeSector(histTopSector)) continue;
     const curShare = curTopCount / curTotal;
     if (curShare < CURRENT_DEVIATION) continue;
 
