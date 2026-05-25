@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { GitCompare, ChevronDown, ChevronRight, ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
+import { GitCompare, ChevronDown, ChevronRight, ArrowRight, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +20,7 @@ interface PrevBatch {
   totalAmount: number;
   itemsCount: number;
   newDoctors: string[];
+  matchQuality: "exato" | "tipo"; // exato = mesmo tipo + setor; tipo = só payment_type
 }
 
 function formatCompetence(d: string | null): string {
@@ -38,34 +39,73 @@ export function PreviousBatchComparison({
   const [loading, setLoading] = useState(true);
   const [prev, setPrev] = useState<PrevBatch | null>(null);
   const [currentCompetence, setCurrentCompetence] = useState<string | null>(null);
+  const [noMatchReason, setNoMatchReason] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setNoMatchReason(null);
+    setPrev(null);
 
     (async () => {
-      const { data: prevGroup } = await supabase
-        .from("payment_company_groups")
-        .select("id, payment_id, total_amount, items_count, created_at, payments(reference, competence_month)")
-        .eq("company_name", companyName)
-        .neq("payment_id", currentPaymentId)
-        .order("created_at", { ascending: false })
-        .limit(1)
+      // 1) Tipo/setores do lote atual — chave para evitar comparar pareceres com cirurgia.
+      const { data: curr } = await supabase
+        .from("payments")
+        .select("payment_type, sectors, competence_month")
+        .eq("id", currentPaymentId)
         .maybeSingle();
+      const currType = (curr?.payment_type ?? null) as string | null;
+      const currSectors = ((curr?.sectors ?? []) as string[]).map((s) => s.toLowerCase().trim()).filter(Boolean);
+      if (!cancelled) setCurrentCompetence((curr?.competence_month as string | null) ?? null);
 
-      if (!prevGroup) {
+      if (!currType) {
         if (!cancelled) {
-          setPrev(null);
+          setNoMatchReason("Lote atual sem tipo de pagamento definido — comparação automática desativada.");
           setLoading(false);
         }
         return;
       }
 
-      const prevPaymentId = prevGroup.payment_id as string;
-      const payments = (prevGroup as { payments: { reference: string; competence_month: string | null } | null }).payments;
+      // 2) Candidatos: grupos da mesma empresa em lotes do MESMO payment_type.
+      const { data: candidates } = await supabase
+        .from("payment_company_groups")
+        .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors)")
+        .eq("company_name", companyName)
+        .neq("payment_id", currentPaymentId)
+        .eq("payments.payment_type", currType as "plantao" | "producao" | "remessa" | "valor_fixo")
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-      const [prevItemsRes, currItemsRes, currPaymentRes] = await Promise.all([
+      if (!candidates || candidates.length === 0) {
+        if (!cancelled) {
+          setNoMatchReason(`Nenhum lote anterior do tipo "${currType}" encontrado para esta empresa.`);
+          setLoading(false);
+        }
+        return;
+      }
+
+      // 3) Preferir o primeiro candidato com sobreposição de setores; senão cair pro mais recente do mesmo tipo.
+      type Row = (typeof candidates)[number] & {
+        payments: { reference: string; competence_month: string | null; payment_type: string | null; sectors: string[] | null } | null;
+      };
+      let chosen: { row: Row; quality: "exato" | "tipo" } | null = null;
+      if (currSectors.length > 0) {
+        for (const c of candidates as Row[]) {
+          const sec = (c.payments?.sectors ?? []).map((s) => (s ?? "").toLowerCase().trim());
+          if (sec.some((s) => currSectors.includes(s))) {
+            chosen = { row: c, quality: "exato" };
+            break;
+          }
+        }
+      }
+      if (!chosen) {
+        chosen = { row: candidates[0] as Row, quality: currSectors.length > 0 ? "tipo" : "tipo" };
+      }
+
+      const prevPaymentId = chosen.row.payment_id as string;
+
+      const [prevItemsRes, currItemsRes] = await Promise.all([
         supabase
           .from("payment_items")
           .select("doctor_name")
@@ -78,30 +118,25 @@ export function PreviousBatchComparison({
           .eq("payment_id", currentPaymentId)
           .eq("company_name", companyName)
           .limit(2000),
-        supabase.from("payments").select("competence_month").eq("id", currentPaymentId).maybeSingle(),
       ]);
 
       const prevDoctors = new Set(
-        (prevItemsRes.data ?? [])
-          .map((r) => (r.doctor_name ?? "").trim())
-          .filter(Boolean),
+        (prevItemsRes.data ?? []).map((r) => (r.doctor_name ?? "").trim()).filter(Boolean),
       );
       const currDoctorsSet = new Set(
-        (currItemsRes.data ?? [])
-          .map((r) => (r.doctor_name ?? "").trim())
-          .filter(Boolean),
+        (currItemsRes.data ?? []).map((r) => (r.doctor_name ?? "").trim()).filter(Boolean),
       );
       const newDoctors = Array.from(currDoctorsSet).filter((d) => !prevDoctors.has(d)).sort();
 
       if (cancelled) return;
-      setCurrentCompetence((currPaymentRes.data?.competence_month as string | null) ?? null);
       setPrev({
         paymentId: prevPaymentId,
-        reference: payments?.reference ?? "—",
-        competenceMonth: payments?.competence_month ?? null,
-        totalAmount: Number(prevGroup.total_amount ?? 0),
-        itemsCount: Number(prevGroup.items_count ?? 0),
+        reference: chosen.row.payments?.reference ?? "—",
+        competenceMonth: chosen.row.payments?.competence_month ?? null,
+        totalAmount: Number(chosen.row.total_amount ?? 0),
+        itemsCount: Number(chosen.row.items_count ?? 0),
         newDoctors,
+        matchQuality: chosen.quality,
       });
       setLoading(false);
     })();
@@ -110,7 +145,16 @@ export function PreviousBatchComparison({
   }, [companyName, currentPaymentId]);
 
   if (loading) return <Skeleton className="h-8 w-full" />;
-  if (!prev) return null;
+
+  if (!prev) {
+    if (!noMatchReason) return null;
+    return (
+      <div className="rounded-md border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
+        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span>{noMatchReason} Sem base comparável, evitamos cruzar lotes de natureza diferente (ex: pareceres vs cirurgia).</span>
+      </div>
+    );
+  }
 
   const deltaValue = currentTotalAmount - prev.totalAmount;
   const deltaItems = currentItemsCount - prev.itemsCount;
@@ -131,6 +175,15 @@ export function PreviousBatchComparison({
         <GitCompare className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-medium">Comparar com lote anterior</span>
         <Badge variant="muted" className="ml-1">{prev.reference}</Badge>
+        {prev.matchQuality === "tipo" && (
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1"
+            title="Mesmo tipo de pagamento, mas sem sobreposição de setor — interprete com cautela."
+          >
+            <Info className="h-2.5 w-2.5" /> só por tipo
+          </Badge>
+        )}
         <span className={`ml-auto inline-flex items-center gap-1 ${deltaColor}`}>
           <DeltaIcon className="h-3 w-3" />
           {up ? "+" : ""}{deltaPct.toFixed(1)}%
