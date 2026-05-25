@@ -1629,6 +1629,69 @@ const Dashboard = () => {
             </Link>
           </SurfaceCard>
         </section>
+
+        <section>
+          <SectionLabel>Equipe hoje</SectionLabel>
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Movimentações nas últimas 24h"
+              icon={Users}
+              iconColor="teal"
+            />
+            {teamTodayStats.length === 0 ? (
+              <div style={{ padding: "24px 22px", fontSize: 13, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>
+                Sem atividade registrada nas últimas 24h.
+              </div>
+            ) : (
+              <div>
+                {teamTodayStats.map((m, i) => {
+                  const elapsed = Date.now() - new Date(m.ultimo_movimento).getTime();
+                  const travado = elapsed > 4 * 60 * 60 * 1000;
+                  const statusLabel = m.status_mais_recente
+                    ? (PAYMENT_STATUS_SHORT[m.status_mais_recente as PaymentStatus] ?? m.status_mais_recente)
+                    : "—";
+                  return (
+                    <div
+                      key={m.actor_id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 22px",
+                        borderTop: i > 0 ? "1px solid hsl(var(--border))" : undefined,
+                        background: travado ? "hsl(var(--warning) / 0.04)" : undefined,
+                      }}
+                    >
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: travado ? "hsl(var(--warning) / 0.15)" : "hsl(var(--bubble-teal-bg))",
+                        color: travado ? "hsl(var(--warning))" : "hsl(var(--bubble-teal-fg))",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 700,
+                      }}>
+                        {m.actor_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }} className="truncate">
+                          {m.actor_name}
+                        </p>
+                        <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                          Último: {statusLabel} · há {formatShortDuration(elapsed)}
+                          {travado && <span style={{ color: "hsl(var(--warning))", fontWeight: 600 }}> · sem mover</span>}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <p style={{ fontSize: 18, fontWeight: 600, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{m.acoes}</p>
+                        <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>ações</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <Link to="/produtividade-analistas" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "12px 22px", borderTop: "1px solid hsl(var(--border))", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", textDecoration: "none" }} className="hover:bg-muted/50 transition-colors">
+              Ver produtividade completa <ArrowRight size={12} />
+            </Link>
+          </SurfaceCard>
+        </section>
       </div>
     );
   }
