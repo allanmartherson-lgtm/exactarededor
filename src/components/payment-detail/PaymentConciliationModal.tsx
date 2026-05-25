@@ -1045,17 +1045,30 @@ export function PaymentConciliationModal({
     doc.setFont("helvetica", "normal");
     doc.text(`Gerado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 13, { align: "right" });
 
+    const filterDescParts: string[] = [];
+    if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
+    if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
+    if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
+    if (minValue || maxValue) filterDescParts.push(`Valor: ${minValue || "—"} a ${maxValue || "—"}`);
+    if (filterDescParts.length) {
+      doc.setTextColor(100, 100, 100);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7.5);
+      doc.text(`Filtros: ${filterDescParts.join(" · ")}`, 14, 21);
+    }
+
     doc.setTextColor(30, 58, 95);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`Total: ${run.total_items}  ·  Conciliados: ${run.conciliado}  ·  Divergência: ${run.valor_divergente}  ·  Só hospital: ${run.so_hospital}  ·  Só MedPay: ${run.so_medpay}`, 14, 28);
+    doc.text(`Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só MedPay: ${scopedStats.so_medpay}${isScoped ? "  (escopo filtrado)" : ""}`, 14, 28);
 
     doc.setTextColor(100, 100, 100);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(`Risco +: R$ ${Number(run.risco_mais).toFixed(2)}  ·  Risco -: R$ ${Number(run.risco_menos).toFixed(2)}  ·  Divergência: R$ ${Number(run.divergencia_valor).toFixed(2)}`, 14, 34);
+    doc.text(`Risco +: R$ ${scopedStats.risco_mais.toFixed(2)}  ·  Risco -: R$ ${scopedStats.risco_menos.toFixed(2)}  ·  Divergência: R$ ${scopedStats.divergencia_valor.toFixed(2)}`, 14, 34);
 
-    const tableData = items.map((it) => [
+    const tableData = filteredItems.map((it) => [
       STATUS_LABEL[it.status],
       it.company_name ?? "",
       it.doctor_name ?? "",
