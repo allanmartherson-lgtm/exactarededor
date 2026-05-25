@@ -16,6 +16,53 @@ const HISTORICAL_DOMINANCE = 0.6;
 const CURRENT_DEVIATION = 0.4;
 
 /**
+ * Normaliza o nome do setor para comparação semântica.
+ * Remove sufixos de centro de custo (ex: "(DFStar)", "(Hospital X)")
+ * e mapeia variações conhecidas para um termo canônico.
+ */
+function normalizeSector(sector: string): string {
+  const withoutSuffix = sector.replace(/\s*\([^)]*\)/g, "").trim();
+
+  const norm = withoutSuffix
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim();
+
+  const CANONICAL: Record<string, string> = {
+    "centro cirurgico": "cirurgia",
+    "cirurgia": "cirurgia",
+    "cc": "cirurgia",
+    "bloco cirurgico": "cirurgia",
+    "hemodinamica": "hemodinamica",
+    "hemo": "hemodinamica",
+    "uti": "uti",
+    "unidade de terapia intensiva": "uti",
+    "pronto socorro": "emergencia",
+    "emergencia": "emergencia",
+    "ps": "emergencia",
+    "centro de endoscopia": "endoscopia",
+    "endoscopia": "endoscopia",
+    "radiologia": "radiologia",
+    "raio x": "radiologia",
+    "rpa": "rpa",
+    "recuperacao pos anestesica": "rpa",
+    "sadt": "sadt",
+    "laboratorio": "laboratorio",
+    "ambulatorio": "ambulatorio",
+    "internacao": "internacao",
+    "apartamento": "internacao",
+  };
+
+  for (const [key, canonical] of Object.entries(CANONICAL)) {
+    if (norm.includes(key) || key.includes(norm)) return canonical;
+  }
+
+  return norm || sector.toLowerCase().trim();
+}
+
+/**
  * Detecta médicos que historicamente operam em um setor e que neste lote
  * apresentam concentração relevante em outro setor.
  */
