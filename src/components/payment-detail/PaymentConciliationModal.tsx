@@ -768,9 +768,13 @@ export function PaymentConciliationModal({
   };
 
   const filteredItems = useMemo(() => {
-    if (activeFilter === "todos") return items;
-    return items.filter((it) => it.status === activeFilter);
-  }, [items, activeFilter]);
+    let base = items;
+    if (initialCompany) {
+      base = base.filter((it) => (it.company_name ?? "") === initialCompany);
+    }
+    if (activeFilter === "todos") return base;
+    return base.filter((it) => it.status === activeFilter);
+  }, [items, activeFilter, initialCompany]);
 
   const handleExport = () => {
     if (!run) return;
