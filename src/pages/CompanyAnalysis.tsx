@@ -1848,6 +1848,17 @@ export default function CompanyAnalysis() {
           profiles={profiles}
         />
       )}
+
+      {payment && group && (
+        <PaymentConciliationModal
+          open={isConciliationOpen}
+          onOpenChange={setIsConciliationOpen}
+          paymentId={payment.id}
+          paymentReference={payment.reference}
+          paymentItems={items}
+          initialCompany={group.company_name}
+        />
+      )}
     </div>
   );
 }
