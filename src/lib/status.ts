@@ -72,7 +72,7 @@ export const TONE_CLASSES: Record<Tone, string> = {
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Administrador",
   diretor: "Diretor",
-  validador: "Validador",
+  validador: "Supervisor",
   analista: "Analista",
 };
 
