@@ -20,6 +20,8 @@ interface Props {
   paymentId: string;
   payment: { status?: string; processing_diagnostics?: unknown } | null;
   roles: string[];
+  onApprove?: () => void;
+  onReturn?: () => void;
 }
 
 const STALE_HOURS = 4;
@@ -46,7 +48,7 @@ function isFresh(generatedAt: string | undefined): boolean {
 const fmtBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 
-export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
+export const DirectorBriefingCard = ({ paymentId, payment, roles, onApprove, onReturn }: Props) => {
   const allowed = roles.includes("diretor") || roles.includes("admin");
   const statusOk = ["aguardando_aprovacao", "aprovado_em_revisao"].includes(payment?.status ?? "");
 
@@ -196,12 +198,16 @@ export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
                       {briefing.recommended_action}
                     </p>
                     <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-success/40 text-success hover:bg-success-soft" disabled>
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Aprovar
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10" disabled>
-                        <XCircle className="h-3.5 w-3.5 mr-1" /> Devolver
-                      </Button>
+                      {onApprove && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs border-success/40 text-success hover:bg-success-soft" onClick={onApprove}>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Aprovar
+                        </Button>
+                      )}
+                      {onReturn && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10" onClick={onReturn}>
+                          <XCircle className="h-3.5 w-3.5 mr-1" /> Devolver
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
