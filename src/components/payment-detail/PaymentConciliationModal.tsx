@@ -1546,6 +1546,26 @@ export function PaymentConciliationModal({
                 </span>
               </div>
 
+              {/* Aviso de defasagem: lote foi reanalisado após a conciliação */}
+              {(() => {
+                const lastAnalyzed = paymentItems
+                  .map((it) => (it as any).applied_at as string | null)
+                  .filter(Boolean)
+                  .sort()
+                  .pop();
+                if (!lastAnalyzed || !run.created_at) return null;
+                const stale = new Date(lastAnalyzed).getTime() > new Date(run.created_at).getTime();
+                if (!stale) return null;
+                return (
+                  <div className="flex items-start gap-2 px-4 py-2.5 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning-text">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Snapshot defasado:</strong> o lote foi reanalisado em {formatDateTimeBR(lastAnalyzed)}, depois desta conciliação. Clique em <strong>Nova conciliação</strong> para refazer o cruzamento com os dados atuais. (A comparação financeira usa a tabela do convênio e não depende das regras, mas inclusões/exclusões de itens pelo motor podem ter mudado.)
+                    </span>
+                  </div>
+                );
+              })()}
+
               {/* KPI cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <KpiCard
