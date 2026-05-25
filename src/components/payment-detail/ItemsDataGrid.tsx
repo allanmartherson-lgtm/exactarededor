@@ -544,6 +544,27 @@ export function ItemsDataGrid({
         </div>
       )}
 
+      {(counts.critico > 0 || counts.alerta > 0) && (
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 text-xs border-b bg-muted/30">
+          <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 border">
+            Total: <strong>{counts.total}</strong>
+          </span>
+          {counts.critico > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-destructive/30 bg-destructive/10 text-destructive font-medium">
+              🔴 {counts.critico} crítico{counts.critico > 1 ? "s" : ""}
+            </span>
+          )}
+          {counts.alerta > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 font-medium">
+              🟡 {counts.alerta} alerta{counts.alerta > 1 ? "s" : ""}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-background">
+            ✅ {Math.max(0, counts.total - counts.critico - counts.alerta)} aprovado(s)
+          </span>
+        </div>
+      )}
+
       {/* Tabela / Lista */}
       <div className="flex-1 min-h-0 overflow-hidden bg-background isolate pb-2">
         <div className="h-full w-full overflow-auto isolate pb-4">
