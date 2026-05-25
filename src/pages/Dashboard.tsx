@@ -1190,7 +1190,7 @@ const Dashboard = () => {
     status_mais_recente: string | null;
   }>>([]);
   useEffect(() => {
-    if (dashboardMode !== "validador") return;
+    if (isDiretor || !isValidador) return;
     let cancelled = false;
     const fetchTeamToday = async () => {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
