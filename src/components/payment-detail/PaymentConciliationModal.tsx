@@ -150,6 +150,7 @@ export function PaymentConciliationModal({
   paymentId,
   paymentReference,
   paymentItems,
+  initialCompany = null,
 }: Props) {
   const { toast } = useToast();
   const { user } = useAuth();
