@@ -94,6 +94,10 @@ export function CompanyQuestionsThread({ paymentId, companyGroupId, isAnalista: 
     await load();
   };
 
+  // Para o analista, não exibe o card quando ainda não há questionamentos —
+  // o painel de questionamento é iniciado por validador/diretor.
+  if (hideIfEmpty && !loading && items.length === 0) return null;
+
   return (
     <Card className="shadow-card">
       <CardHeader className="pb-3">
