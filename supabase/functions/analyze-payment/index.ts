@@ -1131,6 +1131,17 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         ? null
         : ((r.calculation_breakdown ?? []).find((b) => b.matched && b.calc_id)?.calc_id ?? null);
 
+      // SECTOR: nunca sobrescrever `payment_items.sector` quando o item já
+      // tem setor vindo da planilha. O setor da base importada é a fonte da
+      // verdade — o motor apenas INFERE para itens sem setor (legados).
+      // Auditoria do que o motor inferiu fica em ai_findings.engine.inferred_sector.
+      const originalItem = itemsById[r.item_id];
+      const originalSector = originalItem?.sector ?? null;
+      const inferredSector = (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null;
+      const sectorToPersist = originalSector && String(originalSector).trim() !== ""
+        ? originalSector
+        : inferredSector;
+
       itemUpdates.push({
         id: r.item_id,
         ai_status: finalStatus,
@@ -1138,14 +1149,16 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           ...findings,
           engine: {
             ...(findings.engine || {}),
-            inferred_sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
+            inferred_sector: inferredSector,
+            original_sector: originalSector,
           }
         },
         attendance_group_key: r.attendance_group_key ?? null,
         specialty: resolvedSpec?.value ?? null,
-        sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
+        sector: sectorToPersist,
         applied_rule_id: r.matched_rule_id ?? null,
         applied_rule_label: r.matched_rule_name ?? null,
+
         applied_calc_id: appliedCalcId,
         applied_calc_method: appliedCalcMethod,
         expected_amount: isCalcDuplicityBlock ? null : (r.expected_amount ?? null),
