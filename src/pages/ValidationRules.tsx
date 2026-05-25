@@ -973,9 +973,9 @@ export default function ValidationRules() {
                 >
                   {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   <span className="text-sm font-semibold">{label}</span>
-                  <Badge variant="outline" className="bg-white/70">{rulesInGroup.length} regra{rulesInGroup.length !== 1 ? "s" : ""}</Badge>
+                  <Badge variant="outline" className="bg-background/70">{rulesInGroup.length} regra{rulesInGroup.length !== 1 ? "s" : ""}</Badge>
                   {totalAlerts > 0 && (
-                    <Badge variant="outline" className="bg-white/70 text-amber-700 border-amber-200">
+                    <Badge variant="outline" className="bg-warning-soft text-warning-text border-warning/30">
                       {totalAlerts} alerta{totalAlerts !== 1 ? "s" : ""} ativo{totalAlerts !== 1 ? "s" : ""}
                     </Badge>
                   )}
