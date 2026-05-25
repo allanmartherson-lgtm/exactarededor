@@ -206,6 +206,8 @@ const PaymentDetail = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  const [conciliationCompany, setConciliationCompany] = useState<string | null>(null);
+  const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean>(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
