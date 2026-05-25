@@ -990,9 +990,12 @@ export function PaymentConciliationModal({
           <div>
             <SheetTitle className="text-xl">
               Conciliação de Produção — {paymentReference}
+              {initialCompany && <span className="text-muted-foreground"> · {initialCompany}</span>}
             </SheetTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Cruzamento entre base MedPay e extrato hospitalar
+              {initialCompany
+                ? `Cruzamento filtrado: apenas itens de ${initialCompany}`
+                : "Cruzamento entre base MedPay e extrato hospitalar"}
             </p>
           </div>
           <div className="flex gap-2">
