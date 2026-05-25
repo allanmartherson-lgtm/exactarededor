@@ -44,6 +44,41 @@ const KIND_LABEL: Record<string, string> = {
 
 const fmt = (iso: string) => formatDateTimeBR(iso);
 
+const relativeAge = (iso: string) => {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 60) return { label: `há ${Math.max(1, min)}min`, ms };
+  const h = Math.floor(min / 60);
+  if (h < 24) return { label: `há ${h}h`, ms };
+  const d = Math.floor(h / 24);
+  return { label: `há ${d}d`, ms };
+};
+
+const DiagnosticPanel = ({ kind }: { kind: string }) => {
+  if (kind === "invalid_transition") {
+    return (
+      <div className="flex gap-2 items-start text-xs p-2 rounded border bg-warning-soft/50 border-warning/30">
+        <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+        <span>Transição de status não permitida pelo fluxo. O pagamento pode estar preso num estado inconsistente. Use 'Forçar recompute' para recalcular o status a partir dos grupos.</span>
+      </div>
+    );
+  }
+  if (kind === "out_of_sync") {
+    return (
+      <div className="flex gap-2 items-start text-xs p-2 rounded border bg-info-soft/50 border-info/30">
+        <RefreshCw className="h-4 w-4 text-info shrink-0 mt-0.5" />
+        <span>Status do lote diverge dos grupos. Recalcular força a sincronização automática.</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex gap-2 items-start text-xs p-2 rounded border bg-muted/50 border-border">
+      <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+      <span>Anomalia detectada. Verifique o contexto técnico abaixo e use 'Forçar recompute' se o status parecer incorreto.</span>
+    </div>
+  );
+};
+
 const StatusAnomalies = () => {
   const { user } = useAuth();
   const [rows, setRows] = useState<Anomaly[]>([]);
@@ -225,6 +260,15 @@ const StatusAnomalies = () => {
                           </Badge>
                         )}
                         <span className="text-xs text-muted-foreground">{fmt(a.created_at)}</span>
+                        {(() => {
+                          const age = relativeAge(a.created_at);
+                          const isStale = age.ms > 24 * 3600 * 1000 && !a.resolved_at;
+                          return (
+                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", isStale ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-muted text-muted-foreground")}>
+                              {age.label}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       <p className="text-sm">{a.reason}</p>
                       <div className="text-xs text-muted-foreground">
@@ -265,27 +309,31 @@ const StatusAnomalies = () => {
                       </p>
                     )
                   ) : (
-                    <div className="flex items-end gap-2">
-                      <Textarea
-                        placeholder="Nota de resolução (opcional)…"
-                        value={noteById[a.id] ?? ""}
-                        onChange={(e) => setNoteById((p) => ({ ...p, [a.id]: e.target.value }))}
-                        rows={2}
-                        className="text-xs"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={recomputing.has(a.id)}
-                        onClick={() => recompute(a, { autoResolve: true })}
-                        className="gap-1"
-                      >
-                        <RefreshCw className={cn("h-4 w-4", recomputing.has(a.id) && "animate-spin")} />
-                        Forçar recompute
-                      </Button>
-                      <Button size="sm" onClick={() => resolve(a)}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar resolvida
-                      </Button>
+                    <div className="space-y-2">
+                      <DiagnosticPanel kind={a.kind} />
+                      <div className="flex items-end gap-2">
+                        <Textarea
+                          placeholder="Nota de resolução (opcional)…"
+                          value={noteById[a.id] ?? ""}
+                          onChange={(e) => setNoteById((p) => ({ ...p, [a.id]: e.target.value }))}
+                          rows={2}
+                          className="text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={recomputing.has(a.id)}
+                          onClick={() => recompute(a, { autoResolve: true })}
+                          className="gap-1"
+                        >
+                          <RefreshCw className={cn("h-4 w-4", recomputing.has(a.id) && "animate-spin")} />
+                          Forçar recompute
+                        </Button>
+                        <div className="h-8 w-px bg-border mx-1" />
+                        <Button size="sm" variant="outline" onClick={() => resolve(a)}>
+                          <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar resolvida
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
