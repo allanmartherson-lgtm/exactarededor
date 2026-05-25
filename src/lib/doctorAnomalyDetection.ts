@@ -83,7 +83,7 @@ export async function detectDoctorSectorAnomalies(
   const currentByDoctor: Record<string, Record<string, number>> = {};
   for (const row of current as Array<{ doctor_name: string | null; sector: string | null }>) {
     const name = (row.doctor_name ?? "").trim();
-    const sec = (row.sector ?? "").trim();
+    const sec = normalizeSector((row.sector ?? "").trim());
     if (!name || !sec) continue;
     (currentByDoctor[name] ||= {});
     currentByDoctor[name][sec] = (currentByDoctor[name][sec] ?? 0) + 1;
