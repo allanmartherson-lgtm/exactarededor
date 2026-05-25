@@ -94,6 +94,8 @@ export const PaymentGroupCard = ({
   questionCount = 0,
   onReleaseInvoice,
   canReleaseInvoice = false,
+  hasReconciliationRun = false,
+  onOpenConciliation,
 }: PaymentGroupCardProps) => {
   const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
