@@ -252,9 +252,11 @@ export function PaymentConciliationModal({
     if (open) {
       loadLatestRun();
       loadConcBases();
+      setActiveFilter("todos");
+      setExpandedCompany(initialCompany ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initialCompany]);
 
   const handleSelectBase = (base: any) => {
     setSelectedBase(base);
