@@ -26,6 +26,7 @@ import {
   ShieldX,
   FileWarning,
   MessageSquare,
+  Tag,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
