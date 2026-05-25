@@ -1840,12 +1840,12 @@ function Stat({
     warning: {
       chip: "bg-warning-soft text-warning-text",
       bar: "bg-warning",
-      value: "text-warning-foreground",
+      value: "text-foreground",
     },
     destructive: {
       chip: "bg-destructive/10 text-destructive",
       bar: "bg-destructive",
-      value: "text-destructive",
+      value: "text-foreground",
     },
   };
   const t = tones[tone];
