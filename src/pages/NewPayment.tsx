@@ -1398,11 +1398,13 @@ const NewPayment = () => {
                             <PopoverTrigger asChild>
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                                variant={b.sectorMissing && !b.sectorMapping ? "outline" : "ghost"}
+                                className={`h-6 px-2 text-[11px] ${b.sectorMissing && !b.sectorMapping ? "border-destructive text-destructive hover:text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
                               >
                                 <Pencil className="h-3 w-3 mr-1" />
-                                Setor: {b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}
+                                {b.sectorMissing && !b.sectorMapping
+                                  ? "Setor: mapear (obrigatório)"
+                                  : `Setor: ${b.sectorMapping ? (RULE_SECTOR_LABELS[b.sectorMapping as RuleSector] ?? b.sectorMapping) : "Auto"}`}
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-64 p-3" align="end">
