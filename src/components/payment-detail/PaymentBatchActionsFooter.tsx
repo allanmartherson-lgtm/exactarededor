@@ -27,6 +27,7 @@ interface Props {
   /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
    *  diretor (validador) ou conclui a aprovação final (diretor). */
   actorRole: "validador" | "diretor";
+  items?: Array<{ ai_status: string; validation_findings?: unknown }>;
   onDone: () => void | Promise<void>;
 }
 
@@ -43,12 +44,22 @@ export function PaymentBatchActionsFooter({
   currentUserId,
   currentUserName,
   actorRole,
+  items,
   onDone,
 }: Props) {
   const [questionOpen, setQuestionOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const pendencias = useMemo(() => {
+    const list = items ?? [];
+    const reprovados = list.filter((i) => i.ai_status === "reprovado").length;
+    const alertas = list.filter((i) => i.ai_status === "alerta").length;
+    const pendentes = list.filter((i) => i.ai_status === "pendente").length;
+    return { reprovados, alertas, pendentes, temPendencias: reprovados + alertas + pendentes > 0 };
+  }, [items]);
 
   // ===== Question dialog state =====
   const [qSelected, setQSelected] = useState<Set<string>>(new Set());
@@ -87,7 +98,7 @@ export function PaymentBatchActionsFooter({
     setReturnOpen(true);
   };
 
-  const handleApproveClick = async () => {
+  const proceedApprove = async () => {
     if (approvable.length === 0 && pending.length === 0) {
       toast({ title: "Lote já foi processado", variant: "destructive" });
       return;
@@ -103,6 +114,14 @@ export function PaymentBatchActionsFooter({
     }
     setApproveNote("");
     setApproveOpen(true);
+  };
+
+  const handleApproveClick = async () => {
+    if (actorRole === "validador" && pendencias.temPendencias) {
+      setGateOpen(true);
+      return;
+    }
+    await proceedApprove();
   };
 
   const doApprove = async (groupIds: string[], note: string | null) => {
@@ -380,6 +399,43 @@ export function PaymentBatchActionsFooter({
               disabled={busy}
             >
               {actorRole === "diretor" ? "Confirmar aprovação parcial" : "Confirmar envio parcial"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============== Gate de pendências (validador) ============== */}
+      <Dialog open={gateOpen} onOpenChange={setGateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verificar antes de enviar</DialogTitle>
+            <DialogDescription>
+              Há pendências neste lote. Revise antes de encaminhar ao diretor.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-2 text-sm">
+            {pendencias.reprovados > 0 && (
+              <li>🔴 {pendencias.reprovados} item(ns) reprovado(s) pela IA sem justificativa</li>
+            )}
+            {pendencias.alertas > 0 && (
+              <li>🟡 {pendencias.alertas} item(ns) com alerta ativo</li>
+            )}
+            {pendencias.pendentes > 0 && (
+              <li>⏳ {pendencias.pendentes} item(ns) ainda aguardando análise da IA</li>
+            )}
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGateOpen(false)}>
+              Revisar antes de enviar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                setGateOpen(false);
+                await proceedApprove();
+              }}
+            >
+              Enviar mesmo assim
             </Button>
           </DialogFooter>
         </DialogContent>
