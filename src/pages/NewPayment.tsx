@@ -508,7 +508,12 @@ const NewPayment = () => {
         ? (companies.find((c) => c.id === bucket.matchedCompany!.id) ?? null)
         : null;
       const rows = mapJsonToRows(json, bucket.file, newHeaderIdx, company, filenameTrusted, bucket.rawCompanyName);
-      return { ...bucket, rows, headerRowIndex: newHeaderIdx };
+      const sc: Record<string, number> = {};
+      for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
+      const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const dominantMapped = dominantRaw ? (RULE_SECTOR_LABELS as any)[dominantRaw] ? dominantRaw : null : null;
+      const sectorMissing = rows.length > 0 && (Object.keys(sc).length === 0 || dominantMapped === null);
+      return { ...bucket, rows, headerRowIndex: newHeaderIdx, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
     }));
     toast({ title: "Cabeçalho atualizado", description: `Linha ${newHeaderIdx + 1} usada como cabeçalho.` });
   };
