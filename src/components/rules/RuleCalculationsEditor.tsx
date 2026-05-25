@@ -618,10 +618,10 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, onChange, onRemove,
+  index, total, item, refTables, onChange, onRemove, onDuplicate,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
-  onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void;
+  onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const c = item;
