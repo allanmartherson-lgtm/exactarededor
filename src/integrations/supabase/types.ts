@@ -235,6 +235,54 @@ export type Database = {
         }
         Relationships: []
       }
+      company_portal_users: {
+        Row: {
+          accepted_at: string | null
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_portal_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_portal_users_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_sla_overrides: {
         Row: {
           company_id: string
@@ -453,6 +501,121 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_messages: {
+        Row: {
+          author_name: string
+          author_type: string
+          author_user_id: string | null
+          created_at: string
+          doctor_id: string
+          id: string
+          message: string
+          payment_id: string | null
+          payment_item_id: string | null
+          read_at: string | null
+          read_by_doctor_at: string | null
+          responded_at: string | null
+        }
+        Insert: {
+          author_name: string
+          author_type: string
+          author_user_id?: string | null
+          created_at?: string
+          doctor_id: string
+          id?: string
+          message: string
+          payment_id?: string | null
+          payment_item_id?: string | null
+          read_at?: string | null
+          read_by_doctor_at?: string | null
+          responded_at?: string | null
+        }
+        Update: {
+          author_name?: string
+          author_type?: string
+          author_user_id?: string | null
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          message?: string
+          payment_id?: string | null
+          payment_item_id?: string | null
+          read_at?: string | null
+          read_by_doctor_at?: string | null
+          responded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_messages_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_messages_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_messages_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_portal_users: {
+        Row: {
+          accepted_at: string | null
+          active: boolean
+          created_at: string
+          doctor_id: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          active?: boolean
+          created_at?: string
+          doctor_id: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          active?: boolean
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_portal_users_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_portal_users_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1894,6 +2057,158 @@ export type Database = {
         }
         Relationships: []
       }
+      production_validation_feedbacks: {
+        Row: {
+          attendance_number: string | null
+          convenio: string | null
+          created_at: string
+          description: string | null
+          doctor_name: string | null
+          exclusion_detail: string | null
+          exclusion_reason: string | null
+          id: string
+          kind: string
+          patient_name: string | null
+          payment_item_id: string | null
+          procedure_date: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          validation_id: string
+        }
+        Insert: {
+          attendance_number?: string | null
+          convenio?: string | null
+          created_at?: string
+          description?: string | null
+          doctor_name?: string | null
+          exclusion_detail?: string | null
+          exclusion_reason?: string | null
+          id?: string
+          kind: string
+          patient_name?: string | null
+          payment_item_id?: string | null
+          procedure_date?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          validation_id: string
+        }
+        Update: {
+          attendance_number?: string | null
+          convenio?: string | null
+          created_at?: string
+          description?: string | null
+          doctor_name?: string | null
+          exclusion_detail?: string | null
+          exclusion_reason?: string | null
+          id?: string
+          kind?: string
+          patient_name?: string | null
+          payment_item_id?: string | null
+          procedure_date?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          validation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_validation_feedbacks_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_validation_feedbacks_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_validation_feedbacks_validation_id_fkey"
+            columns: ["validation_id"]
+            isOneToOne: false
+            referencedRelation: "production_validations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_validations: {
+        Row: {
+          company_id: string
+          company_name: string
+          confirmed_at: string | null
+          confirmed_by_name: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          notes: string | null
+          payment_id: string
+          sent_at: string
+          sent_by: string | null
+          status: string
+          token: string
+        }
+        Insert: {
+          company_id: string
+          company_name: string
+          confirmed_at?: string | null
+          confirmed_by_name?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          payment_id: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          token?: string
+        }
+        Update: {
+          company_id?: string
+          company_name?: string
+          confirmed_at?: string | null
+          confirmed_by_name?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          payment_id?: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_validations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_validations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_validations_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           birth_date: string | null
@@ -3131,7 +3446,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "diretor" | "validador" | "analista"
+      app_role:
+        | "admin"
+        | "diretor"
+        | "validador"
+        | "analista"
+        | "empresa"
+        | "medico"
       invoice_status: "aguardando" | "recebida" | "conciliada" | "divergente"
       item_ai_status:
         | "pendente"
@@ -3355,7 +3676,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "diretor", "validador", "analista"],
+      app_role: [
+        "admin",
+        "diretor",
+        "validador",
+        "analista",
+        "empresa",
+        "medico",
+      ],
       invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
       item_ai_status: [
         "pendente",
