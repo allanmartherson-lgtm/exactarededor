@@ -403,6 +403,43 @@ export function PaymentBatchActionsFooter({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ============== Gate de pendências (validador) ============== */}
+      <Dialog open={gateOpen} onOpenChange={setGateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verificar antes de enviar</DialogTitle>
+            <DialogDescription>
+              Há pendências neste lote. Revise antes de encaminhar ao diretor.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-2 text-sm">
+            {pendencias.reprovados > 0 && (
+              <li>🔴 {pendencias.reprovados} item(ns) reprovado(s) pela IA sem justificativa</li>
+            )}
+            {pendencias.alertas > 0 && (
+              <li>🟡 {pendencias.alertas} item(ns) com alerta ativo</li>
+            )}
+            {pendencias.pendentes > 0 && (
+              <li>⏳ {pendencias.pendentes} item(ns) ainda aguardando análise da IA</li>
+            )}
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGateOpen(false)}>
+              Revisar antes de enviar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                setGateOpen(false);
+                await proceedApprove();
+              }}
+            >
+              Enviar mesmo assim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
