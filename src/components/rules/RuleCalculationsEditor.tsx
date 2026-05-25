@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Trash2, ChevronDown, ChevronRight, Package } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, Package, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -175,6 +175,18 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
     onChange(value.filter((_, idx) => idx !== i));
   };
   const add = () => onChange([...value, makeEmptyCalc()]);
+  const duplicate = (i: number) => {
+    const src = value[i];
+    // clona sem id (para virar novo registro) e adiciona sufixo no rótulo
+    const { id: _omit, ...rest } = src as any;
+    const clone: CalcItem = {
+      ...(JSON.parse(JSON.stringify(rest)) as CalcItem),
+      label: src.label ? `${src.label} (cópia)` : "Cópia do cálculo",
+    };
+    const next = value.slice();
+    next.splice(i + 1, 0, clone);
+    onChange(next);
+  };
 
   if (!enabled) {
     return (
@@ -195,6 +207,7 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
           refTables={refTables}
           onChange={(patch) => update(i, patch)}
           onRemove={() => remove(i)}
+          onDuplicate={() => duplicate(i)}
         />
       ))}
       <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
@@ -605,10 +618,10 @@ function WhenApplySection({
  *  Card de UM cálculo (método + parâmetros + condições)
  * ============================================================ */
 function CalcCard({
-  index, total, item, refTables, onChange, onRemove,
+  index, total, item, refTables, onChange, onRemove, onDuplicate,
 }: {
   index: number; total: number; item: CalcItem; refTables: RefTable[];
-  onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void;
+  onChange: (patch: Partial<CalcItem>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const c = item;
@@ -637,6 +650,14 @@ function CalcCard({
         <span className="ml-auto text-[10.5px] text-muted-foreground">
           {RULE_CALCULATION_TYPE_LABELS[c.calculation_type]}
         </span>
+        <Button
+          type="button" variant="ghost" size="sm"
+          className="h-7 px-2"
+          onClick={onDuplicate}
+          title="Duplicar este cálculo"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
         <Button
           type="button" variant="ghost" size="sm"
           className={cn("h-7 px-2 text-destructive", total === 1 && "opacity-60")}
