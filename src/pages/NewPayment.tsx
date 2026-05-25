@@ -821,6 +821,15 @@ const NewPayment = () => {
       const ok = confirm(`A base contém ${preValidation.warnings} alerta(s) leve(s) (ex.: complemento sem atendimento, tipo não identificado). Deseja prosseguir?`);
       if (!ok) return;
     }
+    const unmappedSectorBuckets = buckets.filter((b) => b.sectorMissing && !b.sectorMapping);
+    if (unmappedSectorBuckets.length > 0) {
+      toast({
+        title: "Setor não identificado",
+        description: `Mapeie o setor manualmente nos arquivos: ${unmappedSectorBuckets.map((b) => b.file.name).join(", ")}.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (sectorConflicts.length > 0) {
       const ok = confirm(`Conflito detectado entre seleção manual e a base:\n\n${sectorConflicts.join("\n")}\n\nDeseja prosseguir mesmo assim?`);
       if (!ok) return;
