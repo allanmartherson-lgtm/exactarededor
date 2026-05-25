@@ -671,9 +671,9 @@ export const AppLayout = () => {
               >
                 {user?.email}
               </p>
-              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>
+              <span style={getRoleBadgeStyle(primaryRole)}>
                 {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
-              </p>
+              </span>
             </div>
             <Button
               variant="ghost"
