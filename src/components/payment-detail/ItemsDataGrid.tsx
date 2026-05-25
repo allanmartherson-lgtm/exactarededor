@@ -264,9 +264,20 @@ export function ItemsDataGrid({
         .join(" ")
         .toLowerCase()
         .includes(term);
-    }).sort((a, b) =>
-      getPatient(a).localeCompare(getPatient(b), "pt-BR", { sensitivity: "base" })
-    );
+    }).sort((a, b) => {
+      const prioOf = (it: typeof items[number]) => {
+        const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+        if (eff === "reprovado") return 0;
+        if (eff === "alerta") return 1;
+        if (eff === "pendente") return 2;
+        if (eff === "acatado") return 3;
+        return 4;
+      };
+      const pa = prioOf(a);
+      const pb = prioOf(b);
+      if (pa !== pb) return pa - pb;
+      return Number(b.gross_amount ?? 0) - Number(a.gross_amount ?? 0);
+    });
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
 
   // Totais da seleção atual (após filtros).
