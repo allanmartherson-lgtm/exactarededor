@@ -594,6 +594,31 @@ export function PaymentConciliationModal({
       const makeKey = (att: unknown, code: unknown): string =>
         `${normAtt(att)}|${normalizeCode(code)}`;
 
+      const normName = (s: unknown): string =>
+        String(s ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
+
+      const normRole = (s: unknown): string => {
+        const n = normName(s);
+        if (!n) return "";
+        if (n.includes("anest")) return "anestesia";
+        if (n.includes("instrument")) return "instrumentador";
+        if (n.includes("aux") && n.includes("2")) return "aux2";
+        if (n.includes("aux") && n.includes("1")) return "aux1";
+        if (n.includes("aux")) return "aux";
+        if (n.includes("princ") || n.includes("cirurg")) return "principal";
+        return n;
+      };
+
+      const normQty = (q: unknown): number => {
+        const n = Number(String(q ?? "").replace(",", "."));
+        return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
+      };
+
       const medpayByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
         if (!it.attendance_number || !it.procedure_code) continue;
@@ -633,32 +658,56 @@ export function PaymentConciliationModal({
         const doctor = getCell(row, "doctor");
         const procName = getCell(row, "procName");
         const dateRaw = getCell(row, "date");
+        const roleHosp = getCell(row, "role");
+        const qtyHosp = getCell(row, "quantity");
         const col = parsedColMap["company"];
         const terceiro = col ? String(row[col] ?? "").trim() : "";
         const mappedCompany = companyMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
         const candidates = medpayByKey.get(k) ?? [];
-        // Valor MedPay para conciliação = valor da TABELA DO CONVÊNIO (procedure_amount),
-        // ou seja, ANTES da aplicação de qualquer regra/acordo. Fallback para gross_amount
-        // apenas quando a planilha de origem não trouxe procedure_amount.
         const getConvenioValue = (m: PaymentItemRow): number => {
           const proc = (m as any).procedure_amount;
           if (proc != null && proc !== "") return Number(proc) || 0;
           return Number((m as any).gross_amount ?? 0) || 0;
         };
 
-        // Prefere o candidato cujo valor (tabela convênio) é mais próximo ao da planilha hospitalar
+        // Matching disambiguation: além de atendimento+código, exige coerência
+        // de médico/função/qtd. Sem isso, linhas com mesmo att+code de médicos
+        // diferentes (ex.: principal vs auxiliar) cruzavam valor errado.
         const available = candidates.filter((m) => !matchedMedpayIds.has(m.id));
-        const match = available.length === 0
-          ? undefined
-          : available.length === 1
-          ? available[0]
-          : available.reduce((best, curr) => {
-              const diffBest = Math.abs(getConvenioValue(best) - valHosp);
-              const diffCurr = Math.abs(getConvenioValue(curr) - valHosp);
-              return diffCurr < diffBest ? curr : best;
-            });
+        const docHospN = normName(doctor);
+        const roleHospN = normRole(roleHosp);
+        const qtyHospN = normQty(qtyHosp);
+
+        const scoreCandidate = (m: PaymentItemRow): { score: number; docOk: boolean; roleOk: boolean } => {
+          let s = 0;
+          const docMedN = normName((m as any).doctor_name);
+          const roleMedN = normRole((m as any).doctor_role);
+          const qtyMedN = normQty((m as any).quantity);
+          let docOk = false, roleOk = false;
+          if (docHospN && docMedN && docHospN === docMedN) { s += 1000; docOk = true; }
+          else if (docHospN && docMedN && (docMedN.includes(docHospN) || docHospN.includes(docMedN))) { s += 400; docOk = true; }
+          if (roleHospN && roleMedN && roleHospN === roleMedN) { s += 200; roleOk = true; }
+          else if (roleHospN && roleMedN) s -= 150;
+          if (qtyHospN === qtyMedN) s += 50;
+          const diff = Math.abs(getConvenioValue(m) - valHosp);
+          s += Math.max(0, 30 - Math.min(30, (diff / Math.max(1, valHosp)) * 30));
+          return { score: s, docOk, roleOk };
+        };
+
+        let match: PaymentItemRow | undefined;
+        let ambiguous = false;
+        if (available.length === 1) {
+          match = available[0];
+        } else if (available.length > 1) {
+          const ranked = available
+            .map((m) => ({ m, ...scoreCandidate(m) }))
+            .sort((a, b) => b.score - a.score);
+          match = ranked[0].m;
+          // Ambíguo: top sem identidade clara (sem doc nem role coerentes)
+          if (!ranked[0].docOk && !ranked[0].roleOk) ambiguous = true;
+        }
 
         const base: Record<string, unknown> = {
           attendance_number: att ? String(Math.round(Number(att)) || att) : null,
@@ -704,7 +753,10 @@ export function PaymentConciliationModal({
             base.status = "valor_divergente";
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            base.ia_obs = `Tabela convênio — Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
+            const ambigPrefix = ambiguous
+              ? `⚠ Match ambíguo (mesmo atendimento+código com médicos/funções diferentes — confira manualmente). `
+              : "";
+            base.ia_obs = `${ambigPrefix}Tabela convênio — Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
             divergencia_valor += Math.abs(diff);
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
