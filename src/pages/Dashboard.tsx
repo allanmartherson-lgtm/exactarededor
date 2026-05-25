@@ -40,6 +40,7 @@ import {
   Building2,
   MessageCircle,
   CheckCircle2,
+  BarChart2,
   type LucideIcon,
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
@@ -1494,6 +1495,20 @@ const Dashboard = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <SurfaceCard>
+            <SurfaceCardHeader title="Produtividade da Equipe" icon={BarChart2} iconColor="blue" />
+            <div style={{ padding: "16px 22px" }}>
+              <p style={{ fontSize: 13, color: "hsl(var(--foreground))", fontWeight: 500 }}>
+                Visão consolidada do time
+              </p>
+              <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
+                Acompanhe o desempenho dos analistas e o volume processado pela equipe.
+              </p>
+              <Link to="/produtividade-analistas" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 12, fontSize: 12, fontWeight: 500, color: "hsl(var(--accent-foreground))", textDecoration: "none" }}>
+                Ver produtividade <ArrowRight size={13} />
+              </Link>
+            </div>
+          </SurfaceCard>
           <SurfaceCard>
             <SurfaceCardHeader title="Perguntas abertas da equipe" icon={MessageCircle} iconColor="yellow" countPill={teamOpenQuestionsCount} />
             <div style={{ padding: "16px 22px" }}>
