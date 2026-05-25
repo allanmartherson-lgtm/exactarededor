@@ -984,24 +984,40 @@ export function PaymentConciliationModal({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conciliação");
 
+    const filterDescParts: string[] = [];
+    if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
+    if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
+    if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
+    if (minValue) filterDescParts.push(`Valor mín: ${minValue}`);
+    if (maxValue) filterDescParts.push(`Valor máx: ${maxValue}`);
+    const filterDesc = filterDescParts.length ? filterDescParts.join(" · ") : "Sem filtros";
+
     const summaryData: (string | number)[][] = [
       ["Relatório de Conciliação de Produção"],
       [""],
       ["Lote", paymentReference],
       ["Arquivo base", run.file_name ?? ""],
       ["Data da conciliação", formatDateTimeBR(run.created_at)],
+      ["Filtros aplicados", filterDesc],
       [""],
-      ["RESUMO"],
-      ["Total de itens", run.total_items],
-      ["Conciliados", run.conciliado, `${total ? ((run.conciliado / total) * 100).toFixed(1) : 0}%`],
-      ["Valor divergente", run.valor_divergente],
-      ["Só no hospital", run.so_hospital],
-      ["Só no MedPay", run.so_medpay],
+      ["RESUMO (escopo filtrado)"],
+      ["Total de itens", scopedStats.total],
+      ["Conciliados", scopedStats.conciliado, `${scopedStats.total ? ((scopedStats.conciliado / scopedStats.total) * 100).toFixed(1) : 0}%`],
+      ["Valor divergente", scopedStats.valor_divergente],
+      ["Só no hospital", scopedStats.so_hospital],
+      ["Só no MedPay", scopedStats.so_medpay],
       [""],
-      ["IMPACTO FINANCEIRO"],
-      ["Risco pagamento a mais", run.risco_mais],
-      ["Risco pagamento a menos", run.risco_menos],
-      ["Divergência de valores", run.divergencia_valor],
+      ["IMPACTO FINANCEIRO (escopo filtrado)"],
+      ["Risco pagamento a mais", Number(scopedStats.risco_mais.toFixed(2))],
+      ["Risco pagamento a menos", Number(scopedStats.risco_menos.toFixed(2))],
+      ["Divergência de valores", Number(scopedStats.divergencia_valor.toFixed(2))],
+      [""],
+      ["TOTAIS DO LOTE (sem filtro)"],
+      ["Total de itens (lote)", run.total_items],
+      ["Risco a mais (lote)", run.risco_mais],
+      ["Risco a menos (lote)", run.risco_menos],
+      ["Divergência (lote)", run.divergencia_valor],
     ];
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
     wsSummary['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 12 }];
