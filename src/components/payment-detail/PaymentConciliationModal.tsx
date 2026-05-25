@@ -1253,7 +1253,7 @@ export function PaymentConciliationModal({
                 <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-xs text-muted-foreground">
                   <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <span>
-                    <strong className="text-foreground">Lógica de cruzamento:</strong> o sistema cruza por <strong className="text-foreground">Nº de atendimento + código TUSS</strong>. Itens sem esses dois campos na planilha hospitalar aparecerão como "Só no hospital".
+                    <strong className="text-foreground">Lógica de cruzamento:</strong> chave = <strong className="text-foreground">Nº de atendimento + código TUSS</strong>. A comparação financeira é <strong className="text-foreground">tabela do convênio × tabela do convênio</strong> (valor antes da aplicação de qualquer regra/acordo). Divergências aqui indicam diferenças na tabela do convênio entre as duas bases — não erro do motor de regras.
                   </span>
                 </div>
               )}
