@@ -175,6 +175,18 @@ export function RuleCalculationsEditor({ value, onChange, refTables, enabled }: 
     onChange(value.filter((_, idx) => idx !== i));
   };
   const add = () => onChange([...value, makeEmptyCalc()]);
+  const duplicate = (i: number) => {
+    const src = value[i];
+    // clona sem id (para virar novo registro) e adiciona sufixo no rótulo
+    const { id: _omit, ...rest } = src as any;
+    const clone: CalcItem = {
+      ...(JSON.parse(JSON.stringify(rest)) as CalcItem),
+      label: src.label ? `${src.label} (cópia)` : "Cópia do cálculo",
+    };
+    const next = value.slice();
+    next.splice(i + 1, 0, clone);
+    onChange(next);
+  };
 
   if (!enabled) {
     return (
