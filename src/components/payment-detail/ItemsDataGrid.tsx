@@ -264,9 +264,20 @@ export function ItemsDataGrid({
         .join(" ")
         .toLowerCase()
         .includes(term);
-    }).sort((a, b) =>
-      getPatient(a).localeCompare(getPatient(b), "pt-BR", { sensitivity: "base" })
-    );
+    }).sort((a, b) => {
+      const prioOf = (it: typeof items[number]) => {
+        const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
+        if (eff === "reprovado") return 0;
+        if (eff === "alerta") return 1;
+        if (eff === "pendente") return 2;
+        if (eff === "acatado") return 3;
+        return 4;
+      };
+      const pa = prioOf(a);
+      const pb = prioOf(b);
+      if (pa !== pb) return pa - pb;
+      return Number(b.gross_amount ?? 0) - Number(a.gross_amount ?? 0);
+    });
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
 
   // Totais da seleção atual (após filtros).
@@ -530,6 +541,27 @@ export function ItemsDataGrid({
           <Badge variant="secondary">
             {filtered.length} de {counts.total}
           </Badge>
+        </div>
+      )}
+
+      {(counts.critico > 0 || counts.alerta > 0) && (
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 text-xs border-b bg-muted/30">
+          <span className="inline-flex items-center gap-1 rounded-full bg-background px-2 py-0.5 border">
+            Total: <strong>{counts.total}</strong>
+          </span>
+          {counts.critico > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-destructive/30 bg-destructive/10 text-destructive font-medium">
+              🔴 {counts.critico} crítico{counts.critico > 1 ? "s" : ""}
+            </span>
+          )}
+          {counts.alerta > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 font-medium">
+              🟡 {counts.alerta} alerta{counts.alerta > 1 ? "s" : ""}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-background">
+            ✅ {Math.max(0, counts.total - counts.critico - counts.alerta)} aprovado(s)
+          </span>
         </div>
       )}
 
