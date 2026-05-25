@@ -1459,11 +1459,20 @@ const Rules = () => {
   };
 
   // filtered + grouped
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const filtered = useMemo(() => {
+    const term = filterTarget.trim();
+    const tokens = term ? norm(term).split(/\s+/).filter(Boolean) : [];
     return rules.filter((r) => {
       if (filterScope !== "todos" && r.scope !== filterScope) return false;
       if (onlyIncomplete && !isIncomplete(r)) return false;
-      if (filterTarget.trim() && !`${r.target_name ?? ""} ${r.target_identifier ?? ""}`.toLowerCase().includes(filterTarget.toLowerCase())) return false;
+      if (tokens.length) {
+        const haystack = norm([
+          r.name, r.description, r.rule_text,
+          r.target_name, r.target_identifier,
+        ].filter(Boolean).join(" "));
+        if (!tokens.every((t) => haystack.includes(t))) return false;
+      }
       return true;
     });
   }, [rules, filterScope, filterTarget, onlyIncomplete]);
