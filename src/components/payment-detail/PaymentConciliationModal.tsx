@@ -639,15 +639,24 @@ export function PaymentConciliationModal({
         const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
         const candidates = medpayByKey.get(k) ?? [];
-        // Prefere o candidato cujo valor é mais próximo ao valor da planilha
+        // Valor MedPay para conciliação = valor da TABELA DO CONVÊNIO (procedure_amount),
+        // ou seja, ANTES da aplicação de qualquer regra/acordo. Fallback para gross_amount
+        // apenas quando a planilha de origem não trouxe procedure_amount.
+        const getConvenioValue = (m: PaymentItemRow): number => {
+          const proc = (m as any).procedure_amount;
+          if (proc != null && proc !== "") return Number(proc) || 0;
+          return Number((m as any).gross_amount ?? 0) || 0;
+        };
+
+        // Prefere o candidato cujo valor (tabela convênio) é mais próximo ao da planilha hospitalar
         const available = candidates.filter((m) => !matchedMedpayIds.has(m.id));
         const match = available.length === 0
           ? undefined
           : available.length === 1
           ? available[0]
           : available.reduce((best, curr) => {
-              const diffBest = Math.abs(Number((best as any).gross_amount ?? 0) - valHosp);
-              const diffCurr = Math.abs(Number((curr as any).gross_amount ?? 0) - valHosp);
+              const diffBest = Math.abs(getConvenioValue(best) - valHosp);
+              const diffCurr = Math.abs(getConvenioValue(curr) - valHosp);
               return diffCurr < diffBest ? curr : best;
             });
 
@@ -674,7 +683,7 @@ export function PaymentConciliationModal({
 
         if (match) {
           matchedMedpayIds.add(match.id);
-          const valMed = Number((match as any).gross_amount ?? 0);
+          const valMed = getConvenioValue(match);
           base.payment_item_id = match.id;
           base.valor_medpay = valMed;
           if (!base.patient_name) base.patient_name = match.patient_name ?? null;
@@ -683,6 +692,7 @@ export function PaymentConciliationModal({
           if (!base.procedure_date) base.procedure_date = (match as any).procedure_date ?? null;
           if (!base.company_name) base.company_name = match.company_name ?? null;
           if (!base.agreement_text) base.agreement_text = (match as any).agreement_text ?? null;
+          // Mantém o rótulo da regra apenas como CONTEXTO informativo — não entra no cálculo da divergência
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
 
@@ -694,10 +704,7 @@ export function PaymentConciliationModal({
             base.status = "valor_divergente";
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            const ruleContext = (match as any).applied_rule_label
-              ? ` Regra aplicada: "${(match as any).applied_rule_label}".`
-              : '';
-            base.ia_obs = `Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%).${ruleContext} Revisar se o valor do hospital corresponde ao convênio sem aplicação de acordo.`;
+            base.ia_obs = `Tabela convênio — Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
             divergencia_valor += Math.abs(diff);
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
