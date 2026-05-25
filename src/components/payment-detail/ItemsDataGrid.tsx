@@ -1315,6 +1315,7 @@ function ItemDetailsRow({
                     <p className="mt-1 italic whitespace-pre-wrap">"{itemAny.exception_note}"</p>
                   )}
                 </div>
+              )}
               {(it.ai_status === "reprovado" || it.ai_status === "alerta") && (it.ai_status as string) !== "acatado" && (() => {
                 const getNextStep = (): string => {
                   if (priority === "sem_regra") {
