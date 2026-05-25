@@ -206,6 +206,34 @@ export default function CompanyAnalysis() {
   // pré-filtrado para esta empresa via `items`/`groups` reduzidos. Garante
   // que o relatório por empresa reflita exatamente o relatório do lote.
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    const check = async () => {
+      const { count } = await (supabase as any)
+        .from("reconciliation_runs")
+        .select("id", { count: "exact", head: true })
+        .eq("payment_id", id);
+      if (active) setHasReconciliationRun((count ?? 0) > 0);
+    };
+    check();
+    const ch = supabase
+      .channel(`recon-runs-company:${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reconciliation_runs", filter: `payment_id=eq.${id}` }, check)
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(ch); };
+  }, [id]);
+
+  const handleOpenConciliation = () => {
+    if (hasReconciliationRun === false) {
+      toast.info("Lote sem conciliação", { description: "Ainda não foi feita nenhuma rodada de conciliação para este lote." });
+      return;
+    }
+    setIsConciliationOpen(true);
+  };
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
 
