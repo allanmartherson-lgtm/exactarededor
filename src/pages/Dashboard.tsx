@@ -1181,6 +1181,55 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Equipe hoje — apenas para validador
+  const [teamTodayStats, setTeamTodayStats] = useState<Array<{
+    actor_id: string;
+    actor_name: string;
+    acoes: number;
+    ultimo_movimento: string;
+    status_mais_recente: string | null;
+  }>>([]);
+  useEffect(() => {
+    if (dashboardMode !== "validador") return;
+    let cancelled = false;
+    const fetchTeamToday = async () => {
+      const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: hist } = await supabase
+        .from("payment_status_history")
+        .select("changed_by, changed_at, status_to")
+        .gte("changed_at", since24h)
+        .not("changed_by", "is", null)
+        .order("changed_at", { ascending: false })
+        .limit(500);
+      if (cancelled) return;
+      const byActor: Record<string, { acoes: number; ultimo: string; status: string | null }> = {};
+      (hist ?? []).forEach((h: any) => {
+        if (!h.changed_by) return;
+        const cur = byActor[h.changed_by] ?? { acoes: 0, ultimo: h.changed_at, status: h.status_to };
+        cur.acoes += 1;
+        if (h.changed_at > cur.ultimo) { cur.ultimo = h.changed_at; cur.status = h.status_to; }
+        byActor[h.changed_by] = cur;
+      });
+      const actorIds = Object.keys(byActor);
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", actorIds.length ? actorIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (cancelled) return;
+      const nameMap: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name || p.email || "—"; });
+      setTeamTodayStats(
+        Object.entries(byActor)
+          .map(([id, v]) => ({ actor_id: id, actor_name: nameMap[id] ?? "—", acoes: v.acoes, ultimo_movimento: v.ultimo, status_mais_recente: v.status }))
+          .sort((a, b) => b.acoes - a.acoes)
+      );
+    };
+    fetchTeamToday();
+    return () => { cancelled = true; };
+  }, [dashboardMode]);
+
+
+
 
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
