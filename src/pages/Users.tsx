@@ -134,7 +134,7 @@ const Users = () => {
     load();
   };
 
-  const loadUserSettings = async (userId: string, userName: string) => {
+  const loadUserSettings = async (userId: string, userName: string, userRoles: string[] = []) => {
     setNotifyingUser({ id: userId, name: userName });
     setLoadingSettings(true);
     const { data, error } = await supabase
@@ -148,7 +148,17 @@ const Users = () => {
       return;
     }
 
-    const events = ["returned", "ia_concluded", "nf_received"];
+    const EVENTS_BY_ROLE: Record<string, string[]> = {
+      analista: ["returned", "ia_concluded", "nf_received"],
+      validador: ["returned", "ia_concluded"],
+      diretor: ["ia_concluded"],
+      admin: ["returned", "ia_concluded", "nf_received"],
+    };
+    const eventSet = new Set<string>();
+    (userRoles || []).forEach((r) => (EVENTS_BY_ROLE[r] || []).forEach((e) => eventSet.add(e)));
+    const events = eventSet.size > 0
+      ? ["returned", "ia_concluded", "nf_received"].filter((e) => eventSet.has(e))
+      : ["returned", "ia_concluded", "nf_received"];
     const existing = data || [];
     const complete = events.map(evt => {
       const s = existing.find(x => x.event_type === evt);
@@ -183,8 +193,8 @@ const Users = () => {
   };
 
   const EVENT_LABELS: Record<string, string> = {
-    returned: "Lote devolvido",
-    ia_concluded: "Análise IA concluída",
+    returned: "Lote devolvido para correção",
+    ia_concluded: "Análise da IA concluída",
     nf_received: "Nota Fiscal recebida",
   };
 
@@ -589,7 +599,7 @@ const Users = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => loadUserSettings(u.id, u.full_name || u.email)}
+                      onClick={() => loadUserSettings(u.id, u.full_name || u.email, u.roles)}
                       title="Configurar notificações por e-mail/WhatsApp para este usuário"
                     >
                       <Bell className="h-3.5 w-3.5 mr-1.5" />
