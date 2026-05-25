@@ -134,7 +134,7 @@ const Users = () => {
     load();
   };
 
-  const loadUserSettings = async (userId: string, userName: string) => {
+  const loadUserSettings = async (userId: string, userName: string, userRoles: string[] = []) => {
     setNotifyingUser({ id: userId, name: userName });
     setLoadingSettings(true);
     const { data, error } = await supabase
@@ -148,7 +148,17 @@ const Users = () => {
       return;
     }
 
-    const events = ["returned", "ia_concluded", "nf_received"];
+    const EVENTS_BY_ROLE: Record<string, string[]> = {
+      analista: ["returned", "ia_concluded", "nf_received"],
+      validador: ["returned", "ia_concluded"],
+      diretor: ["ia_concluded"],
+      admin: ["returned", "ia_concluded", "nf_received"],
+    };
+    const eventSet = new Set<string>();
+    (userRoles || []).forEach((r) => (EVENTS_BY_ROLE[r] || []).forEach((e) => eventSet.add(e)));
+    const events = eventSet.size > 0
+      ? ["returned", "ia_concluded", "nf_received"].filter((e) => eventSet.has(e))
+      : ["returned", "ia_concluded", "nf_received"];
     const existing = data || [];
     const complete = events.map(evt => {
       const s = existing.find(x => x.event_type === evt);
