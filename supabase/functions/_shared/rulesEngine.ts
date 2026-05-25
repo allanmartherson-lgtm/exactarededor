@@ -2448,32 +2448,11 @@ export function analyzeItem(
   const needsFallback = !winner || (calc && calc.expected === null);
 
   if (needsFallback) {
-    // --- Camada 3: Verificação global de tabelas de "sem acordo" ou "exclusão" ---
-    const code = (item.procedure_code ?? "").trim();
-    if (code && ctx?.globalExceptionTableIds?.length && ctx?.exceptionLookup) {
-      for (const tid of ctx.globalExceptionTableIds) {
-        const h = ctx.exceptionLookup(tid, code);
-        if (h) {
-          const paid = Number(item.gross_amount ?? 0);
-          return {
-            item_id: item.id,
-            status: "aprovado",
-            expected_amount: paid,
-            diff_pct: 0,
-            matched_rule_id: null,
-            matched_rule_name: `Camada 3 (Global) — ${h.table_name}`,
-            matched_priority: "regra_bloqueio",
-            calculation_type_used: "informativo",
-            calculation_explanation: 
-              `Bloqueado pela Camada 3 (Global) — código TUSS ${code} consta na tabela "${h.table_name}" ` +
-              `(${h.purpose === "sem_acordo" ? "sem acordo" : "exclusão"}). Sistema aceita o valor pago (R$ ${paid.toFixed(2)}).`,
-            alerts: [],
-            needs_ai_review: false,
-            needs_human_review: false,
-          };
-        }
-      }
-    }
+    // NOTE: A antiga "Camada 3 Global" (varredura de tabelas sem_acordo/exclusao
+    // não vinculadas à regra) foi removida. Tabelas de exceção só atuam quando
+    // explicitamente vinculadas a uma regra via exception_table_ids (Camada 2).
+
+
 
     // --- Camada 4: Fallback Determinístico para Regra Geral ---
     const fallbackResult = findFallbackGeneralRule(item, preFilteredRules, ctx);
