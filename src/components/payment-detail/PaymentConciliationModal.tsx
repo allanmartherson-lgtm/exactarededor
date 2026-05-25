@@ -1034,17 +1034,37 @@ export function PaymentConciliationModal({
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 10;
+    const tableWidth = pageWidth - marginX * 2; // 277mm em A4 paisagem
 
+    // Faixa do cabeçalho
     doc.setFillColor(30, 58, 95);
-    doc.rect(0, 0, pageWidth, 20, "F");
+    doc.rect(0, 0, pageWidth, 22, "F");
+
+    // "Gerado em" à direita primeiro, para reservar espaço do título
     doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    const generatedLabel = `Gerado em: ${formatDateTimeBR(new Date().toISOString())}`;
+    const generatedWidth = doc.getTextWidth(generatedLabel);
+    doc.text(generatedLabel, pageWidth - marginX, 13, { align: "right" });
+
+    // Título com largura limitada para não colidir com a data
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text("Conciliação de Produção — " + paymentReference, 14, 13);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Gerado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 13, { align: "right" });
+    const titleMaxWidth = pageWidth - marginX * 2 - generatedWidth - 8;
+    const titleLines = doc.splitTextToSize(
+      `Conciliação de Produção — ${paymentReference}`,
+      titleMaxWidth,
+    ) as string[];
+    doc.text(titleLines[0] ?? "", marginX, 13);
+    // Se o título tiver 2ª linha, renderiza em fonte menor logo abaixo
+    if (titleLines[1]) {
+      doc.setFontSize(9);
+      doc.text(titleLines.slice(1).join(" "), marginX, 19);
+    }
 
+    let cursorY = 28;
     const filterDescParts: string[] = [];
     if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
     if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
@@ -1055,18 +1075,30 @@ export function PaymentConciliationModal({
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7.5);
-      doc.text(`Filtros: ${filterDescParts.join(" · ")}`, 14, 21);
+      const filterLines = doc.splitTextToSize(`Filtros: ${filterDescParts.join(" · ")}`, tableWidth) as string[];
+      doc.text(filterLines, marginX, cursorY);
+      cursorY += filterLines.length * 3.5 + 1;
     }
 
     doc.setTextColor(30, 58, 95);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só MedPay: ${scopedStats.so_medpay}${isScoped ? "  (escopo filtrado)" : ""}`, 14, 28);
+    doc.text(
+      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só MedPay: ${scopedStats.so_medpay}${isScoped ? "  (escopo filtrado)" : ""}`,
+      marginX,
+      cursorY,
+    );
+    cursorY += 5;
 
     doc.setTextColor(100, 100, 100);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(`Risco +: R$ ${scopedStats.risco_mais.toFixed(2)}  ·  Risco -: R$ ${scopedStats.risco_menos.toFixed(2)}  ·  Divergência: R$ ${scopedStats.divergencia_valor.toFixed(2)}`, 14, 34);
+    doc.text(
+      `Risco +: R$ ${scopedStats.risco_mais.toFixed(2)}  ·  Risco -: R$ ${scopedStats.risco_menos.toFixed(2)}  ·  Divergência: R$ ${scopedStats.divergencia_valor.toFixed(2)}`,
+      marginX,
+      cursorY,
+    );
+    cursorY += 4;
 
     const tableData = filteredItems.map((it) => [
       STATUS_LABEL[it.status],
@@ -1088,23 +1120,28 @@ export function PaymentConciliationModal({
       "Só no MedPay": [239, 246, 255],
     };
 
+    // Larguras proporcionais que somam exatamente tableWidth (277mm)
+    // proporções: 8,14,11,11,6,6,8,7,7,15 = 100 (em fração de tableWidth)
+    const widthFractions = [0.08, 0.14, 0.11, 0.11, 0.06, 0.06, 0.08, 0.07, 0.07, 0.15];
+    const colWidths = widthFractions.map((f) => +(tableWidth * f).toFixed(2));
+
     autoTable(doc, {
-      startY: 38,
+      startY: cursorY + 2,
       head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "MedPay", "Hospital", "Regra MedPay"]],
       body: tableData,
-      styles: { fontSize: 6.5, cellPadding: 1.5 },
-      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: "bold", fontSize: 7 },
+      styles: { fontSize: 7, cellPadding: 1.6, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 38 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 16 },
-        5: { cellWidth: 14 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 18, halign: "right" },
-        8: { cellWidth: 18, halign: "right" },
-        9: { cellWidth: 38 },
+        0: { cellWidth: colWidths[0] },
+        1: { cellWidth: colWidths[1] },
+        2: { cellWidth: colWidths[2] },
+        3: { cellWidth: colWidths[3] },
+        4: { cellWidth: colWidths[4] },
+        5: { cellWidth: colWidths[5] },
+        6: { cellWidth: colWidths[6] },
+        7: { cellWidth: colWidths[7], halign: "right" },
+        8: { cellWidth: colWidths[8], halign: "right" },
+        9: { cellWidth: colWidths[9] },
       },
       didParseCell: (data) => {
         if (data.section === "body") {
@@ -1113,8 +1150,10 @@ export function PaymentConciliationModal({
           if (fill) data.cell.styles.fillColor = fill;
         }
       },
-      margin: { left: 14, right: 14 },
+      margin: { left: marginX, right: marginX },
+      tableWidth,
     });
+
 
     doc.save(`conciliacao_${paymentReference.replace(/[^a-z0-9]/gi, "_")}.pdf`);
     toast({ title: "PDF exportado", description: "Arquivo PDF gerado com sucesso." });
