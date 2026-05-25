@@ -422,14 +422,13 @@ serve(async (req) => {
         description: t.description ?? null,
       };
       
-      // Se a tabela é 'sem_acordo' ou 'exclusao', ela atua como fallback global
-      if (t.purpose === "sem_acordo" || t.purpose === "exclusao") {
-        validGlobalIds.push(t.id);
-      }
+      // Tabelas sem_acordo/exclusao só atuam quando vinculadas a uma regra
+      // (via exception_table_ids). Nenhuma varredura global é feita.
     }
 
-    ctx.globalExceptionTableIds = validGlobalIds;
-    const allRelevantTableIds = Array.from(new Set([...linkedTableIds, ...validGlobalIds]));
+    ctx.globalExceptionTableIds = [];
+    const allRelevantTableIds = Array.from(new Set(linkedTableIds));
+
 
     const exceptionItemsByTable: Record<string, Record<string, { description: string | null }>> = {};
     if (allRelevantTableIds.length > 0 && codes.length > 0) {
