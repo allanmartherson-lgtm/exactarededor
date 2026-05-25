@@ -1109,16 +1109,16 @@ export function PaymentConciliationModal({
   };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
-    { key: "todos", label: "Todos", count: items.length },
-    { key: "conciliado", label: "Conciliados", count: run?.conciliado ?? 0 },
-    { key: "valor_divergente", label: "Valor divergente", count: run?.valor_divergente ?? 0 },
-    { key: "so_hospital", label: "Só no hospital", count: run?.so_hospital ?? 0 },
-    { key: "so_medpay", label: "Só no MedPay", count: run?.so_medpay ?? 0 },
+    { key: "todos", label: "Todos", count: scopedStats.total },
+    { key: "conciliado", label: "Conciliados", count: scopedStats.conciliado },
+    { key: "valor_divergente", label: "Valor divergente", count: scopedStats.valor_divergente },
+    { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
+    { key: "so_medpay", label: "Só no MedPay", count: scopedStats.so_medpay },
   ];
 
-  const total = run?.total_items ?? 0;
+  const total = scopedStats.total;
   const pendentes =
-    (run?.valor_divergente ?? 0) + (run?.so_hospital ?? 0) + (run?.so_medpay ?? 0);
+    scopedStats.valor_divergente + scopedStats.so_hospital + scopedStats.so_medpay;
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
