@@ -606,6 +606,19 @@ function WhenApplySection({
               </div>
               <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer via.</p>
             </div>
+            <div>
+              <Label className="text-xs" style={{ marginBottom: 6, display: "block" }}>Setores aplicáveis</Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {(Object.keys(RULE_SECTOR_LABELS) as Array<keyof typeof RULE_SECTOR_LABELS>).map((k) => {
+                  const sel = c.sectors.includes(k as string);
+                  return <button key={k} type="button" onClick={() => { const next = sel ? c.sectors.filter(s => s !== k) : [...c.sectors, k as string]; onChange({ sectors: next, has_conditions: next.length > 0 || c.allowed_access_routes.length > 0 || c.time_mode !== "qualquer" || c.elective_mode !== "qualquer" || c.includes_holidays }); }}
+                    style={{ padding: "5px 10px", borderRadius: 20, fontSize: 11, border: `1px solid ${sel ? "hsl(var(--primary))" : "hsl(var(--border))"}`, background: sel ? "hsl(var(--accent))" : "hsl(var(--card))", color: sel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                    {RULE_SECTOR_LABELS[k]}{sel && " ✕"}
+                  </button>;
+                })}
+              </div>
+              <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>Vazio = qualquer setor. Use para separar, por ex., cirurgia × hemodinâmica.</p>
+            </div>
           </div>
         </FilterBtn>
 
