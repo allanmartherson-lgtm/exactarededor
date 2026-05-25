@@ -27,6 +27,7 @@ interface Props {
   /** Papel efetivo do usuário nesta ação. Define se "Aprovar" encaminha ao
    *  diretor (validador) ou conclui a aprovação final (diretor). */
   actorRole: "validador" | "diretor";
+  items?: Array<{ ai_status: string; validation_findings?: unknown }>;
   onDone: () => void | Promise<void>;
 }
 
