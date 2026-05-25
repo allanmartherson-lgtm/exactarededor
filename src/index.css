@@ -10,19 +10,19 @@ All colors MUST be HSL.
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
     --background: 220 14% 96%;
-    --foreground: 222 35% 18%;
+    --foreground: 222 25% 26%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 35% 18%;
+    --card-foreground: 222 25% 26%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 35% 18%;
+    --popover-foreground: 222 25% 26%;
 
-    /* ── Brand: slate-900 como primário ─────────────────── */
-    --primary: 222 47% 11%;
+    /* ── Brand: slate suavizado (era 222 47% 11% — preto demais) ─── */
+    --primary: 222 30% 24%;
     --primary-foreground: 0 0% 100%;
     --primary-soft: 214 100% 97%;
-    --primary-glow: 215 20% 35%;
+    --primary-glow: 215 20% 38%;
 
     /* ── Accent azul para estados ativos/links ──────────── */
     --accent-blue: 213 94% 68%;
