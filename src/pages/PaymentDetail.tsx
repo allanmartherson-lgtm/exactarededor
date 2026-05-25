@@ -1635,6 +1635,14 @@ const PaymentDetail = () => {
                 Conciliar produção
               </Button>
             )}
+            {isAnalista && groups.length > 0 && (
+              <ProductionValidationButton
+                paymentId={id!}
+                groups={groups}
+                currentUserId={user!.id}
+                onDone={load}
+              />
+            )}
             {(isAnalista || isValidador || isDiretor) && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
