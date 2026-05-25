@@ -551,7 +551,7 @@ function WhenApplySection({
           <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 6 }}>Vazio = qualquer função.</p>
         </FilterBtn>
 
-        <FilterBtn id="periodo" label="Período, horário e via de acesso" active={hasPeriodoFilter}>
+        <FilterBtn id="periodo" label="Período, horário, via de acesso e setor" active={hasPeriodoFilter}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
