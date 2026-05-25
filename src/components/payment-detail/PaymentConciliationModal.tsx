@@ -77,6 +77,8 @@ interface Props {
   paymentId: string;
   paymentReference: string;
   paymentItems: PaymentItemRow[];
+  /** Quando informado, filtra a conciliação para uma única empresa e a expande automaticamente. */
+  initialCompany?: string | null;
 }
 
 type Step = "select_base" | "col_mapping" | "upload" | "mapping" | "result";
