@@ -106,7 +106,7 @@ export async function detectDoctorSectorAnomalies(
   const histByDoctor: Record<string, Record<string, number>> = {};
   for (const row of history as Array<{ doctor_name: string | null; sector: string | null }>) {
     const name = (row.doctor_name ?? "").trim();
-    const sec = (row.sector ?? "").trim();
+    const sec = normalizeSector((row.sector ?? "").trim());
     if (!name || !sec) continue;
     (histByDoctor[name] ||= {});
     histByDoctor[name][sec] = (histByDoctor[name][sec] ?? 0) + 1;
