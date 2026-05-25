@@ -1001,7 +1001,14 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       const resolvedSpec = itRaw?.__resolved_specialty as { value: string | null; source: string } | undefined;
       const decisionFields = {
         used: {
-          sector: it?.classification_sector ?? null,
+          // `sector` agora reflete o setor REAL persistido em payment_items
+          // (vindo da planilha). `classification_sector` é a heurística
+          // determinística (ex.: tabela de hemodinâmica) e `inferred_sector`
+          // é o que o motor calculou quando o item não tinha setor —
+          // separamos para que o trace deixe claro qual valor foi usado.
+          sector: it?.sector ?? null,
+          classification_sector: it?.classification_sector ?? null,
+          inferred_sector: (r as any).inferred_sector ?? r.selection_trace?.item_sector ?? null,
           procedure_code: it?.procedure_code ?? null,
           doctor_document: it?.doctor_document ?? null,
           doctor_name: it?.doctor_name ?? null,
@@ -1022,6 +1029,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           procedure_name: { used: false, reason: "Apenas informacional; matching é por procedure_code." },
         },
       };
+
       const findings = {
         alerts: finalAlerts,
         matched_rules: matchedRules,
