@@ -98,20 +98,12 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   /**
-   * Em erro de chunk (geralmente deploy novo invalidou o hash antigo), tenta
-   * 1 reload automático. Se o flag já estiver setado, não recarrega de novo
-   * para evitar loop — mostra a tela amigável.
+   * Auto-reload DESATIVADO: recarregar a página sem aviso fazia o usuário
+   * perder formulários abertos (ex: edição de regra). Agora apenas marcamos
+   * o flag e exibimos a tela amigável com botão manual "Recarregar página".
    */
-  private maybeAutoReload(error: Error) {
-    if (!isDynamicImportError(error)) return;
-    try {
-      const already = sessionStorage.getItem(RELOAD_FLAG_KEY);
-      if (already) return;
-      sessionStorage.setItem(RELOAD_FLAG_KEY, String(Date.now()));
-      window.location.reload();
-    } catch {
-      // Se sessionStorage falhar, segue exibindo o fallback sem reload.
-    }
+  private maybeAutoReload(_error: Error) {
+    // intencionalmente vazio — usuário decide quando recarregar
   }
 
   reset = () => {
