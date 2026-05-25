@@ -40,6 +40,7 @@ import {
   Building2,
   MessageCircle,
   CheckCircle2,
+  BarChart2,
   type LucideIcon,
 } from "lucide-react";
 import { usePaymentRisk } from "@/hooks/usePaymentRisk";
