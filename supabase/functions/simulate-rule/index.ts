@@ -218,23 +218,23 @@ serve(async (req) => {
     ));
     const today = ctx.reference_date;
     const exceptionTablesById: Record<string, { name: string; purpose: "sem_acordo" | "exclusao"; description: string | null }> = {};
-    const validGlobalIds: string[] = [];
-    if (true) {
+    if (linkedTableIds.length > 0) {
       const { data: tables } = await supabase
         .from("reference_tables")
         .select("id,name,purpose,description,active,valid_from,valid_until")
+        .in("id", linkedTableIds)
         .in("purpose", ["sem_acordo", "exclusao"])
         .eq("active", true);
       for (const t of (tables ?? []) as any[]) {
         if (t.valid_from && t.valid_from > today) continue;
         if (t.valid_until && t.valid_until < today) continue;
         exceptionTablesById[t.id] = { name: t.name, purpose: t.purpose, description: t.description ?? null };
-        validGlobalIds.push(t.id);
       }
     }
-    (ctx as any).globalExceptionTableIds = validGlobalIds;
+    (ctx as any).globalExceptionTableIds = [];
 
-    const allRelevantTableIds = Array.from(new Set([...linkedTableIds, ...validGlobalIds]));
+    const allRelevantTableIds = Array.from(new Set(linkedTableIds));
+
     const exceptionItemsByTable: Record<string, Record<string, { description: string | null }>> = {};
     if (allRelevantTableIds.length > 0 && code) {
       const { data: excItems } = await supabase
