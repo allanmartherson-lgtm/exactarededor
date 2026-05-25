@@ -20,6 +20,8 @@ interface Props {
   paymentId: string;
   payment: { status?: string; processing_diagnostics?: unknown } | null;
   roles: string[];
+  onApprove?: () => void;
+  onReturn?: () => void;
 }
 
 const STALE_HOURS = 4;
