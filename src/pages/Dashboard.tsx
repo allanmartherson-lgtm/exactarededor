@@ -1181,6 +1181,55 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Equipe hoje — apenas para validador
+  const [teamTodayStats, setTeamTodayStats] = useState<Array<{
+    actor_id: string;
+    actor_name: string;
+    acoes: number;
+    ultimo_movimento: string;
+    status_mais_recente: string | null;
+  }>>([]);
+  useEffect(() => {
+    if (isDiretor || !isValidador) return;
+    let cancelled = false;
+    const fetchTeamToday = async () => {
+      const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: hist } = await supabase
+        .from("payment_status_history")
+        .select("changed_by, changed_at, status_to")
+        .gte("changed_at", since24h)
+        .not("changed_by", "is", null)
+        .order("changed_at", { ascending: false })
+        .limit(500);
+      if (cancelled) return;
+      const byActor: Record<string, { acoes: number; ultimo: string; status: string | null }> = {};
+      (hist ?? []).forEach((h: any) => {
+        if (!h.changed_by) return;
+        const cur = byActor[h.changed_by] ?? { acoes: 0, ultimo: h.changed_at, status: h.status_to };
+        cur.acoes += 1;
+        if (h.changed_at > cur.ultimo) { cur.ultimo = h.changed_at; cur.status = h.status_to; }
+        byActor[h.changed_by] = cur;
+      });
+      const actorIds = Object.keys(byActor);
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", actorIds.length ? actorIds : ["00000000-0000-0000-0000-000000000000"]);
+      if (cancelled) return;
+      const nameMap: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { nameMap[p.id] = p.full_name || p.email || "—"; });
+      setTeamTodayStats(
+        Object.entries(byActor)
+          .map(([id, v]) => ({ actor_id: id, actor_name: nameMap[id] ?? "—", acoes: v.acoes, ultimo_movimento: v.ultimo, status_mais_recente: v.status }))
+          .sort((a, b) => b.acoes - a.acoes)
+      );
+    };
+    fetchTeamToday();
+    return () => { cancelled = true; };
+  }, [isDiretor, isValidador]);
+
+
+
 
   // "Pendente para mim" = papel atual do lote bate com um papel que o
   // usuário exerce E ele tem vínculo legítimo com o lote.
@@ -1577,6 +1626,69 @@ const Dashboard = () => {
             )}
             <Link to="/auditoria" className="block w-full mt-5 py-2 text-center rounded-lg transition-colors hover:bg-muted/50" style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", border: "1px solid hsl(var(--border))", textDecoration: "none" }}>
               Ver histórico completo
+            </Link>
+          </SurfaceCard>
+        </section>
+
+        <section>
+          <SectionLabel>Equipe hoje</SectionLabel>
+          <SurfaceCard>
+            <SurfaceCardHeader
+              title="Movimentações nas últimas 24h"
+              icon={Users}
+              iconColor="teal"
+            />
+            {teamTodayStats.length === 0 ? (
+              <div style={{ padding: "24px 22px", fontSize: 13, color: "hsl(var(--muted-foreground))", textAlign: "center" }}>
+                Sem atividade registrada nas últimas 24h.
+              </div>
+            ) : (
+              <div>
+                {teamTodayStats.map((m, i) => {
+                  const elapsed = Date.now() - new Date(m.ultimo_movimento).getTime();
+                  const travado = elapsed > 4 * 60 * 60 * 1000;
+                  const statusLabel = m.status_mais_recente
+                    ? (PAYMENT_STATUS_SHORT[m.status_mais_recente as PaymentStatus] ?? m.status_mais_recente)
+                    : "—";
+                  return (
+                    <div
+                      key={m.actor_id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 22px",
+                        borderTop: i > 0 ? "1px solid hsl(var(--border))" : undefined,
+                        background: travado ? "hsl(var(--warning) / 0.04)" : undefined,
+                      }}
+                    >
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: travado ? "hsl(var(--warning) / 0.15)" : "hsl(var(--bubble-teal-bg))",
+                        color: travado ? "hsl(var(--warning))" : "hsl(var(--bubble-teal-fg))",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 700,
+                      }}>
+                        {m.actor_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }} className="truncate">
+                          {m.actor_name}
+                        </p>
+                        <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                          Último: {statusLabel} · há {formatShortDuration(elapsed)}
+                          {travado && <span style={{ color: "hsl(var(--warning))", fontWeight: 600 }}> · sem mover</span>}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <p style={{ fontSize: 18, fontWeight: 600, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{m.acoes}</p>
+                        <p style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>ações</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <Link to="/produtividade-analistas" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "12px 22px", borderTop: "1px solid hsl(var(--border))", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase", textDecoration: "none" }} className="hover:bg-muted/50 transition-colors">
+              Ver produtividade completa <ArrowRight size={12} />
             </Link>
           </SurfaceCard>
         </section>
