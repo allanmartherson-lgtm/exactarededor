@@ -2021,7 +2021,43 @@ const PaymentDetail = () => {
               <div className="md:col-span-2 min-w-0 space-y-4">
                 <div className="hidden md:block space-y-4">
                   {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
-                  {id && <DirectorBriefingCard paymentId={id} payment={payment} roles={roles} />}
+                  {id && <DirectorBriefingCard
+                    paymentId={id}
+                    payment={payment}
+                    roles={roles}
+                    onApprove={isDiretor ? async () => {
+                      const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
+                      if (approvable.length === 0) { toast({ title: "Nenhuma empresa aguardando aprovação", variant: "destructive" }); return; }
+                      setApprovalBusy(true);
+                      const { error } = await supabase.rpc("approve_payment" as "approve_payment", {
+                        p_payment_id: id!,
+                        p_group_ids: approvable.map(g => g.id),
+                        p_author_id: user!.id,
+                        p_author_name: profiles[user!.id] ?? user!.email ?? "Diretor",
+                        p_note: null,
+                      });
+                      setApprovalBusy(false);
+                      if (error) { toast({ title: "Falha ao aprovar", description: error.message, variant: "destructive" }); return; }
+                      toast({ title: `${approvable.length} empresa(s) aprovada(s)` });
+                      await load();
+                    } : undefined}
+                    onReturn={isDiretor ? async () => {
+                      const approvable = groups.filter(g => String(g.status) === "aguardando_aprovacao");
+                      if (approvable.length === 0) { toast({ title: "Nenhuma empresa aguardando aprovação", variant: "destructive" }); return; }
+                      setApprovalBusy(true);
+                      const { error } = await supabase.rpc("return_groups_to_analyst" as "return_groups_to_analyst", {
+                        p_payment_id: id!,
+                        p_group_ids: approvable.map(g => g.id),
+                        p_author_id: user!.id,
+                        p_author_name: profiles[user!.id] ?? user!.email ?? "Diretor",
+                        p_message: "Devolvido pelo diretor via briefing de aprovação.",
+                      });
+                      setApprovalBusy(false);
+                      if (error) { toast({ title: "Falha ao devolver", description: error.message, variant: "destructive" }); return; }
+                      toast({ title: `${approvable.length} empresa(s) devolvida(s) ao analista` });
+                      await load();
+                    } : undefined}
+                  />}
                   <PreAnalysisScoreCard payment={payment} />
                 </div>
                 {id && (
