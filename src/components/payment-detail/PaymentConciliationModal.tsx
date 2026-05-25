@@ -753,7 +753,10 @@ export function PaymentConciliationModal({
             base.status = "valor_divergente";
             valor_divergente++;
             const pct = valMed > 0 ? (diff / valMed) * 100 : 0;
-            base.ia_obs = `Tabela convênio — Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
+            const ambigPrefix = ambiguous
+              ? `⚠ Match ambíguo (mesmo atendimento+código com médicos/funções diferentes — confira manualmente). `
+              : "";
+            base.ia_obs = `${ambigPrefix}Tabela convênio — Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
             divergencia_valor += Math.abs(diff);
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
