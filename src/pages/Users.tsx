@@ -193,8 +193,8 @@ const Users = () => {
   };
 
   const EVENT_LABELS: Record<string, string> = {
-    returned: "Lote devolvido",
-    ia_concluded: "Análise IA concluída",
+    returned: "Lote devolvido para correção",
+    ia_concluded: "Análise da IA concluída",
     nf_received: "Nota Fiscal recebida",
   };
 
