@@ -778,14 +778,58 @@ export function PaymentConciliationModal({
     }
   };
 
+  const doctorOptions = useMemo(() => {
+    const base = initialCompany
+      ? items.filter((it) => (it.company_name ?? "") === initialCompany)
+      : items;
+    return Array.from(new Set(base.map((i) => i.doctor_name ?? "").filter(Boolean))).sort();
+  }, [items, initialCompany]);
+
   const filteredItems = useMemo(() => {
     let base = items;
     if (initialCompany) {
       base = base.filter((it) => (it.company_name ?? "") === initialCompany);
     }
-    if (activeFilter === "todos") return base;
-    return base.filter((it) => it.status === activeFilter);
-  }, [items, activeFilter, initialCompany]);
+    if (activeFilter !== "todos") {
+      base = base.filter((it) => it.status === activeFilter);
+    }
+    if (doctorFilter !== "todos") {
+      base = base.filter((it) => (it.doctor_name ?? "") === doctorFilter);
+    }
+    const min = minValue ? parseFloat(minValue.replace(",", ".")) : null;
+    const max = maxValue ? parseFloat(maxValue.replace(",", ".")) : null;
+    if (min !== null && !Number.isNaN(min)) {
+      base = base.filter((it) => Math.max(Number(it.valor_medpay), Number(it.valor_hospital)) >= min);
+    }
+    if (max !== null && !Number.isNaN(max)) {
+      base = base.filter((it) => Math.max(Number(it.valor_medpay), Number(it.valor_hospital)) <= max);
+    }
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      base = base.filter((it) =>
+        [
+          it.patient_name,
+          it.doctor_name,
+          it.attendance_number,
+          it.procedure_code,
+          it.procedure_name,
+          it.company_name,
+          it.ia_obs,
+        ]
+          .map((v) => (v ?? "").toString().toLowerCase())
+          .some((s) => s.includes(term)),
+      );
+    }
+    return base;
+  }, [items, activeFilter, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+
+  const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || minValue || maxValue);
+  const clearExtraFilters = () => {
+    setSearchTerm("");
+    setDoctorFilter("todos");
+    setMinValue("");
+    setMaxValue("");
+  };
 
   const handleExport = () => {
     if (!run) return;
