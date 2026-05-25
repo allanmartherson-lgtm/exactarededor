@@ -122,7 +122,7 @@ export default function AnalystProductivity() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `produtividade_analistas_${period}d.csv`;
+    a.download = `produtividade_equipe_${period}d.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
