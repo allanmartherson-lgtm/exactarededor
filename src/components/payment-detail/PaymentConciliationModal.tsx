@@ -1657,8 +1657,8 @@ export function PaymentConciliationModal({
                   icon={CheckCircle2}
                   tone="success"
                   label="Conciliados"
-                  value={`${run.conciliado} itens`}
-                  hint={total ? `${((run.conciliado / total) * 100).toFixed(1)}% do total` : ""}
+                  value={`${scopedStats.conciliado} itens`}
+                  hint={total ? `${((scopedStats.conciliado / total) * 100).toFixed(1)}% do total${isScoped ? " (filtrado)" : ""}` : ""}
                   active={activeFilter === "conciliado"}
                   onClick={() =>
                     setActiveFilter(activeFilter === "conciliado" ? "todos" : "conciliado")
@@ -1668,7 +1668,7 @@ export function PaymentConciliationModal({
                   icon={AlertTriangle}
                   tone="warning"
                   label="Valor divergente"
-                  value={`${run.valor_divergente} itens`}
+                  value={`${scopedStats.valor_divergente} itens`}
                   hint="revisar valor"
                   active={activeFilter === "valor_divergente"}
                   onClick={() =>
@@ -1681,7 +1681,7 @@ export function PaymentConciliationModal({
                   icon={XCircle}
                   tone="destructive"
                   label="Só no hospital"
-                  value={`${run.so_hospital} itens`}
+                  value={`${scopedStats.so_hospital} itens`}
                   hint="possível inclusão"
                   active={activeFilter === "so_hospital"}
                   onClick={() =>
@@ -1692,7 +1692,7 @@ export function PaymentConciliationModal({
                   icon={Info}
                   tone="info"
                   label="Só no MedPay"
-                  value={`${run.so_medpay} itens`}
+                  value={`${scopedStats.so_medpay} itens`}
                   hint="possível glosa"
                   active={activeFilter === "so_medpay"}
                   onClick={() =>
@@ -1706,26 +1706,26 @@ export function PaymentConciliationModal({
                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a mais
+                      Risco pagamento a mais{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
                     <p className="text-lg font-bold text-destructive mt-1">
-                      {formatCurrency(Number(run.risco_mais))}
+                      {formatCurrency(scopedStats.risco_mais)}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a menos
+                      Risco pagamento a menos{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
                     <p className="text-lg font-bold text-success mt-1">
-                      {formatCurrency(Number(run.risco_menos))}
+                      {formatCurrency(scopedStats.risco_menos)}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Divergência de valores
+                      Divergência de valores{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
                     <p className="text-lg font-bold text-warning mt-1">
-                      {formatCurrency(Number(run.divergencia_valor))}
+                      {formatCurrency(scopedStats.divergencia_valor)}
                     </p>
                   </div>
                 </CardContent>
