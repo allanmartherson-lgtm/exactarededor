@@ -341,7 +341,8 @@ const NewPayment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
-  const [autoPaymentType, setAutoPaymentType] = useState(true);
+  // Tipos de pagamento são gerenciados em /cadastros/tipos-pagamento e carregados via hook.
+  const { list: paymentTypeOptions, loading: loadingPaymentTypes } = usePaymentTypes({ onlyActive: true });
   const [autoSectors, setAutoSectors] = useState(true);
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
@@ -780,8 +781,8 @@ const NewPayment = () => {
     if (!autoPaymentKind && !paymentKind) {
       toast({ title: "Selecione a categoria do pagamento", variant: "destructive" }); return;
     }
-    if (!autoPaymentType && !paymentType) {
-      toast({ title: "Selecione o tipo de pagamento ou marque a detecção automática", variant: "destructive" }); return;
+    if (!paymentType) {
+      toast({ title: "Selecione o tipo de pagamento", description: "Esse campo é obrigatório para evitar comparações entre lotes de tipos diferentes.", variant: "destructive" }); return;
     }
     if (allRows.length === 0) {
       toast({ title: "Carregue pelo menos um arquivo válido", variant: "destructive" }); return;
@@ -839,7 +840,7 @@ const NewPayment = () => {
         competence_month: `${[...competenceMonths].sort()[0]}-01`,
         competence_months: [...competenceMonths].sort().map((m) => `${m}-01`),
         payment_due_date: paymentDueDate || null,
-        payment_type: autoPaymentType ? null : (paymentType as PaymentType),
+        payment_type: paymentType as PaymentType,
         payment_kind: (paymentKind || null) as PaymentKind | null,
         cost_center_code: costCenterCode,
         sectors: autoSectors ? [] : pSectors,
@@ -1132,22 +1133,22 @@ const NewPayment = () => {
               </div>
               <div className="space-y-2">
                 <Label>Tipo de pagamento *</Label>
-                <div className="flex items-center gap-2">
-                  <Switch id="auto-pt" checked={autoPaymentType} onCheckedChange={setAutoPaymentType} />
-                  <Label htmlFor="auto-pt" className="text-xs font-normal text-muted-foreground cursor-pointer">
-                    Detectar automaticamente pela base (recomendado)
-                  </Label>
-                </div>
-                {!autoPaymentType && (
-                  <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
-                    <SelectTrigger><SelectValue placeholder="Selecione manualmente" /></SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(PAYMENT_TYPE_LABELS) as PaymentType[]).map((k) => (
-                        <SelectItem key={k} value={k}>{PAYMENT_TYPE_LABELS[k]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={paymentType} onValueChange={(v) => setPaymentType(v as PaymentType)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingPaymentTypes ? "Carregando…" : "Selecione o tipo"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentTypeOptions.map((t) => (
+                      <SelectItem key={t.code} value={t.code}>
+                        {t.label}
+                        {t.description && <span className="text-xs text-muted-foreground"> — {t.description}</span>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Gerenciar tipos em <span className="font-medium">Cadastros → Tipos de pagamento</span>.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Categoria{autoPaymentKind ? "" : " *"}</Label>
