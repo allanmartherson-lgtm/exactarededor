@@ -206,6 +206,8 @@ const PaymentDetail = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  const [conciliationCompany, setConciliationCompany] = useState<string | null>(null);
+  const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean>(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
   // especialidade e descrição). Não esconde grupos cujo nome casa com a busca.
   const [itemSearch, setItemSearch] = useState("");
@@ -251,6 +253,47 @@ const PaymentDetail = () => {
       supabase.removeChannel(ch);
     };
   }, [id]);
+
+  // Detecta se já existe alguma conciliação para o lote — controla o botão por empresa.
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const check = async () => {
+      const { data } = await (supabase as any)
+        .from("reconciliation_runs")
+        .select("id")
+        .eq("payment_id", id)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setHasReconciliationRun(!!data);
+    };
+    check();
+    const ch = supabase
+      .channel(`recon-runs-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reconciliation_runs", filter: `payment_id=eq.${id}` },
+        () => check(),
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [id]);
+
+  const openCompanyConciliation = (companyName: string) => {
+    if (!hasReconciliationRun) {
+      toast({
+        title: "Lote sem conciliação",
+        description: "Realize a conciliação do lote para visualizar o cruzamento desta empresa.",
+      });
+      return;
+    }
+    setConciliationCompany(companyName);
+    setIsConciliationOpen(true);
+  };
+
   // Toggle de visão por papel (Detalhe/Compacto/Executivo). Persiste por payment_id.
   const [viewMode, setViewMode] = useState<PivotVariant>(() => {
     if (!id) return "detalhe";
@@ -2762,6 +2805,8 @@ const PaymentDetail = () => {
                         return n;
                       })
                     }
+                    hasReconciliationRun={hasReconciliationRun}
+                    onOpenConciliation={() => openCompanyConciliation(g.company_name)}
                   />
                 </div>
               );
@@ -2992,10 +3037,14 @@ const PaymentDetail = () => {
       {payment && (
         <PaymentConciliationModal
           open={isConciliationOpen}
-          onOpenChange={setIsConciliationOpen}
+          onOpenChange={(o) => {
+            setIsConciliationOpen(o);
+            if (!o) setConciliationCompany(null);
+          }}
           paymentId={id!}
           paymentReference={payment.reference || "Lote"}
           paymentItems={items}
+          initialCompany={conciliationCompany}
         />
       )}
     </>

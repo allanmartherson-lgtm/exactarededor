@@ -77,6 +77,8 @@ interface Props {
   paymentId: string;
   paymentReference: string;
   paymentItems: PaymentItemRow[];
+  /** Quando informado, filtra a conciliação para uma única empresa e a expande automaticamente. */
+  initialCompany?: string | null;
 }
 
 type Step = "select_base" | "col_mapping" | "upload" | "mapping" | "result";
@@ -148,6 +150,7 @@ export function PaymentConciliationModal({
   paymentId,
   paymentReference,
   paymentItems,
+  initialCompany = null,
 }: Props) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -249,9 +252,11 @@ export function PaymentConciliationModal({
     if (open) {
       loadLatestRun();
       loadConcBases();
+      setActiveFilter("todos");
+      setExpandedCompany(initialCompany ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initialCompany]);
 
   const handleSelectBase = (base: any) => {
     setSelectedBase(base);
@@ -765,9 +770,13 @@ export function PaymentConciliationModal({
   };
 
   const filteredItems = useMemo(() => {
-    if (activeFilter === "todos") return items;
-    return items.filter((it) => it.status === activeFilter);
-  }, [items, activeFilter]);
+    let base = items;
+    if (initialCompany) {
+      base = base.filter((it) => (it.company_name ?? "") === initialCompany);
+    }
+    if (activeFilter === "todos") return base;
+    return base.filter((it) => it.status === activeFilter);
+  }, [items, activeFilter, initialCompany]);
 
   const handleExport = () => {
     if (!run) return;
@@ -981,9 +990,12 @@ export function PaymentConciliationModal({
           <div>
             <SheetTitle className="text-xl">
               Conciliação de Produção — {paymentReference}
+              {initialCompany && <span className="text-muted-foreground"> · {initialCompany}</span>}
             </SheetTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Cruzamento entre base MedPay e extrato hospitalar
+              {initialCompany
+                ? `Cruzamento filtrado: apenas itens de ${initialCompany}`
+                : "Cruzamento entre base MedPay e extrato hospitalar"}
             </p>
           </div>
           <div className="flex gap-2">

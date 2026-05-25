@@ -67,6 +67,10 @@ export type PaymentGroupCardProps = {
   onReleaseInvoice?: () => void;
   /** Permite exibir o botão de liberação de NF (geralmente só para analista). */
   canReleaseInvoice?: boolean;
+  /** Indica se o lote já possui uma conciliação rodada (controla o botão "ver conciliação"). */
+  hasReconciliationRun?: boolean;
+  /** Abre o modal de conciliação já filtrado para esta empresa. */
+  onOpenConciliation?: () => void;
 };
 
 /**
@@ -90,6 +94,8 @@ export const PaymentGroupCard = ({
   questionCount = 0,
   onReleaseInvoice,
   canReleaseInvoice = false,
+  hasReconciliationRun = false,
+  onOpenConciliation,
 }: PaymentGroupCardProps) => {
   const { id: paymentId } = useParams<{ id: string }>();
   const gStatus = g.status as PaymentStatus;
@@ -624,11 +630,35 @@ export const PaymentGroupCard = ({
             <div className="hidden md:block text-xs text-muted-foreground">
               Toda análise, comentários e ações de fluxo desta empresa acontecem na página dedicada — abrir mantém o mesmo conjunto de dados, apenas com o ambiente de trabalho completo.
             </div>
-            <Button asChild size="sm" className="w-full md:w-auto">
-              <Link to={dedicatedHref}>
-                Abrir análise da empresa <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Link>
-            </Button>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              {onOpenConciliation && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onOpenConciliation}
+                      className="w-full md:w-auto"
+                    >
+                      <CheckCheck className="h-4 w-4 mr-1.5" />
+                      Ver conciliação desta empresa
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">
+                      {hasReconciliationRun
+                        ? "Abre o cruzamento MedPay × hospital filtrado nesta empresa."
+                        : "Lote ainda não conciliado — você verá um aviso ao clicar."}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <Button asChild size="sm" className="w-full md:w-auto">
+                <Link to={dedicatedHref}>
+                  Abrir análise da empresa <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </CardContent>
       )}
