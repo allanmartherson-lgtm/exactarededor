@@ -260,6 +260,15 @@ const StatusAnomalies = () => {
                           </Badge>
                         )}
                         <span className="text-xs text-muted-foreground">{fmt(a.created_at)}</span>
+                        {(() => {
+                          const age = relativeAge(a.created_at);
+                          const isStale = age.ms > 24 * 3600 * 1000 && !a.resolved_at;
+                          return (
+                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", isStale ? "bg-destructive/10 text-destructive border-destructive/30" : "bg-muted text-muted-foreground")}>
+                              {age.label}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       <p className="text-sm">{a.reason}</p>
                       <div className="text-xs text-muted-foreground">
