@@ -3037,10 +3037,14 @@ const PaymentDetail = () => {
       {payment && (
         <PaymentConciliationModal
           open={isConciliationOpen}
-          onOpenChange={setIsConciliationOpen}
+          onOpenChange={(o) => {
+            setIsConciliationOpen(o);
+            if (!o) setConciliationCompany(null);
+          }}
           paymentId={id!}
           paymentReference={payment.reference || "Lote"}
           paymentItems={items}
+          initialCompany={conciliationCompany}
         />
       )}
     </>
