@@ -2805,6 +2805,8 @@ const PaymentDetail = () => {
                         return n;
                       })
                     }
+                    hasReconciliationRun={hasReconciliationRun}
+                    onOpenConciliation={() => openCompanyConciliation(g.company_name)}
                   />
                 </div>
               );
