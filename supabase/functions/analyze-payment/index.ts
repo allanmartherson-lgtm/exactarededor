@@ -193,7 +193,8 @@ serve(async (req) => {
         convenio_value_totalized,
         ai_status,
         item_hash,
-        ai_findings
+        ai_findings,
+        raw_data
       `)
       .eq("payment_id", payment_id);
     if (company_name && typeof company_name === "string") {
