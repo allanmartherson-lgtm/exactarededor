@@ -122,7 +122,7 @@ export default function AnalystProductivity() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `produtividade_analistas_${period}d.csv`;
+    a.download = `produtividade_equipe_${period}d.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -139,7 +139,7 @@ export default function AnalystProductivity() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart2 className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold">Produtividade dos Analistas</h1>
+          <h1 className="text-xl font-semibold">Produtividade da Equipe</h1>
         </div>
         <div className="flex items-center gap-2">
           <ToggleGroup
@@ -164,7 +164,7 @@ export default function AnalystProductivity() {
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-left">
                 <tr>
-                  <th className="px-3 py-2">Analista</th>
+                  <th className="px-3 py-2">Membro da equipe</th>
                   <th className="px-3 py-2 text-right">Lotes processados</th>
                   <th className="px-3 py-2 text-right">Validações</th>
                   <th className="px-3 py-2 text-right">Aprovações</th>
