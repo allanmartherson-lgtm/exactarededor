@@ -46,6 +46,8 @@ import { claimPayment } from "@/lib/assignments";
 import { AssignmentCard } from "@/components/payment-detail/AssignmentCard";
 import { BatchSuggestPanel } from "@/components/payment-detail/BatchSuggestPanel";
 import { ExceptionPatternSuggest } from "@/components/payment-detail/ExceptionPatternSuggest";
+import { ProductionValidationButton } from "@/components/payment-detail/ProductionValidationButton";
+import { ProductionValidationPanel } from "@/components/payment-detail/ProductionValidationPanel";
 import { usePaymentDetailData } from "@/hooks/usePaymentDetailData";
 import type {
   PaymentItemRow as PaymentItemRowType,
@@ -1633,6 +1635,14 @@ const PaymentDetail = () => {
                 Conciliar produção
               </Button>
             )}
+            {isAnalista && groups.length > 0 && (
+              <ProductionValidationButton
+                paymentId={id!}
+                groups={groups}
+                currentUserId={user!.id}
+                onDone={load}
+              />
+            )}
             {(isAnalista || isValidador || isDiretor) && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
@@ -2359,6 +2369,13 @@ const PaymentDetail = () => {
 
           {id && <UnmatchedItemsPanel paymentId={id} onChanged={load} />}
           {id && <UnregisteredCompaniesPanel paymentId={id} onChanged={load} />}
+          {isAnalista && id && (
+            <ProductionValidationPanel
+              paymentId={id}
+              currentUserId={user!.id}
+              onChanged={load}
+            />
+          )}
 
           {skippedCompanies.length > 0 && (
             <Alert variant="warning" className="relative">
