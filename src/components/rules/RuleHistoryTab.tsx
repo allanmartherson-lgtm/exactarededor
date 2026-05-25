@@ -154,7 +154,7 @@ export function RuleHistoryTab({ ruleId }: { ruleId: string }) {
           .filter(([k]) => !k.startsWith("__") && !SYSTEM_FIELDS.has(k));
         if (fields.length === 0) return null;
         return (
-          <div key={e.id} className="rounded-md border border-border bg-white p-3 space-y-2">
+          <div key={e.id} className="rounded-md border border-border bg-card p-3 space-y-2">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <Badge variant="outline">{isCalc ? "Cálculo" : "Regra"}</Badge>
               <Badge variant={e.action === "create" ? "default" : "secondary"}>
