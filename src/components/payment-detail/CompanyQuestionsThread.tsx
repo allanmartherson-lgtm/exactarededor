@@ -23,9 +23,11 @@ interface Props {
   paymentId: string;
   companyGroupId: string;
   isAnalista?: boolean;
+  /** Quando true, o componente não renderiza nada se não houver questionamentos. */
+  hideIfEmpty?: boolean;
 }
 
-export function CompanyQuestionsThread({ paymentId, companyGroupId, isAnalista: isAnalistaProp }: Props) {
+export function CompanyQuestionsThread({ paymentId, companyGroupId, isAnalista: isAnalistaProp, hideIfEmpty }: Props) {
   const { user, roles } = useAuth();
   const isAnalista = isAnalistaProp ?? (roles.includes("analista") || roles.includes("admin"));
   const [items, setItems] = useState<QuestionRow[]>([]);
