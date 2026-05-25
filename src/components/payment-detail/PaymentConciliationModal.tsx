@@ -844,13 +844,13 @@ export function PaymentConciliationModal({
     return Array.from(new Set(base.map((i) => i.doctor_name ?? "").filter(Boolean))).sort();
   }, [items, initialCompany]);
 
-  const filteredItems = useMemo(() => {
+  // Escopo = todos os filtros EXCETO o activeFilter (tabs/KPIs por status).
+  // KPIs, totais financeiros, contagens das abas e exportações recalculam
+  // sobre este escopo — assim a tela "se comporta conforme filtro".
+  const scopedItems = useMemo(() => {
     let base = items;
     if (initialCompany) {
       base = base.filter((it) => (it.company_name ?? "") === initialCompany);
-    }
-    if (activeFilter !== "todos") {
-      base = base.filter((it) => it.status === activeFilter);
     }
     if (doctorFilter !== "todos") {
       base = base.filter((it) => (it.doctor_name ?? "") === doctorFilter);
@@ -880,9 +880,42 @@ export function PaymentConciliationModal({
       );
     }
     return base;
-  }, [items, activeFilter, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+  }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+
+  const scopedStats = useMemo(() => {
+    let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_medpay = 0;
+    let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
+    for (const it of scopedItems) {
+      if (it.status === "conciliado") conciliado++;
+      else if (it.status === "valor_divergente") valor_divergente++;
+      else if (it.status === "so_hospital") so_hospital++;
+      else if (it.status === "so_medpay") so_medpay++;
+      const vm = Number(it.valor_medpay) || 0;
+      const vh = Number(it.valor_hospital) || 0;
+      if (it.status === "valor_divergente") {
+        const diff = vh - vm;
+        divergencia_valor += Math.abs(diff);
+        if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
+      } else if (it.status === "so_hospital") {
+        risco_mais += vh;
+      } else if (it.status === "so_medpay") {
+        risco_menos += vm;
+      }
+    }
+    return {
+      total: scopedItems.length,
+      conciliado, valor_divergente, so_hospital, so_medpay,
+      risco_mais, risco_menos, divergencia_valor,
+    };
+  }, [scopedItems]);
+
+  const filteredItems = useMemo(() => {
+    if (activeFilter === "todos") return scopedItems;
+    return scopedItems.filter((it) => it.status === activeFilter);
+  }, [scopedItems, activeFilter]);
 
   const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || minValue || maxValue);
+  const isScoped = !!initialCompany || hasExtraFilters;
   const clearExtraFilters = () => {
     setSearchTerm("");
     setDoctorFilter("todos");
@@ -893,7 +926,7 @@ export function PaymentConciliationModal({
   const handleExport = () => {
     if (!run) return;
 
-    const data = items.map((it) => ({
+    const data = filteredItems.map((it) => ({
       "Status": STATUS_LABEL[it.status],
       "Empresa": it.company_name ?? "",
       "Médico": it.doctor_name ?? "",
@@ -951,24 +984,40 @@ export function PaymentConciliationModal({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Conciliação");
 
+    const filterDescParts: string[] = [];
+    if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
+    if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
+    if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
+    if (minValue) filterDescParts.push(`Valor mín: ${minValue}`);
+    if (maxValue) filterDescParts.push(`Valor máx: ${maxValue}`);
+    const filterDesc = filterDescParts.length ? filterDescParts.join(" · ") : "Sem filtros";
+
     const summaryData: (string | number)[][] = [
       ["Relatório de Conciliação de Produção"],
       [""],
       ["Lote", paymentReference],
       ["Arquivo base", run.file_name ?? ""],
       ["Data da conciliação", formatDateTimeBR(run.created_at)],
+      ["Filtros aplicados", filterDesc],
       [""],
-      ["RESUMO"],
-      ["Total de itens", run.total_items],
-      ["Conciliados", run.conciliado, `${total ? ((run.conciliado / total) * 100).toFixed(1) : 0}%`],
-      ["Valor divergente", run.valor_divergente],
-      ["Só no hospital", run.so_hospital],
-      ["Só no MedPay", run.so_medpay],
+      ["RESUMO (escopo filtrado)"],
+      ["Total de itens", scopedStats.total],
+      ["Conciliados", scopedStats.conciliado, `${scopedStats.total ? ((scopedStats.conciliado / scopedStats.total) * 100).toFixed(1) : 0}%`],
+      ["Valor divergente", scopedStats.valor_divergente],
+      ["Só no hospital", scopedStats.so_hospital],
+      ["Só no MedPay", scopedStats.so_medpay],
       [""],
-      ["IMPACTO FINANCEIRO"],
-      ["Risco pagamento a mais", run.risco_mais],
-      ["Risco pagamento a menos", run.risco_menos],
-      ["Divergência de valores", run.divergencia_valor],
+      ["IMPACTO FINANCEIRO (escopo filtrado)"],
+      ["Risco pagamento a mais", Number(scopedStats.risco_mais.toFixed(2))],
+      ["Risco pagamento a menos", Number(scopedStats.risco_menos.toFixed(2))],
+      ["Divergência de valores", Number(scopedStats.divergencia_valor.toFixed(2))],
+      [""],
+      ["TOTAIS DO LOTE (sem filtro)"],
+      ["Total de itens (lote)", run.total_items],
+      ["Risco a mais (lote)", run.risco_mais],
+      ["Risco a menos (lote)", run.risco_menos],
+      ["Divergência (lote)", run.divergencia_valor],
     ];
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
     wsSummary['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 12 }];
@@ -996,17 +1045,30 @@ export function PaymentConciliationModal({
     doc.setFont("helvetica", "normal");
     doc.text(`Gerado em: ${formatDateTimeBR(new Date().toISOString())}`, pageWidth - 14, 13, { align: "right" });
 
+    const filterDescParts: string[] = [];
+    if (initialCompany) filterDescParts.push(`Empresa: ${initialCompany}`);
+    if (doctorFilter !== "todos") filterDescParts.push(`Médico: ${doctorFilter}`);
+    if (activeFilter !== "todos") filterDescParts.push(`Status: ${STATUS_LABEL[activeFilter as ReconciliationItem["status"]] ?? activeFilter}`);
+    if (searchTerm) filterDescParts.push(`Busca: "${searchTerm}"`);
+    if (minValue || maxValue) filterDescParts.push(`Valor: ${minValue || "—"} a ${maxValue || "—"}`);
+    if (filterDescParts.length) {
+      doc.setTextColor(100, 100, 100);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7.5);
+      doc.text(`Filtros: ${filterDescParts.join(" · ")}`, 14, 21);
+    }
+
     doc.setTextColor(30, 58, 95);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`Total: ${run.total_items}  ·  Conciliados: ${run.conciliado}  ·  Divergência: ${run.valor_divergente}  ·  Só hospital: ${run.so_hospital}  ·  Só MedPay: ${run.so_medpay}`, 14, 28);
+    doc.text(`Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só MedPay: ${scopedStats.so_medpay}${isScoped ? "  (escopo filtrado)" : ""}`, 14, 28);
 
     doc.setTextColor(100, 100, 100);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(`Risco +: R$ ${Number(run.risco_mais).toFixed(2)}  ·  Risco -: R$ ${Number(run.risco_menos).toFixed(2)}  ·  Divergência: R$ ${Number(run.divergencia_valor).toFixed(2)}`, 14, 34);
+    doc.text(`Risco +: R$ ${scopedStats.risco_mais.toFixed(2)}  ·  Risco -: R$ ${scopedStats.risco_menos.toFixed(2)}  ·  Divergência: R$ ${scopedStats.divergencia_valor.toFixed(2)}`, 14, 34);
 
-    const tableData = items.map((it) => [
+    const tableData = filteredItems.map((it) => [
       STATUS_LABEL[it.status],
       it.company_name ?? "",
       it.doctor_name ?? "",
@@ -1076,16 +1138,16 @@ export function PaymentConciliationModal({
   };
 
   const filters: Array<{ key: string; label: string; count: number }> = [
-    { key: "todos", label: "Todos", count: items.length },
-    { key: "conciliado", label: "Conciliados", count: run?.conciliado ?? 0 },
-    { key: "valor_divergente", label: "Valor divergente", count: run?.valor_divergente ?? 0 },
-    { key: "so_hospital", label: "Só no hospital", count: run?.so_hospital ?? 0 },
-    { key: "so_medpay", label: "Só no MedPay", count: run?.so_medpay ?? 0 },
+    { key: "todos", label: "Todos", count: scopedStats.total },
+    { key: "conciliado", label: "Conciliados", count: scopedStats.conciliado },
+    { key: "valor_divergente", label: "Valor divergente", count: scopedStats.valor_divergente },
+    { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
+    { key: "so_medpay", label: "Só no MedPay", count: scopedStats.so_medpay },
   ];
 
-  const total = run?.total_items ?? 0;
+  const total = scopedStats.total;
   const pendentes =
-    (run?.valor_divergente ?? 0) + (run?.so_hospital ?? 0) + (run?.so_medpay ?? 0);
+    scopedStats.valor_divergente + scopedStats.so_hospital + scopedStats.so_medpay;
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
@@ -1624,8 +1686,8 @@ export function PaymentConciliationModal({
                   icon={CheckCircle2}
                   tone="success"
                   label="Conciliados"
-                  value={`${run.conciliado} itens`}
-                  hint={total ? `${((run.conciliado / total) * 100).toFixed(1)}% do total` : ""}
+                  value={`${scopedStats.conciliado} itens`}
+                  hint={total ? `${((scopedStats.conciliado / total) * 100).toFixed(1)}% do total${isScoped ? " (filtrado)" : ""}` : ""}
                   active={activeFilter === "conciliado"}
                   onClick={() =>
                     setActiveFilter(activeFilter === "conciliado" ? "todos" : "conciliado")
@@ -1635,7 +1697,7 @@ export function PaymentConciliationModal({
                   icon={AlertTriangle}
                   tone="warning"
                   label="Valor divergente"
-                  value={`${run.valor_divergente} itens`}
+                  value={`${scopedStats.valor_divergente} itens`}
                   hint="revisar valor"
                   active={activeFilter === "valor_divergente"}
                   onClick={() =>
@@ -1648,7 +1710,7 @@ export function PaymentConciliationModal({
                   icon={XCircle}
                   tone="destructive"
                   label="Só no hospital"
-                  value={`${run.so_hospital} itens`}
+                  value={`${scopedStats.so_hospital} itens`}
                   hint="possível inclusão"
                   active={activeFilter === "so_hospital"}
                   onClick={() =>
@@ -1659,7 +1721,7 @@ export function PaymentConciliationModal({
                   icon={Info}
                   tone="info"
                   label="Só no MedPay"
-                  value={`${run.so_medpay} itens`}
+                  value={`${scopedStats.so_medpay} itens`}
                   hint="possível glosa"
                   active={activeFilter === "so_medpay"}
                   onClick={() =>
@@ -1673,26 +1735,26 @@ export function PaymentConciliationModal({
                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a mais
+                      Risco pagamento a mais{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
                     <p className="text-lg font-bold text-destructive mt-1">
-                      {formatCurrency(Number(run.risco_mais))}
+                      {formatCurrency(scopedStats.risco_mais)}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Risco pagamento a menos
+                      Risco pagamento a menos{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
                     <p className="text-lg font-bold text-success mt-1">
-                      {formatCurrency(Number(run.risco_menos))}
+                      {formatCurrency(scopedStats.risco_menos)}
                     </p>
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Divergência de valores
+                      Divergência de valores{isScoped && <span className="ml-1 text-[9px] normal-case text-muted-foreground/70">(filtrado)</span>}
                     </p>
                     <p className="text-lg font-bold text-warning mt-1">
-                      {formatCurrency(Number(run.divergencia_valor))}
+                      {formatCurrency(scopedStats.divergencia_valor)}
                     </p>
                   </div>
                 </CardContent>
