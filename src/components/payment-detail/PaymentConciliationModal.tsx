@@ -25,7 +25,10 @@ import {
   ChevronRight,
   RotateCcw,
   Building2,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -163,6 +166,12 @@ export function PaymentConciliationModal({
   const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+
+  // Busca e filtros adicionais (texto livre, médico, faixa de valor)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState<string>("todos");
+  const [minValue, setMinValue] = useState<string>("");
+  const [maxValue, setMaxValue] = useState<string>("");
 
   const [step, setStep] = useState<Step>("upload");
   const [excludeConsultas, setExcludeConsultas] = useState(true);
@@ -769,14 +778,58 @@ export function PaymentConciliationModal({
     }
   };
 
+  const doctorOptions = useMemo(() => {
+    const base = initialCompany
+      ? items.filter((it) => (it.company_name ?? "") === initialCompany)
+      : items;
+    return Array.from(new Set(base.map((i) => i.doctor_name ?? "").filter(Boolean))).sort();
+  }, [items, initialCompany]);
+
   const filteredItems = useMemo(() => {
     let base = items;
     if (initialCompany) {
       base = base.filter((it) => (it.company_name ?? "") === initialCompany);
     }
-    if (activeFilter === "todos") return base;
-    return base.filter((it) => it.status === activeFilter);
-  }, [items, activeFilter, initialCompany]);
+    if (activeFilter !== "todos") {
+      base = base.filter((it) => it.status === activeFilter);
+    }
+    if (doctorFilter !== "todos") {
+      base = base.filter((it) => (it.doctor_name ?? "") === doctorFilter);
+    }
+    const min = minValue ? parseFloat(minValue.replace(",", ".")) : null;
+    const max = maxValue ? parseFloat(maxValue.replace(",", ".")) : null;
+    if (min !== null && !Number.isNaN(min)) {
+      base = base.filter((it) => Math.max(Number(it.valor_medpay), Number(it.valor_hospital)) >= min);
+    }
+    if (max !== null && !Number.isNaN(max)) {
+      base = base.filter((it) => Math.max(Number(it.valor_medpay), Number(it.valor_hospital)) <= max);
+    }
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      base = base.filter((it) =>
+        [
+          it.patient_name,
+          it.doctor_name,
+          it.attendance_number,
+          it.procedure_code,
+          it.procedure_name,
+          it.company_name,
+          it.ia_obs,
+        ]
+          .map((v) => (v ?? "").toString().toLowerCase())
+          .some((s) => s.includes(term)),
+      );
+    }
+    return base;
+  }, [items, activeFilter, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
+
+  const hasExtraFilters = !!(searchTerm || doctorFilter !== "todos" || minValue || maxValue);
+  const clearExtraFilters = () => {
+    setSearchTerm("");
+    setDoctorFilter("todos");
+    setMinValue("");
+    setMaxValue("");
+  };
 
   const handleExport = () => {
     if (!run) return;
@@ -1583,6 +1636,58 @@ export function PaymentConciliationModal({
                   </button>
                 ))}
               </div>
+
+              {/* Busca e filtros adicionais */}
+              <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-muted/30 p-2">
+                <div className="relative flex-1 min-w-[220px]">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar paciente, médico, atendimento, TUSS, procedimento…"
+                    className="h-8 pl-7 text-xs"
+                  />
+                </div>
+                <div className="min-w-[180px]">
+                  <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Médico" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      <SelectItem value="todos">Todos os médicos</SelectItem>
+                      {doctorOptions.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={minValue}
+                    onChange={(e) => setMinValue(e.target.value)}
+                    placeholder="Valor mín."
+                    inputMode="decimal"
+                    className="h-8 w-24 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">—</span>
+                  <Input
+                    value={maxValue}
+                    onChange={(e) => setMaxValue(e.target.value)}
+                    placeholder="Valor máx."
+                    inputMode="decimal"
+                    className="h-8 w-24 text-xs"
+                  />
+                </div>
+                {hasExtraFilters && (
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearExtraFilters}>
+                    <X className="h-3 w-3 mr-1" /> Limpar
+                  </Button>
+                )}
+                <span className="text-[11px] text-muted-foreground ml-auto">
+                  {filteredItems.length} resultado{filteredItems.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
 
               {/* Visão agrupada por empresa */}
               <div className="space-y-2">
