@@ -73,7 +73,7 @@ export function PreviousBatchComparison({
         .select("payment_id, total_amount, items_count, created_at, payments!inner(reference, competence_month, payment_type, sectors)")
         .eq("company_name", companyName)
         .neq("payment_id", currentPaymentId)
-        .eq("payments.payment_type", currType)
+        .eq("payments.payment_type", currType as "plantao" | "producao" | "remessa" | "valor_fixo")
         .order("created_at", { ascending: false })
         .limit(10);
 
