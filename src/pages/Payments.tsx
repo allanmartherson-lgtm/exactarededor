@@ -1521,7 +1521,7 @@ const Payments = () => {
                                 className={cn(
                                   "font-bold",
                                   finalLvl === "critico" && "text-destructive",
-                                  finalLvl === "leve" && "text-warning-foreground",
+                                  finalLvl === "leve" && "text-warning-text",
                                   finalLvl === "none" && "text-foreground",
                                 )}
                               >
