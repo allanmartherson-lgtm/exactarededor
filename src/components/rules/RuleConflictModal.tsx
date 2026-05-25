@@ -180,38 +180,40 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o && !submitting) onCancel(); }}>
       <DialogContent
-        className="max-w-2xl bg-white text-neutral-900 border-[0.5px] border-neutral-300 rounded-md p-0 overflow-hidden"
+        className="max-w-2xl bg-card text-foreground border border-border rounded-md p-0 overflow-hidden"
         style={{ fontWeight: 400 }}
       >
-        <DialogHeader className="px-6 pt-5 pb-3 border-b-[0.5px] border-neutral-200">
-          <DialogTitle className="flex items-center gap-2 text-base font-medium text-neutral-900">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="flex items-center gap-2 text-base font-medium text-foreground">
             <AlertTriangle className="h-4 w-4" strokeWidth={1.5} style={{ color: COPPER }} />
             Conflitos detectados antes de salvar
           </DialogTitle>
-          <DialogDescription className="text-xs text-neutral-600 mt-1">
+          <DialogDescription className="text-xs text-muted-foreground mt-1">
             Foram encontrados {problems.length} problema{problems.length === 1 ? "" : "s"}. Revise abaixo antes de prosseguir.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto bg-neutral-50/40">
+        <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto bg-muted/30">
           {problems.map((p, idx) => {
             const isBlocker = p.type === "calc_overlap";
-            const accent = isBlocker ? "#B33A3A" : "#B8860B"; // vermelho discreto vs amarelo discreto
+            const accent = isBlocker ? "hsl(var(--destructive))" : "hsl(var(--warning))";
             return (
               <div
                 key={idx}
-                className="rounded-md border-[0.5px] bg-white p-3"
-                style={{ borderColor: isBlocker ? "#E5C2C2" : "#E8DDC2" }}
+                className={cn(
+                  "rounded-md border bg-background p-3",
+                  isBlocker ? "border-destructive/30" : "border-warning/30",
+                )}
               >
-                <div className="flex items-center gap-2 pb-2 border-b-[0.5px] border-neutral-200">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
                   <span style={{ color: accent }}><IconFor type={p.type} /></span>
-                  <span className="text-sm font-medium text-neutral-900">{titleFor(p, companyNames)}</span>
+                  <span className="text-sm font-medium text-foreground">{titleFor(p, companyNames)}</span>
                 </div>
-                <div className="pt-2 text-xs text-neutral-700 space-y-1">
+                <div className="pt-2 text-xs text-muted-foreground space-y-1">
                   {"existing_rule_name" in p && (
                     <>
                       <div>
-                        Regra existente: <span className="font-medium text-neutral-900">{p.existing_rule_name}</span>
+                        Regra existente: <span className="font-medium text-foreground">{p.existing_rule_name}</span>
                       </div>
                       <div>
                         Vigência: {fmtDate(p.existing_valid_from)} → {fmtDate(p.existing_valid_until)}
@@ -222,25 +224,25 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
                     <>
                       <div>
                         Cálculos em conflito:{" "}
-                        <span className="font-medium text-neutral-900">{p.calc_a_label}</span> e{" "}
-                        <span className="font-medium text-neutral-900">{p.calc_b_label}</span>
+                        <span className="font-medium text-foreground">{p.calc_a_label}</span> e{" "}
+                        <span className="font-medium text-foreground">{p.calc_b_label}</span>
                       </div>
-                      <div>Itens compartilhados: <span className="text-neutral-900">{p.intersection_description}</span></div>
+                      <div>Itens compartilhados: <span className="text-foreground">{p.intersection_description}</span></div>
                     </>
                   )}
                 </div>
 
                 {isBlocker ? (
-                  <div className="mt-3 flex items-start gap-2 text-xs text-[#B33A3A]">
+                  <div className="mt-3 flex items-start gap-2 text-xs text-destructive">
                     <Hand className="h-3.5 w-3.5 mt-0.5" strokeWidth={1.5} />
                     <span>Sem correção automática. Edite os cálculos no formulário antes de salvar.</span>
                   </div>
                 ) : (
                   (p as { suggested_valid_until?: string | null }).suggested_valid_until && (
-                    <label className="mt-3 flex items-center gap-2 text-xs text-neutral-700 cursor-default">
+                    <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground cursor-default">
                       <Checkbox checked disabled aria-label="Aplicar correção" />
                       Encerrar regra anterior em{" "}
-                      <span className="font-medium text-neutral-900">
+                      <span className="font-medium text-foreground">
                         {fmtDate((p as { suggested_valid_until?: string | null }).suggested_valid_until!)}
                       </span>
                     </label>
@@ -252,12 +254,12 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
         </div>
 
         {errorMsg && (
-          <div className="px-6 pb-2 text-xs text-[#B33A3A]">
+          <div className="px-6 pb-2 text-xs text-destructive">
             Falha ao salvar: {errorMsg}
           </div>
         )}
 
-        <DialogFooter className="px-6 py-3 border-t-[0.5px] border-neutral-200 bg-white">
+        <DialogFooter className="px-6 py-3 border-t border-border bg-card">
           <Button
             variant="outline"
             onClick={onCancel}
@@ -269,8 +271,8 @@ export function RuleConflictModal({ open, problems, onCancel, onApplyAndSave }: 
           <Button
             onClick={handleApply}
             disabled={!canApply}
-            className="font-medium text-white"
-            style={{ backgroundColor: canApply ? COPPER : "#C9B79A", borderColor: COPPER }}
+            className="font-medium text-primary-foreground"
+            style={{ backgroundColor: canApply ? COPPER : "hsl(var(--muted))", borderColor: COPPER }}
             title={hasCalcOverlap ? "Resolva a sobreposição de cálculos no formulário antes de salvar" : undefined}
           >
             {submitting ? "Salvando…" : "Aplicar correções e salvar"}
