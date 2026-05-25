@@ -1226,7 +1226,7 @@ const Dashboard = () => {
     };
     fetchTeamToday();
     return () => { cancelled = true; };
-  }, [dashboardMode]);
+  }, [isDiretor, isValidador]);
 
 
 
