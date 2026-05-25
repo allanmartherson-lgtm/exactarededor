@@ -48,7 +48,7 @@ function isFresh(generatedAt: string | undefined): boolean {
 const fmtBRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 
-export const DirectorBriefingCard = ({ paymentId, payment, roles }: Props) => {
+export const DirectorBriefingCard = ({ paymentId, payment, roles, onApprove, onReturn }: Props) => {
   const allowed = roles.includes("diretor") || roles.includes("admin");
   const statusOk = ["aguardando_aprovacao", "aprovado_em_revisao"].includes(payment?.status ?? "");
 
