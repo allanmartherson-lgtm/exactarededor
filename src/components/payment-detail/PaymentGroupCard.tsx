@@ -67,6 +67,10 @@ export type PaymentGroupCardProps = {
   onReleaseInvoice?: () => void;
   /** Permite exibir o botão de liberação de NF (geralmente só para analista). */
   canReleaseInvoice?: boolean;
+  /** Indica se o lote já possui uma conciliação rodada (controla o botão "ver conciliação"). */
+  hasReconciliationRun?: boolean;
+  /** Abre o modal de conciliação já filtrado para esta empresa. */
+  onOpenConciliation?: () => void;
 };
 
 /**
