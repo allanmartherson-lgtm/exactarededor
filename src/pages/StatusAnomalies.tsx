@@ -309,27 +309,31 @@ const StatusAnomalies = () => {
                       </p>
                     )
                   ) : (
-                    <div className="flex items-end gap-2">
-                      <Textarea
-                        placeholder="Nota de resolução (opcional)…"
-                        value={noteById[a.id] ?? ""}
-                        onChange={(e) => setNoteById((p) => ({ ...p, [a.id]: e.target.value }))}
-                        rows={2}
-                        className="text-xs"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={recomputing.has(a.id)}
-                        onClick={() => recompute(a, { autoResolve: true })}
-                        className="gap-1"
-                      >
-                        <RefreshCw className={cn("h-4 w-4", recomputing.has(a.id) && "animate-spin")} />
-                        Forçar recompute
-                      </Button>
-                      <Button size="sm" onClick={() => resolve(a)}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar resolvida
-                      </Button>
+                    <div className="space-y-2">
+                      <DiagnosticPanel kind={a.kind} />
+                      <div className="flex items-end gap-2">
+                        <Textarea
+                          placeholder="Nota de resolução (opcional)…"
+                          value={noteById[a.id] ?? ""}
+                          onChange={(e) => setNoteById((p) => ({ ...p, [a.id]: e.target.value }))}
+                          rows={2}
+                          className="text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={recomputing.has(a.id)}
+                          onClick={() => recompute(a, { autoResolve: true })}
+                          className="gap-1"
+                        >
+                          <RefreshCw className={cn("h-4 w-4", recomputing.has(a.id) && "animate-spin")} />
+                          Forçar recompute
+                        </Button>
+                        <div className="h-8 w-px bg-border mx-1" />
+                        <Button size="sm" variant="outline" onClick={() => resolve(a)}>
+                          <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar resolvida
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
