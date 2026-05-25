@@ -139,7 +139,7 @@ export default function AnalystProductivity() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart2 className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold">Produtividade dos Analistas</h1>
+          <h1 className="text-xl font-semibold">Produtividade da Equipe</h1>
         </div>
         <div className="flex items-center gap-2">
           <ToggleGroup
