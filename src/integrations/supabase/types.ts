@@ -640,6 +640,8 @@ export type Database = {
       doctors: {
         Row: {
           active: boolean
+          birth_date: string | null
+          cpf: string | null
           created_at: string
           created_by: string | null
           crm: string
@@ -651,9 +653,12 @@ export type Database = {
           phone: string | null
           specialties: string[]
           updated_at: string
+          vinculo: string | null
         }
         Insert: {
           active?: boolean
+          birth_date?: string | null
+          cpf?: string | null
           created_at?: string
           created_by?: string | null
           crm: string
@@ -665,9 +670,12 @@ export type Database = {
           phone?: string | null
           specialties?: string[]
           updated_at?: string
+          vinculo?: string | null
         }
         Update: {
           active?: boolean
+          birth_date?: string | null
+          cpf?: string | null
           created_at?: string
           created_by?: string | null
           crm?: string
@@ -679,6 +687,7 @@ export type Database = {
           phone?: string | null
           specialties?: string[]
           updated_at?: string
+          vinculo?: string | null
         }
         Relationships: []
       }
