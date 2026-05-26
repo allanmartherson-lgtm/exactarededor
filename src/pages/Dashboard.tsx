@@ -2924,7 +2924,7 @@ const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow
           )}
         </div>
         <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-          {p.items_count} itens · {formatCurrency(p.total_amount)}
+          {p.items_count} itens · {formatCurrency((p as any).liquido_total ?? p.total_amount)}
         </p>
       </div>
       <div className="ptr-stages flex items-center" style={{ gap: 6, justifyContent: "center" }}>
