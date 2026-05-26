@@ -201,7 +201,7 @@ const Invoices = () => {
   };
 
   const counts = useMemo(() => {
-    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0 };
+    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0, cancelada: 0 };
     rows.forEach((r) => { c[r.status as InvoiceStatus] = (c[r.status as InvoiceStatus] ?? 0) + 1; });
     return c;
   }, [rows]);
