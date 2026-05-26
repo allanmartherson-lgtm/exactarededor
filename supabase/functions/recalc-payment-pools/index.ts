@@ -116,16 +116,62 @@ Deno.serve(async (req) => {
       const baseField = pool.base_calculo === "soma_expected" ? "expected_amount" : "gross_amount";
       const base = elig.reduce((acc, it) => acc + Number((it as any)[baseField] ?? 0), 0);
 
-      // Deduções
+      // Deduções (mistas: valor fixo + lookup dinâmico em ajustes ativos)
       const { data: dedRows } = await supabase
         .from("pool_deductions").select("*").eq("pool_id", pool.id).order("ordem");
-      const deductionsApplied: Array<{ ordem: number; tipo: string; descricao: string; valor: number }> = [];
+      const deductionsApplied: Array<{
+        ordem: number; tipo: string; descricao: string; valor: number;
+        adjustment_id?: string; parcela?: number;
+      }> = [];
+      const adjustmentApplications: Array<{ adjustment_id: string; parcela_numero: number; valor: number }> = [];
       let bolo = base;
       for (const d of (dedRows ?? [])) {
-        const v = Number(d.valor ?? 0);
-        // (futuro) resolver valor dinâmico via company_id + ajustes ativos
-        bolo -= v;
-        deductionsApplied.push({ ordem: d.ordem, tipo: d.tipo, descricao: d.descricao, valor: round2(v) });
+        const dynTypes = new Set(["ajuste_credito", "ajuste_debito", "glosa_parcelada"]);
+        if (dynTypes.has(d.tipo) && d.company_id) {
+          // Busca ajuste ativo com parcelas pendentes
+          const adjTipo = d.tipo === "ajuste_credito" ? "credito"
+            : d.tipo === "ajuste_debito" ? "debito"
+            : "glosa_parcelada";
+          const { data: adjs } = await supabase
+            .from("company_financial_adjustments")
+            .select("*")
+            .eq("company_id", d.company_id)
+            .eq("tipo", adjTipo)
+            .eq("ativo", true)
+            .order("created_at", { ascending: true });
+          for (const adj of (adjs ?? [])) {
+            const pagas = Number(adj.parcelas_pagas ?? 0);
+            const total = Number(adj.parcelas_total ?? 1);
+            if (pagas >= total) continue;
+            // Já aplicado neste payment? (idempotência)
+            const { data: existingApp } = await supabase
+              .from("company_adjustment_applications")
+              .select("id, valor_aplicado, parcela_numero")
+              .eq("adjustment_id", adj.id).eq("payment_id", payment_id)
+              .maybeSingle();
+            const parcelaValor = round2(Number(adj.valor_total) / total);
+            const parcelaNum = existingApp?.parcela_numero ?? (pagas + 1);
+            bolo -= parcelaValor;
+            deductionsApplied.push({
+              ordem: d.ordem, tipo: d.tipo,
+              descricao: `${d.descricao} — ${adj.descricao} (parc. ${parcelaNum}/${total})`,
+              valor: parcelaValor,
+              adjustment_id: adj.id,
+              parcela: parcelaNum,
+            });
+            if (!existingApp) {
+              adjustmentApplications.push({
+                adjustment_id: adj.id, parcela_numero: parcelaNum, valor: parcelaValor,
+              });
+            }
+          }
+        } else {
+          const v = Number(d.valor ?? 0);
+          bolo -= v;
+          deductionsApplied.push({
+            ordem: d.ordem, tipo: d.tipo, descricao: d.descricao, valor: round2(v),
+          });
+        }
       }
       bolo = round2(bolo);
 
@@ -194,6 +240,25 @@ Deno.serve(async (req) => {
         },
         created_by: userId,
       } as any);
+
+      // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
+      for (const app of adjustmentApplications) {
+        await supabase.from("company_adjustment_applications").insert({
+          adjustment_id: app.adjustment_id,
+          payment_id,
+          parcela_numero: app.parcela_numero,
+          valor_aplicado: app.valor,
+          applied_by: userId,
+        } as any);
+        // incrementa parcelas_pagas com base no número real de aplicações
+        const { count } = await supabase
+          .from("company_adjustment_applications")
+          .select("*", { count: "exact", head: true })
+          .eq("adjustment_id", app.adjustment_id);
+        await supabase.from("company_financial_adjustments")
+          .update({ parcelas_pagas: count ?? app.parcela_numero })
+          .eq("id", app.adjustment_id);
+      }
 
       results.push({
         pool_id: pool.id, pool_nome: pool.nome,

@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
+import { CompanyFinancialAdjustmentsDialog } from "@/components/CompanyFinancialAdjustmentsDialog";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { FormDialog } from "@/components/FormDialog";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
@@ -63,6 +64,7 @@ const Companies = () => {
   const [items, setItems] = useState<Company[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company>(empty);
+  const [financeFor, setFinanceFor] = useState<{ id: string; name: string } | null>(null);
   const [aliasInput, setAliasInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
@@ -531,6 +533,9 @@ const Companies = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => setFinanceFor({ id: item.id, name: item.name })} className="h-8 w-8" title="Financeiro / ajustes">
+                        <Wallet className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => { setEditing(item); setOpen(true); }} className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -553,6 +558,15 @@ const Companies = () => {
         importing={importing}
         onOpenChange={(v) => !importing && setImportResults(prev => ({ ...prev, show: v }))}
       />
+
+      {financeFor && (
+        <CompanyFinancialAdjustmentsDialog
+          open={!!financeFor}
+          onOpenChange={(v) => !v && setFinanceFor(null)}
+          companyId={financeFor.id}
+          companyName={financeFor.name}
+        />
+      )}
     </div>
   );
 };
