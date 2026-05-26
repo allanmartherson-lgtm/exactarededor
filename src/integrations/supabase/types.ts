@@ -965,6 +965,9 @@ export type Database = {
           doctor_crm: string | null
           doctor_name: string
           id: string
+          ignored_at: string | null
+          ignored_by: string | null
+          ignored_reason: string | null
           last_applied_at: string | null
           last_payment_id: string | null
           parcelas_default: number
@@ -981,6 +984,9 @@ export type Database = {
           doctor_crm?: string | null
           doctor_name: string
           id?: string
+          ignored_at?: string | null
+          ignored_by?: string | null
+          ignored_reason?: string | null
           last_applied_at?: string | null
           last_payment_id?: string | null
           parcelas_default?: number
@@ -997,6 +1003,9 @@ export type Database = {
           doctor_crm?: string | null
           doctor_name?: string
           id?: string
+          ignored_at?: string | null
+          ignored_by?: string | null
+          ignored_reason?: string | null
           last_applied_at?: string | null
           last_payment_id?: string | null
           parcelas_default?: number
@@ -3942,6 +3951,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      ignore_glosa_debt: {
+        Args: { _debt_id: string; _reason: string }
+        Returns: undefined
+      }
       ignore_unmatched_items: {
         Args: {
           _payment_id: string
@@ -4059,6 +4072,7 @@ export type Database = {
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
+      unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
       validate_rule_save: {
         Args: {
           _group_company_links: Json
