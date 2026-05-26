@@ -119,7 +119,12 @@ serve(async (req) => {
       lote: {
         referencia: payment.reference ?? "—",
         status: payment.status,
-        valor_total: Number(payment.total_amount) || 0,
+        valor_liquido: Number((payment as any).liquido_total ?? payment.total_amount) || 0,
+        valor_bruto: Number((payment as any).bruto_total ?? payment.total_amount) || 0,
+        houve_deducoes: Math.abs(
+          (Number((payment as any).liquido_total ?? payment.total_amount) || 0) -
+          (Number((payment as any).bruto_total ?? payment.total_amount) || 0)
+        ) > 0.01,
         competencia: payment.competence_month,
         qtd_itens: payment.items_count ?? totalItems,
       },
@@ -133,10 +138,11 @@ serve(async (req) => {
         .map(([nome, v]) => ({ nome, ...v, pct_alertas: v.count > 0 ? Math.round((v.alerts / v.count) * 100) : 0 }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 10),
-      grupos_status: (groups ?? []).map((g) => ({
+      grupos_status: (groups ?? []).map((g: any) => ({
         empresa: g.company_name,
         status: g.status,
-        valor: Number(g.total_amount) || 0,
+        valor_liquido: Number(g.liquido_total ?? g.total_amount) || 0,
+        valor_bruto: Number(g.bruto_total ?? g.total_amount) || 0,
         itens: g.items_count,
       })),
       observacoes_recentes: (observations ?? []).map((o) => ({
