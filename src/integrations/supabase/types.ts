@@ -1522,6 +1522,84 @@ export type Database = {
           },
         ]
       }
+      payment_company_financials: {
+        Row: {
+          bruto: number
+          company_id: string
+          computed_at: string
+          computed_by: string | null
+          conciliacao: number
+          conciliacao_aplicada: boolean
+          created_at: string
+          creditos: number
+          debitos: number
+          glosas: number
+          id: string
+          liquido: number
+          payment_id: string
+          pool: number
+          pool_aplicado: boolean
+          pool_detalhes: Json
+          pool_preview: boolean
+          updated_at: string
+        }
+        Insert: {
+          bruto?: number
+          company_id: string
+          computed_at?: string
+          computed_by?: string | null
+          conciliacao?: number
+          conciliacao_aplicada?: boolean
+          created_at?: string
+          creditos?: number
+          debitos?: number
+          glosas?: number
+          id?: string
+          liquido?: number
+          payment_id: string
+          pool?: number
+          pool_aplicado?: boolean
+          pool_detalhes?: Json
+          pool_preview?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bruto?: number
+          company_id?: string
+          computed_at?: string
+          computed_by?: string | null
+          conciliacao?: number
+          conciliacao_aplicada?: boolean
+          created_at?: string
+          creditos?: number
+          debitos?: number
+          glosas?: number
+          id?: string
+          liquido?: number
+          payment_id?: string
+          pool?: number
+          pool_aplicado?: boolean
+          pool_detalhes?: Json
+          pool_preview?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_company_financials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_financials_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_company_groups: {
         Row: {
           approved_at: string | null
