@@ -201,7 +201,7 @@ export const PaymentGroupCard = ({
             </span>
           </div>
           <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 pl-8 text-[11px] text-muted-foreground">
-            <span className="tabular-nums font-medium text-foreground">{formatCurrency(g.total_amount)}</span>
+            <span className="tabular-nums font-medium text-foreground">{formatCurrency(Number((g as any).liquido_total ?? g.total_amount))}</span>
             <span>· {g.items_count} itens</span>
             {gCounts.reprovado > 0 && <span className="text-destructive font-medium">✕{gCounts.reprovado}</span>}
             {gCounts.alerta > 0 && <span className="text-warning font-medium">⚠{gCounts.alerta}</span>}
@@ -233,7 +233,7 @@ export const PaymentGroupCard = ({
           )}
           <span className="flex-1" />
           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-            · {g.items_count} itens · {formatCurrency(g.total_amount)}
+            · {g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount))}
           </span>
           <div className="hidden md:flex items-center gap-1 ml-2">
             {gCounts.aprovado > 0 && (

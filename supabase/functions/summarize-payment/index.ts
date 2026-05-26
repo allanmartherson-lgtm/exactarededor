@@ -106,6 +106,28 @@ serve(async (req) => {
       .select("company_name, status, total_amount, bruto_total, liquido_total, items_count")
       .eq("payment_id", payment_id);
 
+    // 3b. Composição financeira agregada do lote (pool, glosa, conciliação separados)
+    const { data: pcf } = await supabase
+      .from("payment_company_financials")
+      .select("bruto, debitos, creditos, glosas, pool, conciliacao, liquido")
+      .eq("payment_id", payment_id);
+    const composicao = (pcf ?? []).reduce(
+      (acc, r: any) => ({
+        bruto: acc.bruto + Number(r.bruto || 0),
+        debitos: acc.debitos + Number(r.debitos || 0),
+        creditos: acc.creditos + Number(r.creditos || 0),
+        glosas: acc.glosas + Number(r.glosas || 0),
+        pool: acc.pool + Number(r.pool || 0),
+        conciliacao: acc.conciliacao + Number(r.conciliacao || 0),
+        liquido: acc.liquido + Number(r.liquido || 0),
+      }),
+      { bruto: 0, debitos: 0, creditos: 0, glosas: 0, pool: 0, conciliacao: 0, liquido: 0 },
+    );
+    const reducaoTotal = composicao.bruto - composicao.liquido;
+    const reducaoExplicada = composicao.debitos + composicao.glosas + composicao.pool - composicao.creditos - composicao.conciliacao;
+    const reducaoNaoExplicada = Math.round((reducaoTotal - reducaoExplicada) * 100) / 100;
+
+
     // 4. Últimas observações (analista/validador/diretor)
     const { data: observations } = await supabase
       .from("payment_observations")
@@ -156,6 +178,21 @@ serve(async (req) => {
         impacto_total: excecoesImpacto,
         amostra: excecoesAmostra,
       },
+      composicao_financeira: {
+        bruto: Math.round(composicao.bruto * 100) / 100,
+        liquido: Math.round(composicao.liquido * 100) / 100,
+        reducao_total: Math.round(reducaoTotal * 100) / 100,
+        // Pool/rateio = modelo de negociação contratual entre médicos/empresa (neutro, NÃO é risco)
+        pool_rateio: Math.round(composicao.pool * 100) / 100,
+        // Débitos contratuais aplicados (fixos, plantões etc.) — neutro
+        debitos_contratuais: Math.round(composicao.debitos * 100) / 100,
+        creditos: Math.round(composicao.creditos * 100) / 100,
+        // Glosas = perda financeira real (risco)
+        glosas: Math.round(composicao.glosas * 100) / 100,
+        // Conciliação ≠ 0 = divergência NF vs base (risco)
+        conciliacao: Math.round(composicao.conciliacao * 100) / 100,
+        reducao_nao_explicada: reducaoNaoExplicada,
+      },
     };
 
     const generalPrompt = `Você é um auditor sênior de pagamentos médicos. Gere um RESUMO EXECUTIVO objetivo e direto sobre um lote de pagamento, em português do Brasil.
@@ -165,21 +202,25 @@ REGRAS:
 - Use somente fatos presentes no contexto JSON. Nunca invente números, regras ou empresas.
 - O resumo deve ajudar analista, validador e diretor a entender o lote em <30s.
 
-INSTRUÇÕES PARA O RESUMO:
-- Foque em riscos FINANCEIROS: distorções de valores, itens com divergência significativa (>10%), regras sem match, outliers de valor por médico ou procedimento.
-- NÃO considere concentração de prestadores numa empresa como risco — em hospitais, é completamente normal que uma empresa tenha muitos médicos.
-- Destaque: (1) itens reprovados e o motivo principal, (2) regras de validação que geraram mais alertas, (3) médicos ou procedimentos com valor muito acima/abaixo do esperado, (4) qualquer divergência que exija atenção do revisor.
-- Ignore dados puramente operacionais/quantitativos como "X% dos itens são aprovados" sem adicionar contexto de por que isso é ou não relevante.
-- O risco deve refletir a probabilidade de erro financeiro, não volume de dados.
+CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (composicao_financeira):
+- NEUTRO (NÃO é risco, não eleva risk_level, não alarmar): pool_rateio, debitos_contratuais, creditos.
+  Pool/rateio é MODELO DE PAGAMENTO contratado — médicos da empresa dividem produção segundo um acordo. É esperado e legítimo, mesmo quando representa parcela grande do bruto. Mencione com naturalidade ("X% do bruto foi rateado conforme pool contratado"), sem termos como "forte ajuste", "redução expressiva", "necessário validar".
+- RISCO REAL (eleva risk_level e merece destaque): glosas (perda financeira da operadora), conciliacao ≠ 0 (NF não bate com base MedPay), reducao_nao_explicada > 1% do bruto (composição inconsistente).
 
-- Headline: 1 frase com o VALOR LÍQUIDO total (lote.valor_liquido — o que efetivamente será pago após débitos, glosas, pool e conciliação), qtd de empresas e principal sinal financeiro. Se houve_deducoes=true, mencione também o bruto entre parênteses para evidenciar a redução.
-- Bullets: 3 a 5 pontos com achados financeiros relevantes (divergências, outliers, regras sem match, exceções).
-- risk_level: classifique baseado em probabilidade de erro financeiro.
-  - baixo: <10% itens com divergência, sem outliers relevantes
-  - medio: 10-30% divergências OU poucos outliers
-  - alto: 30-60% divergências OU outliers significativos OU muitas regras sem match
-  - critico: >60% divergências OU sinais combinados de erro financeiro
-- recommended_action: 1 frase com a próxima ação concreta sugerida.`;
+INSTRUÇÕES PARA O RESUMO:
+- Foque em riscos FINANCEIROS de fato: glosas, divergências de conciliação, itens com divergência significativa (>10%), regras sem match, outliers por médico/procedimento.
+- NÃO considere concentração de prestadores numa empresa como risco — em hospitais é normal.
+- NÃO trate a diferença bruto→líquido como problema quando ela é explicada por pool/débitos contratuais. Trate como problema apenas a parcela atribuível a glosas, conciliação divergente ou redução não explicada.
+- Ignore métricas puramente operacionais sem contexto de relevância.
+
+- Headline: 1 frase com o VALOR LÍQUIDO total (lote.valor_liquido), qtd de empresas e principal sinal financeiro REAL (não citar bruto a menos que haja glosa/divergência relevante).
+- Bullets: 3 a 5 pontos com achados financeiros relevantes. Se citar pool, faça em tom neutro.
+- risk_level: baseado em probabilidade de erro financeiro REAL (glosas, conciliação, divergências), NUNCA por causa de pool/rateio sozinho.
+  - baixo: <10% itens com divergência, sem glosas relevantes, conciliação ok
+  - medio: 10-30% divergências OU glosas pequenas
+  - alto: 30-60% divergências OU glosas relevantes OU divergência de conciliação
+  - critico: >60% divergências OU sinais combinados de perda financeira
+- recommended_action: 1 frase com a próxima ação concreta.`;
 
     const directorPrompt = `Você é um auditor sênior preparando um BRIEFING DE APROVAÇÃO para o Diretor Financeiro de uma rede hospitalar, em português do Brasil.
 

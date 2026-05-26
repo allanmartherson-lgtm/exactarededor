@@ -1585,11 +1585,7 @@ const PaymentDetail = () => {
         title={payment.reference}
         description={payment.description ?? (() => {
           const liq = Number((payment as any).liquido_total ?? payment.total_amount ?? 0);
-          const bru = Number((payment as any).bruto_total ?? payment.total_amount ?? 0);
-          const diverge = Math.abs(liq - bru) > 0.01;
-          return diverge
-            ? `${items.length} itens · ${formatCurrency(liq)} líquido · bruto ${formatCurrency(bru)}`
-            : `${items.length} itens · ${formatCurrency(liq)}`;
+          return `${items.length} itens · ${formatCurrency(liq)}`;
         })()}
         sticky
         actions={
@@ -2361,9 +2357,6 @@ const PaymentDetail = () => {
                           <span className="font-medium">{g.company_name}</span>
                           <span className="text-muted-foreground ml-2">
                             {g.items_count ?? 0} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}
-                            {Math.abs(Number((g as any).liquido_total ?? g.total_amount ?? 0) - Number((g as any).bruto_total ?? g.total_amount ?? 0)) > 0.01 && (
-                              <span className="ml-1 text-[10px]">(bruto {formatCurrency(Number((g as any).bruto_total ?? 0))})</span>
-                            )}
                           </span>
                         </label>
                       </li>
@@ -2936,9 +2929,6 @@ const PaymentDetail = () => {
                         <p className="text-sm font-medium truncate">{g.company_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}
-                          {Math.abs(Number((g as any).liquido_total ?? g.total_amount ?? 0) - Number((g as any).bruto_total ?? g.total_amount ?? 0)) > 0.01 && (
-                            <span className="ml-1 text-[10px]">(bruto {formatCurrency(Number((g as any).bruto_total ?? 0))})</span>
-                          )}
                         </p>
                       </div>
                       <Button
@@ -2991,7 +2981,7 @@ const PaymentDetail = () => {
                   <div key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{g.company_name}</p>
-                      <p className="text-xs text-muted-foreground">{g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}{Math.abs(Number((g as any).liquido_total ?? g.total_amount ?? 0) - Number((g as any).bruto_total ?? g.total_amount ?? 0)) > 0.01 && ` (bruto ${formatCurrency(Number((g as any).bruto_total ?? 0))})`}</p>
+                      <p className="text-xs text-muted-foreground">{g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}</p>
                     </div>
                     <Button
                       size="sm"
