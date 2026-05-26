@@ -1389,6 +1389,7 @@ export type Database = {
           description: string | null
           doctor_document: string | null
           doctor_email: string | null
+          doctor_id: string | null
           doctor_name: string
           doctor_role: string | null
           exception_attachment_path: string | null
@@ -1444,6 +1445,7 @@ export type Database = {
           description?: string | null
           doctor_document?: string | null
           doctor_email?: string | null
+          doctor_id?: string | null
           doctor_name: string
           doctor_role?: string | null
           exception_attachment_path?: string | null
@@ -1499,6 +1501,7 @@ export type Database = {
           description?: string | null
           doctor_document?: string | null
           doctor_email?: string | null
+          doctor_id?: string | null
           doctor_name?: string
           doctor_role?: string | null
           exception_attachment_path?: string | null
@@ -1548,6 +1551,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
             referencedColumns: ["id"]
           },
           {
@@ -3383,10 +3393,9 @@ export type Database = {
         }
         Returns: string
       }
-      enrich_doctor_documents: {
-        Args: { p_payment_id: string }
-        Returns: undefined
-      }
+      enrich_doctor_documents:
+        | { Args: never; Returns: number }
+        | { Args: { p_payment_id: string }; Returns: undefined }
       extract_rule_targets: {
         Args: {
           _group_company_links: Json
