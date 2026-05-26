@@ -44,6 +44,9 @@ interface Doctor {
   specialties: string[];
   active: boolean;
   notes: string | null;
+  cpf: string | null;
+  birth_date: string | null;
+  vinculo: string | null;
 }
 interface Company { id: string; name: string; document: string | null; }
 interface Link { doctor_id: string; company_id: string; }
@@ -51,6 +54,7 @@ interface Link { doctor_id: string; company_id: string; }
 const empty: Doctor = {
   id: "", full_name: "", crm: "", crm_uf: "", email: "", phone: "",
   specialties: [], active: true, notes: "",
+  cpf: "", birth_date: "", vinculo: "",
 };
 
 const norm = (s: string) =>
