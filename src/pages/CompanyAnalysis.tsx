@@ -16,6 +16,8 @@ import { PaymentReportModal } from "@/components/payment-detail/PaymentReportMod
 import { PaymentConciliationModal } from "@/components/payment-detail/PaymentConciliationModal";
 import { CompanyQuestionsThread } from "@/components/payment-detail/CompanyQuestionsThread";
 import { DeductionsBanner } from "@/components/payment-detail/DeductionsBanner";
+import { FinancialCompositionStrip } from "@/components/payment-detail/FinancialCompositionStrip";
+import { useFinancialComposition } from "@/hooks/useFinancialComposition";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowLeft, Building2, AlertTriangle, MessageSquarePlus, Sparkles, RefreshCcw, Send, History, XCircle, ShieldCheck, Undo2, ThumbsUp, ThumbsDown, FileText, Wallet, Upload, Download, FileSpreadsheet, ChevronDown, Clock, X, Plus, Trash2, CheckCircle2, GitCompareArrows } from "lucide-react";
@@ -1879,45 +1881,25 @@ export default function CompanyAnalysis() {
 function Stat({
   label,
   value,
+  sub,
   mono,
   tone = "muted",
   icon,
 }: {
   label: string;
   value: string;
+  sub?: string;
   mono?: boolean;
   tone?: "muted" | "info" | "success" | "warning" | "destructive";
   icon?: React.ReactNode;
 }) {
   // Cada tom tem: chip do ícone (fundo soft + texto da cor) e barra lateral.
-  // Mantém fundo branco do card pra preservar a estética financeira sóbria,
-  // mas usa o acento de cor pra deixar cada KPI visualmente distinto.
   const tones: Record<typeof tone, { chip: string; bar: string; value: string }> = {
-    muted: {
-      chip: "bg-muted text-muted-foreground",
-      bar: "bg-border",
-      value: "text-foreground",
-    },
-    info: {
-      chip: "bg-info-soft text-info",
-      bar: "bg-info",
-      value: "text-foreground",
-    },
-    success: {
-      chip: "bg-success-soft text-success",
-      bar: "bg-success",
-      value: "text-foreground",
-    },
-    warning: {
-      chip: "bg-warning-soft text-warning-text",
-      bar: "bg-warning",
-      value: "text-foreground",
-    },
-    destructive: {
-      chip: "bg-destructive/10 text-destructive",
-      bar: "bg-destructive",
-      value: "text-foreground",
-    },
+    muted: { chip: "bg-muted text-muted-foreground", bar: "bg-border", value: "text-foreground" },
+    info: { chip: "bg-info-soft text-info", bar: "bg-info", value: "text-foreground" },
+    success: { chip: "bg-success-soft text-success", bar: "bg-success", value: "text-foreground" },
+    warning: { chip: "bg-warning-soft text-warning-text", bar: "bg-warning", value: "text-foreground" },
+    destructive: { chip: "bg-destructive/10 text-destructive", bar: "bg-destructive", value: "text-foreground" },
   };
   const t = tones[tone];
   return (
@@ -1932,6 +1914,7 @@ function Stat({
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
           <div className={cn("mt-1 text-xl font-semibold leading-tight", mono && "tabular-nums", t.value)}>{value}</div>
+          {sub && <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{sub}</div>}
         </div>
       </div>
     </div>
