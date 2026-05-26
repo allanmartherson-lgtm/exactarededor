@@ -579,7 +579,7 @@ export function ItemsDataGrid({
             {filtered.length === 0 && (
               <li className="text-center py-8 text-muted-foreground text-xs">Nenhum item para exibir.</li>
             )}
-            {filtered.map((it) => {
+            {filtered.map((it, idx) => {
               const paciente = getPatient(it);
               const expected = it.ai_findings?.expected_amount;
               const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
@@ -593,41 +593,69 @@ export function ItemsDataGrid({
               const isCritical = eff === "reprovado";
               const hasAlert = alerts.length > 0;
               const diverges = expected != null && Math.abs(Number(expected) - Number(it.gross_amount ?? 0)) > 0.01;
+              const itemOrigem = (it as any).item_origem as string | null | undefined;
+              const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
+              const prev = idx > 0 ? filtered[idx - 1] : null;
+              const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
+              const isFirstAdjust = isAdjust && !prevIsAdjust;
               return (
-                <li
-                  key={it.id}
-                  className={cn(
-                    "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
-                    isActive && "bg-primary/10 ring-1 ring-inset ring-primary/30",
+                <>
+                  {isFirstAdjust && (
+                    <li
+                      key={`adj-sep-${it.id}`}
+                      className="px-4 py-2 bg-muted text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground"
+                    >
+                      Ajustes de conciliação
+                    </li>
                   )}
-                  onClick={() => { selectRow(it.id); openDetail(it.id); }}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-[13px] truncate">{paciente}</p>
-                      <span className={cn("ml-auto inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase shrink-0", TONE_CLASSES[tone])}>
-                        {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
-                        {eff}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      <span className="font-mono">{it.procedure_code ?? "—"}</span>
-                      {" · "}
-                      {it.procedure_name ?? it.description ?? "—"}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">{it.doctor_name ?? "—"}</p>
-                    <div className="mt-1.5 flex items-baseline justify-between gap-2 text-[12px]">
-                      <span className="tabular-nums font-medium">{formatCurrency(Number(it.gross_amount ?? 0))}</span>
-                      {expected != null && (
-                        <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-foreground" : "text-muted-foreground")}>
-                          esp. {formatCurrency(Number(expected))}
+                  <li
+                    key={it.id}
+                    className={cn(
+                      "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
+                      isActive && "bg-primary/10 ring-1 ring-inset ring-primary/30",
+                    )}
+                    onClick={() => { selectRow(it.id); openDetail(it.id); }}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-[13px] truncate">{paciente}</p>
+                        <span className={cn("ml-auto inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase shrink-0", TONE_CLASSES[tone])}>
+                          {isCritical && <ShieldAlert className="h-2.5 w-2.5 mr-0.5 inline" />}
+                          {eff}
                         </span>
-                      )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        <span className="font-mono">{it.procedure_code ?? "—"}</span>
+                        {" · "}
+                        {it.procedure_name ?? it.description ?? "—"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">{it.doctor_name ?? "—"}</p>
+                      <div className="mt-1.5 flex items-baseline justify-between gap-2 text-[12px]">
+                        <span className="tabular-nums font-medium inline-flex items-center">
+                          {formatCurrency(Number(it.gross_amount ?? 0))}
+                          {isAdjust && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 9999,
+                              background: itemOrigem === 'conciliacao_credito' ? 'hsl(var(--success-soft))' : 'hsl(var(--destructive-soft))',
+                              color: itemOrigem === 'conciliacao_credito' ? 'hsl(var(--success))' : 'hsl(var(--destructive))',
+                              marginLeft: 4, whiteSpace: 'nowrap',
+                            }}>
+                              {itemOrigem === 'conciliacao_credito' ? 'Conc. +' : 'Conc. −'}
+                            </span>
+                          )}
+                        </span>
+                        {expected != null && (
+                          <span className={cn("tabular-nums text-[11px]", diverges ? "text-warning-foreground" : "text-muted-foreground")}>
+                            esp. {formatCurrency(Number(expected))}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
+                  </li>
+                </>
               );
             })}
+
           </ul>
           {filtered.length > 0 && (
             <div className="md:hidden sticky bottom-0 z-20 flex items-center justify-between gap-2 border-t bg-muted/95 backdrop-blur px-4 py-4 shadow-[0_-8px_10px_-4px_rgba(0,0,0,0.1)]">
