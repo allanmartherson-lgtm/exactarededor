@@ -2991,7 +2991,7 @@ const PaymentDetail = () => {
                   <div key={g.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{g.company_name}</p>
-                      <p className="text-xs text-muted-foreground">{g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}</p>
+                      <p className="text-xs text-muted-foreground">{g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}{Math.abs(Number((g as any).liquido_total ?? g.total_amount ?? 0) - Number((g as any).bruto_total ?? g.total_amount ?? 0)) > 0.01 && ` (bruto ${formatCurrency(Number((g as any).bruto_total ?? 0))})`}</p>
                     </div>
                     <Button
                       size="sm"
