@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import GlosaResolutionPanel from "@/components/glosas/GlosaResolutionPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/status";
