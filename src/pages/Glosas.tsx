@@ -1054,6 +1054,113 @@ export default function Glosas() {
         </TabsContent>
       </Tabs>
 
+      {/* Modal de confirmação de importação */}
+      <Dialog open={!!importPreview} onOpenChange={() => setImportPreview(null)}>
+        <DialogContent style={{ maxWidth: 580 }}>
+          <DialogHeader>
+            <DialogTitle>Confirmar importação da base</DialogTitle>
+            <DialogDescription>
+              Revise as informações antes de salvar. Você pode editar o nome e a competência.
+            </DialogDescription>
+          </DialogHeader>
+
+          {importPreview && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <Label style={{ fontSize: 12, marginBottom: 4, display: "block" }}>Nome da base</Label>
+                <Input
+                  value={importPreview.reference}
+                  onChange={e => setImportPreview(prev => prev ? { ...prev, reference: e.target.value } : prev)}
+                  style={{ fontSize: 13 }}
+                />
+              </div>
+
+              <div>
+                <Label style={{ fontSize: 12, marginBottom: 4, display: "block" }}>
+                  Competência (mês de referência)
+                </Label>
+                <Input
+                  type="month"
+                  value={importPreview.competenceMonth}
+                  onChange={e => setImportPreview(prev => prev ? { ...prev, competenceMonth: e.target.value } : prev)}
+                  style={{ fontSize: 13, width: 200 }}
+                />
+                {!importPreview.competenceMonth && (
+                  <p style={{ fontSize: 11, color: "hsl(var(--destructive))", marginTop: 4 }}>
+                    ⚠ Competência não detectada automaticamente — informe manualmente
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {[
+                  { label: "Linhas", value: importPreview.rows.length.toLocaleString("pt-BR") },
+                  { label: "Empresas únicas", value: importPreview.terceirosUnicos.length },
+                  { label: "Colunas detectadas", value: Object.keys(importPreview.colMap).length },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: "hsl(var(--muted))", borderRadius: 8, padding: "10px 14px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 300, color: "hsl(var(--foreground))" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {importPreview.terceirosUnicos.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--muted-foreground))", marginBottom: 6 }}>
+                    Empresas na base ({importPreview.terceirosUnicos.length})
+                  </div>
+                  <div style={{ maxHeight: 120, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {importPreview.terceirosUnicos.map(t => (
+                      <span key={t} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 9999, background: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "1px solid hsl(var(--border))" }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--muted-foreground))", marginBottom: 6 }}>
+                  Prévia (5 primeiras linhas)
+                </div>
+                <div style={{ overflowX: "auto", border: "1px solid hsl(var(--border))", borderRadius: 8 }}>
+                  <table style={{ width: "100%", fontSize: 10, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "hsl(var(--muted))" }}>
+                        {Object.values(importPreview.colMap).slice(0, 6).map((col, i) => (
+                          <th key={i} style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+                            {Object.keys(importPreview.colMap)[i]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.rows.slice(0, 5).map((row, i) => (
+                        <tr key={i} style={{ borderTop: "1px solid hsl(var(--border))" }}>
+                          {Object.values(importPreview.colMap).slice(0, 6).map((col, j) => (
+                            <td key={j} style={{ padding: "5px 10px", color: "hsl(var(--foreground))", whiteSpace: "nowrap", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {String(row[col] ?? "—")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPreview(null)}>Cancelar</Button>
+            <Button onClick={confirmImportConcBase} disabled={uploadingConc}>
+              {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Salvando…</> : "Confirmar importação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ColumnMappingModal
         open={mappingOpen}
         onClose={() => { setMappingOpen(false); setPendingRows([]); }}
