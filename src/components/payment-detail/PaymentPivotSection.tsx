@@ -396,7 +396,7 @@ export function PaymentPivotSection({
               {!loading &&
                 primaryRows.map((r) => {
                   const isOpen = expanded.has(r.key);
-                  const canDrill = variant === "compacto" && r.children.length > 0;
+                  const canDrill = r.children.length > 0;
                   return (
                     <>
                       <tr key={r.key} className="border-t border-border even:bg-muted/20 hover:bg-muted/30">
