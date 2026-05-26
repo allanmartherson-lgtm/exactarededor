@@ -16,6 +16,8 @@ import { toast } from "@/hooks/use-toast";
 import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DoctorRegistrationPendingPanel } from "@/components/doctors/DoctorRegistrationPendingPanel";
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
