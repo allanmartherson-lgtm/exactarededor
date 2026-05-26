@@ -858,7 +858,7 @@ const Dashboard = () => {
           .eq("is_question", true)
           .is("resolved_at", null),
       ]);
-      setRecentApprovedData((rApproved ?? []) as Array<{ id: string; total_amount: number | null; approved_at: string | null }>);
+      setRecentApprovedData((rApproved ?? []) as Array<{ id: string; total_amount: number | null; liquido_total: number | null; approved_at: string | null }>);
       setRecentRejectedCount((rRejected ?? []).length);
       setTeamOpenQuestionsCount((tQuestions ?? []).length);
     }
