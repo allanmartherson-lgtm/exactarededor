@@ -40,6 +40,7 @@ const ProcedureSpecialtyMap = lazy(() => import("./pages/ProcedureSpecialtyMap.t
 const Sectors = lazy(() => import("./pages/Sectors.tsx"));
 const CostCenters = lazy(() => import("./pages/CostCenters.tsx"));
 const PaymentTypes = lazy(() => import("./pages/PaymentTypes.tsx"));
+const Pools = lazy(() => import("./pages/Pools.tsx"));
 const Profile = lazy(() => import("./pages/Profile.tsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.tsx"));
 const StatusAnomalies = lazy(() => import("./pages/StatusAnomalies.tsx"));
