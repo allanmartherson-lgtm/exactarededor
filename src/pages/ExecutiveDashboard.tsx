@@ -411,7 +411,7 @@ export default function ExecutiveDashboard() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.reference}</div>
                     <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                      {p.items_count} itens · {formatCurrency(Number(p.total_amount ?? 0))}
+                      {p.items_count} itens · {formatCurrency(Number(p.liquido_total ?? p.total_amount ?? 0))}
                     </div>
                   </div>
                   <span style={{ background: sc.bg, color: sc.fg, borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em", flexShrink: 0 }}>
