@@ -396,7 +396,7 @@ export function PaymentPivotSection({
               {!loading &&
                 primaryRows.map((r) => {
                   const isOpen = expanded.has(r.key);
-                  const canDrill = variant === "compacto" && r.children.length > 0;
+                  const canDrill = r.children.length > 0;
                   return (
                     <>
                       <tr key={r.key} className="border-t border-border even:bg-muted/20 hover:bg-muted/30">
@@ -490,7 +490,7 @@ export function PaymentPivotSection({
           <div className="space-y-2 py-2">
             <p className="text-xs text-muted-foreground">
               Selecione e ordene os campos. O primeiro define o agrupamento principal; o segundo, o
-              drilldown (apenas no Compacto).
+              drilldown (expansível em cada linha).
             </p>
             {allowedFields.map((f) => {
               const selectedIndex = customFields.indexOf(f);
