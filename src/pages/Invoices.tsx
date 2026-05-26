@@ -20,10 +20,10 @@ import {
 import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
 
 const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
-  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger",
+  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger", cancelada: "danger",
 };
 const labels: Record<InvoiceStatus, string> = {
-  aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente",
+  aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente", cancelada: "Cancelada",
 };
 
 type TabKey = "todas" | InvoiceStatus;
@@ -34,6 +34,7 @@ const TAB_ORDER: { key: TabKey; label: string }[] = [
   { key: "recebida", label: "Recebidas" },
   { key: "conciliada", label: "Conciliadas" },
   { key: "divergente", label: "Divergentes" },
+  { key: "cancelada", label: "Canceladas" },
 ];
 
 interface InvoiceRow {
