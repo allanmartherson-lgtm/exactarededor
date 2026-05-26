@@ -240,27 +240,51 @@ export type Database = {
           adjustment_id: string
           applied_at: string
           applied_by: string | null
+          company_id: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           id: string
           parcela_numero: number
           payment_id: string
+          reverted_at: string | null
+          reverted_by: string | null
+          reverted_reason: string | null
+          source: string
+          status: string
           valor_aplicado: number
         }
         Insert: {
           adjustment_id: string
           applied_at?: string
           applied_by?: string | null
+          company_id?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           id?: string
           parcela_numero: number
           payment_id: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
+          source?: string
+          status?: string
           valor_aplicado: number
         }
         Update: {
           adjustment_id?: string
           applied_at?: string
           applied_by?: string | null
+          company_id?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           id?: string
           parcela_numero?: number
           payment_id?: string
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
+          source?: string
+          status?: string
           valor_aplicado?: number
         }
         Relationships: [
@@ -1138,6 +1162,66 @@ export type Database = {
             referencedColumns: ["item_id"]
           },
         ]
+      }
+      glosa_payment_applications: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          company_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          doctor_id: string | null
+          glosa_debt_id: string
+          id: string
+          parcela_numero: number
+          payment_id: string
+          resolution_note: string | null
+          reverted_at: string | null
+          reverted_by: string | null
+          reverted_reason: string | null
+          source: string
+          status: string
+          valor_aplicado: number
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          company_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          doctor_id?: string | null
+          glosa_debt_id: string
+          id?: string
+          parcela_numero: number
+          payment_id: string
+          resolution_note?: string | null
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
+          source?: string
+          status?: string
+          valor_aplicado: number
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          company_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          doctor_id?: string | null
+          glosa_debt_id?: string
+          id?: string
+          parcela_numero?: number
+          payment_id?: string
+          resolution_note?: string | null
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
+          source?: string
+          status?: string
+          valor_aplicado?: number
+        }
+        Relationships: []
       }
       invoice_question_attachments: {
         Row: {
@@ -2261,6 +2345,8 @@ export type Database = {
         Row: {
           base_amount: number
           bolo_liquido: number
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           created_by: string | null
           deductions_applied: Json
@@ -2268,11 +2354,17 @@ export type Database = {
           payment_id: string
           pool_id: string
           quotas: Json
+          reverted_at: string | null
+          reverted_by: string | null
+          reverted_reason: string | null
           snapshot: Json | null
+          status: string
         }
         Insert: {
           base_amount: number
           bolo_liquido: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           deductions_applied?: Json
@@ -2280,11 +2372,17 @@ export type Database = {
           payment_id: string
           pool_id: string
           quotas?: Json
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
           snapshot?: Json | null
+          status?: string
         }
         Update: {
           base_amount?: number
           bolo_liquido?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           deductions_applied?: Json
@@ -2292,7 +2390,11 @@ export type Database = {
           payment_id?: string
           pool_id?: string
           quotas?: Json
+          reverted_at?: string | null
+          reverted_by?: string | null
+          reverted_reason?: string | null
           snapshot?: Json | null
+          status?: string
         }
         Relationships: [
           {
