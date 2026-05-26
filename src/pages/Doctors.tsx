@@ -23,7 +23,7 @@ const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
   supportedModes: ["append", "update", "replace"],
   fields: [
-    { key: "full_name", label: "Nome completo", required: true, aliases: ["nome", "medico", "médico", "nome_completo"] },
+    { key: "full_name", label: "Nome completo", required: true, aliases: ["nome pessoa", "nome_pessoa", "nomepessoa", "nome", "medico", "médico", "nome_completo"] },
     { key: "crm", label: "CRM", required: true, uniqueKey: true, aliases: ["crm", "registro"] },
     { key: "crm_uf", label: "UF do CRM", required: true, uniqueKey: true, aliases: ["uf", "estado", "uf_crm"] },
     { key: "email", label: "E-mail", aliases: ["email", "e-mail"] },

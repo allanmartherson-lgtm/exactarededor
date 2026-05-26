@@ -779,14 +779,19 @@ function suggestMapping(headers: string[], fields: ImportFieldDef[]) {
   const out: Record<string, string | null> = {};
   const used = new Set<string>();
   for (const f of fields) {
-    const candidates = [f.key, f.label, ...(f.aliases ?? [])].map(norm);
+    const candidates = [f.key, f.label, ...(f.aliases ?? [])].map(norm).filter(Boolean);
     let best: string | null = null;
+    // 1ª passada: match exato (evita que "Nome" capture o que deveria ir para "Nome Pessoa")
     for (const h of headers) {
       if (used.has(h)) continue;
-      const nh = norm(h);
-      if (candidates.includes(nh) || candidates.some((c) => c && nh.includes(c))) {
-        best = h;
-        break;
+      if (candidates.includes(norm(h))) { best = h; break; }
+    }
+    // 2ª passada: substring (header contém algum alias) — só se nenhum exato bateu
+    if (!best) {
+      for (const h of headers) {
+        if (used.has(h)) continue;
+        const nh = norm(h);
+        if (candidates.some((c) => nh.includes(c))) { best = h; break; }
       }
     }
     out[f.key] = best;
