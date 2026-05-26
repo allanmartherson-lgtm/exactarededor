@@ -310,6 +310,72 @@ export default function Glosas() {
       toast.success(`Base importada: ${rows.length} linhas`, {
         description: `${Object.keys(colMap).length} colunas mapeadas · pronta para conciliação`,
       });
+
+      // Auto-enriquecer: vincular Terceiros da base com companies cadastradas
+      try {
+        const { data: allCompanies } = await supabase
+          .from("companies")
+          .select("id, name")
+          .order("name");
+
+        if (allCompanies && rows.length > 0) {
+          const companyCol = colMap["company"];
+          if (companyCol) {
+            const terceirosUnicos = [...new Set(
+              rows.map(r => String(r[companyCol] ?? "").trim()).filter(Boolean)
+            )];
+
+            const normFull = (s: string) =>
+              s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").trim();
+
+            const stopwords = new Set(["de", "da", "do", "das", "dos", "e", "em", "por", "para", "com", "ltda", "eireli", "ss", "me", "sa", "s/a"]);
+
+            const getTokens = (s: string) =>
+              normFull(s).split(/\s+/).filter(t => t.length >= 3 && !stopwords.has(t));
+
+            const matchMap: Record<string, { company_id: string; company_name: string; level: string }> = {};
+
+            for (const terceiro of terceirosUnicos) {
+              const normT = normFull(terceiro);
+              const tokensT = getTokens(terceiro);
+              let best: { company_id: string; company_name: string; level: string } | null = null;
+
+              for (const c of allCompanies) {
+                const normC = normFull(c.name);
+                if (normC === normT) { best = { company_id: c.id, company_name: c.name, level: "exact" }; break; }
+                if (normT.includes(normC) || normC.includes(normT)) {
+                  if (!best || best.level !== "exact") best = { company_id: c.id, company_name: c.name, level: "high" };
+                }
+                if (!best || (best.level !== "exact" && best.level !== "high")) {
+                  const tokensC = getTokens(c.name);
+                  const common = tokensT.filter(t => tokensC.includes(t));
+                  if (common.length >= 2) {
+                    best = { company_id: c.id, company_name: c.name, level: "medium" };
+                  }
+                }
+              }
+              if (best) matchMap[terceiro] = best;
+            }
+
+            const { data: baseRecente } = await (supabase as any)
+              .from("conciliation_bases")
+              .select("id")
+              .eq("uploaded_by", user?.id ?? "")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            if (baseRecente) {
+              await (supabase as any).from("conciliation_bases").update({
+                col_map: { ...colMap, _company_match: matchMap }
+              }).eq("id", baseRecente.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Auto-match de PJ falhou:", e);
+      }
+
       loadConcBases();
     } catch (e: any) {
       toast.error("Erro ao importar base", { description: e.message });
