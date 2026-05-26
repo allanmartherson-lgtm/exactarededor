@@ -33,6 +33,8 @@ interface Row {
   reference: string;
   status: PaymentStatus;
   total_amount: number | string;
+  bruto_total?: number | string | null;
+  liquido_total?: number | string | null;
   items_count: number;
   created_at: string;
   updated_at: string;
