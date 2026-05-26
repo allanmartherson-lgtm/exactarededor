@@ -1890,6 +1890,7 @@ const PaymentDetail = () => {
           {aiCardsOpen && (
             <div className="space-y-3 mt-2">
               {id && <ExecutiveSummaryCard paymentId={id} payment={payment} />}
+              {id && <PoolCalculationCard paymentId={id} />}
               {id && <DirectorBriefingCard
                 paymentId={id}
                 payment={payment}
