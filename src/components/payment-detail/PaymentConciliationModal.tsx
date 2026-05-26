@@ -2141,6 +2141,20 @@ export function PaymentConciliationModal({
                                             ? formatCurrency(Number(it.valor_hospital))
                                             : "—"}
                                         </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
+                                          {it.valor_regra
+                                            ? formatCurrency(Number(it.valor_regra))
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums font-semibold" style={{
+                                          color: it.valor_regra && it.valor_hospital
+                                            ? (Number(it.valor_regra) > Number(it.valor_hospital) ? 'hsl(var(--success))' : 'hsl(var(--destructive))')
+                                            : 'hsl(var(--muted-foreground))',
+                                        }}>
+                                          {it.valor_regra && it.valor_hospital
+                                            ? formatCurrency(Number(it.valor_regra) - Number(it.valor_hospital))
+                                            : "—"}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2">
                                           <span
                                             className={cn(
