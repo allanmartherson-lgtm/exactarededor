@@ -98,6 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
       { to: "/centros-de-custo", label: "Centros de custo", icon: Network, iconName: "Network", roles: ALL_ROLES },
       { to: "/tipos-pagamento", label: "Tipos de pagamento", icon: Tag, iconName: "Tag", roles: ["admin", "diretor"] },
       { to: "/pools", label: "Pools de rateio", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
+      { to: "/pools/relatorios", label: "Relatório de pools", icon: Split, iconName: "Split", roles: ["admin", "diretor"] },
       { to: "/prazos-sla", label: "Prazos e SLA", icon: Timer, iconName: "Timer", roles: ["admin"] },
     ],
   },
