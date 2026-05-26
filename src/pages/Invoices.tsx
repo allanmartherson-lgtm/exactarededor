@@ -20,10 +20,10 @@ import {
 import { formatCNPJ, onlyDigits } from "@/lib/cnpj";
 
 const pillVariant: Record<InvoiceStatus, "warning" | "info" | "success" | "danger"> = {
-  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger",
+  aguardando: "warning", recebida: "info", conciliada: "success", divergente: "danger", cancelada: "danger",
 };
 const labels: Record<InvoiceStatus, string> = {
-  aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente",
+  aguardando: "Aguardando NF", recebida: "NF recebida", conciliada: "Conciliada", divergente: "Divergente", cancelada: "Cancelada",
 };
 
 type TabKey = "todas" | InvoiceStatus;
@@ -34,6 +34,7 @@ const TAB_ORDER: { key: TabKey; label: string }[] = [
   { key: "recebida", label: "Recebidas" },
   { key: "conciliada", label: "Conciliadas" },
   { key: "divergente", label: "Divergentes" },
+  { key: "cancelada", label: "Canceladas" },
 ];
 
 interface InvoiceRow {
@@ -200,7 +201,7 @@ const Invoices = () => {
   };
 
   const counts = useMemo(() => {
-    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0 };
+    const c: Record<TabKey, number> = { todas: rows.length, aguardando: 0, recebida: 0, conciliada: 0, divergente: 0, cancelada: 0 };
     rows.forEach((r) => { c[r.status as InvoiceStatus] = (c[r.status as InvoiceStatus] ?? 0) + 1; });
     return c;
   }, [rows]);

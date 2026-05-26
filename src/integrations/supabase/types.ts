@@ -3492,7 +3492,12 @@ export type Database = {
         | "analista"
         | "empresa"
         | "medico"
-      invoice_status: "aguardando" | "recebida" | "conciliada" | "divergente"
+      invoice_status:
+        | "aguardando"
+        | "recebida"
+        | "conciliada"
+        | "divergente"
+        | "cancelada"
       item_ai_status:
         | "pendente"
         | "aprovado"
@@ -3722,7 +3727,13 @@ export const Constants = {
         "empresa",
         "medico",
       ],
-      invoice_status: ["aguardando", "recebida", "conciliada", "divergente"],
+      invoice_status: [
+        "aguardando",
+        "recebida",
+        "conciliada",
+        "divergente",
+        "cancelada",
+      ],
       item_ai_status: [
         "pendente",
         "aprovado",
