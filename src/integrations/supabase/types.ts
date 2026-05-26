@@ -3299,6 +3299,10 @@ export type Database = {
         }
         Returns: string
       }
+      enrich_doctor_documents: {
+        Args: { p_payment_id: string }
+        Returns: undefined
+      }
       extract_rule_targets: {
         Args: {
           _group_company_links: Json
