@@ -248,6 +248,14 @@ export default function CompanyAnalysis() {
     );
   }, [allItems, group]);
 
+  // Composição financeira da empresa (bruto, débitos, glosas, pool, conciliação, líquido)
+  const composition = useFinancialComposition(
+    id,
+    group?.company_id ?? undefined,
+    Number(group?.total_amount ?? 0),
+  );
+
+
   const [aiVersions, setAiVersions] = useState<AiVersionRow[]>([]);
   const [busy, setBusy] = useState(false);
 
