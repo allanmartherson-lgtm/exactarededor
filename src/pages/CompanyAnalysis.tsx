@@ -1488,9 +1488,10 @@ export default function CompanyAnalysis() {
         <DeductionsBanner
           paymentId={id}
           companyId={group.company_id}
-          canEdit={canEditBatch(payment) && (isAnalista || isAdminOrDiretor || isValidador)}
+          canEdit={isAnalista || isAdminOrDiretor || isValidador}
         />
       )}
+
 
 
 
