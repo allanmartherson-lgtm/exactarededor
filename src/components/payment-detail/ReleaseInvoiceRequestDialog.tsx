@@ -130,7 +130,7 @@ export const ReleaseInvoiceRequestDialog = ({ open, onOpenChange, paymentId, gro
             <DialogDescription>
               <span className="font-medium text-foreground">{group.company_name}</span>
               {" · "}
-              <span className="tabular-nums">{formatCurrency(group.total_amount)}</span>
+              <span className="tabular-nums">{formatCurrency(group.liquido_total ?? group.total_amount)}</span>
               {" · "}
               <span>{group.items_count} item(ns)</span>
             </DialogDescription>
