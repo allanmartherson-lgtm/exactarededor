@@ -707,6 +707,8 @@ export default function Doctors() {
             </div>
           )}
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
