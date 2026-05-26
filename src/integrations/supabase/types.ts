@@ -691,6 +691,51 @@ export type Database = {
         }
         Relationships: []
       }
+      doctors_import_staging: {
+        Row: {
+          active: boolean | null
+          birth_date: string | null
+          company_cnpj: string | null
+          company_name: string | null
+          cpf: string | null
+          crm: string | null
+          email: string | null
+          full_name: string | null
+          phone: string | null
+          specialties: string[] | null
+          uf: string | null
+          vinculo: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          birth_date?: string | null
+          company_cnpj?: string | null
+          company_name?: string | null
+          cpf?: string | null
+          crm?: string | null
+          email?: string | null
+          full_name?: string | null
+          phone?: string | null
+          specialties?: string[] | null
+          uf?: string | null
+          vinculo?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          birth_date?: string | null
+          company_cnpj?: string | null
+          company_name?: string | null
+          cpf?: string | null
+          crm?: string | null
+          email?: string | null
+          full_name?: string | null
+          phone?: string | null
+          specialties?: string[] | null
+          uf?: string | null
+          vinculo?: string | null
+        }
+        Relationships: []
+      }
       doctors_specialties_backup_20260518: {
         Row: {
           active: boolean | null
