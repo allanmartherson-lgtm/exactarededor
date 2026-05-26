@@ -1701,13 +1701,13 @@ const Dashboard = () => {
   // VIEW: DIRETOR
   // ============================================================
   if (dashboardMode === "diretor") {
-    const paymentTotalsById = new Map(payments.map((p) => [p.id, Number(p.total_amount ?? 0)]));
+    const paymentTotalsById = new Map(payments.map((p: any) => [p.id, Number(p.liquido_total ?? p.total_amount ?? 0)]));
     const totalValorEmProcessamento = allPayments
       .filter((p) => !TERMINAL_STATUSES.has(p.status))
       .reduce((sum, p) => sum + (paymentTotalsById.get(p.id) ?? 0), 0);
 
     const totalAprovados30d = recentApprovedData.length;
-    const valorAprovado30d = recentApprovedData.reduce((s, p) => s + Number(p.total_amount ?? 0), 0);
+    const valorAprovado30d = recentApprovedData.reduce((s, p) => s + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
     const taxaAprovacao =
       totalAprovados30d + recentRejectedCount > 0
         ? Math.round((totalAprovados30d / Math.max(totalAprovados30d + recentRejectedCount, 1)) * 100)
