@@ -128,7 +128,9 @@ export const validateLine = (r: Omit<ParsedRow, "line_issues">): LineIssue[] => 
   return issues;
 };
 
-const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
+const norm = (s: string) => (s ?? "").toString().toLowerCase().trim()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[\s_\-./]+/g, "");
 
 /**
  * Escolhe o valor de uma coluna usando match com PONTUAÇÃO:
