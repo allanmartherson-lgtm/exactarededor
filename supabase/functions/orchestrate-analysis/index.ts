@@ -185,6 +185,31 @@ Deno.serve(async (req) => {
     // já são registrados em invokeOne via increment_processing_progress.
     await Promise.all(companies.map(invokeOne));
 
+    // 7. Se esta era a última página, dispara recálculo de pools (fire-and-forget).
+    if (!hasNext) {
+      const { data: finalJob } = await supabase
+        .from("payment_processing_jobs")
+        .select("status, processed_companies, total_companies")
+        .eq("id", job_id)
+        .single();
+      const done = finalJob && (finalJob.status === "concluido" || finalJob.status === "parcial"
+        || (finalJob.processed_companies ?? 0) >= (finalJob.total_companies ?? 0));
+      if (done) {
+        const recalcUrl = `${SUPABASE_URL}/functions/v1/recalc-payment-pools`;
+        runInBackground(fetch(recalcUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SERVICE_KEY}`,
+          },
+          body: JSON.stringify({ payment_id }),
+        }).then(async (resp) => {
+          if (!resp.ok) console.error("[orchestrate] recalc-pools erro", resp.status, (await resp.text()).slice(0, 500));
+          else console.log("[orchestrate] recalc-pools disparado");
+        }), "falha ao disparar recalc-payment-pools");
+      }
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
