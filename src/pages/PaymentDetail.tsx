@@ -3058,6 +3058,59 @@ const PaymentDetail = () => {
         />
       )}
 
+      {adjustmentItems.length > 0 && (
+        <div className="px-6 pb-6">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 mt-4">
+            Ajustes de Conciliação
+          </div>
+          <div className="flex flex-col gap-2">
+            {adjustmentItems.map((adj) => {
+              const isCredit = adj.item_origem === "conciliacao_credito";
+              return (
+                <div
+                  key={adj.id}
+                  className="grid items-center gap-3 px-4 py-2.5 bg-card border border-border rounded-lg"
+                  style={{
+                    gridTemplateColumns: "1fr 160px 140px 160px",
+                    borderLeft: `3px solid hsl(var(${isCredit ? "--success" : "--destructive"}))`,
+                  }}
+                >
+                  <div>
+                    <div className="text-[12px] font-semibold">{adj.doctor_name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {adj.procedure_code ?? "—"} · {adj.company_name ?? "—"}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {adj.origem_referencia ?? "—"}
+                  </div>
+                  <div
+                    className="text-[12px] font-bold text-right tabular-nums"
+                    style={{ color: `hsl(var(${isCredit ? "--success" : "--destructive"}))` }}
+                  >
+                    {Number(adj.gross_amount) > 0 ? "+" : ""}
+                    {formatCurrency(Number(adj.gross_amount))}
+                  </div>
+                  <div
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-center border"
+                    style={{
+                      background: `hsl(var(${isCredit ? "--success" : "--destructive"}) / 0.1)`,
+                      color: `hsl(var(${isCredit ? "--success" : "--destructive"}))`,
+                      borderColor: `hsl(var(${isCredit ? "--success" : "--destructive"}) / 0.3)`,
+                    }}
+                  >
+                    {isCredit ? "Crédito conciliação" : "Débito conciliação"}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="text-[12px] font-semibold text-right px-4 pt-1">
+              Total ajustes: {formatCurrency(adjustmentItems.reduce((s, a) => s + Number(a.gross_amount ?? 0), 0))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {payment && (
         <PaymentConciliationModal
           open={isConciliationOpen}
