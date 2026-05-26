@@ -47,10 +47,23 @@ serve(async (req) => {
     status: "processing"
   };
 
+  // Hoisted p/ ficar acessível ao catch (req.json() consome o body, então
+  // tentar req.clone().json() depois falha silenciosamente e o job trava).
+  let __payment_id: string | undefined;
+  let __job_id: string | undefined;
+  let __company_label: string | undefined;
+  let __company_name: string | undefined;
+
   try {
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = await req.json();
+    const parsedBody = await req.json();
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = parsedBody;
+    __payment_id = payment_id;
+    __job_id = _job_id;
+    __company_label = _company_label;
+    __company_name = company_name;
     // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
     const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
+
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1533,10 +1546,9 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
     
-    // Tenta extrair ID do pagamento do corpo se possível (estratégia de fallback)
+    // Tenta extrair ID do pagamento das variáveis hoisted (req.json já foi consumido)
     try {
-      const body = await req.clone().json();
-      if (body.payment_id) {
+      if (__payment_id) {
         await supabase.from("payments").update({
           processing_timeout_occurred: true,
           processing_diagnostics: {
@@ -1545,17 +1557,19 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
             error: msg,
             execution_time_ms: Date.now() - startTime
           }
-        }).eq("id", body.payment_id);
+        }).eq("id", __payment_id);
       }
       // Reporta falha ao job de dispatch (se houver)
-      if (body._job_id) {
+      if (__job_id) {
         await supabase.rpc("increment_processing_progress", {
-          _job_id: body._job_id,
-          _company_name: body._company_label ?? body.company_name ?? "Sem empresa",
+          _job_id: __job_id,
+          _company_name: __company_label ?? __company_name ?? "Sem empresa",
           _error: msg.slice(0, 300),
         });
       }
-    } catch (_) {}
+    } catch (reportErr) {
+      console.error("Falha ao reportar erro do worker:", reportErr);
+    }
 
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
@@ -1563,3 +1577,4 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     });
   }
 });
+
