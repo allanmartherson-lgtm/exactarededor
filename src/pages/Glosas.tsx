@@ -191,6 +191,7 @@ export default function Glosas() {
   const [concBases, setConcBases] = useState<any[]>([]);
   const [uploadingConc, setUploadingConc] = useState(false);
   const concFileRef = useRef<HTMLInputElement>(null);
+  const [expandedConcBase, setExpandedConcBase] = useState<string | null>(null);
 
   const loadBatches = useCallback(async () => {
     setLoading(true);
