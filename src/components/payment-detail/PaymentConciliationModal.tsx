@@ -1202,6 +1202,116 @@ export function PaymentConciliationModal({
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
   const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t]).length;
 
+  const handleAction = async (
+    item: ReconciliationItem,
+    action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar',
+    note?: string,
+  ) => {
+    if (!user) return;
+    setActionLoading(item.id);
+    try {
+      let appliedPaymentId: string | null = null;
+      let appliedPaymentItemId: string | null = null;
+
+      if (action === 'incorporar_credito' || action === 'incorporar_debito') {
+        const { data: groups } = await supabase
+          .from('payment_company_groups')
+          .select('payment_id, payments!inner(id, status, reference, created_at)')
+          .eq('company_name', item.company_name ?? '')
+          .in('payments.status', ['revisao_analista', 'concluida_analista', 'devolvido_analista'])
+          .order('payments(created_at)', { ascending: false })
+          .limit(1);
+
+        if (!groups || groups.length === 0) {
+          toast({
+            title: 'Nenhum lote ativo encontrado para esta empresa',
+            description: 'Crie ou abra um lote em andamento para esta empresa antes de incorporar itens.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const targetPaymentId = (groups[0].payments as any).id;
+        const targetRef = (groups[0].payments as any).reference;
+
+        const valorConvenio = Number(item.valor_hospital ?? 0);
+        const valorMedpay = Number(item.valor_medpay ?? 0);
+        const diferenca = Math.abs(valorConvenio - valorMedpay);
+        const isCredito = action === 'incorporar_credito';
+        const valorAjuste = isCredito
+          ? (item.status === 'so_hospital' ? (item.valor_regra ?? valorConvenio) : diferenca)
+          : diferenca;
+
+        const { data: newItem, error: itemErr } = await supabase
+          .from('payment_items')
+          .insert({
+            payment_id: targetPaymentId,
+            doctor_name: item.doctor_name ?? '—',
+            doctor_document: item.doctor_document ?? null,
+            company_name: item.company_name ?? null,
+            procedure_code: item.procedure_code ?? null,
+            procedure_name: item.procedure_name ?? null,
+            procedure_date: item.procedure_date ?? null,
+            patient_name: item.patient_name ?? null,
+            agreement_text: item.agreement_text ?? null,
+            gross_amount: isCredito ? valorAjuste : -valorAjuste,
+            expected_amount: isCredito ? valorAjuste : -valorAjuste,
+            ai_status: 'aprovado',
+            item_origem: isCredito ? 'conciliacao_credito' : 'conciliacao_debito',
+            origem_referencia: `Conciliação ${item.competence_month ?? (run as any)?.competence_month ?? ''}`.trim(),
+            origem_reconciliation_item_id: item.id,
+          } as any)
+          .select('id')
+          .single();
+
+        if (itemErr || !newItem) throw new Error(itemErr?.message ?? 'Erro ao criar item de ajuste');
+        appliedPaymentId = targetPaymentId;
+        appliedPaymentItemId = newItem.id;
+
+        toast({
+          title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
+          description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
+        });
+      }
+
+      await supabase
+        .from('reconciliation_items')
+        .update({
+          action_taken: action,
+          action_by: user.id,
+          action_at: new Date().toISOString(),
+          action_note: note ?? null,
+          applied_payment_id: appliedPaymentId,
+          applied_payment_item_id: appliedPaymentItemId,
+        } as any)
+        .eq('id', item.id);
+
+      if (action === 'incorporar_credito' || action === 'incorporar_debito') {
+        if (selectedBase?.id) {
+          await supabase
+            .from('conciliation_bases')
+            .update({ tem_itens_aplicados: true } as any)
+            .eq('id', selectedBase.id);
+        }
+      }
+
+      setItems(prev =>
+        prev.map(ri => ri.id === item.id
+          ? { ...ri, action_taken: action, action_by: user.id, action_at: new Date().toISOString() }
+          : ri,
+        ),
+      );
+
+      if (action === 'ignorar') toast({ title: 'Item marcado como ignorado' });
+      if (action === 'revisar_manual') toast({ title: 'Item marcado para revisão manual' });
+      if (action === 'marcar_glosa') toast({ title: 'Item marcado como glosa', description: 'Será processado no fluxo de glosas.' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao processar ação', description: e.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
