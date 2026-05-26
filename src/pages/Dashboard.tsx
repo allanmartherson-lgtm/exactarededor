@@ -844,7 +844,7 @@ const Dashboard = () => {
       const [{ data: rApproved }, { data: rRejected }, { data: tQuestions }] = await Promise.all([
         supabase
           .from("payments")
-          .select("id,total_amount,approved_at")
+          .select("id,total_amount,liquido_total,approved_at")
           .not("approved_at", "is", null)
           .gte("approved_at", sinceIso),
         supabase
