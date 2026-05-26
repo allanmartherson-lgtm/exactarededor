@@ -2558,6 +2558,9 @@ const Dashboard = () => {
         </SurfaceCard>
       </section>
 
+      {/* ALERTA: PENDÊNCIAS DE CADASTRO (médico / PJ) */}
+      <RegistrationPendingCard />
+
       {/* ÚLTIMOS QUESTIONAMENTOS */}
       <RecentQuestionsPanel />
 
