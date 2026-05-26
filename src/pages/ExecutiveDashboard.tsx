@@ -159,19 +159,19 @@ export default function ExecutiveDashboard() {
 
   useEffect(() => {
     supabase.from("payment_company_groups")
-      .select("company_name, total_amount")
-      .order("total_amount", { ascending: false })
+      .select("company_name, total_amount, liquido_total")
+      .order("liquido_total", { ascending: false })
       .limit(20)
       .then(({ data }) => {
         const map = new Map<string, number>();
         (data ?? []).forEach((g: any) => {
-          map.set(g.company_name, (map.get(g.company_name) ?? 0) + Number(g.total_amount ?? 0));
+          map.set(g.company_name, (map.get(g.company_name) ?? 0) + Number(g.liquido_total ?? g.total_amount ?? 0));
         });
         setTopEmpresas(Array.from(map.entries()).map(([name, valor]) => ({ name, valor })).sort((a, b) => b.valor - a.valor).slice(0, 5));
       });
   }, []);
 
-  const totalVolume = useMemo(() => payments.reduce((a, p) => a + Number(p.total_amount ?? 0), 0), [payments]);
+  const totalVolume = useMemo(() => payments.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0), [payments]);
   const totalItems = useMemo(() => payments.reduce((a, p) => a + Number(p.items_count ?? 0), 0), [payments]);
   const aprovados = useMemo(() => payments.filter(p =>
     !["em_analise_ia","revisao_analista","aguardando_validacao","aguardando_aprovacao","rascunho","cancelado","devolvido_analista"].includes(p.status)
