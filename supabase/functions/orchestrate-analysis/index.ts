@@ -110,7 +110,10 @@ Deno.serve(async (req) => {
 
     // 4. Dispara workers em paralelo para esta página
     const workerUrl = `${SUPABASE_URL}/functions/v1/analyze-payment`;
+    const WORKER_FETCH_TIMEOUT_MS = 90_000; // garante que Promise.all conclua dentro do budget do orquestrador
     const invokeOne = async (companyName: string) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), WORKER_FETCH_TIMEOUT_MS);
       try {
         const resp = await fetch(workerUrl, {
           method: "POST",
@@ -126,6 +129,7 @@ Deno.serve(async (req) => {
             _job_id: job_id,
             _company_label: companyName,
           }),
+          signal: controller.signal,
         });
         if (!resp.ok) {
           const txt = await resp.text();
@@ -137,22 +141,26 @@ Deno.serve(async (req) => {
         }
         // Sucesso: analyze-payment chama a RPC ao final.
       } catch (e: any) {
+        const msg = e?.name === "AbortError"
+          ? `worker timeout após ${WORKER_FETCH_TIMEOUT_MS}ms (orquestrador prosseguiu para não travar o lote)`
+          : String(e?.message ?? e);
         await supabase.rpc("increment_processing_progress", {
           _job_id: job_id,
           _company_name: companyName,
-          _error: String(e?.message ?? e).slice(0, 300),
+          _error: msg.slice(0, 300),
         });
+      } finally {
+        clearTimeout(timer);
       }
     };
 
-    await Promise.all(companies.map(invokeOne));
-
-    // 5. Auto-encadeia próxima página (fire-and-forget) se ainda houver empresas
+    // 5. CRÍTICO: agenda próxima página ANTES de aguardar workers.
+    // Garante continuidade da cadeia mesmo se algum worker travar ou se o
+    // orquestrador for morto antes de Promise.all resolver. Cada página é
+    // independente; workers reportam progresso por conta própria via RPC.
     const hasNext = end < total;
     if (hasNext) {
       const nextUrl = `${SUPABASE_URL}/functions/v1/orchestrate-analysis`;
-      // Não aguardamos a resposta — cada página é uma execução independente
-      // com seu próprio orçamento de 60s.
       runInBackground(fetch(nextUrl, {
         method: "POST",
         headers: {
@@ -172,6 +180,10 @@ Deno.serve(async (req) => {
         else await resp.text();
       }), "falha ao disparar próxima página");
     }
+
+    // 6. Aguarda workers desta página (com timeout individual). Falhas/timeouts
+    // já são registrados em invokeOne via increment_processing_progress.
+    await Promise.all(companies.map(invokeOne));
 
     return new Response(
       JSON.stringify({
