@@ -204,6 +204,12 @@ export default function Doctors() {
       if (!ok) return;
     }
 
+    const cpfClean = cpfOnlyDigits(editing.cpf ?? "");
+    if (cpfClean && !isValidCPF(cpfClean)) {
+      toast({ title: "CPF inválido", description: "Verifique os dígitos.", variant: "destructive" });
+      return;
+    }
+
     const payload = {
       full_name: name,
       crm,
@@ -213,6 +219,9 @@ export default function Doctors() {
       specialties: editing.specialties,
       active: editing.active,
       notes: editing.notes?.trim() || null,
+      cpf: cpfClean || null,
+      birth_date: editing.birth_date?.trim() || null,
+      vinculo: editing.vinculo?.trim() || null,
     };
 
     let savedId = editing.id;
