@@ -233,7 +233,7 @@ export const PaymentGroupCard = ({
           )}
           <span className="flex-1" />
           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-            · {g.items_count} itens · {formatCurrency(g.total_amount)}
+            · {g.items_count} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount))}
           </span>
           <div className="hidden md:flex items-center gap-1 ml-2">
             {gCounts.aprovado > 0 && (
