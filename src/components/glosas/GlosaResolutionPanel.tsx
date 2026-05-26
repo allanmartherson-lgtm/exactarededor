@@ -16,7 +16,6 @@ type Debt = {
   resolution_status: string;
   resolution_reason: string | null;
   company_id: string | null;
-  parcelas_default: number | null;
 };
 
 type Company = { id: string; name: string };
@@ -26,17 +25,18 @@ const brl = (n: number) =>
 
 const reasonLabel = (r: string | null) => {
   switch (r) {
-    case "sem_pj_vinculada": return "Médico sem PJ vinculada";
-    case "multiplas_pjs": return "Médico com múltiplas PJs";
-    case "crm_nao_encontrado": return "CRM não encontrado no cadastro";
-    default: return r ?? "—";
+    case "sem_pj_vinculada": return { label: "Sem PJ vinculada", tone: "destructive" as const };
+    case "multiplas_pjs": return { label: "Múltiplas PJs — escolher", tone: "secondary" as const };
+    case "crm_nao_encontrado": return { label: "CRM não encontrado", tone: "destructive" as const };
+    case "pj_identificada_aguardando_parcelas": return { label: "PJ identificada — informar parcelas", tone: "default" as const };
+    default: return { label: r ?? "—", tone: "secondary" as const };
   }
 };
 
 export default function GlosaResolutionPanel() {
   const [pendentes, setPendentes] = useState<Debt[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [selections, setSelections] = useState<Record<string, { company_id?: string; parcelas: number }>>({});
+  const [selections, setSelections] = useState<Record<string, { company_id?: string; parcelas: string }>>({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -45,14 +45,25 @@ export default function GlosaResolutionPanel() {
     const [{ data: ds }, { data: cs }] = await Promise.all([
       (supabase as any)
         .from("glosa_debts")
-        .select("id, doctor_crm, doctor_name, total_debt, resolution_status, resolution_reason, company_id, parcelas_default")
+        .select("id, doctor_crm, doctor_name, total_debt, resolution_status, resolution_reason, company_id")
         .eq("status", "ativo")
         .eq("resolution_status", "pendente_resolucao")
         .order("total_debt", { ascending: false }),
       supabase.from("companies").select("id, name").order("name"),
     ]);
-    setPendentes(ds ?? []);
+    const debts = (ds ?? []) as Debt[];
+    setPendentes(debts);
     setCompanies((cs ?? []) as any);
+    // pré-popula company_id sugerido pelo banco (quando há 1 PJ única)
+    setSelections((prev) => {
+      const next = { ...prev };
+      debts.forEach((d) => {
+        if (!next[d.id]) {
+          next[d.id] = { company_id: d.company_id ?? undefined, parcelas: "" };
+        }
+      });
+      return next;
+    });
     setLoading(false);
   };
 
@@ -64,18 +75,23 @@ export default function GlosaResolutionPanel() {
       toast.error("Selecione a PJ para vincular.");
       return;
     }
+    const parc = parseInt(sel.parcelas, 10);
+    if (!parc || parc < 1) {
+      toast.error("Informe a quantidade de parcelas.");
+      return;
+    }
     setBusyId(debt.id);
     const { error } = await (supabase as any).rpc("link_glosa_to_company", {
       _debt_id: debt.id,
       _company_id: sel.company_id,
-      _parcelas: sel.parcelas ?? 12,
+      _parcelas: parc,
     });
     setBusyId(null);
     if (error) {
       toast.error("Erro ao vincular: " + error.message);
       return;
     }
-    toast.success("Glosa vinculada à PJ.");
+    toast.success(`Glosa vinculada à PJ em ${parc}x.`);
     load();
   };
 
@@ -101,7 +117,7 @@ export default function GlosaResolutionPanel() {
           Glosas pendentes de vínculo com PJ
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Glosa é por médico, mas o pagamento é PJ→PJ. Resolva o vínculo abaixo para que a parcela entre nos próximos lotes da empresa.
+          Glosa é por médico, mas o pagamento é PJ→PJ. Defina a PJ e a quantidade de parcelas para gerar o débito que entrará nos próximos lotes da empresa. Não há valor padrão — informe caso a caso.
         </p>
       </CardHeader>
       <CardContent>
@@ -110,22 +126,23 @@ export default function GlosaResolutionPanel() {
             <TableRow>
               <TableHead>Médico</TableHead>
               <TableHead>CRM</TableHead>
-              <TableHead>Motivo</TableHead>
+              <TableHead>Situação</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Vincular à PJ</TableHead>
+              <TableHead>PJ</TableHead>
               <TableHead>Parcelas</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pendentes.map((d) => {
-              const sel = selections[d.id] ?? { parcelas: d.parcelas_default ?? 12 };
+              const sel = selections[d.id] ?? { company_id: d.company_id ?? undefined, parcelas: "" };
+              const r = reasonLabel(d.resolution_reason);
               return (
                 <TableRow key={d.id}>
                   <TableCell className="font-medium">{d.doctor_name}</TableCell>
                   <TableCell className="text-xs">{d.doctor_crm ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{reasonLabel(d.resolution_reason)}</Badge>
+                    <Badge variant={r.tone}>{r.label}</Badge>
                   </TableCell>
                   <TableCell className="text-right">{brl(Number(d.total_debt))}</TableCell>
                   <TableCell>
@@ -145,10 +162,11 @@ export default function GlosaResolutionPanel() {
                   </TableCell>
                   <TableCell>
                     <Input
-                      type="number" min={1} max={60} className="w-20"
+                      type="number" min={1} max={120} className="w-20"
+                      placeholder="Nº"
                       value={sel.parcelas}
                       onChange={(e) =>
-                        setSelections((s) => ({ ...s, [d.id]: { ...sel, parcelas: Number(e.target.value) || 12 } }))
+                        setSelections((s) => ({ ...s, [d.id]: { ...sel, parcelas: e.target.value } }))
                       }
                     />
                   </TableCell>
