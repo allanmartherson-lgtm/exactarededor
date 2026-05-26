@@ -35,7 +35,7 @@ export function DeductionsBanner({
   const load = useCallback(async () => {
     const [c, g] = await Promise.all([
       supabase.from("company_adjustment_applications")
-        .select("*, adjustment:company_financial_adjustments(descricao, tipo, valor_total, parcelas_total)")
+        .select("*")
         .eq("payment_id", paymentId).eq("company_id", companyId)
         .neq("status", "revertido").order("applied_at", { ascending: true }),
       supabase.from("glosa_payment_applications")
@@ -43,7 +43,15 @@ export function DeductionsBanner({
         .eq("payment_id", paymentId).eq("company_id", companyId)
         .neq("status", "revertido").order("applied_at", { ascending: true }),
     ]);
-    setCaa((c.data as any) ?? []);
+    const caaList = (c.data as any[]) ?? [];
+    if (caaList.length > 0) {
+      const adjIds = Array.from(new Set(caaList.map(x => x.adjustment_id)));
+      const { data: adjs } = await supabase.from("company_financial_adjustments")
+        .select("id, descricao, tipo, valor_total, parcelas_total").in("id", adjIds);
+      const m = new Map((adjs ?? []).map((a: any) => [a.id, a]));
+      caaList.forEach(x => { x.adjustment = m.get(x.adjustment_id); });
+    }
+    setCaa(caaList as Caa[]);
     const gpaList = (g.data as any[]) ?? [];
     if (gpaList.length > 0) {
       const debtIds = Array.from(new Set(gpaList.map(x => x.glosa_debt_id)));
@@ -56,6 +64,7 @@ export function DeductionsBanner({
     setGpa(gpaList as Gpa[]);
     setLoading(false);
   }, [paymentId, companyId]);
+
 
 
   const runAuto = useCallback(async () => {
