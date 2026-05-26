@@ -1472,12 +1472,14 @@ export default function CompanyAnalysis() {
               icon={<FileText className="h-4 w-4" />}
             />
             <Stat
-              label="Valor total"
-              value={formatCurrency(Number(group.total_amount ?? 0))}
+              label="Valor líquido"
+              value={formatCurrency(composition.liquido)}
+              sub={`Bruto: ${formatCurrency(composition.bruto)}`}
               mono
               tone="success"
               icon={<Wallet className="h-4 w-4" />}
             />
+
             <Stat
               label="Alertas"
               value={String(counts.alertasTotal)}
@@ -1502,6 +1504,11 @@ export default function CompanyAnalysis() {
           canEdit={isAnalista || isAdminOrDiretor || isValidador}
         />
       )}
+
+      {/* Faixa de composição financeira: Bruto − Débitos − Glosas − Pool ± Conciliação = Líquido */}
+      {id && group?.company_id && <FinancialCompositionStrip comp={composition} />}
+
+
 
 
 
