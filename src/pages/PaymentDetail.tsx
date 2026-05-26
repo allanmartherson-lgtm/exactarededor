@@ -216,7 +216,7 @@ const PaymentDetail = () => {
         .from("payment_items")
         .select("id, doctor_name, procedure_code, gross_amount, item_origem, origem_referencia, company_name")
         .eq("payment_id", id)
-        .neq("item_origem", "pagamento_atual")
+        .in("item_origem", ["conciliacao_credito", "conciliacao_debito", "glosa_debito"])
         .order("created_at", { ascending: false });
       if (!cancelled) setAdjustmentItems((data ?? []) as any);
     })();
