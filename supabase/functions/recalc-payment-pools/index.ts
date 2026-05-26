@@ -241,6 +241,25 @@ Deno.serve(async (req) => {
         created_by: userId,
       } as any);
 
+      // Persiste aplicações novas e incrementa parcelas_pagas (idempotente: skip se já existir)
+      for (const app of adjustmentApplications) {
+        await supabase.from("company_adjustment_applications").insert({
+          adjustment_id: app.adjustment_id,
+          payment_id,
+          parcela_numero: app.parcela_numero,
+          valor_aplicado: app.valor,
+          applied_by: userId,
+        } as any);
+        // incrementa parcelas_pagas com base no número real de aplicações
+        const { count } = await supabase
+          .from("company_adjustment_applications")
+          .select("*", { count: "exact", head: true })
+          .eq("adjustment_id", app.adjustment_id);
+        await supabase.from("company_financial_adjustments")
+          .update({ parcelas_pagas: count ?? app.parcela_numero })
+          .eq("id", app.adjustment_id);
+      }
+
       results.push({
         pool_id: pool.id, pool_nome: pool.nome,
         base: round2(base), bolo, quotas_count: quotas.length,
