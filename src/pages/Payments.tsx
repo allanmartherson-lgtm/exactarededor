@@ -1540,7 +1540,10 @@ const Payments = () => {
                             </span>
                           </td>
                           <td className="px-3 py-3 align-middle text-right">
-                            <span className="font-bold text-foreground">{formatCurrency(p.total_amount)}</span>
+                            <span className="font-bold text-foreground" title={Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 ? `Bruto ${formatCurrency(p.bruto_total ?? p.total_amount)}` : undefined}>{formatCurrency(p.liquido_total ?? p.total_amount)}</span>
+                            {Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 && (
+                              <div className="text-[10px] text-muted-foreground">bruto {formatCurrency(p.bruto_total ?? p.total_amount)}</div>
+                            )}
                           </td>
                           <td className="px-3 py-3 align-middle">
                             <div className="flex items-center justify-between gap-2">
