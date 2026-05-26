@@ -137,7 +137,7 @@ export default function AgingRecebiveis() {
         return {
           companyName: g.company_name ?? "Sem empresa",
           paymentId: g.payment_id,
-          valor: Number(g.total_amount ?? 0),
+          valor: Number(g.liquido_total ?? g.total_amount ?? 0),
           diasEmAberto: null,
           marcoDate: null,
           groupStatus: g.status,
