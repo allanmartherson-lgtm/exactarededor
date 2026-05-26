@@ -262,6 +262,7 @@ function AddManualDeductionDialog({
 }: { paymentId: string; companyId: string; onClose: () => void }) {
   const [adjustments, setAdjustments] = useState<any[]>([]);
   const [selected, setSelected] = useState<string>("");
+  const [overrideValor, setOverrideValor] = useState(false);
   const [valor, setValor] = useState("");
 
   useEffect(() => {
@@ -270,14 +271,20 @@ function AddManualDeductionDialog({
       .then(({ data }) => setAdjustments(data ?? []));
   }, [companyId]);
 
+  const selectedAdj = adjustments.find(a => a.id === selected);
+  const parcelaValor = selectedAdj
+    ? Number(selectedAdj.valor_total) / Number(selectedAdj.parcelas_total || 1)
+    : 0;
+
   const save = async () => {
-    if (!selected || !valor) { toast.error("Selecione e informe valor"); return; }
-    const adj = adjustments.find(a => a.id === selected);
+    if (!selected) { toast.error("Selecione um débito/crédito"); return; }
+    const finalValor = overrideValor ? Number(valor.replace(",", ".")) : parcelaValor;
+    if (!finalValor || finalValor <= 0) { toast.error("Valor inválido"); return; }
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("company_adjustment_applications").insert({
       payment_id: paymentId, company_id: companyId, adjustment_id: selected,
-      valor_aplicado: Number(valor.replace(",", ".")),
-      parcela_numero: (adj?.parcelas_pagas ?? 0) + 1,
+      valor_aplicado: finalValor,
+      parcela_numero: (selectedAdj?.parcelas_pagas ?? 0) + 1,
       applied_by: user?.id, status: "proposto", source: "manual",
     });
     if (error) { toast.error("Erro", { description: error.message }); return; }
@@ -292,7 +299,7 @@ function AddManualDeductionDialog({
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Débito / crédito cadastrado</Label>
-            <Select value={selected} onValueChange={setSelected}>
+            <Select value={selected} onValueChange={(v) => { setSelected(v); setOverrideValor(false); setValor(""); }}>
               <SelectTrigger><SelectValue placeholder="Escolha..." /></SelectTrigger>
               <SelectContent>
                 {adjustments.length === 0 && <div className="p-2 text-xs text-muted-foreground">Nenhum cadastrado para esta empresa.</div>}
@@ -304,14 +311,34 @@ function AddManualDeductionDialog({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="text-xs">Valor a aplicar (R$)</Label>
-            <Input value={valor} onChange={e => setValor(e.target.value)} placeholder="500.00" />
-          </div>
+
+          {selectedAdj && (
+            <div className="rounded border bg-muted/30 p-2.5 space-y-1 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">Valor total</span><span className="font-mono">{brl(selectedAdj.valor_total)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Parcela</span><span className="font-mono">{(selectedAdj.parcelas_pagas ?? 0) + 1}/{selectedAdj.parcelas_total}</span></div>
+              <div className="flex justify-between font-semibold pt-1 border-t"><span>Valor desta parcela</span><span className="font-mono">{brl(parcelaValor)}</span></div>
+            </div>
+          )}
+
+          {selectedAdj && (
+            <div>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={overrideValor}
+                  onChange={e => { setOverrideValor(e.target.checked); if (e.target.checked) setValor(parcelaValor.toFixed(2)); }}
+                />
+                <span>Ajustar valor desta parcela (caso excepcional)</span>
+              </label>
+              {overrideValor && (
+                <Input className="mt-2" value={valor} onChange={e => setValor(e.target.value)} placeholder={parcelaValor.toFixed(2)} />
+              )}
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save}>Adicionar</Button>
+          <Button onClick={save} disabled={!selected}>Adicionar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
