@@ -921,7 +921,7 @@ const Payments = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
-              {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
+              {" · "}{p.items_count} itens · {formatCurrency(p.liquido_total ?? p.total_amount)}{Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 ? ` (bruto ${formatCurrency(p.bruto_total ?? p.total_amount)})` : ""}
               {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
               {" · criado em "}{formatDate(p.created_at)}
             </p>
