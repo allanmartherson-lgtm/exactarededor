@@ -33,6 +33,8 @@ interface Row {
   reference: string;
   status: PaymentStatus;
   total_amount: number | string;
+  bruto_total?: number | string | null;
+  liquido_total?: number | string | null;
   items_count: number;
   created_at: string;
   updated_at: string;
@@ -301,7 +303,7 @@ const Payments = () => {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("payments")
-      .select("id,reference,status,total_amount,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred")
+      .select("id,reference,status,total_amount,bruto_total,liquido_total,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred")
       .order("created_at", { ascending: false });
     
     const list = (data ?? []) as Row[];
@@ -791,7 +793,7 @@ const Payments = () => {
               
               <div className="flex items-center justify-between text-[10px] text-muted-foreground gap-2">
                 <span className="truncate flex-1">{analystName}</span>
-                <span className="tabular-nums font-medium text-foreground shrink-0">{formatCurrency(p.total_amount)}</span>
+                <span className="tabular-nums font-medium text-foreground shrink-0" title={Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 ? `Bruto ${formatCurrency(p.bruto_total ?? p.total_amount)}` : undefined}>{formatCurrency(p.liquido_total ?? p.total_amount)}</span>
               </div>
               
               <div className="flex items-center justify-between text-[10px] gap-2 pt-1 border-t border-border/40">
@@ -919,7 +921,7 @@ const Payments = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Competência <span className="font-medium text-foreground capitalize">{formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}</span>
-              {" · "}{p.items_count} itens · {formatCurrency(p.total_amount)}
+              {" · "}{p.items_count} itens · {formatCurrency(p.liquido_total ?? p.total_amount)}{Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 ? ` (bruto ${formatCurrency(p.bruto_total ?? p.total_amount)})` : ""}
               {p.payment_kind && ` · ${PAYMENT_KIND_LABELS[p.payment_kind]}`}
               {" · criado em "}{formatDate(p.created_at)}
             </p>
@@ -1538,7 +1540,10 @@ const Payments = () => {
                             </span>
                           </td>
                           <td className="px-3 py-3 align-middle text-right">
-                            <span className="font-bold text-foreground">{formatCurrency(p.total_amount)}</span>
+                            <span className="font-bold text-foreground" title={Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 ? `Bruto ${formatCurrency(p.bruto_total ?? p.total_amount)}` : undefined}>{formatCurrency(p.liquido_total ?? p.total_amount)}</span>
+                            {Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 && (
+                              <div className="text-[10px] text-muted-foreground">bruto {formatCurrency(p.bruto_total ?? p.total_amount)}</div>
+                            )}
                           </td>
                           <td className="px-3 py-3 align-middle">
                             <div className="flex items-center justify-between gap-2">

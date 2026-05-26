@@ -47,7 +47,7 @@ serve(async (req) => {
     // 1. Pagamento
     const { data: payment, error: pErr } = await supabase
       .from("payments")
-      .select("id, reference, status, total_amount, competence_month, items_count, processing_diagnostics")
+      .select("id, reference, status, total_amount, bruto_total, liquido_total, competence_month, items_count, processing_diagnostics")
       .eq("id", payment_id)
       .maybeSingle();
 
@@ -103,7 +103,7 @@ serve(async (req) => {
     // 3. Grupos por empresa (status)
     const { data: groups } = await supabase
       .from("payment_company_groups")
-      .select("company_name, status, total_amount, items_count")
+      .select("company_name, status, total_amount, bruto_total, liquido_total, items_count")
       .eq("payment_id", payment_id);
 
     // 4. Últimas observações (analista/validador/diretor)
@@ -119,7 +119,12 @@ serve(async (req) => {
       lote: {
         referencia: payment.reference ?? "—",
         status: payment.status,
-        valor_total: Number(payment.total_amount) || 0,
+        valor_liquido: Number((payment as any).liquido_total ?? payment.total_amount) || 0,
+        valor_bruto: Number((payment as any).bruto_total ?? payment.total_amount) || 0,
+        houve_deducoes: Math.abs(
+          (Number((payment as any).liquido_total ?? payment.total_amount) || 0) -
+          (Number((payment as any).bruto_total ?? payment.total_amount) || 0)
+        ) > 0.01,
         competencia: payment.competence_month,
         qtd_itens: payment.items_count ?? totalItems,
       },
@@ -133,10 +138,11 @@ serve(async (req) => {
         .map(([nome, v]) => ({ nome, ...v, pct_alertas: v.count > 0 ? Math.round((v.alerts / v.count) * 100) : 0 }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 10),
-      grupos_status: (groups ?? []).map((g) => ({
+      grupos_status: (groups ?? []).map((g: any) => ({
         empresa: g.company_name,
         status: g.status,
-        valor: Number(g.total_amount) || 0,
+        valor_liquido: Number(g.liquido_total ?? g.total_amount) || 0,
+        valor_bruto: Number(g.bruto_total ?? g.total_amount) || 0,
         itens: g.items_count,
       })),
       observacoes_recentes: (observations ?? []).map((o) => ({
@@ -166,7 +172,7 @@ INSTRUÇÕES PARA O RESUMO:
 - Ignore dados puramente operacionais/quantitativos como "X% dos itens são aprovados" sem adicionar contexto de por que isso é ou não relevante.
 - O risco deve refletir a probabilidade de erro financeiro, não volume de dados.
 
-- Headline: 1 frase com o valor total, qtd de empresas e principal sinal financeiro (ex: "% itens com divergência").
+- Headline: 1 frase com o VALOR LÍQUIDO total (lote.valor_liquido — o que efetivamente será pago após débitos, glosas, pool e conciliação), qtd de empresas e principal sinal financeiro. Se houve_deducoes=true, mencione também o bruto entre parênteses para evidenciar a redução.
 - Bullets: 3 a 5 pontos com achados financeiros relevantes (divergências, outliers, regras sem match, exceções).
 - risk_level: classifique baseado em probabilidade de erro financeiro.
   - baixo: <10% itens com divergência, sem outliers relevantes
