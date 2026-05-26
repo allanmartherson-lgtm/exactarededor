@@ -693,7 +693,7 @@ const Dashboard = () => {
     const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
       supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+        .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
         .order("created_at", { ascending: false })
         .limit(20),
       supabase.from("profiles").select("id,full_name,email"),
