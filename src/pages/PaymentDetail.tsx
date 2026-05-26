@@ -2695,6 +2695,8 @@ const PaymentDetail = () => {
 
                 if (!matchesSearch) return false;
 
+                if (onlyRegIssues && !regIssueItemIds.has(it.id)) return false;
+
                 // Filtro de status crítico
                 if (criticalFilter === "no_rule") {
                   return it.ai_findings?.matched_priority === "sem_regra";
