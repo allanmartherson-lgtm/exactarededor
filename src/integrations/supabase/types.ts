@@ -235,6 +235,100 @@ export type Database = {
         }
         Relationships: []
       }
+      company_adjustment_applications: {
+        Row: {
+          adjustment_id: string
+          applied_at: string
+          applied_by: string | null
+          id: string
+          parcela_numero: number
+          payment_id: string
+          valor_aplicado: number
+        }
+        Insert: {
+          adjustment_id: string
+          applied_at?: string
+          applied_by?: string | null
+          id?: string
+          parcela_numero: number
+          payment_id: string
+          valor_aplicado: number
+        }
+        Update: {
+          adjustment_id?: string
+          applied_at?: string
+          applied_by?: string | null
+          id?: string
+          parcela_numero?: number
+          payment_id?: string
+          valor_aplicado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_adjustment_applications_adjustment_id_fkey"
+            columns: ["adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "company_financial_adjustments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_financial_adjustments: {
+        Row: {
+          ativo: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          data_inicio: string
+          descricao: string
+          id: string
+          origem: string | null
+          parcelas_pagas: number
+          parcelas_total: number
+          tipo: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          ativo?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          data_inicio?: string
+          descricao: string
+          id?: string
+          origem?: string | null
+          parcelas_pagas?: number
+          parcelas_total?: number
+          tipo: string
+          updated_at?: string
+          valor_total: number
+        }
+        Update: {
+          ativo?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_inicio?: string
+          descricao?: string
+          id?: string
+          origem?: string | null
+          parcelas_pagas?: number
+          parcelas_total?: number
+          tipo?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_financial_adjustments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_portal_users: {
         Row: {
           accepted_at: string | null
@@ -2136,6 +2230,191 @@ export type Database = {
           updated_at?: string
           validated_at?: string | null
           validated_by?: string | null
+        }
+        Relationships: []
+      }
+      pool_calculation_runs: {
+        Row: {
+          base_amount: number
+          bolo_liquido: number
+          created_at: string
+          created_by: string | null
+          deductions_applied: Json
+          id: string
+          payment_id: string
+          pool_id: string
+          quotas: Json
+          snapshot: Json | null
+        }
+        Insert: {
+          base_amount: number
+          bolo_liquido: number
+          created_at?: string
+          created_by?: string | null
+          deductions_applied?: Json
+          id?: string
+          payment_id: string
+          pool_id: string
+          quotas?: Json
+          snapshot?: Json | null
+        }
+        Update: {
+          base_amount?: number
+          bolo_liquido?: number
+          created_at?: string
+          created_by?: string | null
+          deductions_applied?: Json
+          id?: string
+          payment_id?: string
+          pool_id?: string
+          quotas?: Json
+          snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_calculation_runs_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pool_deductions: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          descricao: string
+          id: string
+          obrigatoria: boolean
+          ordem: number
+          pool_id: string
+          tipo: string
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          obrigatoria?: boolean
+          ordem?: number
+          pool_id: string
+          tipo: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          obrigatoria?: boolean
+          ordem?: number
+          pool_id?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_deductions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_deductions_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pool_participants: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          ordem_exibicao: number
+          participant_type: string
+          percentual: number
+          pool_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          ordem_exibicao?: number
+          participant_type?: string
+          percentual: number
+          pool_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          ordem_exibicao?: number
+          participant_type?: string
+          percentual?: number
+          pool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_participants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_participants_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pools: {
+        Row: {
+          ativo: boolean
+          base_calculo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          base_calculo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          base_calculo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
         }
         Relationships: []
       }
