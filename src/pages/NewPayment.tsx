@@ -992,7 +992,16 @@ const NewPayment = () => {
         toast({ title: "Erro ao salvar itens", description: itemsErr.message, variant: "destructive" });
         return;
       }
+      // Enriquecimento pós-insert: preenche doctor_document (CRM/UF) via match por nome
+      // contra o cadastro de doctors. Planilhas Rede D'Or não trazem coluna de documento,
+      // então sem isso 100% dos itens ficariam órfãos. Falha não bloqueia o fluxo.
+      try {
+        await supabase.rpc("enrich_doctor_documents", { p_payment_id: payment.id });
+      } catch (e) {
+        console.warn("[enrich_doctor_documents] falhou (não-bloqueante):", e);
+      }
     }
+
     if (unmatchedItems.length > 0) {
       const { error: unErr } = await supabase.from("payment_unmatched_items").insert(unmatchedItems);
       if (unErr) {
