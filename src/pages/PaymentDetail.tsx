@@ -35,6 +35,7 @@ import { PaymentPivotSection, type PivotVariant } from "@/components/payment-det
 import { PreAnalysisScoreCard } from "@/components/payment-detail/PreAnalysisScoreCard";
 import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAlerts";
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
+import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
