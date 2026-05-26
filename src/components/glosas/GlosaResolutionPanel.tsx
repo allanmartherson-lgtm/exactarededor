@@ -106,6 +106,28 @@ export default function GlosaResolutionPanel() {
     load();
   };
 
+  const ignore = async (debt: Debt) => {
+    const reason = window.prompt(
+      `Marcar glosa de ${debt.doctor_name} (${brl(Number(debt.total_debt))}) como NÃO APLICAR.\n\nMotivo (ficará registrado no histórico):`
+    );
+    if (!reason || reason.trim().length < 3) {
+      if (reason !== null) toast.error("Informe um motivo com pelo menos 3 caracteres.");
+      return;
+    }
+    setBusyId(debt.id);
+    const { error } = await (supabase as any).rpc("ignore_glosa_debt", {
+      _debt_id: debt.id,
+      _reason: reason.trim(),
+    });
+    setBusyId(null);
+    if (error) {
+      toast.error("Erro ao ignorar: " + error.message);
+      return;
+    }
+    toast.success("Glosa marcada como não aplicar.");
+    load();
+  };
+
   if (loading) return null;
   if (pendentes.length === 0) return null;
 
@@ -173,6 +195,9 @@ export default function GlosaResolutionPanel() {
                   <TableCell className="flex gap-1">
                     <Button size="sm" disabled={busyId === d.id} onClick={() => resolve(d)}>
                       Vincular
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busyId === d.id} onClick={() => ignore(d)}>
+                      Não aplicar
                     </Button>
                     {d.resolution_reason === "crm_nao_encontrado" && (
                       <Button size="sm" variant="ghost" disabled={busyId === d.id} onClick={() => retry(d)}>
