@@ -268,9 +268,27 @@ export default function Glosas() {
 
       let competenceMonth = "";
       const dateCol = colMap["date"];
+      // Tentar extrair de rows[0] (já convertido para string ISO)
       if (dateCol && rows[0]) {
         const v = rows[0][dateCol];
-        if (v instanceof Date) competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        if (v instanceof Date) {
+          competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        } else if (typeof v === "string" && v.length >= 7) {
+          competenceMonth = v.slice(0, 7);
+        }
+      }
+      // Fallback: tentar em rawRows antes da sanitização
+      if (!competenceMonth && dateCol) {
+        for (const raw of rawRows.slice(0, 10)) {
+          const v = raw[dateCol];
+          if (v instanceof Date) {
+            competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+            break;
+          } else if (typeof v === "string" && /^\d{4}-\d{2}/.test(v)) {
+            competenceMonth = v.slice(0, 7);
+            break;
+          }
+        }
       }
 
       const { error } = await (supabase as any).from("conciliation_bases").insert({
