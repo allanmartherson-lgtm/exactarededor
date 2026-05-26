@@ -824,7 +824,7 @@ const Dashboard = () => {
     if (roles.includes("diretor") || roles.includes("admin")) {
       const { data: aprovPays } = await supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+        .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
         .eq("status", "aguardando_aprovacao")
         .order("created_at", { ascending: false })
         .limit(10);
