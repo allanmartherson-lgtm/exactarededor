@@ -237,6 +237,22 @@ const PaymentDetail = () => {
   const [itemSearch, setItemSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
   const [criticalFilter, setCriticalFilter] = useState<"all" | "no_rule" | "divergent" | "approved" | "approved_strict">("all");
+  const [onlyRegIssues, setOnlyRegIssues] = useState(false);
+  const [regIssueItemIds, setRegIssueItemIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { or: (f: string) => Promise<{ data: Array<{ item_id: string }> | null }> } } } })
+        .from("v_payment_items_registration_issues")
+        .select("item_id")
+        .eq("payment_id", id)
+        .or("doctor_unregistered.eq.true,pj_not_linked_to_doctor.eq.true");
+      if (cancelled) return;
+      setRegIssueItemIds(new Set((data ?? []).map((r) => r.item_id)));
+    })();
+    return () => { cancelled = true; };
+  }, [id, items.length]);
   const [toleranceValue, setToleranceValue] = useState<number>(0.01);
   const [assignmentsHistoryOpen, setAssignmentsHistoryOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
