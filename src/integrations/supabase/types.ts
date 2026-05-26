@@ -698,6 +698,54 @@ export type Database = {
         }
         Relationships: []
       }
+      doctors_import_staging: {
+        Row: {
+          active: boolean
+          birth_date: string | null
+          cpf: string | null
+          crm: string
+          crm_uf: string
+          email: string | null
+          full_name: string
+          id: number
+          notes_cnpj: string | null
+          notes_pj: string | null
+          phone: string | null
+          specialties: string | null
+          vinculo: string | null
+        }
+        Insert: {
+          active?: boolean
+          birth_date?: string | null
+          cpf?: string | null
+          crm: string
+          crm_uf: string
+          email?: string | null
+          full_name: string
+          id?: number
+          notes_cnpj?: string | null
+          notes_pj?: string | null
+          phone?: string | null
+          specialties?: string | null
+          vinculo?: string | null
+        }
+        Update: {
+          active?: boolean
+          birth_date?: string | null
+          cpf?: string | null
+          crm?: string
+          crm_uf?: string
+          email?: string | null
+          full_name?: string
+          id?: number
+          notes_cnpj?: string | null
+          notes_pj?: string | null
+          phone?: string | null
+          specialties?: string | null
+          vinculo?: string | null
+        }
+        Relationships: []
+      }
       doctors_specialties_backup_20260518: {
         Row: {
           active: boolean | null
@@ -3656,6 +3704,7 @@ export type Database = {
         Args: { _ctype: string }
         Returns: string
       }
+      merge_doctors_from_staging: { Args: never; Returns: Json }
       norm_for_hash: { Args: { s: string }; Returns: string }
       norm_name: { Args: { t: string }; Returns: string }
       normalize_sector: { Args: { input: string }; Returns: string }
