@@ -223,7 +223,7 @@ export default function Glosas() {
     setConcBases(data ?? []);
   }, []);
 
-  const uploadConcBase = async (file: File) => {
+  const prepareImportPreview = async (file: File) => {
     setUploadingConc(true);
     try {
       const buf = await file.arrayBuffer();
@@ -277,31 +277,65 @@ export default function Glosas() {
 
       let competenceMonth = "";
       const dateCol = colMap["date"];
-      // Tentar extrair de rows[0] (já convertido para string ISO)
-      if (dateCol && rows[0]) {
-        const v = rows[0][dateCol];
-        if (v instanceof Date) {
-          competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
-        } else if (typeof v === "string" && v.length >= 7) {
-          competenceMonth = v.slice(0, 7);
+
+      const parseDateToYearMonth = (v: any): string => {
+        if (!v) return "";
+        if (v instanceof Date && !isNaN(v.getTime())) {
+          return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        }
+        const s = String(v).trim();
+        if (/^\d{4}-\d{2}/.test(s)) return s.slice(0, 7);
+        const brMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (brMatch) return `${brMatch[3]}-${brMatch[2].padStart(2, "0")}`;
+        if (typeof v === "number" && v > 40000) {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        }
+        return "";
+      };
+
+      if (dateCol) {
+        for (const row of rows.slice(0, 20)) {
+          const result = parseDateToYearMonth(row[dateCol]);
+          if (result) { competenceMonth = result; break; }
         }
       }
-      // Fallback: tentar em rawRows antes da sanitização
       if (!competenceMonth && dateCol) {
-        for (const raw of rawRows.slice(0, 10)) {
-          const v = raw[dateCol];
-          if (v instanceof Date) {
-            competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
-            break;
-          } else if (typeof v === "string" && /^\d{4}-\d{2}/.test(v)) {
-            competenceMonth = v.slice(0, 7);
-            break;
-          }
+        for (const raw of rawRows.slice(0, 20)) {
+          const result = parseDateToYearMonth(raw[dateCol]);
+          if (result) { competenceMonth = result; break; }
         }
       }
 
+      const companyCol = colMap["company"];
+      const terceirosUnicos = companyCol
+        ? [...new Set(rows.map(r => String(r[companyCol] ?? "").trim()).filter(Boolean))]
+        : [];
+
+      setImportPreview({
+        file,
+        rows,
+        colMap,
+        competenceMonth,
+        reference: `Conciliação ${competenceMonth ? new Date(competenceMonth + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : new Date().toLocaleDateString("pt-BR")} — ${file.name.replace(/\.[^.]+$/, "")}`,
+        terceirosUnicos,
+        sheetName,
+      });
+    } catch (e: any) {
+      toast.error("Erro ao ler planilha", { description: e.message });
+    } finally {
+      setUploadingConc(false);
+    }
+  };
+
+  const confirmImportConcBase = async () => {
+    if (!importPreview) return;
+    setUploadingConc(true);
+    try {
+      const { file, rows, colMap, competenceMonth, reference, sheetName } = importPreview;
+
       const { error } = await (supabase as any).from("conciliation_bases").insert({
-        reference: `Conciliação ${new Date().toLocaleDateString("pt-BR")} — ${file.name.replace(/\.[^.]+$/, "")}`,
+        reference,
         competence_month: competenceMonth || null,
         file_name: file.name,
         sheet_name: sheetName,
@@ -385,6 +419,7 @@ export default function Glosas() {
         console.warn("Auto-match de PJ falhou:", e);
       }
 
+      setImportPreview(null);
       loadConcBases();
     } catch (e: any) {
       toast.error("Erro ao importar base", { description: e.message });
