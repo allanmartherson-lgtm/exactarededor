@@ -793,7 +793,7 @@ const Payments = () => {
               
               <div className="flex items-center justify-between text-[10px] text-muted-foreground gap-2">
                 <span className="truncate flex-1">{analystName}</span>
-                <span className="tabular-nums font-medium text-foreground shrink-0">{formatCurrency(p.total_amount)}</span>
+                <span className="tabular-nums font-medium text-foreground shrink-0" title={Math.abs(Number(p.liquido_total ?? p.total_amount) - Number(p.bruto_total ?? p.total_amount)) > 0.01 ? `Bruto ${formatCurrency(p.bruto_total ?? p.total_amount)}` : undefined}>{formatCurrency(p.liquido_total ?? p.total_amount)}</span>
               </div>
               
               <div className="flex items-center justify-between text-[10px] gap-2 pt-1 border-t border-border/40">
