@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { Building2, Plus, Trash2, Pencil, Upload, Download, Mail, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
+import { CompanyFinancialAdjustmentsDialog } from "@/components/CompanyFinancialAdjustmentsDialog";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { FormDialog } from "@/components/FormDialog";
 import { formatCNPJ, isValidCNPJ, onlyDigits } from "@/lib/cnpj";
