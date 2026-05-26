@@ -729,7 +729,7 @@ export function ItemsDataGrid({
                   </td>
                 </tr>
               )}
-              {filtered.map((it) => {
+              {filtered.map((it, idx) => {
                 const paciente = getPatient(it);
                 const expected = it.ai_findings?.expected_amount;
                 const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
@@ -759,37 +759,63 @@ export function ItemsDataGrid({
                   (colVis.observacao ? 1 : 0) +
                   (canEdit ? 1 : 0);
                 const isExpanded = expandedId === it.id;
+                const itemOrigem = (it as any).item_origem as string | null | undefined;
+                const isAdjust = !!itemOrigem && itemOrigem !== "pagamento_atual";
+                const prev = idx > 0 ? filtered[idx - 1] : null;
+                const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
+                const isFirstAdjust = isAdjust && !prevIsAdjust;
                 return (
-                  <RowMain
-                    key={it.id}
-                    it={it}
-                    allItems={items}
-                    paciente={paciente}
-                    expected={expected ?? null}
-                    eff={eff}
-                    tone={tone}
-                    isActive={isActive}
-                    isExpanded={isExpanded}
-                    isCritical={isCritical}
-                    hasAlert={alerts.length > 0}
-                    onSelect={() => selectRow(it.id)}
-                    onOpen={() => openDetail(it.id)}
-                    colVis={colVis}
-                    rulesIndex={rulesIndex}
-                    rulesByName={rulesByName}
-                    observations={observations}
-                    profiles={profiles}
-                    obsCount={obsCount}
-                    isCompact={isCompact}
-                    totalCols={totalCols}
-                    canEdit={canEdit}
-                    onEditItem={onEditItem}
-                    onDeleteItem={onDeleteItem}
-                    onAcceptItem={onAcceptItem}
-                    onUndoAcceptItem={onUndoAcceptItem}
-                  />
+                  <>
+                    {isFirstAdjust && (
+                      <tr key={`adj-sep-${it.id}`}>
+                        <td
+                          colSpan={totalCols}
+                          style={{
+                            padding: '8px 16px',
+                            background: 'hsl(var(--muted))',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: '0.06em',
+                            textTransform: 'uppercase',
+                            color: 'hsl(var(--muted-foreground))',
+                          }}
+                        >
+                          Ajustes de conciliação
+                        </td>
+                      </tr>
+                    )}
+                    <RowMain
+                      key={it.id}
+                      it={it}
+                      allItems={items}
+                      paciente={paciente}
+                      expected={expected ?? null}
+                      eff={eff}
+                      tone={tone}
+                      isActive={isActive}
+                      isExpanded={isExpanded}
+                      isCritical={isCritical}
+                      hasAlert={alerts.length > 0}
+                      onSelect={() => selectRow(it.id)}
+                      onOpen={() => openDetail(it.id)}
+                      colVis={colVis}
+                      rulesIndex={rulesIndex}
+                      rulesByName={rulesByName}
+                      observations={observations}
+                      profiles={profiles}
+                      obsCount={obsCount}
+                      isCompact={isCompact}
+                      totalCols={totalCols}
+                      canEdit={canEdit}
+                      onEditItem={onEditItem}
+                      onDeleteItem={onDeleteItem}
+                      onAcceptItem={onAcceptItem}
+                      onUndoAcceptItem={onUndoAcceptItem}
+                    />
+                  </>
                 );
               })}
+
             </tbody>
             {filtered.length > 0 && (() => {
               const leadingCols =
