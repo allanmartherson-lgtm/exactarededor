@@ -27,6 +27,7 @@ import {
   FileWarning,
   MessageSquare,
   Tag,
+  Split,
 } from "lucide-react";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
