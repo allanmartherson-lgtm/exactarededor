@@ -198,6 +198,30 @@ const PaymentDetail = () => {
   const [reprocessConfirmOpen, setReprocessConfirmOpen] = useState(false);
   const [pendingSendState, setPendingSendState] = useState<{ prontos: GroupRow[]; pendentes: GroupRow[] } | null>(null);
   const [bulkConcludeOpen, setBulkConcludeOpen] = useState(false);
+  const [adjustmentItems, setAdjustmentItems] = useState<Array<{
+    id: string;
+    doctor_name: string;
+    procedure_code: string | null;
+    gross_amount: number;
+    item_origem: string;
+    origem_referencia: string | null;
+    company_name: string | null;
+  }>>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("payment_items")
+        .select("id, doctor_name, procedure_code, gross_amount, item_origem, origem_referencia, company_name")
+        .eq("payment_id", id)
+        .neq("item_origem", "pagamento_atual")
+        .order("created_at", { ascending: false });
+      if (!cancelled) setAdjustmentItems((data ?? []) as any);
+    })();
+    return () => { cancelled = true; };
+  }, [id, items.length]);
   const [bulkConcludeSelected, setBulkConcludeSelected] = useState<Set<string>>(new Set());
   const [bulkConcluding, setBulkConcluding] = useState(false);
   const [reprocessFilter, setReprocessFilter] = useState<string[]>([]);
