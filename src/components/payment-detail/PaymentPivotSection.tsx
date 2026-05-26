@@ -276,6 +276,8 @@ export function PaymentPivotSection({
   const applyCustom = () => {
     if (customFields.length > 0) {
       setGrouping(customFields[0]);
+      setSecondary(customFields[1] ?? null);
+      setExpanded(new Set());
     }
     setCustomOpen(false);
   };
