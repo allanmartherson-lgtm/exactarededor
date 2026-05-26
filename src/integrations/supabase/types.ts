@@ -324,6 +324,7 @@ export type Database = {
       }
       conciliation_bases: {
         Row: {
+          base_anterior_id: string | null
           col_map: Json | null
           competence_month: string | null
           created_at: string | null
@@ -333,11 +334,14 @@ export type Database = {
           reference: string
           sheet_name: string | null
           status: string
+          tem_itens_aplicados: boolean | null
           total_rows: number | null
           uploaded_at: string | null
           uploaded_by: string | null
+          versao: number | null
         }
         Insert: {
+          base_anterior_id?: string | null
           col_map?: Json | null
           competence_month?: string | null
           created_at?: string | null
@@ -347,11 +351,14 @@ export type Database = {
           reference: string
           sheet_name?: string | null
           status?: string
+          tem_itens_aplicados?: boolean | null
           total_rows?: number | null
           uploaded_at?: string | null
           uploaded_by?: string | null
+          versao?: number | null
         }
         Update: {
+          base_anterior_id?: string | null
           col_map?: Json | null
           competence_month?: string | null
           created_at?: string | null
@@ -361,11 +368,21 @@ export type Database = {
           reference?: string
           sheet_name?: string | null
           status?: string
+          tem_itens_aplicados?: boolean | null
           total_rows?: number | null
           uploaded_at?: string | null
           uploaded_by?: string | null
+          versao?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conciliation_bases_base_anterior_id_fkey"
+            columns: ["base_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "conciliation_bases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cost_center_imports: {
         Row: {
@@ -1375,6 +1392,9 @@ export type Database = {
           gross_amount: number
           id: string
           item_hash: string | null
+          item_origem: string | null
+          origem_reconciliation_item_id: string | null
+          origem_referencia: string | null
           patient_name: string | null
           payment_id: string
           procedure_amount: number | null
@@ -1427,6 +1447,9 @@ export type Database = {
           gross_amount?: number
           id?: string
           item_hash?: string | null
+          item_origem?: string | null
+          origem_reconciliation_item_id?: string | null
+          origem_referencia?: string | null
           patient_name?: string | null
           payment_id: string
           procedure_amount?: number | null
@@ -1479,6 +1502,9 @@ export type Database = {
           gross_amount?: number
           id?: string
           item_hash?: string | null
+          item_origem?: string | null
+          origem_reconciliation_item_id?: string | null
+          origem_referencia?: string | null
           patient_name?: string | null
           payment_id?: string
           procedure_amount?: number | null
@@ -1513,6 +1539,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_origem_reconciliation_item_id_fkey"
+            columns: ["origem_reconciliation_item_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_items"
             referencedColumns: ["id"]
           },
           {
@@ -2289,8 +2322,14 @@ export type Database = {
       }
       reconciliation_items: {
         Row: {
+          action_at: string | null
+          action_by: string | null
+          action_note: string | null
+          action_taken: string | null
           agreement_text: string | null
           applied_calc_method: string | null
+          applied_payment_id: string | null
+          applied_payment_item_id: string | null
           applied_rule_label: string | null
           attendance_number: string | null
           company_name: string | null
@@ -2309,10 +2348,17 @@ export type Database = {
           status: string
           valor_hospital: number
           valor_medpay: number
+          valor_regra: number | null
         }
         Insert: {
+          action_at?: string | null
+          action_by?: string | null
+          action_note?: string | null
+          action_taken?: string | null
           agreement_text?: string | null
           applied_calc_method?: string | null
+          applied_payment_id?: string | null
+          applied_payment_item_id?: string | null
           applied_rule_label?: string | null
           attendance_number?: string | null
           company_name?: string | null
@@ -2331,10 +2377,17 @@ export type Database = {
           status?: string
           valor_hospital?: number
           valor_medpay?: number
+          valor_regra?: number | null
         }
         Update: {
+          action_at?: string | null
+          action_by?: string | null
+          action_note?: string | null
+          action_taken?: string | null
           agreement_text?: string | null
           applied_calc_method?: string | null
+          applied_payment_id?: string | null
+          applied_payment_item_id?: string | null
           applied_rule_label?: string | null
           attendance_number?: string | null
           company_name?: string | null
@@ -2353,8 +2406,30 @@ export type Database = {
           status?: string
           valor_hospital?: number
           valor_medpay?: number
+          valor_regra?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reconciliation_items_action_by_fkey"
+            columns: ["action_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_applied_payment_id_fkey"
+            columns: ["applied_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_applied_payment_item_id_fkey"
+            columns: ["applied_payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "payment_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reconciliation_items_payment_item_id_fkey"
             columns: ["payment_item_id"]
