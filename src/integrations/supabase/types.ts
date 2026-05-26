@@ -3411,6 +3411,19 @@ export type Database = {
           doctor_crms: string[]
         }[]
       }
+      find_doctor_for_login: {
+        Args: { identifier: string }
+        Returns: {
+          active: boolean
+          cpf: string
+          crm: string
+          crm_uf: string
+          doctor_id: string
+          email: string
+          full_name: string
+          matched_by: string
+        }[]
+      }
       fix_specialties_array: { Args: { arr: string[] }; Returns: string[] }
       forward_groups_to_director: {
         Args: {
