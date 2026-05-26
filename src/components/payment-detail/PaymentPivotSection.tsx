@@ -139,8 +139,7 @@ export function PaymentPivotSection({
     let alive = true;
     setLoading(true);
     (async () => {
-      const sec: GroupingField | null =
-        variant === "compacto" ? (grouping === "empresa" ? "especialidade" : "empresa") : null;
+      const sec: GroupingField | null = secondary && secondary !== grouping ? secondary : null;
       const args: Record<string, unknown> = {
         p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
@@ -172,7 +171,7 @@ export function PaymentPivotSection({
     return () => {
       alive = false;
     };
-  }, [variant, grouping, monthsBack, competenceDate]);
+  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId]);
 
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
