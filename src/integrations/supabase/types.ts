@@ -3657,6 +3657,7 @@ export type Database = {
         Returns: string
       }
       norm_for_hash: { Args: { s: string }; Returns: string }
+      norm_name: { Args: { t: string }; Returns: string }
       normalize_sector: { Args: { input: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
       question_company_group: {
