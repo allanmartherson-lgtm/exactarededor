@@ -1,85 +1,63 @@
-# Plano — Inteligência Financeira + Ciclo de NF
+# Evolução do cadastro de médicos
 
-## Restrições confirmadas
-- **Não alterar**: `Dashboard.tsx`, `Invoices.tsx`, `AgingRecebiveis.tsx`.
-- **Sem tabelas novas, sem edge functions novas, sem migrations.**
-- Reuso de padrão visual de `Dashboard.tsx` (`bubbleStyle`, `SectionLabel`, `SurfaceCard`, `SurfaceCardHeader`) — vou extrair para um arquivo compartilhado leve para não duplicar 200 linhas em cada página nova.
-- Queries via `supabase` client; gráficos via `recharts` já instalado.
-- `get_payment_pivot(p_current_month, p_months_back, p_grouping, p_secondary)` confirmado no banco.
-
-## Exceção pontual à restrição "não tocar em Invoices.tsx"
-O item 2.2 pede validação de CNPJ na tela `Invoices.tsx`. Isso **exige** editar o arquivo. Vou tratar como exceção mínima e cirúrgica (banner + badge em uma célula), mantendo o restante intacto. **Se preferir manter `Invoices.tsx` 100% intocado, mover essa validação para o `/ciclo-nf` numa quarta seção e remover da Invoices.** Premissa default: edição mínima permitida em Invoices.tsx para o CNPJ.
+Vou executar em 4 fases, na ordem abaixo. Posso pausar entre fases se quiser revisar.
 
 ---
 
-## Arquivos NOVOS
+## Fase 1 — Form de edição (CPF + Nascimento + layout)
 
-### Compartilhado
-- `src/components/shared/SurfacePrimitives.tsx`
-  Extrai de Dashboard.tsx: `bubbleStyle`, `BubbleColor`, `SectionLabel`, `SurfaceCard`, `SurfaceCardHeader`. Sem mudar comportamento.
-  *Nota:* Dashboard.tsx continua usando suas definições locais (não toco nele). A duplicação fica isolada nas páginas novas.
+Tela `Médicos → Editar/Novo médico`:
+- Adicionar campos **CPF** (com máscara `000.000.000-00` e validação dos dígitos verificadores) e **Data de nascimento** (input `date`).
+- Reagrupar visualmente: **Identificação** (nome, CPF, nascimento) → **Conselho** (CRM, UF) → **Contato** (e-mail, telefone) → **Atuação** (especialidades, vínculo) → **Empresas/PJs** → **Observações**.
+- Mostrar contagem de empresas vinculadas e badge "X pagamentos" (lookup leve por CRM/UF).
 
-### Módulo 1 — Inteligência Financeira
-- `src/pages/FinancialIntelligence.tsx` — shell com `<Tabs>` (shadcn) de 4 abas.
-- `src/components/financial-intelligence/BenchmarkTab.tsx`
-  - Query `payment_items` (paginada/limit) agrupando client-side por `specialty + procedure_code + company_name`.
-  - Calcula mediana/média/min/max/n via util.
-  - Filtros multi-select (especialidade, empresa) + range de competência usando `payments.competence_month` via join.
-  - Destaque vermelho quando item recente > 1,5x mediana.
-- `src/components/financial-intelligence/LossTrendTab.tsx`
-  - `supabase.rpc('get_payment_pivot', { p_current_month, p_months_back: 6, p_grouping: 'specialty'|'company' })`.
-  - Recharts `LineChart` agrupado.
-  - Badge vermelho se último mês > 1,15 × média(5 anteriores).
-- `src/components/financial-intelligence/ProjectionTab.tsx`
-  - Lê `payments` últimos 6 meses, filtra status, calcula média móvel 3m por `competence_month`.
-  - Card grande com valor projetado + delta % vs mês atual.
-- `src/components/financial-intelligence/DoctorConcentrationTab.tsx`
-  - `payment_items` agrupado por `payment_id + doctor_name`; cálculo de %; alerta >30%.
-  - Tabela com filtro por lote.
-- `src/lib/financialStats.ts` — utilitários puros: `median`, `mean`, `movingAverage`, `groupBy`.
-
-### Módulo 2 — Ciclo de NF
-- `src/pages/NfCycle.tsx` — shell com 3 seções (cards expansíveis ou tabs).
-- `src/components/nf-cycle/InvoiceAgingSection.tsx`
-  - Query `invoices` com `status='aguardando'` e `sent_at IS NOT NULL`, join company + payment.
-  - Buckets 0-7 / 8-14 / 15-30 / 30+ a partir de `sent_at`.
-  - Botão reenviar → `supabase.functions.invoke('send-invoice-request', { body: { invoice_id } })`.
-- `src/components/nf-cycle/FiscalDeadlineAlerts.tsx`
-  - Mesma base de invoices + `payments.approved_at`; alerta quando `today - approved_at > 25 dias`.
-- `src/components/nf-cycle/ResendHistorySection.tsx`
-  - Lê `payment_observations` filtrando `observation_type='informativo'` e `message ilike '%reenvi%NF%'` (ou similar — vou conferir mensagens reais ao implementar).
-  - Botão de reenviar inline.
+Backend já tem `cpf`, `birth_date`, `vinculo` na tabela `doctors` — sem migração necessária.
 
 ---
 
-## Arquivos MODIFICADOS (apenas estes)
+## Fase 2 — Reimportar planilha enriquecendo a base
 
-1. `src/config/navItems.ts`
-   - Adicionar em grupo **Financeiro**:
-     - `{ to: '/inteligencia-financeira', label: 'Inteligência Financeira', icon: TrendingUp, roles: ['analista','validador','diretor','admin'] }`
-   - Adicionar em grupo **Financeiro** (ou novo "Operacional NF"):
-     - `{ to: '/ciclo-nf', label: 'Ciclo de NF', icon: FileWarning, roles: ['analista','admin'] }`
-   - Atualizar `EXPECTED_SIDEBAR_ORDER` (auditor exige).
+Script de backfill (rodado uma vez via `supabase--insert`) que para cada linha da planilha:
 
-2. `src/App.tsx`
-   - 2 `lazy()` imports + 2 `<Route>` dentro do `AppLayout` protegido.
-   - `ciclo-nf` envolto em `ProtectedRoute roles={['analista','admin']}`.
+1. Casa por **CRM + UF** (campo `CRM` = `28923/DF` → split).
+2. Se encontrar médico existente:
+   - Preenche `cpf` (se vazio), `birth_date` (se vazio), `email` (se vazio), `phone` (se vazio), `vinculo` (campo `Vínculo`).
+   - Marca `active = false` se `Situação Médico = 'I'` (conforme decidido).
+3. Se **`Ds Terceiro` + `CNPJ Terc.`** preenchidos:
+   - Procura empresa por CNPJ (normalizado).
+   - Se não existir, cria `companies` (nome + document).
+   - Cria vínculo em `doctor_companies` (upsert).
+4. Se médico não existe na base atual, **cria novo** com todos os campos.
+5. Relatório final no console: `X atualizados, Y criados, Z vínculos PJ adicionados, W empresas novas`.
 
-3. `src/pages/Invoices.tsx` *(exceção mínima — confirmar)*
-   - Banner vermelho + badge verde de CNPJ na linha/detalhe da invoice. ~30 linhas, sem refatorar o resto.
+Vou rodar como query única em transação, sem edge function (mais simples para one-shot).
 
 ---
 
-## Decisões técnicas
-- **Sem cache server-side novo**: queries direto via client; payloads filtrados por competência para não explodir (`limit` + filtro por `payments.competence_month`).
-- **Filtros de competência**: `MonthMultiSelect` já existe — reaproveitar.
-- **Empresas/especialidades**: combobox/multi-select já existentes (`CompanyCombobox`, `MultiSelectChips`).
-- **Roles**: Inteligência Financeira para todos os autenticados de workflow; Ciclo de NF para analista/admin conforme pedido.
-- **Acessibilidade**: seguir padrão já validado (focus-visible, aria-labels, tokens semânticos).
+## Fase 3 — Vincular `payment_items` ao `doctor_id` (FK real)
 
-## Riscos / pontos a confirmar antes de codar
-1. **Posso editar `Invoices.tsx`** para o item 2.2, ou movo a validação de CNPJ para uma quarta seção dentro de `/ciclo-nf`?
-2. **Localização no menu**: ok colocar ambas dentro do grupo "Financeiro"? Ou criar um grupo novo "Inteligência" para a primeira?
-3. **`get_payment_pivot` retorna `total`** (numérico já agregado por mês). Vou usar como está — sem reagrupar.
+- Migration: adicionar coluna `payment_items.doctor_id uuid` + FK + index. (Mantém `doctor_name` e `doctor_document` como texto para fallback histórico.)
+- Função `enrich_doctor_documents` já existe — vou estendê-la (ou criar `enrich_doctor_ids`) para popular `doctor_id` casando por:
+  1. `doctor_document` (formato `CRM/UF`) → match exato com `doctors.crm || '/' || doctors.crm_uf`
+  2. fallback por `LOWER(doctor_name)` + `LOWER(full_name)` exato
+- Backfill em todos os `payment_items` existentes.
+- **Não toco no motor de regras agora** — ele continua usando `doctor_name`/`doctor_document` como hoje. A FK é só para queries de relatório e para o app do médico saber exatamente quais itens são dele (substituindo o match por nome).
+- Atualizar `DoctorCombobox` e telas de relatório por médico para preferir `doctor_id` quando presente.
 
-Se confirmar (1) e (2), parto para implementação.
+---
+
+## Fase 4 — App do médico: login/match por CPF além de CRM
+
+- App do médico (projeto `b4be2018-...`) hoje vincula por CRM. Vou adicionar fallback por CPF:
+  - Tela "Meu perfil" passa a exibir CPF (read-only se já preenchido pelo cadastro mestre).
+  - Ao logar via `doctor_portal_users`, se houver `cpf` no `doctors`, query também por CPF.
+- Garantir que `doctor_portal_users` tem `doctor_id` correto (já tem FK).
+- **Não muda lógica de extrato** — extrato continua puxando por `doctor_id`, agora confiável graças à Fase 3.
+
+---
+
+## Ordem de entrega
+
+Entrego Fase 1+2 juntas (uma rodada de chat), depois Fase 3, depois Fase 4. Cada fase termina com verificação no banco e print do resultado.
+
+Quer começar? Se quiser inverter ordem ou pular alguma, só falar.
