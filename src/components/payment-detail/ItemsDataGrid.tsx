@@ -815,7 +815,8 @@ export function ItemsDataGrid({
                       onAcceptItem={onAcceptItem}
                       onUndoAcceptItem={onUndoAcceptItem}
                     />
-                  </>
+                  </Fragment>
+
                 );
               })}
 
