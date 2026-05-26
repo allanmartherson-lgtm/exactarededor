@@ -799,6 +799,7 @@ export function PaymentConciliationModal({
           company_name: it.company_name ?? null,
           status: "so_medpay",
           ia_obs: `Item de ${it.company_name ?? "empresa"} presente no MedPay mas ausente no extrato hospitalar — verificar glosa.`,
+          valor_regra: (it as any).expected_amount ?? null,
         });
         so_medpay++;
         risco_menos += valMed;
