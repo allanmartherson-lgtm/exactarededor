@@ -236,7 +236,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{g.company_name}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                          {g.items_count} itens · {formatCurrency(Number(g.liquido_total ?? g.total_amount ?? 0))}
                         </p>
                         {hasEmail ? (
                           <p className="text-[11px] text-muted-foreground truncate">
