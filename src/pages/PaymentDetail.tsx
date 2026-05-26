@@ -1585,11 +1585,7 @@ const PaymentDetail = () => {
         title={payment.reference}
         description={payment.description ?? (() => {
           const liq = Number((payment as any).liquido_total ?? payment.total_amount ?? 0);
-          const bru = Number((payment as any).bruto_total ?? payment.total_amount ?? 0);
-          const diverge = Math.abs(liq - bru) > 0.01;
-          return diverge
-            ? `${items.length} itens · ${formatCurrency(liq)} líquido · bruto ${formatCurrency(bru)}`
-            : `${items.length} itens · ${formatCurrency(liq)}`;
+          return `${items.length} itens · ${formatCurrency(liq)}`;
         })()}
         sticky
         actions={
