@@ -39,14 +39,24 @@ export function DeductionsBanner({
         .eq("payment_id", paymentId).eq("company_id", companyId)
         .neq("status", "revertido").order("applied_at", { ascending: true }),
       supabase.from("glosa_payment_applications")
-        .select("*, glosa_debt:glosa_debts(doctor_name, doctor_crm, total_debt, parcelas_default)")
+        .select("*")
         .eq("payment_id", paymentId).eq("company_id", companyId)
         .neq("status", "revertido").order("applied_at", { ascending: true }),
     ]);
-    setCaa((c.data as Caa[]) ?? []);
-    setGpa((g.data as Gpa[]) ?? []);
+    setCaa((c.data as any) ?? []);
+    const gpaList = (g.data as any[]) ?? [];
+    if (gpaList.length > 0) {
+      const debtIds = Array.from(new Set(gpaList.map(x => x.glosa_debt_id)));
+      const { data: debts } = await supabase.from("glosa_debts")
+        .select("id, doctor_name, doctor_crm, total_debt, parcelas_default")
+        .in("id", debtIds);
+      const map = new Map((debts ?? []).map((d: any) => [d.id, d]));
+      gpaList.forEach(x => { x.glosa_debt = map.get(x.glosa_debt_id); });
+    }
+    setGpa(gpaList as Gpa[]);
     setLoading(false);
   }, [paymentId, companyId]);
+
 
   const runAuto = useCallback(async () => {
     setRunning(true);
