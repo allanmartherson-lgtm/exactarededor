@@ -192,6 +192,15 @@ export default function Glosas() {
   const [uploadingConc, setUploadingConc] = useState(false);
   const concFileRef = useRef<HTMLInputElement>(null);
   const [expandedConcBase, setExpandedConcBase] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    file: File;
+    rows: any[];
+    colMap: Record<string, string>;
+    competenceMonth: string;
+    reference: string;
+    terceirosUnicos: string[];
+    sheetName: string;
+  } | null>(null);
 
   const loadBatches = useCallback(async () => {
     setLoading(true);
