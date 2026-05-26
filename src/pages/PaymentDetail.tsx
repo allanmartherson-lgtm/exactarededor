@@ -2360,7 +2360,10 @@ const PaymentDetail = () => {
                         <label htmlFor={`bulk-${g.id}`} className="flex-1 text-xs cursor-pointer">
                           <span className="font-medium">{g.company_name}</span>
                           <span className="text-muted-foreground ml-2">
-                            {g.items_count ?? 0} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                            {g.items_count ?? 0} itens · {formatCurrency(Number((g as any).liquido_total ?? g.total_amount ?? 0))}
+                            {Math.abs(Number((g as any).liquido_total ?? g.total_amount ?? 0) - Number((g as any).bruto_total ?? g.total_amount ?? 0)) > 0.01 && (
+                              <span className="ml-1 text-[10px]">(bruto {formatCurrency(Number((g as any).bruto_total ?? 0))})</span>
+                            )}
                           </span>
                         </label>
                       </li>
