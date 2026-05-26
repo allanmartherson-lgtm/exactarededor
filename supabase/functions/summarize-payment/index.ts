@@ -106,6 +106,28 @@ serve(async (req) => {
       .select("company_name, status, total_amount, bruto_total, liquido_total, items_count")
       .eq("payment_id", payment_id);
 
+    // 3b. Composição financeira agregada do lote (pool, glosa, conciliação separados)
+    const { data: pcf } = await supabase
+      .from("payment_company_financials")
+      .select("bruto, debitos, creditos, glosas, pool, conciliacao, liquido")
+      .eq("payment_id", payment_id);
+    const composicao = (pcf ?? []).reduce(
+      (acc, r: any) => ({
+        bruto: acc.bruto + Number(r.bruto || 0),
+        debitos: acc.debitos + Number(r.debitos || 0),
+        creditos: acc.creditos + Number(r.creditos || 0),
+        glosas: acc.glosas + Number(r.glosas || 0),
+        pool: acc.pool + Number(r.pool || 0),
+        conciliacao: acc.conciliacao + Number(r.conciliacao || 0),
+        liquido: acc.liquido + Number(r.liquido || 0),
+      }),
+      { bruto: 0, debitos: 0, creditos: 0, glosas: 0, pool: 0, conciliacao: 0, liquido: 0 },
+    );
+    const reducaoTotal = composicao.bruto - composicao.liquido;
+    const reducaoExplicada = composicao.debitos + composicao.glosas + composicao.pool - composicao.creditos - composicao.conciliacao;
+    const reducaoNaoExplicada = Math.round((reducaoTotal - reducaoExplicada) * 100) / 100;
+
+
     // 4. Últimas observações (analista/validador/diretor)
     const { data: observations } = await supabase
       .from("payment_observations")
