@@ -572,6 +572,15 @@ export default function Doctors() {
           </div>
         </div>
 
+        <Tabs defaultValue="list" className="w-full">
+          <TabsList>
+            <TabsTrigger value="list">Cadastro de médicos</TabsTrigger>
+            <TabsTrigger value="pending">Pendências de cadastro</TabsTrigger>
+          </TabsList>
+          <TabsContent value="pending" className="mt-4">
+            <DoctorRegistrationPendingPanel />
+          </TabsContent>
+          <TabsContent value="list" className="mt-4">
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
