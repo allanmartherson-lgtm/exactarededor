@@ -31,9 +31,9 @@ export async function claimPayment(
   }
 
   const action = previous && previous !== userId ? "transferiu" : "assumiu";
-  const { error } = await (supabase.from as unknown as (t: string) => ReturnType<typeof supabase.from>)(
-    "payment_assignments",
-  ).insert({
+  const { error } = await (supabase as unknown as { from: (t: string) => { insert: (v: Record<string, unknown>) => Promise<{ error: { message: string } | null }> } })
+    .from("payment_assignments")
+    .insert({
     payment_id: paymentId,
     analyst_id: userId,
     previous_analyst_id: previous,

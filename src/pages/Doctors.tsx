@@ -16,6 +16,8 @@ import { toast } from "@/hooks/use-toast";
 import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
 import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DoctorRegistrationPendingPanel } from "@/components/doctors/DoctorRegistrationPendingPanel";
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
@@ -570,6 +572,15 @@ export default function Doctors() {
           </div>
         </div>
 
+        <Tabs defaultValue="list" className="w-full">
+          <TabsList>
+            <TabsTrigger value="list">Cadastro de médicos</TabsTrigger>
+            <TabsTrigger value="pending">Pendências de cadastro</TabsTrigger>
+          </TabsList>
+          <TabsContent value="pending" className="mt-4">
+            <DoctorRegistrationPendingPanel />
+          </TabsContent>
+          <TabsContent value="list" className="mt-4">
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
@@ -696,6 +707,8 @@ export default function Doctors() {
             </div>
           )}
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -47,6 +47,7 @@ import { usePaymentRisk } from "@/hooks/usePaymentRisk";
 import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { SafeCard } from "@/components/ui/SafeCard";
 import RecentQuestionsPanel from "@/components/dashboard/RecentQuestionsPanel";
+import { RegistrationPendingCard } from "@/components/dashboard/RegistrationPendingCard";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
@@ -2557,6 +2558,9 @@ const Dashboard = () => {
           )}
         </SurfaceCard>
       </section>
+
+      {/* ALERTA: PENDÊNCIAS DE CADASTRO (médico / PJ) */}
+      <RegistrationPendingCard />
 
       {/* ÚLTIMOS QUESTIONAMENTOS */}
       <RecentQuestionsPanel />
