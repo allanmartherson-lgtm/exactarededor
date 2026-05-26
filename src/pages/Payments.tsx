@@ -303,7 +303,7 @@ const Payments = () => {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("payments")
-      .select("id,reference,status,total_amount,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred")
+      .select("id,reference,status,total_amount,bruto_total,liquido_total,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred")
       .order("created_at", { ascending: false });
     
     const list = (data ?? []) as Row[];
