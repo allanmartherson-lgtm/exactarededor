@@ -564,7 +564,6 @@ export default function Doctors() {
                     </h3>
                     <Textarea value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} placeholder="Notas, contatos adicionais..." />
                   </section>
-                  </div>
                 </form>
               </FormDialog>
             </>
