@@ -106,6 +106,28 @@ export default function GlosaResolutionPanel() {
     load();
   };
 
+  const ignore = async (debt: Debt) => {
+    const reason = window.prompt(
+      `Marcar glosa de ${debt.doctor_name} (${brl(Number(debt.total_debt))}) como NÃO APLICAR.\n\nMotivo (ficará registrado no histórico):`
+    );
+    if (!reason || reason.trim().length < 3) {
+      if (reason !== null) toast.error("Informe um motivo com pelo menos 3 caracteres.");
+      return;
+    }
+    setBusyId(debt.id);
+    const { error } = await (supabase as any).rpc("ignore_glosa_debt", {
+      _debt_id: debt.id,
+      _reason: reason.trim(),
+    });
+    setBusyId(null);
+    if (error) {
+      toast.error("Erro ao ignorar: " + error.message);
+      return;
+    }
+    toast.success("Glosa marcada como não aplicar.");
+    load();
+  };
+
   if (loading) return null;
   if (pendentes.length === 0) return null;
 
