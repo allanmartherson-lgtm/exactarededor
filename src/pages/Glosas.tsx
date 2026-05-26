@@ -1056,7 +1056,7 @@ export default function Glosas() {
 
       {/* Modal de confirmação de importação */}
       <Dialog open={!!importPreview} onOpenChange={() => setImportPreview(null)}>
-        <DialogContent style={{ maxWidth: 580 }}>
+        <DialogContent style={{ maxWidth: 580, width: "calc(100vw - 32px)", maxHeight: "85vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <DialogHeader>
             <DialogTitle>Confirmar importação da base</DialogTitle>
             <DialogDescription>
@@ -1065,7 +1065,7 @@ export default function Glosas() {
           </DialogHeader>
 
           {importPreview && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", overflowX: "hidden", minHeight: 0, flex: 1, paddingRight: 4 }}>
               <div>
                 <Label style={{ fontSize: 12, marginBottom: 4, display: "block" }}>Nome da base</Label>
                 <Input
