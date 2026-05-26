@@ -265,6 +265,11 @@ export function ItemsDataGrid({
         .toLowerCase()
         .includes(term);
     }).sort((a, b) => {
+      // Ajustes de conciliação sempre no final
+      const aIsAdjust = !!(a as any).item_origem && (a as any).item_origem !== "pagamento_atual";
+      const bIsAdjust = !!(b as any).item_origem && (b as any).item_origem !== "pagamento_atual";
+      if (aIsAdjust && !bIsAdjust) return 1;
+      if (!aIsAdjust && bIsAdjust) return -1;
       const prioOf = (it: typeof items[number]) => {
         const eff = effectiveItemAiStatus(it.ai_status as ItemAiStatus, groupStatus);
         if (eff === "reprovado") return 0;
@@ -279,6 +284,7 @@ export function ItemsDataGrid({
       return Number(b.gross_amount ?? 0) - Number(a.gross_amount ?? 0);
     });
   }, [items, filter, patientFilter, doctorFilter, statusFilter, convenioFilter, onlyAlerts, onlyNeedsReview, onlyValidationAlerts, groupStatus]);
+
 
   // Totais da seleção atual (após filtros).
   // gross_amount/expected_amount já representam o valor da linha como
