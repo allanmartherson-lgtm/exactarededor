@@ -84,12 +84,13 @@ export const ReleaseInvoiceRequestDialog = ({ open, onOpenChange, paymentId, gro
         await supabase.from("companies").update({ invoice_emails: emails }).eq("id", group.company_id);
       }
 
+      const valorPedido = Number(group.liquido_total ?? group.total_amount) || 0;
       const { error: invErr } = await supabase.from("invoices").insert({
         payment_id: paymentId,
         company_group_id: group.id,
         company_id: group.company_id ?? null,
         company_name: group.company_name,
-        expected_amount: Number(group.total_amount) || 0,
+        expected_amount: valorPedido,
         items_count: group.items_count ?? 0,
         recipient_email: emails[0],
         recipient_cc: emails.slice(1),
