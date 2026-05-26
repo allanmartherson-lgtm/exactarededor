@@ -64,6 +64,7 @@ const Companies = () => {
   const [items, setItems] = useState<Company[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Company>(empty);
+  const [financeFor, setFinanceFor] = useState<{ id: string; name: string } | null>(null);
   const [aliasInput, setAliasInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [search, setSearch] = useState("");
