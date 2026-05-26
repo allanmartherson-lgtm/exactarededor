@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormDialog } from "@/components/FormDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X } from "lucide-react";
+import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
@@ -43,6 +44,9 @@ interface Doctor {
   specialties: string[];
   active: boolean;
   notes: string | null;
+  cpf: string | null;
+  birth_date: string | null;
+  vinculo: string | null;
 }
 interface Company { id: string; name: string; document: string | null; }
 interface Link { doctor_id: string; company_id: string; }
@@ -50,6 +54,7 @@ interface Link { doctor_id: string; company_id: string; }
 const empty: Doctor = {
   id: "", full_name: "", crm: "", crm_uf: "", email: "", phone: "",
   specialties: [], active: true, notes: "",
+  cpf: "", birth_date: "", vinculo: "",
 };
 
 const norm = (s: string) =>
@@ -199,6 +204,12 @@ export default function Doctors() {
       if (!ok) return;
     }
 
+    const cpfClean = cpfOnlyDigits(editing.cpf ?? "");
+    if (cpfClean && !isValidCPF(cpfClean)) {
+      toast({ title: "CPF inválido", description: "Verifique os dígitos.", variant: "destructive" });
+      return;
+    }
+
     const payload = {
       full_name: name,
       crm,
@@ -208,6 +219,9 @@ export default function Doctors() {
       specialties: editing.specialties,
       active: editing.active,
       notes: editing.notes?.trim() || null,
+      cpf: cpfClean || null,
+      birth_date: editing.birth_date?.trim() || null,
+      vinculo: editing.vinculo?.trim() || null,
     };
 
     let savedId = editing.id;
@@ -372,69 +386,131 @@ export default function Doctors() {
                   </div>
                 }
               >
-                <form id="doctor-form" onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="md:col-span-3 space-y-1.5">
-                      <Label>Nome completo *</Label>
-                      <Input value={editing.full_name} onChange={(e) => setEditing({ ...editing, full_name: e.target.value })} />
+                <form id="doctor-form" onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-6">
+                  {/* Seção 1 — Identificação */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <IdCard className="h-3.5 w-3.5" /> Identificação
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                      <div className="md:col-span-6 space-y-1.5">
+                        <Label>Nome completo *</Label>
+                        <Input value={editing.full_name} onChange={(e) => setEditing({ ...editing, full_name: e.target.value })} />
+                      </div>
+                      <div className="md:col-span-3 space-y-1.5">
+                        <Label>CPF</Label>
+                        <Input
+                          value={editing.cpf ? formatCPF(editing.cpf) : ""}
+                          onChange={(e) => setEditing({ ...editing, cpf: cpfOnlyDigits(e.target.value) })}
+                          placeholder="000.000.000-00"
+                          inputMode="numeric"
+                          maxLength={14}
+                        />
+                      </div>
+                      <div className="md:col-span-3 space-y-1.5">
+                        <Label>Data de nascimento</Label>
+                        <Input
+                          type="date"
+                          value={editing.birth_date ?? ""}
+                          onChange={(e) => setEditing({ ...editing, birth_date: e.target.value })}
+                        />
+                      </div>
                     </div>
-                    <div className="md:col-span-2 space-y-1.5">
-                      <Label>CRM *</Label>
-                      <Input value={editing.crm} onChange={(e) => setEditing({ ...editing, crm: e.target.value.replace(/\D/g, "") })} inputMode="numeric" />
+                  </section>
+
+                  {/* Seção 2 — Conselho */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Stethoscope className="h-3.5 w-3.5" /> Conselho profissional
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="md:col-span-2 space-y-1.5">
+                        <Label>CRM *</Label>
+                        <Input value={editing.crm} onChange={(e) => setEditing({ ...editing, crm: e.target.value.replace(/\D/g, "") })} inputMode="numeric" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>UF *</Label>
+                        <Select value={editing.crm_uf} onValueChange={(v) => setEditing({ ...editing, crm_uf: v })}>
+                          <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                          <SelectContent>
+                            {UFS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Seção 3 — Contato */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5" /> Contato
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>E-mail</Label>
+                        <Input type="email" value={editing.email ?? ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> Telefone</Label>
+                        <Input value={editing.phone ?? ""} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Seção 4 — Atuação */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Tag className="h-3.5 w-3.5" /> Atuação
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Vínculo</Label>
+                        <Input
+                          value={editing.vinculo ?? ""}
+                          onChange={(e) => setEditing({ ...editing, vinculo: e.target.value })}
+                          placeholder="Ex: Staff, Externo, Plantonista..."
+                        />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex items-center gap-2 pb-2">
+                          <Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} />
+                          <Label>Ativo</Label>
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>UF *</Label>
-                      <Select value={editing.crm_uf} onValueChange={(v) => setEditing({ ...editing, crm_uf: v })}>
-                        <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
-                        <SelectContent>
-                          {UFS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <Label>Especialidade(s)</Label>
+                      <Input
+                        value={specInput}
+                        onChange={(e) => setSpecInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && specInput.trim()) {
+                            e.preventDefault();
+                            setEditing({ ...editing, specialties: [...editing.specialties, specInput.trim()] });
+                            setSpecInput("");
+                          }
+                        }}
+                        placeholder="Pressione Enter para adicionar"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        {editing.specialties.map((s, i) => (
+                          <Badge key={i} variant="secondary" className="gap-1">
+                            {s}
+                            <button type="button" onClick={() => setEditing({ ...editing, specialties: editing.specialties.filter((_, j) => j !== i) })}>×</button>
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label>E-mail</Label>
-                      <Input type="email" value={editing.email ?? ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Telefone</Label>
-                      <Input value={editing.phone ?? ""} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>Especialidade(s)</Label>
-                    <Input
-                      value={specInput}
-                      onChange={(e) => setSpecInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && specInput.trim()) {
-                          e.preventDefault();
-                          setEditing({ ...editing, specialties: [...editing.specialties, specInput.trim()] });
-                          setSpecInput("");
-                        }
-                      }}
-                      placeholder="Pressione Enter para adicionar"
-                    />
-                    <div className="flex flex-wrap gap-1.5">
-                      {editing.specialties.map((s, i) => (
-                        <Badge key={i} variant="secondary" className="gap-1">
-                          {s}
-                          <button onClick={() => setEditing({ ...editing, specialties: editing.specialties.filter((_, j) => j !== i) })}>×</button>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} />
-                    <Label>Ativo</Label>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-2"><Building2 className="h-4 w-4" /> Empresas / PJs vinculadas</Label>
+                  {/* Seção 5 — Empresas / PJs */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5" /> Empresas / PJs vinculadas
+                      {editingCompanyIds.length > 0 && (
+                        <Badge variant="outline" className="text-[10px] h-4 ml-1">{editingCompanyIds.length}</Badge>
+                      )}
+                    </h3>
                     <Input
                       placeholder="Buscar empresa..."
                       value={companySearch}
@@ -471,7 +547,7 @@ export default function Doctors() {
                           return (
                             <Badge key={cid} variant="outline" className="gap-1">
                               {c.name}
-                              <button onClick={() => setEditingCompanyIds(editingCompanyIds.filter((id) => id !== cid))}>
+                              <button type="button" onClick={() => setEditingCompanyIds(editingCompanyIds.filter((id) => id !== cid))}>
                                 <X className="h-3 w-3" />
                               </button>
                             </Badge>
@@ -479,12 +555,15 @@ export default function Doctors() {
                         })}
                       </div>
                     )}
-                  </div>
+                  </section>
 
-                  <div className="space-y-1.5">
-                    <Label>Observações internas</Label>
+                  {/* Seção 6 — Observações */}
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Briefcase className="h-3.5 w-3.5" /> Observações internas
+                    </h3>
                     <Textarea value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} placeholder="Notas, contatos adicionais..." />
-                  </div>
+                  </section>
                 </form>
               </FormDialog>
             </>
