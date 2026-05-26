@@ -2638,6 +2638,20 @@ const PaymentDetail = () => {
                   Relatório
                 </Button>
               ) : null}
+
+              <Button
+                variant={onlyRegIssues ? "default" : "outline"}
+                size="sm"
+                className={cn(
+                  "h-8 px-3 text-xs gap-1.5 border-dashed",
+                  onlyRegIssues ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "text-amber-700 border-amber-400/60",
+                )}
+                onClick={() => setOnlyRegIssues((v) => !v)}
+                title="Mostrar apenas itens com médico não cadastrado ou PJ sem vínculo no cadastro"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Pend. cadastro {regIssueItemIds.size > 0 && `(${regIssueItemIds.size})`}
+              </Button>
             </div>
           </div>
           
