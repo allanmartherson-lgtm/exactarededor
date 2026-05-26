@@ -192,6 +192,15 @@ export default function Glosas() {
   const [uploadingConc, setUploadingConc] = useState(false);
   const concFileRef = useRef<HTMLInputElement>(null);
   const [expandedConcBase, setExpandedConcBase] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    file: File;
+    rows: any[];
+    colMap: Record<string, string>;
+    competenceMonth: string;
+    reference: string;
+    terceirosUnicos: string[];
+    sheetName: string;
+  } | null>(null);
 
   const loadBatches = useCallback(async () => {
     setLoading(true);
@@ -214,7 +223,7 @@ export default function Glosas() {
     setConcBases(data ?? []);
   }, []);
 
-  const uploadConcBase = async (file: File) => {
+  const prepareImportPreview = async (file: File) => {
     setUploadingConc(true);
     try {
       const buf = await file.arrayBuffer();
@@ -268,31 +277,65 @@ export default function Glosas() {
 
       let competenceMonth = "";
       const dateCol = colMap["date"];
-      // Tentar extrair de rows[0] (já convertido para string ISO)
-      if (dateCol && rows[0]) {
-        const v = rows[0][dateCol];
-        if (v instanceof Date) {
-          competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
-        } else if (typeof v === "string" && v.length >= 7) {
-          competenceMonth = v.slice(0, 7);
+
+      const parseDateToYearMonth = (v: any): string => {
+        if (!v) return "";
+        if (v instanceof Date && !isNaN(v.getTime())) {
+          return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        }
+        const s = String(v).trim();
+        if (/^\d{4}-\d{2}/.test(s)) return s.slice(0, 7);
+        const brMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (brMatch) return `${brMatch[3]}-${brMatch[2].padStart(2, "0")}`;
+        if (typeof v === "number" && v > 40000) {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+          if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        }
+        return "";
+      };
+
+      if (dateCol) {
+        for (const row of rows.slice(0, 20)) {
+          const result = parseDateToYearMonth(row[dateCol]);
+          if (result) { competenceMonth = result; break; }
         }
       }
-      // Fallback: tentar em rawRows antes da sanitização
       if (!competenceMonth && dateCol) {
-        for (const raw of rawRows.slice(0, 10)) {
-          const v = raw[dateCol];
-          if (v instanceof Date) {
-            competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
-            break;
-          } else if (typeof v === "string" && /^\d{4}-\d{2}/.test(v)) {
-            competenceMonth = v.slice(0, 7);
-            break;
-          }
+        for (const raw of rawRows.slice(0, 20)) {
+          const result = parseDateToYearMonth(raw[dateCol]);
+          if (result) { competenceMonth = result; break; }
         }
       }
 
+      const companyCol = colMap["company"];
+      const terceirosUnicos = companyCol
+        ? [...new Set(rows.map(r => String(r[companyCol] ?? "").trim()).filter(Boolean))]
+        : [];
+
+      setImportPreview({
+        file,
+        rows,
+        colMap,
+        competenceMonth,
+        reference: `Conciliação ${competenceMonth ? new Date(competenceMonth + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : new Date().toLocaleDateString("pt-BR")} — ${file.name.replace(/\.[^.]+$/, "")}`,
+        terceirosUnicos,
+        sheetName,
+      });
+    } catch (e: any) {
+      toast.error("Erro ao ler planilha", { description: e.message });
+    } finally {
+      setUploadingConc(false);
+    }
+  };
+
+  const confirmImportConcBase = async () => {
+    if (!importPreview) return;
+    setUploadingConc(true);
+    try {
+      const { file, rows, colMap, competenceMonth, reference, sheetName } = importPreview;
+
       const { error } = await (supabase as any).from("conciliation_bases").insert({
-        reference: `Conciliação ${new Date().toLocaleDateString("pt-BR")} — ${file.name.replace(/\.[^.]+$/, "")}`,
+        reference,
         competence_month: competenceMonth || null,
         file_name: file.name,
         sheet_name: sheetName,
@@ -376,6 +419,7 @@ export default function Glosas() {
         console.warn("Auto-match de PJ falhou:", e);
       }
 
+      setImportPreview(null);
       loadConcBases();
     } catch (e: any) {
       toast.error("Erro ao importar base", { description: e.message });
@@ -868,7 +912,7 @@ export default function Glosas() {
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
-                  onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
+                  onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await prepareImportPreview(file); e.target.value = ""; }} />
                 <Button onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
                   {uploadingConc
                     ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
@@ -1009,6 +1053,113 @@ export default function Glosas() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de confirmação de importação */}
+      <Dialog open={!!importPreview} onOpenChange={() => setImportPreview(null)}>
+        <DialogContent style={{ maxWidth: 580 }}>
+          <DialogHeader>
+            <DialogTitle>Confirmar importação da base</DialogTitle>
+            <DialogDescription>
+              Revise as informações antes de salvar. Você pode editar o nome e a competência.
+            </DialogDescription>
+          </DialogHeader>
+
+          {importPreview && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <Label style={{ fontSize: 12, marginBottom: 4, display: "block" }}>Nome da base</Label>
+                <Input
+                  value={importPreview.reference}
+                  onChange={e => setImportPreview(prev => prev ? { ...prev, reference: e.target.value } : prev)}
+                  style={{ fontSize: 13 }}
+                />
+              </div>
+
+              <div>
+                <Label style={{ fontSize: 12, marginBottom: 4, display: "block" }}>
+                  Competência (mês de referência)
+                </Label>
+                <Input
+                  type="month"
+                  value={importPreview.competenceMonth}
+                  onChange={e => setImportPreview(prev => prev ? { ...prev, competenceMonth: e.target.value } : prev)}
+                  style={{ fontSize: 13, width: 200 }}
+                />
+                {!importPreview.competenceMonth && (
+                  <p style={{ fontSize: 11, color: "hsl(var(--destructive))", marginTop: 4 }}>
+                    ⚠ Competência não detectada automaticamente — informe manualmente
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {[
+                  { label: "Linhas", value: importPreview.rows.length.toLocaleString("pt-BR") },
+                  { label: "Empresas únicas", value: importPreview.terceirosUnicos.length },
+                  { label: "Colunas detectadas", value: Object.keys(importPreview.colMap).length },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: "hsl(var(--muted))", borderRadius: 8, padding: "10px 14px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 300, color: "hsl(var(--foreground))" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {importPreview.terceirosUnicos.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--muted-foreground))", marginBottom: 6 }}>
+                    Empresas na base ({importPreview.terceirosUnicos.length})
+                  </div>
+                  <div style={{ maxHeight: 120, overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {importPreview.terceirosUnicos.map(t => (
+                      <span key={t} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 9999, background: "hsl(var(--muted))", color: "hsl(var(--foreground))", border: "1px solid hsl(var(--border))" }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "hsl(var(--muted-foreground))", marginBottom: 6 }}>
+                  Prévia (5 primeiras linhas)
+                </div>
+                <div style={{ overflowX: "auto", border: "1px solid hsl(var(--border))", borderRadius: 8 }}>
+                  <table style={{ width: "100%", fontSize: 10, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "hsl(var(--muted))" }}>
+                        {Object.values(importPreview.colMap).slice(0, 6).map((col, i) => (
+                          <th key={i} style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>
+                            {Object.keys(importPreview.colMap)[i]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.rows.slice(0, 5).map((row, i) => (
+                        <tr key={i} style={{ borderTop: "1px solid hsl(var(--border))" }}>
+                          {Object.values(importPreview.colMap).slice(0, 6).map((col, j) => (
+                            <td key={j} style={{ padding: "5px 10px", color: "hsl(var(--foreground))", whiteSpace: "nowrap", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {String(row[col] ?? "—")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPreview(null)}>Cancelar</Button>
+            <Button onClick={confirmImportConcBase} disabled={uploadingConc}>
+              {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Salvando…</> : "Confirmar importação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ColumnMappingModal
         open={mappingOpen}
