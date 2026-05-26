@@ -533,6 +533,9 @@ const Companies = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => setFinanceFor({ id: item.id, name: item.name })} className="h-8 w-8" title="Financeiro / ajustes">
+                        <Wallet className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => { setEditing(item); setOpen(true); }} className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
                       </Button>
