@@ -653,7 +653,8 @@ export function ItemsDataGrid({
                       </div>
                     </div>
                   </li>
-                </>
+                </Fragment>
+
               );
             })}
 
