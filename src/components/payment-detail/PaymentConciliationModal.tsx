@@ -752,6 +752,7 @@ export function PaymentConciliationModal({
           // Mantém o rótulo da regra apenas como CONTEXTO informativo — não entra no cálculo da divergência
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
+          base.valor_regra = (match as any).expected_amount ?? null;
 
           const diff = valHosp - valMed;
           if (Math.abs(diff) < 0.02) {
