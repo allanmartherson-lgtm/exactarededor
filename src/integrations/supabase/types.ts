@@ -1604,11 +1604,13 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          bruto_total: number
           company_id: string | null
           company_name: string
           created_at: string
           id: string
           items_count: number
+          liquido_total: number
           payment_id: string
           rejected_at: string | null
           rejected_by: string | null
@@ -1622,11 +1624,13 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          bruto_total?: number
           company_id?: string | null
           company_name: string
           created_at?: string
           id?: string
           items_count?: number
+          liquido_total?: number
           payment_id: string
           rejected_at?: string | null
           rejected_by?: string | null
@@ -1640,11 +1644,13 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          bruto_total?: number
           company_id?: string | null
           company_name?: string
           created_at?: string
           id?: string
           items_count?: number
+          liquido_total?: number
           payment_id?: string
           rejected_at?: string | null
           rejected_by?: string | null
@@ -2336,6 +2342,7 @@ export type Database = {
           approval_pdf_path: string | null
           approved_at: string | null
           approved_by: string | null
+          bruto_total: number
           competence_month: string | null
           competence_months: string[]
           cost_center_code: string | null
@@ -2344,6 +2351,7 @@ export type Database = {
           description: string | null
           id: string
           items_count: number
+          liquido_total: number
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_type: string | null
@@ -2365,6 +2373,7 @@ export type Database = {
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
           cost_center_code?: string | null
@@ -2373,6 +2382,7 @@ export type Database = {
           description?: string | null
           id?: string
           items_count?: number
+          liquido_total?: number
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: string | null
@@ -2394,6 +2404,7 @@ export type Database = {
           approval_pdf_path?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          bruto_total?: number
           competence_month?: string | null
           competence_months?: string[]
           cost_center_code?: string | null
@@ -2402,6 +2413,7 @@ export type Database = {
           description?: string | null
           id?: string
           items_count?: number
+          liquido_total?: number
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: string | null
@@ -4208,6 +4220,10 @@ export type Database = {
           p_message: string
         }
         Returns: string
+      }
+      recompute_payment_liquido: {
+        Args: { _payment_id: string }
+        Returns: undefined
       }
       recompute_payment_status_from_groups: {
         Args: { _payment_id: string }
