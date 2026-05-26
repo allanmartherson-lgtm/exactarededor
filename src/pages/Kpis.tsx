@@ -99,7 +99,7 @@ const Kpis = () => {
 
   const metrics = useMemo(() => {
     const total = myPayments.length;
-    const valor = myPayments.reduce((s, p) => s + Number(p.total_amount ?? 0), 0);
+    const valor = myPayments.reduce((s, p: any) => s + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
 
     // Tempo médio até aprovação (created_at -> approved_at)
     const aprovados = myPayments.filter((p) => !!p.approved_at);
