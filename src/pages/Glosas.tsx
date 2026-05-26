@@ -912,7 +912,7 @@ export default function Glosas() {
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
-                  onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
+                  onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await prepareImportPreview(file); e.target.value = ""; }} />
                 <Button onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
                   {uploadingConc
                     ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
