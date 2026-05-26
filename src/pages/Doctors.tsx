@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormDialog } from "@/components/FormDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X } from "lucide-react";
+import { Stethoscope, Plus, Trash2, Pencil, Upload, Download, Building2, X, IdCard, Phone, Mail, Briefcase, Tag } from "lucide-react";
 import { ImportWizard, type ImportProfile } from "@/components/ImportWizard";
+import { formatCPF, isValidCPF, onlyDigits as cpfOnlyDigits } from "@/lib/cpf";
 
 const DOCTORS_IMPORT_PROFILE: ImportProfile = {
   entity: "doctors",
