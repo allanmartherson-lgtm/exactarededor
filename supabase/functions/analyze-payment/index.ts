@@ -47,10 +47,23 @@ serve(async (req) => {
     status: "processing"
   };
 
+  // Hoisted p/ ficar acessível ao catch (req.json() consome o body, então
+  // tentar req.clone().json() depois falha silenciosamente e o job trava).
+  let __payment_id: string | undefined;
+  let __job_id: string | undefined;
+  let __company_label: string | undefined;
+  let __company_name: string | undefined;
+
   try {
-    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = await req.json();
+    const parsedBody = await req.json();
+    const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = parsedBody;
+    __payment_id = payment_id;
+    __job_id = _job_id;
+    __company_label = _company_label;
+    __company_name = company_name;
     // [TIMING] prefixo curto p/ diferenciar workers concorrentes nos logs
     const __t = `[T:${(_company_label ?? company_name ?? "all").toString().slice(0, 24)}]`;
+
     if (!payment_id || typeof payment_id !== "string") {
       return new Response(JSON.stringify({ error: "payment_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
