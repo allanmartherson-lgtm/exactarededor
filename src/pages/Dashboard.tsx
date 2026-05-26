@@ -3090,7 +3090,7 @@ const TaskRow = ({
               {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
             </span>
             {" · "}{p.items_count} itens
-            {" · "}<span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency(p.total_amount)}</span>
+            {" · "}<span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency((p as any).liquido_total ?? p.total_amount)}</span>
             {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
             {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
             {" · "}{formatDate(p.created_at)}
