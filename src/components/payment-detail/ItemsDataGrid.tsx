@@ -599,7 +599,8 @@ export function ItemsDataGrid({
               const prevIsAdjust = !!prev && !!(prev as any).item_origem && (prev as any).item_origem !== "pagamento_atual";
               const isFirstAdjust = isAdjust && !prevIsAdjust;
               return (
-                <>
+                <Fragment key={it.id}>
+
                   {isFirstAdjust && (
                     <li
                       key={`adj-sep-${it.id}`}
