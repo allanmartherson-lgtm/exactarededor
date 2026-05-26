@@ -3986,7 +3986,7 @@ export type Database = {
         Returns: undefined
       }
       link_glosa_to_company: {
-        Args: { _company_id: string; _debt_id: string; _parcelas?: number }
+        Args: { _company_id: string; _debt_id: string; _parcelas: number }
         Returns: string
       }
       link_unmatched_items_to_company: {
