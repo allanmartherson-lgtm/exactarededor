@@ -72,6 +72,12 @@ type ReconciliationItem = {
   agreement_text: string | null;
   applied_rule_label: string | null;
   applied_calc_method: string | null;
+  valor_regra?: number | null;
+  action_taken?: string | null;
+  action_by?: string | null;
+  action_at?: string | null;
+  doctor_document?: string | null;
+  competence_month?: string | null;
 };
 
 interface Props {
@@ -166,6 +172,7 @@ export function PaymentConciliationModal({
   const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Busca e filtros adicionais (texto livre, médico, faixa de valor)
   const [searchTerm, setSearchTerm] = useState("");
@@ -728,6 +735,7 @@ export function PaymentConciliationModal({
           agreement_text: getCell(row, "agreement") ? String(getCell(row, "agreement")) : null,
           applied_rule_label: null,
           applied_calc_method: null,
+          valor_regra: null,
         };
 
         if (match) {
@@ -744,6 +752,7 @@ export function PaymentConciliationModal({
           // Mantém o rótulo da regra apenas como CONTEXTO informativo — não entra no cálculo da divergência
           base.applied_rule_label = (match as any).applied_rule_label ?? null;
           base.applied_calc_method = (match as any).applied_calc_method ?? null;
+          base.valor_regra = (match as any).expected_amount ?? null;
 
           const diff = valHosp - valMed;
           if (Math.abs(diff) < 0.02) {
@@ -790,6 +799,7 @@ export function PaymentConciliationModal({
           company_name: it.company_name ?? null,
           status: "so_medpay",
           ia_obs: `Item de ${it.company_name ?? "empresa"} presente no MedPay mas ausente no extrato hospitalar — verificar glosa.`,
+          valor_regra: (it as any).expected_amount ?? null,
         });
         so_medpay++;
         risco_menos += valMed;
@@ -1191,6 +1201,116 @@ export function PaymentConciliationModal({
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
   const pendingCount = hospitalCompanies.filter((t) => !companyMapping[t]).length;
+
+  const handleAction = async (
+    item: ReconciliationItem,
+    action: 'incorporar_credito' | 'incorporar_debito' | 'marcar_glosa' | 'revisar_manual' | 'ignorar',
+    note?: string,
+  ) => {
+    if (!user) return;
+    setActionLoading(item.id);
+    try {
+      let appliedPaymentId: string | null = null;
+      let appliedPaymentItemId: string | null = null;
+
+      if (action === 'incorporar_credito' || action === 'incorporar_debito') {
+        const { data: groups } = await supabase
+          .from('payment_company_groups')
+          .select('payment_id, payments!inner(id, status, reference, created_at)')
+          .eq('company_name', item.company_name ?? '')
+          .in('payments.status', ['revisao_analista', 'concluida_analista', 'devolvido_analista'])
+          .order('payments(created_at)', { ascending: false })
+          .limit(1);
+
+        if (!groups || groups.length === 0) {
+          toast({
+            title: 'Nenhum lote ativo encontrado para esta empresa',
+            description: 'Crie ou abra um lote em andamento para esta empresa antes de incorporar itens.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const targetPaymentId = (groups[0].payments as any).id;
+        const targetRef = (groups[0].payments as any).reference;
+
+        const valorConvenio = Number(item.valor_hospital ?? 0);
+        const valorMedpay = Number(item.valor_medpay ?? 0);
+        const diferenca = Math.abs(valorConvenio - valorMedpay);
+        const isCredito = action === 'incorporar_credito';
+        const valorAjuste = isCredito
+          ? (item.status === 'so_hospital' ? (item.valor_regra ?? valorConvenio) : diferenca)
+          : diferenca;
+
+        const { data: newItem, error: itemErr } = await supabase
+          .from('payment_items')
+          .insert({
+            payment_id: targetPaymentId,
+            doctor_name: item.doctor_name ?? '—',
+            doctor_document: item.doctor_document ?? null,
+            company_name: item.company_name ?? null,
+            procedure_code: item.procedure_code ?? null,
+            procedure_name: item.procedure_name ?? null,
+            procedure_date: item.procedure_date ?? null,
+            patient_name: item.patient_name ?? null,
+            agreement_text: item.agreement_text ?? null,
+            gross_amount: isCredito ? valorAjuste : -valorAjuste,
+            expected_amount: isCredito ? valorAjuste : -valorAjuste,
+            ai_status: 'aprovado',
+            item_origem: isCredito ? 'conciliacao_credito' : 'conciliacao_debito',
+            origem_referencia: `Conciliação ${item.competence_month ?? (run as any)?.competence_month ?? ''}`.trim(),
+            origem_reconciliation_item_id: item.id,
+          } as any)
+          .select('id')
+          .single();
+
+        if (itemErr || !newItem) throw new Error(itemErr?.message ?? 'Erro ao criar item de ajuste');
+        appliedPaymentId = targetPaymentId;
+        appliedPaymentItemId = newItem.id;
+
+        toast({
+          title: `Item ${isCredito ? 'creditado' : 'debitado'} no lote "${targetRef}"`,
+          description: `${formatCurrency(valorAjuste)} adicionado como ajuste de conciliação`,
+        });
+      }
+
+      await supabase
+        .from('reconciliation_items')
+        .update({
+          action_taken: action,
+          action_by: user.id,
+          action_at: new Date().toISOString(),
+          action_note: note ?? null,
+          applied_payment_id: appliedPaymentId,
+          applied_payment_item_id: appliedPaymentItemId,
+        } as any)
+        .eq('id', item.id);
+
+      if (action === 'incorporar_credito' || action === 'incorporar_debito') {
+        if (selectedBase?.id) {
+          await supabase
+            .from('conciliation_bases')
+            .update({ tem_itens_aplicados: true } as any)
+            .eq('id', selectedBase.id);
+        }
+      }
+
+      setItems(prev =>
+        prev.map(ri => ri.id === item.id
+          ? { ...ri, action_taken: action, action_by: user.id, action_at: new Date().toISOString() }
+          : ri,
+        ),
+      );
+
+      if (action === 'ignorar') toast({ title: 'Item marcado como ignorado' });
+      if (action === 'revisar_manual') toast({ title: 'Item marcado para revisão manual' });
+      if (action === 'marcar_glosa') toast({ title: 'Item marcado como glosa', description: 'Será processado no fluxo de glosas.' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao processar ação', description: e.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1974,6 +2094,12 @@ export function PaymentConciliationModal({
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Hospital (R$)
                                   </TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right">
+                                    Valor Regra
+                                  </TableHead>
+                                  <TableHead className="px-3 py-1.5 text-[10px] text-right">
+                                    Diferença Regra
+                                  </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Status</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -2015,6 +2141,20 @@ export function PaymentConciliationModal({
                                             ? formatCurrency(Number(it.valor_hospital))
                                             : "—"}
                                         </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums" style={{ color: it.valor_regra ? undefined : 'hsl(var(--muted-foreground))' }}>
+                                          {it.valor_regra
+                                            ? formatCurrency(Number(it.valor_regra))
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums font-semibold" style={{
+                                          color: it.valor_regra && it.valor_hospital
+                                            ? (Number(it.valor_regra) > Number(it.valor_hospital) ? 'hsl(var(--success))' : 'hsl(var(--destructive))')
+                                            : 'hsl(var(--muted-foreground))',
+                                        }}>
+                                          {it.valor_regra && it.valor_hospital
+                                            ? formatCurrency(Number(it.valor_regra) - Number(it.valor_hospital))
+                                            : "—"}
+                                        </TableCell>
                                         <TableCell className="px-3 py-2">
                                           <span
                                             className={cn(
@@ -2028,7 +2168,7 @@ export function PaymentConciliationModal({
                                       </TableRow>
                                       {isRowOpen && it.ia_obs && (
                                         <TableRow key={`${it.id}-exp`}>
-                                          <TableCell colSpan={7} className="bg-muted/30 px-4 py-3">
+                                          <TableCell colSpan={9} className="bg-muted/30 px-4 py-3">
                                             <div className="flex gap-3">
                                               <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                               <div className="flex-1">
@@ -2047,21 +2187,77 @@ export function PaymentConciliationModal({
                                                     )}
                                                   </div>
                                                 )}
-                                                <div className="flex gap-2 mt-2">
-                                                  {it.status === "so_hospital" && (
-                                                    <Button size="sm">Incorporar ao ciclo</Button>
-                                                  )}
-                                                  {it.status === "so_medpay" && (
-                                                    <Button size="sm" variant="outline">
-                                                      Marcar como glosado
+                                                {!it.action_taken ? (
+                                                  <div className="flex gap-2 mt-2 flex-wrap">
+                                                    {(it.status === 'so_hospital' || it.status === 'valor_divergente') && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'incorporar_credito'); }}
+                                                        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+                                                      >
+                                                        {actionLoading === it.id ? '…' : '+ Incorporar como crédito'}
+                                                      </Button>
+                                                    )}
+                                                    {it.status === 'valor_divergente' && Number(it.valor_medpay) > Number(it.valor_hospital) && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'incorporar_debito'); }}
+                                                        className="border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                                      >
+                                                        {actionLoading === it.id ? '…' : '− Incorporar como débito'}
+                                                      </Button>
+                                                    )}
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      disabled={actionLoading === it.id}
+                                                      onClick={(e) => { e.stopPropagation(); handleAction(it, 'ignorar'); }}
+                                                    >
+                                                      Ignorar
                                                     </Button>
-                                                  )}
-                                                  {it.status === "valor_divergente" && (
-                                                    <Button size="sm" variant="outline">
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      disabled={actionLoading === it.id}
+                                                      onClick={(e) => { e.stopPropagation(); handleAction(it, 'revisar_manual'); }}
+                                                      className="border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                                                    >
                                                       Revisar manualmente
                                                     </Button>
-                                                  )}
-                                                </div>
+                                                    {it.status === 'so_medpay' && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'marcar_glosa'); }}
+                                                        className="border-yellow-500/30 bg-yellow-500/10 text-yellow-800 hover:bg-yellow-500/20 dark:text-yellow-300"
+                                                      >
+                                                        Marcar como glosa
+                                                      </Button>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <div className={cn(
+                                                    "inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-md text-[11px] font-semibold border",
+                                                    it.action_taken === 'incorporar_credito' && 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
+                                                    it.action_taken === 'incorporar_debito' && 'bg-destructive/10 text-destructive border-destructive/30',
+                                                    it.action_taken === 'ignorar' && 'bg-muted text-muted-foreground border-border',
+                                                    it.action_taken === 'revisar_manual' && 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
+                                                    it.action_taken === 'marcar_glosa' && 'bg-yellow-500/10 text-yellow-800 border-yellow-500/30 dark:text-yellow-300',
+                                                  )}>
+                                                    {({
+                                                      incorporar_credito: '✓ Crédito incorporado ao próximo lote',
+                                                      incorporar_debito: '✓ Débito incorporado ao próximo lote',
+                                                      ignorar: '— Ignorado',
+                                                      revisar_manual: '⚠ Revisão manual pendente',
+                                                      marcar_glosa: '⚠ Marcado como glosa',
+                                                    } as Record<string, string>)[it.action_taken!] ?? it.action_taken}
+                                                  </div>
+                                                )}
                                               </div>
                                             </div>
                                           </TableCell>
