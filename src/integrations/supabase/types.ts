@@ -959,34 +959,49 @@ export type Database = {
       }
       glosa_debts: {
         Row: {
+          adjustment_id: string | null
+          company_id: string | null
           created_at: string | null
           doctor_crm: string | null
           doctor_name: string
           id: string
           last_applied_at: string | null
           last_payment_id: string | null
+          parcelas_default: number
+          resolution_reason: string | null
+          resolution_status: string
           status: string
           total_debt: number
           updated_at: string | null
         }
         Insert: {
+          adjustment_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name: string
           id?: string
           last_applied_at?: string | null
           last_payment_id?: string | null
+          parcelas_default?: number
+          resolution_reason?: string | null
+          resolution_status?: string
           status?: string
           total_debt?: number
           updated_at?: string | null
         }
         Update: {
+          adjustment_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           doctor_crm?: string | null
           doctor_name?: string
           id?: string
           last_applied_at?: string | null
           last_payment_id?: string | null
+          parcelas_default?: number
+          resolution_reason?: string | null
+          resolution_status?: string
           status?: string
           total_debt?: number
           updated_at?: string | null
@@ -3970,6 +3985,10 @@ export type Database = {
         Args: { _company_id: string; _raw_name: string }
         Returns: undefined
       }
+      link_glosa_to_company: {
+        Args: { _company_id: string; _debt_id: string; _parcelas?: number }
+        Returns: string
+      }
       link_unmatched_items_to_company: {
         Args: {
           _company_id: string
@@ -4021,6 +4040,10 @@ export type Database = {
           p_is_analista?: boolean
           p_message: string
         }
+        Returns: undefined
+      }
+      resolve_glosa_to_company: {
+        Args: { _debt_id: string }
         Returns: undefined
       }
       return_groups_to_analyst: {

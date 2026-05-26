@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import GlosaResolutionPanel from "@/components/glosas/GlosaResolutionPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/status";
@@ -707,6 +708,7 @@ export default function Glosas() {
 
         <TabsContent value="glosas" className="mt-6">
           <div className="flex flex-col gap-8">
+            <GlosaResolutionPanel />
             <div className="flex items-center justify-end gap-2 flex-wrap">
               <Input
                 value={searchTerm}
