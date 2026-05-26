@@ -67,7 +67,7 @@ const Kpis = () => {
     Promise.all([
       supabase
         .from("payments")
-        .select("id,status,total_amount,created_at,updated_at,approved_at,validated_at,created_by,validated_by,approved_by")
+        .select("id,status,total_amount,liquido_total,created_at,updated_at,approved_at,validated_at,created_by,validated_by,approved_by")
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(1000),
@@ -99,7 +99,7 @@ const Kpis = () => {
 
   const metrics = useMemo(() => {
     const total = myPayments.length;
-    const valor = myPayments.reduce((s, p) => s + Number(p.total_amount ?? 0), 0);
+    const valor = myPayments.reduce((s, p: any) => s + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
 
     // Tempo médio até aprovação (created_at -> approved_at)
     const aprovados = myPayments.filter((p) => !!p.approved_at);

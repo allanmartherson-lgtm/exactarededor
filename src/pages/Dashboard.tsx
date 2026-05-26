@@ -675,7 +675,7 @@ const Dashboard = () => {
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [anomaliesOpen, setAnomaliesOpen] = useState(0);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [recentApprovedData, setRecentApprovedData] = useState<Array<{ id: string; total_amount: number | null; approved_at: string | null }>>([]);
+  const [recentApprovedData, setRecentApprovedData] = useState<Array<{ id: string; total_amount: number | null; liquido_total: number | null; approved_at: string | null }>>([]);
   const [recentRejectedCount, setRecentRejectedCount] = useState(0);
   const [teamOpenQuestionsCount, setTeamOpenQuestionsCount] = useState(0);
   const [diretorAprovacaoPayments, setDiretorAprovacaoPayments] = useState<PaymentRow[]>([]);
@@ -693,7 +693,7 @@ const Dashboard = () => {
     const [{ data }, { data: pr }, { data: all }, { data: invDiv }, { data: invQuest }, { data: openQs }] = await Promise.all([
       supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+        .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
         .order("created_at", { ascending: false })
         .limit(20),
       supabase.from("profiles").select("id,full_name,email"),
@@ -824,7 +824,7 @@ const Dashboard = () => {
     if (roles.includes("diretor") || roles.includes("admin")) {
       const { data: aprovPays } = await supabase
         .from("payments")
-        .select("id,reference,status,total_amount,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
+        .select("id,reference,status,total_amount,liquido_total,items_count,created_at,competence_month,competence_months,created_by,validated_by,payment_type")
         .eq("status", "aguardando_aprovacao")
         .order("created_at", { ascending: false })
         .limit(10);
@@ -844,7 +844,7 @@ const Dashboard = () => {
       const [{ data: rApproved }, { data: rRejected }, { data: tQuestions }] = await Promise.all([
         supabase
           .from("payments")
-          .select("id,total_amount,approved_at")
+          .select("id,total_amount,liquido_total,approved_at")
           .not("approved_at", "is", null)
           .gte("approved_at", sinceIso),
         supabase
@@ -858,7 +858,7 @@ const Dashboard = () => {
           .eq("is_question", true)
           .is("resolved_at", null),
       ]);
-      setRecentApprovedData((rApproved ?? []) as Array<{ id: string; total_amount: number | null; approved_at: string | null }>);
+      setRecentApprovedData((rApproved ?? []) as Array<{ id: string; total_amount: number | null; liquido_total: number | null; approved_at: string | null }>);
       setRecentRejectedCount((rRejected ?? []).length);
       setTeamOpenQuestionsCount((tQuestions ?? []).length);
     }
@@ -1701,13 +1701,13 @@ const Dashboard = () => {
   // VIEW: DIRETOR
   // ============================================================
   if (dashboardMode === "diretor") {
-    const paymentTotalsById = new Map(payments.map((p) => [p.id, Number(p.total_amount ?? 0)]));
+    const paymentTotalsById = new Map(payments.map((p: any) => [p.id, Number(p.liquido_total ?? p.total_amount ?? 0)]));
     const totalValorEmProcessamento = allPayments
       .filter((p) => !TERMINAL_STATUSES.has(p.status))
       .reduce((sum, p) => sum + (paymentTotalsById.get(p.id) ?? 0), 0);
 
     const totalAprovados30d = recentApprovedData.length;
-    const valorAprovado30d = recentApprovedData.reduce((s, p) => s + Number(p.total_amount ?? 0), 0);
+    const valorAprovado30d = recentApprovedData.reduce((s, p) => s + Number(p.liquido_total ?? p.total_amount ?? 0), 0);
     const taxaAprovacao =
       totalAprovados30d + recentRejectedCount > 0
         ? Math.round((totalAprovados30d / Math.max(totalAprovados30d + recentRejectedCount, 1)) * 100)
@@ -2924,7 +2924,7 @@ const BatchProgressRow = ({ p, qCount = 0, groupStatuses = [] }: { p: PaymentRow
           )}
         </div>
         <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-          {p.items_count} itens · {formatCurrency(p.total_amount)}
+          {p.items_count} itens · {formatCurrency((p as any).liquido_total ?? p.total_amount)}
         </p>
       </div>
       <div className="ptr-stages flex items-center" style={{ gap: 6, justifyContent: "center" }}>
@@ -3090,7 +3090,7 @@ const TaskRow = ({
               {formatCompetence(p.competence_months?.length ? p.competence_months : p.competence_month)}
             </span>
             {" · "}{p.items_count} itens
-            {" · "}<span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency(p.total_amount)}</span>
+            {" · "}<span className="font-semibold text-foreground whitespace-nowrap">{formatCurrency((p as any).liquido_total ?? p.total_amount)}</span>
             {creator && <> · criado por <span style={{ color: "hsl(var(--foreground))" }}>{creator}</span></>}
             {p.payment_type && <> · <span className="capitalize">{p.payment_type}</span></>}
             {" · "}{formatDate(p.created_at)}

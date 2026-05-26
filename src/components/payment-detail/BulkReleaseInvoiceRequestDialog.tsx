@@ -92,7 +92,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
     () =>
       groups
         .filter((g) => selected.has(g.id))
-        .reduce((s, g) => s + (Number(g.total_amount) || 0), 0),
+        .reduce((s, g) => s + (Number(g.liquido_total ?? g.total_amount) || 0), 0),
     [groups, selected],
   );
 
@@ -141,7 +141,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
           company_group_id: g.id,
           company_id: g.company_id ?? null,
           company_name: g.company_name,
-          expected_amount: Number(g.total_amount) || 0,
+          expected_amount: Number(g.liquido_total ?? g.total_amount) || 0,
           items_count: g.items_count ?? 0,
           recipient_email: emails[0],
           recipient_cc: emails.slice(1),
@@ -236,7 +236,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{g.company_name}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}
+                          {g.items_count} itens · {formatCurrency(Number(g.liquido_total ?? g.total_amount ?? 0))}
                         </p>
                         {hasEmail ? (
                           <p className="text-[11px] text-muted-foreground truncate">

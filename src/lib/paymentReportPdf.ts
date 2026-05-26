@@ -90,18 +90,18 @@ export function generatePaymentReportPdf(input: GeneratePaymentPdfInput): jsPDF 
     doc.text(`Totais por empresa (${groups.length})`, 14, cursorYTop);
     autoTable(doc, {
       startY: cursorYTop + 4,
-      head: [["Empresa", "Itens", "Status", "Total"]],
+      head: [["Empresa", "Itens", "Status", "Líquido"]],
       body: groups.map((g) => [
         g.company_name,
         String(g.items_count ?? 0),
         g.status,
-        formatCurrency(g.total_amount ?? 0),
+        formatCurrency(g.liquido_total ?? g.total_amount ?? 0),
       ]),
       foot: [[
         "Total geral",
         String(groups.reduce((s, g) => s + (g.items_count ?? 0), 0)),
         "",
-        formatCurrency(groups.reduce((s, g) => s + Number(g.total_amount ?? 0), 0)),
+        formatCurrency(groups.reduce((s, g) => s + Number(g.liquido_total ?? g.total_amount ?? 0), 0)),
       ]],
       styles: { fontSize: 9 },
       footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },

@@ -106,9 +106,9 @@ export default function AgingRecebiveis() {
     try {
       const { data: groups } = await supabase
         .from("payment_company_groups")
-        .select("id, company_name, status, total_amount, approved_at, validated_at, payment_id")
+        .select("id, company_name, status, total_amount, liquido_total, approved_at, validated_at, payment_id")
         .not("status", "in", '("cancelado","rascunho")')
-        .order("total_amount", { ascending: false })
+        .order("liquido_total", { ascending: false })
         .limit(500);
 
       const paymentIds = [...new Set((groups ?? []).map((g: any) => g.payment_id))];
@@ -137,7 +137,7 @@ export default function AgingRecebiveis() {
         return {
           companyName: g.company_name ?? "Sem empresa",
           paymentId: g.payment_id,
-          valor: Number(g.total_amount ?? 0),
+          valor: Number(g.liquido_total ?? g.total_amount ?? 0),
           diasEmAberto: null,
           marcoDate: null,
           groupStatus: g.status,

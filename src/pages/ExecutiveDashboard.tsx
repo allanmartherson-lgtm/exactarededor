@@ -103,16 +103,18 @@ export default function ExecutiveDashboard() {
       since.setMonth(since.getMonth() - 12);
       const { data: pays } = await supabase
         .from("payments")
-        .select("id, reference, status, total_amount, items_count, competence_month, created_at")
+        .select("id, reference, status, total_amount, liquido_total, items_count, competence_month, created_at")
         .gte("created_at", since.toISOString())
         .not("status", "in", '("cancelado","rascunho")')
         .order("created_at", { ascending: false });
       setPayments(pays ?? []);
 
+      const valorOf = (p: any) => Number(p.liquido_total ?? p.total_amount ?? 0);
+
       const byCompetencia: Record<string, number> = {};
       (pays ?? []).forEach((p: any) => {
         const m = (p.competence_month ?? "").slice(0, 7);
-        if (m) byCompetencia[m] = (byCompetencia[m] ?? 0) + Number(p.total_amount ?? 0);
+        if (m) byCompetencia[m] = (byCompetencia[m] ?? 0) + valorOf(p);
       });
       setMonthlyCompetencia(
         Object.entries(byCompetencia).sort(([a], [b]) => a.localeCompare(b)).slice(-7)
@@ -122,7 +124,7 @@ export default function ExecutiveDashboard() {
       const byProcessamento: Record<string, number> = {};
       (pays ?? []).forEach((p: any) => {
         const m = (p.created_at ?? "").slice(0, 7);
-        if (m) byProcessamento[m] = (byProcessamento[m] ?? 0) + Number(p.total_amount ?? 0);
+        if (m) byProcessamento[m] = (byProcessamento[m] ?? 0) + valorOf(p);
       });
       setMonthlyProcessamento(
         Object.entries(byProcessamento).sort(([a], [b]) => a.localeCompare(b)).slice(-7)
@@ -157,19 +159,19 @@ export default function ExecutiveDashboard() {
 
   useEffect(() => {
     supabase.from("payment_company_groups")
-      .select("company_name, total_amount")
-      .order("total_amount", { ascending: false })
+      .select("company_name, total_amount, liquido_total")
+      .order("liquido_total", { ascending: false })
       .limit(20)
       .then(({ data }) => {
         const map = new Map<string, number>();
         (data ?? []).forEach((g: any) => {
-          map.set(g.company_name, (map.get(g.company_name) ?? 0) + Number(g.total_amount ?? 0));
+          map.set(g.company_name, (map.get(g.company_name) ?? 0) + Number(g.liquido_total ?? g.total_amount ?? 0));
         });
         setTopEmpresas(Array.from(map.entries()).map(([name, valor]) => ({ name, valor })).sort((a, b) => b.valor - a.valor).slice(0, 5));
       });
   }, []);
 
-  const totalVolume = useMemo(() => payments.reduce((a, p) => a + Number(p.total_amount ?? 0), 0), [payments]);
+  const totalVolume = useMemo(() => payments.reduce((a, p) => a + Number(p.liquido_total ?? p.total_amount ?? 0), 0), [payments]);
   const totalItems = useMemo(() => payments.reduce((a, p) => a + Number(p.items_count ?? 0), 0), [payments]);
   const aprovados = useMemo(() => payments.filter(p =>
     !["em_analise_ia","revisao_analista","aguardando_validacao","aguardando_aprovacao","rascunho","cancelado","devolvido_analista"].includes(p.status)
@@ -409,7 +411,7 @@ export default function ExecutiveDashboard() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.reference}</div>
                     <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                      {p.items_count} itens · {formatCurrency(Number(p.total_amount ?? 0))}
+                      {p.items_count} itens · {formatCurrency(Number(p.liquido_total ?? p.total_amount ?? 0))}
                     </div>
                   </div>
                   <span style={{ background: sc.bg, color: sc.fg, borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em", flexShrink: 0 }}>
