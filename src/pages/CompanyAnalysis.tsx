@@ -1483,6 +1483,17 @@ export default function CompanyAnalysis() {
         </CardContent>
       </Card>
 
+      {/* Banner de deduções auto-aplicadas (débitos/glosas) */}
+      {id && group?.company_id && (
+        <DeductionsBanner
+          paymentId={id}
+          companyId={group.company_id}
+          canEdit={canEditBatch(payment) && (isAnalista || isAdminOrDiretor || isValidador)}
+        />
+      )}
+
+
+
       {/* Thread de questionamentos — analista só vê quando há perguntas; validador/diretor sempre veem (podem iniciar). */}
       {id && groupId && (
         <CompanyQuestionsThread
