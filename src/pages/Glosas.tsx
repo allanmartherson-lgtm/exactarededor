@@ -846,19 +846,38 @@ export default function Glosas() {
 
         <TabsContent value="conciliacao" className="mt-6">
           <div className="flex flex-col gap-6">
+
+            {/* Cards de resumo */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              {[
+                { label: "Bases ativas", value: concBases.filter(b => !b.tem_itens_aplicados).length, color: "var(--bubble-green-fg)", bg: "var(--bubble-green-bg)" },
+                { label: "Com itens aplicados", value: concBases.filter(b => b.tem_itens_aplicados).length, color: "var(--bubble-yellow-fg)", bg: "var(--bubble-yellow-bg)" },
+                { label: "Total de linhas", value: concBases.reduce((s, b) => s + (b.total_rows ?? 0), 0).toLocaleString("pt-BR"), color: "var(--muted-foreground)", bg: "var(--muted)" },
+              ].map(card => (
+                <SurfaceCard key={card.label} style={{ padding: "14px 18px" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: `hsl(${card.color})`, marginBottom: 6 }}>{card.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 300, color: `hsl(${card.color})`, fontVariantNumeric: "tabular-nums" }}>{card.value}</div>
+                </SurfaceCard>
+              ))}
+            </div>
+
+            {/* Header com botão de import */}
             <div className="flex items-center justify-between">
               <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
-                Bases disponíveis para conciliar qualquer lote. Atualize mensalmente.
+                Bases mensais do sistema hospitalar para conciliação. Atualize todo mês.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
                   onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
-                <Button variant="outline" onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
-                  {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</> : <><Upload size={14} className="mr-1" />Importar base</>}
+                <Button onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
+                  {uploadingConc
+                    ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
+                    : <><Upload size={14} className="mr-1" />Importar base</>}
                 </Button>
               </div>
             </div>
 
+            {/* Lista de bases */}
             {concBases.length === 0 ? (
               <SurfaceCard style={{ padding: 40, textAlign: "center" }}>
                 <FileText size={32} style={{ color: "hsl(var(--muted-foreground))", margin: "0 auto 12px" }} />
@@ -867,28 +886,124 @@ export default function Glosas() {
               </SurfaceCard>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {concBases.map(base => (
-                  <SurfaceCard key={base.id} style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{base.reference}</div>
-                      <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                        {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
-                        {base.competence_month && ` · competência ${base.competence_month}`}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <CheckCircle2 size={14} style={{ color: "hsl(var(--bubble-green-fg))" }} />
-                      <span style={{ fontSize: 11, color: "hsl(var(--bubble-green-fg))", fontWeight: 600 }}>Disponível</span>
-                    </div>
-                    <button type="button" onClick={async () => {
-                      if (!confirm("Arquivar esta base?")) return;
-                      await (supabase as any).from("conciliation_bases").update({ status: "arquivado" }).eq("id", base.id);
-                      loadConcBases();
-                    }} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 6, padding: "3px 8px", fontSize: 10, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
-                      Arquivar
-                    </button>
-                  </SurfaceCard>
-                ))}
+                {concBases.map(base => {
+                  const isExpanded = expandedConcBase === base.id;
+                  const matchMap = base.col_map?._company_match ?? {};
+                  const matchedCount = Object.keys(matchMap).length;
+                  return (
+                    <SurfaceCard key={base.id}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedConcBase(isExpanded ? null : base.id)}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                      >
+                        <div style={{ color: "hsl(var(--muted-foreground))" }}>
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{base.reference}</div>
+                          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                            {base.total_rows?.toLocaleString("pt-BR")} linhas · {base.file_name}
+                            {base.competence_month && ` · ${new Date(base.competence_month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
+                            {matchedCount > 0 && ` · ${matchedCount} empresa(s) detectada(s)`}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                          {base.tem_itens_aplicados ? (
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, background: "hsl(var(--bubble-yellow-bg))", color: "hsl(var(--bubble-yellow-fg))" }}>
+                              ⚠ Com itens aplicados
+                            </span>
+                          ) : (
+                            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, background: "hsl(var(--bubble-green-bg))", color: "hsl(var(--bubble-green-fg))" }}>
+                              <CheckCircle2 size={11} /> Disponível
+                            </span>
+                          )}
+                          {base.versao > 1 && (
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 9999, background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                              v{base.versao}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div style={{ borderTop: "1px solid hsl(var(--border))", padding: "16px 18px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))", marginBottom: 10 }}>
+                                Metadados da base
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {[
+                                  { label: "Arquivo", value: base.file_name },
+                                  { label: "Aba", value: base.sheet_name ?? "—" },
+                                  { label: "Competência", value: base.competence_month ? new Date(base.competence_month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "Não detectada" },
+                                  { label: "Importado em", value: new Date(base.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
+                                  { label: "Total de linhas", value: base.total_rows?.toLocaleString("pt-BR") ?? "—" },
+                                  { label: "Colunas detectadas", value: Object.keys(base.col_map ?? {}).filter(k => !k.startsWith("_")).join(", ") || "—" },
+                                ].map(({ label, value }) => (
+                                  <div key={label} style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                                    <span style={{ color: "hsl(var(--muted-foreground))", minWidth: 130, flexShrink: 0 }}>{label}:</span>
+                                    <span style={{ color: "hsl(var(--foreground))", fontWeight: 500 }}>{value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))", marginBottom: 10 }}>
+                                Empresas detectadas ({Object.keys(matchMap).length})
+                              </div>
+                              {Object.keys(matchMap).length === 0 ? (
+                                <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Nenhuma empresa detectada automaticamente.</p>
+                              ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {Object.entries(matchMap).map(([terceiro, match]: [string, any]) => (
+                                    <div key={terceiro} style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span style={{
+                                        fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4,
+                                        background: match.level === "exact" ? "hsl(var(--success-soft))" : match.level === "high" ? "hsl(var(--info-soft))" : "hsl(var(--warning-soft))",
+                                        color: match.level === "exact" ? "hsl(var(--success))" : match.level === "high" ? "hsl(var(--info))" : "hsl(var(--warning-text))",
+                                        flexShrink: 0,
+                                      }}>
+                                        {match.level === "exact" ? "Exato" : match.level === "high" ? "Alto" : "Médio"}
+                                      </span>
+                                      <span style={{ color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={terceiro}>
+                                        {terceiro}
+                                      </span>
+                                      <span style={{ color: "hsl(var(--muted-foreground))" }}>→</span>
+                                      <span style={{ color: "hsl(var(--foreground))", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={match.company_name}>
+                                        {match.company_name}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, marginTop: 16, paddingTop: 12, borderTop: "1px solid hsl(var(--border))" }}>
+                            {!base.tem_itens_aplicados && (
+                              <button type="button" onClick={async () => {
+                                if (!confirm("Arquivar esta base? Ela não poderá mais ser usada em novas conciliações.")) return;
+                                await (supabase as any).from("conciliation_bases").update({ status: "arquivado" }).eq("id", base.id);
+                                loadConcBases();
+                                toast.success("Base arquivada");
+                              }} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 6, padding: "4px 12px", fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                                Arquivar
+                              </button>
+                            )}
+                            {base.tem_itens_aplicados && (
+                              <span style={{ fontSize: 11, color: "hsl(var(--bubble-yellow-fg))", display: "flex", alignItems: "center", gap: 4 }}>
+                                <AlertTriangle size={12} /> Esta base tem itens aplicados em pagamentos — não pode ser arquivada
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </SurfaceCard>
+                  );
+                })}
               </div>
             )}
           </div>
