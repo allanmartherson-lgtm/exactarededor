@@ -2187,21 +2187,77 @@ export function PaymentConciliationModal({
                                                     )}
                                                   </div>
                                                 )}
-                                                <div className="flex gap-2 mt-2">
-                                                  {it.status === "so_hospital" && (
-                                                    <Button size="sm">Incorporar ao ciclo</Button>
-                                                  )}
-                                                  {it.status === "so_medpay" && (
-                                                    <Button size="sm" variant="outline">
-                                                      Marcar como glosado
+                                                {!it.action_taken ? (
+                                                  <div className="flex gap-2 mt-2 flex-wrap">
+                                                    {(it.status === 'so_hospital' || it.status === 'valor_divergente') && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'incorporar_credito'); }}
+                                                        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300"
+                                                      >
+                                                        {actionLoading === it.id ? '…' : '+ Incorporar como crédito'}
+                                                      </Button>
+                                                    )}
+                                                    {it.status === 'valor_divergente' && Number(it.valor_medpay) > Number(it.valor_hospital) && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'incorporar_debito'); }}
+                                                        className="border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                                      >
+                                                        {actionLoading === it.id ? '…' : '− Incorporar como débito'}
+                                                      </Button>
+                                                    )}
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      disabled={actionLoading === it.id}
+                                                      onClick={(e) => { e.stopPropagation(); handleAction(it, 'ignorar'); }}
+                                                    >
+                                                      Ignorar
                                                     </Button>
-                                                  )}
-                                                  {it.status === "valor_divergente" && (
-                                                    <Button size="sm" variant="outline">
+                                                    <Button
+                                                      size="sm"
+                                                      variant="outline"
+                                                      disabled={actionLoading === it.id}
+                                                      onClick={(e) => { e.stopPropagation(); handleAction(it, 'revisar_manual'); }}
+                                                      className="border-amber-500/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                                                    >
                                                       Revisar manualmente
                                                     </Button>
-                                                  )}
-                                                </div>
+                                                    {it.status === 'so_medpay' && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={actionLoading === it.id}
+                                                        onClick={(e) => { e.stopPropagation(); handleAction(it, 'marcar_glosa'); }}
+                                                        className="border-yellow-500/30 bg-yellow-500/10 text-yellow-800 hover:bg-yellow-500/20 dark:text-yellow-300"
+                                                      >
+                                                        Marcar como glosa
+                                                      </Button>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <div className={cn(
+                                                    "inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-md text-[11px] font-semibold border",
+                                                    it.action_taken === 'incorporar_credito' && 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
+                                                    it.action_taken === 'incorporar_debito' && 'bg-destructive/10 text-destructive border-destructive/30',
+                                                    it.action_taken === 'ignorar' && 'bg-muted text-muted-foreground border-border',
+                                                    it.action_taken === 'revisar_manual' && 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
+                                                    it.action_taken === 'marcar_glosa' && 'bg-yellow-500/10 text-yellow-800 border-yellow-500/30 dark:text-yellow-300',
+                                                  )}>
+                                                    {({
+                                                      incorporar_credito: '✓ Crédito incorporado ao próximo lote',
+                                                      incorporar_debito: '✓ Débito incorporado ao próximo lote',
+                                                      ignorar: '— Ignorado',
+                                                      revisar_manual: '⚠ Revisão manual pendente',
+                                                      marcar_glosa: '⚠ Marcado como glosa',
+                                                    } as Record<string, string>)[it.action_taken!] ?? it.action_taken}
+                                                  </div>
+                                                )}
                                               </div>
                                             </div>
                                           </TableCell>
