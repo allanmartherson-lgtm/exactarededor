@@ -191,6 +191,7 @@ export default function Glosas() {
   const [concBases, setConcBases] = useState<any[]>([]);
   const [uploadingConc, setUploadingConc] = useState(false);
   const concFileRef = useRef<HTMLInputElement>(null);
+  const [expandedConcBase, setExpandedConcBase] = useState<string | null>(null);
 
   const loadBatches = useCallback(async () => {
     setLoading(true);
@@ -207,7 +208,7 @@ export default function Glosas() {
   const loadConcBases = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("conciliation_bases")
-      .select("id, reference, competence_month, file_name, total_rows, status, created_at")
+      .select("id, reference, competence_month, file_name, sheet_name, total_rows, status, created_at, col_map, tem_itens_aplicados, versao")
       .eq("status", "ativo")
       .order("created_at", { ascending: false });
     setConcBases(data ?? []);
@@ -267,9 +268,27 @@ export default function Glosas() {
 
       let competenceMonth = "";
       const dateCol = colMap["date"];
+      // Tentar extrair de rows[0] (já convertido para string ISO)
       if (dateCol && rows[0]) {
         const v = rows[0][dateCol];
-        if (v instanceof Date) competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        if (v instanceof Date) {
+          competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+        } else if (typeof v === "string" && v.length >= 7) {
+          competenceMonth = v.slice(0, 7);
+        }
+      }
+      // Fallback: tentar em rawRows antes da sanitização
+      if (!competenceMonth && dateCol) {
+        for (const raw of rawRows.slice(0, 10)) {
+          const v = raw[dateCol];
+          if (v instanceof Date) {
+            competenceMonth = `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}`;
+            break;
+          } else if (typeof v === "string" && /^\d{4}-\d{2}/.test(v)) {
+            competenceMonth = v.slice(0, 7);
+            break;
+          }
+        }
       }
 
       const { error } = await (supabase as any).from("conciliation_bases").insert({
@@ -291,6 +310,72 @@ export default function Glosas() {
       toast.success(`Base importada: ${rows.length} linhas`, {
         description: `${Object.keys(colMap).length} colunas mapeadas · pronta para conciliação`,
       });
+
+      // Auto-enriquecer: vincular Terceiros da base com companies cadastradas
+      try {
+        const { data: allCompanies } = await supabase
+          .from("companies")
+          .select("id, name")
+          .order("name");
+
+        if (allCompanies && rows.length > 0) {
+          const companyCol = colMap["company"];
+          if (companyCol) {
+            const terceirosUnicos = [...new Set(
+              rows.map(r => String(r[companyCol] ?? "").trim()).filter(Boolean)
+            )];
+
+            const normFull = (s: string) =>
+              s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").trim();
+
+            const stopwords = new Set(["de", "da", "do", "das", "dos", "e", "em", "por", "para", "com", "ltda", "eireli", "ss", "me", "sa", "s/a"]);
+
+            const getTokens = (s: string) =>
+              normFull(s).split(/\s+/).filter(t => t.length >= 3 && !stopwords.has(t));
+
+            const matchMap: Record<string, { company_id: string; company_name: string; level: string }> = {};
+
+            for (const terceiro of terceirosUnicos) {
+              const normT = normFull(terceiro);
+              const tokensT = getTokens(terceiro);
+              let best: { company_id: string; company_name: string; level: string } | null = null;
+
+              for (const c of allCompanies) {
+                const normC = normFull(c.name);
+                if (normC === normT) { best = { company_id: c.id, company_name: c.name, level: "exact" }; break; }
+                if (normT.includes(normC) || normC.includes(normT)) {
+                  if (!best || best.level !== "exact") best = { company_id: c.id, company_name: c.name, level: "high" };
+                }
+                if (!best || (best.level !== "exact" && best.level !== "high")) {
+                  const tokensC = getTokens(c.name);
+                  const common = tokensT.filter(t => tokensC.includes(t));
+                  if (common.length >= 2) {
+                    best = { company_id: c.id, company_name: c.name, level: "medium" };
+                  }
+                }
+              }
+              if (best) matchMap[terceiro] = best;
+            }
+
+            const { data: baseRecente } = await (supabase as any)
+              .from("conciliation_bases")
+              .select("id")
+              .eq("uploaded_by", user?.id ?? "")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            if (baseRecente) {
+              await (supabase as any).from("conciliation_bases").update({
+                col_map: { ...colMap, _company_match: matchMap }
+              }).eq("id", baseRecente.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Auto-match de PJ falhou:", e);
+      }
+
       loadConcBases();
     } catch (e: any) {
       toast.error("Erro ao importar base", { description: e.message });
@@ -761,19 +846,38 @@ export default function Glosas() {
 
         <TabsContent value="conciliacao" className="mt-6">
           <div className="flex flex-col gap-6">
+
+            {/* Cards de resumo */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              {[
+                { label: "Bases ativas", value: concBases.filter(b => !b.tem_itens_aplicados).length, color: "var(--bubble-green-fg)", bg: "var(--bubble-green-bg)" },
+                { label: "Com itens aplicados", value: concBases.filter(b => b.tem_itens_aplicados).length, color: "var(--bubble-yellow-fg)", bg: "var(--bubble-yellow-bg)" },
+                { label: "Total de linhas", value: concBases.reduce((s, b) => s + (b.total_rows ?? 0), 0).toLocaleString("pt-BR"), color: "var(--muted-foreground)", bg: "var(--muted)" },
+              ].map(card => (
+                <SurfaceCard key={card.label} style={{ padding: "14px 18px" }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: `hsl(${card.color})`, marginBottom: 6 }}>{card.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 300, color: `hsl(${card.color})`, fontVariantNumeric: "tabular-nums" }}>{card.value}</div>
+                </SurfaceCard>
+              ))}
+            </div>
+
+            {/* Header com botão de import */}
             <div className="flex items-center justify-between">
               <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))" }}>
-                Bases disponíveis para conciliar qualquer lote. Atualize mensalmente.
+                Bases mensais do sistema hospitalar para conciliação. Atualize todo mês.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <input ref={concFileRef} type="file" accept=".xlsx,.xls" className="hidden"
                   onChange={async e => { const file = e.target.files?.[0]; if (!file) return; await uploadConcBase(file); e.target.value = ""; }} />
-                <Button variant="outline" onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
-                  {uploadingConc ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</> : <><Upload size={14} className="mr-1" />Importar base</>}
+                <Button onClick={() => concFileRef.current?.click()} disabled={uploadingConc}>
+                  {uploadingConc
+                    ? <><RefreshCw size={14} className="animate-spin mr-1" />Importando…</>
+                    : <><Upload size={14} className="mr-1" />Importar base</>}
                 </Button>
               </div>
             </div>
 
+            {/* Lista de bases */}
             {concBases.length === 0 ? (
               <SurfaceCard style={{ padding: 40, textAlign: "center" }}>
                 <FileText size={32} style={{ color: "hsl(var(--muted-foreground))", margin: "0 auto 12px" }} />
@@ -782,28 +886,124 @@ export default function Glosas() {
               </SurfaceCard>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {concBases.map(base => (
-                  <SurfaceCard key={base.id} style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{base.reference}</div>
-                      <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
-                        {base.total_rows} linhas · {base.file_name} · {new Date(base.created_at).toLocaleDateString("pt-BR")}
-                        {base.competence_month && ` · competência ${base.competence_month}`}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <CheckCircle2 size={14} style={{ color: "hsl(var(--bubble-green-fg))" }} />
-                      <span style={{ fontSize: 11, color: "hsl(var(--bubble-green-fg))", fontWeight: 600 }}>Disponível</span>
-                    </div>
-                    <button type="button" onClick={async () => {
-                      if (!confirm("Arquivar esta base?")) return;
-                      await (supabase as any).from("conciliation_bases").update({ status: "arquivado" }).eq("id", base.id);
-                      loadConcBases();
-                    }} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 6, padding: "3px 8px", fontSize: 10, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
-                      Arquivar
-                    </button>
-                  </SurfaceCard>
-                ))}
+                {concBases.map(base => {
+                  const isExpanded = expandedConcBase === base.id;
+                  const matchMap = base.col_map?._company_match ?? {};
+                  const matchedCount = Object.keys(matchMap).length;
+                  return (
+                    <SurfaceCard key={base.id}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedConcBase(isExpanded ? null : base.id)}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+                      >
+                        <div style={{ color: "hsl(var(--muted-foreground))" }}>
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))" }}>{base.reference}</div>
+                          <div style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 2 }}>
+                            {base.total_rows?.toLocaleString("pt-BR")} linhas · {base.file_name}
+                            {base.competence_month && ` · ${new Date(base.competence_month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`}
+                            {matchedCount > 0 && ` · ${matchedCount} empresa(s) detectada(s)`}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                          {base.tem_itens_aplicados ? (
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, background: "hsl(var(--bubble-yellow-bg))", color: "hsl(var(--bubble-yellow-fg))" }}>
+                              ⚠ Com itens aplicados
+                            </span>
+                          ) : (
+                            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, background: "hsl(var(--bubble-green-bg))", color: "hsl(var(--bubble-green-fg))" }}>
+                              <CheckCircle2 size={11} /> Disponível
+                            </span>
+                          )}
+                          {base.versao > 1 && (
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 9999, background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                              v{base.versao}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div style={{ borderTop: "1px solid hsl(var(--border))", padding: "16px 18px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))", marginBottom: 10 }}>
+                                Metadados da base
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {[
+                                  { label: "Arquivo", value: base.file_name },
+                                  { label: "Aba", value: base.sheet_name ?? "—" },
+                                  { label: "Competência", value: base.competence_month ? new Date(base.competence_month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "Não detectada" },
+                                  { label: "Importado em", value: new Date(base.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
+                                  { label: "Total de linhas", value: base.total_rows?.toLocaleString("pt-BR") ?? "—" },
+                                  { label: "Colunas detectadas", value: Object.keys(base.col_map ?? {}).filter(k => !k.startsWith("_")).join(", ") || "—" },
+                                ].map(({ label, value }) => (
+                                  <div key={label} style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                                    <span style={{ color: "hsl(var(--muted-foreground))", minWidth: 130, flexShrink: 0 }}>{label}:</span>
+                                    <span style={{ color: "hsl(var(--foreground))", fontWeight: 500 }}>{value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "hsl(var(--muted-foreground))", marginBottom: 10 }}>
+                                Empresas detectadas ({Object.keys(matchMap).length})
+                              </div>
+                              {Object.keys(matchMap).length === 0 ? (
+                                <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>Nenhuma empresa detectada automaticamente.</p>
+                              ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {Object.entries(matchMap).map(([terceiro, match]: [string, any]) => (
+                                    <div key={terceiro} style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span style={{
+                                        fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4,
+                                        background: match.level === "exact" ? "hsl(var(--success-soft))" : match.level === "high" ? "hsl(var(--info-soft))" : "hsl(var(--warning-soft))",
+                                        color: match.level === "exact" ? "hsl(var(--success))" : match.level === "high" ? "hsl(var(--info))" : "hsl(var(--warning-text))",
+                                        flexShrink: 0,
+                                      }}>
+                                        {match.level === "exact" ? "Exato" : match.level === "high" ? "Alto" : "Médio"}
+                                      </span>
+                                      <span style={{ color: "hsl(var(--muted-foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={terceiro}>
+                                        {terceiro}
+                                      </span>
+                                      <span style={{ color: "hsl(var(--muted-foreground))" }}>→</span>
+                                      <span style={{ color: "hsl(var(--foreground))", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={match.company_name}>
+                                        {match.company_name}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, marginTop: 16, paddingTop: 12, borderTop: "1px solid hsl(var(--border))" }}>
+                            {!base.tem_itens_aplicados && (
+                              <button type="button" onClick={async () => {
+                                if (!confirm("Arquivar esta base? Ela não poderá mais ser usada em novas conciliações.")) return;
+                                await (supabase as any).from("conciliation_bases").update({ status: "arquivado" }).eq("id", base.id);
+                                loadConcBases();
+                                toast.success("Base arquivada");
+                              }} style={{ background: "none", border: "1px solid hsl(var(--border))", borderRadius: 6, padding: "4px 12px", fontSize: 11, color: "hsl(var(--muted-foreground))", cursor: "pointer" }}>
+                                Arquivar
+                              </button>
+                            )}
+                            {base.tem_itens_aplicados && (
+                              <span style={{ fontSize: 11, color: "hsl(var(--bubble-yellow-fg))", display: "flex", alignItems: "center", gap: 4 }}>
+                                <AlertTriangle size={12} /> Esta base tem itens aplicados em pagamentos — não pode ser arquivada
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </SurfaceCard>
+                  );
+                })}
               </div>
             )}
           </div>
