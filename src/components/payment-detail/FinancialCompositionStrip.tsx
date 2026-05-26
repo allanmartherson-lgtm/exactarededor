@@ -46,11 +46,16 @@ export function FinancialCompositionStrip({ comp }: { comp: FinancialComposition
               tone={comp.glosas > 0 ? "destructive" : "muted"}
               hint={comp.glosas === 0 ? "Sem glosas aplicadas" : undefined} />
         <Op icon={<Minus className="h-3.5 w-3.5" />} />
-        <Cell label="Pool / rateio"
-              value={comp.poolAplicado && comp.pool > 0 ? brl(comp.pool) : "—"}
+        <Cell label={comp.poolPreview && !comp.poolAplicado ? "Pool / rateio (prévia)" : "Pool / rateio"}
+              value={(comp.poolAplicado || comp.poolPreview) && comp.pool !== 0 ? brl(comp.pool) : "—"}
               icon={<Users className="h-3.5 w-3.5" />}
-              tone={comp.poolAplicado ? "warning" : "muted"}
-              hint={!comp.poolAplicado ? "Sem pool aplicado" : comp.pool === 0 ? "Pool sem impacto nesta empresa" : undefined} />
+              tone={comp.poolAplicado ? "warning" : comp.poolPreview ? "info" : "muted"}
+              hint={
+                !comp.poolAplicado && !comp.poolPreview ? "Sem pool aplicado" :
+                comp.poolPreview ? `Estimativa · ${comp.poolDetalhes.map(d => `${d.pool_nome} ${d.percentual}% → quota ${brl(d.quota_empresa)}`).join(" · ")}` :
+                comp.pool === 0 ? "Pool sem impacto nesta empresa" :
+                comp.poolDetalhes.map(d => `${d.pool_nome}: quota ${brl(d.quota_empresa)}`).join(" · ")
+              } />
         <Op icon={<Plus className="h-3.5 w-3.5" />} />
         <Cell label="Conciliação"
               value={comp.conciliacaoAplicada && comp.conciliacao !== 0 ? brl(comp.conciliacao) : "—"}
