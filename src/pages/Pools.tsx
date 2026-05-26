@@ -89,7 +89,7 @@ export default function Pools() {
       supabase.from("companies").select("id, name").order("name"),
       supabase.from("company_financial_adjustments").select("*").order("created_at", { ascending: false }),
     ]);
-    setPools(p.data || []);
+    setPools((p.data || []) as Pool[]);
     setCompanies(c.data || []);
     const adjs = (a.data || []) as Adjustment[];
     const cMap = new Map((c.data || []).map((x: any) => [x.id, x.name]));
