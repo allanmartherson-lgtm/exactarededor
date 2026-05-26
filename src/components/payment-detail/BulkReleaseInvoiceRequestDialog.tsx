@@ -92,7 +92,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
     () =>
       groups
         .filter((g) => selected.has(g.id))
-        .reduce((s, g) => s + (Number(g.total_amount) || 0), 0),
+        .reduce((s, g) => s + (Number(g.liquido_total ?? g.total_amount) || 0), 0),
     [groups, selected],
   );
 
