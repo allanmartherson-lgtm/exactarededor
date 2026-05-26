@@ -490,7 +490,7 @@ export function PaymentPivotSection({
           <div className="space-y-2 py-2">
             <p className="text-xs text-muted-foreground">
               Selecione e ordene os campos. O primeiro define o agrupamento principal; o segundo, o
-              drilldown (apenas no Compacto).
+              drilldown (expansível em cada linha).
             </p>
             {allowedFields.map((f) => {
               const selectedIndex = customFields.indexOf(f);
