@@ -77,22 +77,22 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Enviar para validação da empresa</DialogTitle>
             <DialogDescription>
               A empresa receberá um link para revisar a lista de produção e sinalizar exclusões ou itens ausentes antes da emissão da NF.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+          <div className="flex flex-col gap-2 min-h-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground px-1">
               <span>{selected.size} de {eligible.length} selecionada(s)</span>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button type="button" className="underline" onClick={() => setSelected(new Set(eligible.map(g => g.id)))}>Todas</button>
                 <button type="button" className="underline" onClick={() => setSelected(new Set())}>Nenhuma</button>
               </div>
             </div>
-            <ul className="max-h-64 overflow-y-auto rounded border divide-y">
+            <ul className="flex-1 min-h-0 overflow-y-auto rounded border divide-y">
               {eligible.map(g => (
                 <li key={g.id}>
                   <label className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/40">
@@ -101,7 +101,7 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
                       <p className="text-sm font-medium truncate">{g.company_name}</p>
                       <p className="text-xs text-muted-foreground">{g.items_count} itens · {formatCurrency(Number(g.total_amount ?? 0))}</p>
                     </div>
-                    {!g.company_id && <span className="text-[10px] text-destructive">sem company_id</span>}
+                    {!g.company_id && <span className="shrink-0 text-[10px] text-destructive">sem company_id</span>}
                   </label>
                 </li>
               ))}
@@ -117,6 +117,7 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
             </Button>
           </DialogFooter>
         </DialogContent>
+
       </Dialog>
     </>
   );
