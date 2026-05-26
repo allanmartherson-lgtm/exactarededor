@@ -124,11 +124,9 @@ export function PaymentPivotSection({
   const [customOpen, setCustomOpen] = useState(false);
   const [customFields, setCustomFields] = useState<GroupingField[]>([]);
   const [alertsCount, setAlertsCount] = useState<number>(0);
-
-  // Drilldown secundário: só no compacto, derivado puramente do grouping primário.
-  // Se primário é "empresa", drill é por "especialidade". Caso contrário, drill é por "empresa".
-  const secondary: GroupingField | null =
-    variant === "compacto" ? (grouping === "empresa" ? "especialidade" : "empresa") : null;
+  // Secundário (drilldown): controlado pelo usuário via "Customizar".
+  // Default no compacto = derivação histórica (empresa↔especialidade). No executivo = null.
+  const [secondary, setSecondary] = useState<GroupingField | null>(null);
 
   useEffect(() => {
     if (variant === "detalhe") return;
@@ -141,8 +139,7 @@ export function PaymentPivotSection({
     let alive = true;
     setLoading(true);
     (async () => {
-      const sec: GroupingField | null =
-        variant === "compacto" ? (grouping === "empresa" ? "especialidade" : "empresa") : null;
+      const sec: GroupingField | null = secondary && secondary !== grouping ? secondary : null;
       const args: Record<string, unknown> = {
         p_current_month: competenceDate.slice(0, 10),
         p_months_back: monthsBack,
@@ -174,7 +171,7 @@ export function PaymentPivotSection({
     return () => {
       alive = false;
     };
-  }, [variant, grouping, monthsBack, competenceDate]);
+  }, [variant, grouping, secondary, monthsBack, competenceDate, paymentId]);
 
 
   // Conta alertas críticos do pagamento atual (somente compacto exibe).
@@ -279,6 +276,8 @@ export function PaymentPivotSection({
   const applyCustom = () => {
     if (customFields.length > 0) {
       setGrouping(customFields[0]);
+      setSecondary(customFields[1] ?? null);
+      setExpanded(new Set());
     }
     setCustomOpen(false);
   };
