@@ -208,7 +208,7 @@ export default function Glosas() {
   const loadConcBases = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("conciliation_bases")
-      .select("id, reference, competence_month, file_name, total_rows, status, created_at")
+      .select("id, reference, competence_month, file_name, sheet_name, total_rows, status, created_at, col_map, tem_itens_aplicados, versao")
       .eq("status", "ativo")
       .order("created_at", { ascending: false });
     setConcBases(data ?? []);
