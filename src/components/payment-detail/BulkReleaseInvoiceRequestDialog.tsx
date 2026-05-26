@@ -141,7 +141,7 @@ export const BulkReleaseInvoiceRequestDialog = ({
           company_group_id: g.id,
           company_id: g.company_id ?? null,
           company_name: g.company_name,
-          expected_amount: Number(g.total_amount) || 0,
+          expected_amount: Number(g.liquido_total ?? g.total_amount) || 0,
           items_count: g.items_count ?? 0,
           recipient_email: emails[0],
           recipient_cc: emails.slice(1),
