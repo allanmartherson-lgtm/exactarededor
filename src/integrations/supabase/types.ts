@@ -587,6 +587,13 @@ export type Database = {
             referencedRelation: "payment_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "doctor_messages_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
         ]
       }
       doctor_portal_users: {
@@ -956,6 +963,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payment_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_matched_payment_item_id_fkey"
+            columns: ["matched_payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
           },
         ]
       }
@@ -1644,6 +1658,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_observations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "payment_observations_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
@@ -2215,6 +2236,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "production_validation_feedbacks_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "production_validation_feedbacks_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
@@ -2450,11 +2478,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reconciliation_items_applied_payment_item_id_fkey"
+            columns: ["applied_payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "reconciliation_items_payment_item_id_fkey"
             columns: ["payment_item_id"]
             isOneToOne: false
             referencedRelation: "payment_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_payment_item_id_fkey"
+            columns: ["payment_item_id"]
+            isOneToOne: false
+            referencedRelation: "v_payment_items_registration_issues"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "reconciliation_items_run_id_fkey"
@@ -3334,7 +3376,70 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_payment_items_registration_issues: {
+        Row: {
+          company_id: string | null
+          company_name: string | null
+          created_at: string | null
+          doctor_document: string | null
+          doctor_id: string | null
+          doctor_name: string | null
+          doctor_unregistered: boolean | null
+          gross_amount: number | null
+          item_id: string | null
+          payment_id: string | null
+          pj_not_linked_to_doctor: boolean | null
+        }
+        Insert: {
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          doctor_document?: string | null
+          doctor_id?: string | null
+          doctor_name?: string | null
+          doctor_unregistered?: never
+          gross_amount?: number | null
+          item_id?: string | null
+          payment_id?: string | null
+          pj_not_linked_to_doctor?: never
+        }
+        Update: {
+          company_id?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          doctor_document?: string | null
+          doctor_id?: string | null
+          doctor_name?: string | null
+          doctor_unregistered?: never
+          gross_amount?: number | null
+          item_id?: string | null
+          payment_id?: string | null
+          pj_not_linked_to_doctor?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_payment_item: {
@@ -3465,6 +3570,29 @@ export type Database = {
               total: number
             }[]
           }
+      get_registration_pending_doctors: {
+        Args: never
+        Returns: {
+          company_id: string
+          company_name: string
+          doctor_document: string
+          doctor_id: string
+          doctor_name: string
+          items_count: number
+          kind: string
+          last_seen_at: string
+          total_amount: number
+        }[]
+      }
+      get_registration_pending_summary: {
+        Args: never
+        Returns: {
+          affected_amount: number
+          affected_items: number
+          unlinked_pj_pairs: number
+          unregistered_doctors: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
