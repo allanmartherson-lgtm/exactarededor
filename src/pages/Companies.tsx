@@ -558,6 +558,15 @@ const Companies = () => {
         importing={importing}
         onOpenChange={(v) => !importing && setImportResults(prev => ({ ...prev, show: v }))}
       />
+
+      {financeFor && (
+        <CompanyFinancialAdjustmentsDialog
+          open={!!financeFor}
+          onOpenChange={(v) => !v && setFinanceFor(null)}
+          companyId={financeFor.id}
+          companyName={financeFor.name}
+        />
+      )}
     </div>
   );
 };
