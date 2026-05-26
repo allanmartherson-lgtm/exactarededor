@@ -196,6 +196,9 @@ export default function GlosaResolutionPanel() {
                     <Button size="sm" disabled={busyId === d.id} onClick={() => resolve(d)}>
                       Vincular
                     </Button>
+                    <Button size="sm" variant="outline" disabled={busyId === d.id} onClick={() => ignore(d)}>
+                      Não aplicar
+                    </Button>
                     {d.resolution_reason === "crm_nao_encontrado" && (
                       <Button size="sm" variant="ghost" disabled={busyId === d.id} onClick={() => retry(d)}>
                         Tentar de novo
