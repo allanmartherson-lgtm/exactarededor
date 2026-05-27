@@ -1061,15 +1061,28 @@ const Dashboard = () => {
     const fetchIQ = async () => {
       const { data } = await supabase
         .from("invoice_questions")
-        .select("id, payment_id, payment:payments!inner(created_by)")
+        .select("id, payment_id, invoice_id, payment:payments!inner(created_by)")
         .eq("author_type", "recebedor")
         .is("read_at", null)
         .eq("payments.created_by", user.id);
       if (cancelled) return;
-      const rows = (data ?? []) as Array<{ id: string; payment_id: string }>;
+      const rows = (data ?? []) as Array<{ id: string; payment_id: string; invoice_id: string | null }>;
+      const invoiceIds = Array.from(new Set(rows.map((r) => r.invoice_id).filter(Boolean) as string[]));
+      let activeIds = new Set<string>();
+      if (invoiceIds.length) {
+        const { data: invs } = await supabase
+          .from("invoices")
+          .select("id, status")
+          .in("id", invoiceIds)
+          .in("status", ["aguardando", "recebida", "divergente"]);
+        if (cancelled) return;
+        activeIds = new Set((invs ?? []).map((i) => i.id as string));
+      }
+      // Mantém só perguntas cuja NF ainda existe e está em fase ativa.
+      const active = rows.filter((r) => r.invoice_id && activeIds.has(r.invoice_id));
       setCompanyInvoiceQuestions({
-        count: rows.length,
-        firstPaymentId: rows[0]?.payment_id ?? null,
+        count: active.length,
+        firstPaymentId: active[0]?.payment_id ?? null,
       });
     };
     fetchIQ();
@@ -1241,7 +1254,7 @@ const Dashboard = () => {
   // terminais (rejeitado, cancelado) NUNCA aparecem como pendência aqui,
   // mesmo que o usuário tenha criado/validado/aprovado o lote.
   const ANALISTA_PENDING: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-    "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
+    "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada", "revisao_pos_aprovacao",
   ]);
   const isMine = (p: PaymentRow): boolean => {
     const uid = user?.id;
