@@ -2093,153 +2093,209 @@ const Dashboard = () => {
               );
             }
 
-            const ScoreItem = ({ item, isHighlighted }: { item: ScoreItemData; isHighlighted: boolean }) => {
+            const OUTFIT = "'Outfit', 'Inter', system-ui, sans-serif";
+            const FIGTREE = "'Figtree', 'Inter', system-ui, sans-serif";
+
+            const ScoreCard = ({ item, tone }: { item: ScoreItemData; tone: 'action' | 'transit' | 'alert' }) => {
               const isZero = item.value === 0;
+              const accentVar =
+                tone === 'action' ? 'var(--primary)' :
+                tone === 'alert'  ? 'var(--info)' :
+                                    'var(--muted-foreground)';
               const valueColor = isZero
                 ? 'hsl(var(--muted-foreground))'
-                : isHighlighted
-                ? 'hsl(var(--sidebar-primary))'
+                : item.accent === 'rose' ? 'hsl(var(--destructive))'
+                : item.accent === 'amber' ? 'hsl(var(--warning))'
                 : 'hsl(var(--foreground))';
               return (
                 <Link
                   to={item.to}
+                  className="group medpay-score-card"
                   style={{
-                    display: 'flex', flexDirection: 'column', gap: 4,
-                    padding: '10px 14px', textDecoration: 'none', color: 'inherit',
-                    background: isHighlighted && !isZero ? 'hsl(var(--accent))' : 'transparent',
-                    transition: 'background 0.12s',
-                    height: '100%',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    padding: '18px 18px 20px',
+                    background: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 16,
+                    boxShadow: 'var(--shadow-card)',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    overflow: 'hidden',
+                    transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s, border-color 0.3s',
                   }}
-                  className="hover:bg-muted/50"
                 >
-                  <span style={{
-                    fontSize: 9.5, fontWeight: 500,
-                    color: 'hsl(var(--muted-foreground))',
-                    letterSpacing: '0.04em', textTransform: 'uppercase',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {item.label}
-                  </span>
-                  <span style={{
-                    fontSize: 22, fontWeight: 600, lineHeight: 1,
-                    color: valueColor,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {item.value}
-                  </span>
-                  {isHighlighted && !isZero && (
-                    <span style={{ fontSize: 9, fontWeight: 500, color: 'hsl(var(--accent-foreground))' }}>
-                      ↑ aguardando você
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span
+                      className="medpay-score-label"
+                      style={{
+                        fontFamily: OUTFIT,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: 'hsl(var(--muted-foreground))',
+                        transition: 'color 0.3s',
+                      }}
+                    >
+                      {item.label}
                     </span>
-                  )}
+                    {tone === 'action' ? (
+                      <svg
+                        viewBox="0 0 40 10"
+                        width={36}
+                        height={14}
+                        aria-hidden
+                        className="medpay-score-spark"
+                        style={{ opacity: 0.35, transition: 'opacity 0.4s, transform 0.4s' }}
+                      >
+                        <path
+                          d="M0 8 L5 4 L10 6 L15 2 L20 5 L25 1 L30 7 L35 3 L40 5"
+                          fill="none"
+                          stroke={`hsl(${accentVar})`}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : tone === 'alert' && !isZero ? (
+                      <span style={{ position: 'relative', display: 'inline-flex' }}>
+                        <span
+                          style={{
+                            width: 9, height: 9, borderRadius: 9999,
+                            background: `hsl(${accentVar})`,
+                            boxShadow: `0 0 10px hsl(${accentVar} / 0.5)`,
+                            display: 'inline-block',
+                          }}
+                        />
+                        <span
+                          className="animate-ping"
+                          style={{
+                            position: 'absolute', inset: 0,
+                            width: 9, height: 9, borderRadius: 9999,
+                            background: `hsl(${accentVar})`, opacity: 0.4,
+                          }}
+                        />
+                      </span>
+                    ) : null}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{
+                      fontFamily: OUTFIT,
+                      fontSize: 38,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      letterSpacing: '-0.02em',
+                      color: valueColor,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {item.value}
+                    </span>
+                    {tone === 'alert' && item.value > 0 && (
+                      <span style={{
+                        fontFamily: OUTFIT,
+                        fontSize: 9,
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        color: 'hsl(var(--info-foreground))',
+                        background: `hsl(${accentVar})`,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                      }}>
+                        ATENÇÃO
+                      </span>
+                    )}
+                  </div>
+                  <span style={{
+                    fontFamily: FIGTREE,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'hsl(var(--muted-foreground))',
+                  }}>
+                    {tone === 'action' && !isZero ? 'aguardando você'
+                      : tone === 'alert' && !isZero ? 'pendentes de revisão'
+                      : 'sem pendências'}
+                  </span>
+                  <span
+                    className="medpay-score-underline"
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 16,
+                      right: 16,
+                      height: 3,
+                      borderRadius: 9999,
+                      background: `hsl(${accentVar})`,
+                      transform: 'scaleX(0)',
+                      transformOrigin: 'left',
+                      transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    }}
+                  />
                 </Link>
               );
             };
 
-            const ScoreGroup = ({ title, items, highlighted, flex, isLast }: {
+            const ScoreSection = ({ title, items, tone }: {
               title: string;
               items: ScoreItemData[];
-              highlighted: boolean;
-              flex: number;
-              isLast: boolean;
-            }) => (
-              <div style={{
-                flex,
-                display: 'flex',
-                flexDirection: 'column',
-                borderRight: isLast ? undefined : '0.5px solid hsl(var(--border))',
-              }}>
-                <div style={{
-                  fontSize: 9, fontWeight: 600,
-                  color: highlighted ? 'hsl(var(--accent-foreground))' : 'hsl(var(--muted-foreground))',
-                  letterSpacing: '0.07em', textTransform: 'uppercase',
-                  padding: '8px 14px',
-                  background: highlighted ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
-                  borderBottom: '0.5px solid hsl(var(--border))',
-                  textAlign: 'center' as const,
-                }}>
-                  {title}
-                </div>
-                <div style={{ display: 'flex', flex: 1 }}>
-                  {items.map((item, i) => (
-                    <div key={item.label} style={{
-                      flex: 1,
-                      borderRight: i < items.length - 1 ? '0.5px solid hsl(var(--border))' : undefined,
+              tone: 'action' | 'transit' | 'alert';
+            }) => {
+              const headColor = tone === 'action' ? 'hsl(var(--primary))'
+                : tone === 'alert' ? 'hsl(var(--info))'
+                : 'hsl(var(--muted-foreground))';
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                  <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                    <h3 style={{
+                      fontFamily: OUTFIT,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.28em',
+                      textTransform: 'uppercase',
+                      color: headColor,
+                      whiteSpace: 'nowrap',
+                      margin: 0,
                     }}>
-                      {highlighted ? (
-                        <ScoreItem item={item} isHighlighted={highlighted} />
-                      ) : (
-                        <Link
-                          to={item.to}
-                          style={{
-                            display: 'flex', flexDirection: 'column', gap: 4,
-                            padding: '10px 14px', textDecoration: 'none', color: 'inherit',
-                            transition: 'background 0.12s',
-                            height: '100%',
-                          }}
-                          className="hover:bg-muted/50"
-                        >
-                          <span style={{
-                            fontSize: 9.5, fontWeight: 500,
-                            color: 'hsl(var(--muted-foreground))',
-                            letterSpacing: '0.04em', textTransform: 'uppercase',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          }}>
-                            {item.label}
-                          </span>
-                          <span style={{
-                            fontSize: 22, fontWeight: 600, lineHeight: 1,
-                            fontVariantNumeric: 'tabular-nums',
-                            color: item.value > 0
-                              ? (item.accent === 'rose' ? 'hsl(var(--destructive))'
-                                : item.accent === 'amber' ? 'hsl(var(--warning))'
-                                : 'hsl(var(--foreground))')
-                              : 'hsl(var(--muted-foreground))',
-                          }}>
-                            {item.value}
-                          </span>
-                        </Link>
-                      )}
-                    </div>
-                  ))}
+                      {title}
+                    </h3>
+                    <span style={{
+                      height: 1,
+                      flex: 1,
+                      background: 'linear-gradient(to right, hsl(var(--border)), transparent)',
+                    }} />
+                  </header>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${Math.max(items.length, 2)}, minmax(0, 1fr))`,
+                    gap: 16,
+                  }}>
+                    {items.map((item) => (
+                      <ScoreCard key={item.label} item={item} tone={tone} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
+              );
+            };
 
             return (
               <div style={{
-                background: 'hsl(var(--card))',
-                border: '0.5px solid hsl(var(--border))',
-                borderRadius: 10,
-                display: 'flex',
-                overflow: 'hidden',
+                display: 'grid',
+                gridTemplateColumns: hasAcoes && (hasTransito || hasAlertas)
+                  ? 'minmax(0, 1fr) minmax(0, 1fr)'
+                  : 'minmax(0, 1fr)',
+                gap: 40,
               }}>
                 {hasAcoes && (
-                  <ScoreGroup
-                    title="Ações — sua vez"
-                    items={acaoItems}
-                    highlighted={true}
-                    flex={Math.max(acaoItems.length, 2)}
-                    isLast={!hasTransito && !hasAlertas}
-                  />
+                  <ScoreSection title="Ações — Sua Vez" items={acaoItems} tone="action" />
                 )}
                 {hasTransito && (
-                  <ScoreGroup
-                    title="Em trânsito"
-                    items={transitoItems}
-                    highlighted={false}
-                    flex={Math.max(transitoItems.length, 1)}
-                    isLast={!hasAlertas}
-                  />
+                  <ScoreSection title="Em Trânsito" items={transitoItems} tone="transit" />
                 )}
                 {hasAlertas && (
-                  <ScoreGroup
-                    title="Alertas"
-                    items={alertaItems}
-                    highlighted={false}
-                    flex={Math.max(alertaItems.length, 1)}
-                    isLast={true}
-                  />
+                  <ScoreSection title="Alertas" items={alertaItems} tone="alert" />
                 )}
               </div>
             );
