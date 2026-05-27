@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
 import {
@@ -39,10 +40,10 @@ export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
 const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(var(--secondary-foreground)), hsl(var(--foreground)))";
 
-function getInitials(email?: string | null) {
-  if (!email) return "AA";
-  const name = email.split("@")[0].replace(/[._-]+/g, " ").trim();
-  const parts = name.split(/\s+/).filter(Boolean);
+function getInitials(name?: string | null, email?: string | null) {
+  const source = (name && name.trim()) || (email ? email.split("@")[0].replace(/[._-]+/g, " ") : "");
+  if (!source) return "AA";
+  const parts = source.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "AA";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -325,7 +326,16 @@ export const AppLayout = () => {
       display: "inline-block",
     };
   };
-  const initials = getInitials(user?.email);
+  const [fullName, setFullName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.id) { setFullName(null); return; }
+    let cancelled = false;
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setFullName((data?.full_name as string | null) ?? null); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+  const displayName = fullName || user?.email || "";
+  const initials = getInitials(fullName, user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
   const canRetryInvoices = roles.includes("analista") || roles.includes("admin");
   const visibleTopNav = filterNav(NAV_ITEMS, roles);
@@ -481,7 +491,7 @@ export const AppLayout = () => {
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-medium truncate text-foreground">{user?.email}</p>
+            <p className="text-[12px] font-medium truncate text-foreground">{displayName}</p>
             <span style={getRoleBadgeStyle(primaryRole)}>
               {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
             </span>
@@ -570,7 +580,7 @@ export const AppLayout = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-[13px] font-medium truncate">{user?.email}</p>
+                      <p className="text-[13px] font-medium truncate">{displayName}</p>
                       <span style={getRoleBadgeStyle(primaryRole)}>
                         {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
                       </span>
@@ -686,7 +696,7 @@ export const AppLayout = () => {
                   textOverflow: "ellipsis",
                 }}
               >
-                {user?.email}
+                {displayName}
               </p>
               <span style={getRoleBadgeStyle(primaryRole)}>
                 {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
