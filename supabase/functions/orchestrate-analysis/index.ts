@@ -207,8 +207,15 @@ Deno.serve(async (req) => {
           if (!resp.ok) console.error("[orchestrate] recalc-pools erro", resp.status, (await resp.text()).slice(0, 500));
           else console.log("[orchestrate] recalc-pools disparado");
         }), "falha ao disparar recalc-payment-pools");
+
+        // [Sprint 3 - Tier 1.B] Limpa cache de contexto do job (já não será usado).
+        runInBackground(
+          supabase.from("payment_job_context").delete().eq("job_id", job_id).then(() => {}),
+          "falha ao limpar payment_job_context",
+        );
       }
     }
+
 
     return new Response(
       JSON.stringify({

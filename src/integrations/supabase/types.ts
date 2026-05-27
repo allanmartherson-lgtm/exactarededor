@@ -1924,6 +1924,33 @@ export type Database = {
           },
         ]
       }
+      payment_job_context: {
+        Row: {
+          built_at: string
+          context: Json
+          job_id: string
+          meta: Json
+          payment_id: string
+          size_bytes: number | null
+        }
+        Insert: {
+          built_at?: string
+          context: Json
+          job_id: string
+          meta?: Json
+          payment_id: string
+          size_bytes?: number | null
+        }
+        Update: {
+          built_at?: string
+          context?: Json
+          job_id?: string
+          meta?: Json
+          payment_id?: string
+          size_bytes?: number | null
+        }
+        Relationships: []
+      }
       payment_observations: {
         Row: {
           answered_by_observation_id: string | null
