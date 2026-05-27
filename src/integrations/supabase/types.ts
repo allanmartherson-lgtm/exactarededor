@@ -2936,8 +2936,8 @@ export type Database = {
           role: string | null
           run_id: string
           status: string
+          valor_exacta: number
           valor_hospital: number
-          valor_medpay: number
           valor_regra: number | null
         }
         Insert: {
@@ -2965,8 +2965,8 @@ export type Database = {
           role?: string | null
           run_id: string
           status?: string
+          valor_exacta?: number
           valor_hospital?: number
-          valor_medpay?: number
           valor_regra?: number | null
         }
         Update: {
@@ -2994,8 +2994,8 @@ export type Database = {
           role?: string | null
           run_id?: string
           status?: string
+          valor_exacta?: number
           valor_hospital?: number
-          valor_medpay?: number
           valor_regra?: number | null
         }
         Relationships: [
@@ -3061,8 +3061,8 @@ export type Database = {
           payment_id: string
           risco_mais: number
           risco_menos: number
+          so_exacta: number
           so_hospital: number
-          so_medpay: number
           status: string
           total_items: number
           valor_divergente: number
@@ -3077,8 +3077,8 @@ export type Database = {
           payment_id: string
           risco_mais?: number
           risco_menos?: number
+          so_exacta?: number
           so_hospital?: number
-          so_medpay?: number
           status?: string
           total_items?: number
           valor_divergente?: number
@@ -3093,8 +3093,8 @@ export type Database = {
           payment_id?: string
           risco_mais?: number
           risco_menos?: number
+          so_exacta?: number
           so_hospital?: number
-          so_medpay?: number
           status?: string
           total_items?: number
           valor_divergente?: number
