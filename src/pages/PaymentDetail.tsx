@@ -2227,6 +2227,10 @@ const PaymentDetail = () => {
           );
         })()}
 
+        {isNfPhase && <NfPhaseSummary groups={groups} invoices={invoices} />}
+
+
+
         {/* Banner de questionamento — destaque crítico no topo. Mostra a última
             pergunta do recebedor que ainda não recebeu resposta do analista. */}
         {(() => {
