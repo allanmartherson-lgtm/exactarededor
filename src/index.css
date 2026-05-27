@@ -126,23 +126,28 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* ── Superfícies — navy suave, não preto saturado ─────── */
-    --background: 222 20% 10%;
-    --foreground: 215 25% 92%;
+    /* ── Superfícies — base ink (#0D1117) ─────────────────── */
+    --background: 214 28% 7%;
+    --foreground: 60 15% 92%;
 
-    --card: 222 18% 14%;
-    --card-foreground: 215 25% 92%;
+    --card: 214 22% 11%;
+    --card-foreground: 60 15% 92%;
 
-    --popover: 222 18% 16%;
-    --popover-foreground: 215 25% 92%;
+    --popover: 214 22% 13%;
+    --popover-foreground: 60 15% 92%;
 
-    /* ── Primary: azul acessível no escuro ──────────────────── */
-    --primary: 213 85% 65%;
-    --primary-foreground: 222 20% 10%;
-    --primary-soft: 222 25% 20%;
-    --primary-glow: 213 85% 72%;
+    /* ── Brand: verde mais claro no dark ─────────────────── */
+    --primary: 165 33% 42%;              /* verde médio para legibilidade */
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 165 25% 18%;
+    --primary-glow: 165 40% 55%;
+    --primary-dark: 164 35% 18%;
 
-    /* ── Accent blue ─────────────────────────────────────────── */
+    /* ── Accent: ouro Exacta ─────────────────────────────── */
+    --accent: 38 47% 61%;
+    --accent-foreground: 214 28% 7%;
+    --accent-light: 40 58% 78%;
+
     --accent-blue: 213 85% 65%;
     --accent-blue-soft: 222 25% 20%;
 
@@ -153,15 +158,12 @@ All colors MUST be HSL.
     --copper-active: 28 55% 44%;
     --copper-soft: 28 35% 20%;
 
-    --secondary: 222 16% 20%;
-    --secondary-foreground: 215 18% 78%;
+    --secondary: 214 18% 18%;
+    --secondary-foreground: 60 15% 82%;
 
-    --muted: 222 16% 17%;
-    --muted-foreground: 215 12% 62%;
-    --text-tertiary: 215 12% 55%;
-
-    --accent: 222 25% 22%;
-    --accent-foreground: 213 85% 72%;
+    --muted: 214 18% 16%;
+    --muted-foreground: 220 9% 62%;
+    --text-tertiary: 220 9% 55%;
 
     /* ── Status — tons mais suaves no dark ─────────────────── */
     --success: 142 60% 55%;
@@ -184,23 +186,23 @@ All colors MUST be HSL.
     --destructive-soft: 0 35% 18%;
     --destructive-text: 0 75% 72%;
 
-    /* ── Bordas — cinza frio, não azul ─────────────────────── */
-    --border: 222 14% 22%;
-    --border-strong: 222 12% 32%;
-    --border-highlight: 222 16% 28%;
-    --input: 222 12% 32%;
-    --input-bg: 222 18% 14%;
-    --ring: 213 85% 65%;
-    --ring-soft: 213 85% 65% / 0.3;
-    --track-soft: 222 12% 28%;
+    /* ── Bordas ─────────────────────────────────────────── */
+    --border: 214 14% 20%;
+    --border-strong: 214 12% 30%;
+    --border-highlight: 214 16% 26%;
+    --input: 214 12% 30%;
+    --input-bg: 214 22% 11%;
+    --ring: 38 47% 61%;
+    --ring-soft: 38 47% 61% / 0.35;
+    --track-soft: 214 12% 26%;
 
     --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.25);
     --shadow-control: 0 1px 2px rgb(0 0 0 / 0.18);
     --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.25), 0 1px 3px 0 rgb(0 0 0 / 0.15);
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.18);
     --shadow-elevated: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.25);
-    --gradient-brand: linear-gradient(135deg, hsl(222 25% 20%), hsl(213 85% 38%));
-    --gradient-soft: linear-gradient(135deg, hsl(222 18% 16%), hsl(222 20% 10%));
+    --gradient-brand: linear-gradient(135deg, hsl(164 35% 18%), hsl(165 33% 36%));
+    --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
     --bubble-purple-bg: 262 30% 22%;
@@ -211,29 +213,29 @@ All colors MUST be HSL.
     --bubble-red-fg: 0 75% 72%;
     --bubble-blue-bg: 222 28% 20%;
     --bubble-blue-fg: 213 85% 72%;
-    --bubble-green-bg: 142 28% 18%;
-    --bubble-green-fg: 142 60% 62%;
+    --bubble-green-bg: 165 25% 18%;
+    --bubble-green-fg: 165 40% 65%;
     --bubble-teal-bg: 187 30% 18%;
     --bubble-teal-fg: 187 65% 62%;
 
     /* ── Table ──────────────────────────────────────────────── */
-    --table-row-hover: 222 18% 17%;
-    --table-border-light: 222 14% 20%;
-    --hover-surface: 222 18% 18%;
+    --table-row-hover: 214 22% 14%;
+    --table-border-light: 214 14% 18%;
+    --hover-surface: 214 22% 15%;
     --shadow-hover: 0 4px 12px rgb(0 0 0 / 0.35);
 
     /* ── Sidebar ────────────────────────────────────────────── */
-    --sidebar-background: 222 22% 11%;
-    --sidebar-foreground: 215 14% 62%;
-    --sidebar-muted-foreground: 215 10% 48%;
-    --sidebar-primary: 215 25% 88%;
-    --sidebar-primary-foreground: 222 20% 10%;
-    --sidebar-hover: 222 16% 18%;
-    --sidebar-hover-foreground: 215 20% 88%;
-    --sidebar-accent: 222 18% 20%;
-    --sidebar-accent-foreground: 215 25% 88%;
-    --sidebar-border: 222 14% 18%;
-    --sidebar-ring: 213 85% 65%;
+    --sidebar-background: 214 28% 9%;
+    --sidebar-foreground: 60 12% 70%;
+    --sidebar-muted-foreground: 220 9% 50%;
+    --sidebar-primary: 165 33% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-hover: 214 22% 15%;
+    --sidebar-hover-foreground: 60 15% 90%;
+    --sidebar-accent: 165 25% 18%;
+    --sidebar-accent-foreground: 60 15% 92%;
+    --sidebar-border: 214 14% 16%;
+    --sidebar-ring: 38 47% 61%;
   }
 }
 
