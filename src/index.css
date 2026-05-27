@@ -147,8 +147,8 @@ All colors MUST be HSL.
     --primary-dark: 164 35% 18%;
 
     /* ── Accent: ouro Exacta ─────────────────────────────── */
-    --accent: 38 47% 61%;
-    --accent-foreground: 214 28% 7%;
+    --accent: 164 33% 26%;
+    --accent-foreground: 0 0% 100%;
     --accent-light: 40 58% 78%;
 
     --accent-blue: 213 85% 65%;
