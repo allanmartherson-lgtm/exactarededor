@@ -160,6 +160,13 @@ serve(async (req) => {
         if (files.length > 0) {
           await persistAttachments(files, q.id, invoice.id, invoice.payment_id, "recebedor", null);
         }
+        // Marca perguntas pendentes do analista como respondidas (recebedor está respondendo)
+        await supabase
+          .from("invoice_questions")
+          .update({ answered_at: new Date().toISOString() })
+          .eq("invoice_id", invoice.id)
+          .eq("author_type", "analista")
+          .is("answered_at", null);
         await supabase.from("payments").update({ status: "nf_questionada" }).eq("id", invoice.payment_id);
         await supabase.from("payment_observations").insert({
           payment_id: invoice.payment_id,
