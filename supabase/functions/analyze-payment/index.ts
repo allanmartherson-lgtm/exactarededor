@@ -58,6 +58,16 @@ serve(async (req) => {
   // Sem isso, exceções fora do try/catch principal travam o job em "99%".
   let __progress_reported = false;
 
+  // [Sprint 4 - Observabilidade] Métricas por empresa para `analysis_telemetry`.
+  const __telemetry = {
+    rules_ms: 0,
+    ai_ms: 0,
+    writes_ms: 0,
+    items_count: 0,
+    ai_items_count: 0,
+    cache_hit: false,
+  };
+
   try {
     const parsedBody = await req.json();
     const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = parsedBody;
@@ -152,6 +162,7 @@ serve(async (req) => {
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
     // ---------- 2. carrega configurações globais e regras ----------
+    const __rulesStart = Date.now();
     console.time(`${__t} carregar_regras`);
 
     // [Sprint 1 - Tier 1.A] Resolve company_id para filtrar regras por escopo.
@@ -242,6 +253,7 @@ serve(async (req) => {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
+              __telemetry.cache_hit = true;
               console.log(`${__t} ctx_cache HIT (age=${Math.round(ageMs / 1000)}s, rules=${cachedRulesAll.length})`);
             }
           }
@@ -373,6 +385,7 @@ serve(async (req) => {
     (ctx as any).globalThresholds = globalThresholds;
 
     console.timeEnd(`${__t} carregar_regras`);
+    __telemetry.rules_ms = Date.now() - __rulesStart;
 
 
 
@@ -860,6 +873,8 @@ serve(async (req) => {
     // ---------- 5. IA SÓ JUSTIFICA itens com needs_ai_review ----------
     // Em modo empresa_prioritaria, ignoramos histórico de outros pagamentos.
     const itemsToReview = is_dry_run ? [] : results.filter((r) => r.needs_ai_review).slice(0, 200);
+    __telemetry.ai_items_count = itemsToReview.length;
+    const __aiStart = Date.now();
     let aiJustifications: Record<string, { extra_alerts: string[]; ai_note: string }> = {};
 
     console.time(`${__t} chamada_ia`);
@@ -1020,6 +1035,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
     console.timeEnd(`${__t} chamada_ia`);
+    __telemetry.ai_ms = Date.now() - __aiStart;
 
     // ---------- 6. Caller (para snapshots) ----------
     let triggeredBy: string | null = null;
@@ -1455,6 +1471,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // Updates por id em paralelo (chunks de 50). Não dá para fazer um único
     // UPDATE porque cada item tem um ai_findings diferente.
     console.time(`${__t} writes_payment_items`);
+    const __writesStart = Date.now();
     await runChunked(itemUpdates, 50, async (u) => {
       await supabase.from("payment_items").update({
         ai_status: u.ai_status,
@@ -1710,6 +1727,24 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
+    // [Sprint 4 - Observabilidade] Grava telemetria por empresa (best-effort).
+    __telemetry.items_count = results.length;
+    try {
+      await supabase.from("analysis_telemetry").insert({
+        job_id: __job_id ?? null,
+        payment_id,
+        company_name: __company_label ?? __company_name ?? null,
+        total_ms: Date.now() - startTime,
+        ai_ms: __telemetry.ai_ms,
+        rules_ms: __telemetry.rules_ms,
+        writes_ms: Date.now() - (__writesStart ?? startTime),
+        items_count: __telemetry.items_count,
+        ai_items_count: __telemetry.ai_items_count,
+        cache_hit: __telemetry.cache_hit,
+      });
+    } catch (telErr) {
+      console.warn(`${__t} telemetry insert falhou`, (telErr as any)?.message ?? telErr);
+    }
 
     return new Response(
       JSON.stringify({
@@ -1753,6 +1788,22 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           _error: msg.slice(0, 300),
         });
         __progress_reported = true;
+      }
+      // [Sprint 4] Telemetria de falha
+      if (__payment_id) {
+        await supabase.from("analysis_telemetry").insert({
+          job_id: __job_id ?? null,
+          payment_id: __payment_id,
+          company_name: __company_label ?? __company_name ?? null,
+          total_ms: Date.now() - startTime,
+          ai_ms: __telemetry.ai_ms,
+          rules_ms: __telemetry.rules_ms,
+          writes_ms: 0,
+          items_count: __telemetry.items_count,
+          ai_items_count: __telemetry.ai_items_count,
+          cache_hit: __telemetry.cache_hit,
+          error: msg.slice(0, 500),
+        });
       }
     } catch (reportErr) {
       console.error("Falha ao reportar erro do worker:", reportErr);

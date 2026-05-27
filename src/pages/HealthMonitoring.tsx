@@ -10,6 +10,7 @@ import {
 import { formatCurrency } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import TelemetryPanel from "@/components/health/TelemetryPanel";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
@@ -792,6 +793,12 @@ export default function HealthMonitoring() {
             status={!aiHealth ? "carregando" : aiHealth.hasGemini ? "aviso" : "ok"}
           />
         </SurfaceCard>
+      </section>
+
+      {/* ── Seção: Telemetria de análise (Sprint 4) ── */}
+      <section>
+        <SectionLabel>Telemetria de análise</SectionLabel>
+        <TelemetryPanel />
       </section>
     </div>
   );
