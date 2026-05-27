@@ -2008,70 +2008,58 @@ const Dashboard = () => {
           </div>
         ) : (
           (() => {
-            type ScoreItemData = {
-              label: string;
-              value: number;
-              to: string;
-              icon: LucideIcon;
-              color: BubbleColor;
-              accent?: 'amber' | 'rose';
-            };
-
             const acaoItems: ScoreItemData[] = [];
             if (isAnalista && totalPendingQuestions > 0) acaoItems.push({
               label: 'Questionam. internos', value: totalPendingQuestions,
               to: `/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`,
-              icon: MessageCircle, color: 'yellow',
             });
             if (isAnalista && companyInvoiceQuestions.count > 0) acaoItems.push({
               label: 'Pergunta empresa (NF)', value: companyInvoiceQuestions.count,
               to: companyInvoiceQuestions.firstPaymentId ? `/notas-fiscais?payment=${companyInvoiceQuestions.firstPaymentId}` : '/notas-fiscais',
-              icon: MessageCircle, color: 'red',
             });
             if (isAnalista && totalPendingReleaseNf > 0) acaoItems.push({
               label: 'Liberar NF', value: totalPendingReleaseNf,
               to: `/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`,
-              icon: CheckCircle2, color: 'teal',
             });
             if (isAnalista && pendingNfRecebida > 0) acaoItems.push({
               label: 'NF p/ conciliar', value: pendingNfRecebida,
-              to: '/notas-fiscais', icon: FileCheck, color: 'green',
+              to: '/notas-fiscais',
             });
             if (isAnalista && pendingNfConciliar > 0) acaoItems.push({
               label: 'Pronta p/ lançar', value: pendingNfConciliar,
-              to: '/notas-fiscais', icon: CheckCircle2, color: 'green',
+              to: '/notas-fiscais',
             });
             if (isAnalista && counts.mineAnalista > 0) acaoItems.push({
               label: 'Suas bases', value: counts.mineAnalista,
-              to: '/pagamentos?owner=me&status=analista', icon: Landmark, color: 'purple',
+              to: '/pagamentos?owner=me&status=analista',
             });
             if (isValidador && counts.mineValidador > 0) acaoItems.push({
               label: 'Para validar', value: counts.mineValidador,
-              to: '/pagamentos?status=aguardando_validacao', icon: ListChecks, color: 'yellow',
+              to: '/pagamentos?status=aguardando_validacao',
             });
             if (isDiretor && counts.mineDiretor > 0) acaoItems.push({
               label: 'Para aprovar', value: counts.mineDiretor,
-              to: '/pagamentos?status=aguardando_aprovacao', icon: ShieldCheck, color: 'teal',
+              to: '/pagamentos?status=aguardando_aprovacao',
             });
 
             const transitoItems: ScoreItemData[] = [];
             if (isAnalista && pendingNfAguardando > 0) transitoItems.push({
               label: 'NF aguard. retorno', value: pendingNfAguardando,
-              to: '/notas-fiscais', icon: Send, color: 'blue',
+              to: '/notas-fiscais',
             });
             if (isDiretor && counts.diretorAprovadoEmRevisao > 0) transitoItems.push({
               label: 'Pós-aprovação', value: counts.diretorAprovadoEmRevisao,
-              to: '/pagamentos?status=aprovado_em_revisao', icon: FileText, color: 'blue',
+              to: '/pagamentos?status=aprovado_em_revisao',
             });
 
             const alertaItems: ScoreItemData[] = [];
             if (isAnalista) alertaItems.push({
               label: 'Ressalvas', value: counts.mineRessalvas,
-              to: '/pagamentos?status=aprovado_com_ressalva', icon: AlertCircle, color: 'red', accent: 'amber',
+              to: '/pagamentos?status=aprovado_com_ressalva', accent: 'amber',
             });
             if (isAnalista) alertaItems.push({
               label: 'NFs divergentes', value: counts.mineInvoicesDivergentes,
-              to: '/notas-fiscais', icon: FileWarning, color: 'red', accent: 'rose',
+              to: '/notas-fiscais', accent: 'rose',
             });
 
             const hasAcoes = acaoItems.length > 0;
@@ -2094,193 +2082,6 @@ const Dashboard = () => {
               );
             }
 
-            const OUTFIT = "'Outfit', 'Inter', system-ui, sans-serif";
-            const FIGTREE = "'Figtree', 'Inter', system-ui, sans-serif";
-
-            const ScoreCard = ({ item, tone }: { item: ScoreItemData; tone: 'action' | 'transit' | 'alert' }) => {
-              const isZero = item.value === 0;
-              const accentVar =
-                tone === 'action' ? 'var(--primary)' :
-                tone === 'alert'  ? 'var(--info)' :
-                                    'var(--muted-foreground)';
-              const valueColor = isZero
-                ? 'hsl(var(--muted-foreground))'
-                : item.accent === 'rose' ? 'hsl(var(--destructive))'
-                : item.accent === 'amber' ? 'hsl(var(--warning))'
-                : 'hsl(var(--foreground))';
-              return (
-                <Link
-                  to={item.to}
-                  className="group medpay-score-card"
-                  style={{
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                    padding: '18px 18px 20px',
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    overflow: 'hidden',
-                    transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s, border-color 0.3s',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span
-                      className="medpay-score-label"
-                      style={{
-                        fontFamily: OUTFIT,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        color: 'hsl(var(--muted-foreground))',
-                        transition: 'color 0.3s',
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                    {tone === 'action' ? (
-                      <svg
-                        viewBox="0 0 40 10"
-                        width={36}
-                        height={14}
-                        aria-hidden
-                        className="medpay-score-spark"
-                        style={{ opacity: 0.35, transition: 'opacity 0.4s, transform 0.4s' }}
-                      >
-                        <path
-                          d="M0 8 L5 4 L10 6 L15 2 L20 5 L25 1 L30 7 L35 3 L40 5"
-                          fill="none"
-                          stroke={`hsl(${accentVar})`}
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ) : tone === 'alert' && !isZero ? (
-                      <span style={{ position: 'relative', display: 'inline-flex' }}>
-                        <span
-                          style={{
-                            width: 9, height: 9, borderRadius: 9999,
-                            background: `hsl(${accentVar})`,
-                            boxShadow: `0 0 10px hsl(${accentVar} / 0.5)`,
-                            display: 'inline-block',
-                          }}
-                        />
-                        <span
-                          className="animate-ping"
-                          style={{
-                            position: 'absolute', inset: 0,
-                            width: 9, height: 9, borderRadius: 9999,
-                            background: `hsl(${accentVar})`, opacity: 0.4,
-                          }}
-                        />
-                      </span>
-                    ) : null}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{
-                      fontFamily: OUTFIT,
-                      fontSize: 38,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      letterSpacing: '-0.02em',
-                      color: valueColor,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
-                      {item.value}
-                    </span>
-                    {tone === 'alert' && item.value > 0 && (
-                      <span style={{
-                        fontFamily: OUTFIT,
-                        fontSize: 9,
-                        fontWeight: 800,
-                        letterSpacing: '0.04em',
-                        color: 'hsl(var(--info-foreground))',
-                        background: `hsl(${accentVar})`,
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                      }}>
-                        ATENÇÃO
-                      </span>
-                    )}
-                  </div>
-                  <span style={{
-                    fontFamily: FIGTREE,
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: 'hsl(var(--muted-foreground))',
-                  }}>
-                    {tone === 'action' && !isZero ? 'aguardando você'
-                      : tone === 'alert' && !isZero ? 'pendentes de revisão'
-                      : 'sem pendências'}
-                  </span>
-                  <span
-                    className="medpay-score-underline"
-                    aria-hidden
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 16,
-                      right: 16,
-                      height: 3,
-                      borderRadius: 9999,
-                      background: `hsl(${accentVar})`,
-                      transform: 'scaleX(0)',
-                      transformOrigin: 'left',
-                      transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    }}
-                  />
-                </Link>
-              );
-            };
-
-            const ScoreSection = ({ title, items, tone }: {
-              title: string;
-              items: ScoreItemData[];
-              tone: 'action' | 'transit' | 'alert';
-            }) => {
-              const headColor = tone === 'action' ? 'hsl(var(--primary))'
-                : tone === 'alert' ? 'hsl(var(--info))'
-                : 'hsl(var(--muted-foreground))';
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                  <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                    <h3 style={{
-                      fontFamily: OUTFIT,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.28em',
-                      textTransform: 'uppercase',
-                      color: headColor,
-                      whiteSpace: 'nowrap',
-                      margin: 0,
-                    }}>
-                      {title}
-                    </h3>
-                    <span style={{
-                      height: 1,
-                      flex: 1,
-                      background: 'linear-gradient(to right, hsl(var(--border)), transparent)',
-                    }} />
-                  </header>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${Math.max(items.length, 2)}, minmax(0, 1fr))`,
-                    gap: 16,
-                  }}>
-                    {items.map((item) => (
-                      <ScoreCard key={item.label} item={item} tone={tone} />
-                    ))}
-                  </div>
-                </div>
-              );
-            };
-
             return (
               <div style={{
                 display: 'grid',
@@ -2301,6 +2102,7 @@ const Dashboard = () => {
               </div>
             );
           })()
+
         )}
       </section>
 
