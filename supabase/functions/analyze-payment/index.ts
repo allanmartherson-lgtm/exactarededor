@@ -106,9 +106,39 @@ serve(async (req) => {
 
     // ---------- 2. carrega configurações globais e regras ----------
     console.time(`${__t} carregar_regras`);
-    const [configRes, rulesRes] = await Promise.all([
-      supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
-      supabase.from("rules").select(`
+
+    // [Sprint 1 - Tier 1.A] Resolve company_id para filtrar regras por escopo.
+    // Sem isso, carregamos TODAS as regras ativas em cada worker (× N empresas),
+    // saturando o pool Postgres em lotes grandes. Com filtro por escopo, cada
+    // worker carrega só regras aplicáveis (master + específica daquela empresa
+    // + grupos que contêm aquela empresa).
+    let scopedCompanyId: string | null = null;
+    if (company_name && typeof company_name === "string") {
+      const { data: companyRow } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("name", company_name)
+        .limit(1)
+        .maybeSingle();
+      scopedCompanyId = (companyRow?.id as string | null) ?? null;
+      if (!scopedCompanyId) {
+        // Fallback via payment_items (cobre casos onde company_name é alias)
+        const { data: itemRow } = await supabase
+          .from("payment_items")
+          .select("company_id")
+          .eq("payment_id", payment_id)
+          .eq("company_name", company_name)
+          .not("company_id", "is", null)
+          .limit(1)
+          .maybeSingle();
+        scopedCompanyId = (itemRow?.company_id as string | null) ?? null;
+      }
+      if (!scopedCompanyId) {
+        console.warn(`${__t} company_id não resolvido para "${company_name}" — carregando regras sem filtro de escopo (degrada performance).`);
+      }
+    }
+
+    const RULES_SELECT = `
         id,name,rule_text,description,active,severity,scope,
         target_type,target_identifier,target_name,target_company_id,
         valid_from,valid_until,
@@ -123,7 +153,20 @@ serve(async (req) => {
         bonus_amount,bonus_pct,target_amount,
         limiar_alerta_tipo, limiar_alerta_valor, limiar_bloqueio_tipo, limiar_bloqueio_valor,
         force_totalized
-      `).eq("active", true)
+    `;
+
+    let rulesQuery = supabase.from("rules").select(RULES_SELECT).eq("active", true);
+    if (scopedCompanyId) {
+      // master | (específica desta empresa) | (grupo que contém esta empresa).
+      // group_company_links é jsonb array de {company_id:"..."} — usamos `cs` (contains).
+      rulesQuery = rulesQuery.or(
+        `scope.eq.master,and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId}),and(scope.eq.grupo,group_company_links.cs.[{"company_id":"${scopedCompanyId}"}])`
+      );
+    }
+
+    const [configRes, rulesRes] = await Promise.all([
+      supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
+      rulesQuery,
     ]);
 
     const configs = (configRes.data ?? []) as any[];
@@ -135,6 +178,7 @@ serve(async (req) => {
       console.warn("[analyze-payment] system_configurations query warning:", configRes.error);
     }
     const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
+    console.log(`${__t} regras carregadas: ${rules.length} (scoped=${scopedCompanyId ? "sim" : "não"})`);
 
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
     const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
