@@ -1035,6 +1035,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
     console.timeEnd(`${__t} chamada_ia`);
+    __telemetry.ai_ms = Date.now() - __aiStart;
 
     // ---------- 6. Caller (para snapshots) ----------
     let triggeredBy: string | null = null;
