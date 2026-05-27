@@ -120,7 +120,7 @@ const ApprovalPanel = ({ payment, groups }: { payment: PaymentRow; groups: Group
       sub: stats.aprovar > 0 ? formatCurrency(stats.total) : "nenhum pendente",
       tone: stats.aprovar > 0 ? "warning" : "success" },
     { icon: Banknote, label: "Total a aprovar", value: formatCurrency(stats.total),
-      sub: `competência ${payment.competence ?? "—"}`,
+      sub: `competência ${payment.competence_month ?? "—"}`,
       tone: "default" },
     { icon: Hourglass, label: "Maior tempo aguardando", value: stats.aprovar ? `${stats.maior}d` : "—",
       tone: stats.maior > 3 ? "alert" : stats.maior > 1 ? "warning" : "default" },
