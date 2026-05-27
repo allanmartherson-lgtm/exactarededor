@@ -206,7 +206,7 @@ export default function TelemetryPanel() {
                     <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.company_name ?? "(sem empresa)"}</div>
                     <div style={{ color: "hsl(var(--muted-foreground))" }}>{r.items_count} itens</div>
                     <div style={{ color: r.cache_hit ? "hsl(var(--bubble-green-fg))" : "hsl(var(--muted-foreground))" }}>{r.cache_hit ? "cache" : "miss"}</div>
-                    <div style={{ fontWeight: 600, tabularNums: "true" as any }}>{fmtMs(r.total_ms)}</div>
+                    <div style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmtMs(r.total_ms)}</div>
                   </div>
                 ))}
               </div>
