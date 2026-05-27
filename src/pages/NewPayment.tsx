@@ -450,6 +450,27 @@ const NewPayment = () => {
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
   };
 
+  const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
+    if (!raw) return null;
+    const normalize = (s: string) =>
+      s.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\(.*?\)/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const normRaw = normalize(raw);
+    if (!normRaw) return null;
+    for (const [key, label] of Object.entries(RULE_SECTOR_LABELS)) {
+      const normLabel = normalize(label);
+      if (!normLabel) continue;
+      if (normRaw.includes(normLabel) || normLabel.includes(normRaw)) {
+        return key as RuleSector;
+      }
+    }
+    return null;
+  };
+
   const parseFile = async (f: File): Promise<FileBucket> => {
     const buf = await f.arrayBuffer();
     const wb = XLSX.read(buf, { cellDates: false });
