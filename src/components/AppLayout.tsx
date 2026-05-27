@@ -82,7 +82,7 @@ const Logo = () => (
           lineHeight: 1,
         }}
       >
-        Approval
+        Pagamento Médico — Rede D'Or
       </p>
     </div>
   </NavLink>
