@@ -1784,34 +1784,73 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <section className="lg:col-span-7">
             <SectionLabel>Distribuição do pipeline</SectionLabel>
-            <SurfaceCard>
+            <SurfaceCard style={{ height: "100%" }}>
               {(() => {
                 const cols = [
-                  { icon: FileText, color: "purple" as BubbleColor, label: "Análise", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
-                  { icon: ListChecks, color: "yellow" as BubbleColor, label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
-                  { icon: ShieldCheck, color: "blue" as BubbleColor, label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
-                  { icon: Send, color: "teal" as BubbleColor, label: "NF", value: counts.pipeNFSolicitada + counts.pipeAguardandoEnvio, to: "/pagamentos?status=pedido_nf_enviado" },
-                  { icon: CheckCircle, color: "green" as BubbleColor, label: "Concluído", value: counts.pipePago + counts.pipeNFConciliada, to: "/pagamentos?status=pago" },
+                  { icon: FileText, label: "Análise", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
+                  { icon: ListChecks, label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
+                  { icon: ShieldCheck, label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
+                  { icon: Send, label: "NF", value: counts.pipeNFSolicitada + counts.pipeAguardandoEnvio, to: "/pagamentos?status=pedido_nf_enviado" },
+                  { icon: CheckCircle, label: "Concluído", value: counts.pipePago + counts.pipeNFConciliada, to: "/pagamentos?status=pago" },
                 ];
                 return (
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`, padding: "18px 16px", gap: 0 }}>
-                    {cols.map((col, i) => (
-                      <PipelineCol
-                        key={col.label}
-                        {...col}
-                        density="comfortable"
-                        separated={i > 0}
-                        delayed={
-                          col.label === "Análise"
-                            ? (slaTotals.perStatusVencido["em_analise_ia"] ?? 0) + (slaTotals.perStatusVencido["revisao_analista"] ?? 0)
-                            : col.label === "Validação"
-                            ? slaTotals.perStatusVencido["aguardando_validacao"] ?? 0
-                            : col.label === "Aprovação"
-                            ? slaTotals.perStatusVencido["aguardando_aprovacao"] ?? 0
-                            : 0
-                        }
-                      />
-                    ))}
+                  <div style={{ display: "flex", alignItems: "stretch", height: "100%", minHeight: 168 }}>
+                    {cols.map((col, i) => {
+                      const Icon = col.icon;
+                      const active = col.value > 0;
+                      return (
+                        <Link
+                          key={col.label}
+                          to={col.to}
+                          className="group"
+                          style={{
+                            flex: 1,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "24px 12px",
+                            borderLeft: i > 0 ? "0.5px solid hsl(var(--border))" : "none",
+                            textDecoration: "none",
+                            transition: "background-color 120ms ease",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "hsl(var(--hover-surface))"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                        >
+                          <Icon
+                            size={20}
+                            strokeWidth={1.5}
+                            className="transition-colors"
+                            style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", marginBottom: 14, opacity: active ? 1 : 0.55 }}
+                          />
+                          <div
+                            style={{
+                              fontSize: 30,
+                              fontWeight: 500,
+                              lineHeight: 1,
+                              letterSpacing: "-0.01em",
+                              fontVariantNumeric: "tabular-nums",
+                              color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                              opacity: active ? 1 : 0.4,
+                              marginBottom: 10,
+                            }}
+                          >
+                            {col.value}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              letterSpacing: "0.07em",
+                              textTransform: "uppercase",
+                              color: "hsl(var(--muted-foreground))",
+                            }}
+                          >
+                            {col.label}
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 );
               })()}
