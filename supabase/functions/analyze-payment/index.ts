@@ -1610,12 +1610,13 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         }).eq("id", __payment_id);
       }
       // Reporta falha ao job de dispatch (se houver)
-      if (__job_id) {
+      if (__job_id && !__progress_reported) {
         await supabase.rpc("increment_processing_progress", {
           _job_id: __job_id,
           _company_name: __company_label ?? __company_name ?? "Sem empresa",
           _error: msg.slice(0, 300),
         });
+        __progress_reported = true;
       }
     } catch (reportErr) {
       console.error("Falha ao reportar erro do worker:", reportErr);
@@ -1625,6 +1626,25 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } finally {
+    // [Sprint 1 - Tier 3.H] Safety net: se nem o success-path nem o catch
+    // reportaram (ex.: exceção fora do try, kill abrupto da função), garante
+    // 1 chamada para o job não travar em "99%".
+    if (__job_id && !__progress_reported) {
+      try {
+        const sb = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        await sb.rpc("increment_processing_progress", {
+          _job_id: __job_id,
+          _company_name: __company_label ?? __company_name ?? "Sem empresa",
+          _error: "worker encerrou sem reportar progresso (finally safety-net)",
+        });
+      } catch (e) {
+        console.error("Safety-net finally falhou:", e);
+      }
+    }
   }
 });
 
