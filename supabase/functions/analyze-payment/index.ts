@@ -1727,6 +1727,24 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
       }
     }
 
+    // [Sprint 4 - Observabilidade] Grava telemetria por empresa (best-effort).
+    __telemetry.items_count = results.length;
+    try {
+      await supabase.from("analysis_telemetry").insert({
+        job_id: __job_id ?? null,
+        payment_id,
+        company_name: __company_label ?? __company_name ?? null,
+        total_ms: Date.now() - startTime,
+        ai_ms: __telemetry.ai_ms,
+        rules_ms: __telemetry.rules_ms,
+        writes_ms: Date.now() - (__writesStart ?? startTime),
+        items_count: __telemetry.items_count,
+        ai_items_count: __telemetry.ai_items_count,
+        cache_hit: __telemetry.cache_hit,
+      });
+    } catch (telErr) {
+      console.warn(`${__t} telemetry insert falhou`, (telErr as any)?.message ?? telErr);
+    }
 
     return new Response(
       JSON.stringify({
