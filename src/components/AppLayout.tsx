@@ -115,10 +115,10 @@ const LayoutToggle = () => {
           variant="ghost"
           size="icon"
           onClick={toggleLayout}
-          className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+          className="h-11 w-11 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
           aria-label="Alternar layout"
         >
-          <NextIcon className="h-[18px] w-[18px]" />
+          <NextIcon className="h-[22px] w-[22px]" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>Alternar layout</TooltipContent>
@@ -733,15 +733,15 @@ export const AppLayout = () => {
               {canCreate && (
                 <Button
                   onClick={() => navigate("/pagamentos/novo")}
-                  className="h-10 px-4 text-[13px] font-medium gap-2"
+                  className="h-11 px-5 text-[14px] font-medium gap-2"
                   style={{
-                    borderRadius: 7,
+                    borderRadius: 8,
                     background: "hsl(var(--primary))",
                     color: "hsl(var(--primary-foreground))",
                     border: "none",
                   }}
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-[18px] w-[18px]" />
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}

@@ -107,14 +107,14 @@ export const Breadcrumbs = () => {
 
   return (
     <nav aria-label="Breadcrumb">
-      <ol className="flex items-center flex-wrap gap-1 text-[12.5px] text-muted-foreground">
+      <ol className="flex items-center flex-wrap gap-1.5 text-[14px] text-muted-foreground">
         {crumbs.map((c, i) => {
           const isLast = i === crumbs.length - 1;
           return (
             <li key={`${c.label}-${i}`} className="flex items-center gap-1 min-w-0">
               {i > 0 && (
                 <ChevronRight
-                  size={13}
+                  size={15}
                   strokeWidth={1.75}
                   className="flex-shrink-0 text-muted-foreground/60"
                   aria-hidden
@@ -123,20 +123,20 @@ export const Breadcrumbs = () => {
               {c.to && !isLast ? (
                 <Link
                   to={c.to}
-                  className="inline-flex items-center gap-1 hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-0.5"
+                  className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-0.5"
                 >
-                  {i === 0 && <Home size={12} strokeWidth={1.75} aria-hidden />}
+                  {i === 0 && <Home size={14} strokeWidth={1.75} aria-hidden />}
                   <span className="truncate">{c.label}</span>
                 </Link>
               ) : (
                 <span
                   aria-current={isLast ? "page" : undefined}
                   className={
-                    "inline-flex items-center gap-1 px-0.5 " +
+                    "inline-flex items-center gap-1.5 px-0.5 " +
                     (isLast ? "text-foreground font-medium" : "")
                   }
                 >
-                  {i === 0 && <Home size={12} strokeWidth={1.75} aria-hidden />}
+                  {i === 0 && <Home size={14} strokeWidth={1.75} aria-hidden />}
                   <span className="truncate">{c.label}</span>
                 </span>
               )}
