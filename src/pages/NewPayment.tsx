@@ -1329,7 +1329,16 @@ const NewPayment = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <label className="block border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary-soft/30 transition-colors">
+            <label
+              className="block border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary-soft/30 transition-colors"
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files?.length) onFiles(e.dataTransfer.files);
+              }}
+            >
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
