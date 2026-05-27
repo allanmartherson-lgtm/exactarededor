@@ -10,57 +10,60 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
-    --background: 220 14% 96%;
-    --foreground: 222 25% 26%;
+    --background: 60 23% 97%;            /* #FAFAF7 off-white neutro */
+    --foreground: 214 28% 7%;            /* #0D1117 quase-preto (ink) */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 25% 26%;
+    --card: 0 0% 100%;                   /* #FFFFFF */
+    --card-foreground: 214 28% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 25% 26%;
+    --popover-foreground: 214 28% 7%;
 
-    /* ── Brand: slate suavizado (era 222 47% 11% — preto demais) ─── */
-    --primary: 222 30% 24%;
+    /* ── Brand: verde-floresta Exacta ─────────────────────── */
+    --primary: 164 33% 26%;              /* #2D5A4E verde-floresta */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 100% 97%;
-    --primary-glow: 215 20% 38%;
+    --primary-soft: 165 28% 92%;
+    --primary-glow: 165 33% 36%;         /* #3D7A6A verde médio */
+    --primary-dark: 164 35% 18%;         /* #1E3D35 verde profundo */
 
-    /* ── Accent azul para estados ativos/links ──────────── */
-    --accent-blue: 213 94% 68%;
-    --accent-blue-soft: 213 97% 87%;
+    /* ── Accent: ouro Exacta ─────────────────────────────── */
+    --accent: 38 47% 61%;                /* #C8A96E ouro */
+    --accent-foreground: 214 28% 7%;
+    --accent-light: 40 58% 78%;          /* #E8D5A8 ouro claro */
 
-    /* ── Copper ─────────────────────────────────────────── */
+    /* Mantém token de azul apenas para status info */
+    --accent-blue: 213 94% 50%;
+    --accent-blue-soft: 213 60% 94%;
+
+    /* ── Copper (legado de status warning) ─────────────────── */
     --copper: 33 100% 50%;
     --copper-foreground: 0 0% 100%;
     --copper-hover: 28 100% 45%;
     --copper-active: 28 100% 40%;
     --copper-soft: 36 100% 94%;
 
-    --secondary: 220 13% 91%;
-    --secondary-foreground: 215 20% 38%;
+    --secondary: 60 14% 93%;
+    --secondary-foreground: 164 33% 26%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 215 14% 50%;
-    --text-tertiary: 215 16% 42%;
-
-    --accent: 213 97% 87%;
-    --accent-foreground: 213 94% 30%;
+    --muted: 60 14% 95%;
+    --muted-foreground: 220 9% 46%;      /* #6B7280 */
+    --text-tertiary: 220 9% 40%;
 
     /* ── Status ─────────────────────────────────────────── */
     --success: 142 72% 29%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 141 84% 93%;
-    --success-text: 142 72% 29%;
+    --success-soft: 141 60% 92%;
+    --success-text: 142 72% 25%;
 
     --warning: 28 90% 42%;
     --warning-foreground: 0 0% 100%;
     --warning-soft: 38 95% 88%;
     --warning-text: 25 90% 32%;
 
-    --info: 213 94% 68%;
+    --info: 213 94% 50%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 213 97% 93%;
-    --info-text: 213 94% 40%;
+    --info-soft: 213 60% 94%;
+    --info-text: 213 94% 35%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -68,25 +71,25 @@ All colors MUST be HSL.
     --destructive-text: 350 89% 40%;
 
     /* ── Bordas ─────────────────────────────────────────── */
-    --border: 220 13% 91%;
-    --border-strong: 215 16% 80%;
+    --border: 60 10% 88%;
+    --border-strong: 60 8% 76%;
     --border-highlight: 0 0% 100%;
-    --input: 215 16% 80%;
+    --input: 60 8% 76%;
     --input-bg: 0 0% 100%;
-    --ring: 213 94% 68%;
-    --ring-soft: 213 94% 68% / 0.25;
-    --track-soft: 215 16% 80%;
+    --ring: 38 47% 61%;                  /* ouro como foco */
+    --ring-soft: 38 47% 61% / 0.3;
+    --track-soft: 60 8% 80%;
 
     --radius: 0.5rem;
 
     /* ── Sombras ────────────────────────────────────────── */
-    --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.03);
-    --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.05), 0 1px 2px -1px rgb(15 23 42 / 0.05);
-    --shadow-elevated: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
-    --shadow-inset: inset 0 1px 2px rgb(15 23 42 / 0.04);
-    --shadow-control: 0 1px 2px rgb(15 23 42 / 0.04);
-    --gradient-brand: linear-gradient(135deg, hsl(222 30% 24%), hsl(215 20% 32%));
-    --gradient-soft: linear-gradient(135deg, hsl(220 14% 98%), hsl(220 14% 96%));
+    --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.04), 0 1px 3px 0 rgb(13 17 23 / 0.03);
+    --shadow-card: 0 1px 3px 0 rgb(13 17 23 / 0.05), 0 1px 2px -1px rgb(13 17 23 / 0.05);
+    --shadow-elevated: 0 4px 6px -1px rgb(13 17 23 / 0.07), 0 2px 4px -2px rgb(13 17 23 / 0.05);
+    --shadow-inset: inset 0 1px 2px rgb(13 17 23 / 0.04);
+    --shadow-control: 0 1px 2px rgb(13 17 23 / 0.04);
+    --gradient-brand: linear-gradient(135deg, hsl(164 33% 26%), hsl(165 33% 36%));
+    --gradient-soft: linear-gradient(135deg, hsl(60 23% 98%), hsl(60 23% 95%));
 
     /* ── Bubble tokens ──────────────────────────────────── */
     --bubble-purple-bg: 262 83% 94%;
@@ -95,31 +98,31 @@ All colors MUST be HSL.
     --bubble-yellow-fg: 32 95% 40%;
     --bubble-red-bg: 0 86% 97%;
     --bubble-red-fg: 0 72% 45%;
-    --bubble-blue-bg: 213 97% 93%;
-    --bubble-blue-fg: 213 94% 40%;
-    --bubble-green-bg: 141 84% 93%;
-    --bubble-green-fg: 142 72% 29%;
+    --bubble-blue-bg: 213 60% 94%;
+    --bubble-blue-fg: 213 94% 35%;
+    --bubble-green-bg: 165 28% 92%;
+    --bubble-green-fg: 164 33% 26%;
     --bubble-teal-bg: 187 76% 90%;
     --bubble-teal-fg: 187 76% 30%;
 
     /* ── Table ──────────────────────────────────────────── */
-    --table-row-hover: 220 14% 98%;
-    --table-border-light: 220 13% 93%;
-    --hover-surface: 220 14% 97%;
-    --shadow-hover: 0 2px 8px rgb(15 23 42 / 0.06);
+    --table-row-hover: 60 20% 98%;
+    --table-border-light: 60 10% 92%;
+    --hover-surface: 60 20% 97%;
+    --shadow-hover: 0 2px 8px rgb(13 17 23 / 0.06);
 
     /* ── Sidebar ────────────────────────────────────────── */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 25% 27%;
-    --sidebar-muted-foreground: 215 14% 56%;
-    --sidebar-primary: 222 35% 18%;
+    --sidebar-foreground: 214 28% 14%;
+    --sidebar-muted-foreground: 220 9% 50%;
+    --sidebar-primary: 164 33% 26%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 220 14% 96%;
-    --sidebar-hover-foreground: 222 30% 24%;
-    --sidebar-accent: 220 10% 94%;
-    --sidebar-accent-foreground: 222 25% 26%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 213 94% 68%;
+    --sidebar-hover: 60 14% 95%;
+    --sidebar-hover-foreground: 164 33% 26%;
+    --sidebar-accent: 165 28% 92%;
+    --sidebar-accent-foreground: 164 33% 26%;
+    --sidebar-border: 60 10% 88%;
+    --sidebar-ring: 38 47% 61%;
   }
 
   .dark {
