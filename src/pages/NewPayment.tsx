@@ -1565,7 +1565,7 @@ const NewPayment = () => {
             {buckets.length > 0 && (
               <div className="space-y-2">
                 {buckets.map((b, idx) => (
-                  <div key={idx} className="border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
+                  <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate" title={b.file.name}>{b.file.name}</p>
