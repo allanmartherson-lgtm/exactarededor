@@ -45,7 +45,7 @@ All colors MUST be HSL.
     --secondary: 60 14% 93%;
     --secondary-foreground: 164 33% 26%;
 
-    --muted: 60 14% 95%;
+    --muted: 0 0% 96%;
     --muted-foreground: 220 9% 46%;      /* #6B7280 */
     --text-tertiary: 220 9% 40%;
 
