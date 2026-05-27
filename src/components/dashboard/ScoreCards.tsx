@@ -98,20 +98,26 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
           </span>
         ) : null}
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
         <span
           style={{
             fontFamily: OUTFIT,
-            fontSize: 38,
+            fontSize: String(item.value).length > 6 ? 22 : String(item.value).length > 4 ? 28 : 38,
             fontWeight: 700,
             lineHeight: 1,
             letterSpacing: "-0.02em",
             color: valueColor,
             fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
+            maxWidth: "100%",
           }}
         >
           {item.value}
         </span>
+
         {tone === "alert" && !isZero && (
           <span
             style={{
