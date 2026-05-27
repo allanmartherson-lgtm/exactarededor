@@ -674,6 +674,7 @@ const PaymentDetail = () => {
     await load();
     setBusy(false);
     toast({ title: "Lote enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+    navigate("/pagamentos");
   };
 
   const sendForValidation = async (onlyGroupId?: string) => {
