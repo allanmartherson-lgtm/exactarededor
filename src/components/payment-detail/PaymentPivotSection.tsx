@@ -224,7 +224,11 @@ export function PaymentPivotSection({
           totalsByMonth.set(m, (totalsByMonth.get(m) ?? 0) + (byMonth.get(m) ?? 0));
         });
         const current = byMonth.get(currentMonth) ?? 0;
-        const prevValues = previousMonths.map((m) => byMonth.get(m) ?? 0);
+        // Considera só meses anteriores com dado (> 0). Meses sem produção
+        // (ex.: pré-go-live) não devem reduzir a média.
+        const prevValues = previousMonths
+          .map((m) => byMonth.get(m) ?? 0)
+          .filter((v) => v > 0);
         const avg =
           prevValues.length > 0 ? prevValues.reduce((a, b) => a + b, 0) / prevValues.length : 0;
         const deltaPct = avg > 0 ? ((current - avg) / avg) * 100 : 0;
@@ -233,7 +237,9 @@ export function PaymentPivotSection({
           ? Array.from(children.entries())
               .map(([ck, cByMonth]) => {
                 const cCur = cByMonth.get(currentMonth) ?? 0;
-                const cPrev = previousMonths.map((m) => cByMonth.get(m) ?? 0);
+                const cPrev = previousMonths
+                  .map((m) => cByMonth.get(m) ?? 0)
+                  .filter((v) => v > 0);
                 const cAvg =
                   cPrev.length > 0 ? cPrev.reduce((a, b) => a + b, 0) / cPrev.length : 0;
                 const cDelta = cAvg > 0 ? ((cCur - cAvg) / cAvg) * 100 : 0;
@@ -251,11 +257,16 @@ export function PaymentPivotSection({
   }, [rows, months, currentMonth, previousMonths]);
 
   const totalCurrent = totalsByMonth.get(currentMonth) ?? 0;
+  // Meses anteriores efetivamente com dado — base honesta para a média.
+  const effectivePrevMonths = useMemo(
+    () => previousMonths.filter((m) => (totalsByMonth.get(m) ?? 0) > 0),
+    [previousMonths, totalsByMonth],
+  );
   const totalPrevAvg = useMemo(() => {
-    if (previousMonths.length === 0) return 0;
-    const sum = previousMonths.reduce((acc, m) => acc + (totalsByMonth.get(m) ?? 0), 0);
-    return sum / previousMonths.length;
-  }, [previousMonths, totalsByMonth]);
+    if (effectivePrevMonths.length === 0) return 0;
+    const sum = effectivePrevMonths.reduce((acc, m) => acc + (totalsByMonth.get(m) ?? 0), 0);
+    return sum / effectivePrevMonths.length;
+  }, [effectivePrevMonths, totalsByMonth]);
   const totalDelta = totalPrevAvg > 0 ? ((totalCurrent - totalPrevAvg) / totalPrevAvg) * 100 : 0;
 
   if (variant === "detalhe") return null;
@@ -288,7 +299,7 @@ export function PaymentPivotSection({
         {/* KPIs */}
         <div className={cn("grid grid-cols-1 gap-3", showAlerts ? "md:grid-cols-4" : "md:grid-cols-3")}>
           <KpiTile label="Total deste mês" value={BRL.format(totalCurrent)} />
-          <KpiTile label={`Média ${previousMonths.length || monthsBack - 1}m`} value={BRL.format(totalPrevAvg)} />
+          <KpiTile label={`Média ${effectivePrevMonths.length || 0}m`} value={BRL.format(totalPrevAvg)} />
           <KpiTile
             label="Variação vs média"
             value={`${variationArrow(totalDelta)} ${totalDelta > 0 ? "+" : ""}${totalDelta.toFixed(1)}%`}
