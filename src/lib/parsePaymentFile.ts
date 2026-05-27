@@ -270,28 +270,51 @@ const tokenize = (s: string): string[] => {
     .filter((t) => t.length >= 2 && !STOPWORDS.has(t) && !/^\d+$/.test(t));
 };
 
+// Equivalência fuzzy entre dois tokens:
+//  - igualdade exata
+//  - um é prefixo do outro (ambos com ≥4 chars) — pega "traumatolo" ⊂ "traumatologia"
+//  - similaridade de Levenshtein ≥ 0.85 em tokens com ≥6 chars — pega
+//    "cardiororacica" ≈ "cardiotoracica" (typo de 1-2 chars em palavra longa)
+const tokensEquivalent = (x: string, y: string): boolean => {
+  if (x === y) return true;
+  if (x.length >= 4 && y.length >= 4 && (x.startsWith(y) || y.startsWith(x))) return true;
+  const ml = Math.max(x.length, y.length);
+  if (ml >= 6) {
+    const d = lev(x, y);
+    if (1 - d / ml >= 0.85) return true;
+  }
+  return false;
+};
+
+// Jaccard fuzzy: interseção via tokensEquivalent (não só igualdade exata).
 const jaccard = (a: string[], b: string[]): number => {
   if (!a.length && !b.length) return 0;
-  const sa = new Set(a), sb = new Set(b);
+  const sa = Array.from(new Set(a));
+  const sb = Array.from(new Set(b));
+  const matched = new Set<number>();
   let inter = 0;
-  for (const x of sa) if (sb.has(x)) inter++;
-  const union = sa.size + sb.size - inter;
+  for (const x of sa) {
+    for (let i = 0; i < sb.length; i++) {
+      if (matched.has(i)) continue;
+      if (tokensEquivalent(x, sb[i])) { inter++; matched.add(i); break; }
+    }
+  }
+  const union = sa.length + sb.length - inter;
   return union === 0 ? 0 : inter / union;
 };
 
 // Score híbrido: 0.65 Jaccard de tokens + 0.35 Levenshtein normalizado.
-// Bônus quando todos os tokens significativos do nome curto cabem no longo.
+// Bônus quando todos os tokens significativos do nome curto cabem no longo
+// (via equivalência fuzzy — tolera prefixos truncados e typos em palavras longas).
 export const similarity = (a: string, b: string): number => {
   if (!a || !b) return 0;
   const ta = tokenize(a), tb = tokenize(b);
   const j = jaccard(ta, tb);
   const l = levSim(a, b);
   let score = 0.65 * j + 0.35 * l;
-  // bônus contenção de tokens (raro caso curto/longo)
   if (ta.length && tb.length) {
     const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
-    const setLong = new Set(longer);
-    const allIn = shorter.every((t) => setLong.has(t));
+    const allIn = shorter.every((t) => longer.some((u) => tokensEquivalent(t, u)));
     if (allIn && shorter.length >= 2) score = Math.max(score, 0.92);
   }
   return Math.min(1, score);
