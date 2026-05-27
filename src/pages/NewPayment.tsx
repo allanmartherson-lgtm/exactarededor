@@ -678,10 +678,30 @@ const NewPayment = () => {
   };
 
   const onFiles = async (fileList: FileList) => {
+    const files = Array.from(fileList);
+    // Parsing PARALELO com yields. Antes era sequencial (for + await), o que
+    // bloqueava o main thread e fazia o sistema "cansar" nos últimos arquivos
+    // de lotes grandes. Agora cada parse roda em paralelo (XLSX.read é pesado
+    // mas o JS engine intercala melhor) e o setTimeout(0) inicial libera o
+    // ciclo de render antes de cada parse começar.
+    const results = await Promise.all(
+      files.map((f) =>
+        new Promise<{ ok: true; bucket: FileBucket } | { ok: false; file: File; error: unknown }>((resolve) => {
+          setTimeout(async () => {
+            try {
+              const bucket = await parseFile(f);
+              resolve({ ok: true, bucket });
+            } catch (error) {
+              resolve({ ok: false, file: f, error });
+            }
+          }, 0);
+        }),
+      ),
+    );
     const newBuckets: FileBucket[] = [];
-    for (const f of Array.from(fileList)) {
-      try { newBuckets.push(await parseFile(f)); }
-      catch (e) { reportParseError(f.name, e); }
+    for (const r of results) {
+      if (r.ok) newBuckets.push(r.bucket);
+      else reportParseError(r.file.name, r.error);
     }
     setBuckets((prev) => [...prev, ...newBuckets]);
     if (!reference && newBuckets.length === 1) {
