@@ -1789,6 +1789,22 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         });
         __progress_reported = true;
       }
+      // [Sprint 4] Telemetria de falha
+      if (__payment_id) {
+        await supabase.from("analysis_telemetry").insert({
+          job_id: __job_id ?? null,
+          payment_id: __payment_id,
+          company_name: __company_label ?? __company_name ?? null,
+          total_ms: Date.now() - startTime,
+          ai_ms: __telemetry.ai_ms,
+          rules_ms: __telemetry.rules_ms,
+          writes_ms: 0,
+          items_count: __telemetry.items_count,
+          ai_items_count: __telemetry.ai_items_count,
+          cache_hit: __telemetry.cache_hit,
+          error: msg.slice(0, 500),
+        });
+      }
     } catch (reportErr) {
       console.error("Falha ao reportar erro do worker:", reportErr);
     }
