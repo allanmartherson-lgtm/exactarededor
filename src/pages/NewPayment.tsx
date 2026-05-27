@@ -1330,7 +1330,7 @@ const NewPayment = () => {
   return (
     <>
       <PageHeader title="Nova base de pagamento" description="Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo." />
-      <div className="p-8 max-w-5xl space-y-6">
+      <div className="p-8 max-w-7xl space-y-6">
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-base">Identificação</CardTitle></CardHeader>
           <CardContent className="space-y-4">
