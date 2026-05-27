@@ -385,6 +385,7 @@ serve(async (req) => {
     (ctx as any).globalThresholds = globalThresholds;
 
     console.timeEnd(`${__t} carregar_regras`);
+    __telemetry.rules_ms = Date.now() - __rulesStart;
 
 
 
