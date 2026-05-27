@@ -450,6 +450,11 @@ const PaymentDetail = () => {
     setBusy(false);
     if (newStatus === "aguardando_aprovacao") await notifyDirectorsIfPending(id);
     if (obsRes.ok) toast({ title: "Status atualizado", description: message });
+    // Encaminhamento adiante: devolve o usuário para a lista de pagamentos —
+    // a próxima etapa não é responsabilidade dele.
+    if (HANDOFF_FORWARD_STATUSES.has(newStatus)) {
+      navigate("/pagamentos");
+    }
   };
 
   const requireComment = (cb: () => void) => {
