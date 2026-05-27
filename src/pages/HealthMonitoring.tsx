@@ -794,6 +794,12 @@ export default function HealthMonitoring() {
           />
         </SurfaceCard>
       </section>
+
+      {/* ── Seção: Telemetria de análise (Sprint 4) ── */}
+      <section>
+        <SectionLabel>Telemetria de análise</SectionLabel>
+        <TelemetryPanel />
+      </section>
     </div>
   );
 }
