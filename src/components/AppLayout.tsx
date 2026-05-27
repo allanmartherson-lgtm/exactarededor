@@ -697,7 +697,7 @@ export const AppLayout = () => {
 
       <div
         className="nav-main flex flex-col min-h-screen"
-        style={{ marginLeft: 240, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
+        style={{ marginLeft: 260, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
       >
         {/* Slim top bar */}
         <header
