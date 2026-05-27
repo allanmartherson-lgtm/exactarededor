@@ -92,18 +92,21 @@ All colors MUST be HSL.
     --gradient-soft: linear-gradient(135deg, hsl(60 23% 98%), hsl(60 23% 95%));
 
     /* ── Bubble tokens ──────────────────────────────────── */
-    --bubble-purple-bg: 262 83% 94%;
-    --bubble-purple-fg: 263 70% 50%;
-    --bubble-yellow-bg: 48 100% 92%;
-    --bubble-yellow-fg: 32 95% 40%;
-    --bubble-red-bg: 0 86% 97%;
+    /* Rebrand: tons alinhados a forest-green (#2D5A4E) + copper (#C8A96E).
+       Mantém variação suficiente para distinguir etapas do pipeline sem
+       sair da paleta da marca. */
+    --bubble-purple-bg: 164 30% 90%;     /* forest soft */
+    --bubble-purple-fg: 164 35% 24%;
+    --bubble-yellow-bg: 38 65% 90%;      /* copper soft */
+    --bubble-yellow-fg: 32 55% 35%;
+    --bubble-red-bg: 0 80% 95%;
     --bubble-red-fg: 0 72% 45%;
-    --bubble-blue-bg: 213 60% 94%;
-    --bubble-blue-fg: 213 94% 35%;
-    --bubble-green-bg: 165 28% 92%;
-    --bubble-green-fg: 164 33% 26%;
-    --bubble-teal-bg: 187 76% 90%;
-    --bubble-teal-fg: 187 76% 30%;
+    --bubble-blue-bg: 213 55% 92%;
+    --bubble-blue-fg: 213 70% 32%;
+    --bubble-green-bg: 145 35% 88%;      /* musgo / verde-oliva claro */
+    --bubble-green-fg: 150 45% 24%;
+    --bubble-teal-bg: 175 40% 88%;       /* sálvia */
+    --bubble-teal-fg: 175 55% 24%;
 
     /* ── Table ──────────────────────────────────────────── */
     --table-row-hover: 0 0% 99%;
