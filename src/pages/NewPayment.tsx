@@ -450,6 +450,27 @@ const NewPayment = () => {
     }).filter((r) => r.doctor_name || Math.abs(r.gross_amount) > 0 || r.procedure_code || r.description);
   };
 
+  const mapSectorFromRaw = (raw: string | null): RuleSector | null => {
+    if (!raw) return null;
+    const normalize = (s: string) =>
+      s.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\(.*?\)/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const normRaw = normalize(raw);
+    if (!normRaw) return null;
+    for (const [key, label] of Object.entries(RULE_SECTOR_LABELS)) {
+      const normLabel = normalize(label);
+      if (!normLabel) continue;
+      if (normRaw.includes(normLabel) || normLabel.includes(normRaw)) {
+        return key as RuleSector;
+      }
+    }
+    return null;
+  };
+
   const parseFile = async (f: File): Promise<FileBucket> => {
     const buf = await f.arrayBuffer();
     const wb = XLSX.read(buf, { cellDates: false });
@@ -476,7 +497,7 @@ const NewPayment = () => {
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
     // Considera "setor ausente" quando nenhuma linha trouxe coluna setor preenchida
     // OU quando o setor dominante não bate com nenhum slug conhecido do sistema.
-    const dominantMapped = dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null;
+    const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
     return {
@@ -511,7 +532,7 @@ const NewPayment = () => {
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
       const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-      const dominantMapped = dominantRaw ? (RULE_SECTOR_LABELS as any)[dominantRaw] ? dominantRaw : null : null;
+      const dominantMapped = mapSectorFromRaw(dominantRaw);
       const sectorMissing = rows.length > 0 && (Object.keys(sc).length === 0 || dominantMapped === null);
       return { ...bucket, rows, headerRowIndex: newHeaderIdx, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
     }));
