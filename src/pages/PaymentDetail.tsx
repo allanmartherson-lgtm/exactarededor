@@ -1730,7 +1730,7 @@ const PaymentDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {(isAnalista || isDiretor) && (
+            {(isAnalista || isDiretor) && !isNfPhase && (
               <Button
                 variant="outline"
                 size="sm"
