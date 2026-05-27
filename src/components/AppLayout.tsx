@@ -326,7 +326,16 @@ export const AppLayout = () => {
       display: "inline-block",
     };
   };
-  const initials = getInitials(user?.email);
+  const [fullName, setFullName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user?.id) { setFullName(null); return; }
+    let cancelled = false;
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle()
+      .then(({ data }) => { if (!cancelled) setFullName((data?.full_name as string | null) ?? null); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+  const displayName = fullName || user?.email || "";
+  const initials = getInitials(fullName, user?.email);
   const canCreate = roles.some((r) => (["analista", "admin", "diretor"] as const).includes(r as never));
   const canRetryInvoices = roles.includes("analista") || roles.includes("admin");
   const visibleTopNav = filterNav(NAV_ITEMS, roles);
