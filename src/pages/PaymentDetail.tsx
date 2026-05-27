@@ -129,6 +129,17 @@ const ObservationTypeSelector = ({
 };
 
 
+// Status que representam "handoff" — quem acabou de agir passou a bola adiante.
+// Após qualquer transição para um destes, devolvemos o usuário para a lista geral
+// de pagamentos: a próxima etapa não é dele.
+const HANDOFF_FORWARD_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  "aguardando_validacao",
+  "aguardando_aprovacao",
+  "aprovado",
+  "aprovado_em_revisao",
+]);
+
+
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
   erro_duplicidade_pagamento: "destructive",
@@ -450,6 +461,11 @@ const PaymentDetail = () => {
     setBusy(false);
     if (newStatus === "aguardando_aprovacao") await notifyDirectorsIfPending(id);
     if (obsRes.ok) toast({ title: "Status atualizado", description: message });
+    // Encaminhamento adiante: devolve o usuário para a lista de pagamentos —
+    // a próxima etapa não é responsabilidade dele.
+    if (HANDOFF_FORWARD_STATUSES.has(newStatus)) {
+      navigate("/pagamentos");
+    }
   };
 
   const requireComment = (cb: () => void) => {
@@ -522,6 +538,9 @@ const PaymentDetail = () => {
     // A edge function valida o status atual e é idempotente por payment_id.
     await notifyDirectorsIfPending(id);
     toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
+    if (HANDOFF_FORWARD_STATUSES.has(newStatus)) {
+      navigate("/pagamentos");
+    }
   };
 
   // Reencaminhar grupo do analista direto para quem devolveu (diretor → aprovação; validador → validação).
@@ -563,6 +582,7 @@ const PaymentDetail = () => {
     await load();
     setBusy(false);
     toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${target.role}.` });
+    navigate("/pagamentos");
   };
 
   // Analista reaplica as regras (reanálise da IA) APENAS para os itens da empresa devolvida,
@@ -654,6 +674,7 @@ const PaymentDetail = () => {
     await load();
     setBusy(false);
     toast({ title: "Lote enviado para validação", description: `${targets.length} empresa(s) a caminho do validador.` });
+    navigate("/pagamentos");
   };
 
   const sendForValidation = async (onlyGroupId?: string) => {
