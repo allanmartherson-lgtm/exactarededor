@@ -532,7 +532,7 @@ const NewPayment = () => {
       const sc: Record<string, number> = {};
       for (const r of rows) { if (r.sector) { const s = r.sector.toLowerCase().trim(); sc[s] = (sc[s] ?? 0) + 1; } }
       const dominantRaw = Object.entries(sc).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-      const dominantMapped = dominantRaw ? (RULE_SECTOR_LABELS as any)[dominantRaw] ? dominantRaw : null : null;
+      const dominantMapped = mapSectorFromRaw(dominantRaw);
       const sectorMissing = rows.length > 0 && (Object.keys(sc).length === 0 || dominantMapped === null);
       return { ...bucket, rows, headerRowIndex: newHeaderIdx, sectorMissing, sectorMapping: bucket.sectorMapping ?? dominantMapped };
     }));
