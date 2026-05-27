@@ -1956,6 +1956,7 @@ const PaymentDetail = () => {
             </div>
           )}
         </div>
+        )}
         {/* DESKTOP: cards de IA + alertas assistenciais lado a lado (renderizados juntos abaixo no grid). */}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
