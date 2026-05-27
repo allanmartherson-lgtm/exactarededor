@@ -202,30 +202,161 @@ serve(async (req) => {
         force_totalized
     `;
 
-    let rulesQuery = supabase.from("rules").select(RULES_SELECT).eq("active", true);
-    if (scopedCompanyId) {
-      // master | (específica desta empresa) | (grupo que contém esta empresa).
-      // group_company_links é jsonb array de {company_id:"..."} — usamos `cs` (contains).
-      rulesQuery = rulesQuery.or(
-        `scope.eq.master,and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId}),and(scope.eq.grupo,group_company_links.cs.[{"company_id":"${scopedCompanyId}"}])`
-      );
+    const RULE_CALCS_SELECT = `
+      id,rule_id,label,sort_order,calculation_type,
+      time_mode,time_start,time_end,weekdays,includes_holidays,elective_mode,
+      convenio_percentage,fixed_amount,
+      package_amount,package_main_code,package_included_codes,package_visits_count,
+      package_opinions_count,package_auxiliaries_included,package_subtype,extras_codes,
+      reference_table_id,multiplier,deflator_pct,repasse_pct,acrescimo_pct,
+      apply_access_route,include_auxiliaries,
+      auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
+      bonus_amount,bonus_pct,target_amount,allowed_access_routes,
+      force_totalized,application_unit,sectors,specialties,
+      procedure_codes,code_match_mode,doctor_roles,
+      agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions
+    `;
+
+    // [Sprint 3 - Tier 1.B] Cache de contexto compartilhado por job:
+    // rules + rule_calculations + system_configurations são IGUAIS para todas as
+    // empresas do mesmo job. Em lotes com 100+ empresas, carregar tudo do banco
+    // por worker dominava o tempo (~60% do total). Persistimos um snapshot em
+    // payment_job_context na primeira execução e reusamos nas demais.
+    const CONTEXT_TTL_MS = 60 * 60 * 1000; // 1h
+    let cachedRulesAll: any[] | null = null;
+    let cachedCalcsByRule: Record<string, any[]> | null = null;
+    let cachedConfigs: any[] | null = null;
+
+    if (__job_id) {
+      try {
+        const { data: cacheRow } = await supabase
+          .from("payment_job_context")
+          .select("context, built_at")
+          .eq("job_id", __job_id)
+          .maybeSingle();
+        if (cacheRow?.context) {
+          const ageMs = Date.now() - new Date(cacheRow.built_at as string).getTime();
+          if (ageMs < CONTEXT_TTL_MS) {
+            const ctxJ = cacheRow.context as any;
+            if (Array.isArray(ctxJ.rules) && ctxJ.calcs_by_rule && Array.isArray(ctxJ.configs)) {
+              cachedRulesAll = ctxJ.rules;
+              cachedCalcsByRule = ctxJ.calcs_by_rule;
+              cachedConfigs = ctxJ.configs;
+              console.log(`${__t} ctx_cache HIT (age=${Math.round(ageMs / 1000)}s, rules=${cachedRulesAll.length})`);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`${__t} ctx_cache lookup falhou`, (e as any)?.message ?? e);
+      }
     }
 
-    const [configRes, rulesRes] = await Promise.all([
-      supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
-      rulesQuery,
-    ]);
+    let rules: RuleInput[] = [];
+    let configs: any[] = [];
 
-    const configs = (configRes.data ?? []) as any[];
-    if (rulesRes.error) {
-      console.error("[analyze-payment] rules query error:", rulesRes.error);
-      throw new Error(`Falha ao carregar regras ativas: ${rulesRes.error.message}`);
+    if (cachedRulesAll && cachedConfigs && cachedCalcsByRule) {
+      // Filtra regras por escopo em memória.
+      configs = cachedConfigs;
+      const filtered = scopedCompanyId
+        ? cachedRulesAll.filter((r: any) => {
+            if (r.scope === "master") return true;
+            if (r.scope === "especifica") return r.target_company_id === scopedCompanyId;
+            if (r.scope === "grupo") {
+              const links = Array.isArray(r.group_company_links) ? r.group_company_links : [];
+              return links.some((l: any) => l?.company_id === scopedCompanyId);
+            }
+            return false;
+          })
+        : cachedRulesAll;
+      rules = filtered as unknown as RuleInput[];
+      for (const r of rules) {
+        const list = cachedCalcsByRule[(r as any).id] ?? [];
+        if (list.length > 0) (r as any).calculations = list;
+      }
+    } else {
+      // Cache miss → caminho original + grava snapshot ao final.
+      let rulesQuery = supabase.from("rules").select(RULES_SELECT).eq("active", true);
+      if (scopedCompanyId) {
+        rulesQuery = rulesQuery.or(
+          `scope.eq.master,and(scope.eq.especifica,target_company_id.eq.${scopedCompanyId}),and(scope.eq.grupo,group_company_links.cs.[{"company_id":"${scopedCompanyId}"}])`
+        );
+      }
+
+      const [configRes, rulesRes] = await Promise.all([
+        supabase.from("system_configurations").select("key,value").in("key", ["divergence_thresholds", "medical_role_aliases"]),
+        rulesQuery,
+      ]);
+
+      configs = (configRes.data ?? []) as any[];
+      if (rulesRes.error) {
+        console.error("[analyze-payment] rules query error:", rulesRes.error);
+        throw new Error(`Falha ao carregar regras ativas: ${rulesRes.error.message}`);
+      }
+      if (configRes.error) {
+        console.warn("[analyze-payment] system_configurations query warning:", configRes.error);
+      }
+      rules = (rulesRes.data ?? []) as unknown as RuleInput[];
+
+      // 2.1 Carrega cálculos (1:N) e anexa
+      if (rules.length > 0) {
+        const ruleIds = rules.map((r) => r.id);
+        const { data: calcRows, error: calcRowsErr } = await supabase
+          .from("rule_calculations")
+          .select(RULE_CALCS_SELECT)
+          .in("rule_id", ruleIds)
+          .order("sort_order", { ascending: true });
+        if (calcRowsErr) {
+          console.error("[analyze-payment] rule_calculations query error:", calcRowsErr);
+          throw new Error(`Falha ao carregar cálculos das regras: ${calcRowsErr.message}`);
+        }
+        const byRule: Record<string, any[]> = {};
+        for (const c of (calcRows ?? []) as any[]) {
+          (byRule[c.rule_id as string] ||= []).push(c);
+        }
+        for (const r of rules) {
+          const list = byRule[r.id] ?? [];
+          if (list.length > 0) (r as any).calculations = list;
+        }
+      }
+
+      // Grava snapshot do contexto (best-effort, fire-and-forget seguro).
+      // Para popular o cache, recarrega regras SEM filtro de escopo — assim
+      // próximas empresas do mesmo job aproveitam mesmo com escopo diferente.
+      if (__job_id) {
+        (async () => {
+          try {
+            const { data: allRules } = await supabase.from("rules").select(RULES_SELECT).eq("active", true);
+            const allRuleIds = (allRules ?? []).map((r: any) => r.id);
+            let allCalcs: any[] = [];
+            if (allRuleIds.length > 0) {
+              const { data } = await supabase
+                .from("rule_calculations")
+                .select(RULE_CALCS_SELECT)
+                .in("rule_id", allRuleIds)
+                .order("sort_order", { ascending: true });
+              allCalcs = data ?? [];
+            }
+            const calcsByRule: Record<string, any[]> = {};
+            for (const c of allCalcs) (calcsByRule[c.rule_id as string] ||= []).push(c);
+            const snapshot = { rules: allRules ?? [], calcs_by_rule: calcsByRule, configs };
+            const sizeBytes = JSON.stringify(snapshot).length;
+            await supabase.from("payment_job_context").upsert({
+              job_id: __job_id,
+              payment_id,
+              context: snapshot,
+              built_at: new Date().toISOString(),
+              size_bytes: sizeBytes,
+              meta: { rules_count: (allRules ?? []).length, calcs_count: allCalcs.length },
+            }, { onConflict: "job_id" });
+            console.log(`${__t} ctx_cache WRITE (rules=${(allRules ?? []).length}, ${Math.round(sizeBytes / 1024)}KB)`);
+          } catch (e) {
+            console.warn(`${__t} ctx_cache write falhou`, (e as any)?.message ?? e);
+          }
+        })();
+      }
     }
-    if (configRes.error) {
-      console.warn("[analyze-payment] system_configurations query warning:", configRes.error);
-    }
-    const rules: RuleInput[] = (rulesRes.data ?? []) as unknown as RuleInput[];
-    console.log(`${__t} regras carregadas: ${rules.length} (scoped=${scopedCompanyId ? "sim" : "não"})`);
+
+    console.log(`${__t} regras carregadas: ${rules.length} (scoped=${scopedCompanyId ? "sim" : "não"}, cache=${cachedRulesAll ? "hit" : "miss"})`);
 
     const divergenceConfig = configs.find(c => c.key === "divergence_thresholds");
     const roleAliasesConfig = configs.find(c => c.key === "medical_role_aliases");
@@ -239,49 +370,11 @@ serve(async (req) => {
 
     const roleAliases = (roleAliasesConfig?.value as Record<string, string[]>) || {};
 
-
     (ctx as any).globalThresholds = globalThresholds;
 
-    // 2.1 Carrega itens de cálculo (1:N) e anexa em cada regra
-    if (rules.length > 0) {
-      const ruleIds = rules.map((r) => r.id);
-      const { data: calcRows, error: calcRowsErr } = await supabase
-        .from("rule_calculations")
-        .select(`
-          id,rule_id,label,sort_order,calculation_type,
-          time_mode,time_start,time_end,weekdays,includes_holidays,elective_mode,
-          convenio_percentage,fixed_amount,
-          package_amount,package_main_code,package_included_codes,package_visits_count,
-          package_opinions_count,package_auxiliaries_included,package_subtype,extras_codes,
-          reference_table_id,multiplier,deflator_pct,repasse_pct,acrescimo_pct,
-          apply_access_route,include_auxiliaries,
-          auxiliary_pct,aux_first_pct,aux_second_pct,instrumentador_pct,
-          bonus_amount,bonus_pct,target_amount,allowed_access_routes,
-          force_totalized,application_unit,sectors,specialties,
-          procedure_codes,code_match_mode,doctor_roles,
-          agreement_match_mode,agreement_aliases,procedure_keywords,context_conditions
-        `)
-        .in("rule_id", ruleIds)
-        .order("sort_order", { ascending: true });
-      if (calcRowsErr) {
-        console.error("[analyze-payment] rule_calculations query error:", calcRowsErr);
-        throw new Error(`Falha ao carregar cálculos das regras: ${calcRowsErr.message}`);
-      }
-      if (calcRows == null) {
-        console.warn("[analyze-payment] nenhum cálculo retornado para regras ativas; verifique rule_calculations se todas as regras ficarem sem cálculo.");
-      }
-      const byRule: Record<string, any[]> = {};
-      for (const c of (calcRows ?? []) as any[]) {
-        (byRule[c.rule_id as string] ||= []).push(c);
-      }
-      for (const r of rules) {
-        const list = byRule[r.id] ?? [];
-        if (list.length > 0) (r as any).calculations = list;
-      }
-      // Coleta reference_table_ids dos itens de cálculo p/ pré-carregamento adiante
-      // (já tratado em refTableIds via filter sobre rules — atualizamos abaixo)
-    }
     console.timeEnd(`${__t} carregar_regras`);
+
+
 
     // ---------- 3. carrega itens (filtra por empresa se aplicável) ----------
     console.time(`${__t} carregar_itens`);
