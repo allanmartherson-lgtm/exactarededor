@@ -24,7 +24,7 @@ const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
-const EMAIL_FROM = "MedPay <onboarding@resend.dev>";
+const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;

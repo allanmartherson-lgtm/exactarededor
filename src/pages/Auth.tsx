@@ -15,8 +15,8 @@ import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPhone, userExtraSchema } from "@/lib/userFields";
 
-const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
-const PASSWORD_RECOVERY_EMAIL_KEY = "medpay-password-recovery-email";
+const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
+const PASSWORD_RECOVERY_EMAIL_KEY = "exacta-password-recovery-email";
 const PROJECT_PREVIEW_ORIGIN = "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
 
 const getPasswordRecoveryOrigin = () => {
@@ -142,7 +142,7 @@ const Auth = () => {
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-brand shadow-elevated mb-4">
             <ShieldCheck className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">MedPay Approval</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Exacta Approval</h1>
           <p className="text-sm text-muted-foreground mt-1">Fluxo seguro de aprovação de pagamentos médicos</p>
         </header>
 

@@ -11,9 +11,9 @@ const corsHeaders = {
 const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
 const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
-  "https://medpay-approval.lovable.app";
+  "https://exacta-approval.lovable.app";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
-const EMAIL_FROM = "MedPay <onboarding@resend.dev>";
+const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 const greetingForBrazil = (now = new Date()) => {
   const brHour = (now.getUTCHours() - 3 + 24) % 24;
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: EMAIL_FROM,
             to: [analyst.email],
-            subject: "Pagamento aprovado para revisão final — MedPay",
+            subject: "Pagamento aprovado para revisão final — Exacta",
             html,
             text: body,
           }),

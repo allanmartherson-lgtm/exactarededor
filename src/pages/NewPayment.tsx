@@ -350,7 +350,7 @@ const NewPayment = () => {
   const [autoSpecialties, setAutoSpecialties] = useState(true);
   const [autoPaymentKind, setAutoPaymentKind] = useState(true);
 
-  useEffect(() => { document.title = "Nova base | MedPay Approval"; }, []);
+  useEffect(() => { document.title = "Nova base | Exacta Approval"; }, []);
 
   useEffect(() => {
     supabase.from("companies").select("id,name,aliases").limit(5000).then(({ data }) => {

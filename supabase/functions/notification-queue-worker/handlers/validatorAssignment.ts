@@ -7,7 +7,7 @@ const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_FROM = "whatsapp:+14155238886"; // Twilio Sandbox
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ??
   "https://id-preview--1d07beac-8028-420b-ab8b-15b99a77170a.lovable.app";
-const EMAIL_FROM = "MedPay <onboarding@resend.dev>";
+const EMAIL_FROM = "Exacta <onboarding@resend.dev>";
 
 const onlyDigits = (s: string) => (s ?? "").replace(/\D/g, "");
 
@@ -22,7 +22,7 @@ function buildWhatsappValidator(
   const empresasLabel = companyCount === 1 ? "empresa" : "empresas";
   return `${greeting}, ${name}.
 
-*MedPay — DF Star*
+*Exacta — DF Star*
 ${companyCount} ${empresasLabel} para validação no lote "${paymentRef}".
 Total: ${totalFormatted}
 
@@ -79,7 +79,7 @@ function buildText(
 
   return `${greeting}, Prezado(a) ${name}.
 
-${companyCount} ${companyCount === 1 ? "empresa foi enviada" : "empresas foram enviadas"} para validação no MedPay, totalizando ${totalFormatted}.
+${companyCount} ${companyCount === 1 ? "empresa foi enviada" : "empresas foram enviadas"} para validação no Exacta, totalizando ${totalFormatted}.
 
 Pagamento: ${paymentRef}
 ${lista}${extraLine}${sender}
@@ -88,7 +88,7 @@ Qualquer validador pode assumir.
 Acessar: ${link}
 
 —
-MedPay · Hospital DF Star · Rede D'Or`;
+Exacta · Hospital DF Star · Rede D'Or`;
 }
 
 function buildHtml(
@@ -130,7 +130,7 @@ function buildHtml(
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${companyCount} empresa(s) para validação — MedPay</title>
+<title>${companyCount} empresa(s) para validação — Exacta</title>
 </head>
 <body style="margin:0;padding:0;background:#F1EFE8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#2C2C2A;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;padding:32px 16px;">
@@ -139,7 +139,7 @@ function buildHtml(
         <tr><td style="background:#9A6B3A;padding:24px 32px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr>
-              <td style="font-size:18px;font-weight:500;color:#FFFFFF;letter-spacing:0.3px;">MedPay</td>
+              <td style="font-size:18px;font-weight:500;color:#FFFFFF;letter-spacing:0.3px;">Exacta</td>
               <td align="right" style="font-size:12px;color:rgba(255,255,255,0.75);">Hospital DF Star</td>
             </tr>
           </table>
@@ -147,7 +147,7 @@ function buildHtml(
         <tr><td style="padding:32px;">
           <p style="font-size:16px;color:#2C2C2A;margin:0 0 8px;">${greeting}, Prezado(a) ${escapeHtml(name)}.</p>
           <p style="font-size:14px;color:#5F5E5A;margin:0 0 24px;line-height:1.6;">
-            ${companyCount} ${companyCount === 1 ? "empresa foi enviada" : "empresas foram enviadas"} para validação no MedPay, totalizando <strong style="color:#2C2C2A;">${totalFormatted}</strong>.
+            ${companyCount} ${companyCount === 1 ? "empresa foi enviada" : "empresas foram enviadas"} para validação no Exacta, totalizando <strong style="color:#2C2C2A;">${totalFormatted}</strong>.
           </p>
 
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F1EFE8;border-radius:10px;margin:0 0 28px;">
@@ -180,14 +180,14 @@ function buildHtml(
 
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
             <tr><td align="center" style="padding:0 0 28px;">
-              <a href="${link}" style="display:inline-block;background:#9A6B3A;color:#FFFFFF;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">Acessar no MedPay</a>
+              <a href="${link}" style="display:inline-block;background:#9A6B3A;color:#FFFFFF;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;">Acessar no Exacta</a>
             </td></tr>
           </table>
 
-          <p style="font-size:12px;color:#888780;margin:0;text-align:center;line-height:1.6;">Qualquer validador pode assumir. Você está recebendo este e-mail porque é um validador no MedPay.</p>
+          <p style="font-size:12px;color:#888780;margin:0;text-align:center;line-height:1.6;">Qualquer validador pode assumir. Você está recebendo este e-mail porque é um validador no Exacta.</p>
         </td></tr>
         <tr><td style="background:#F1EFE8;padding:16px 32px;text-align:center;border-top:0.5px solid #D3D1C7;">
-          <p style="font-size:11px;color:#888780;margin:0;">MedPay · Hospital DF Star · Rede D'Or</p>
+          <p style="font-size:11px;color:#888780;margin:0;">Exacta · Hospital DF Star · Rede D'Or</p>
         </td></tr>
       </table>
     </td></tr>

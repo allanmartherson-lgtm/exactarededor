@@ -205,7 +205,7 @@ REGRAS:
 CLASSIFICAÇÃO DA DIFERENÇA BRUTO → LÍQUIDO (composicao_financeira):
 - NEUTRO (NÃO é risco, não eleva risk_level, não alarmar): pool_rateio, debitos_contratuais, creditos.
   Pool/rateio é MODELO DE PAGAMENTO contratado — médicos da empresa dividem produção segundo um acordo. É esperado e legítimo, mesmo quando representa parcela grande do bruto. Mencione com naturalidade ("X% do bruto foi rateado conforme pool contratado"), sem termos como "forte ajuste", "redução expressiva", "necessário validar".
-- RISCO REAL (eleva risk_level e merece destaque): glosas (perda financeira da operadora), conciliacao ≠ 0 (NF não bate com base MedPay), reducao_nao_explicada > 1% do bruto (composição inconsistente).
+- RISCO REAL (eleva risk_level e merece destaque): glosas (perda financeira da operadora), conciliacao ≠ 0 (NF não bate com base Exacta), reducao_nao_explicada > 1% do bruto (composição inconsistente).
 
 INSTRUÇÕES PARA O RESUMO:
 - Foque em riscos FINANCEIROS de fato: glosas, divergências de conciliação, itens com divergência significativa (>10%), regras sem match, outliers por médico/procedimento.

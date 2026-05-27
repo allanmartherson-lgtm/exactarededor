@@ -25,7 +25,7 @@ const schema = z.object({
 }).refine((d) => d.password === d.confirm, { path: ["confirm"], message: "As senhas não coincidem" });
 
 type Phase = "loading" | "ready" | "invalid" | "saving" | "done";
-const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
+const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 
 type AuthFlow = "invite" | "recovery" | "session";
 type EmailOtpFlow = "invite" | "recovery";
@@ -123,7 +123,7 @@ const SetPassword = () => {
   const [recoveryClient] = useState(() => createPasswordRecoveryClient({ skipAutoInitialize: true }));
 
   useEffect(() => {
-    document.title = "Definir senha | MedPay Approval";
+    document.title = "Definir senha | Exacta Approval";
     let cancelled = false;
     let settled = false;
     const { authUrl, usedCachedUrl } = chooseAuthUrl();
@@ -303,7 +303,7 @@ const SetPassword = () => {
             <ShieldCheck className="h-8 w-8 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">MedPay Approval</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Exacta Approval</h1>
             <p className="text-sm text-muted-foreground">Fluxo seguro de aprovação de pagamentos médicos</p>
           </div>
         </div>

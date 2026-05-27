@@ -40,7 +40,7 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span
-          className="medpay-score-label"
+          className="exacta-score-label"
           style={{
             fontFamily: OUTFIT,
             fontSize: 10,
@@ -59,7 +59,7 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
             width={36}
             height={14}
             aria-hidden
-            className="medpay-score-spark"
+            className="exacta-score-spark"
             style={{ opacity: 0.35, transition: "opacity 0.4s, transform 0.4s" }}
           >
             <path
@@ -151,7 +151,7 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
             : "sem pendências")}
       </span>
       <span
-        className="medpay-score-underline"
+        className="exacta-score-underline"
         aria-hidden
         style={{
           position: "absolute",
@@ -188,13 +188,13 @@ export function ScoreCard({ item, tone }: { item: ScoreItemData; tone: ScoreTone
 
   if (item.to) {
     return (
-      <Link to={item.to} className="group medpay-score-card" style={baseStyle}>
+      <Link to={item.to} className="group exacta-score-card" style={baseStyle}>
         {inner}
       </Link>
     );
   }
   return (
-    <div className="medpay-score-card" style={baseStyle}>
+    <div className="exacta-score-card" style={baseStyle}>
       {inner}
     </div>
   );

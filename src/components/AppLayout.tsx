@@ -70,7 +70,7 @@ const Logo = () => (
     </div>
     <div className="min-w-0 leading-tight">
       <p style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", lineHeight: 1 }}>
-        MedPay
+        Exacta
       </p>
       <p
         style={{

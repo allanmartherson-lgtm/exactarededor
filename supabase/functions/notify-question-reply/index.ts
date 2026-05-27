@@ -189,7 +189,7 @@ serve(async (req) => {
           "X-Connection-Api-Key": RESEND_API_KEY,
         },
         body: JSON.stringify({
-          from: "MedPay <onboarding@resend.dev>",
+          from: "Exacta <onboarding@resend.dev>",
           to: toList,
           cc: ccList.length > 0 ? ccList : undefined,
           subject,

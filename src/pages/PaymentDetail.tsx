@@ -339,7 +339,7 @@ const PaymentDetail = () => {
   // Toggle de visão por papel (Detalhe/Compacto/Executivo). Persiste por payment_id.
   const [viewMode, setViewMode] = useState<PivotVariant>(() => {
     if (!id) return "detalhe";
-    const saved = typeof window !== "undefined" ? localStorage.getItem(`medpay:payment-view:${id}`) : null;
+    const saved = typeof window !== "undefined" ? localStorage.getItem(`exacta:payment-view:${id}`) : null;
     if (saved === "detalhe" || saved === "compacto" || saved === "executivo") return saved;
     if (hasRole("validador") && !hasRole("analista")) return "compacto";
     if (hasRole("diretor") && !hasRole("analista")) return "executivo";
@@ -348,7 +348,7 @@ const PaymentDetail = () => {
   useEffect(() => {
     if (!id) return;
     try {
-      localStorage.setItem(`medpay:payment-view:${id}`, viewMode);
+      localStorage.setItem(`exacta:payment-view:${id}`, viewMode);
     } catch {
       /* ignore quota errors */
     }
@@ -358,7 +358,7 @@ const PaymentDetail = () => {
 
 
   useEffect(() => {
-    document.title = "Pagamento | MedPay";
+    document.title = "Pagamento | Exacta";
   }, []);
 
   // Retorno rápido da página dedicada: se a URL trouxer #group-<id>, garante

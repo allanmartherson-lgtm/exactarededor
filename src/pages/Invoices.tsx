@@ -137,7 +137,7 @@ const Invoices = () => {
   };
 
   useEffect(() => {
-    document.title = "Notas Fiscais | MedPay";
+    document.title = "Notas Fiscais | Exacta";
     void load();
   }, []);
 

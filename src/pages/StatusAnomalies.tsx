@@ -107,7 +107,7 @@ const StatusAnomalies = () => {
   };
 
   useEffect(() => {
-    document.title = "Anomalias de status | MedPay Approval";
+    document.title = "Anomalias de status | Exacta Approval";
     load();
     // Realtime: novos incidentes aparecem ao vivo + toast.
     const ch = supabase

@@ -61,7 +61,7 @@ const Kpis = () => {
   const seesAll = isAdmin || isDiretor;
 
   useEffect(() => {
-    document.title = "KPIs | MedPay";
+    document.title = "KPIs | Exacta";
     const since = new Date(Date.now() - range * 24 * 60 * 60 * 1000).toISOString();
     setLoading(true);
     Promise.all([

@@ -97,7 +97,7 @@ const CostCenters = () => {
   const PAGE_SIZE = 100;
   const reqIdRef = useRef(0);
 
-  useEffect(() => { document.title = "Centros de custo | MedPay"; }, []);
+  useEffect(() => { document.title = "Centros de custo | Exacta"; }, []);
 
   // Debounce da busca
   useEffect(() => {

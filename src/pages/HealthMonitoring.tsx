@@ -307,7 +307,7 @@ export default function HealthMonitoring() {
   }, []);
 
   useEffect(() => {
-    document.title = "Saúde do Motor | MedPay";
+    document.title = "Saúde do Motor | Exacta";
     load();
     const interval = setInterval(load, 5 * 60_000);
     return () => clearInterval(interval);
@@ -376,7 +376,7 @@ export default function HealthMonitoring() {
             Saúde do <span style={{ fontWeight: 700 }}>Motor</span>
           </h1>
           <p style={{ fontSize: 14, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>
-            Monitoramento operacional do motor MedPay · Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            Monitoramento operacional do motor Exacta · Atualizado às {lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

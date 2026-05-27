@@ -20,7 +20,7 @@ const ForceChangePassword = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { document.title = "Trocar senha | MedPay Approval"; }, []);
+  useEffect(() => { document.title = "Trocar senha | Exacta Approval"; }, []);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;

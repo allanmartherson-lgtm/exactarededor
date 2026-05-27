@@ -78,7 +78,7 @@ const Companies = () => {
     show: boolean;
   }>({ total: 0, success: 0, updated: 0, errors: [], show: false });
 
-  useEffect(() => { document.title = "Empresas | MedPay"; load(); }, []);
+  useEffect(() => { document.title = "Empresas | Exacta"; load(); }, []);
 
   const load = async () => {
     try {

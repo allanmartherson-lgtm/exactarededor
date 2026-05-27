@@ -223,7 +223,7 @@ const Users = () => {
       .order("created_at", { ascending: false });
     setRequests(data ?? []);
   };
-  useEffect(() => { document.title = "Usuários | MedPay"; load(); loadRequests(); }, [isAdmin]);
+  useEffect(() => { document.title = "Usuários | Exacta"; load(); loadRequests(); }, [isAdmin]);
 
   const openCreateFromRequest = (r: any) => {
     setForm({
