@@ -678,10 +678,32 @@ const NewPayment = () => {
   };
 
   const onFiles = async (fileList: FileList) => {
+    const files = Array.from(fileList);
+    // Parsing PARALELO com yields. Antes era sequencial (for + await), o que
+    // bloqueava o main thread e fazia o sistema "cansar" nos últimos arquivos
+    // de lotes grandes. Agora cada parse roda em paralelo (XLSX.read é pesado
+    // mas o JS engine intercala melhor) e o setTimeout(0) inicial libera o
+    // ciclo de render antes de cada parse começar.
+    type ParseOk = { ok: true; bucket: FileBucket; file: File; error: null };
+    type ParseErr = { ok: false; bucket: null; file: File; error: unknown };
+    const results = await Promise.all<ParseOk | ParseErr>(
+      files.map((f) =>
+        new Promise<ParseOk | ParseErr>((resolve) => {
+          setTimeout(async () => {
+            try {
+              const bucket = await parseFile(f);
+              resolve({ ok: true, bucket, file: f, error: null });
+            } catch (error) {
+              resolve({ ok: false, bucket: null, file: f, error });
+            }
+          }, 0);
+        }),
+      ),
+    );
     const newBuckets: FileBucket[] = [];
-    for (const f of Array.from(fileList)) {
-      try { newBuckets.push(await parseFile(f)); }
-      catch (e) { reportParseError(f.name, e); }
+    for (const r of results) {
+      if (r.ok && r.bucket) newBuckets.push(r.bucket);
+      else if (!r.ok) reportParseError(r.file.name, r.error);
     }
     setBuckets((prev) => [...prev, ...newBuckets]);
     if (!reference && newBuckets.length === 1) {
@@ -1308,7 +1330,7 @@ const NewPayment = () => {
   return (
     <>
       <PageHeader title="Nova base de pagamento" description="Anexe uma ou várias planilhas. A empresa é detectada pelo nome do arquivo." />
-      <div className="p-8 max-w-5xl space-y-6">
+      <div className="p-8 max-w-7xl space-y-6">
         <Card className="shadow-card">
           <CardHeader><CardTitle className="text-base">Identificação</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -1543,7 +1565,7 @@ const NewPayment = () => {
             {buckets.length > 0 && (
               <div className="space-y-2">
                 {buckets.map((b, idx) => (
-                  <div key={idx} className="border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
+                  <div key={idx} className="w-full border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate" title={b.file.name}>{b.file.name}</p>
