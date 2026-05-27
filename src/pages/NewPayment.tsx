@@ -1379,7 +1379,29 @@ const NewPayment = () => {
                   <div key={idx} className="border border-border rounded-lg p-3 flex items-start gap-3 bg-card">
                     <FileSpreadsheet className="h-8 w-8 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{b.file.name}</p>
+                      <p className="font-medium text-sm truncate" title={b.file.name}>{b.file.name}</p>
+                      {(() => {
+                        const headerRow = (b.rawMatrix && typeof b.headerRowIndex === "number")
+                          ? (b.rawMatrix[b.headerRowIndex] ?? [])
+                          : [];
+                        const colNames = (headerRow as unknown[])
+                          .map((c) => String(c ?? "").trim())
+                          .filter((c) => c.length > 0);
+                        const totalRows = b.rawMatrix ? Math.max(0, b.rawMatrix.length - ((b.headerRowIndex ?? 0) + 1)) : b.rows.length;
+                        const sizeKb = b.file.size / 1024;
+                        const sizeLabel = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb.toFixed(0)} KB`;
+                        const preview = colNames.slice(0, 6).join(" · ");
+                        return (
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            <span>{sizeLabel} · {totalRows} linha{totalRows === 1 ? "" : "s"} · {colNames.length} coluna{colNames.length === 1 ? "" : "s"}{typeof b.headerRowIndex === "number" ? ` · cabeçalho na linha ${b.headerRowIndex + 1}` : ""}</span>
+                            {preview && (
+                              <span className="block truncate" title={colNames.join(" · ")}>
+                                Colunas: {preview}{colNames.length > 6 ? ` … +${colNames.length - 6}` : ""}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge variant="outline" className="gap-1">
                           <Building2 className="h-3 w-3" />
