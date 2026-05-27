@@ -254,11 +254,24 @@ All colors MUST be HSL.
     letter-spacing: -0.003em;
   }
 
-  h1, h2, h3, h4 {
+  h1 {
+    @apply tracking-tight text-foreground;
+    font-family: "Playfair Display", "Inter", Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  h2, h3, h4 {
     @apply tracking-tight text-foreground;
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     font-weight: 500;
     letter-spacing: -0.015em;
+  }
+
+  .font-wordmark {
+    font-family: "Playfair Display", Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.005em;
   }
 
   /* Dark mode: alivia o peso do display em superfícies escuras. */
