@@ -1061,19 +1061,28 @@ const Dashboard = () => {
     const fetchIQ = async () => {
       const { data } = await supabase
         .from("invoice_questions")
-        .select("id, payment_id, invoice:invoices!inner(id, status), payment:payments!inner(created_by)")
+        .select("id, payment_id, invoice_id, payment:payments!inner(created_by)")
         .eq("author_type", "recebedor")
         .is("read_at", null)
         .eq("payments.created_by", user.id);
       if (cancelled) return;
-      // Filtra perguntas órfãs (invoice deletada) ou cuja NF já foi concluída
-      // (nf_conciliada/lancado/pago/cancelada) — não exigem mais ação do analista.
-      const ACTIVE_INV = new Set(["aguardando", "recebida", "questionada", "divergente"]);
-      const rows = ((data ?? []) as Array<{ id: string; payment_id: string; invoice: { status: string } | null }>)
-        .filter((r) => r.invoice && ACTIVE_INV.has(r.invoice.status));
+      const rows = (data ?? []) as Array<{ id: string; payment_id: string; invoice_id: string | null }>;
+      const invoiceIds = Array.from(new Set(rows.map((r) => r.invoice_id).filter(Boolean) as string[]));
+      let activeIds = new Set<string>();
+      if (invoiceIds.length) {
+        const { data: invs } = await supabase
+          .from("invoices")
+          .select("id, status")
+          .in("id", invoiceIds)
+          .in("status", ["aguardando", "recebida", "questionada", "divergente"]);
+        if (cancelled) return;
+        activeIds = new Set((invs ?? []).map((i) => i.id as string));
+      }
+      // Mantém só perguntas cuja NF ainda existe e está em fase ativa.
+      const active = rows.filter((r) => r.invoice_id && activeIds.has(r.invoice_id));
       setCompanyInvoiceQuestions({
-        count: rows.length,
-        firstPaymentId: rows[0]?.payment_id ?? null,
+        count: active.length,
+        firstPaymentId: active[0]?.payment_id ?? null,
       });
     };
     fetchIQ();
