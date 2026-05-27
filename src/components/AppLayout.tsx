@@ -40,9 +40,13 @@ export type { Role, NavLeaf, NavGroup, NavItem } from "@/config/navItems";
 
 const AVATAR_GRADIENT = "linear-gradient(135deg, hsl(var(--secondary-foreground)), hsl(var(--foreground)))";
 
-function getInitials(email?: string | null) {
-  if (!email) return "AA";
-  const name = email.split("@")[0].replace(/[._-]+/g, " ").trim();
+function getInitials(name?: string | null, email?: string | null) {
+  const source = (name && name.trim()) || (email ? email.split("@")[0].replace(/[._-]+/g, " ") : "");
+  if (!source) return "AA";
+  const parts = source.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "AA";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   const parts = name.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "AA";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
