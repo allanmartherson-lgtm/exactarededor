@@ -41,6 +41,7 @@ export default function RecentQuestionsPanel() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<"all" | QType>("all");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [showResolved, setShowResolved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,12 +53,12 @@ export default function RecentQuestionsPanel() {
           .select("id, payment_id, message, author_type, created_at, resolved_at, payment:payments!inner(reference)")
           .eq("is_question", true)
           .order("created_at", { ascending: false })
-          .limit(40),
+          .limit(60),
         supabase
           .from("invoice_questions")
-          .select("id, payment_id, invoice_id, message, author_type, author_name, created_at, read_at, payment:payments!inner(reference)")
+          .select("id, payment_id, invoice_id, message, author_type, author_name, created_at, answered_at, read_at, payment:payments!inner(reference)")
           .order("created_at", { ascending: false })
-          .limit(40),
+          .limit(60),
       ]);
       if (cancelled) return;
 
@@ -81,13 +82,13 @@ export default function RecentQuestionsPanel() {
         message: q.message,
         author: q.author_type === "recebedor" ? (q.author_name || "Empresa") : "Analista",
         created_at: q.created_at,
-        resolved: !!q.read_at,
+        resolved: !!q.answered_at || !!q.read_at,
         link: `/pagamentos/${q.payment_id}#nf`,
       }));
 
       const merged = [...internos, ...empresa]
         .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
-        .slice(0, 60);
+        .slice(0, 80);
       setRows(merged);
       setLoading(false);
     };
@@ -106,16 +107,21 @@ export default function RecentQuestionsPanel() {
     return Array.from(seen.entries()).map(([id, ref]) => ({ id, ref }));
   }, [rows]);
 
-  const filtered = useMemo(() => rows.filter((r) =>
+  const openRows = useMemo(() => rows.filter((r) => !r.resolved), [rows]);
+  const baseRows = showResolved ? rows : openRows;
+
+  const filtered = useMemo(() => baseRows.filter((r) =>
     (typeFilter === "all" || r.type === typeFilter) &&
     (paymentFilter === "all" || r.payment_id === paymentFilter)
-  ), [rows, typeFilter, paymentFilter]);
+  ), [baseRows, typeFilter, paymentFilter]);
 
   const counts = useMemo(() => ({
-    all: rows.length,
-    interno: rows.filter((r) => r.type === "interno").length,
-    empresa: rows.filter((r) => r.type === "empresa").length,
-  }), [rows]);
+    all: baseRows.length,
+    interno: baseRows.filter((r) => r.type === "interno").length,
+    empresa: baseRows.filter((r) => r.type === "empresa").length,
+  }), [baseRows]);
+
+  const resolvedCount = rows.length - openRows.length;
 
   const chip = (active: boolean): React.CSSProperties => ({
     padding: "5px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6,
