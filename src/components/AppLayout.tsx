@@ -696,7 +696,7 @@ export const AppLayout = () => {
                   textOverflow: "ellipsis",
                 }}
               >
-                {user?.email}
+                {displayName}
               </p>
               <span style={getRoleBadgeStyle(primaryRole)}>
                 {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
