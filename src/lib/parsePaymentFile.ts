@@ -272,16 +272,21 @@ const tokenize = (s: string): string[] => {
 
 // Equivalência fuzzy entre dois tokens:
 //  - igualdade exata
-//  - um é prefixo do outro (ambos com ≥4 chars) — pega "traumatolo" ⊂ "traumatologia"
-//  - similaridade de Levenshtein ≥ 0.85 em tokens com ≥6 chars — pega
-//    "cardiororacica" ≈ "cardiotoracica" (typo de 1-2 chars em palavra longa)
+//  - um é prefixo do outro com ambos ≥4 chars (ex.: "traumatolo" ⊂ "traumatologia")
+//  - prefixo curto: shorter ≥2 chars e longer ≥5 chars (ex.: "br" ⊂ "brasilia").
+//    Bloqueia preposições/artigos para evitar ruído.
+//  - similaridade de Levenshtein ≥ 0.82 em tokens com ≥6 chars
+//    (ex.: "lessence" ≈ "essence", "cardiororacica" ≈ "cardiotoracica").
+const SHORT_PREFIX_BLOCKLIST = new Set(["de","da","do","em","no","na","os","as","ao","um","uma","com","sem","por","pra"]);
 const tokensEquivalent = (x: string, y: string): boolean => {
   if (x === y) return true;
   if (x.length >= 4 && y.length >= 4 && (x.startsWith(y) || y.startsWith(x))) return true;
-  const ml = Math.max(x.length, y.length);
+  const [s, l] = x.length <= y.length ? [x, y] : [y, x];
+  if (s.length >= 2 && l.length >= 5 && l.startsWith(s) && !SHORT_PREFIX_BLOCKLIST.has(s)) return true;
+  const ml = l.length;
   if (ml >= 6) {
     const d = lev(x, y);
-    if (1 - d / ml >= 0.85) return true;
+    if (1 - d / ml >= 0.82) return true;
   }
   return false;
 };
@@ -304,8 +309,12 @@ const jaccard = (a: string[], b: string[]): number => {
 };
 
 // Score híbrido: 0.65 Jaccard de tokens + 0.35 Levenshtein normalizado.
-// Bônus quando todos os tokens significativos do nome curto cabem no longo
-// (via equivalência fuzzy — tolera prefixos truncados e typos em palavras longas).
+// Bônus de contenção (forte): TODOS os tokens significativos do nome curto
+// cabem no longo (≥2 tokens) → score = max(score, 0.92).
+// Bônus parcial (suave): cobertura ≥70% (≥3 tokens) ou ≥60% (≥2 tokens) →
+// soma 0.18 / 0.10. Cobre nomes legais com partes divergentes
+// ("L Essence Servicos Medicos em Cuidados da Dor" vs
+//  "Lessence Norte Cuidados ao Paciente com Dor") sem inflar falsos positivos.
 export const similarity = (a: string, b: string): number => {
   if (!a || !b) return 0;
   const ta = tokenize(a), tb = tokenize(b);
@@ -314,8 +323,11 @@ export const similarity = (a: string, b: string): number => {
   let score = 0.65 * j + 0.35 * l;
   if (ta.length && tb.length) {
     const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
-    const allIn = shorter.every((t) => longer.some((u) => tokensEquivalent(t, u)));
-    if (allIn && shorter.length >= 2) score = Math.max(score, 0.92);
+    const hits = shorter.filter((t) => longer.some((u) => tokensEquivalent(t, u))).length;
+    const ratio = hits / shorter.length;
+    if (ratio === 1 && shorter.length >= 2) score = Math.max(score, 0.92);
+    else if (ratio >= 0.7 && shorter.length >= 3) score = Math.min(1, score + 0.18);
+    else if (ratio >= 0.6 && shorter.length >= 2) score = Math.min(1, score + 0.1);
   }
   return Math.min(1, score);
 };
@@ -353,6 +365,7 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
     for (const cand of candidates) {
       const s = similarity(rawName, cand);
       if (s > best.score) best = { company: c, score: s };
+      if (best.score >= 0.999) return best; // early exit em match exato
     }
   }
   return best;
@@ -360,7 +373,11 @@ export const matchCompany = (rawName: string, companies: CompanyRow[]): { compan
 
 // Limites de decisão. Centralizados para manter UI e parser em sincronia.
 export const MATCH_AUTO_THRESHOLD = 0.92;
-export const MATCH_REVIEW_THRESHOLD = 0.75;
+// Reduzido de 0.75 → 0.55: quando há um candidato razoável, preferimos pedir
+// CONFIRMAÇÃO em vez de jogar o arquivo direto em "sem PJ — isolado". O
+// isolamento real só ocorre quando o score é tão baixo que confirmar manualmente
+// não faria sentido (provavelmente PJ nova ainda não cadastrada).
+export const MATCH_REVIEW_THRESHOLD = 0.55;
 
 // Palavras-âncora que indicam que uma linha é cabeçalho de dados de pagamento.
 // Usadas para pular metadados (empresa, CNPJ, vigência, valor da NF) que
