@@ -1548,6 +1548,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
           _company_name: _company_label ?? company_name ?? "Sem empresa",
           _error: null,
         });
+        __progress_reported = true;
         console.timeEnd(`${__t} increment_progress`);
 
         if (!jobErr && jobStatus && (jobStatus.status === "concluido" || jobStatus.status === "parcial")) {
@@ -1572,6 +1573,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
         console.error("Falha ao reportar progresso", e);
       }
     }
+
 
     return new Response(
       JSON.stringify({
