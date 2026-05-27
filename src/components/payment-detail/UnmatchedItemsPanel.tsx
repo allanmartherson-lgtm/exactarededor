@@ -405,7 +405,7 @@ export function UnmatchedItemsPanel({
       <Dialog open={!!ignoreOpen} onOpenChange={(o) => !o && setIgnoreOpen(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="pr-8 break-words">Descartar "{ignoreOpen?.raw_company_name}"</DialogTitle>
+            <DialogTitle className="pr-10 break-words leading-snug">Descartar "{ignoreOpen?.raw_company_name}"</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {ignoreOpen?.items_count} item(ns) ·{" "}
