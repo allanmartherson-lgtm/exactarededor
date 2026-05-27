@@ -352,6 +352,18 @@ const NewPayment = () => {
 
   useEffect(() => { document.title = "Nova base | Exacta Approval"; }, []);
 
+  // Evita que o navegador abra o arquivo (navegação) se o usuário soltar
+  // fora da área de upload, o que aparenta um "refresh" e descarta o trabalho.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => { e.preventDefault(); };
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
+
   useEffect(() => {
     supabase.from("companies").select("id,name,aliases").limit(5000).then(({ data }) => {
       setCompanies((data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
@@ -1329,7 +1341,16 @@ const NewPayment = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <label className="block border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary-soft/30 transition-colors">
+            <label
+              className="block border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary-soft/30 transition-colors"
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files?.length) onFiles(e.dataTransfer.files);
+              }}
+            >
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
