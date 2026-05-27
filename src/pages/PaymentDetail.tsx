@@ -1152,24 +1152,13 @@ const PaymentDetail = () => {
     ? false // só validador/diretor sem ser analista — caso raro
     : isOwner && (isValidador || isDiretor);
 
-  // Fase de NF: após aprovação do diretor, a tela deixa de tratar de análise
-  // e passa a ser exclusivamente sobre o pedido/recebimento de NF. Nessas
-  // fases ocultamos cards e botões que pertencem ao fluxo de análise.
-  const NF_PHASE_STATUSES: PaymentStatus[] = [
-    "aprovado",
-    "aprovado_com_ressalva",
-    "aprovado_parcial",
-    "revisao_pos_aprovacao",
-    "pedido_nf_enviado",
-    "nf_recebida",
-    "nf_questionada",
-    "nf_divergente",
-    "nf_conciliada",
-    "em_questionamento",
-    "lancado",
-    "pago",
-  ];
-  const isNfPhase = NF_PHASE_STATUSES.includes(payment.status as PaymentStatus);
+  // Fase do lote: cada status pertence a uma etapa (análise, validação,
+  // aprovação, pedido_nf, conciliação, pagamento). A tela esconde blocos
+  // de análise quando o pagamento já passou para fases pós-aprovação que
+  // não dependem mais de IA/anomalias para o trabalho do usuário.
+  const phase = resolvePhase(payment.status as PaymentStatus);
+  const hidesAnalysisBlocks = phase === "pedido_nf" || phase === "conciliacao" || phase === "pagamento";
+  const isNfPhase = hidesAnalysisBlocks; // mantém compat com gates existentes
 
   const cancelPayment = async () => {
     if (!id) return;
