@@ -2098,7 +2098,7 @@ const PaymentDetail = () => {
           </SheetContent>
         </Sheet>
 
-        {analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
+        {!isNfPhase && analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
           const extractCount = (text: string, keyword: RegExp): number | null => {
             const m = text.match(keyword);
             return m ? Number(m[1]) : null;
