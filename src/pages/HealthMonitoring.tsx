@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TelemetryPanel from "@/components/health/TelemetryPanel";
+import DeadLetterPanel from "@/components/health/DeadLetterPanel";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
