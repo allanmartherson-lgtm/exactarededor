@@ -211,6 +211,21 @@ interface FileBucket {
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
 
+/** Erro detalhado de parsing — carrega título, motivos e instruções de correção. */
+class ParseFileError extends Error {
+  title: string;
+  reasons: string[];
+  howToFix: string[];
+  constructor(title: string, reasons: string[], howToFix: string[]) {
+    super(title);
+    this.name = "ParseFileError";
+    this.title = title;
+    this.reasons = reasons;
+    this.howToFix = howToFix;
+  }
+}
+
+
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 
 /**
@@ -341,6 +356,7 @@ const NewPayment = () => {
   const [pSectors, setPSectors] = useState<string[]>([]);
   const [pSpecialties, setPSpecialties] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<FileBucket[]>([]);
+  const [parseErrors, setParseErrors] = useState<Array<{ fileName: string; title: string; reasons: string[]; howToFix: string[] }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [analysisMode, setAnalysisMode] = useState<PaymentAnalysisMode>("padrao");
@@ -494,20 +510,108 @@ const NewPayment = () => {
   };
 
   const parseFile = async (f: File): Promise<FileBucket> => {
-    const buf = await f.arrayBuffer();
-    const wb = XLSX.read(buf, { cellDates: false });
+    // 1) Extensão suportada
+    const ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (!["xlsx", "xls", "csv"].includes(ext)) {
+      throw new ParseFileError(
+        "Formato de arquivo não suportado",
+        [`A extensão ".${ext || "?"}" não é reconhecida.`],
+        ["Exporte a planilha como .xlsx, .xls ou .csv e tente novamente."],
+      );
+    }
+
+    // 2) Leitura do workbook
+    let wb: XLSX.WorkBook;
+    try {
+      const buf = await f.arrayBuffer();
+      wb = XLSX.read(buf, { cellDates: false });
+    } catch (e) {
+      throw new ParseFileError(
+        "Não foi possível ler a planilha",
+        [`O arquivo parece corrompido ou não é uma planilha válida (${String((e as Error)?.message ?? e)}).`],
+        ["Abra o arquivo no Excel/Google Sheets, salve novamente como .xlsx e tente reenviar."],
+      );
+    }
+
+    // 3) Workbook tem abas
+    if (!wb.SheetNames?.length) {
+      throw new ParseFileError(
+        "Planilha sem abas",
+        ["O arquivo não contém nenhuma aba de dados."],
+        ["Adicione uma aba com os dados de pagamento e reenvie."],
+      );
+    }
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    // Lê como matriz para localizar a linha de cabeçalho real — muitas
-    // planilhas trazem totalizadores/metadados antes da linha de cabeçalho.
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+
+    // 4) Conteúdo mínimo
+    if (matrix.length === 0) {
+      throw new ParseFileError(
+        "Planilha vazia",
+        [`A primeira aba ("${wb.SheetNames[0]}") não contém linhas.`],
+        ["Verifique se você está enviando o arquivo certo e se a aba com os dados é a primeira."],
+      );
+    }
+
     const headerIdx = detectHeaderRow(matrix);
     const json = matrixToJson(matrix, headerIdx);
+
+    // 5) Cabeçalho detectado tem colunas
+    const headerCells = (matrix[headerIdx] ?? []) as unknown[];
+    const headerNames = headerCells.map((c) => String(c ?? "").trim()).filter(Boolean);
+    if (headerNames.length === 0) {
+      throw new ParseFileError(
+        "Cabeçalho não identificado",
+        ["Nenhuma linha da planilha foi reconhecida como cabeçalho válido."],
+        [
+          "Confirme se a primeira aba contém uma linha com os nomes das colunas (ex: Médico, Valor, Procedimento).",
+          "Após o upload, use o botão \"Cabeçalho: linha N\" para escolher manualmente a linha correta.",
+        ],
+      );
+    }
 
     const rawCompanyName = extractCompanyFromFilename(f.name);
     const { company, score } = matchCompany(rawCompanyName, companies);
     const filenameTrusted = score >= MATCH_AUTO_THRESHOLD && !!company;
 
     const rows = mapJsonToRows(json, f, headerIdx, company, filenameTrusted, rawCompanyName);
+
+    // 6) Colunas obrigatórias presentes
+    const hasDoctor = rows.some((r) => r.doctor_name && r.doctor_name.trim().length > 0);
+    const hasValue = rows.some((r) => Math.abs(r.gross_amount) > 0 || (r.procedure_amount ?? 0) > 0);
+    const missing: string[] = [];
+    if (!hasDoctor) missing.push("Médico (Médico, Prestador, Executante, Parecerista)");
+    if (!hasValue) missing.push("Valor (Valor Bruto, Valor Repasse ou Valor Procedimento)");
+    if (missing.length > 0) {
+      throw new ParseFileError(
+        "Colunas obrigatórias ausentes",
+        [
+          `As seguintes colunas não foram encontradas após o cabeçalho (linha ${headerIdx + 1}):`,
+          ...missing.map((m) => `• ${m}`),
+          `Colunas detectadas: ${headerNames.slice(0, 10).join(" · ")}${headerNames.length > 10 ? " …" : ""}`,
+        ],
+        [
+          "Renomeie as colunas da planilha para um dos nomes aceitos acima.",
+          "Se o cabeçalho está em outra linha, use o botão \"Cabeçalho: linha N\" após o upload.",
+          "Se os nomes estão corretos mas em formato diferente, use \"Colunas\" para mapear manualmente.",
+        ],
+      );
+    }
+
+    // 7) Linhas úteis após filtro
+    if (rows.length === 0) {
+      throw new ParseFileError(
+        "Nenhuma linha de pagamento encontrada",
+        [
+          `A planilha foi lida (cabeçalho na linha ${headerIdx + 1}) mas nenhuma linha de dados foi reconhecida.`,
+          "Linhas precisam ter ao menos: nome do médico OU valor OU código de procedimento.",
+        ],
+        [
+          "Confirme se há dados abaixo do cabeçalho.",
+          "Se houver linhas de totalizador/subtotal antes da tabela, escolha a linha de cabeçalho correta após o upload.",
+        ],
+      );
+    }
 
     const sectorCounts: Record<string, number> = {};
     for (const r of rows) {
@@ -517,8 +621,6 @@ const NewPayment = () => {
       }
     }
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-    // Considera "setor ausente" quando nenhuma linha trouxe coluna setor preenchida
-    // OU quando o setor dominante não bate com nenhum slug conhecido do sistema.
     const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
@@ -563,11 +665,23 @@ const NewPayment = () => {
 
 
 
+  const reportParseError = (fileName: string, e: unknown) => {
+    const pe = e instanceof ParseFileError
+      ? { title: e.title, reasons: e.reasons, howToFix: e.howToFix }
+      : { title: "Erro ao processar arquivo", reasons: [String((e as Error)?.message ?? e)], howToFix: ["Tente abrir o arquivo no Excel/Google Sheets e salvá-lo novamente como .xlsx."] };
+    setParseErrors((prev) => [...prev, { fileName, ...pe }]);
+    toast({
+      title: `${pe.title} — ${fileName}`,
+      description: [...pe.reasons, "", "Como corrigir:", ...pe.howToFix.map((s) => `• ${s}`)].join("\n"),
+      variant: "destructive",
+    });
+  };
+
   const onFiles = async (fileList: FileList) => {
     const newBuckets: FileBucket[] = [];
     for (const f of Array.from(fileList)) {
       try { newBuckets.push(await parseFile(f)); }
-      catch (e) { toast({ title: `Erro lendo ${f.name}`, description: String(e), variant: "destructive" }); }
+      catch (e) { reportParseError(f.name, e); }
     }
     setBuckets((prev) => [...prev, ...newBuckets]);
     if (!reference && newBuckets.length === 1) {
@@ -585,9 +699,10 @@ const NewPayment = () => {
       setBuckets((prev) => prev.map((b, i) => (i === idx ? newBucket : b)));
       toast({ title: "Arquivo substituído", description: f.name });
     } catch (e) {
-      toast({ title: `Erro lendo ${f.name}`, description: String(e), variant: "destructive" });
+      reportParseError(f.name, e);
     }
   };
+
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
 
@@ -1383,6 +1498,47 @@ const NewPayment = () => {
               <p className="text-sm font-medium">Clique para selecionar ou arraste arquivos</p>
               <p className="text-xs text-muted-foreground mt-1">Excel ou CSV — múltiplos arquivos suportados</p>
             </label>
+
+            {parseErrors.length > 0 && (
+              <div className="space-y-2">
+                {parseErrors.map((err, i) => (
+                  <div key={i} className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-destructive truncate" title={err.fileName}>
+                            {err.title} — {err.fileName}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setParseErrors((prev) => prev.filter((_, j) => j !== i))}
+                            className="text-xs text-muted-foreground hover:text-foreground flex-shrink-0"
+                          >
+                            Dispensar
+                          </button>
+                        </div>
+                        {err.reasons.length > 0 && (
+                          <ul className="text-xs text-foreground/80 space-y-0.5">
+                            {err.reasons.map((r, ri) => (
+                              <li key={ri} className="whitespace-pre-wrap">{r}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {err.howToFix.length > 0 && (
+                          <div className="text-xs">
+                            <p className="font-medium text-foreground mb-0.5">Como corrigir:</p>
+                            <ul className="list-disc pl-4 space-y-0.5 text-muted-foreground">
+                              {err.howToFix.map((h, hi) => <li key={hi}>{h}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {buckets.length > 0 && (
               <div className="space-y-2">
