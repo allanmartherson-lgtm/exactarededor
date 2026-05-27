@@ -48,6 +48,7 @@ import { RiskBadge } from "@/components/payment-detail/RiskBadge";
 import { SafeCard } from "@/components/ui/SafeCard";
 import RecentQuestionsPanel from "@/components/dashboard/RecentQuestionsPanel";
 import { RegistrationPendingCard } from "@/components/dashboard/RegistrationPendingCard";
+import { ScoreCard, ScoreSection, type ScoreItemData } from "@/components/dashboard/ScoreCards";
 
 const PIPELINE_OWNER_LABEL: Record<PipelineOwnerFilter, string> = {
   all: "Todos",
@@ -1422,45 +1423,44 @@ const Dashboard = () => {
           </Link>
         )}
 
-        {counts.mineValidador > 0 && (
-          <section>
-            <SectionLabel>Sua fila de validação</SectionLabel>
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 10, display: "flex", overflow: "hidden" }}>
-              <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--accent-foreground))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--accent))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
-                  Para validar
-                </div>
-                <Link to="/pagamentos?status=aguardando_validacao" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
-                  <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes aguardando</span>
-                  <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--sidebar-primary))", fontVariantNumeric: "tabular-nums" }}>{counts.mineValidador}</span>
-                  <span style={{ fontSize: 9, fontWeight: 500, color: "hsl(var(--accent-foreground))" }}>↑ ação necessária</span>
-                </Link>
-              </div>
-              {slaTotals.vencido > 0 && (
-                <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--destructive))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--destructive-soft))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
-                    SLA vencido
-                  </div>
-                  <Link to="/pagamentos?filter=sla_vencido" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
-                    <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes fora do prazo</span>
-                    <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--destructive))", fontVariantNumeric: "tabular-nums" }}>{slaTotals.vencido}</span>
-                  </Link>
-                </div>
+        {(counts.mineValidador > 0 || slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (() => {
+          const acaoItemsV: ScoreItemData[] = [];
+          if (counts.mineValidador > 0) acaoItemsV.push({
+            label: "Para validar", value: counts.mineValidador,
+            to: "/pagamentos?status=aguardando_validacao",
+            hint: "lotes aguardando",
+          });
+
+          const alertaItemsV: ScoreItemData[] = [];
+          if (slaTotals.vencido > 0) alertaItemsV.push({
+            label: "SLA vencido", value: slaTotals.vencido,
+            to: "/pagamentos?filter=sla_vencido", accent: "rose",
+            hint: "fora do prazo",
+          });
+          if (slaTotals.preventivo > 0) alertaItemsV.push({
+            label: "SLA em risco", value: slaTotals.preventivo,
+            accent: "amber",
+            hint: "próximos do prazo",
+          });
+
+          return (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: acaoItemsV.length > 0 && alertaItemsV.length > 0
+                ? "minmax(0, 1fr) minmax(0, 1fr)"
+                : "minmax(0, 1fr)",
+              gap: 40,
+            }}>
+              {acaoItemsV.length > 0 && (
+                <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
               )}
-              {slaTotals.preventivo > 0 && (
-                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--warning))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--warning-soft))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
-                    SLA em risco
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", flex: 1 }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Próximos do prazo</span>
-                    <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--warning))", fontVariantNumeric: "tabular-nums" }}>{slaTotals.preventivo}</span>
-                  </div>
-                </div>
+              {alertaItemsV.length > 0 && (
+                <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
               )}
             </div>
-          </section>
-        )}
+          );
+        })()}
+
 
         <section aria-labelledby="pipeline-equipe-validador">
           <SectionLabel>Pipeline da equipe</SectionLabel>
@@ -1750,48 +1750,36 @@ const Dashboard = () => {
           </Link>
         )}
 
-        <section>
-          <SectionLabel>Visão geral do processo</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-blue-bg))", color: "hsl(var(--bubble-blue-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <FileText size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Em andamento</div>
-              <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{lotesEmAberto}</div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>lotes no fluxo</div>
-            </div>
+        {counts.mineDiretor > 0 && (() => {
+          const acaoItemsD: ScoreItemData[] = [{
+            label: "Para aprovar", value: counts.mineDiretor,
+            to: "/pagamentos?status=aguardando_aprovacao",
+            hint: "aguardando sua alçada",
+          }];
+          if (counts.diretorAprovadoEmRevisao > 0) {
+            acaoItemsD.push({
+              label: "Pós-aprovação", value: counts.diretorAprovadoEmRevisao,
+              to: "/pagamentos?status=aprovado_em_revisao",
+              hint: "em revisão pelo analista",
+            });
+          }
+          return (
+            <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
+          );
+        })()}
 
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-purple-bg))", color: "hsl(var(--bubble-purple-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CreditCard size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Em processamento</div>
-              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(totalValorEmProcessamento)}</div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>valor total pendente</div>
-            </div>
+        <ScoreSection
+          title="Visão Geral do Processo"
+          tone="transit"
+          items={[
+            { label: "Em andamento", value: lotesEmAberto, hint: "lotes no fluxo" },
+            { label: "Em processamento", value: formatCurrency(totalValorEmProcessamento), hint: "valor pendente" },
+            { label: "Aprovados 30d", value: formatCurrency(valorAprovado30d), hint: `${totalAprovados30d} lotes`, accent: "success" },
+            { label: "Taxa aprovação", value: taxaAprovacao !== null ? `${taxaAprovacao}%` : "—", hint: "últimos 30 dias", accent: taxaAprovacao !== null && taxaAprovacao >= 90 ? "success" : "amber" },
+          ]}
+        />
 
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-green-bg))", color: "hsl(var(--bubble-green-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CheckCircle size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Aprovados (30d)</div>
-              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(valorAprovado30d)}</div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>{totalAprovados30d} lotes aprovados</div>
-            </div>
 
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--bubble-green-bg))" : "hsl(var(--bubble-yellow-bg))", color: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--bubble-green-fg))" : "hsl(var(--bubble-yellow-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CheckCircle2 size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Taxa aprovação</div>
-              <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--success))" : "hsl(var(--warning))", fontVariantNumeric: "tabular-nums" }}>
-                {taxaAprovacao !== null ? `${taxaAprovacao}%` : "—"}
-              </div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>últimos 30 dias</div>
-            </div>
-          </div>
-        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <section className="lg:col-span-7">
@@ -2007,70 +1995,58 @@ const Dashboard = () => {
           </div>
         ) : (
           (() => {
-            type ScoreItemData = {
-              label: string;
-              value: number;
-              to: string;
-              icon: LucideIcon;
-              color: BubbleColor;
-              accent?: 'amber' | 'rose';
-            };
-
             const acaoItems: ScoreItemData[] = [];
             if (isAnalista && totalPendingQuestions > 0) acaoItems.push({
               label: 'Questionam. internos', value: totalPendingQuestions,
               to: `/pagamentos/${pendingQuestions[0]?.payment_id ?? ''}`,
-              icon: MessageCircle, color: 'yellow',
             });
             if (isAnalista && companyInvoiceQuestions.count > 0) acaoItems.push({
               label: 'Pergunta empresa (NF)', value: companyInvoiceQuestions.count,
               to: companyInvoiceQuestions.firstPaymentId ? `/notas-fiscais?payment=${companyInvoiceQuestions.firstPaymentId}` : '/notas-fiscais',
-              icon: MessageCircle, color: 'red',
             });
             if (isAnalista && totalPendingReleaseNf > 0) acaoItems.push({
               label: 'Liberar NF', value: totalPendingReleaseNf,
               to: `/pagamentos/${pendingReleaseNf[0]?.payment_id ?? ''}`,
-              icon: CheckCircle2, color: 'teal',
             });
             if (isAnalista && pendingNfRecebida > 0) acaoItems.push({
               label: 'NF p/ conciliar', value: pendingNfRecebida,
-              to: '/notas-fiscais', icon: FileCheck, color: 'green',
+              to: '/notas-fiscais',
             });
             if (isAnalista && pendingNfConciliar > 0) acaoItems.push({
               label: 'Pronta p/ lançar', value: pendingNfConciliar,
-              to: '/notas-fiscais', icon: CheckCircle2, color: 'green',
+              to: '/notas-fiscais',
             });
             if (isAnalista && counts.mineAnalista > 0) acaoItems.push({
               label: 'Suas bases', value: counts.mineAnalista,
-              to: '/pagamentos?owner=me&status=analista', icon: Landmark, color: 'purple',
+              to: '/pagamentos?owner=me&status=analista',
             });
             if (isValidador && counts.mineValidador > 0) acaoItems.push({
               label: 'Para validar', value: counts.mineValidador,
-              to: '/pagamentos?status=aguardando_validacao', icon: ListChecks, color: 'yellow',
+              to: '/pagamentos?status=aguardando_validacao',
             });
             if (isDiretor && counts.mineDiretor > 0) acaoItems.push({
               label: 'Para aprovar', value: counts.mineDiretor,
-              to: '/pagamentos?status=aguardando_aprovacao', icon: ShieldCheck, color: 'teal',
+              to: '/pagamentos?status=aguardando_aprovacao',
             });
 
             const transitoItems: ScoreItemData[] = [];
             if (isAnalista && pendingNfAguardando > 0) transitoItems.push({
               label: 'NF aguard. retorno', value: pendingNfAguardando,
-              to: '/notas-fiscais', icon: Send, color: 'blue',
+              to: '/notas-fiscais',
             });
             if (isDiretor && counts.diretorAprovadoEmRevisao > 0) transitoItems.push({
               label: 'Pós-aprovação', value: counts.diretorAprovadoEmRevisao,
-              to: '/pagamentos?status=aprovado_em_revisao', icon: FileText, color: 'blue',
+              to: '/pagamentos?status=aprovado_em_revisao',
             });
 
             const alertaItems: ScoreItemData[] = [];
             if (isAnalista) alertaItems.push({
               label: 'Ressalvas', value: counts.mineRessalvas,
-              to: '/pagamentos?status=aprovado_com_ressalva', icon: AlertCircle, color: 'red', accent: 'amber',
+              to: '/pagamentos?status=aprovado_com_ressalva', accent: 'amber',
             });
             if (isAnalista) alertaItems.push({
               label: 'NFs divergentes', value: counts.mineInvoicesDivergentes,
-              to: '/notas-fiscais', icon: FileWarning, color: 'red', accent: 'rose',
+              to: '/notas-fiscais', accent: 'rose',
             });
 
             const hasAcoes = acaoItems.length > 0;
@@ -2093,193 +2069,6 @@ const Dashboard = () => {
               );
             }
 
-            const OUTFIT = "'Outfit', 'Inter', system-ui, sans-serif";
-            const FIGTREE = "'Figtree', 'Inter', system-ui, sans-serif";
-
-            const ScoreCard = ({ item, tone }: { item: ScoreItemData; tone: 'action' | 'transit' | 'alert' }) => {
-              const isZero = item.value === 0;
-              const accentVar =
-                tone === 'action' ? 'var(--primary)' :
-                tone === 'alert'  ? 'var(--info)' :
-                                    'var(--muted-foreground)';
-              const valueColor = isZero
-                ? 'hsl(var(--muted-foreground))'
-                : item.accent === 'rose' ? 'hsl(var(--destructive))'
-                : item.accent === 'amber' ? 'hsl(var(--warning))'
-                : 'hsl(var(--foreground))';
-              return (
-                <Link
-                  to={item.to}
-                  className="group medpay-score-card"
-                  style={{
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                    padding: '18px 18px 20px',
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 16,
-                    boxShadow: 'var(--shadow-card)',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    overflow: 'hidden',
-                    transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s, border-color 0.3s',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span
-                      className="medpay-score-label"
-                      style={{
-                        fontFamily: OUTFIT,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        color: 'hsl(var(--muted-foreground))',
-                        transition: 'color 0.3s',
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                    {tone === 'action' ? (
-                      <svg
-                        viewBox="0 0 40 10"
-                        width={36}
-                        height={14}
-                        aria-hidden
-                        className="medpay-score-spark"
-                        style={{ opacity: 0.35, transition: 'opacity 0.4s, transform 0.4s' }}
-                      >
-                        <path
-                          d="M0 8 L5 4 L10 6 L15 2 L20 5 L25 1 L30 7 L35 3 L40 5"
-                          fill="none"
-                          stroke={`hsl(${accentVar})`}
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ) : tone === 'alert' && !isZero ? (
-                      <span style={{ position: 'relative', display: 'inline-flex' }}>
-                        <span
-                          style={{
-                            width: 9, height: 9, borderRadius: 9999,
-                            background: `hsl(${accentVar})`,
-                            boxShadow: `0 0 10px hsl(${accentVar} / 0.5)`,
-                            display: 'inline-block',
-                          }}
-                        />
-                        <span
-                          className="animate-ping"
-                          style={{
-                            position: 'absolute', inset: 0,
-                            width: 9, height: 9, borderRadius: 9999,
-                            background: `hsl(${accentVar})`, opacity: 0.4,
-                          }}
-                        />
-                      </span>
-                    ) : null}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{
-                      fontFamily: OUTFIT,
-                      fontSize: 38,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      letterSpacing: '-0.02em',
-                      color: valueColor,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
-                      {item.value}
-                    </span>
-                    {tone === 'alert' && item.value > 0 && (
-                      <span style={{
-                        fontFamily: OUTFIT,
-                        fontSize: 9,
-                        fontWeight: 800,
-                        letterSpacing: '0.04em',
-                        color: 'hsl(var(--info-foreground))',
-                        background: `hsl(${accentVar})`,
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                      }}>
-                        ATENÇÃO
-                      </span>
-                    )}
-                  </div>
-                  <span style={{
-                    fontFamily: FIGTREE,
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: 'hsl(var(--muted-foreground))',
-                  }}>
-                    {tone === 'action' && !isZero ? 'aguardando você'
-                      : tone === 'alert' && !isZero ? 'pendentes de revisão'
-                      : 'sem pendências'}
-                  </span>
-                  <span
-                    className="medpay-score-underline"
-                    aria-hidden
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 16,
-                      right: 16,
-                      height: 3,
-                      borderRadius: 9999,
-                      background: `hsl(${accentVar})`,
-                      transform: 'scaleX(0)',
-                      transformOrigin: 'left',
-                      transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    }}
-                  />
-                </Link>
-              );
-            };
-
-            const ScoreSection = ({ title, items, tone }: {
-              title: string;
-              items: ScoreItemData[];
-              tone: 'action' | 'transit' | 'alert';
-            }) => {
-              const headColor = tone === 'action' ? 'hsl(var(--primary))'
-                : tone === 'alert' ? 'hsl(var(--info))'
-                : 'hsl(var(--muted-foreground))';
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                  <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                    <h3 style={{
-                      fontFamily: OUTFIT,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.28em',
-                      textTransform: 'uppercase',
-                      color: headColor,
-                      whiteSpace: 'nowrap',
-                      margin: 0,
-                    }}>
-                      {title}
-                    </h3>
-                    <span style={{
-                      height: 1,
-                      flex: 1,
-                      background: 'linear-gradient(to right, hsl(var(--border)), transparent)',
-                    }} />
-                  </header>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${Math.max(items.length, 2)}, minmax(0, 1fr))`,
-                    gap: 16,
-                  }}>
-                    {items.map((item) => (
-                      <ScoreCard key={item.label} item={item} tone={tone} />
-                    ))}
-                  </div>
-                </div>
-              );
-            };
-
             return (
               <div style={{
                 display: 'grid',
@@ -2300,6 +2089,7 @@ const Dashboard = () => {
               </div>
             );
           })()
+
         )}
       </section>
 
