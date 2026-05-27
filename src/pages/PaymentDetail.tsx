@@ -2217,7 +2217,7 @@ const PaymentDetail = () => {
           );
         })()}
 
-        {isNfPhase && <NfPhaseSummary groups={groups} invoices={invoices} />}
+        <PhaseSummary payment={payment} groups={groups} invoices={invoices} />
 
 
 
