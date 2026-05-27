@@ -104,13 +104,89 @@ Deno.serve(async (req) => {
       });
     }
 
+    // [Sprint 5 - Dead-letter] Empresas com 3+ falhas consecutivas neste payment
+    // são marcadas como 'active' em analysis_dead_letter e não devem ser redisparadas
+    // até serem liberadas manualmente. Reduz custo e evita loop em empresas com
+    // dados corrompidos. Para reanalisar, equipe libera pela UI (status='resolved').
+    const { data: deadLetters } = await supabase
+      .from("analysis_dead_letter")
+      .select("company_name")
+      .eq("payment_id", payment_id)
+      .eq("status", "active")
+      .in("company_name", companies);
+    const deadSet = new Set<string>((deadLetters ?? []).map((d: { company_name: string }) => d.company_name));
+
+    const liveCompanies = companies.filter((c) => !deadSet.has(c));
+    if (deadSet.size > 0) {
+      console.log(`[orchestrate] pulando ${deadSet.size} empresa(s) em dead-letter: ${[...deadSet].join(", ")}`);
+      // Conta as puladas como falhas processadas para não travar o progresso do job.
+      for (const dead of deadSet) {
+        await supabase.rpc("increment_processing_progress", {
+          _job_id: job_id,
+          _company_name: dead,
+          _error: "dead_letter: empresa pulada (3+ falhas consecutivas — liberar manualmente para reanalisar)",
+        });
+      }
+    }
+
     console.log(
-      `[orchestrate] job=${job_id} página=${page_index} disparando ${companies.length} workers (${start}..${end - 1} de ${total})`,
+      `[orchestrate] job=${job_id} página=${page_index} disparando ${liveCompanies.length} workers (${start}..${end - 1} de ${total})`,
     );
 
     // 4. Dispara workers em paralelo para esta página
     const workerUrl = `${SUPABASE_URL}/functions/v1/analyze-payment`;
     const WORKER_FETCH_TIMEOUT_MS = 180_000; // [Sprint 1 - Tier 1.C] worker precisa de oxigênio enquanto regras não cacheadas (B) — antes 90s gerava falsas falhas em lotes densos
+    const DEAD_LETTER_THRESHOLD = 3;
+
+    // [Sprint 5] Registra falha no dead-letter (upsert + increment). Se atingir threshold,
+    // marca como active para pular nas próximas execuções.
+    const recordFailure = async (companyName: string, errorMsg: string) => {
+      try {
+        const { data: existing } = await supabase
+          .from("analysis_dead_letter")
+          .select("id, attempts, errors, status")
+          .eq("payment_id", payment_id)
+          .eq("company_name", companyName)
+          .maybeSingle();
+
+        const errorEntry = { at: new Date().toISOString(), job_id, error: errorMsg.slice(0, 500) };
+        if (existing) {
+          // Se já estava 'resolved' (foi liberada manualmente), reinicia contagem.
+          const isReset = existing.status === "resolved";
+          const newAttempts = isReset ? 1 : (existing.attempts ?? 0) + 1;
+          const newErrors = isReset
+            ? [errorEntry]
+            : [...((existing.errors as unknown[]) ?? []).slice(-9), errorEntry];
+          await supabase
+            .from("analysis_dead_letter")
+            .update({
+              attempts: newAttempts,
+              last_error: errorMsg.slice(0, 500),
+              last_job_id: job_id,
+              errors: newErrors,
+              status: newAttempts >= DEAD_LETTER_THRESHOLD ? "active" : "resolved",
+              resolved_at: isReset ? null : existing.status === "resolved" ? null : null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existing.id);
+        } else {
+          await supabase
+            .from("analysis_dead_letter")
+            .insert({
+              payment_id,
+              company_name: companyName,
+              attempts: 1,
+              last_error: errorMsg.slice(0, 500),
+              last_job_id: job_id,
+              errors: [errorEntry],
+              status: "resolved", // só vira 'active' ao atingir threshold
+            });
+        }
+      } catch (e) {
+        console.error("[orchestrate] falha ao registrar dead-letter", e);
+      }
+    };
+
     const invokeOne = async (companyName: string) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), WORKER_FETCH_TIMEOUT_MS);
@@ -133,17 +209,21 @@ Deno.serve(async (req) => {
         });
         if (!resp.ok) {
           const txt = await resp.text();
+          const errMsg = `HTTP ${resp.status}: ${txt.slice(0, 300)}`;
+          await recordFailure(companyName, errMsg);
           await supabase.rpc("increment_processing_progress", {
             _job_id: job_id,
             _company_name: companyName,
-            _error: `HTTP ${resp.status}: ${txt.slice(0, 300)}`,
+            _error: errMsg,
           });
         }
-        // Sucesso: analyze-payment chama a RPC ao final.
+        // Sucesso: analyze-payment chama a RPC ao final. (Não limpamos dead-letter
+        // automaticamente — fica como histórico; liberação manual ajusta status.)
       } catch (e: any) {
         const msg = e?.name === "AbortError"
           ? `worker timeout após ${WORKER_FETCH_TIMEOUT_MS}ms (orquestrador prosseguiu para não travar o lote)`
           : String(e?.message ?? e);
+        await recordFailure(companyName, msg);
         await supabase.rpc("increment_processing_progress", {
           _job_id: job_id,
           _company_name: companyName,
@@ -153,6 +233,7 @@ Deno.serve(async (req) => {
         clearTimeout(timer);
       }
     };
+
 
     // 5. CRÍTICO: agenda próxima página ANTES de aguardar workers.
     // Garante continuidade da cadeia mesmo se algum worker travar ou se o
