@@ -162,6 +162,7 @@ serve(async (req) => {
     const isEmpresaPrioritaria = payment?.analysis_mode === "empresa_prioritaria";
 
     // ---------- 2. carrega configurações globais e regras ----------
+    const __rulesStart = Date.now();
     console.time(`${__t} carregar_regras`);
 
     // [Sprint 1 - Tier 1.A] Resolve company_id para filtrar regras por escopo.
