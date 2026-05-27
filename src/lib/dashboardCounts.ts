@@ -9,6 +9,7 @@ export const ownerRoleFor = (status: PaymentStatus): OwnerRole => {
     case "revisao_analista":
     case "devolvido_analista":
     case "aprovado_em_revisao":
+    case "revisao_pos_aprovacao":
       return "analista";
     case "aguardando_validacao":
       return "validador";
@@ -24,6 +25,7 @@ export const ANALISTA_PENDING_STATUSES: ReadonlySet<PaymentStatus> = new Set<Pay
   "revisao_analista",
   "devolvido_analista",
   "nf_questionada",
+  "revisao_pos_aprovacao",
 ]);
 
 export interface DashboardCounts {
