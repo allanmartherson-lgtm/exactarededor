@@ -52,13 +52,13 @@ function getInitials(email?: string | null) {
 const Logo = () => (
   <NavLink
     to="/"
-    className="flex items-center gap-2.5 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+    className="flex items-center gap-3 flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
   >
     <div
       style={{
-        width: 28,
-        height: 28,
-        borderRadius: 7,
+        width: 34,
+        height: 34,
+        borderRadius: 8,
         background: "hsl(var(--foreground))",
         display: "flex",
         alignItems: "center",
@@ -66,23 +66,26 @@ const Logo = () => (
         flexShrink: 0,
       }}
     >
-      <ShieldCheck className="h-3.5 w-3.5 text-primary-foreground" />
+      <ShieldCheck className="h-4 w-4 text-primary-foreground" />
     </div>
     <div className="min-w-0 leading-tight">
-      <p style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))", lineHeight: 1 }}>
+      <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.1 }}>
         Exacta
       </p>
       <p
         style={{
           fontSize: 9,
           textTransform: "uppercase",
-          letterSpacing: "0.12em",
+          letterSpacing: "0.1em",
           color: "hsl(var(--muted-foreground))",
           marginTop: 3,
-          lineHeight: 1,
+          lineHeight: 1.2,
+          whiteSpace: "nowrap",
         }}
       >
-        Pagamento Médico — Rede D'Or
+        Pagamento Médico
+        <br />
+        Rede D'Or
       </p>
     </div>
   </NavLink>
@@ -593,7 +596,7 @@ export const AppLayout = () => {
       <aside
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{
-          width: 240,
+          width: 260,
           background: "hsl(var(--sidebar-background))",
           borderRight: "1px solid hsl(var(--sidebar-border))",
           zIndex: 40,
@@ -604,7 +607,7 @@ export const AppLayout = () => {
         <div
           className="flex items-center"
           style={{
-            height: 48,
+            height: 64,
             padding: "0 16px",
             borderBottom: "1px solid hsl(var(--sidebar-border))",
           }}
@@ -694,7 +697,7 @@ export const AppLayout = () => {
 
       <div
         className="nav-main flex flex-col min-h-screen"
-        style={{ marginLeft: 240, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
+        style={{ marginLeft: 260, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
       >
         {/* Slim top bar */}
         <header
