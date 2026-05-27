@@ -736,7 +736,7 @@ export const AppLayout = () => {
                   className="h-10 px-4 text-[13px] font-medium gap-2"
                   style={{
                     borderRadius: 7,
-                    background: "hsl(var(--foreground))",
+                    background: "hsl(var(--primary))",
                     color: "hsl(var(--primary-foreground))",
                     border: "none",
                   }}
