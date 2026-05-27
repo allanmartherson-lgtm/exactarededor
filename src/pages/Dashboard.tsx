@@ -1750,48 +1750,36 @@ const Dashboard = () => {
           </Link>
         )}
 
-        <section>
-          <SectionLabel>Visão geral do processo</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-blue-bg))", color: "hsl(var(--bubble-blue-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <FileText size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Em andamento</div>
-              <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{lotesEmAberto}</div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>lotes no fluxo</div>
-            </div>
+        {counts.mineDiretor > 0 && (() => {
+          const acaoItemsD: ScoreItemData[] = [{
+            label: "Para aprovar", value: counts.mineDiretor,
+            to: "/pagamentos?status=aguardando_aprovacao",
+            hint: "aguardando sua alçada",
+          }];
+          if (counts.diretorAprovadoEmRevisao > 0) {
+            acaoItemsD.push({
+              label: "Pós-aprovação", value: counts.diretorAprovadoEmRevisao,
+              to: "/pagamentos?status=aprovado_em_revisao",
+              hint: "em revisão pelo analista",
+            });
+          }
+          return (
+            <ScoreSection title="Ações — Sua Vez" items={acaoItemsD} tone="action" />
+          );
+        })()}
 
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-purple-bg))", color: "hsl(var(--bubble-purple-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CreditCard size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Em processamento</div>
-              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(totalValorEmProcessamento)}</div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>valor total pendente</div>
-            </div>
+        <ScoreSection
+          title="Visão Geral do Processo"
+          tone="transit"
+          items={[
+            { label: "Em andamento", value: lotesEmAberto, hint: "lotes no fluxo" },
+            { label: "Em processamento", value: formatCurrency(totalValorEmProcessamento), hint: "valor pendente" },
+            { label: "Aprovados 30d", value: formatCurrency(valorAprovado30d), hint: `${totalAprovados30d} lotes`, accent: "success" },
+            { label: "Taxa aprovação", value: taxaAprovacao !== null ? `${taxaAprovacao}%` : "—", hint: "últimos 30 dias", accent: taxaAprovacao !== null && taxaAprovacao >= 90 ? "success" : "amber" },
+          ]}
+        />
 
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "hsl(var(--bubble-green-bg))", color: "hsl(var(--bubble-green-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CheckCircle size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Aprovados (30d)</div>
-              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "hsl(var(--foreground))", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(valorAprovado30d)}</div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>{totalAprovados30d} lotes aprovados</div>
-            </div>
 
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 8, padding: "16px 18px" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--bubble-green-bg))" : "hsl(var(--bubble-yellow-bg))", color: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--bubble-green-fg))" : "hsl(var(--bubble-yellow-fg))", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CheckCircle2 size={15} />
-              </div>
-              <div style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Taxa aprovação</div>
-              <div style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: taxaAprovacao !== null && taxaAprovacao >= 90 ? "hsl(var(--success))" : "hsl(var(--warning))", fontVariantNumeric: "tabular-nums" }}>
-                {taxaAprovacao !== null ? `${taxaAprovacao}%` : "—"}
-              </div>
-              <div style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", marginTop: 4 }}>últimos 30 dias</div>
-            </div>
-          </div>
-        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <section className="lg:col-span-7">
