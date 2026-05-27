@@ -596,7 +596,7 @@ export const AppLayout = () => {
       <aside
         className="fixed top-0 left-0 h-screen flex flex-col"
         style={{
-          width: 240,
+          width: 260,
           background: "hsl(var(--sidebar-background))",
           borderRight: "1px solid hsl(var(--sidebar-border))",
           zIndex: 40,
@@ -607,7 +607,7 @@ export const AppLayout = () => {
         <div
           className="flex items-center"
           style={{
-            height: 48,
+            height: 64,
             padding: "0 16px",
             borderBottom: "1px solid hsl(var(--sidebar-border))",
           }}
