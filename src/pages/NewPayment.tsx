@@ -365,6 +365,16 @@ const NewPayment = () => {
   }, []);
 
   useEffect(() => {
+    if (buckets.length === 0 || submitting) return;
+    const preventRefresh = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventRefresh);
+    return () => window.removeEventListener("beforeunload", preventRefresh);
+  }, [buckets.length, submitting]);
+
+  useEffect(() => {
     supabase.from("companies").select("id,name,aliases").limit(5000).then(({ data }) => {
       setCompanies((data ?? []).map((c: any) => ({ id: c.id, name: c.name, aliases: c.aliases ?? [] })));
     });
@@ -1393,6 +1403,7 @@ const NewPayment = () => {
                               <AlertTriangle className="h-3 w-3" /> requer confirmação ({Math.round(b.matchScore * 100)}%)
                             </Badge>
                             <Button 
+                              type="button"
                               size="sm" 
                               variant="outline" 
                               className="h-6 px-2 text-[10px] border-amber-200 hover:bg-amber-50"
@@ -1410,6 +1421,7 @@ const NewPayment = () => {
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
+                                type="button"
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
@@ -1453,6 +1465,7 @@ const NewPayment = () => {
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
+                                type="button"
                                 size="sm"
                                 variant={b.sectorMissing && !b.sectorMapping ? "outline" : "ghost"}
                                 className={`h-6 px-2 text-[11px] ${b.sectorMissing && !b.sectorMapping ? "border-destructive text-destructive hover:text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
@@ -1492,6 +1505,7 @@ const NewPayment = () => {
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
+                                type="button"
                                 size="sm"
                                 variant={b.rows.length === 0 ? "outline" : "ghost"}
                                 className={`h-6 px-2 text-[11px] ${b.rows.length === 0 ? "border-destructive text-destructive hover:text-destructive" : "text-muted-foreground hover:text-foreground"}`}
@@ -1535,6 +1549,7 @@ const NewPayment = () => {
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
+                                type="button"
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
@@ -1588,7 +1603,7 @@ const NewPayment = () => {
                         </span>
                       </div>
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => removeBucket(idx)} className="flex-shrink-0">
+                    <Button type="button" size="icon" variant="ghost" onClick={() => removeBucket(idx)} className="flex-shrink-0">
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
