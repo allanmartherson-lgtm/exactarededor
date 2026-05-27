@@ -646,7 +646,7 @@ export function PaymentConciliationModal({
       console.log('[Cruzamento] Total chaves Exacta:', exactaByKey.size);
 
 
-      const matchedMedpayIds = new Set<string>();
+      const matchedExactaIds = new Set<string>();
       const toInsert: Array<Record<string, unknown>> = [];
       let conciliado = 0,
         valor_divergente = 0,
@@ -682,7 +682,7 @@ export function PaymentConciliationModal({
         // Matching disambiguation: além de atendimento+código, exige coerência
         // de médico/função/qtd. Sem isso, linhas com mesmo att+code de médicos
         // diferentes (ex.: principal vs auxiliar) cruzavam valor errado.
-        const available = candidates.filter((m) => !matchedMedpayIds.has(m.id));
+        const available = candidates.filter((m) => !matchedExactaIds.has(m.id));
         const docHospN = normName(doctor);
         const roleHospN = normRole(roleHosp);
         const qtyHospN = normQty(qtyHosp);
@@ -739,7 +739,7 @@ export function PaymentConciliationModal({
         };
 
         if (match) {
-          matchedMedpayIds.add(match.id);
+          matchedExactaIds.add(match.id);
           const valMed = getConvenioValue(match);
           base.payment_item_id = match.id;
           base.valor_exacta = valMed;
@@ -783,7 +783,7 @@ export function PaymentConciliationModal({
         Object.values(companyMapping).filter(Boolean) as string[],
       );
       for (const it of paymentItems) {
-        if (matchedMedpayIds.has(it.id)) continue;
+        if (matchedExactaIds.has(it.id)) continue;
         if (!mappedLoteCompanies.has(it.company_name ?? "")) continue;
         const valMed = Number((it as any).procedure_amount ?? (it as any).gross_amount ?? 0);
         toInsert.push({
@@ -1235,8 +1235,8 @@ export function PaymentConciliationModal({
         const targetRef = (groups[0].payments as any).reference;
 
         const valorConvenio = Number(item.valor_hospital ?? 0);
-        const valorMedpay = Number(item.valor_exacta ?? 0);
-        const diferenca = Math.abs(valorConvenio - valorMedpay);
+        const valorExacta = Number(item.valor_exacta ?? 0);
+        const diferenca = Math.abs(valorConvenio - valorExacta);
         const isCredito = action === 'incorporar_credito';
         const valorAjuste = isCredito
           ? (item.status === 'so_hospital' ? (item.valor_regra ?? valorConvenio) : diferenca)
