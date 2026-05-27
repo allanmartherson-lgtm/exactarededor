@@ -1061,12 +1061,16 @@ const Dashboard = () => {
     const fetchIQ = async () => {
       const { data } = await supabase
         .from("invoice_questions")
-        .select("id, payment_id, payment:payments!inner(created_by)")
+        .select("id, payment_id, invoice:invoices!inner(id, status), payment:payments!inner(created_by)")
         .eq("author_type", "recebedor")
         .is("read_at", null)
         .eq("payments.created_by", user.id);
       if (cancelled) return;
-      const rows = (data ?? []) as Array<{ id: string; payment_id: string }>;
+      // Filtra perguntas órfãs (invoice deletada) ou cuja NF já foi concluída
+      // (nf_conciliada/lancado/pago/cancelada) — não exigem mais ação do analista.
+      const ACTIVE_INV = new Set(["aguardando", "recebida", "questionada", "divergente"]);
+      const rows = ((data ?? []) as Array<{ id: string; payment_id: string; invoice: { status: string } | null }>)
+        .filter((r) => r.invoice && ACTIVE_INV.has(r.invoice.status));
       setCompanyInvoiceQuestions({
         count: rows.length,
         firstPaymentId: rows[0]?.payment_id ?? null,
