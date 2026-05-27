@@ -299,7 +299,7 @@ export function PaymentPivotSection({
         {/* KPIs */}
         <div className={cn("grid grid-cols-1 gap-3", showAlerts ? "md:grid-cols-4" : "md:grid-cols-3")}>
           <KpiTile label="Total deste mês" value={BRL.format(totalCurrent)} />
-          <KpiTile label={`Média ${previousMonths.length || monthsBack - 1}m`} value={BRL.format(totalPrevAvg)} />
+          <KpiTile label={`Média ${effectivePrevMonths.length || 0}m`} value={BRL.format(totalPrevAvg)} />
           <KpiTile
             label="Variação vs média"
             value={`${variationArrow(totalDelta)} ${totalDelta > 0 ? "+" : ""}${totalDelta.toFixed(1)}%`}
