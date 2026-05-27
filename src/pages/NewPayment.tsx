@@ -1636,9 +1636,29 @@ const NewPayment = () => {
                         </span>
                       </div>
                     </div>
-                    <Button type="button" size="icon" variant="ghost" onClick={() => removeBucket(idx)} className="flex-shrink-0">
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        title="Substituir arquivo"
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = ".xlsx,.xls,.csv";
+                          input.onchange = () => {
+                            const f = input.files?.[0];
+                            if (f) replaceBucketFile(idx, f);
+                          };
+                          input.click();
+                        }}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeBucket(idx)} title="Remover arquivo">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground">
