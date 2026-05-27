@@ -1241,7 +1241,7 @@ const Dashboard = () => {
   // terminais (rejeitado, cancelado) NUNCA aparecem como pendência aqui,
   // mesmo que o usuário tenha criado/validado/aprovado o lote.
   const ANALISTA_PENDING: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
-    "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada",
+    "em_analise_ia", "revisao_analista", "devolvido_analista", "nf_questionada", "revisao_pos_aprovacao",
   ]);
   const isMine = (p: PaymentRow): boolean => {
     const uid = user?.id;
