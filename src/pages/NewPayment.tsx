@@ -17,7 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { recordObservation } from "@/lib/observations";
 import { formatCurrency, PAYMENT_TYPE_LABELS, PAYMENT_KIND_LABELS, type PaymentType, type PaymentKind } from "@/lib/status";
 import { PAYMENT_ANALYSIS_MODE_LABELS, PAYMENT_ANALYSIS_MODE_DESCRIPTIONS, type PaymentAnalysisMode } from "@/lib/status";
-import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
+import { FileSpreadsheet, Loader2, Sparkles, Upload, X, Building2, CheckCircle2, AlertCircle, Pencil, RefreshCw } from "lucide-react";
 import { CompanyCombobox, type CompanyOption } from "@/components/CompanyCombobox";
 import { CompanyRiskProfileList } from "@/components/payment-detail/CompanyRiskProfile";
 import { usePaymentTypes } from "@/hooks/usePaymentTypes";
@@ -575,6 +575,17 @@ const NewPayment = () => {
     } else if (!reference && newBuckets.length > 1) {
       const today = new Date();
       setReference(`Pagamento ${today.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`);
+    }
+  };
+
+  /** Substitui o arquivo de um bucket existente sem perder os demais arquivos do lote. */
+  const replaceBucketFile = async (idx: number, f: File) => {
+    try {
+      const newBucket = await parseFile(f);
+      setBuckets((prev) => prev.map((b, i) => (i === idx ? newBucket : b)));
+      toast({ title: "Arquivo substituído", description: f.name });
+    } catch (e) {
+      toast({ title: `Erro lendo ${f.name}`, description: String(e), variant: "destructive" });
     }
   };
 
@@ -1625,9 +1636,29 @@ const NewPayment = () => {
                         </span>
                       </div>
                     </div>
-                    <Button type="button" size="icon" variant="ghost" onClick={() => removeBucket(idx)} className="flex-shrink-0">
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        title="Substituir arquivo"
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = ".xlsx,.xls,.csv";
+                          input.onchange = () => {
+                            const f = input.files?.[0];
+                            if (f) replaceBucketFile(idx, f);
+                          };
+                          input.click();
+                        }}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeBucket(idx)} title="Remover arquivo">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 <p className="text-xs text-muted-foreground">
