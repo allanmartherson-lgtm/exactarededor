@@ -208,18 +208,18 @@ All colors MUST be HSL.
     --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
-    --bubble-purple-bg: 262 30% 22%;
-    --bubble-purple-fg: 262 70% 78%;
-    --bubble-yellow-bg: 35 40% 20%;
-    --bubble-yellow-fg: 38 80% 68%;
+    --bubble-purple-bg: 164 25% 18%;
+    --bubble-purple-fg: 165 45% 70%;
+    --bubble-yellow-bg: 35 35% 20%;
+    --bubble-yellow-fg: 38 70% 68%;
     --bubble-red-bg: 0 30% 20%;
     --bubble-red-fg: 0 75% 72%;
-    --bubble-blue-bg: 222 28% 20%;
-    --bubble-blue-fg: 213 85% 72%;
-    --bubble-green-bg: 165 25% 18%;
-    --bubble-green-fg: 165 40% 65%;
-    --bubble-teal-bg: 187 30% 18%;
-    --bubble-teal-fg: 187 65% 62%;
+    --bubble-blue-bg: 213 30% 20%;
+    --bubble-blue-fg: 213 75% 72%;
+    --bubble-green-bg: 145 28% 18%;
+    --bubble-green-fg: 150 45% 68%;
+    --bubble-teal-bg: 175 30% 18%;
+    --bubble-teal-fg: 175 55% 65%;
 
     /* ── Table ──────────────────────────────────────────────── */
     --table-row-hover: 214 22% 14%;
