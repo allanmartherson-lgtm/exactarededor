@@ -1499,6 +1499,47 @@ const NewPayment = () => {
               <p className="text-xs text-muted-foreground mt-1">Excel ou CSV — múltiplos arquivos suportados</p>
             </label>
 
+            {parseErrors.length > 0 && (
+              <div className="space-y-2">
+                {parseErrors.map((err, i) => (
+                  <div key={i} className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-destructive truncate" title={err.fileName}>
+                            {err.title} — {err.fileName}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setParseErrors((prev) => prev.filter((_, j) => j !== i))}
+                            className="text-xs text-muted-foreground hover:text-foreground flex-shrink-0"
+                          >
+                            Dispensar
+                          </button>
+                        </div>
+                        {err.reasons.length > 0 && (
+                          <ul className="text-xs text-foreground/80 space-y-0.5">
+                            {err.reasons.map((r, ri) => (
+                              <li key={ri} className="whitespace-pre-wrap">{r}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {err.howToFix.length > 0 && (
+                          <div className="text-xs">
+                            <p className="font-medium text-foreground mb-0.5">Como corrigir:</p>
+                            <ul className="list-disc pl-4 space-y-0.5 text-muted-foreground">
+                              {err.howToFix.map((h, hi) => <li key={hi}>{h}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {buckets.length > 0 && (
               <div className="space-y-2">
                 {buckets.map((b, idx) => (
