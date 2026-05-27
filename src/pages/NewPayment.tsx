@@ -497,7 +497,7 @@ const NewPayment = () => {
     const dominantSectorRaw = Object.entries(sectorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
     // Considera "setor ausente" quando nenhuma linha trouxe coluna setor preenchida
     // OU quando o setor dominante não bate com nenhum slug conhecido do sistema.
-    const dominantMapped = dominantSectorRaw ? (RULE_SECTOR_LABELS as any)[dominantSectorRaw] ? dominantSectorRaw : null : null;
+    const dominantMapped = mapSectorFromRaw(dominantSectorRaw);
     const sectorMissing = rows.length > 0 && (Object.keys(sectorCounts).length === 0 || dominantMapped === null);
 
     return {
