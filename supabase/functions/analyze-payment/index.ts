@@ -1471,6 +1471,7 @@ ${isEmpresaPrioritaria ? "MODO EMPRESA_PRIORITÁRIA: analise cada item ISOLADAME
     // Updates por id em paralelo (chunks de 50). Não dá para fazer um único
     // UPDATE porque cada item tem um ai_findings diferente.
     console.time(`${__t} writes_payment_items`);
+    const __writesStart = Date.now();
     await runChunked(itemUpdates, 50, async (u) => {
       await supabase.from("payment_items").update({
         ai_status: u.ai_status,
