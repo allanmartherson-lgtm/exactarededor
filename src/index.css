@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -1113,5 +1114,23 @@ All colors MUST be HSL.
   border-bottom: 1px solid hsl(var(--border)) !important;
   margin-bottom: 4px !important;
 }
+
+/* Dashboard score cards (Ações / Alertas) — hover affordances */
+.medpay-score-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px -20px hsl(222 30% 20% / 0.18), 0 4px 12px -4px hsl(222 30% 20% / 0.08);
+  border-color: hsl(var(--primary) / 0.25);
+}
+.medpay-score-card:hover .medpay-score-spark {
+  opacity: 1 !important;
+  transform: translateX(2px);
+}
+.medpay-score-card:hover .medpay-score-label {
+  color: hsl(var(--foreground)) !important;
+}
+.medpay-score-card:hover .medpay-score-underline {
+  transform: scaleX(1) !important;
+}
+
 
 
