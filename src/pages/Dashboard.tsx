@@ -1903,7 +1903,7 @@ const Dashboard = () => {
           </aside>
         </div>
 
-        <section className="mt-2 md:mt-4">
+        <section className="mt-6 md:mt-8">
           <SectionLabel>Onde o processo mais trava</SectionLabel>
           <SurfaceCard>
             <SurfaceCardHeader title="Gargalos por etapa (tempo médio)" icon={Flame} iconColor="red" />
