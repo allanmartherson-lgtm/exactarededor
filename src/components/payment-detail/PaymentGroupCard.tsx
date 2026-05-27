@@ -647,7 +647,7 @@ export const PaymentGroupCard = ({
                   <TooltipContent className="max-w-xs">
                     <p className="text-xs">
                       {hasReconciliationRun
-                        ? "Abre o cruzamento MedPay × hospital filtrado nesta empresa."
+                        ? "Abre o cruzamento Exacta × hospital filtrado nesta empresa."
                         : "Lote ainda não conciliado — você verá um aviso ao clicar."}
                     </p>
                   </TooltipContent>

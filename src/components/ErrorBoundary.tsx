@@ -13,7 +13,7 @@ interface State {
   isChunkError: boolean;
 }
 
-const RELOAD_FLAG_KEY = "medpay-chunk-error-reloaded";
+const RELOAD_FLAG_KEY = "exacta-chunk-error-reloaded";
 
 /**
  * Detecta falhas de carregamento de módulos dinâmicos (code-splitting).

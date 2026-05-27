@@ -47,7 +47,7 @@ type ReconciliationRun = {
   conciliado: number;
   valor_divergente: number;
   so_hospital: number;
-  so_medpay: number;
+  so_exacta: number;
   risco_mais: number;
   risco_menos: number;
   divergencia_valor: number;
@@ -64,9 +64,9 @@ type ReconciliationItem = {
   procedure_name: string | null;
   doctor_name: string | null;
   procedure_date: string | null;
-  valor_medpay: number;
+  valor_exacta: number;
   valor_hospital: number;
-  status: "conciliado" | "valor_divergente" | "so_hospital" | "so_medpay";
+  status: "conciliado" | "valor_divergente" | "so_hospital" | "so_exacta";
   ia_obs: string | null;
   company_name: string | null;
   agreement_text: string | null;
@@ -143,14 +143,14 @@ const STATUS_LABEL: Record<ReconciliationItem["status"], string> = {
   conciliado: "Conciliado",
   valor_divergente: "Valor divergente",
   so_hospital: "Só no hospital",
-  so_medpay: "Só no MedPay",
+  so_exacta: "Só no Exacta",
 };
 
 const STATUS_TONE: Record<ReconciliationItem["status"], string> = {
   conciliado: "bg-success/10 text-success border-success/30",
   valor_divergente: "bg-warning/10 text-warning-text border-warning/30",
   so_hospital: "bg-destructive/10 text-destructive border-destructive/30",
-  so_medpay: "bg-primary/10 text-primary border-primary/30",
+  so_exacta: "bg-primary/10 text-primary border-primary/30",
 };
 
 export function PaymentConciliationModal({
@@ -626,12 +626,12 @@ export function PaymentConciliationModal({
         return Number.isFinite(n) && n > 0 ? Math.round(n) : 1;
       };
 
-      const medpayByKey = new Map<string, PaymentItemRow[]>();
+      const exactaByKey = new Map<string, PaymentItemRow[]>();
       for (const it of paymentItems) {
         if (!it.attendance_number || !it.procedure_code) continue;
         const k = makeKey(it.attendance_number, it.procedure_code);
-        if (!medpayByKey.has(k)) medpayByKey.set(k, []);
-        medpayByKey.get(k)!.push(it);
+        if (!exactaByKey.has(k)) exactaByKey.set(k, []);
+        exactaByKey.get(k)!.push(it);
       }
 
       // Debug: mostrar primeiros 3 pares de chaves de cada base
@@ -640,10 +640,10 @@ export function PaymentConciliationModal({
         const code = getCell(row, "procCode");
         return `hosp:${normAtt(att)}|${normalizeCode(code)}`;
       });
-      const sampleMedKeys = Array.from(medpayByKey.keys()).slice(0, 3);
+      const sampleMedKeys = Array.from(exactaByKey.keys()).slice(0, 3);
       console.log('[Cruzamento] Chaves hospital (amostra):', sampleHospKeys);
-      console.log('[Cruzamento] Chaves MedPay (amostra):', sampleMedKeys);
-      console.log('[Cruzamento] Total chaves MedPay:', medpayByKey.size);
+      console.log('[Cruzamento] Chaves Exacta (amostra):', sampleMedKeys);
+      console.log('[Cruzamento] Total chaves Exacta:', exactaByKey.size);
 
 
       const matchedMedpayIds = new Set<string>();
@@ -651,7 +651,7 @@ export function PaymentConciliationModal({
       let conciliado = 0,
         valor_divergente = 0,
         so_hospital = 0,
-        so_medpay = 0;
+        so_exacta = 0;
       let risco_mais = 0,
         risco_menos = 0,
         divergencia_valor = 0;
@@ -672,7 +672,7 @@ export function PaymentConciliationModal({
         const mappedCompany = companyMapping[terceiro] ?? terceiro;
         const dateStr = toDateStr(dateRaw);
         const k = makeKey(att, code);
-        const candidates = medpayByKey.get(k) ?? [];
+        const candidates = exactaByKey.get(k) ?? [];
         const getConvenioValue = (m: PaymentItemRow): number => {
           const proc = (m as any).procedure_amount;
           if (proc != null && proc !== "") return Number(proc) || 0;
@@ -727,7 +727,7 @@ export function PaymentConciliationModal({
           procedure_date: dateStr,
 
           valor_hospital: valHosp,
-          valor_medpay: 0,
+          valor_exacta: 0,
           payment_item_id: null,
           company_name: mappedCompany,
           ia_obs: null,
@@ -742,7 +742,7 @@ export function PaymentConciliationModal({
           matchedMedpayIds.add(match.id);
           const valMed = getConvenioValue(match);
           base.payment_item_id = match.id;
-          base.valor_medpay = valMed;
+          base.valor_exacta = valMed;
           if (!base.patient_name) base.patient_name = match.patient_name ?? null;
           if (!base.doctor_name) base.doctor_name = (match as any).doctor_name ?? null;
           if (!base.procedure_name) base.procedure_name = (match as any).procedure_name ?? null;
@@ -765,14 +765,14 @@ export function PaymentConciliationModal({
             const ambigPrefix = ambiguous
               ? `⚠ Match ambíguo (mesmo atendimento+código com médicos/funções diferentes — confira manualmente). `
               : "";
-            base.ia_obs = `${ambigPrefix}Tabela convênio — Hospital: ${formatCurrency(valHosp)} · MedPay: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
+            base.ia_obs = `${ambigPrefix}Tabela convênio — Hospital: ${formatCurrency(valHosp)} · Exacta: ${formatCurrency(valMed)} · Diferença: ${formatCurrency(Math.abs(diff))} (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%). Comparação feita ANTES da aplicação de regras/acordo: divergência aqui indica diferença na tabela do convênio entre as duas bases, não erro de regra.`;
             divergencia_valor += Math.abs(diff);
             if (diff > 0) risco_mais += diff;
             else risco_menos += Math.abs(diff);
           }
         } else {
           base.status = "so_hospital";
-          base.ia_obs = `Item de ${mappedCompany} presente no extrato hospitalar mas ausente na base MedPay. Possível inclusão após importação do lote.`;
+          base.ia_obs = `Item de ${mappedCompany} presente no extrato hospitalar mas ausente na base Exacta. Possível inclusão após importação do lote.`;
           so_hospital++;
           risco_mais += valHosp;
         }
@@ -794,14 +794,14 @@ export function PaymentConciliationModal({
           procedure_name: (it as any).procedure_name ?? null,
           doctor_name: (it as any).doctor_name ?? null,
           procedure_date: (it as any).procedure_date ?? null,
-          valor_medpay: valMed,
+          valor_exacta: valMed,
           valor_hospital: 0,
           company_name: it.company_name ?? null,
-          status: "so_medpay",
-          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no MedPay mas ausente no extrato hospitalar — verificar glosa.`,
+          status: "so_exacta",
+          ia_obs: `Item de ${it.company_name ?? "empresa"} presente no Exacta mas ausente no extrato hospitalar — verificar glosa.`,
           valor_regra: (it as any).expected_amount ?? null,
         });
-        so_medpay++;
+        so_exacta++;
         risco_menos += valMed;
       }
 
@@ -821,7 +821,7 @@ export function PaymentConciliationModal({
           conciliado,
           valor_divergente,
           so_hospital,
-          so_medpay,
+          so_exacta,
           risco_mais: Number(risco_mais.toFixed(2)),
           risco_menos: Number(risco_menos.toFixed(2)),
           divergencia_valor: Number(divergencia_valor.toFixed(2)),
@@ -868,10 +868,10 @@ export function PaymentConciliationModal({
     const min = minValue ? parseFloat(minValue.replace(",", ".")) : null;
     const max = maxValue ? parseFloat(maxValue.replace(",", ".")) : null;
     if (min !== null && !Number.isNaN(min)) {
-      base = base.filter((it) => Math.max(Number(it.valor_medpay), Number(it.valor_hospital)) >= min);
+      base = base.filter((it) => Math.max(Number(it.valor_exacta), Number(it.valor_hospital)) >= min);
     }
     if (max !== null && !Number.isNaN(max)) {
-      base = base.filter((it) => Math.max(Number(it.valor_medpay), Number(it.valor_hospital)) <= max);
+      base = base.filter((it) => Math.max(Number(it.valor_exacta), Number(it.valor_hospital)) <= max);
     }
     const term = searchTerm.trim().toLowerCase();
     if (term) {
@@ -893,14 +893,14 @@ export function PaymentConciliationModal({
   }, [items, initialCompany, doctorFilter, minValue, maxValue, searchTerm]);
 
   const scopedStats = useMemo(() => {
-    let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_medpay = 0;
+    let conciliado = 0, valor_divergente = 0, so_hospital = 0, so_exacta = 0;
     let risco_mais = 0, risco_menos = 0, divergencia_valor = 0;
     for (const it of scopedItems) {
       if (it.status === "conciliado") conciliado++;
       else if (it.status === "valor_divergente") valor_divergente++;
       else if (it.status === "so_hospital") so_hospital++;
-      else if (it.status === "so_medpay") so_medpay++;
-      const vm = Number(it.valor_medpay) || 0;
+      else if (it.status === "so_exacta") so_exacta++;
+      const vm = Number(it.valor_exacta) || 0;
       const vh = Number(it.valor_hospital) || 0;
       if (it.status === "valor_divergente") {
         const diff = vh - vm;
@@ -908,13 +908,13 @@ export function PaymentConciliationModal({
         if (diff > 0) risco_mais += diff; else risco_menos += Math.abs(diff);
       } else if (it.status === "so_hospital") {
         risco_mais += vh;
-      } else if (it.status === "so_medpay") {
+      } else if (it.status === "so_exacta") {
         risco_menos += vm;
       }
     }
     return {
       total: scopedItems.length,
-      conciliado, valor_divergente, so_hospital, so_medpay,
+      conciliado, valor_divergente, so_hospital, so_exacta,
       risco_mais, risco_menos, divergencia_valor,
     };
   }, [scopedItems]);
@@ -946,10 +946,10 @@ export function PaymentConciliationModal({
       "Procedimento": it.procedure_name ?? "",
       "Data": it.procedure_date ? formatDateBR(it.procedure_date) : "",
       "Convênio": it.agreement_text ?? "",
-      "MedPay (R$)": Number(it.valor_medpay),
+      "Exacta (R$)": Number(it.valor_exacta),
       "Hospital (R$)": Number(it.valor_hospital),
-      "Diferença (R$)": Number((it.valor_hospital - it.valor_medpay).toFixed(2)),
-      "Regra MedPay": it.applied_rule_label ?? "",
+      "Diferença (R$)": Number((it.valor_hospital - it.valor_exacta).toFixed(2)),
+      "Regra Exacta": it.applied_rule_label ?? "",
       "Método Cálculo": it.applied_calc_method ?? "",
       "Observação IA": it.ia_obs ?? "",
     }));
@@ -978,7 +978,7 @@ export function PaymentConciliationModal({
       'Conciliado': 'F0FDF4',
       'Valor divergente': 'FFFBEB',
       'Só no hospital': 'FEF2F2',
-      'Só no MedPay': 'EFF6FF',
+      'Só no Exacta': 'EFF6FF',
     };
     for (let R = 1; R <= headerRange.e.r; R++) {
       const statusCell = ws[XLSX.utils.encode_cell({ r: R, c: 0 })];
@@ -1016,7 +1016,7 @@ export function PaymentConciliationModal({
       ["Conciliados", scopedStats.conciliado, `${scopedStats.total ? ((scopedStats.conciliado / scopedStats.total) * 100).toFixed(1) : 0}%`],
       ["Valor divergente", scopedStats.valor_divergente],
       ["Só no hospital", scopedStats.so_hospital],
-      ["Só no MedPay", scopedStats.so_medpay],
+      ["Só no Exacta", scopedStats.so_exacta],
       [""],
       ["IMPACTO FINANCEIRO (escopo filtrado)"],
       ["Risco pagamento a mais", Number(scopedStats.risco_mais.toFixed(2))],
@@ -1094,7 +1094,7 @@ export function PaymentConciliationModal({
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(
-      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só MedPay: ${scopedStats.so_medpay}${isScoped ? "  (escopo filtrado)" : ""}`,
+      `Total: ${scopedStats.total}  ·  Conciliados: ${scopedStats.conciliado}  ·  Divergência: ${scopedStats.valor_divergente}  ·  Só hospital: ${scopedStats.so_hospital}  ·  Só Exacta: ${scopedStats.so_exacta}${isScoped ? "  (escopo filtrado)" : ""}`,
       marginX,
       cursorY,
     );
@@ -1118,7 +1118,7 @@ export function PaymentConciliationModal({
       it.procedure_code ?? "",
       it.procedure_date ? formatDateBR(it.procedure_date) : "",
       it.agreement_text ?? "",
-      `R$ ${Number(it.valor_medpay).toFixed(2)}`,
+      `R$ ${Number(it.valor_exacta).toFixed(2)}`,
       `R$ ${Number(it.valor_hospital).toFixed(2)}`,
       it.applied_rule_label ?? "",
     ]);
@@ -1127,7 +1127,7 @@ export function PaymentConciliationModal({
       "Conciliado": [240, 253, 244],
       "Valor divergente": [255, 251, 235],
       "Só no hospital": [254, 242, 242],
-      "Só no MedPay": [239, 246, 255],
+      "Só no Exacta": [239, 246, 255],
     };
 
     // Larguras proporcionais que somam exatamente tableWidth (277mm)
@@ -1137,7 +1137,7 @@ export function PaymentConciliationModal({
 
     autoTable(doc, {
       startY: cursorY + 2,
-      head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "MedPay", "Hospital", "Regra MedPay"]],
+      head: [["Status", "Empresa", "Médico", "Paciente", "TUSS", "Data", "Convênio", "Exacta", "Hospital", "Regra Exacta"]],
       body: tableData,
       styles: { fontSize: 7, cellPadding: 1.6, overflow: "linebreak", valign: "middle" },
       headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: "bold", fontSize: 7.5, halign: "left" },
@@ -1191,12 +1191,12 @@ export function PaymentConciliationModal({
     { key: "conciliado", label: "Conciliados", count: scopedStats.conciliado },
     { key: "valor_divergente", label: "Valor divergente", count: scopedStats.valor_divergente },
     { key: "so_hospital", label: "Só no hospital", count: scopedStats.so_hospital },
-    { key: "so_medpay", label: "Só no MedPay", count: scopedStats.so_medpay },
+    { key: "so_exacta", label: "Só no Exacta", count: scopedStats.so_exacta },
   ];
 
   const total = scopedStats.total;
   const pendentes =
-    scopedStats.valor_divergente + scopedStats.so_hospital + scopedStats.so_medpay;
+    scopedStats.valor_divergente + scopedStats.so_hospital + scopedStats.so_exacta;
 
   const exactCount = Object.entries(companyMapping).filter(([t, v]) => v && (matchLevels[t] === 'exact' || matchLevels[t] === 'high')).length;
   const confirmCount = Object.entries(companyMapping).filter(([t, v]) => v && matchLevels[t] === 'medium').length;
@@ -1235,7 +1235,7 @@ export function PaymentConciliationModal({
         const targetRef = (groups[0].payments as any).reference;
 
         const valorConvenio = Number(item.valor_hospital ?? 0);
-        const valorMedpay = Number(item.valor_medpay ?? 0);
+        const valorMedpay = Number(item.valor_exacta ?? 0);
         const diferenca = Math.abs(valorConvenio - valorMedpay);
         const isCredito = action === 'incorporar_credito';
         const valorAjuste = isCredito
@@ -1328,7 +1328,7 @@ export function PaymentConciliationModal({
             <p className="text-sm text-muted-foreground mt-1">
               {initialCompany
                 ? `Cruzamento filtrado: apenas itens de ${initialCompany}`
-                : "Cruzamento entre base MedPay e extrato hospitalar"}
+                : "Cruzamento entre base Exacta e extrato hospitalar"}
             </p>
           </div>
           <div className="flex gap-2">
@@ -1556,7 +1556,7 @@ export function PaymentConciliationModal({
 
               <div className="rounded-lg border border-border overflow-hidden">
                 <div className="grid grid-cols-[200px_1fr_160px_32px] gap-3 px-4 py-2 bg-muted/60 border-b border-border">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Campo MedPay</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Campo Exacta</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Coluna na planilha</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amostra</span>
                   <span />
@@ -1879,12 +1879,12 @@ export function PaymentConciliationModal({
                 <KpiCard
                   icon={Info}
                   tone="info"
-                  label="Só no MedPay"
-                  value={`${scopedStats.so_medpay} itens`}
+                  label="Só no Exacta"
+                  value={`${scopedStats.so_exacta} itens`}
                   hint="possível glosa"
-                  active={activeFilter === "so_medpay"}
+                  active={activeFilter === "so_exacta"}
                   onClick={() =>
-                    setActiveFilter(activeFilter === "so_medpay" ? "todos" : "so_medpay")
+                    setActiveFilter(activeFilter === "so_exacta" ? "todos" : "so_exacta")
                   }
                 />
               </div>
@@ -2012,12 +2012,12 @@ export function PaymentConciliationModal({
                       conciliado: companyItems.filter((i) => i.status === "conciliado").length,
                       valor_divergente: companyItems.filter((i) => i.status === "valor_divergente").length,
                       so_hospital: companyItems.filter((i) => i.status === "so_hospital").length,
-                      so_medpay: companyItems.filter((i) => i.status === "so_medpay").length,
+                      so_exacta: companyItems.filter((i) => i.status === "so_exacta").length,
                     };
                     const totalHosp = companyItems.reduce((s, i) => s + Number(i.valor_hospital), 0);
-                    const totalMed = companyItems.reduce((s, i) => s + Number(i.valor_medpay), 0);
+                    const totalMed = companyItems.reduce((s, i) => s + Number(i.valor_exacta), 0);
                     const hasPendencias =
-                      counts.valor_divergente + counts.so_hospital + counts.so_medpay > 0;
+                      counts.valor_divergente + counts.so_hospital + counts.so_exacta > 0;
 
                     return (
                       <Card
@@ -2056,9 +2056,9 @@ export function PaymentConciliationModal({
                                   · {counts.so_hospital} só no hospital
                                 </span>
                               )}
-                              {counts.so_medpay > 0 && (
+                              {counts.so_exacta > 0 && (
                                 <span className="text-primary ml-2">
-                                  · {counts.so_medpay} só no MedPay
+                                  · {counts.so_exacta} só no Exacta
                                 </span>
                               )}
                             </p>
@@ -2070,7 +2070,7 @@ export function PaymentConciliationModal({
                             </p>
                           </div>
                           <div className="text-right shrink-0 ml-4">
-                            <p className="text-xs text-muted-foreground">MedPay</p>
+                            <p className="text-xs text-muted-foreground">Exacta</p>
                             <p className="text-sm font-semibold tabular-nums">
                               {formatCurrency(totalMed)}
                             </p>
@@ -2089,7 +2089,7 @@ export function PaymentConciliationModal({
                                   <TableHead className="px-3 py-1.5 text-[10px]">Data</TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px]">Convênio</TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
-                                    MedPay (R$)
+                                    Exacta (R$)
                                   </TableHead>
                                   <TableHead className="px-3 py-1.5 text-[10px] text-right">
                                     Hospital (R$)
@@ -2132,8 +2132,8 @@ export function PaymentConciliationModal({
                                           {it.agreement_text ?? "—"}
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
-                                          {it.valor_medpay
-                                            ? formatCurrency(Number(it.valor_medpay))
+                                          {it.valor_exacta
+                                            ? formatCurrency(Number(it.valor_exacta))
                                             : "—"}
                                         </TableCell>
                                         <TableCell className="px-3 py-2 text-[12px] text-right tabular-nums">
@@ -2178,7 +2178,7 @@ export function PaymentConciliationModal({
                                                 <p className="text-[12px]">{it.ia_obs}</p>
                                                 {it.status === "valor_divergente" && it.applied_rule_label && (
                                                   <div className="mt-2 flex items-center gap-2">
-                                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra MedPay:</span>
+                                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Regra Exacta:</span>
                                                     <span className="text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
                                                       {it.applied_rule_label}
                                                     </span>
@@ -2200,7 +2200,7 @@ export function PaymentConciliationModal({
                                                         {actionLoading === it.id ? '…' : '+ Incorporar como crédito'}
                                                       </Button>
                                                     )}
-                                                    {it.status === 'valor_divergente' && Number(it.valor_medpay) > Number(it.valor_hospital) && (
+                                                    {it.status === 'valor_divergente' && Number(it.valor_exacta) > Number(it.valor_hospital) && (
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
@@ -2228,7 +2228,7 @@ export function PaymentConciliationModal({
                                                     >
                                                       Revisar manualmente
                                                     </Button>
-                                                    {it.status === 'so_medpay' && (
+                                                    {it.status === 'so_exacta' && (
                                                       <Button
                                                         size="sm"
                                                         variant="outline"
@@ -2272,7 +2272,7 @@ export function PaymentConciliationModal({
                               <span>{companyItems.length} itens</span>
                               <div className="flex gap-6">
                                 <span>
-                                  MedPay:{" "}
+                                  Exacta:{" "}
                                   <strong className="tabular-nums">{formatCurrency(totalMed)}</strong>
                                 </span>
                                 <span>

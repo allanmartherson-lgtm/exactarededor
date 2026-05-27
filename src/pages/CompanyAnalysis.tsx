@@ -282,7 +282,7 @@ export default function CompanyAnalysis() {
   const [reopening, setReopening] = useState(false);
 
   useEffect(() => {
-    document.title = "Análise da empresa | MedPay Approval";
+    document.title = "Análise da empresa | Exacta Approval";
   }, []);
 
   // Versões da IA são exclusivas desta tela (aba "Detalhe IA"), busca dedicada.

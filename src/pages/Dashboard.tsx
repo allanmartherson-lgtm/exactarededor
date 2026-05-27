@@ -869,7 +869,7 @@ const Dashboard = () => {
   }, [user?.id, roles]);
 
   useEffect(() => {
-    document.title = "Dashboard | MedPay Approval";
+    document.title = "Dashboard | Exacta Approval";
     load();
   }, [load]);
 

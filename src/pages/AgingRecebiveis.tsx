@@ -155,7 +155,7 @@ export default function AgingRecebiveis() {
   }, []);
 
   useEffect(() => {
-    document.title = "Aging de Recebíveis | MedPay";
+    document.title = "Aging de Recebíveis | Exacta";
     load();
   }, [load]);
 

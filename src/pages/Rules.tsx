@@ -393,7 +393,7 @@ const Rules = () => {
     }
     setCompanies(all as any);
   };
-  useEffect(() => { document.title = "Regras | MedPay"; load(); loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
+  useEffect(() => { document.title = "Regras | Exacta"; load(); loadGlobalThresholds(); loadRefs(); loadCompanies(); }, []);
 
   const exportRuleToPDF = (r: RuleRow) => {
     const doc = new jsPDF();
@@ -408,7 +408,7 @@ const Rules = () => {
     
     doc.setFontSize(20);
     doc.setTextColor(40, 40, 40);
-    doc.text("MedPay - Detalhamento de Regra", 14, 25);
+    doc.text("Exacta - Detalhamento de Regra", 14, 25);
     
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);

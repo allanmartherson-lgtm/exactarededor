@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 
-const PASSWORD_AUTH_URL_CACHE_KEY = "medpay-password-auth-url";
+const PASSWORD_AUTH_URL_CACHE_KEY = "exacta-password-auth-url";
 
 const cachePasswordAuthUrl = () => {
   if (typeof window === "undefined") return;

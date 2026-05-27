@@ -414,7 +414,7 @@ const Payments = () => {
   }, []);
 
   useEffect(() => {
-    document.title = "Pagamentos | MedPay Approval";
+    document.title = "Pagamentos | Exacta Approval";
     load();
   }, [load]);
 

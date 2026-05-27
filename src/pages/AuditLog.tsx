@@ -69,7 +69,7 @@ const AuditLog = () => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    document.title = "Auditoria | MedPay";
+    document.title = "Auditoria | Exacta";
     (async () => {
       setLoading(true);
       const { data } = await supabase

@@ -1116,19 +1116,19 @@ All colors MUST be HSL.
 }
 
 /* Dashboard score cards (Ações / Alertas) — hover affordances */
-.medpay-score-card:hover {
+.exacta-score-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 24px 48px -20px hsl(222 30% 20% / 0.18), 0 4px 12px -4px hsl(222 30% 20% / 0.08);
   border-color: hsl(var(--primary) / 0.25);
 }
-.medpay-score-card:hover .medpay-score-spark {
+.exacta-score-card:hover .exacta-score-spark {
   opacity: 1 !important;
   transform: translateX(2px);
 }
-.medpay-score-card:hover .medpay-score-label {
+.exacta-score-card:hover .exacta-score-label {
   color: hsl(var(--foreground)) !important;
 }
-.medpay-score-card:hover .medpay-score-underline {
+.exacta-score-card:hover .exacta-score-underline {
   transform: scaleX(1) !important;
 }
 

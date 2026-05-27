@@ -31,7 +31,7 @@ const Profile = () => {
   const [settings, setSettings] = useState<NotificationSetting[]>([]);
 
   useEffect(() => {
-    document.title = "Meu Perfil | MedPay";
+    document.title = "Meu Perfil | Exacta";
     loadProfile();
     loadSettings();
   }, []);

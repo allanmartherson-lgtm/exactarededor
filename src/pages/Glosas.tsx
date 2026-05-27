@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
 
-// ── Primitivos visuais (padrão MedPay) ─────────────────────────────
+// ── Primitivos visuais (padrão Exacta) ─────────────────────────────
 
 const SurfaceCard = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
   <div style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, ...style }}>
@@ -430,7 +430,7 @@ export default function Glosas() {
   };
 
   useEffect(() => {
-    document.title = "Glosas e Conciliação | MedPay";
+    document.title = "Glosas e Conciliação | Exacta";
     loadBatches();
     loadDebts();
     loadConcBases();

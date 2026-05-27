@@ -222,7 +222,7 @@ const ReconciliationPanel = ({ invoices }: { invoices: InvoiceRow[] }) => {
       tone: stats.recebidas && stats.conciliadas === stats.recebidas ? "success" : "default" },
   ];
 
-  return <PhaseShell eyebrow="Conciliação" title="NF recebida × base MedPay" tiles={tiles} />;
+  return <PhaseShell eyebrow="Conciliação" title="NF recebida × base Exacta" tiles={tiles} />;
 };
 
 // ============== Fase: Pagamento ==============

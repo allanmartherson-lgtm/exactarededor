@@ -29,7 +29,7 @@ const SlaSettings = () => {
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Prazos e SLA | MedPay Approval";
+    document.title = "Prazos e SLA | Exacta Approval";
     load();
   }, []);
 

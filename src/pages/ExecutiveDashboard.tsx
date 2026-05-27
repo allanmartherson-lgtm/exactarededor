@@ -97,7 +97,7 @@ export default function ExecutiveDashboard() {
   const [chartMode, setChartMode] = useState<"competencia" | "processamento">("competencia");
 
   useEffect(() => {
-    document.title = "Dashboard Executivo | MedPay";
+    document.title = "Dashboard Executivo | Exacta";
     (async () => {
       const since = new Date();
       since.setMonth(since.getMonth() - 12);

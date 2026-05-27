@@ -137,7 +137,7 @@ const ReferenceTables = () => {
     supabase.from("reference_table_port_values").select("*").eq("reference_table_id", id).order("port")
       .then(({ data }) => setPortValues((data ?? []) as PortValue[]));
 
-  useEffect(() => { document.title = "Tabelas de referência | MedPay"; loadTables(); }, []);
+  useEffect(() => { document.title = "Tabelas de referência | Exacta"; loadTables(); }, []);
   useEffect(() => {
     if (selected) {
       loadItems(selected.id);

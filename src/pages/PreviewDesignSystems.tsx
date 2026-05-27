@@ -147,7 +147,7 @@ function Atlassian() {
       {/* Top nav */}
       <div className="flex items-center gap-4 px-4 h-12 border-b" style={{ background: C.surface, borderColor: C.border }}>
         <div className="h-6 w-6 rounded-[3px]" style={{ background: C.blue }} />
-        <span className="text-[14px] font-semibold">MedPay</span>
+        <span className="text-[14px] font-semibold">Exacta</span>
         <span className="text-[14px]" style={{ color: C.subtle }}>Projetos / <span style={{ color: C.text }}>Pagamentos</span></span>
         <div className="ml-auto flex items-center gap-2">
           <button className="text-[14px] font-medium px-3 h-8 rounded-[3px] text-white" style={{ background: C.blue }}>Criar</button>

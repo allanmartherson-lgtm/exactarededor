@@ -100,7 +100,7 @@ export default function Doctors() {
   const [companySearch, setCompanySearch] = useState("");
 
   useEffect(() => {
-    document.title = "Médicos | MedPay";
+    document.title = "Médicos | Exacta";
     load();
   }, []);
 

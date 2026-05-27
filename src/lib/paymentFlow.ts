@@ -120,7 +120,7 @@ export const canActAsValidatorOrDirector = (
  * Observações:
  *  - `aprovado` NÃO é terminal: ele segue para o fluxo de NF.
  *  - `nf_conciliada` NÃO é terminal: aguarda o analista marcar como `lancado`.
- *  - `lancado` é terminal: do ponto de vista do MedPay, o pagamento
+ *  - `lancado` é terminal: do ponto de vista do Exacta, o pagamento
  *    foi efetivado no ERP/financeiro (mesmo que ainda venha o `pago`
  *    formal depois — opcional).
  */
