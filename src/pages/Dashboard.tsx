@@ -1423,45 +1423,44 @@ const Dashboard = () => {
           </Link>
         )}
 
-        {counts.mineValidador > 0 && (
-          <section>
-            <SectionLabel>Sua fila de validação</SectionLabel>
-            <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 10, display: "flex", overflow: "hidden" }}>
-              <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--accent-foreground))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--accent))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
-                  Para validar
-                </div>
-                <Link to="/pagamentos?status=aguardando_validacao" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
-                  <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes aguardando</span>
-                  <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--sidebar-primary))", fontVariantNumeric: "tabular-nums" }}>{counts.mineValidador}</span>
-                  <span style={{ fontSize: 9, fontWeight: 500, color: "hsl(var(--accent-foreground))" }}>↑ ação necessária</span>
-                </Link>
-              </div>
-              {slaTotals.vencido > 0 && (
-                <div style={{ flex: 1, borderRight: "0.5px solid hsl(var(--border))", display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--destructive))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--destructive-soft))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
-                    SLA vencido
-                  </div>
-                  <Link to="/pagamentos?filter=sla_vencido" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", textDecoration: "none", color: "inherit", flex: 1 }} className="hover:bg-muted/50">
-                    <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Lotes fora do prazo</span>
-                    <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--destructive))", fontVariantNumeric: "tabular-nums" }}>{slaTotals.vencido}</span>
-                  </Link>
-                </div>
+        {(counts.mineValidador > 0 || slaTotals.vencido > 0 || slaTotals.preventivo > 0) && (() => {
+          const acaoItemsV: ScoreItemData[] = [];
+          if (counts.mineValidador > 0) acaoItemsV.push({
+            label: "Para validar", value: counts.mineValidador,
+            to: "/pagamentos?status=aguardando_validacao",
+            hint: "lotes aguardando",
+          });
+
+          const alertaItemsV: ScoreItemData[] = [];
+          if (slaTotals.vencido > 0) alertaItemsV.push({
+            label: "SLA vencido", value: slaTotals.vencido,
+            to: "/pagamentos?filter=sla_vencido", accent: "rose",
+            hint: "fora do prazo",
+          });
+          if (slaTotals.preventivo > 0) alertaItemsV.push({
+            label: "SLA em risco", value: slaTotals.preventivo,
+            accent: "amber",
+            hint: "próximos do prazo",
+          });
+
+          return (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: acaoItemsV.length > 0 && alertaItemsV.length > 0
+                ? "minmax(0, 1fr) minmax(0, 1fr)"
+                : "minmax(0, 1fr)",
+              gap: 40,
+            }}>
+              {acaoItemsV.length > 0 && (
+                <ScoreSection title="Ações — Sua Vez" items={acaoItemsV} tone="action" />
               )}
-              {slaTotals.preventivo > 0 && (
-                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "hsl(var(--warning))", letterSpacing: "0.07em", textTransform: "uppercase", padding: "8px 14px", background: "hsl(var(--warning-soft))", borderBottom: "0.5px solid hsl(var(--border))", textAlign: "center" }}>
-                    SLA em risco
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 14px", flex: 1 }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 500, color: "hsl(var(--muted-foreground))", letterSpacing: "0.04em", textTransform: "uppercase" }}>Próximos do prazo</span>
-                    <span style={{ fontSize: 28, fontWeight: 600, lineHeight: 1, color: "hsl(var(--warning))", fontVariantNumeric: "tabular-nums" }}>{slaTotals.preventivo}</span>
-                  </div>
-                </div>
+              {alertaItemsV.length > 0 && (
+                <ScoreSection title="Alertas" items={alertaItemsV} tone="alert" />
               )}
             </div>
-          </section>
-        )}
+          );
+        })()}
+
 
         <section aria-labelledby="pipeline-equipe-validador">
           <SectionLabel>Pipeline da equipe</SectionLabel>
