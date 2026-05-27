@@ -37,6 +37,7 @@ import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAl
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
+import { NfPhaseSummary } from "@/components/payment-detail/NfPhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
@@ -1151,6 +1152,25 @@ const PaymentDetail = () => {
     ? false // só validador/diretor sem ser analista — caso raro
     : isOwner && (isValidador || isDiretor);
 
+  // Fase de NF: após aprovação do diretor, a tela deixa de tratar de análise
+  // e passa a ser exclusivamente sobre o pedido/recebimento de NF. Nessas
+  // fases ocultamos cards e botões que pertencem ao fluxo de análise.
+  const NF_PHASE_STATUSES: PaymentStatus[] = [
+    "aprovado",
+    "aprovado_com_ressalva",
+    "aprovado_parcial",
+    "revisao_pos_aprovacao",
+    "pedido_nf_enviado",
+    "nf_recebida",
+    "nf_questionada",
+    "nf_divergente",
+    "nf_conciliada",
+    "em_questionamento",
+    "lancado",
+    "pago",
+  ];
+  const isNfPhase = NF_PHASE_STATUSES.includes(payment.status as PaymentStatus);
+
   const cancelPayment = async () => {
     if (!id) return;
     setBusy(true);
@@ -1711,7 +1731,7 @@ const PaymentDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {(isAnalista || isDiretor) && (
+            {(isAnalista || isDiretor) && !isNfPhase && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1730,7 +1750,7 @@ const PaymentDetail = () => {
                 onDone={load}
               />
             )}
-            {(isAnalista || isValidador || isDiretor) && (() => {
+            {(isAnalista || isValidador || isDiretor) && !isNfPhase && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
               return (
@@ -1876,7 +1896,8 @@ const PaymentDetail = () => {
         })()}
 
         {id && <AnalysisProgressBar paymentId={id} onJobChange={setAnalysisJob} />}
-        {/* MOBILE: cards de IA colapsáveis */}
+        {/* MOBILE: cards de IA colapsáveis — só na fase de análise */}
+        {!isNfPhase && (
         <div className="md:hidden">
           <button
             type="button"
@@ -1936,6 +1957,7 @@ const PaymentDetail = () => {
             </div>
           )}
         </div>
+        )}
         {/* DESKTOP: cards de IA + alertas assistenciais lado a lado (renderizados juntos abaixo no grid). */}
         {segregationBlocked && (
           <Card className="shadow-card border-warning/40 bg-warning-soft/40">
@@ -2077,7 +2099,7 @@ const PaymentDetail = () => {
           </SheetContent>
         </Sheet>
 
-        {analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
+        {!isNfPhase && analysisJob?.status !== "em_andamento" && (payment.ai_summary || items.some((i) => i.ai_status && i.ai_status !== "pendente")) && (() => {
           const extractCount = (text: string, keyword: RegExp): number | null => {
             const m = text.match(keyword);
             return m ? Number(m[1]) : null;
@@ -2205,6 +2227,10 @@ const PaymentDetail = () => {
             </div>
           );
         })()}
+
+        {isNfPhase && <NfPhaseSummary groups={groups} invoices={invoices} />}
+
+
 
         {/* Banner de questionamento — destaque crítico no topo. Mostra a última
             pergunta do recebedor que ainda não recebeu resposta do analista. */}
