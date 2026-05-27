@@ -243,6 +243,7 @@ const PaymentDetail = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  const [productionValidationOpen, setProductionValidationOpen] = useState(false);
   const [conciliationCompany, setConciliationCompany] = useState<string | null>(null);
   const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean>(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
