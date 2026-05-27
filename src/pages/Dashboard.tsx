@@ -2759,26 +2759,13 @@ const stageIndexOfStatus = (s: PaymentStatus): number => {
 };
 
 const computeAggregatedStages = (
-  groupStatuses: PaymentStatus[],
+  _groupStatuses: PaymentStatus[],
   fallback: PaymentStatus,
 ): Record<BatchStage, StageState> => {
-  if (!groupStatuses.length) return computeStages(fallback);
-  const order: BatchStage[] = ["ia", "validacao", "aprovacao", "pago"];
-  const s: Record<BatchStage, StageState> = {
-    ia: { state: "todo" }, validacao: { state: "todo" },
-    aprovacao: { state: "todo" }, pago: { state: "todo" },
-  };
-  const idxs = groupStatuses.map(stageIndexOfStatus);
-  const hasReturned = groupStatuses.some((g) => g === "devolvido_analista");
-  for (let i = 0; i < order.length; i++) {
-    const anyHere = idxs.some((x) => x === i);
-    const anyPast = idxs.some((x) => x > i);
-    const allPast = idxs.every((x) => x > i);
-    if (anyHere) s[order[i]].state = "current";
-    else if (allPast || anyPast) s[order[i]].state = "done";
-  }
-  if (hasReturned && s.ia.state !== "current") s.ia.state = "returned";
-  return s;
+  // Fonte única de verdade: payments.status. A função
+  // recompute_payment_status_from_groups já garante que o status macro
+  // reflete o estágio mais precoce pendente entre as empresas.
+  return computeStages(fallback);
 };
 
 const stageColor = (st: StageState["state"]): { bg: string; fg: string; border: string } => {
