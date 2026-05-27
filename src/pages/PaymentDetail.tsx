@@ -129,6 +129,17 @@ const ObservationTypeSelector = ({
 };
 
 
+// Status que representam "handoff" — quem acabou de agir passou a bola adiante.
+// Após qualquer transição para um destes, devolvemos o usuário para a lista geral
+// de pagamentos: a próxima etapa não é dele.
+const HANDOFF_FORWARD_STATUSES: ReadonlySet<PaymentStatus> = new Set<PaymentStatus>([
+  "aguardando_validacao",
+  "aguardando_aprovacao",
+  "aprovado",
+  "aprovado_em_revisao",
+]);
+
+
 const itemToneMap: Record<ItemAiStatus, keyof typeof TONE_CLASSES> = {
   pendente: "muted", aprovado: "success", alerta: "warning", reprovado: "destructive",
   erro_duplicidade_pagamento: "destructive",
