@@ -58,6 +58,16 @@ serve(async (req) => {
   // Sem isso, exceções fora do try/catch principal travam o job em "99%".
   let __progress_reported = false;
 
+  // [Sprint 4 - Observabilidade] Métricas por empresa para `analysis_telemetry`.
+  const __telemetry = {
+    rules_ms: 0,
+    ai_ms: 0,
+    writes_ms: 0,
+    items_count: 0,
+    ai_items_count: 0,
+    cache_hit: false,
+  };
+
   try {
     const parsedBody = await req.json();
     const { payment_id, company_name, ai_statuses, tolerance_pct, is_dry_run, _job_id, _company_label } = parsedBody;
