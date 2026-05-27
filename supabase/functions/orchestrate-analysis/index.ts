@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
 
     // 4. Dispara workers em paralelo para esta página
     const workerUrl = `${SUPABASE_URL}/functions/v1/analyze-payment`;
-    const WORKER_FETCH_TIMEOUT_MS = 90_000; // garante que Promise.all conclua dentro do budget do orquestrador
+    const WORKER_FETCH_TIMEOUT_MS = 180_000; // [Sprint 1 - Tier 1.C] worker precisa de oxigênio enquanto regras não cacheadas (B) — antes 90s gerava falsas falhas em lotes densos
     const invokeOne = async (companyName: string) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), WORKER_FETCH_TIMEOUT_MS);
