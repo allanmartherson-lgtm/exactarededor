@@ -665,11 +665,23 @@ const NewPayment = () => {
 
 
 
+  const reportParseError = (fileName: string, e: unknown) => {
+    const pe = e instanceof ParseFileError
+      ? { title: e.title, reasons: e.reasons, howToFix: e.howToFix }
+      : { title: "Erro ao processar arquivo", reasons: [String((e as Error)?.message ?? e)], howToFix: ["Tente abrir o arquivo no Excel/Google Sheets e salvá-lo novamente como .xlsx."] };
+    setParseErrors((prev) => [...prev, { fileName, ...pe }]);
+    toast({
+      title: `${pe.title} — ${fileName}`,
+      description: [...pe.reasons, "", "Como corrigir:", ...pe.howToFix.map((s) => `• ${s}`)].join("\n"),
+      variant: "destructive",
+    });
+  };
+
   const onFiles = async (fileList: FileList) => {
     const newBuckets: FileBucket[] = [];
     for (const f of Array.from(fileList)) {
       try { newBuckets.push(await parseFile(f)); }
-      catch (e) { toast({ title: `Erro lendo ${f.name}`, description: String(e), variant: "destructive" }); }
+      catch (e) { reportParseError(f.name, e); }
     }
     setBuckets((prev) => [...prev, ...newBuckets]);
     if (!reference && newBuckets.length === 1) {
@@ -687,9 +699,10 @@ const NewPayment = () => {
       setBuckets((prev) => prev.map((b, i) => (i === idx ? newBucket : b)));
       toast({ title: "Arquivo substituído", description: f.name });
     } catch (e) {
-      toast({ title: `Erro lendo ${f.name}`, description: String(e), variant: "destructive" });
+      reportParseError(f.name, e);
     }
   };
+
 
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
 
