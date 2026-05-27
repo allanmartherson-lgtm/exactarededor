@@ -580,7 +580,7 @@ export const AppLayout = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-[13px] font-medium truncate">{user?.email}</p>
+                      <p className="text-[13px] font-medium truncate">{displayName}</p>
                       <span style={getRoleBadgeStyle(primaryRole)}>
                         {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
                       </span>
