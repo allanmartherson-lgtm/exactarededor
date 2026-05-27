@@ -115,10 +115,10 @@ const LayoutToggle = () => {
           variant="ghost"
           size="icon"
           onClick={toggleLayout}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+          className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
           aria-label="Alternar layout"
         >
-          <NextIcon className="h-4 w-4" />
+          <NextIcon className="h-[18px] w-[18px]" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>Alternar layout</TooltipContent>
@@ -717,7 +717,7 @@ export const AppLayout = () => {
         <header
           className="sticky top-0 z-30"
           style={{
-            height: 48,
+            height: 64,
             background: "hsl(var(--card))",
             borderBottom: "1px solid hsl(var(--border))",
           }}
@@ -729,19 +729,19 @@ export const AppLayout = () => {
             <div className="flex-1 min-w-0 flex items-center">
               <Breadcrumbs />
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               {canCreate && (
                 <Button
                   onClick={() => navigate("/pagamentos/novo")}
-                  className="h-8 px-3 text-[12px] font-medium gap-1.5"
+                  className="h-10 px-4 text-[13px] font-medium gap-2"
                   style={{
-                    borderRadius: 6,
+                    borderRadius: 7,
                     background: "hsl(var(--foreground))",
                     color: "hsl(var(--primary-foreground))",
                     border: "none",
                   }}
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-4 w-4" />
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
