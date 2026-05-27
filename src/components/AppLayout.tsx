@@ -491,7 +491,7 @@ export const AppLayout = () => {
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-medium truncate text-foreground">{user?.email}</p>
+            <p className="text-[12px] font-medium truncate text-foreground">{displayName}</p>
             <span style={getRoleBadgeStyle(primaryRole)}>
               {primaryRole ? ROLE_LABELS[primaryRole] : "—"}
             </span>
