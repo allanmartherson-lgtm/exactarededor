@@ -192,7 +192,7 @@ const NfRequestPanel = ({ groups, invoices }: { groups: GroupRow[]; invoices: In
 const ReconciliationPanel = ({ invoices }: { invoices: InvoiceRow[] }) => {
   const stats = useMemo(() => {
     const recebidas = invoices.filter((i) => i.status === "recebida" || i.received_at);
-    const aguardando = invoices.filter((i) => i.status === "recebida" && !i.amount_reconciled);
+    const aguardando = invoices.filter((i) => i.status === "recebida");
     const divergentes = invoices.filter((i) => i.status === "divergente");
     const conciliadas = invoices.filter((i) => i.status === "conciliada");
     const questionadas = invoices.filter((i) => i.status === "questionada" as never);
