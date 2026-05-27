@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,10 +13,19 @@ interface Props {
   groups: GroupRow[];
   currentUserId: string;
   onDone: () => void;
+  /** Quando fornecido, esconde o trigger interno e controla a abertura do diálogo externamente. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ProductionValidationButton({ paymentId, groups, currentUserId, onDone }: Props) {
-  const [open, setOpen] = useState(false);
+export function ProductionValidationButton({ paymentId, groups, currentUserId, onDone, open: openProp, onOpenChange }: Props) {
+  const [openInternal, setOpenInternal] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : openInternal;
+  const setOpen = (v: boolean) => {
+    if (!isControlled) setOpenInternal(v);
+    onOpenChange?.(v);
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
@@ -68,13 +77,22 @@ export function ProductionValidationButton({ paymentId, groups, currentUserId, o
     }
   };
 
+  // Pré-seleciona todas as elegíveis quando o diálogo é aberto externamente.
+  useEffect(() => {
+    if (open && selected.size === 0 && eligible.length > 0) {
+      setSelected(new Set(eligible.map((g) => g.id)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   return (
     <>
-      <Button variant="outline" size="sm" onClick={handleOpen}
-        className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-        <Send className="h-3.5 w-3.5 mr-1.5" />
-        Validação prévia da empresa
-      </Button>
+      {!isControlled && (
+        <Button variant="outline" size="sm" onClick={handleOpen}>
+          <Send className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+          Validação prévia da empresa
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] flex flex-col">

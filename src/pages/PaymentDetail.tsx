@@ -243,6 +243,7 @@ const PaymentDetail = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isConciliationOpen, setIsConciliationOpen] = useState(false);
+  const [productionValidationOpen, setProductionValidationOpen] = useState(false);
   const [conciliationCompany, setConciliationCompany] = useState<string | null>(null);
   const [hasReconciliationRun, setHasReconciliationRun] = useState<boolean>(false);
   // Busca dentro do detalhe (filtra grupos/itens por PJ, médico, atendimento, CC,
@@ -1662,10 +1663,10 @@ const PaymentDetail = () => {
                     variant="outline"
                     size="sm"
                     disabled={reprocessingAi}
-                    className="hidden md:inline-flex border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
+                    className="hidden md:inline-flex"
                     title="Reaplicar o motor de regras e análise de IA"
                   >
-                    <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
+                    <RefreshCw className={cn("h-4 w-4 mr-1.5 text-muted-foreground", reprocessingAi && "animate-spin")} />
                     {reprocessingAi ? "Processando..." : "Reanalisar lote"}
                   </Button>
                 </AlertDialogTrigger>
@@ -1741,25 +1742,6 @@ const PaymentDetail = () => {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {(isAnalista || isDiretor) && !isNfPhase && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
-                onClick={() => setIsConciliationOpen(true)}
-              >
-                <GitCompare className="h-4 w-4 mr-1.5" />
-                Conciliar produção
-              </Button>
-            )}
-            {isAnalista && groups.length > 0 && (
-              <ProductionValidationButton
-                paymentId={id!}
-                groups={groups}
-                currentUserId={user!.id}
-                onDone={load}
-              />
-            )}
             {(isAnalista || isValidador || isDiretor) && !isNfPhase && (() => {
               const flagged = items.filter((it: any) => Array.isArray(it.validation_findings) && it.validation_findings.length > 0).length;
               const totalFindings = items.reduce((acc: number, it: any) => acc + (Array.isArray(it.validation_findings) ? it.validation_findings.length : 0), 0);
@@ -1768,7 +1750,7 @@ const PaymentDetail = () => {
                   variant="outline"
                   size="sm"
                   disabled={validatingRules}
-                  className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                  className="hidden md:inline-flex"
                   title="Aplicar regras de validação assistencial nos itens deste lote"
                   onClick={async () => {
                     if (!id) return;
@@ -1784,9 +1766,6 @@ const PaymentDetail = () => {
                           ? `${totalNow} alerta(s) em ${flaggedNow} item(ns).`
                           : "Nenhuma inconsistência detectada.",
                       });
-                      // Refetch direto e isolado dos itens — garante atualização
-                      // imediata da UI (contagem do botão + popover) mesmo se o
-                      // load() global for cancelado por corrida com realtime.
                       const { data: freshItems } = await supabase
                         .from("payment_items")
                         .select("*")
@@ -1794,7 +1773,6 @@ const PaymentDetail = () => {
                         .order("created_at")
                         .limit(5000);
                       if (freshItems) setItems(freshItems as any);
-                      // load() em background para sincronizar o resto.
                       load();
                     } catch (e: unknown) {
                       const msg = e instanceof Error ? e.message : String(e);
@@ -1804,12 +1782,13 @@ const PaymentDetail = () => {
                     }
                   }}
                 >
-                  <ShieldCheck className={cn("h-4 w-4 mr-1.5", validatingRules && "animate-spin")} />
-                  {validatingRules
-                    ? "Validando..."
-                    : flagged > 0
-                      ? `➳ Validação assistencial (${totalFindings})`
-                      : "➳ Validação assistencial"}
+                  <ShieldCheck className={cn("h-4 w-4 mr-1.5 text-muted-foreground", validatingRules && "animate-spin")} />
+                  {validatingRules ? "Validando..." : "Validação assistencial"}
+                  {!validatingRules && flagged > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-warning-soft text-warning text-[10px] font-semibold">
+                      {totalFindings}
+                    </span>
+                  )}
                 </Button>
               );
             })()}
@@ -1820,6 +1799,19 @@ const PaymentDetail = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                {(isAnalista || isDiretor) && !isNfPhase && (
+                  <DropdownMenuItem onSelect={() => setIsConciliationOpen(true)}>
+                    <GitCompare className="h-4 w-4 mr-2" /> Conciliar produção
+                  </DropdownMenuItem>
+                )}
+                {isAnalista && groups.length > 0 && (
+                  <DropdownMenuItem onSelect={() => setProductionValidationOpen(true)}>
+                    <Send className="h-4 w-4 mr-2" /> Validação prévia da empresa
+                  </DropdownMenuItem>
+                )}
+                {((isAnalista || isDiretor) && !isNfPhase) || (isAnalista && groups.length > 0) ? (
+                  <DropdownMenuSeparator />
+                ) : null}
                 {canReimport && (
                   <DropdownMenuItem onSelect={() => setIsTestModalOpen(true)}>
                     <TestTube2 className="h-4 w-4 mr-2" /> Teste de Regra
@@ -3198,6 +3190,16 @@ const PaymentDetail = () => {
           paymentReference={payment.reference || "Lote"}
           paymentItems={items}
           initialCompany={conciliationCompany}
+        />
+      )}
+      {isAnalista && id && user && groups.length > 0 && (
+        <ProductionValidationButton
+          paymentId={id}
+          groups={groups}
+          currentUserId={user.id}
+          onDone={load}
+          open={productionValidationOpen}
+          onOpenChange={setProductionValidationOpen}
         />
       )}
     </>
