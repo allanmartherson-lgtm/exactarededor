@@ -578,6 +578,17 @@ const NewPayment = () => {
     }
   };
 
+  /** Substitui o arquivo de um bucket existente sem perder os demais arquivos do lote. */
+  const replaceBucketFile = async (idx: number, f: File) => {
+    try {
+      const newBucket = await parseFile(f);
+      setBuckets((prev) => prev.map((b, i) => (i === idx ? newBucket : b)));
+      toast({ title: "Arquivo substituído", description: f.name });
+    } catch (e) {
+      toast({ title: `Erro lendo ${f.name}`, description: String(e), variant: "destructive" });
+    }
+  };
+
   const removeBucket = (idx: number) => setBuckets((prev) => prev.filter((_, i) => i !== idx));
 
   /**
