@@ -49,7 +49,7 @@ export const NfPhaseSummary = ({ groups, invoices }: Props) => {
     const recebidas = invoices.filter((i) => i.status === "recebida" || i.received_at);
     const conciliadas = invoices.filter((i) => i.status === "conciliada");
     const divergentes = invoices.filter((i) => i.status === "divergente");
-    const questionadas = invoices.filter((i) => i.status === "questionada");
+    const questionadas: InvoiceRow[] = [];
 
     const now = Date.now();
     const diasAguardando = aguardandoLiberacao
