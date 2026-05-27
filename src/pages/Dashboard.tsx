@@ -1786,12 +1786,12 @@ const Dashboard = () => {
             <SectionLabel>Distribuição do pipeline</SectionLabel>
             <SurfaceCard style={{ height: "100%" }}>
               {(() => {
-                const cols = [
-                  { icon: FileText, label: "Análise", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
-                  { icon: ListChecks, label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
-                  { icon: ShieldCheck, label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
-                  { icon: Send, label: "NF", value: counts.pipeNFSolicitada + counts.pipeAguardandoEnvio, to: "/pagamentos?status=pedido_nf_enviado" },
-                  { icon: CheckCircle, label: "Concluído", value: counts.pipePago + counts.pipeNFConciliada, to: "/pagamentos?status=pago" },
+                const cols: Array<{ icon: LucideIcon; color: BubbleColor; label: string; value: number; to: string }> = [
+                  { icon: FileText, color: "purple", label: "Análise", value: counts.pipeAnaliseIA, to: "/pagamentos?status=em_analise_ia" },
+                  { icon: ListChecks, color: "yellow", label: "Validação", value: counts.pipeValidacao, to: "/pagamentos?status=aguardando_validacao" },
+                  { icon: ShieldCheck, color: "blue", label: "Aprovação", value: counts.pipeAprovacao, to: "/pagamentos?status=aguardando_aprovacao" },
+                  { icon: Send, color: "teal", label: "NF", value: counts.pipeNFSolicitada + counts.pipeAguardandoEnvio, to: "/pagamentos?status=pedido_nf_enviado" },
+                  { icon: CheckCircle, color: "green", label: "Concluído", value: counts.pipePago + counts.pipeNFConciliada, to: "/pagamentos?status=pago" },
                 ];
                 return (
                   <div style={{ display: "flex", alignItems: "stretch", height: "100%", minHeight: 168 }}>
@@ -1817,12 +1817,21 @@ const Dashboard = () => {
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "hsl(var(--hover-surface))"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                         >
-                          <Icon
-                            size={20}
-                            strokeWidth={1.5}
-                            className="transition-colors"
-                            style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))", marginBottom: 14, opacity: active ? 1 : 0.55 }}
-                          />
+                          <div
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 10,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              marginBottom: 14,
+                              opacity: active ? 1 : 0.6,
+                              ...bubbleStyle(col.color),
+                            }}
+                          >
+                            <Icon size={18} strokeWidth={2} />
+                          </div>
                           <div
                             style={{
                               fontSize: 30,
@@ -1830,8 +1839,8 @@ const Dashboard = () => {
                               lineHeight: 1,
                               letterSpacing: "-0.01em",
                               fontVariantNumeric: "tabular-nums",
-                              color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                              opacity: active ? 1 : 0.4,
+                              color: active ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                              opacity: active ? 1 : 0.5,
                               marginBottom: 10,
                             }}
                           >
