@@ -3192,6 +3192,16 @@ const PaymentDetail = () => {
           initialCompany={conciliationCompany}
         />
       )}
+      {isAnalista && id && user && groups.length > 0 && (
+        <ProductionValidationButton
+          paymentId={id}
+          groups={groups}
+          currentUserId={user.id}
+          onDone={load}
+          open={productionValidationOpen}
+          onOpenChange={setProductionValidationOpen}
+        />
+      )}
     </>
   );
 };
