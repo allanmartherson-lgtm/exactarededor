@@ -158,6 +158,21 @@ export default function RecentQuestionsPanel() {
                 Empresa · {counts.empresa}
               </button>
             </div>
+            {resolvedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowResolved((v) => !v)}
+                style={{
+                  padding: "5px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6,
+                  border: "1px solid hsl(var(--border))", cursor: "pointer",
+                  background: showResolved ? "hsl(var(--muted))" : "transparent",
+                  color: "hsl(var(--muted-foreground))",
+                }}
+                title={showResolved ? "Esconder resolvidos" : "Mostrar resolvidos"}
+              >
+                {showResolved ? "Ocultar" : "Ver"} resolvidos · {resolvedCount}
+              </button>
+            )}
             <div className="flex items-center gap-1.5">
               <Filter size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
               <select
