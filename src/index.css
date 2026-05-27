@@ -106,9 +106,9 @@ All colors MUST be HSL.
     --bubble-teal-fg: 187 76% 30%;
 
     /* ── Table ──────────────────────────────────────────── */
-    --table-row-hover: 60 20% 98%;
+    --table-row-hover: 0 0% 99%;
     --table-border-light: 60 10% 92%;
-    --hover-surface: 60 20% 97%;
+    --hover-surface: 0 0% 98.5%;
     --shadow-hover: 0 2px 8px rgb(13 17 23 / 0.06);
 
     /* ── Sidebar ────────────────────────────────────────── */
