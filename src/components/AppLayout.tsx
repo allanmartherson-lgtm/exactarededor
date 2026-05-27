@@ -115,10 +115,10 @@ const LayoutToggle = () => {
           variant="ghost"
           size="icon"
           onClick={toggleLayout}
-          className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+          className="h-11 w-11 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
           aria-label="Alternar layout"
         >
-          <NextIcon className="h-[18px] w-[18px]" />
+          <NextIcon className="h-[22px] w-[22px]" />
         </Button>
       </TooltipTrigger>
       <TooltipContent>Alternar layout</TooltipContent>
