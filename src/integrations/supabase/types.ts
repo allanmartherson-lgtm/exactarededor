@@ -127,6 +127,54 @@ export type Database = {
           },
         ]
       }
+      analysis_dead_letter: {
+        Row: {
+          attempts: number
+          company_name: string
+          created_at: string
+          errors: Json
+          id: string
+          last_error: string | null
+          last_job_id: string | null
+          payment_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          company_name: string
+          created_at?: string
+          errors?: Json
+          id?: string
+          last_error?: string | null
+          last_job_id?: string | null
+          payment_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          company_name?: string
+          created_at?: string
+          errors?: Json
+          id?: string
+          last_error?: string | null
+          last_job_id?: string | null
+          payment_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       analysis_telemetry: {
         Row: {
           ai_items_count: number
@@ -1976,6 +2024,7 @@ export type Database = {
         Row: {
           built_at: string
           context: Json
+          is_snapshot: boolean
           job_id: string
           meta: Json
           payment_id: string
@@ -1984,6 +2033,7 @@ export type Database = {
         Insert: {
           built_at?: string
           context: Json
+          is_snapshot?: boolean
           job_id: string
           meta?: Json
           payment_id: string
@@ -1992,6 +2042,7 @@ export type Database = {
         Update: {
           built_at?: string
           context?: Json
+          is_snapshot?: boolean
           job_id?: string
           meta?: Json
           payment_id?: string

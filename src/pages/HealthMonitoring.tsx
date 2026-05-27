@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TelemetryPanel from "@/components/health/TelemetryPanel";
+import DeadLetterPanel from "@/components/health/DeadLetterPanel";
 
 // ── Primitivos inline (padrão Dashboard.tsx) ──────────────────────
 
@@ -799,6 +800,12 @@ export default function HealthMonitoring() {
       <section>
         <SectionLabel>Telemetria de análise</SectionLabel>
         <TelemetryPanel />
+      </section>
+
+      {/* ── Seção: Dead-letter (Sprint 5) ── */}
+      <section>
+        <SectionLabel>Empresas em dead-letter</SectionLabel>
+        <DeadLetterPanel />
       </section>
     </div>
   );
