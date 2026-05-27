@@ -538,6 +538,9 @@ const PaymentDetail = () => {
     // A edge function valida o status atual e é idempotente por payment_id.
     await notifyDirectorsIfPending(id);
     toast({ title: `Empresa ${g.company_name}`, description: messagePrefix });
+    if (HANDOFF_FORWARD_STATUSES.has(newStatus)) {
+      navigate("/pagamentos");
+    }
   };
 
   // Reencaminhar grupo do analista direto para quem devolveu (diretor → aprovação; validador → validação).
