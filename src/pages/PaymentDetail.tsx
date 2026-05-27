@@ -1662,10 +1662,10 @@ const PaymentDetail = () => {
                     variant="outline"
                     size="sm"
                     disabled={reprocessingAi}
-                    className="hidden md:inline-flex border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft/80"
+                    className="hidden md:inline-flex"
                     title="Reaplicar o motor de regras e análise de IA"
                   >
-                    <RefreshCw className={cn("h-4 w-4 mr-1.5", reprocessingAi && "animate-spin")} />
+                    <RefreshCw className={cn("h-4 w-4 mr-1.5 text-muted-foreground", reprocessingAi && "animate-spin")} />
                     {reprocessingAi ? "Processando..." : "Reanalisar lote"}
                   </Button>
                 </AlertDialogTrigger>
