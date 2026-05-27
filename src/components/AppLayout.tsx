@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/status";
 import {
-  ShieldCheck,
   Sun,
   Moon,
   Plus,
@@ -59,18 +58,33 @@ const Logo = () => (
         width: 34,
         height: 34,
         borderRadius: 8,
-        background: "hsl(var(--foreground))",
+        background: "hsl(var(--primary))",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
       }}
+      aria-hidden
     >
-      <ShieldCheck className="h-4 w-4 text-primary-foreground" />
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="hsl(var(--accent))"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="5 12.5 10 17.5 19 7" />
+      </svg>
     </div>
     <div className="min-w-0 leading-tight">
-      <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--foreground))", lineHeight: 1.1 }}>
-        Exacta
+      <p
+        className="font-wordmark"
+        style={{ fontSize: 20, color: "hsl(var(--foreground))", lineHeight: 1, fontWeight: 400 }}
+      >
+        E<span style={{ color: "hsl(var(--accent))" }}>x</span>acta
       </p>
       <p
         style={{
@@ -78,7 +92,7 @@ const Logo = () => (
           textTransform: "uppercase",
           letterSpacing: "0.1em",
           color: "hsl(var(--muted-foreground))",
-          marginTop: 3,
+          marginTop: 4,
           lineHeight: 1.2,
           whiteSpace: "nowrap",
         }}

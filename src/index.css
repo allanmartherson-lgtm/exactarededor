@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,57 +10,60 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* ── Superfícies ─────────────────────────────────────── */
-    --background: 220 14% 96%;
-    --foreground: 222 25% 26%;
+    --background: 60 23% 97%;            /* #FAFAF7 off-white neutro */
+    --foreground: 214 28% 7%;            /* #0D1117 quase-preto (ink) */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 25% 26%;
+    --card: 0 0% 100%;                   /* #FFFFFF */
+    --card-foreground: 214 28% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 25% 26%;
+    --popover-foreground: 214 28% 7%;
 
-    /* ── Brand: slate suavizado (era 222 47% 11% — preto demais) ─── */
-    --primary: 222 30% 24%;
+    /* ── Brand: verde-floresta Exacta ─────────────────────── */
+    --primary: 164 33% 26%;              /* #2D5A4E verde-floresta */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 214 100% 97%;
-    --primary-glow: 215 20% 38%;
+    --primary-soft: 165 28% 92%;
+    --primary-glow: 165 33% 36%;         /* #3D7A6A verde médio */
+    --primary-dark: 164 35% 18%;         /* #1E3D35 verde profundo */
 
-    /* ── Accent azul para estados ativos/links ──────────── */
-    --accent-blue: 213 94% 68%;
-    --accent-blue-soft: 213 97% 87%;
+    /* ── Accent: ouro Exacta ─────────────────────────────── */
+    --accent: 38 47% 61%;                /* #C8A96E ouro */
+    --accent-foreground: 214 28% 7%;
+    --accent-light: 40 58% 78%;          /* #E8D5A8 ouro claro */
 
-    /* ── Copper ─────────────────────────────────────────── */
+    /* Mantém token de azul apenas para status info */
+    --accent-blue: 213 94% 50%;
+    --accent-blue-soft: 213 60% 94%;
+
+    /* ── Copper (legado de status warning) ─────────────────── */
     --copper: 33 100% 50%;
     --copper-foreground: 0 0% 100%;
     --copper-hover: 28 100% 45%;
     --copper-active: 28 100% 40%;
     --copper-soft: 36 100% 94%;
 
-    --secondary: 220 13% 91%;
-    --secondary-foreground: 215 20% 38%;
+    --secondary: 60 14% 93%;
+    --secondary-foreground: 164 33% 26%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 215 14% 50%;
-    --text-tertiary: 215 16% 42%;
-
-    --accent: 213 97% 87%;
-    --accent-foreground: 213 94% 30%;
+    --muted: 60 14% 95%;
+    --muted-foreground: 220 9% 46%;      /* #6B7280 */
+    --text-tertiary: 220 9% 40%;
 
     /* ── Status ─────────────────────────────────────────── */
     --success: 142 72% 29%;
     --success-foreground: 0 0% 100%;
-    --success-soft: 141 84% 93%;
-    --success-text: 142 72% 29%;
+    --success-soft: 141 60% 92%;
+    --success-text: 142 72% 25%;
 
     --warning: 28 90% 42%;
     --warning-foreground: 0 0% 100%;
     --warning-soft: 38 95% 88%;
     --warning-text: 25 90% 32%;
 
-    --info: 213 94% 68%;
+    --info: 213 94% 50%;
     --info-foreground: 0 0% 100%;
-    --info-soft: 213 97% 93%;
-    --info-text: 213 94% 40%;
+    --info-soft: 213 60% 94%;
+    --info-text: 213 94% 35%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -68,25 +71,25 @@ All colors MUST be HSL.
     --destructive-text: 350 89% 40%;
 
     /* ── Bordas ─────────────────────────────────────────── */
-    --border: 220 13% 91%;
-    --border-strong: 215 16% 80%;
+    --border: 60 10% 88%;
+    --border-strong: 60 8% 76%;
     --border-highlight: 0 0% 100%;
-    --input: 215 16% 80%;
+    --input: 60 8% 76%;
     --input-bg: 0 0% 100%;
-    --ring: 213 94% 68%;
-    --ring-soft: 213 94% 68% / 0.25;
-    --track-soft: 215 16% 80%;
+    --ring: 38 47% 61%;                  /* ouro como foco */
+    --ring-soft: 38 47% 61% / 0.3;
+    --track-soft: 60 8% 80%;
 
     --radius: 0.5rem;
 
     /* ── Sombras ────────────────────────────────────────── */
-    --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.03);
-    --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.05), 0 1px 2px -1px rgb(15 23 42 / 0.05);
-    --shadow-elevated: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
-    --shadow-inset: inset 0 1px 2px rgb(15 23 42 / 0.04);
-    --shadow-control: 0 1px 2px rgb(15 23 42 / 0.04);
-    --gradient-brand: linear-gradient(135deg, hsl(222 30% 24%), hsl(215 20% 32%));
-    --gradient-soft: linear-gradient(135deg, hsl(220 14% 98%), hsl(220 14% 96%));
+    --shadow-soft: 0 1px 2px 0 rgb(13 17 23 / 0.04), 0 1px 3px 0 rgb(13 17 23 / 0.03);
+    --shadow-card: 0 1px 3px 0 rgb(13 17 23 / 0.05), 0 1px 2px -1px rgb(13 17 23 / 0.05);
+    --shadow-elevated: 0 4px 6px -1px rgb(13 17 23 / 0.07), 0 2px 4px -2px rgb(13 17 23 / 0.05);
+    --shadow-inset: inset 0 1px 2px rgb(13 17 23 / 0.04);
+    --shadow-control: 0 1px 2px rgb(13 17 23 / 0.04);
+    --gradient-brand: linear-gradient(135deg, hsl(164 33% 26%), hsl(165 33% 36%));
+    --gradient-soft: linear-gradient(135deg, hsl(60 23% 98%), hsl(60 23% 95%));
 
     /* ── Bubble tokens ──────────────────────────────────── */
     --bubble-purple-bg: 262 83% 94%;
@@ -95,51 +98,56 @@ All colors MUST be HSL.
     --bubble-yellow-fg: 32 95% 40%;
     --bubble-red-bg: 0 86% 97%;
     --bubble-red-fg: 0 72% 45%;
-    --bubble-blue-bg: 213 97% 93%;
-    --bubble-blue-fg: 213 94% 40%;
-    --bubble-green-bg: 141 84% 93%;
-    --bubble-green-fg: 142 72% 29%;
+    --bubble-blue-bg: 213 60% 94%;
+    --bubble-blue-fg: 213 94% 35%;
+    --bubble-green-bg: 165 28% 92%;
+    --bubble-green-fg: 164 33% 26%;
     --bubble-teal-bg: 187 76% 90%;
     --bubble-teal-fg: 187 76% 30%;
 
     /* ── Table ──────────────────────────────────────────── */
-    --table-row-hover: 220 14% 98%;
-    --table-border-light: 220 13% 93%;
-    --hover-surface: 220 14% 97%;
-    --shadow-hover: 0 2px 8px rgb(15 23 42 / 0.06);
+    --table-row-hover: 60 20% 98%;
+    --table-border-light: 60 10% 92%;
+    --hover-surface: 60 20% 97%;
+    --shadow-hover: 0 2px 8px rgb(13 17 23 / 0.06);
 
     /* ── Sidebar ────────────────────────────────────────── */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 25% 27%;
-    --sidebar-muted-foreground: 215 14% 56%;
-    --sidebar-primary: 222 35% 18%;
+    --sidebar-foreground: 214 28% 14%;
+    --sidebar-muted-foreground: 220 9% 50%;
+    --sidebar-primary: 164 33% 26%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-hover: 220 14% 96%;
-    --sidebar-hover-foreground: 222 30% 24%;
-    --sidebar-accent: 220 10% 94%;
-    --sidebar-accent-foreground: 222 25% 26%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 213 94% 68%;
+    --sidebar-hover: 60 14% 95%;
+    --sidebar-hover-foreground: 164 33% 26%;
+    --sidebar-accent: 165 28% 92%;
+    --sidebar-accent-foreground: 164 33% 26%;
+    --sidebar-border: 60 10% 88%;
+    --sidebar-ring: 38 47% 61%;
   }
 
   .dark {
-    /* ── Superfícies — navy suave, não preto saturado ─────── */
-    --background: 222 20% 10%;
-    --foreground: 215 25% 92%;
+    /* ── Superfícies — base ink (#0D1117) ─────────────────── */
+    --background: 214 28% 7%;
+    --foreground: 60 15% 92%;
 
-    --card: 222 18% 14%;
-    --card-foreground: 215 25% 92%;
+    --card: 214 22% 11%;
+    --card-foreground: 60 15% 92%;
 
-    --popover: 222 18% 16%;
-    --popover-foreground: 215 25% 92%;
+    --popover: 214 22% 13%;
+    --popover-foreground: 60 15% 92%;
 
-    /* ── Primary: azul acessível no escuro ──────────────────── */
-    --primary: 213 85% 65%;
-    --primary-foreground: 222 20% 10%;
-    --primary-soft: 222 25% 20%;
-    --primary-glow: 213 85% 72%;
+    /* ── Brand: verde mais claro no dark ─────────────────── */
+    --primary: 165 33% 42%;              /* verde médio para legibilidade */
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 165 25% 18%;
+    --primary-glow: 165 40% 55%;
+    --primary-dark: 164 35% 18%;
 
-    /* ── Accent blue ─────────────────────────────────────────── */
+    /* ── Accent: ouro Exacta ─────────────────────────────── */
+    --accent: 38 47% 61%;
+    --accent-foreground: 214 28% 7%;
+    --accent-light: 40 58% 78%;
+
     --accent-blue: 213 85% 65%;
     --accent-blue-soft: 222 25% 20%;
 
@@ -150,15 +158,12 @@ All colors MUST be HSL.
     --copper-active: 28 55% 44%;
     --copper-soft: 28 35% 20%;
 
-    --secondary: 222 16% 20%;
-    --secondary-foreground: 215 18% 78%;
+    --secondary: 214 18% 18%;
+    --secondary-foreground: 60 15% 82%;
 
-    --muted: 222 16% 17%;
-    --muted-foreground: 215 12% 62%;
-    --text-tertiary: 215 12% 55%;
-
-    --accent: 222 25% 22%;
-    --accent-foreground: 213 85% 72%;
+    --muted: 214 18% 16%;
+    --muted-foreground: 220 9% 62%;
+    --text-tertiary: 220 9% 55%;
 
     /* ── Status — tons mais suaves no dark ─────────────────── */
     --success: 142 60% 55%;
@@ -181,23 +186,23 @@ All colors MUST be HSL.
     --destructive-soft: 0 35% 18%;
     --destructive-text: 0 75% 72%;
 
-    /* ── Bordas — cinza frio, não azul ─────────────────────── */
-    --border: 222 14% 22%;
-    --border-strong: 222 12% 32%;
-    --border-highlight: 222 16% 28%;
-    --input: 222 12% 32%;
-    --input-bg: 222 18% 14%;
-    --ring: 213 85% 65%;
-    --ring-soft: 213 85% 65% / 0.3;
-    --track-soft: 222 12% 28%;
+    /* ── Bordas ─────────────────────────────────────────── */
+    --border: 214 14% 20%;
+    --border-strong: 214 12% 30%;
+    --border-highlight: 214 16% 26%;
+    --input: 214 12% 30%;
+    --input-bg: 214 22% 11%;
+    --ring: 38 47% 61%;
+    --ring-soft: 38 47% 61% / 0.35;
+    --track-soft: 214 12% 26%;
 
     --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.25);
     --shadow-control: 0 1px 2px rgb(0 0 0 / 0.18);
     --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.25), 0 1px 3px 0 rgb(0 0 0 / 0.15);
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.18);
     --shadow-elevated: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.25);
-    --gradient-brand: linear-gradient(135deg, hsl(222 25% 20%), hsl(213 85% 38%));
-    --gradient-soft: linear-gradient(135deg, hsl(222 18% 16%), hsl(222 20% 10%));
+    --gradient-brand: linear-gradient(135deg, hsl(164 35% 18%), hsl(165 33% 36%));
+    --gradient-soft: linear-gradient(135deg, hsl(214 22% 13%), hsl(214 28% 7%));
 
     /* ── Bubble tokens ──────────────────────────────────────── */
     --bubble-purple-bg: 262 30% 22%;
@@ -208,29 +213,29 @@ All colors MUST be HSL.
     --bubble-red-fg: 0 75% 72%;
     --bubble-blue-bg: 222 28% 20%;
     --bubble-blue-fg: 213 85% 72%;
-    --bubble-green-bg: 142 28% 18%;
-    --bubble-green-fg: 142 60% 62%;
+    --bubble-green-bg: 165 25% 18%;
+    --bubble-green-fg: 165 40% 65%;
     --bubble-teal-bg: 187 30% 18%;
     --bubble-teal-fg: 187 65% 62%;
 
     /* ── Table ──────────────────────────────────────────────── */
-    --table-row-hover: 222 18% 17%;
-    --table-border-light: 222 14% 20%;
-    --hover-surface: 222 18% 18%;
+    --table-row-hover: 214 22% 14%;
+    --table-border-light: 214 14% 18%;
+    --hover-surface: 214 22% 15%;
     --shadow-hover: 0 4px 12px rgb(0 0 0 / 0.35);
 
     /* ── Sidebar ────────────────────────────────────────────── */
-    --sidebar-background: 222 22% 11%;
-    --sidebar-foreground: 215 14% 62%;
-    --sidebar-muted-foreground: 215 10% 48%;
-    --sidebar-primary: 215 25% 88%;
-    --sidebar-primary-foreground: 222 20% 10%;
-    --sidebar-hover: 222 16% 18%;
-    --sidebar-hover-foreground: 215 20% 88%;
-    --sidebar-accent: 222 18% 20%;
-    --sidebar-accent-foreground: 215 25% 88%;
-    --sidebar-border: 222 14% 18%;
-    --sidebar-ring: 213 85% 65%;
+    --sidebar-background: 214 28% 9%;
+    --sidebar-foreground: 60 12% 70%;
+    --sidebar-muted-foreground: 220 9% 50%;
+    --sidebar-primary: 165 33% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-hover: 214 22% 15%;
+    --sidebar-hover-foreground: 60 15% 90%;
+    --sidebar-accent: 165 25% 18%;
+    --sidebar-accent-foreground: 60 15% 92%;
+    --sidebar-border: 214 14% 16%;
+    --sidebar-ring: 38 47% 61%;
   }
 }
 
@@ -249,11 +254,24 @@ All colors MUST be HSL.
     letter-spacing: -0.003em;
   }
 
-  h1, h2, h3, h4 {
+  h1 {
+    @apply tracking-tight text-foreground;
+    font-family: "Playfair Display", "Inter", Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  h2, h3, h4 {
     @apply tracking-tight text-foreground;
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     font-weight: 500;
     letter-spacing: -0.015em;
+  }
+
+  .font-wordmark {
+    font-family: "Playfair Display", Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.005em;
   }
 
   /* Dark mode: alivia o peso do display em superfícies escuras. */
