@@ -53,6 +53,10 @@ serve(async (req) => {
   let __job_id: string | undefined;
   let __company_label: string | undefined;
   let __company_name: string | undefined;
+  // [Sprint 1 - Tier 3.H] Sentinela: garante que increment_processing_progress
+  // seja chamado EXATAMENTE uma vez (sucesso OU falha OU exceção exótica).
+  // Sem isso, exceções fora do try/catch principal travam o job em "99%".
+  let __progress_reported = false;
 
   try {
     const parsedBody = await req.json();
