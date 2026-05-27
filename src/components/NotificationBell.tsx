@@ -52,12 +52,9 @@ export function NotificationBell() {
           variant="ghost"
           size="icon"
           className="relative h-10 w-10 text-muted-foreground hover:text-foreground"
-          aria-label="Notificações"
-        >
-          <Bell className="h-[18px] w-[18px]" />
           aria-label={`Notificações${unread > 0 ? ` (${unread} não lidas)` : ""}`}
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-[18px] w-[18px]" />
           {unread > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
               {unread > 9 ? "9+" : unread}
