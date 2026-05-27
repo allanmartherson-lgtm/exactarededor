@@ -582,6 +582,7 @@ const PaymentDetail = () => {
     await load();
     setBusy(false);
     toast({ title: `Empresa ${g.company_name}`, description: `Reencaminhada ao ${target.role}.` });
+    navigate("/pagamentos");
   };
 
   // Analista reaplica as regras (reanálise da IA) APENAS para os itens da empresa devolvida,
