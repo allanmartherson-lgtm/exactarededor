@@ -82,7 +82,7 @@ const Logo = () => (
     <div className="min-w-0 leading-tight">
       <p
         className="font-wordmark"
-        style={{ fontSize: 20, color: "hsl(var(--foreground))", lineHeight: 1, fontWeight: 400 }}
+        style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 400, letterSpacing: "0.04em", color: "hsl(var(--foreground))", lineHeight: 1 }}
       >
         E<span style={{ color: "hsl(var(--accent))" }}>x</span>acta
       </p>
