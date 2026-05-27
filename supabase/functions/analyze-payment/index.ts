@@ -253,6 +253,7 @@ serve(async (req) => {
               cachedRulesAll = ctxJ.rules;
               cachedCalcsByRule = ctxJ.calcs_by_rule;
               cachedConfigs = ctxJ.configs;
+              __telemetry.cache_hit = true;
               console.log(`${__t} ctx_cache HIT (age=${Math.round(ageMs / 1000)}s, rules=${cachedRulesAll.length})`);
             }
           }
