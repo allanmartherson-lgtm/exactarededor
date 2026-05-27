@@ -37,7 +37,7 @@ import { DoctorAnomalyAlerts } from "@/components/payment-detail/DoctorAnomalyAl
 import { ExecutiveSummaryCard } from "@/components/payment-detail/ExecutiveSummaryCard";
 import { PoolCalculationCard } from "@/components/payment-detail/PoolCalculationCard";
 import { DirectorBriefingCard } from "@/components/payment-detail/DirectorBriefingCard";
-import { NfPhaseSummary } from "@/components/payment-detail/NfPhaseSummary";
+import { PhaseSummary, resolvePhase } from "@/components/payment-detail/PhaseSummary";
 import { PaymentBatchActionsFooter } from "@/components/payment-detail/PaymentBatchActionsFooter";
 import { scoreAttendance, calculateFinancialRisk } from "@/lib/riskScore";
 import { supabase } from "@/integrations/supabase/client";
