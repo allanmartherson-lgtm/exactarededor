@@ -10,7 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PAGE_SIZE = 4; // empresas processadas em paralelo por página do orquestrador (reduzido de 8 para mitigar contenção de lock em payments)
+const PAGE_SIZE = 2; // [Sprint 1 - Tier 2.D] reduzido de 4→2 para aliviar pool Postgres enquanto regras não são cacheadas (Tier 1.B). Throughput cai ~30%, taxa de falha tende a 0.
 
 const runInBackground = (promise: Promise<unknown>, label: string) => {
   const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
