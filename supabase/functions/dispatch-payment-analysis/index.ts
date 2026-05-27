@@ -150,6 +150,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Guarda: não cria novo job se já existe um `em_andamento` para o mesmo
+    // pagamento. Evita corrida entre dois jobs sobre os mesmos itens
+    // (sintoma observado: ambos jobs ficam presos com processed < total).
+    const { data: existingJobs } = await supabase
+      .from("payment_processing_jobs")
+      .select("id, processed_companies, total_companies, updated_at")
+      .eq("payment_id", payment_id)
+      .eq("status", "em_andamento")
+      .limit(1);
+    if (existingJobs && existingJobs.length > 0) {
+      const ex = existingJobs[0];
+      return new Response(JSON.stringify({
+        ok: true,
+        already_running: true,
+        job_id: ex.id,
+        message: `Já existe uma análise em andamento (${ex.processed_companies}/${ex.total_companies}). Aguarde concluir ou aguarde o watchdog finalizá-la.`,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Cria job de processamento
     const { data: job, error: jobErr } = await supabase
       .from("payment_processing_jobs")
@@ -164,6 +183,7 @@ Deno.serve(async (req) => {
       .select()
       .single();
     if (jobErr) throw jobErr;
+
 
     // Delega orquestração para `orchestrate-analysis` (página 0).
     // Fire-and-forget: dispatch retorna imediatamente sem aguardar.
