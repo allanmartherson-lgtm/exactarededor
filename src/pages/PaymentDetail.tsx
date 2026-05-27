@@ -1798,6 +1798,19 @@ const PaymentDetail = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                {(isAnalista || isDiretor) && !isNfPhase && (
+                  <DropdownMenuItem onSelect={() => setIsConciliationOpen(true)}>
+                    <GitCompare className="h-4 w-4 mr-2" /> Conciliar produção
+                  </DropdownMenuItem>
+                )}
+                {isAnalista && groups.length > 0 && (
+                  <DropdownMenuItem onSelect={() => setProductionValidationOpen(true)}>
+                    <Send className="h-4 w-4 mr-2" /> Validação prévia da empresa
+                  </DropdownMenuItem>
+                )}
+                {((isAnalista || isDiretor) && !isNfPhase) || (isAnalista && groups.length > 0) ? (
+                  <DropdownMenuSeparator />
+                ) : null}
                 {canReimport && (
                   <DropdownMenuItem onSelect={() => setIsTestModalOpen(true)}>
                     <TestTube2 className="h-4 w-4 mr-2" /> Teste de Regra
