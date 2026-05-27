@@ -127,6 +127,54 @@ export type Database = {
           },
         ]
       }
+      analysis_telemetry: {
+        Row: {
+          ai_items_count: number
+          ai_ms: number
+          cache_hit: boolean
+          company_name: string | null
+          created_at: string
+          error: string | null
+          id: string
+          items_count: number
+          job_id: string | null
+          payment_id: string
+          rules_ms: number
+          total_ms: number
+          writes_ms: number
+        }
+        Insert: {
+          ai_items_count?: number
+          ai_ms?: number
+          cache_hit?: boolean
+          company_name?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          items_count?: number
+          job_id?: string | null
+          payment_id: string
+          rules_ms?: number
+          total_ms?: number
+          writes_ms?: number
+        }
+        Update: {
+          ai_items_count?: number
+          ai_ms?: number
+          cache_hit?: boolean
+          company_name?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          items_count?: number
+          job_id?: string | null
+          payment_id?: string
+          rules_ms?: number
+          total_ms?: number
+          writes_ms?: number
+        }
+        Relationships: []
+      }
       assistance_groups: {
         Row: {
           active: boolean
