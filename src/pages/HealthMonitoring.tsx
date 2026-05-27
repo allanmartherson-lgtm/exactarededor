@@ -801,6 +801,12 @@ export default function HealthMonitoring() {
         <SectionLabel>Telemetria de análise</SectionLabel>
         <TelemetryPanel />
       </section>
+
+      {/* ── Seção: Dead-letter (Sprint 5) ── */}
+      <section>
+        <SectionLabel>Empresas em dead-letter</SectionLabel>
+        <DeadLetterPanel />
+      </section>
     </div>
   );
 }
