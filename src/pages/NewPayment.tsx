@@ -211,6 +211,21 @@ interface FileBucket {
 
 interface CompanyRow { id: string; name: string; aliases: string[] }
 
+/** Erro detalhado de parsing — carrega título, motivos e instruções de correção. */
+class ParseFileError extends Error {
+  title: string;
+  reasons: string[];
+  howToFix: string[];
+  constructor(title: string, reasons: string[], howToFix: string[]) {
+    super(title);
+    this.name = "ParseFileError";
+    this.title = title;
+    this.reasons = reasons;
+    this.howToFix = howToFix;
+  }
+}
+
+
 const norm = (s: string) => (s ?? "").toString().toLowerCase().trim().replace(/[\s_\-./]+/g, "");
 
 /**
