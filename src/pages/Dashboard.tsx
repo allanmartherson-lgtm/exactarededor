@@ -2693,24 +2693,35 @@ const computeStages = (status: PaymentStatus): Record<BatchStage, StageState> =>
     case "rascunho":
     case "em_analise_ia":
     case "revisao_analista":
+    case "concluida_analista":
       s.ia.state = "current"; break;
     case "devolvido_analista":
-      s.ia.state = "returned"; s.validacao.state = "todo"; break;
+      s.ia.state = "returned"; break;
     case "aguardando_validacao":
       s.ia.state = "done"; s.validacao.state = "current"; break;
     case "aguardando_aprovacao":
+    case "em_questionamento":
       s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "current"; break;
+    case "aprovado_em_revisao":
+    case "revisao_pos_aprovacao":
+      s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "returned"; break;
     case "aprovado":
     case "aprovado_com_ressalva":
+    case "aprovado_parcial":
     case "pedido_nf_enviado":
     case "nf_recebida":
-    case "nf_questionada":
     case "nf_conciliada":
+    case "lancado":
+      s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "done";
+      s.pago.state = "current";
+      break;
+    case "nf_questionada":
     case "nf_divergente":
       s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "done";
-      s.pago.state = status === "nf_questionada" || status === "nf_divergente" ? "returned" : "current";
+      s.pago.state = "returned";
       break;
     case "pago":
+    case "arquivado":
       s.ia.state = "done"; s.validacao.state = "done"; s.aprovacao.state = "done"; s.pago.state = "done";
       break;
     case "rejeitado":
