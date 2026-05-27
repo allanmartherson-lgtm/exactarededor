@@ -264,7 +264,8 @@ Deno.serve(async (req) => {
 
     // 6. Aguarda workers desta página (com timeout individual). Falhas/timeouts
     // já são registrados em invokeOne via increment_processing_progress.
-    await Promise.all(companies.map(invokeOne));
+    // Pula empresas em dead-letter (já contabilizadas como falha acima).
+    await Promise.all(liveCompanies.map(invokeOne));
 
     // 7. Se esta era a última página, dispara recálculo de pools (fire-and-forget).
     if (!hasNext) {
@@ -289,13 +290,20 @@ Deno.serve(async (req) => {
           else console.log("[orchestrate] recalc-pools disparado");
         }), "falha ao disparar recalc-payment-pools");
 
-        // [Sprint 3 - Tier 1.B] Limpa cache de contexto do job (já não será usado).
+        // [Sprint 6 - Rule snapshot] Em vez de apagar, marca o cache de contexto
+        // como snapshot permanente para auditoria/reprodutibilidade.
+        // O snapshot fica disponível para inspeção e re-análises reproduzíveis.
         runInBackground(
-          supabase.from("payment_job_context").delete().eq("job_id", job_id).then(() => {}),
-          "falha ao limpar payment_job_context",
+          supabase
+            .from("payment_job_context")
+            .update({ is_snapshot: true })
+            .eq("job_id", job_id)
+            .then(() => {}),
+          "falha ao marcar payment_job_context como snapshot",
         );
       }
     }
+
 
 
     return new Response(
