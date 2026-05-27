@@ -13,10 +13,19 @@ interface Props {
   groups: GroupRow[];
   currentUserId: string;
   onDone: () => void;
+  /** Quando fornecido, esconde o trigger interno e controla a abertura do diálogo externamente. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ProductionValidationButton({ paymentId, groups, currentUserId, onDone }: Props) {
-  const [open, setOpen] = useState(false);
+export function ProductionValidationButton({ paymentId, groups, currentUserId, onDone, open: openProp, onOpenChange }: Props) {
+  const [openInternal, setOpenInternal] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : openInternal;
+  const setOpen = (v: boolean) => {
+    if (!isControlled) setOpenInternal(v);
+    onOpenChange?.(v);
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
