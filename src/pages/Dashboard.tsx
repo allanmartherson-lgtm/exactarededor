@@ -1074,7 +1074,7 @@ const Dashboard = () => {
           .from("invoices")
           .select("id, status")
           .in("id", invoiceIds)
-          .in("status", ["aguardando", "recebida", "questionada", "divergente"]);
+          .in("status", ["aguardando", "recebida", "divergente"]);
         if (cancelled) return;
         activeIds = new Set((invs ?? []).map((i) => i.id as string));
       }
