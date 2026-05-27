@@ -684,15 +684,17 @@ const NewPayment = () => {
     // de lotes grandes. Agora cada parse roda em paralelo (XLSX.read é pesado
     // mas o JS engine intercala melhor) e o setTimeout(0) inicial libera o
     // ciclo de render antes de cada parse começar.
-    const results = await Promise.all(
+    type ParseOk = { ok: true; bucket: FileBucket; file: File; error: null };
+    type ParseErr = { ok: false; bucket: null; file: File; error: unknown };
+    const results = await Promise.all<ParseOk | ParseErr>(
       files.map((f) =>
-        new Promise<{ ok: true; bucket: FileBucket } | { ok: false; file: File; error: unknown }>((resolve) => {
+        new Promise<ParseOk | ParseErr>((resolve) => {
           setTimeout(async () => {
             try {
               const bucket = await parseFile(f);
-              resolve({ ok: true, bucket });
+              resolve({ ok: true, bucket, file: f, error: null });
             } catch (error) {
-              resolve({ ok: false, file: f, error });
+              resolve({ ok: false, bucket: null, file: f, error });
             }
           }, 0);
         }),
@@ -700,8 +702,8 @@ const NewPayment = () => {
     );
     const newBuckets: FileBucket[] = [];
     for (const r of results) {
-      if (r.ok) newBuckets.push(r.bucket);
-      else reportParseError(r.file.name, r.error);
+      if (r.ok && r.bucket) newBuckets.push(r.bucket);
+      else if (!r.ok) reportParseError(r.file.name, r.error);
     }
     setBuckets((prev) => [...prev, ...newBuckets]);
     if (!reference && newBuckets.length === 1) {
