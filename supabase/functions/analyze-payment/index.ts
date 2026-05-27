@@ -86,6 +86,49 @@ serve(async (req) => {
       if (secs?.length) extendSectorMap(secs as Array<{ slug: string; name: string; aliases: string[] }>);
     } catch (_e) { /* fallback ao SECTOR_MAP estático */ }
 
+    // [Sprint 2 - Tier 3.I] Idempotência: se a empresa já foi processada
+    // neste job (group em status != em_analise_ia e atualizado após o job
+    // iniciar), retorna sucesso imediato + increment. Evita re-processar
+    // quando o watchdog re-dispara páginas ou quando o usuário aciona
+    // reanálise sobre lote já analisado.
+    if (_job_id && company_name && !is_dry_run) {
+      const { data: jobRow } = await supabase
+        .from("payment_processing_jobs")
+        .select("started_at, created_at")
+        .eq("id", _job_id)
+        .maybeSingle();
+      const jobStart = (jobRow?.started_at as string | null) ?? (jobRow?.created_at as string | null);
+      if (jobStart) {
+        const { data: grp } = await supabase
+          .from("payment_company_groups")
+          .select("status, updated_at")
+          .eq("payment_id", payment_id)
+          .eq("company_name", company_name)
+          .maybeSingle();
+        const grpUpdated = grp?.updated_at ? new Date(grp.updated_at as string).getTime() : 0;
+        const jobStartMs = new Date(jobStart).getTime();
+        const grpStatus = grp?.status as string | undefined;
+        if (grpStatus && grpStatus !== "em_analise_ia" && grpUpdated >= jobStartMs) {
+          console.log(`${__t} [idempotent-skip] empresa já processada neste job (status=${grpStatus}); incrementando progresso sem reprocessar.`);
+          try {
+            await supabase.rpc("increment_processing_progress", {
+              _job_id,
+              _company_name: _company_label ?? company_name,
+              _error: null,
+            });
+            __progress_reported = true;
+          } catch (e) {
+            console.error("idempotent-skip: falha ao incrementar progresso:", e);
+          }
+          return new Response(
+            JSON.stringify({ ok: true, skipped: true, reason: "already_processed_in_job" }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
+
     // ---------- 1. carrega payment ----------
     const { data: payment } = await supabase
       .from("payments")
