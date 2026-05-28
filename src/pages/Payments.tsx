@@ -1515,19 +1515,56 @@ const Payments = () => {
                 </table>
               </div>
             </div>
-            {/* Terminal-style pagination footer */}
-            <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground px-1">
-              <div>
-                Exibindo <span className="text-foreground font-bold tabular-nums">{sortedList.length}</span> de{" "}
-                <span className="text-foreground font-bold tabular-nums">{archivedView ? archivedCount : activeCount}</span> lote{(archivedView ? archivedCount : activeCount) === 1 ? "" : "s"}
-                {archivedView ? " arquivado(s)" : " ativo(s)"}
+            {/* Paginação server-side */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground px-1">
+              <div className="flex items-center gap-3">
+                <span>
+                  Exibindo <span className="text-foreground font-bold tabular-nums">{rows.length === 0 ? 0 : page * pageSize + 1}</span>
+                  {"–"}
+                  <span className="text-foreground font-bold tabular-nums">{page * pageSize + rows.length}</span>
+                  {" de "}
+                  <span className="text-foreground font-bold tabular-nums">{totalRows.toLocaleString("pt-BR")}</span>
+                  {" lote"}{totalRows === 1 ? "" : "s"}
+                  {archivedView ? " arquivado(s)" : " ativo(s)"}
+                </span>
+                {loading && <span className="text-muted-foreground">carregando…</span>}
+                {selected.size > 0 && (
+                  <span className="text-primary font-bold">
+                    {selected.size} selecionado{selected.size > 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
-              {selected.size > 0 && (
-                <div className="text-primary font-bold">
-                  {selected.size} selecionado{selected.size > 1 ? "s" : ""}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger className="h-8 w-[110px] text-[11px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[50, 100, 200, 500].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n} / página</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0 || loading}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <span className="tabular-nums px-1">
+                  pág. {page + 1} / {Math.max(1, Math.ceil(totalRows / pageSize))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loading || (page + 1) * pageSize >= totalRows}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
+
           </>
         ) : (
           <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
