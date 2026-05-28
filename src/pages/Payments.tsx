@@ -148,15 +148,18 @@ const Payments = () => {
   const isAdmin = roles.includes("admin");
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
+  // Paginação server-side via RPC list_payments. `totalRows` é o total filtrado
+  // no banco (não só desta página); `rows` contém apenas a página atual.
+  const [totalRows, setTotalRows] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
   const [q, setQ] = useState("");
+  // Termo de busca com debounce — evita refetch a cada tecla.
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
   const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
-  const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
-  const [paymentIdsForDoctor, setPaymentIdsForDoctor] = useState<Set<string> | null>(null);
-  // Busca cruzada em itens (médico, atendimento, descrição, especialidade,
-  // procedimento, CC). Acionada com 3+ chars e debounced.
-  const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
   const [searching, setSearching] = useState(false);
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
