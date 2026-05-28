@@ -558,23 +558,15 @@ const Payments = () => {
 
 
 
-  const competenceOptions = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => {
-      (r.competence_months?.length ? r.competence_months : [r.competence_month]).forEach((c) => c && set.add(c.slice(0, 7)));
-    });
-    return Array.from(set).sort().reverse();
-  }, [rows]);
+  // Competências vêm do banco (todos os lotes), não só da página atual.
+  const competenceOptions = useMemo(() => globalCompetences, [globalCompetences]);
 
   const now = Date.now();
 
-  // Total de arquivados (terminais) — independente dos demais filtros, usado
-  // pelo toggle e mensagem de observabilidade ("X lotes arquivados").
-  const archivedCount = useMemo(
-    () => rows.filter((r) => TERMINAL_STATUSES.has(r.status)).length,
-    [rows],
-  );
-  const activeCount = rows.length - archivedCount;
+  // Total real de arquivados (terminais) — calculado server-side, independente
+  // da página atual.
+  const archivedCount = globalArchivedCount;
+  const activeCount = Math.max(0, totalRows - (archivedView ? 0 : 0));
 
   // KPIs institucionais (terminal-style summary) — calculados sobre lotes ativos
   // para refletir o estado operacional da fila, não o histórico arquivado.
