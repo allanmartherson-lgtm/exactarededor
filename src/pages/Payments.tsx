@@ -428,22 +428,41 @@ const Payments = () => {
   }, [loadAncillaryData]);
 
   useEffect(() => {
+    // Debounce dos refetches: em horário de pico vários eventos chegam em
+    // rajada e disparavam load()/loadAncillaryData() em looping, travando a UI.
+    let loadTimer: ReturnType<typeof setTimeout> | null = null;
+    let ancTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleLoad = () => {
+      if (loadTimer) clearTimeout(loadTimer);
+      loadTimer = setTimeout(() => { load(); }, 600);
+    };
+    const scheduleAnc = () => {
+      if (ancTimer) clearTimeout(ancTimer);
+      ancTimer = setTimeout(() => { loadAncillaryData(); }, 600);
+    };
+    const scheduleBoth = () => { scheduleLoad(); scheduleAnc(); };
+
     const channel = supabase
       .channel("payments-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); loadAncillaryData(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { loadAncillaryData(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => { loadAncillaryData(); })
-      // NOVO: detecta conclusão/falha do job de análise
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, scheduleBoth)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, scheduleAnc)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, scheduleAnc)
+      // Detecta conclusão/falha do job de análise
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "payment_processing_jobs",
           filter: "status=in.(concluido,parcial,cancelado)" },
-        () => { load(); loadAncillaryData(); }
+        scheduleBoth,
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (loadTimer) clearTimeout(loadTimer);
+      if (ancTimer) clearTimeout(ancTimer);
+      supabase.removeChannel(channel);
+    };
   }, [load, loadAncillaryData]);
+
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
   useEffect(() => {
