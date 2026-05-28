@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { NavLayoutProvider } from "./contexts/NavLayoutContext.tsx";
@@ -16,48 +16,102 @@ import Auth from "./pages/Auth.tsx";
 import SetPassword from "./pages/SetPassword.tsx";
 import ForceChangePassword from "./pages/ForceChangePassword.tsx";
 
-// Lazy loaded feature pages
-const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
-const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard.tsx"));
-const AgingRecebiveis = lazy(() => import("./pages/AgingRecebiveis.tsx"));
-const HealthMonitoring = lazy(() => import("./pages/HealthMonitoring.tsx"));
-const Payments = lazy(() => import("./pages/Payments.tsx"));
-const NewPayment = lazy(() => import("./pages/NewPayment.tsx"));
-const PaymentDetail = lazy(() => import("./pages/PaymentDetail.tsx"));
-const CompanyAnalysis = lazy(() => import("./pages/CompanyAnalysis.tsx"));
-const Glosas = lazy(() => import("./pages/Glosas.tsx"));
-const Rules = lazy(() => import("./pages/Rules.tsx"));
-const ValidationRules = lazy(() => import("./pages/ValidationRules.tsx"));
-const ReferenceTables = lazy(() => import("./pages/ReferenceTables.tsx"));
-const RuleSimulator = lazy(() => import("./pages/RuleSimulator.tsx"));
-const Users = lazy(() => import("./pages/Users.tsx"));
-const Invoices = lazy(() => import("./pages/Invoices.tsx"));
-const InvoicePortal = lazy(() => import("./pages/InvoicePortal.tsx"));
-const Companies = lazy(() => import("./pages/Companies.tsx"));
-const CompanyAliases = lazy(() => import("./pages/CompanyAliases.tsx"));
-const Doctors = lazy(() => import("./pages/Doctors.tsx"));
-const ProcedureSpecialtyMap = lazy(() => import("./pages/ProcedureSpecialtyMap.tsx"));
-const Sectors = lazy(() => import("./pages/Sectors.tsx"));
-const CostCenters = lazy(() => import("./pages/CostCenters.tsx"));
-const PaymentTypes = lazy(() => import("./pages/PaymentTypes.tsx"));
-const Pools = lazy(() => import("./pages/Pools.tsx"));
-const PoolsReport = lazy(() => import("./pages/PoolsReport.tsx"));
-const Profile = lazy(() => import("./pages/Profile.tsx"));
-const AuditLog = lazy(() => import("./pages/AuditLog.tsx"));
-const StatusAnomalies = lazy(() => import("./pages/StatusAnomalies.tsx"));
-const SlaSettings = lazy(() => import("./pages/SlaSettings.tsx"));
-const PreviewPalettes = lazy(() => import("./pages/PreviewPalettes.tsx"));
-const PreviewDesignSystems = lazy(() => import("./pages/PreviewDesignSystems.tsx"));
-const WcagAudit = lazy(() => import("./pages/WcagAudit.tsx"));
-const Kpis = lazy(() => import("./pages/Kpis.tsx"));
-const SidebarDiagnostic = lazy(() => import("./pages/SidebarDiagnostic.tsx"));
-const OverflowAudit = lazy(() => import("./pages/OverflowAudit.tsx"));
-const FinancialIntelligence = lazy(() => import("./pages/FinancialIntelligence.tsx"));
-const NfCycle = lazy(() => import("./pages/NfCycle.tsx"));
-const ObservationInsights = lazy(() => import("./pages/ObservationInsights.tsx"));
-const AnalystProductivity = lazy(() => import("./pages/AnalystProductivity.tsx"));
+// Lazy loaded feature pages — importers ficam guardados em constantes
+// para podermos dispará-los como prefetch em idle (ver IdlePrefetcher abaixo).
+const loadDashboard = () => import("./pages/Dashboard.tsx");
+const loadExecutiveDashboard = () => import("./pages/ExecutiveDashboard.tsx");
+const loadAgingRecebiveis = () => import("./pages/AgingRecebiveis.tsx");
+const loadHealthMonitoring = () => import("./pages/HealthMonitoring.tsx");
+const loadPayments = () => import("./pages/Payments.tsx");
+const loadNewPayment = () => import("./pages/NewPayment.tsx");
+const loadPaymentDetail = () => import("./pages/PaymentDetail.tsx");
+const loadCompanyAnalysis = () => import("./pages/CompanyAnalysis.tsx");
+const loadGlosas = () => import("./pages/Glosas.tsx");
+const loadRules = () => import("./pages/Rules.tsx");
+const loadValidationRules = () => import("./pages/ValidationRules.tsx");
+const loadReferenceTables = () => import("./pages/ReferenceTables.tsx");
+const loadRuleSimulator = () => import("./pages/RuleSimulator.tsx");
+const loadUsers = () => import("./pages/Users.tsx");
+const loadInvoices = () => import("./pages/Invoices.tsx");
+const loadInvoicePortal = () => import("./pages/InvoicePortal.tsx");
+const loadCompanies = () => import("./pages/Companies.tsx");
+const loadCompanyAliases = () => import("./pages/CompanyAliases.tsx");
+const loadDoctors = () => import("./pages/Doctors.tsx");
+const loadProcedureSpecialtyMap = () => import("./pages/ProcedureSpecialtyMap.tsx");
+const loadSectors = () => import("./pages/Sectors.tsx");
+const loadCostCenters = () => import("./pages/CostCenters.tsx");
+const loadPaymentTypes = () => import("./pages/PaymentTypes.tsx");
+const loadPools = () => import("./pages/Pools.tsx");
+const loadPoolsReport = () => import("./pages/PoolsReport.tsx");
+const loadProfile = () => import("./pages/Profile.tsx");
+const loadAuditLog = () => import("./pages/AuditLog.tsx");
+const loadStatusAnomalies = () => import("./pages/StatusAnomalies.tsx");
+const loadSlaSettings = () => import("./pages/SlaSettings.tsx");
+const loadPreviewPalettes = () => import("./pages/PreviewPalettes.tsx");
+const loadPreviewDesignSystems = () => import("./pages/PreviewDesignSystems.tsx");
+const loadWcagAudit = () => import("./pages/WcagAudit.tsx");
+const loadKpis = () => import("./pages/Kpis.tsx");
+const loadSidebarDiagnostic = () => import("./pages/SidebarDiagnostic.tsx");
+const loadOverflowAudit = () => import("./pages/OverflowAudit.tsx");
+const loadFinancialIntelligence = () => import("./pages/FinancialIntelligence.tsx");
+const loadNfCycle = () => import("./pages/NfCycle.tsx");
+const loadObservationInsights = () => import("./pages/ObservationInsights.tsx");
+const loadAnalystProductivity = () => import("./pages/AnalystProductivity.tsx");
 
-const queryClient = new QueryClient();
+const Dashboard = lazy(loadDashboard);
+const ExecutiveDashboard = lazy(loadExecutiveDashboard);
+const AgingRecebiveis = lazy(loadAgingRecebiveis);
+const HealthMonitoring = lazy(loadHealthMonitoring);
+const Payments = lazy(loadPayments);
+const NewPayment = lazy(loadNewPayment);
+const PaymentDetail = lazy(loadPaymentDetail);
+const CompanyAnalysis = lazy(loadCompanyAnalysis);
+const Glosas = lazy(loadGlosas);
+const Rules = lazy(loadRules);
+const ValidationRules = lazy(loadValidationRules);
+const ReferenceTables = lazy(loadReferenceTables);
+const RuleSimulator = lazy(loadRuleSimulator);
+const Users = lazy(loadUsers);
+const Invoices = lazy(loadInvoices);
+const InvoicePortal = lazy(loadInvoicePortal);
+const Companies = lazy(loadCompanies);
+const CompanyAliases = lazy(loadCompanyAliases);
+const Doctors = lazy(loadDoctors);
+const ProcedureSpecialtyMap = lazy(loadProcedureSpecialtyMap);
+const Sectors = lazy(loadSectors);
+const CostCenters = lazy(loadCostCenters);
+const PaymentTypes = lazy(loadPaymentTypes);
+const Pools = lazy(loadPools);
+const PoolsReport = lazy(loadPoolsReport);
+const Profile = lazy(loadProfile);
+const AuditLog = lazy(loadAuditLog);
+const StatusAnomalies = lazy(loadStatusAnomalies);
+const SlaSettings = lazy(loadSlaSettings);
+const PreviewPalettes = lazy(loadPreviewPalettes);
+const PreviewDesignSystems = lazy(loadPreviewDesignSystems);
+const WcagAudit = lazy(loadWcagAudit);
+const Kpis = lazy(loadKpis);
+const SidebarDiagnostic = lazy(loadSidebarDiagnostic);
+const OverflowAudit = lazy(loadOverflowAudit);
+const FinancialIntelligence = lazy(loadFinancialIntelligence);
+const NfCycle = lazy(loadNfCycle);
+const ObservationInsights = lazy(loadObservationInsights);
+const AnalystProductivity = lazy(loadAnalystProductivity);
+
+// Defaults agressivos de cache: evita refetch a cada navegação entre telas,
+// mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
+// desmontagem (atravessa idas e vindas entre menus sem trip ao servidor).
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 10 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      retry: 1,
+    },
+  },
+});
 
 // Loader simplificado para o Suspense
 const PageLoader = () => (
@@ -65,6 +119,46 @@ const PageLoader = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
 );
+
+// Pré-carrega os bundles das telas mais usadas em tempo ocioso, em ondas,
+// para que o clique no menu não precise baixar o chunk JS naquele instante.
+// Sem isso, cada primeira visita a uma tela espera o download do bundle.
+const IdlePrefetcher = () => {
+  useEffect(() => {
+    const idle: (cb: () => void, opts?: { timeout?: number }) => number =
+      (window as any).requestIdleCallback?.bind(window) ??
+      ((cb: () => void) => window.setTimeout(cb, 1500) as unknown as number);
+
+    // Ondas: as mais usadas primeiro, depois cadastros, por último relatórios.
+    const waves: Array<Array<() => Promise<unknown>>> = [
+      [loadPayments, loadPaymentDetail, loadDashboard, loadNfCycle, loadInvoices],
+      [loadGlosas, loadCompanies, loadDoctors, loadCompanyAnalysis, loadNewPayment],
+      [loadRules, loadValidationRules, loadReferenceTables, loadCostCenters, loadPaymentTypes],
+      [loadKpis, loadFinancialIntelligence, loadAgingRecebiveis, loadExecutiveDashboard, loadAnalystProductivity],
+      [loadSectors, loadProcedureSpecialtyMap, loadCompanyAliases, loadPools, loadPoolsReport],
+      [loadProfile, loadUsers, loadSlaSettings, loadAuditLog, loadStatusAnomalies, loadObservationInsights, loadHealthMonitoring],
+    ];
+
+    let waveIndex = 0;
+    const runNext = () => {
+      if (waveIndex >= waves.length) return;
+      const wave = waves[waveIndex++];
+      idle(
+        () => {
+          // Dispara em paralelo dentro da onda; ignora erros silenciosamente.
+          wave.forEach((fn) => { fn().catch(() => {}); });
+          runNext();
+        },
+        { timeout: 2500 },
+      );
+    };
+    // Espera o "primeiro paint útil" antes de começar.
+    const kickoff = window.setTimeout(runNext, 1200);
+    return () => window.clearTimeout(kickoff);
+  }, []);
+  return null;
+};
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
