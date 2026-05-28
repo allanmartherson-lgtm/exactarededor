@@ -148,15 +148,18 @@ const Payments = () => {
   const isAdmin = roles.includes("admin");
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Row[]>([]);
+  // Paginação server-side via RPC list_payments. `totalRows` é o total filtrado
+  // no banco (não só desta página); `rows` contém apenas a página atual.
+  const [totalRows, setTotalRows] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
   const [q, setQ] = useState("");
+  // Termo de busca com debounce — evita refetch a cada tecla.
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [companyFilter, setCompanyFilter] = useState<CompanyOption | null>(null);
   const [doctorFilter, setDoctorFilter] = useState<{ id: string; full_name: string; crm: string | null; crm_uf: string | null } | null>(null);
-  const [paymentIdsForCompany, setPaymentIdsForCompany] = useState<Set<string> | null>(null);
-  const [paymentIdsForDoctor, setPaymentIdsForDoctor] = useState<Set<string> | null>(null);
-  // Busca cruzada em itens (médico, atendimento, descrição, especialidade,
-  // procedimento, CC). Acionada com 3+ chars e debounced.
-  const [paymentIdsForQuery, setPaymentIdsForQuery] = useState<Set<string> | null>(null);
   const [searching, setSearching] = useState(false);
   const [analysts, setAnalysts] = useState<Record<string, string>>({});
   const [companiesPerPayment, setCompaniesPerPayment] = useState<Record<string, number>>({});
@@ -301,48 +304,142 @@ const Payments = () => {
     }
   };
 
-  const load = useCallback(async () => {
-    const { data } = await supabase
-      .from("payments")
-      .select("id,reference,status,total_amount,bruto_total,liquido_total,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred,priority_score")
-      .order("priority_score", { ascending: false })
-      .order("created_at", { ascending: false });
-    
-    const list = (data ?? []) as Row[];
-    setRows(list);
-    const ids = list.map((r) => r.id);
-    const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
-    // Profiles dos analistas
-    if (userIds.length) {
-      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", userIds);
-      const map: Record<string, string> = {};
-      (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name || p.email || "—"; });
-      setAnalysts(map);
+  // Debounce do termo de busca (espera 300ms antes de disparar refetch).
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    setSearching(q.trim().length > 0 && q.trim() !== debouncedQ);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
+  // Reset de página sempre que qualquer filtro muda.
+  useEffect(() => {
+    setPage(0);
+  }, [
+    debouncedQ, companyFilter?.id, doctorFilter?.id, analystFilter, typeFilter,
+    statusFilter, competenceFilter, delayedOnly, ownerGroup, onlyMine,
+    divergenceFilter, questionedFilter, openQuestionOnly, archivedView, pageSize, sortBy,
+  ]);
+
+  // Mapeia ordenação da UI para o parâmetro _sort da RPC list_payments.
+  const rpcSort = useMemo(() => {
+    if (sortBy === "created") return "created";
+    if (sortBy === "status") return "status";
+    // "relevance", "priority" e "elapsed" caem em priority_score (que já
+    // incorpora SLA + tempo parado + valor + erros).
+    return "priority";
+  }, [sortBy]);
+
+  // Statuses que serão enviados ao servidor. ownerGroup, statusFilter e archivedView
+  // se combinam aqui — toda a filtragem por status acontece server-side.
+  const ALL_STATUSES = useMemo(() => Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[], []);
+  const serverStatuses = useMemo<string[] | undefined>(() => {
+    const terminal = Array.from(TERMINAL_STATUSES) as string[];
+    const nonTerminal = ALL_STATUSES.filter((s) => !TERMINAL_STATUSES.has(s));
+    let base: string[] = archivedView ? terminal : nonTerminal;
+    if (statusFilter !== "all") {
+      base = base.includes(statusFilter) ? [statusFilter] : [statusFilter];
     }
-    if (ids.length) {
-      // Carrega em paralelo: grupos (com company_id+status), jobs, histórico e SLAs
-      const [groupsRes, jobsRes, histRes, slasRes] = await Promise.all([
-        supabase
-          .from("payment_company_groups")
-          .select("payment_id,company_name,company_id,status")
-          .in("payment_id", ids),
-        supabase
-          .from("payment_processing_jobs")
-          .select("payment_id,total_companies,started_at")
-          .in("payment_id", ids)
-          .order("started_at", { ascending: false }),
-        supabase
-          .from("payment_status_history")
-          .select("payment_id,status_to,changed_at")
-          .in("payment_id", ids)
-          .order("changed_at", { ascending: false }),
+    if (ownerGroup !== "all") {
+      const allowed = STATUSES_BY_OWNER[ownerGroup] as readonly string[];
+      base = base.filter((s) => allowed.includes(s));
+      if (base.length === 0) base = [...allowed];
+    }
+    if (onlyMine) {
+      const mine = new Set<string>();
+      if (roles.includes("analista") || roles.includes("admin")) STATUSES_BY_OWNER.analista.forEach((s) => mine.add(s));
+      if (roles.includes("validador") || roles.includes("admin")) STATUSES_BY_OWNER.validador.forEach((s) => mine.add(s));
+      if (roles.includes("diretor") || roles.includes("admin")) STATUSES_BY_OWNER.diretor.forEach((s) => mine.add(s));
+      if (mine.size) base = base.filter((s) => mine.has(s));
+    }
+    return base.length ? base : undefined;
+  }, [archivedView, statusFilter, ownerGroup, onlyMine, roles, ALL_STATUSES]);
+
+  // Monta o objeto de filtros que será enviado para a RPC.
+  const rpcFilters = useMemo(() => {
+    const f: Record<string, any> = {};
+    if (serverStatuses) f.statuses = serverStatuses;
+    if (typeFilter !== "all") f.payment_types = [typeFilter];
+    if (analystFilter !== "all") f.created_by_ids = [analystFilter];
+    if (companyFilter?.id) f.company_ids = [companyFilter.id];
+    if (doctorFilter?.id) f.doctor_ids = [doctorFilter.id];
+    if (competenceFilter !== "all") {
+      // YYYY-MM → primeiro/último dia do mês
+      const [y, m] = competenceFilter.split("-").map(Number);
+      const from = new Date(Date.UTC(y, m - 1, 1));
+      const to = new Date(Date.UTC(y, m, 0));
+      f.competence_from = from.toISOString().slice(0, 10);
+      f.competence_to = to.toISOString().slice(0, 10);
+    }
+    if (debouncedQ.length >= 2) f.search = debouncedQ;
+    if (delayedOnly) f.only_overdue = true;
+    if (openQuestionOnly) f.only_open_questions = true;
+    if (divergenceFilter === "with") f.only_divergence = true;
+    if (questionedFilter !== "all") f.with_questions = questionedFilter;
+    return f;
+  }, [serverStatuses, typeFilter, analystFilter, companyFilter, doctorFilter,
+      competenceFilter, debouncedQ, delayedOnly, openQuestionOnly,
+      divergenceFilter, questionedFilter]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("list_payments", {
+        _filters: rpcFilters,
+        _limit: pageSize,
+        _offset: page * pageSize,
+        _sort: rpcSort,
+      });
+      if (error) throw error;
+      const payload = (data ?? {}) as { rows?: any[]; total?: number };
+      const list = (payload.rows ?? []) as Row[];
+      setRows(list);
+      setTotalRows(Number(payload.total ?? 0));
+
+      // Flags de divergência/questionamento já vêm por linha na RPC.
+      const divSet = new Set<string>();
+      const qSet = new Set<string>();
+      list.forEach((r: any) => {
+        if (r.has_divergence) divSet.add(r.id);
+        if (r.has_open_question) qSet.add(r.id);
+      });
+      setPaymentIdsWithDivergence(divSet);
+      setPaymentIdsWithQuestions(qSet);
+
+      const ids = list.map((r) => r.id);
+      const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
+
+      // Dados companion escopados aos IDs visíveis — mantém renderização rica
+      // (analistas, empresas/PJ, SLAs, histórico de status) sem custo de tabela inteira.
+      const [profsRes, groupsRes, jobsRes, histRes, slasRes, openQsRes] = await Promise.all([
+        userIds.length
+          ? supabase.from("profiles").select("id,full_name,email").in("id", userIds)
+          : Promise.resolve({ data: [] as any[] } as any),
+        ids.length
+          ? supabase.from("payment_company_groups").select("payment_id,company_name,company_id,status").in("payment_id", ids)
+          : Promise.resolve({ data: [] as any[] } as any),
+        ids.length
+          ? supabase.from("payment_processing_jobs").select("payment_id,total_companies,started_at").in("payment_id", ids).order("started_at", { ascending: false })
+          : Promise.resolve({ data: [] as any[] } as any),
+        ids.length
+          ? supabase.from("payment_status_history").select("payment_id,status_to,changed_at").in("payment_id", ids).order("changed_at", { ascending: false })
+          : Promise.resolve({ data: [] as any[] } as any),
         supabase.from("sla_settings").select("*").eq("active", true),
+        ids.length
+          ? supabase.from("payment_observations").select("payment_id").in("payment_id", ids).eq("is_question", true).is("resolved_at", null)
+          : Promise.resolve({ data: [] as any[] } as any),
       ]);
 
+      const profs = profsRes.data ?? [];
       const groups = groupsRes.data ?? [];
       const jobs = jobsRes.data ?? [];
       const hist = histRes.data ?? [];
       const slas = slasRes.data ?? [];
+      const openQs = openQsRes.data ?? [];
+
+      const profMap: Record<string, string> = {};
+      profs.forEach((p: any) => { profMap[p.id] = p.full_name || p.email || "—"; });
+      setAnalysts(profMap);
 
       // Empresas distintas por lote
       const cmap: Record<string, Set<string>> = {};
@@ -352,8 +449,6 @@ const Payments = () => {
       });
       const counts: Record<string, number> = {};
       Object.entries(cmap).forEach(([k, v]) => { counts[k] = v.size; });
-
-      // Fallback: se um job registrou mais empresas que os grupos efetivos, usa o total do job.
       const jobMax: Record<string, number> = {};
       jobs.forEach((j: any) => {
         const cur = jobMax[j.payment_id] ?? 0;
@@ -364,14 +459,10 @@ const Payments = () => {
       });
       setCompaniesPerPayment(counts);
 
-      // Histórico: entrada mais recente por pagamento
       const seen: Record<string, string> = {};
-      hist.forEach((h: any) => {
-        if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at;
-      });
+      hist.forEach((h: any) => { if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at; });
       setStatusEnteredAt(seen);
 
-      // Empresa principal por pagamento + statuses por grupo
       const cByP: Record<string, string | null> = {};
       const gByP: Record<string, string[]> = {};
       groups.forEach((g: any) => {
@@ -382,179 +473,64 @@ const Payments = () => {
       setCompanyByPayment(cByP);
       setGroupStatusesByPayment(gByP);
 
-      // Overrides de SLA por empresa (depois dos grupos)
       const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
       const { data: ovs } = compIds.length
         ? await supabase.from("company_sla_overrides").select("*").in("company_id", compIds)
-        : { data: [] as any[] } as any;
-
+        : ({ data: [] as any[] } as any);
       const sMap: Record<string, SlaSetting> = {};
       slas.forEach((s: any) => { sMap[s.status] = s; });
       setSlaSettings(sMap);
       const oMap: Record<string, CompanySlaOverride> = {};
       (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
       setCompanyOverrides(oMap);
+
+      const ocnt: Record<string, number> = {};
+      openQs.forEach((r: any) => {
+        if (!r.payment_id) return;
+        ocnt[r.payment_id] = (ocnt[r.payment_id] ?? 0) + 1;
+      });
+      setOpenQuestionCount(ocnt);
+    } catch (e: any) {
+      console.error("Falha ao listar pagamentos:", e);
+      toast.error("Erro ao carregar pagamentos: " + (e?.message ?? "desconhecido"));
+    } finally {
+      setLoading(false);
+      setSearching(false);
     }
-  }, []);
-
-
-  const loadAncillaryData = useCallback(async () => {
-    // Usa a view materializada mv_payments_flags (refresh periódico) + uma única query
-    // de contagem de perguntas abertas. Substitui 4 queries pesadas que escaneavam
-    // milhares de linhas a cada refresh.
-    const [{ data: flags }, { data: openQs }] = await Promise.all([
-      (supabase as any).from("mv_payments_flags").select("payment_id,has_open_question,has_divergence,has_items_error,is_overdue"),
-      supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(5000),
-    ]);
-    const div = new Set<string>();
-    const quest = new Set<string>();
-    (flags ?? []).forEach((r: any) => {
-      if (r.has_divergence) div.add(r.payment_id);
-      if (r.has_open_question) quest.add(r.payment_id);
-    });
-    const counts: Record<string, number> = {};
-    (openQs ?? []).forEach((r: any) => {
-      if (!r.payment_id) return;
-      counts[r.payment_id] = (counts[r.payment_id] ?? 0) + 1;
-    });
-    setOpenQuestionCount(counts);
-    setPaymentIdsWithDivergence(div);
-    setPaymentIdsWithQuestions(quest);
-  }, []);
+  }, [rpcFilters, rpcSort, page, pageSize]);
 
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
     load();
   }, [load]);
 
+  // Realtime: revalida a página atual com debounce (mantém badges e contagens
+  // frescos sem looping em rajadas de eventos).
   useEffect(() => {
-    loadAncillaryData();
-  }, [loadAncillaryData]);
-
-  useEffect(() => {
-    // Debounce dos refetches: em horário de pico vários eventos chegam em
-    // rajada e disparavam load()/loadAncillaryData() em looping, travando a UI.
-    let loadTimer: ReturnType<typeof setTimeout> | null = null;
-    let ancTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleLoad = () => {
-      if (loadTimer) clearTimeout(loadTimer);
-      loadTimer = setTimeout(() => { load(); }, 600);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { load(); }, 600);
     };
-    const scheduleAnc = () => {
-      if (ancTimer) clearTimeout(ancTimer);
-      ancTimer = setTimeout(() => { loadAncillaryData(); }, 600);
-    };
-    const scheduleBoth = () => { scheduleLoad(); scheduleAnc(); };
-
     const channel = supabase
       .channel("payments-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, scheduleBoth)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, scheduleLoad)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, scheduleLoad)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, scheduleAnc)
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, scheduleAnc)
-      // Detecta conclusão/falha do job de análise
-      .on("postgres_changes",
-        { event: "UPDATE", schema: "public", table: "payment_processing_jobs",
-          filter: "status=in.(concluido,parcial,cancelado)" },
-        scheduleBoth,
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, schedule)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "payment_processing_jobs", filter: "status=in.(concluido,parcial,cancelado)" },
+        schedule,
       )
       .subscribe();
     return () => {
-      if (loadTimer) clearTimeout(loadTimer);
-      if (ancTimer) clearTimeout(ancTimer);
+      if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [load, loadAncillaryData]);
+  }, [load]);
 
 
-  // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
-  useEffect(() => {
-    let cancelled = false;
-    if (!companyFilter) { setPaymentIdsForCompany(null); return; }
-    supabase
-      .from("payment_items")
-      .select("payment_id")
-      .eq("company_id", companyFilter.id)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const ids = new Set<string>((data ?? []).map((r: any) => r.payment_id).filter(Boolean));
-        setPaymentIdsForCompany(ids);
-      });
-    return () => { cancelled = true; };
-  }, [companyFilter]);
-
-  // Quando um médico é escolhido, busca os payment_ids que possuem itens dele.
-  useEffect(() => {
-    let cancelled = false;
-    if (!doctorFilter) { setPaymentIdsForDoctor(null); return; }
-    supabase
-      .from("payment_items")
-      .select("payment_id")
-      .eq("doctor_name", doctorFilter.full_name)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const ids = new Set<string>((data ?? []).map((r: any) => r.payment_id).filter(Boolean));
-        setPaymentIdsForDoctor(ids);
-      });
-    return () => { cancelled = true; };
-  }, [doctorFilter]);
-
-  // Busca cruzada em payment_items quando o termo for ≥3 chars.
-  useEffect(() => {
-    let cancelled = false;
-    const term = q.trim();
-    if (term.length < 3) { setPaymentIdsForQuery(null); setSearching(false); return; }
-    setSearching(true);
-    const handle = setTimeout(async () => {
-      const like = `%${term}%`;
-      // .or() em payment_items + busca em payments (pra cobrir CC e specialties).
-      const [itemsRes, paysRes, obsRes] = await Promise.all([
-        supabase
-          .from("payment_items")
-          .select("payment_id")
-          .or(
-            [
-              `doctor_name.ilike.${like}`,
-              `attendance_number.ilike.${like}`,
-              `description.ilike.${like}`,
-              `procedure_code.ilike.${like}`,
-              `procedure_name.ilike.${like}`,
-              `cost_center_code.ilike.${like}`,
-              `company_name.ilike.${like}`,
-            ].join(","),
-          )
-          .limit(2000),
-        supabase
-          .from("payments")
-          .select("id")
-          .or(`cost_center_code.ilike.${like},specialties.cs.{${term}},sectors.cs.{${term}},reference.ilike.${like}`)
-          .limit(500),
-        supabase
-          .from("payment_observations")
-          .select("payment_id")
-          .ilike("message", like)
-          .eq("is_question", true)
-          .is("resolved_at", null)
-          .limit(500),
-      ]);
-      if (cancelled) return;
-      const ids = new Set<string>();
-      (itemsRes.data ?? []).forEach((r: any) => r.payment_id && ids.add(r.payment_id));
-      (paysRes.data ?? []).forEach((r: any) => r.id && ids.add(r.id));
-      (obsRes.data ?? []).forEach((r: any) => r.payment_id && ids.add(r.payment_id));
-
-      // Se o termo for especificamente "questionamento" ou "pergunta", incluímos todos que têm perguntas abertas
-      const lowerTerm = term.toLowerCase();
-      if (lowerTerm.includes("question") || lowerTerm.includes("pergunta")) {
-        Object.keys(openQuestionCount).forEach(pid => ids.add(pid));
-      }
-
-      setPaymentIdsForQuery(ids);
-      setSearching(false);
-    }, 250);
-    return () => { cancelled = true; clearTimeout(handle); };
-  }, [q, openQuestionCount]);
 
   const competenceOptions = useMemo(() => {
     const set = new Set<string>();
@@ -596,72 +572,12 @@ const Payments = () => {
     return { totalOpen, waitingValidation, waitingApproval, delayed, activeTotal: active.length, competence };
   }, [rows, statusEnteredAt]);
 
-  const filtered = useMemo(() => rows.filter((r) => {
-    if (deletingIds.has(r.id)) return false;
-    // Arquivamento: por default escondemos lotes em estado terminal das
-    // listagens de trabalho. Toggle "Ver arquivados" inverte o filtro.
-    const isTerminal = TERMINAL_STATUSES.has(r.status);
-    if (archivedView ? !isTerminal : isTerminal) return false;
-    const term = q.trim().toLowerCase();
-    if (term) {
-      const refMatches = r.reference.toLowerCase().includes(term);
-      // Termo curto (<3): só filtra pela referência (busca cruzada não rodou).
-      if (term.length < 3) {
-        if (!refMatches) return false;
-      } else {
-        // Termo longo: união entre referência local e payment_ids do cruzamento.
-        const crossMatches = paymentIdsForQuery?.has(r.id) ?? false;
-        if (!refMatches && !crossMatches) return false;
-      }
-    }
-    if (companyFilter) {
-      if (!paymentIdsForCompany) return false;
-      if (!paymentIdsForCompany.has(r.id)) return false;
-    }
-    if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
-    if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
-    if (statusFilter !== "all") {
-      const gs = groupStatusesByPayment[r.id] ?? [];
-      if (r.status !== statusFilter && !gs.includes(statusFilter)) return false;
-    }
-    if (ownerGroup !== "all") {
-      const allowed = STATUSES_BY_OWNER[ownerGroup];
-      const gs = groupStatusesByPayment[r.id] ?? [];
-      const matchesByGroup = gs.some((g) => (allowed as readonly string[]).includes(g));
-      if (!allowed.includes(r.status) && !matchesByGroup) return false;
-    }
-    // Validação é fila coletiva: qualquer validador vê todos os lotes em aguardando_validacao.
-    if (onlyMine) {
-      const myRoleStatuses: PaymentStatus[] = [];
-      if (roles.includes("analista") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.analista);
-      if (roles.includes("validador") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.validador);
-      if (roles.includes("diretor") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.diretor);
-      const gs = groupStatusesByPayment[r.id] ?? [];
-      const inMineByGroup = gs.some((g) => (myRoleStatuses as readonly string[]).includes(g));
-      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status) && !inMineByGroup) return false;
-    }
-    if (competenceFilter !== "all") {
-      const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
-      if (!months.some((m) => m.startsWith(competenceFilter))) return false;
-    }
-    if (delayedOnly) {
-      const since = statusEnteredAt[r.id] ?? r.updated_at ?? r.created_at;
-      const lvl = delayLevel(r.status, now - new Date(since).getTime());
-      if (lvl === "none") return false;
-    }
-    if (divergenceFilter !== "all") {
-      const has = paymentIdsWithDivergence.has(r.id);
-      if (divergenceFilter === "with" && !has) return false;
-      if (divergenceFilter === "without" && has) return false;
-    }
-    if (questionedFilter !== "all") {
-      const has = paymentIdsWithQuestions.has(r.id);
-      if (questionedFilter === "with" && !has) return false;
-      if (questionedFilter === "without" && has) return false;
-    }
-    if (openQuestionOnly && !(openQuestionCount[r.id] > 0)) return false;
-    return true;
-  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount, deletingIds, groupStatusesByPayment]);
+  // Toda a filtragem acontece server-side via list_payments. Aqui só removemos
+  // linhas em exclusão otimista para feedback imediato.
+  const filtered = useMemo(
+    () => rows.filter((r) => !deletingIds.has(r.id)),
+    [rows, deletingIds],
+  );
 
   const analystOptions = useMemo(() => {
     const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
@@ -1599,19 +1515,56 @@ const Payments = () => {
                 </table>
               </div>
             </div>
-            {/* Terminal-style pagination footer */}
-            <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground px-1">
-              <div>
-                Exibindo <span className="text-foreground font-bold tabular-nums">{sortedList.length}</span> de{" "}
-                <span className="text-foreground font-bold tabular-nums">{archivedView ? archivedCount : activeCount}</span> lote{(archivedView ? archivedCount : activeCount) === 1 ? "" : "s"}
-                {archivedView ? " arquivado(s)" : " ativo(s)"}
+            {/* Paginação server-side */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground px-1">
+              <div className="flex items-center gap-3">
+                <span>
+                  Exibindo <span className="text-foreground font-bold tabular-nums">{rows.length === 0 ? 0 : page * pageSize + 1}</span>
+                  {"–"}
+                  <span className="text-foreground font-bold tabular-nums">{page * pageSize + rows.length}</span>
+                  {" de "}
+                  <span className="text-foreground font-bold tabular-nums">{totalRows.toLocaleString("pt-BR")}</span>
+                  {" lote"}{totalRows === 1 ? "" : "s"}
+                  {archivedView ? " arquivado(s)" : " ativo(s)"}
+                </span>
+                {loading && <span className="text-muted-foreground">carregando…</span>}
+                {selected.size > 0 && (
+                  <span className="text-primary font-bold">
+                    {selected.size} selecionado{selected.size > 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
-              {selected.size > 0 && (
-                <div className="text-primary font-bold">
-                  {selected.size} selecionado{selected.size > 1 ? "s" : ""}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger className="h-8 w-[110px] text-[11px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[50, 100, 200, 500].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n} / página</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0 || loading}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <span className="tabular-nums px-1">
+                  pág. {page + 1} / {Math.max(1, Math.ceil(totalRows / pageSize))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loading || (page + 1) * pageSize >= totalRows}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
+
           </>
         ) : (
           <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
