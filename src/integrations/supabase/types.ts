@@ -4210,6 +4210,20 @@ export type Database = {
           is_overdue: boolean | null
           payment_id: string | null
         }
+        Insert: {
+          has_divergence?: never
+          has_items_error?: never
+          has_open_question?: never
+          is_overdue?: never
+          payment_id?: string | null
+        }
+        Update: {
+          has_divergence?: never
+          has_items_error?: never
+          has_open_question?: never
+          is_overdue?: never
+          payment_id?: string | null
+        }
         Relationships: []
       }
       v_payment_items_registration_issues: {
@@ -4558,7 +4572,6 @@ export type Database = {
         }
         Returns: string
       }
-      refresh_mv_payments_flags: { Args: never; Returns: undefined }
       reply_question: {
         Args: {
           p_author_id: string
