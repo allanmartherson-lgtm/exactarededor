@@ -536,7 +536,7 @@ const Payments = () => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { load(); }, 600);
+      timer = setTimeout(() => { load(); loadGlobalStats(); }, 600);
     };
     const channel = supabase
       .channel("payments-realtime")
@@ -554,7 +554,7 @@ const Payments = () => {
       if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, loadGlobalStats]);
 
 
 
