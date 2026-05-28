@@ -390,10 +390,14 @@ const Payments = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Em modo Kanban carregamos um lote maior para que todas as colunas
+      // tenham conteúdo. Em lista, respeita a paginação.
+      const effectiveLimit = view === "kanban" ? 1000 : pageSize;
+      const effectiveOffset = view === "kanban" ? 0 : page * pageSize;
       const { data, error } = await supabase.rpc("list_payments", {
         _filters: rpcFilters,
-        _limit: pageSize,
-        _offset: page * pageSize,
+        _limit: effectiveLimit,
+        _offset: effectiveOffset,
         _sort: rpcSort,
       });
       if (error) throw error;
