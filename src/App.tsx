@@ -168,8 +168,10 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+          <IdlePrefetcher />
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
+
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/auth/reset-password" element={<SetPassword />} />
