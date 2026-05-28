@@ -318,29 +318,42 @@ const Payments = () => {
       setAnalysts(map);
     }
     if (ids.length) {
+      // Carrega em paralelo: grupos (com company_id+status), jobs, histórico e SLAs
+      const [groupsRes, jobsRes, histRes, slasRes] = await Promise.all([
+        supabase
+          .from("payment_company_groups")
+          .select("payment_id,company_name,company_id,status")
+          .in("payment_id", ids),
+        supabase
+          .from("payment_processing_jobs")
+          .select("payment_id,total_companies,started_at")
+          .in("payment_id", ids)
+          .order("started_at", { ascending: false }),
+        supabase
+          .from("payment_status_history")
+          .select("payment_id,status_to,changed_at")
+          .in("payment_id", ids)
+          .order("changed_at", { ascending: false }),
+        supabase.from("sla_settings").select("*").eq("active", true),
+      ]);
+
+      const groups = groupsRes.data ?? [];
+      const jobs = jobsRes.data ?? [];
+      const hist = histRes.data ?? [];
+      const slas = slasRes.data ?? [];
+
       // Empresas distintas por lote
-      const { data: groups } = await supabase
-        .from("payment_company_groups")
-        .select("payment_id,company_name")
-        .in("payment_id", ids);
       const cmap: Record<string, Set<string>> = {};
-      (groups ?? []).forEach((g: any) => {
+      groups.forEach((g: any) => {
         cmap[g.payment_id] = cmap[g.payment_id] ?? new Set();
         cmap[g.payment_id].add(g.company_name || "");
       });
       const counts: Record<string, number> = {};
       Object.entries(cmap).forEach(([k, v]) => { counts[k] = v.size; });
 
-      // Fallback: se um job de processamento registrou mais empresas que os
-      // grupos efetivamente criados (ex.: empresa travou em timeout e não
-      // gerou grupo), usa o total do job para refletir o volume real do lote.
-      const { data: jobs } = await supabase
-        .from("payment_processing_jobs")
-        .select("payment_id,total_companies,started_at")
-        .in("payment_id", ids)
-        .order("started_at", { ascending: false });
+      // Fallback: se um job registrou mais empresas que os grupos efetivos, usa o total do job.
       const jobMax: Record<string, number> = {};
-      (jobs ?? []).forEach((j: any) => {
+      jobs.forEach((j: any) => {
         const cur = jobMax[j.payment_id] ?? 0;
         if ((j.total_companies ?? 0) > cur) jobMax[j.payment_id] = j.total_companies;
       });
@@ -349,47 +362,39 @@ const Payments = () => {
       });
       setCompaniesPerPayment(counts);
 
-      // Histórico: pega entrada mais recente por pagamento
-      const { data: hist } = await supabase
-        .from("payment_status_history")
-        .select("payment_id,status_to,changed_at")
-        .in("payment_id", ids)
-        .order("changed_at", { ascending: false });
+      // Histórico: entrada mais recente por pagamento
       const seen: Record<string, string> = {};
-      (hist ?? []).forEach((h: any) => {
+      hist.forEach((h: any) => {
         if (!seen[h.payment_id]) seen[h.payment_id] = h.changed_at;
       });
       setStatusEnteredAt(seen);
 
-      // Empresa principal por pagamento (1ª se múltiplas)
+      // Empresa principal por pagamento + statuses por grupo
       const cByP: Record<string, string | null> = {};
-      (groups ?? []).forEach((g: any) => { if (!cByP[g.payment_id]) cByP[g.payment_id] = null; });
-      const { data: groupsWithIds } = await supabase
-        .from("payment_company_groups").select("payment_id,company_id,status").in("payment_id", ids);
       const gByP: Record<string, string[]> = {};
-      (groupsWithIds ?? []).forEach((g: any) => {
+      groups.forEach((g: any) => {
+        if (!(g.payment_id in cByP)) cByP[g.payment_id] = null;
         if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
         if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status);
       });
       setCompanyByPayment(cByP);
       setGroupStatusesByPayment(gByP);
 
-      // Carrega SLAs e overrides relevantes em paralelo
+      // Overrides de SLA por empresa (depois dos grupos)
       const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
-      const [{ data: slas }, { data: ovs }] = await Promise.all([
-        supabase.from("sla_settings").select("*").eq("active", true),
-        compIds.length
-          ? supabase.from("company_sla_overrides").select("*").in("company_id", compIds)
-          : Promise.resolve({ data: [] as any[] } as any),
-      ]);
+      const { data: ovs } = compIds.length
+        ? await supabase.from("company_sla_overrides").select("*").in("company_id", compIds)
+        : { data: [] as any[] } as any;
+
       const sMap: Record<string, SlaSetting> = {};
-      (slas ?? []).forEach((s: any) => { sMap[s.status] = s; });
+      slas.forEach((s: any) => { sMap[s.status] = s; });
       setSlaSettings(sMap);
       const oMap: Record<string, CompanySlaOverride> = {};
       (ovs ?? []).forEach((o: any) => { oMap[o.company_id] = o; });
       setCompanyOverrides(oMap);
     }
   }, []);
+
 
   const loadAncillaryData = useCallback(async () => {
     const [{ data: divItems }, { data: questPays }, { data: iq }, { data: openQs }] = await Promise.all([
@@ -423,22 +428,41 @@ const Payments = () => {
   }, [loadAncillaryData]);
 
   useEffect(() => {
+    // Debounce dos refetches: em horário de pico vários eventos chegam em
+    // rajada e disparavam load()/loadAncillaryData() em looping, travando a UI.
+    let loadTimer: ReturnType<typeof setTimeout> | null = null;
+    let ancTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleLoad = () => {
+      if (loadTimer) clearTimeout(loadTimer);
+      loadTimer = setTimeout(() => { load(); }, 600);
+    };
+    const scheduleAnc = () => {
+      if (ancTimer) clearTimeout(ancTimer);
+      ancTimer = setTimeout(() => { loadAncillaryData(); }, 600);
+    };
+    const scheduleBoth = () => { scheduleLoad(); scheduleAnc(); };
+
     const channel = supabase
       .channel("payments-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); loadAncillaryData(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { loadAncillaryData(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, () => { loadAncillaryData(); })
-      // NOVO: detecta conclusão/falha do job de análise
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, scheduleBoth)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, scheduleAnc)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, scheduleAnc)
+      // Detecta conclusão/falha do job de análise
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "payment_processing_jobs",
           filter: "status=in.(concluido,parcial,cancelado)" },
-        () => { load(); loadAncillaryData(); }
+        scheduleBoth,
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (loadTimer) clearTimeout(loadTimer);
+      if (ancTimer) clearTimeout(ancTimer);
+      supabase.removeChannel(channel);
+    };
   }, [load, loadAncillaryData]);
+
 
   // Quando uma empresa é escolhida, busca os payment_ids que possuem itens dela.
   useEffect(() => {
