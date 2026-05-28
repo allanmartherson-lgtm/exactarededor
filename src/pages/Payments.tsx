@@ -569,27 +569,33 @@ const Payments = () => {
   // Ativos = totalRows quando a aba "arquivados" está desligada (RPC já filtra).
   const activeCount = archivedView ? Math.max(0, totalRows - archivedCount) : totalRows;
 
-  // KPIs institucionais (terminal-style summary) — calculados sobre lotes ativos
-  // para refletir o estado operacional da fila, não o histórico arquivado.
-  const kpis = useMemo(() => {
-    const active = rows.filter((r) => !TERMINAL_STATUSES.has(r.status));
-    const totalOpen = active.reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
-    const waitingValidation = active.filter((r) => r.status === "aguardando_validacao").length;
-    const waitingApproval = active.filter((r) => r.status === "aguardando_aprovacao").length;
-    const nowMs = Date.now();
-    const delayed = active.filter((r) => {
-      const since = statusEnteredAt[r.id] ?? r.updated_at ?? r.created_at;
-      return delayLevel(r.status, nowMs - new Date(since).getTime()) !== "none";
-    }).length;
-    // Competência mais frequente entre lotes ativos
-    const counts: Record<string, number> = {};
-    active.forEach((r) => {
-      const c = r.competence_month?.slice(0, 7) ?? r.competence_months?.[0]?.slice(0, 7);
-      if (c) counts[c] = (counts[c] ?? 0) + 1;
-    });
-    const competence = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-    return { totalOpen, waitingValidation, waitingApproval, delayed, activeTotal: active.length, competence };
-  }, [rows, statusEnteredAt]);
+  // KPIs server-side — agregam o universo filtrado inteiro (não só a página).
+  const [serverKpis, setServerKpis] = useState<{ totalOpen: number; waitingValidation: number; waitingApproval: number; delayed: number; activeTotal: number; competence: string | null }>(
+    { totalOpen: 0, waitingValidation: 0, waitingApproval: 0, delayed: 0, activeTotal: 0, competence: null },
+  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc("payments_kpis", { _filters: rpcFilters });
+        if (error) throw error;
+        if (cancelled) return;
+        const p = (data ?? {}) as any;
+        setServerKpis({
+          totalOpen: Number(p.totalOpen ?? 0),
+          waitingValidation: Number(p.waitingValidation ?? 0),
+          waitingApproval: Number(p.waitingApproval ?? 0),
+          delayed: Number(p.delayed ?? 0),
+          activeTotal: Number(p.activeTotal ?? 0),
+          competence: p.competence ?? null,
+        });
+      } catch (e) {
+        console.warn("payments_kpis falhou", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [rpcFilters]);
+  const kpis = serverKpis;
 
   // Toda a filtragem acontece server-side via list_payments. Aqui só removemos
   // linhas em exclusão otimista para feedback imediato.
