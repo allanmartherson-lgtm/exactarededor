@@ -464,14 +464,11 @@ const Payments = () => {
       setStatusEnteredAt(seen);
 
       const cByP: Record<string, string | null> = {};
-      const gByP: Record<string, string[]> = {};
       groups.forEach((g: any) => {
         if (!(g.payment_id in cByP)) cByP[g.payment_id] = null;
         if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
-        if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status);
       });
       setCompanyByPayment(cByP);
-      setGroupStatusesByPayment(gByP);
 
       const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
       const { data: ovs } = compIds.length
