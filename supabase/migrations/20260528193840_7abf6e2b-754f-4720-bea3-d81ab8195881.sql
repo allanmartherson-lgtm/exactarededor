@@ -1,0 +1,1 @@
+ALTER FUNCTION public.list_payments(jsonb, integer, integer, text) VOLATILE;
