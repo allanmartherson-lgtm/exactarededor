@@ -4539,6 +4539,7 @@ export type Database = {
       norm_name: { Args: { t: string }; Returns: string }
       normalize_sector: { Args: { input: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
+      payments_global_stats: { Args: never; Returns: Json }
       question_company_group: {
         Args: {
           p_author_id: string
