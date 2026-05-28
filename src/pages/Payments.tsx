@@ -709,25 +709,8 @@ const Payments = () => {
     if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
     else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status));
     else if (sortBy === "priority") {
-      arr.sort((a, b) => {
-        const pa = calcPriorityScore({
-          slaLevel: slaFor(a)?.level ?? null,
-          elapsedDays: elapsedFor(a) / 86400000,
-          riskScore: 0,
-          status: a.status,
-          totalAmount: Number(a.total_amount),
-          itemsCount: a.items_count,
-        });
-        const pb = calcPriorityScore({
-          slaLevel: slaFor(b)?.level ?? null,
-          elapsedDays: elapsedFor(b) / 86400000,
-          riskScore: 0,
-          status: b.status,
-          totalAmount: Number(b.total_amount),
-          itemsCount: b.items_count,
-        });
-        return pb.score - pa.score;
-      });
+      // Usa priority_score já calculado no banco (sempre fresco via triggers).
+      arr.sort((a, b) => (Number(b.priority_score) || 0) - (Number(a.priority_score) || 0));
     }
     else if (sortBy === "created") arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     else {
