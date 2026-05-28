@@ -148,6 +148,18 @@ Se o texto cita um médico, hospital ou empresa específica, marque como 'especi
     const tc = data.content?.find((b: any) => b.type === "tool_use");
     if (!tc) throw new Error("No tool call");
     const parsed = tc.input;
+
+    // Dedup defensivo: remove regras com rule_text idêntico (após normalização)
+    if (parsed?.rules && Array.isArray(parsed.rules)) {
+      const seen = new Set<string>();
+      parsed.rules = parsed.rules.filter((r: any) => {
+        const key = (r?.rule_text ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
