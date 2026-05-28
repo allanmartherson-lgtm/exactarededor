@@ -50,6 +50,14 @@ serve(async (req) => {
     }
 
     const systemPrompt = `Você converte texto livre em regras estruturadas para validação de pagamentos médicos.
+
+REGRAS CRÍTICAS DE EXTRAÇÃO (LEIA ANTES DE EXTRAIR):
+1. Cada bloco rotulado como "Regra N:", "Regra:", "Cláusula N:" ou equivalente = UMA ÚNICA regra de saída. NUNCA divida uma regra em múltiplas saídas só porque ela tem vários itens numerados (1), 2), 3)) ou múltiplos campos "Condição:". Consolide TODAS as condições e sub-itens daquela regra em um único campo rule_text estruturado (use quebras de linha e numeração dentro do texto).
+2. IGNORE campos vazios, rótulos sem conteúdo (ex: "Condição:" seguido de nada) e linhas de cabeçalho/rodapé (página, código de proposta, assinaturas, "Confidencial").
+3. NÃO duplique regras. Se o mesmo conteúdo aparecer mais de uma vez (ex: repetido em páginas), retorne apenas uma vez. Antes de finalizar, verifique se há regras com rule_text idêntico ou quase idêntico — se sim, mantenha apenas uma.
+4. Se o documento contém apenas 1 regra, retorne EXATAMENTE 1 item no array. Não invente variações nem desmembre.
+5. O campo rule_text deve refletir fielmente o texto do contrato — não parafraseie ao ponto de mudar o sentido, e não invente cláusulas que não estão no documento.
+
 Cada regra deve ter:
 - name: nome curto
 - description: descrição clara
