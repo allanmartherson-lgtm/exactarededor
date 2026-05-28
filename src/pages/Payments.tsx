@@ -46,6 +46,7 @@ interface Row {
   payment_kind: PaymentKind | null;
   processing_diagnostics?: any;
   processing_timeout_occurred?: boolean;
+  priority_score?: number | null;
 }
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
@@ -303,7 +304,8 @@ const Payments = () => {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("payments")
-      .select("id,reference,status,total_amount,bruto_total,liquido_total,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred")
+      .select("id,reference,status,total_amount,bruto_total,liquido_total,items_count,created_at,updated_at,created_by,competence_month,competence_months,payment_due_date,payment_type,payment_kind,processing_diagnostics,processing_timeout_occurred,priority_score")
+      .order("priority_score", { ascending: false })
       .order("created_at", { ascending: false });
     
     const list = (data ?? []) as Row[];
@@ -397,17 +399,19 @@ const Payments = () => {
 
 
   const loadAncillaryData = useCallback(async () => {
-    const [{ data: divItems }, { data: questPays }, { data: iq }, { data: openQs }] = await Promise.all([
-      supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
-      supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
-      supabase.from("invoice_questions").select("payment_id").limit(5000),
+    // Usa a view materializada mv_payments_flags (refresh periódico) + uma única query
+    // de contagem de perguntas abertas. Substitui 4 queries pesadas que escaneavam
+    // milhares de linhas a cada refresh.
+    const [{ data: flags }, { data: openQs }] = await Promise.all([
+      (supabase as any).from("mv_payments_flags").select("payment_id,has_open_question,has_divergence,has_items_error,is_overdue"),
       supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(5000),
     ]);
     const div = new Set<string>();
-    (divItems ?? []).forEach((r: any) => r.payment_id && div.add(r.payment_id));
     const quest = new Set<string>();
-    (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
-    (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
+    (flags ?? []).forEach((r: any) => {
+      if (r.has_divergence) div.add(r.payment_id);
+      if (r.has_open_question) quest.add(r.payment_id);
+    });
     const counts: Record<string, number> = {};
     (openQs ?? []).forEach((r: any) => {
       if (!r.payment_id) return;
@@ -705,25 +709,8 @@ const Payments = () => {
     if (sortBy === "elapsed") arr.sort((a, b) => elapsedFor(b) - elapsedFor(a));
     else if (sortBy === "status") arr.sort((a, b) => a.status.localeCompare(b.status));
     else if (sortBy === "priority") {
-      arr.sort((a, b) => {
-        const pa = calcPriorityScore({
-          slaLevel: slaFor(a)?.level ?? null,
-          elapsedDays: elapsedFor(a) / 86400000,
-          riskScore: 0,
-          status: a.status,
-          totalAmount: Number(a.total_amount),
-          itemsCount: a.items_count,
-        });
-        const pb = calcPriorityScore({
-          slaLevel: slaFor(b)?.level ?? null,
-          elapsedDays: elapsedFor(b) / 86400000,
-          riskScore: 0,
-          status: b.status,
-          totalAmount: Number(b.total_amount),
-          itemsCount: b.items_count,
-        });
-        return pb.score - pa.score;
-      });
+      // Usa priority_score já calculado no banco (sempre fresco via triggers).
+      arr.sort((a, b) => (Number(b.priority_score) || 0) - (Number(a.priority_score) || 0));
     }
     else if (sortBy === "created") arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     else {
