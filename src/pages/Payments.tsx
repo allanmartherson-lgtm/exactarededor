@@ -566,7 +566,8 @@ const Payments = () => {
   // Total real de arquivados (terminais) — calculado server-side, independente
   // da página atual.
   const archivedCount = globalArchivedCount;
-  const activeCount = Math.max(0, totalRows - (archivedView ? 0 : 0));
+  // Ativos = totalRows quando a aba "arquivados" está desligada (RPC já filtra).
+  const activeCount = archivedView ? Math.max(0, totalRows - archivedCount) : totalRows;
 
   // KPIs institucionais (terminal-style summary) — calculados sobre lotes ativos
   // para refletir o estado operacional da fila, não o histórico arquivado.
