@@ -403,15 +403,8 @@ const Payments = () => {
       setRows(list);
       setTotalRows(Number(payload.total ?? 0));
 
-      // Flags de divergência/questionamento já vêm por linha na RPC.
-      const divSet = new Set<string>();
-      const qSet = new Set<string>();
-      list.forEach((r: any) => {
-        if (r.has_divergence) divSet.add(r.id);
-        if (r.has_open_question) qSet.add(r.id);
-      });
-      setPaymentIdsWithDivergence(divSet);
-      setPaymentIdsWithQuestions(qSet);
+      // Flags de divergência/questionamento já vêm por linha na RPC (has_divergence/has_open_question)
+      // e são consumidas direto pelos badges; não precisamos manter sets locais.
 
       const ids = list.map((r) => r.id);
       const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
