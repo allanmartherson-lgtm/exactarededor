@@ -217,12 +217,9 @@ const Payments = () => {
   const [slaSettings, setSlaSettings] = useState<Record<string, SlaSetting>>({});
   const [companyOverrides, setCompanyOverrides] = useState<Record<string, CompanySlaOverride>>({});
   const [companyByPayment, setCompanyByPayment] = useState<Record<string, string | null>>({});
-  const [groupStatusesByPayment, setGroupStatusesByPayment] = useState<Record<string, string[]>>({});
   // Filtros avançados (não dependem de "criado por")
   const [divergenceFilter, setDivergenceFilter] = useState<"all" | "with" | "without">("all");
   const [questionedFilter, setQuestionedFilter] = useState<"all" | "with" | "without">("all");
-  const [paymentIdsWithDivergence, setPaymentIdsWithDivergence] = useState<Set<string>>(new Set());
-  const [paymentIdsWithQuestions, setPaymentIdsWithQuestions] = useState<Set<string>>(new Set());
   // Contagem de perguntas internas abertas por lote (badge nas listagens).
   const [openQuestionCount, setOpenQuestionCount] = useState<Record<string, number>>({});
   const [openQuestionOnly, setOpenQuestionOnly] = useState(() => searchParams.get("open_questions") === "1");
@@ -406,15 +403,8 @@ const Payments = () => {
       setRows(list);
       setTotalRows(Number(payload.total ?? 0));
 
-      // Flags de divergência/questionamento já vêm por linha na RPC.
-      const divSet = new Set<string>();
-      const qSet = new Set<string>();
-      list.forEach((r: any) => {
-        if (r.has_divergence) divSet.add(r.id);
-        if (r.has_open_question) qSet.add(r.id);
-      });
-      setPaymentIdsWithDivergence(divSet);
-      setPaymentIdsWithQuestions(qSet);
+      // Flags de divergência/questionamento já vêm por linha na RPC (has_divergence/has_open_question)
+      // e são consumidas direto pelos badges; não precisamos manter sets locais.
 
       const ids = list.map((r) => r.id);
       const userIds = Array.from(new Set(list.map((r) => r.created_by).filter(Boolean))) as string[];
@@ -474,14 +464,11 @@ const Payments = () => {
       setStatusEnteredAt(seen);
 
       const cByP: Record<string, string | null> = {};
-      const gByP: Record<string, string[]> = {};
       groups.forEach((g: any) => {
         if (!(g.payment_id in cByP)) cByP[g.payment_id] = null;
         if (g.company_id && !cByP[g.payment_id]) cByP[g.payment_id] = g.company_id;
-        if (g.status) (gByP[g.payment_id] = gByP[g.payment_id] ?? []).push(g.status);
       });
       setCompanyByPayment(cByP);
-      setGroupStatusesByPayment(gByP);
 
       const compIds = Array.from(new Set(Object.values(cByP).filter(Boolean))) as string[];
       const { data: ovs } = compIds.length
