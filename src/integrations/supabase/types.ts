@@ -122,6 +122,13 @@ export type Database = {
             foreignKeyName: "ai_analysis_versions_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "ai_analysis_versions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -791,6 +798,13 @@ export type Database = {
             foreignKeyName: "doctor_messages_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "doctor_messages_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1140,6 +1154,13 @@ export type Database = {
             foreignKeyName: "glosa_debts_last_payment_id_fkey"
             columns: ["last_payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "glosa_debts_last_payment_id_fkey"
+            columns: ["last_payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1226,6 +1247,13 @@ export type Database = {
             foreignKeyName: "glosa_items_applied_payment_id_fkey"
             columns: ["applied_payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "glosa_items_applied_payment_id_fkey"
+            columns: ["applied_payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1235,6 +1263,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "glosa_batches"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "glosa_items_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
           },
           {
             foreignKeyName: "glosa_items_matched_payment_id_fkey"
@@ -1411,6 +1446,13 @@ export type Database = {
             foreignKeyName: "invoice_questions_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "invoice_questions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1513,6 +1555,13 @@ export type Database = {
             foreignKeyName: "invoices_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "invoices_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1569,6 +1618,13 @@ export type Database = {
             foreignKeyName: "notification_queue_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "notification_queue_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1609,6 +1665,13 @@ export type Database = {
           source?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_assignments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
           {
             foreignKeyName: "payment_assignments_payment_id_fkey"
             columns: ["payment_id"]
@@ -1686,6 +1749,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_company_financials_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
           },
           {
             foreignKeyName: "payment_company_financials_payment_id_fkey"
@@ -1769,6 +1839,13 @@ export type Database = {
             foreignKeyName: "payment_company_groups_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_company_groups_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -1797,6 +1874,13 @@ export type Database = {
           whatsapp_results?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_director_notifications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
           {
             foreignKeyName: "payment_director_notifications_payment_id_fkey"
             columns: ["payment_id"]
@@ -2015,6 +2099,13 @@ export type Database = {
             foreignKeyName: "payment_items_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -2128,6 +2219,13 @@ export type Database = {
             foreignKeyName: "payment_observations_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_observations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -2156,6 +2254,13 @@ export type Database = {
           rows?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_pivot_cache_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
           {
             foreignKeyName: "payment_pivot_cache_payment_id_fkey"
             columns: ["payment_id"]
@@ -2216,6 +2321,13 @@ export type Database = {
             foreignKeyName: "payment_processing_jobs_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_processing_jobs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -2268,6 +2380,13 @@ export type Database = {
             foreignKeyName: "payment_questions_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_questions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -2299,6 +2418,13 @@ export type Database = {
           status_to?: Database["public"]["Enums"]["payment_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_status_history_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
           {
             foreignKeyName: "payment_status_history_payment_id_fkey"
             columns: ["payment_id"]
@@ -2481,6 +2607,7 @@ export type Database = {
           payment_due_date: string | null
           payment_kind: Database["public"]["Enums"]["payment_kind"] | null
           payment_type: string | null
+          priority_score: number
           processing_diagnostics: Json | null
           processing_timeout_occurred: boolean | null
           reference: string
@@ -2512,6 +2639,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: string | null
+          priority_score?: number
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
           reference: string
@@ -2543,6 +2671,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_kind?: Database["public"]["Enums"]["payment_kind"] | null
           payment_type?: string | null
+          priority_score?: number
           processing_diagnostics?: Json | null
           processing_timeout_occurred?: boolean | null
           reference?: string
@@ -2985,6 +3114,13 @@ export type Database = {
             foreignKeyName: "production_validations_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "production_validations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -3136,6 +3272,13 @@ export type Database = {
             foreignKeyName: "reconciliation_items_applied_payment_id_fkey"
             columns: ["applied_payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "reconciliation_items_applied_payment_id_fkey"
+            columns: ["applied_payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -3226,6 +3369,13 @@ export type Database = {
           valor_divergente?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "reconciliation_runs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
           {
             foreignKeyName: "reconciliation_runs_payment_id_fkey"
             columns: ["payment_id"]
@@ -3886,6 +4036,13 @@ export type Database = {
             foreignKeyName: "status_anomalies_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "status_anomalies_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -4045,6 +4202,16 @@ export type Database = {
       }
     }
     Views: {
+      mv_payments_flags: {
+        Row: {
+          has_divergence: boolean | null
+          has_items_error: boolean | null
+          has_open_question: boolean | null
+          is_overdue: boolean | null
+          payment_id: string | null
+        }
+        Relationships: []
+      }
       v_payment_items_registration_issues: {
         Row: {
           company_id: string | null
@@ -4104,6 +4271,13 @@ export type Database = {
             foreignKeyName: "payment_items_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "mv_payments_flags"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
@@ -4146,6 +4320,10 @@ export type Database = {
         Returns: Json
       }
       calculate_payment_audit: { Args: { p_payment_id: string }; Returns: Json }
+      calculate_payment_priority: {
+        Args: { _payment_id: string }
+        Returns: number
+      }
       compute_payment_item_hash: {
         Args: {
           _agreement: string
@@ -4329,6 +4507,15 @@ export type Database = {
         }
         Returns: number
       }
+      list_payments: {
+        Args: {
+          _filters?: Json
+          _limit?: number
+          _offset?: number
+          _sort?: string
+        }
+        Returns: Json
+      }
       map_calculation_type_to_method: {
         Args: { _ctype: string }
         Returns: string
@@ -4346,6 +4533,10 @@ export type Database = {
           p_message: string
         }
         Returns: string
+      }
+      recalc_payment_priority: {
+        Args: { _payment_id: string }
+        Returns: undefined
       }
       recompute_payment_liquido: {
         Args: { _payment_id: string }
@@ -4367,6 +4558,7 @@ export type Database = {
         }
         Returns: string
       }
+      refresh_mv_payments_flags: { Args: never; Returns: undefined }
       reply_question: {
         Args: {
           p_author_id: string
@@ -4392,6 +4584,8 @@ export type Database = {
         Returns: undefined
       }
       revert_cost_center_import: { Args: { _import_id: string }; Returns: Json }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       unaccent: { Args: { "": string }; Returns: string }
       undo_accept_payment_item: { Args: { _item_id: string }; Returns: Json }
       unignore_glosa_debt: { Args: { _debt_id: string }; Returns: undefined }
