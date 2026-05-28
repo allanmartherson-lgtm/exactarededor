@@ -46,6 +46,7 @@ interface Row {
   payment_kind: PaymentKind | null;
   processing_diagnostics?: any;
   processing_timeout_occurred?: boolean;
+  priority_score?: number | null;
 }
 
 interface StatusEntry { status: PaymentStatus; changed_at: string }
