@@ -507,12 +507,28 @@ const Payments = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [rpcFilters, rpcSort, page, pageSize]);
+  }, [rpcFilters, rpcSort, page, pageSize, view]);
+
+  // Carrega stats globais (não dependem da página atual nem dos filtros locais).
+  const loadGlobalStats = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc("payments_global_stats");
+      if (error) throw error;
+      const payload = (data ?? {}) as { archived_count?: number; competences?: string[]; analysts?: Record<string, string> };
+      setGlobalArchivedCount(Number(payload.archived_count ?? 0));
+      setGlobalCompetences(Array.isArray(payload.competences) ? payload.competences : []);
+      setGlobalAnalysts(payload.analysts ?? {});
+    } catch (e) {
+      console.warn("payments_global_stats falhou", e);
+    }
+  }, []);
 
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
     load();
   }, [load]);
+
+  useEffect(() => { loadGlobalStats(); }, [loadGlobalStats]);
 
   // Realtime: revalida a página atual com debounce (mantém badges e contagens
   // frescos sem looping em rajadas de eventos).
