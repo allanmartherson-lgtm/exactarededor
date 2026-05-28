@@ -232,6 +232,12 @@ const Payments = () => {
   const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
+  // Stats globais (independentes da página atual) — alimentam o toggle de
+  // arquivados, o filtro de competência e o filtro de analista.
+  const [globalArchivedCount, setGlobalArchivedCount] = useState<number>(0);
+  const [globalCompetences, setGlobalCompetences] = useState<string[]>([]);
+  const [globalAnalysts, setGlobalAnalysts] = useState<Record<string, string>>({});
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -384,10 +390,14 @@ const Payments = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Em modo Kanban carregamos um lote maior para que todas as colunas
+      // tenham conteúdo. Em lista, respeita a paginação.
+      const effectiveLimit = view === "kanban" ? 1000 : pageSize;
+      const effectiveOffset = view === "kanban" ? 0 : page * pageSize;
       const { data, error } = await supabase.rpc("list_payments", {
         _filters: rpcFilters,
-        _limit: pageSize,
-        _offset: page * pageSize,
+        _limit: effectiveLimit,
+        _offset: effectiveOffset,
         _sort: rpcSort,
       });
       if (error) throw error;
@@ -497,12 +507,28 @@ const Payments = () => {
       setLoading(false);
       setSearching(false);
     }
-  }, [rpcFilters, rpcSort, page, pageSize]);
+  }, [rpcFilters, rpcSort, page, pageSize, view]);
+
+  // Carrega stats globais (não dependem da página atual nem dos filtros locais).
+  const loadGlobalStats = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc("payments_global_stats");
+      if (error) throw error;
+      const payload = (data ?? {}) as { archived_count?: number; competences?: string[]; analysts?: Record<string, string> };
+      setGlobalArchivedCount(Number(payload.archived_count ?? 0));
+      setGlobalCompetences(Array.isArray(payload.competences) ? payload.competences : []);
+      setGlobalAnalysts(payload.analysts ?? {});
+    } catch (e) {
+      console.warn("payments_global_stats falhou", e);
+    }
+  }, []);
 
   useEffect(() => {
     document.title = "Pagamentos | Exacta Approval";
     load();
   }, [load]);
+
+  useEffect(() => { loadGlobalStats(); }, [loadGlobalStats]);
 
   // Realtime: revalida a página atual com debounce (mantém badges e contagens
   // frescos sem looping em rajadas de eventos).
@@ -510,7 +536,7 @@ const Payments = () => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { load(); }, 600);
+      timer = setTimeout(() => { load(); loadGlobalStats(); }, 600);
     };
     const channel = supabase
       .channel("payments-realtime")
@@ -528,27 +554,20 @@ const Payments = () => {
       if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, loadGlobalStats]);
 
 
 
-  const competenceOptions = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => {
-      (r.competence_months?.length ? r.competence_months : [r.competence_month]).forEach((c) => c && set.add(c.slice(0, 7)));
-    });
-    return Array.from(set).sort().reverse();
-  }, [rows]);
+  // Competências vêm do banco (todos os lotes), não só da página atual.
+  const competenceOptions = useMemo(() => globalCompetences, [globalCompetences]);
 
   const now = Date.now();
 
-  // Total de arquivados (terminais) — independente dos demais filtros, usado
-  // pelo toggle e mensagem de observabilidade ("X lotes arquivados").
-  const archivedCount = useMemo(
-    () => rows.filter((r) => TERMINAL_STATUSES.has(r.status)).length,
-    [rows],
-  );
-  const activeCount = rows.length - archivedCount;
+  // Total real de arquivados (terminais) — calculado server-side, independente
+  // da página atual.
+  const archivedCount = globalArchivedCount;
+  // Ativos = totalRows quando a aba "arquivados" está desligada (RPC já filtra).
+  const activeCount = archivedView ? Math.max(0, totalRows - archivedCount) : totalRows;
 
   // KPIs institucionais (terminal-style summary) — calculados sobre lotes ativos
   // para refletir o estado operacional da fila, não o histórico arquivado.
@@ -579,10 +598,12 @@ const Payments = () => {
     [rows, deletingIds],
   );
 
+  // Analistas vêm do banco (todos os criadores de lotes), não só da página atual.
   const analystOptions = useMemo(() => {
-    const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
-    return ids.map((id) => ({ id, name: analysts[id] ?? "—" })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows, analysts]);
+    return Object.entries(globalAnalysts)
+      .map(([id, name]) => ({ id, name: name || "—" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [globalAnalysts]);
 
   const elapsedFor = (p: Row) => now - new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at).getTime();
 
