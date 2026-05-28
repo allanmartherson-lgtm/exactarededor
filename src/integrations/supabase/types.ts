@@ -4540,6 +4540,7 @@ export type Database = {
       normalize_sector: { Args: { input: string }; Returns: string }
       only_digits: { Args: { txt: string }; Returns: string }
       payments_global_stats: { Args: never; Returns: Json }
+      payments_kpis: { Args: { _filters?: Json }; Returns: Json }
       question_company_group: {
         Args: {
           p_author_id: string
