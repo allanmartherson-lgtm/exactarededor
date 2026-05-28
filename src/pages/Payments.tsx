@@ -572,72 +572,12 @@ const Payments = () => {
     return { totalOpen, waitingValidation, waitingApproval, delayed, activeTotal: active.length, competence };
   }, [rows, statusEnteredAt]);
 
-  const filtered = useMemo(() => rows.filter((r) => {
-    if (deletingIds.has(r.id)) return false;
-    // Arquivamento: por default escondemos lotes em estado terminal das
-    // listagens de trabalho. Toggle "Ver arquivados" inverte o filtro.
-    const isTerminal = TERMINAL_STATUSES.has(r.status);
-    if (archivedView ? !isTerminal : isTerminal) return false;
-    const term = q.trim().toLowerCase();
-    if (term) {
-      const refMatches = r.reference.toLowerCase().includes(term);
-      // Termo curto (<3): só filtra pela referência (busca cruzada não rodou).
-      if (term.length < 3) {
-        if (!refMatches) return false;
-      } else {
-        // Termo longo: união entre referência local e payment_ids do cruzamento.
-        const crossMatches = paymentIdsForQuery?.has(r.id) ?? false;
-        if (!refMatches && !crossMatches) return false;
-      }
-    }
-    if (companyFilter) {
-      if (!paymentIdsForCompany) return false;
-      if (!paymentIdsForCompany.has(r.id)) return false;
-    }
-    if (analystFilter !== "all" && r.created_by !== analystFilter) return false;
-    if (typeFilter !== "all" && r.payment_type !== typeFilter) return false;
-    if (statusFilter !== "all") {
-      const gs = groupStatusesByPayment[r.id] ?? [];
-      if (r.status !== statusFilter && !gs.includes(statusFilter)) return false;
-    }
-    if (ownerGroup !== "all") {
-      const allowed = STATUSES_BY_OWNER[ownerGroup];
-      const gs = groupStatusesByPayment[r.id] ?? [];
-      const matchesByGroup = gs.some((g) => (allowed as readonly string[]).includes(g));
-      if (!allowed.includes(r.status) && !matchesByGroup) return false;
-    }
-    // Validação é fila coletiva: qualquer validador vê todos os lotes em aguardando_validacao.
-    if (onlyMine) {
-      const myRoleStatuses: PaymentStatus[] = [];
-      if (roles.includes("analista") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.analista);
-      if (roles.includes("validador") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.validador);
-      if (roles.includes("diretor") || roles.includes("admin")) myRoleStatuses.push(...STATUSES_BY_OWNER.diretor);
-      const gs = groupStatusesByPayment[r.id] ?? [];
-      const inMineByGroup = gs.some((g) => (myRoleStatuses as readonly string[]).includes(g));
-      if (myRoleStatuses.length && !myRoleStatuses.includes(r.status) && !inMineByGroup) return false;
-    }
-    if (competenceFilter !== "all") {
-      const months = (r.competence_months?.length ? r.competence_months : [r.competence_month]).filter(Boolean) as string[];
-      if (!months.some((m) => m.startsWith(competenceFilter))) return false;
-    }
-    if (delayedOnly) {
-      const since = statusEnteredAt[r.id] ?? r.updated_at ?? r.created_at;
-      const lvl = delayLevel(r.status, now - new Date(since).getTime());
-      if (lvl === "none") return false;
-    }
-    if (divergenceFilter !== "all") {
-      const has = paymentIdsWithDivergence.has(r.id);
-      if (divergenceFilter === "with" && !has) return false;
-      if (divergenceFilter === "without" && has) return false;
-    }
-    if (questionedFilter !== "all") {
-      const has = paymentIdsWithQuestions.has(r.id);
-      if (questionedFilter === "with" && !has) return false;
-      if (questionedFilter === "without" && has) return false;
-    }
-    if (openQuestionOnly && !(openQuestionCount[r.id] > 0)) return false;
-    return true;
-  }), [rows, archivedView, q, companyFilter, paymentIdsForCompany, paymentIdsForQuery, analystFilter, typeFilter, statusFilter, ownerGroup, onlyMine, roles, competenceFilter, delayedOnly, statusEnteredAt, now, divergenceFilter, questionedFilter, paymentIdsWithDivergence, paymentIdsWithQuestions, openQuestionOnly, openQuestionCount, deletingIds, groupStatusesByPayment]);
+  // Toda a filtragem acontece server-side via list_payments. Aqui só removemos
+  // linhas em exclusão otimista para feedback imediato.
+  const filtered = useMemo(
+    () => rows.filter((r) => !deletingIds.has(r.id)),
+    [rows, deletingIds],
+  );
 
   const analystOptions = useMemo(() => {
     const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
