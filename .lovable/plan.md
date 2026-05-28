@@ -1,113 +1,79 @@
-# Pool de Produção entre Empresas — Arquitetura Genérica
+# Solução completa de performance — Pagamentos
 
-## Casos cobertos
+Objetivo: deixar a listagem de Pagamentos rápida e estável mesmo com 10k+ lotes, mantendo a fila de prioridade correta e todos os filtros atuais funcionando em toda a base (não só na página visível).
 
-1. **Infectologistas (split com hospital):** Total 100% convênio − fixo da empresa → divide /2. Metade fica com o hospital (não paga), metade vai para a PJ. Resultado: 1 empresa recebe.
-2. **Pool entre 2 PJs:** Total 100% convênio − plantão da empresa A → restante dividido entre PJ A e PJ B (não envolve hospital). Resultado: 2 empresas recebem.
-3. **Extensível:** N participantes, percentuais arbitrários (60/40, 33/33/33), múltiplas deduções antes do rateio.
+## Entregas
 
-## Modelo de dados
+### 1. Banco — `priority_score` persistido
+- Adicionar coluna `priority_score numeric` em `payments` + índice `idx_payments_priority (priority_score DESC, created_at DESC)`.
+- Função `public.calculate_payment_priority(payment_id)` que reproduz a lógica hoje feita no cliente (SLA + severidade + valor + dias parado + nº de alertas + perguntas abertas).
+- Triggers que recalculam quando muda:
+  - `payments.status`, `payments.total_amount`, `payments.updated_at`
+  - inserção/atualização em `payment_observations` (perguntas abertas)
+  - mudança em `payment_company_groups.status`
+- Cron diário (`pg_cron`) para recalcular o componente "dias parado" de todos os lotes ativos uma vez por dia.
+- Backfill inicial de todos os lotes existentes.
 
-### `pools` (novo)
-Define um esquema de pool reutilizável.
-- `id`, `nome` ("Infecto BSB — split hospital", "Pool A+B")
-- `descricao`
-- `base_calculo`: `soma_convenio_100` | `soma_expected` | `soma_bruto`
-- `ativo`, `vigencia_inicio`, `vigencia_fim`
-- audit (`created_by`, timestamps)
+### 2. Banco — view materializada de flags
+- `mv_payments_flags` com colunas booleanas pré-calculadas: `is_overdue`, `has_open_question`, `has_divergence`, `has_glosa_pendente`.
+- Refresh a cada 5 min via `pg_cron` (tolerância OK para esses filtros).
+- Índice por `payment_id`.
 
-### `pool_deductions` (novo, ordenado)
-Deduções aplicadas ao bolo ANTES do rateio.
-- `pool_id`, `ordem`
-- `tipo`: `fixo_mensal` | `plantao` | `ajuste_credito` | `ajuste_debito` | `glosa_parcelada` | `valor_referencia_externa`
-- `valor` (quando fixo) **ou** `company_id` de origem (quando vem de ajuste cadastrado)
-- `descricao` ("Fixo mensal hospital", "Plantão empresa A")
-- `obrigatoria` (se faltar dado, bloqueia cálculo vs. apenas avisa)
+### 3. Banco — RPC de listagem paginada
+- `public.list_payments(filters jsonb, p_limit int, p_offset int, p_sort text)` retornando `{ rows: jsonb, total: bigint }`.
+- Filtros suportados server-side: `status[]`, `company_ids[]`, `doctor_ids[]`, `competence_from/to`, `search` (via `pg_trgm` em nº do lote, médico, empresa), `only_overdue`, `only_open_questions`, `only_divergence`, `assigned_to`.
+- Ordenação: `priority_score DESC` (default) ou `created_at`, `competence`, `total_amount`.
+- Faz JOIN com `mv_payments_flags` e aplica `LIMIT/OFFSET` no banco.
+- Índices `pg_trgm` em `payments.batch_number`, `companies.name`, `doctors.full_name` para busca textual rápida.
 
-### `pool_participants` (novo)
-Quem recebe o rateio.
-- `pool_id`
-- `company_id` (FK companies) — **ou** `participant_type='hospital_nao_paga'` (sentinel, não gera linha de pagamento)
-- `percentual` (soma deve = 100)
-- `ordem_exibicao`
+### 4. Frontend — `Payments.tsx`
+- Substituir o fetch atual (que baixa tudo) por chamada à RPC com `{ filters, limit: 50, offset: page*50, sort }`.
+- Hook `usePaymentsPaginated(filters, page, sort)` com React Query.
+- Componente de paginação: "← Anterior | Página X de Y | Próximo →" + seletor "50/100/200 por página".
+- Todos os filtros atuais (status, empresa, médico, competência, atrasados, perguntas abertas, divergência, busca) passam a enviar para a RPC; o array em memória vira apenas a página corrente.
+- Remover o cálculo client-side de `priority_score` — usar o valor que vem da RPC.
+- Manter realtime atual (com debounce 600ms) só para invalidar a query da página visível.
 
-### `company_financial_adjustments` (novo — universal, não só pool)
-Créditos/débitos avulsos por empresa, parcelados ou não.
-- `company_id`, `tipo` (credito|debito|glosa_parcelada|acordo)
-- `valor_total`, `parcelas_total`, `parcelas_pagas`
-- `data_inicio`, `ativo`, `origem`, `descricao`
-- `created_by`, audit
+### 5. Limpeza
+- Remover o hook/util que calculava priority no cliente (substituído pelo SQL).
+- Remover loops que iteravam todo o array para badges agregados — passar a usar os contadores que a RPC já retorna em `total` por filtro.
 
-### `company_adjustment_applications` (novo)
-Rastreia em qual `payment_id` cada parcela foi aplicada (idempotência).
+## Detalhes técnicos
 
-### Vínculo regra ↔ pool
-Em `rules`: novo `calculation_type = 'pool_empresa'` + campo `pool_id`. A regra é cadastrada no escopo `master` ou `especifica` (empresa "Infecto") apontando o pool a usar.
-
-## Motor (engine) — 2 passos
-
-**Pass 1 — por item (como hoje):** calcula `expected_amount` de cada `payment_item` a 100% convênio (ou base configurada). Persiste normalmente.
-
-**Pass 2 — pool (novo, após Pass 1):**
-1. Identifica `payment_company_groups` cujas empresas estão em `pool_participants` de pools ativos vigentes no período.
-2. Agrupa itens pelo `pool_id` (não por company).
-3. Calcula bolo = `Σ base_calculo` dos itens elegíveis.
-4. Aplica `pool_deductions` na ordem (fixo + plantão da empresa A + ajustes ativos).
-5. Distribui residual pelos `pool_participants` conforme percentuais.
-6. Para cada participante real (≠ `hospital_nao_paga`):
-   - Cria/atualiza um `payment_company_group` sintético com `total_amount = quota`.
-   - Rateia a quota proporcionalmente nos `payment_items` originais (ou marca os itens como "agrupados em pool" e cria linha sintética — decidir conforme caso de uso de relatório).
-7. Para o sentinel "hospital não paga": gera linha informativa, valor não entra em totais a pagar.
-
-**Auditoria:** salva snapshot completo do cálculo do pool em nova tabela `pool_calculation_runs` (bolo, deduções aplicadas com referência, quotas finais) → vinculada ao `payment_id`.
-
-## UI
-
-### Nova seção "Pools" (sidebar, dentro de Cadastros ou Regras)
-- Lista de pools, criar/editar
-- Form: nome, base, deduções (drag-reorder), participantes (% com validação soma=100)
-- Simulador: cola valores de teste → mostra bolo, deduções, quotas
-
-### Empresas → aba "Financeiro" (já proposta)
-- Lista de `company_financial_adjustments` (credito/debito/glosa parcelada)
-- Botão "Criar crédito/débito"
-- Histórico de aplicações (`company_adjustment_applications`)
-
-### PaymentDetail → card "Cálculo do pool"
-Quando o pagamento envolve pool, mostra:
-```
-Pool: Infecto BSB — split hospital
-Base (100% convênio): R$ 115.332,19
-(−) Fixo mensal hospital:  −45.000,00
-(−) Crédito 12x (parc. 3): −3.730,89
-Bolo líquido:              66.601,30
-Rateio:
-  Hospital (50%) — não paga: 33.300,65
-  Infectologistas (50%):     33.300,65  ← linha de pagamento
+```text
+Fluxo:
+  UI (filtros + page) ──► RPC list_payments ──► payments JOIN mv_flags
+                                              ORDER BY priority_score DESC
+                                              LIMIT 50 OFFSET N
+                                       ◄── { rows: [...], total: 832 }
 ```
 
-### Regras → novo tipo
-Ao escolher `calculation_type = pool_empresa`, mostra dropdown de pools existentes em vez dos campos de percentual normal.
+```text
+Triggers de priority_score:
+  payments      AFTER UPDATE OF status, total_amount        ─► recalc(payment_id)
+  payment_observations  AFTER INSERT/UPDATE/DELETE          ─► recalc(payment_id)
+  payment_company_groups AFTER UPDATE OF status             ─► recalc(payment_id)
+  pg_cron diário 03:00                                       ─► recalc all active
+```
 
-## Fases de entrega
+Fórmula do `priority_score` (replica a do cliente):
+- base = severidade do status (0–40)
+- + idade em dias até teto de 30 (0–20)
+- + log(total_amount+1) normalizado (0–15)
+- + nº alertas críticos × 3 (0–15)
+- + perguntas abertas × 2 (0–10)
+- clamp 0–100
 
-**Fase 1 (esta entrega):**
-- a) Tabelas: `pools`, `pool_deductions`, `pool_participants`, `company_financial_adjustments`, `company_adjustment_applications`, `pool_calculation_runs`
-- b) UI Pools (CRUD + simulador)
-- c) UI Empresas → aba Financeiro (CRUD ajustes)
-- d) Suporte ao tipo `pool_empresa` em regras (form + validação)
+## Impacto esperado
+- Carregamento inicial: ~3–5s → ~200–400ms (independe do tamanho da base).
+- Memória do navegador: cai ~80% em bases grandes.
+- Filtros e busca: passam a refletir a base inteira, não a página.
+- Ordenação por prioridade: correta globalmente, não só na página atual.
 
-**Fase 2:**
-- e) Engine: Pass 2 de cálculo de pool em `analyze-payment` + dispatch
-- f) Card "Cálculo do pool" no PaymentDetail
-- g) Aplicação automática de parcelas de ajustes ativos durante análise
+## Plano de execução
+1. Migração: coluna + função + triggers + índices + mv + RPC + backfill (1 migração consolidada).
+2. Cron jobs (refresh mv + recálculo diário) via insert tool.
+3. Frontend: novo hook + paginação + remoção do cálculo client-side.
+4. QA: validar contagens, ordenação e filtros contra a versão antiga.
 
-**Fase 3:**
-- h) Vínculo `glosa_debts` → gera `company_financial_adjustments` parceladas automaticamente
-- i) Relatório de pools por competência
-
-## Decisões pedidas antes de codar
-
-1. **Linha sintética vs. rateio nos itens originais:** prefere que cada `payment_item` mantenha seu valor original e o pool ajuste apenas o `total_amount` do `payment_company_group` (mais simples, preserva histórico)? Ou rateio item-a-item (relatórios mais detalhados, mais complexo)?
-2. **Hospital "não paga":** OK criar linha informativa zerada para auditoria, ou suprimir totalmente?
-3. **Posso seguir com a Fase 1 (migration + UIs de cadastro), sem mexer no engine ainda?**
+Estimativa: ~3–4 dias de trabalho efetivo, entregue em sequência única. Confirma para eu começar pela migração?
