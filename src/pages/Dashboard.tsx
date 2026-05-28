@@ -873,15 +873,42 @@ const Dashboard = () => {
     load();
   }, [load]);
 
+  // Realtime com invalidação debounçada e segmentada:
+  //  • heavy (800ms) → payments INSERT/DELETE ou UPDATE em campos que afetam KPIs/listas
+  //  • light (600ms) → demais updates triviais (notes/updated_at) + observations/items/groups
+  // Evita reload em rajada quando o motor IA grava em loop em payment_items.
   useEffect(() => {
+    let heavyTimer: ReturnType<typeof setTimeout> | null = null;
+    let lightTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleHeavy = () => {
+      if (heavyTimer) clearTimeout(heavyTimer);
+      heavyTimer = setTimeout(() => { load(); }, 800);
+    };
+    const scheduleLight = () => {
+      if (lightTimer) clearTimeout(lightTimer);
+      lightTimer = setTimeout(() => { load(); }, 600);
+    };
+    const HEAVY_FIELDS = ["status", "total_amount", "liquido_total", "competence_month", "competence_months", "created_by", "approved_at"];
+    const isHeavyPaymentChange = (payload: any) => {
+      if (payload.eventType === "INSERT" || payload.eventType === "DELETE") return true;
+      const oldR = payload.old ?? {};
+      const newR = payload.new ?? {};
+      return HEAVY_FIELDS.some((f) => JSON.stringify(oldR?.[f]) !== JSON.stringify(newR?.[f]));
+    };
     const channel = supabase
       .channel("dashboard-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, () => { load(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, () => { load(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, (payload) => {
+        if (isHeavyPaymentChange(payload)) scheduleHeavy(); else scheduleLight();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, scheduleLight)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, scheduleLight)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_items" }, scheduleLight)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (heavyTimer) clearTimeout(heavyTimer);
+      if (lightTimer) clearTimeout(lightTimer);
+      supabase.removeChannel(channel);
+    };
   }, [load]);
 
   const pipeCounts = useMemo(() => {
