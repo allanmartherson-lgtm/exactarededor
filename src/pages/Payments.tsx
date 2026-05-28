@@ -517,28 +517,48 @@ const Payments = () => {
 
   useEffect(() => { loadGlobalStats(); }, [loadGlobalStats]);
 
-  // Realtime: revalida a página atual com debounce (mantém badges e contagens
-  // frescos sem looping em rajadas de eventos).
+  // Realtime com invalidação segmentada:
+  //  • heavy  → recarrega lista + KPIs + stats globais (mudanças em payments:
+  //             insert/delete, ou update que afete status/totais/competência/criador)
+  //  • light  → só recarrega a lista (badges/flags: observations, questions,
+  //             company_groups, jobs concluídos)
+  // Cada bucket tem seu próprio debounce — eventos leves não disparam reloads pesados.
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const schedule = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => { load(); loadGlobalStats(); }, 600);
+    let heavyTimer: ReturnType<typeof setTimeout> | null = null;
+    let lightTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleHeavy = () => {
+      if (heavyTimer) clearTimeout(heavyTimer);
+      heavyTimer = setTimeout(() => { load(); loadGlobalStats(); }, 800);
+    };
+    const scheduleLight = () => {
+      if (lightTimer) clearTimeout(lightTimer);
+      lightTimer = setTimeout(() => { load(); }, 600);
+    };
+    // Campos da tabela payments que justificam reload pesado quando mudam.
+    const HEAVY_FIELDS = ["status", "total_amount", "competence_month", "competence_months", "created_by", "payment_type", "payment_kind"];
+    const isHeavyPaymentChange = (payload: any) => {
+      if (payload.eventType === "INSERT" || payload.eventType === "DELETE") return true;
+      const oldR = payload.old ?? {};
+      const newR = payload.new ?? {};
+      return HEAVY_FIELDS.some((f) => JSON.stringify(oldR?.[f]) !== JSON.stringify(newR?.[f]));
     };
     const channel = supabase
       .channel("payments-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, schedule)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, schedule)
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, schedule)
-      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, (payload) => {
+        if (isHeavyPaymentChange(payload)) scheduleHeavy(); else scheduleLight();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_company_groups" }, scheduleLight)
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_observations" }, scheduleLight)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoice_questions" }, scheduleLight)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "payment_processing_jobs", filter: "status=in.(concluido,parcial,cancelado)" },
-        schedule,
+        scheduleLight,
       )
       .subscribe();
     return () => {
-      if (timer) clearTimeout(timer);
+      if (heavyTimer) clearTimeout(heavyTimer);
+      if (lightTimer) clearTimeout(lightTimer);
       supabase.removeChannel(channel);
     };
   }, [load, loadGlobalStats]);
