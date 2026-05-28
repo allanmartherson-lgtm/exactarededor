@@ -399,17 +399,19 @@ const Payments = () => {
 
 
   const loadAncillaryData = useCallback(async () => {
-    const [{ data: divItems }, { data: questPays }, { data: iq }, { data: openQs }] = await Promise.all([
-      supabase.from("payment_items").select("payment_id").in("ai_status", ["alerta", "reprovado"]).limit(5000),
-      supabase.from("payments").select("id").eq("status", "nf_questionada").limit(2000),
-      supabase.from("invoice_questions").select("payment_id").limit(5000),
+    // Usa a view materializada mv_payments_flags (refresh periódico) + uma única query
+    // de contagem de perguntas abertas. Substitui 4 queries pesadas que escaneavam
+    // milhares de linhas a cada refresh.
+    const [{ data: flags }, { data: openQs }] = await Promise.all([
+      (supabase as any).from("mv_payments_flags").select("payment_id,has_open_question,has_divergence,has_items_error,is_overdue"),
       supabase.from("payment_observations").select("payment_id").eq("is_question", true).is("resolved_at", null).limit(5000),
     ]);
     const div = new Set<string>();
-    (divItems ?? []).forEach((r: any) => r.payment_id && div.add(r.payment_id));
     const quest = new Set<string>();
-    (questPays ?? []).forEach((r: any) => r.id && quest.add(r.id));
-    (iq ?? []).forEach((r: any) => r.payment_id && quest.add(r.payment_id));
+    (flags ?? []).forEach((r: any) => {
+      if (r.has_divergence) div.add(r.payment_id);
+      if (r.has_open_question) quest.add(r.payment_id);
+    });
     const counts: Record<string, number> = {};
     (openQs ?? []).forEach((r: any) => {
       if (!r.payment_id) return;
