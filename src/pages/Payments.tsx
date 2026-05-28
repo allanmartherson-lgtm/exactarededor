@@ -232,6 +232,12 @@ const Payments = () => {
   const [reprocessProgress, setReprocessProgress] = useState<{ done: number; total: number } | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
+  // Stats globais (independentes da página atual) — alimentam o toggle de
+  // arquivados, o filtro de competência e o filtro de analista.
+  const [globalArchivedCount, setGlobalArchivedCount] = useState<number>(0);
+  const [globalCompetences, setGlobalCompetences] = useState<string[]>([]);
+  const [globalAnalysts, setGlobalAnalysts] = useState<Record<string, string>>({});
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
