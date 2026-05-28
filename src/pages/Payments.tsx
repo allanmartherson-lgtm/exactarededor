@@ -597,10 +597,12 @@ const Payments = () => {
     [rows, deletingIds],
   );
 
+  // Analistas vêm do banco (todos os criadores de lotes), não só da página atual.
   const analystOptions = useMemo(() => {
-    const ids = Array.from(new Set(rows.map((r) => r.created_by).filter(Boolean))) as string[];
-    return ids.map((id) => ({ id, name: analysts[id] ?? "—" })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows, analysts]);
+    return Object.entries(globalAnalysts)
+      .map(([id, name]) => ({ id, name: name || "—" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [globalAnalysts]);
 
   const elapsedFor = (p: Row) => now - new Date(statusEnteredAt[p.id] ?? p.updated_at ?? p.created_at).getTime();
 
