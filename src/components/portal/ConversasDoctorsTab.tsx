@@ -68,7 +68,7 @@ export function ConversasDoctorsTab() {
     setLoading(true);
     setError(null);
     const { data, error } = await supabase
-      .from("doctor_messages" as never)
+      .from("doctor_messages")
       .select("id,doctor_id,author_type,author_name,message,read_at,created_at,payment_id")
       .order("created_at", { ascending: false })
       .limit(2000);
@@ -156,7 +156,7 @@ export function ConversasDoctorsTab() {
       (m) => m.doctor_id === selectedDoctorId && m.author_type === "medico" && m.read_at === null,
     );
     if (!hasUnread) return;
-    void (supabase.from("doctor_messages" as never) as never)
+    void (supabase.from("doctor_messages") as never)
       .update({ read_at: new Date().toISOString() } as never)
       .eq("doctor_id", selectedDoctorId)
       .eq("author_type", "medico")
@@ -182,7 +182,7 @@ export function ConversasDoctorsTab() {
   const sendReply = async () => {
     if (!selectedDoctorId || !reply.trim() || !user?.id) return;
     setSending(true);
-    const { error } = await supabase.from("doctor_messages" as never).insert({
+    const { error } = await supabase.from("doctor_messages").insert({
       doctor_id: selectedDoctorId,
       author_type: "equipe_interna",
       author_user_id: user.id,
