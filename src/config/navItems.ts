@@ -94,6 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/pendencias", label: "Pendências", icon: ListChecksIcon, iconName: "ListChecksIcon", roles: ALL_ROLES },
+      { to: "/conversas", label: "Conversas", icon: ChatsIcon, iconName: "ChatsIcon", roles: ALL_ROLES },
     ],
   },
   {
