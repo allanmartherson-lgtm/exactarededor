@@ -681,6 +681,9 @@ export const AppLayout = () => {
                 {label}
               </span>
             )}
+            {to === "/conversas" && conversasUnread > 0 && (
+              <ConversasBadgeDot count={conversasUnread} absolute={collapsed} />
+            )}
           </NavLink>
         </TooltipTrigger>
         {(collapsed || label.length > 22) && (
