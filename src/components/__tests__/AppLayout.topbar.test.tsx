@@ -179,6 +179,6 @@ describe("AppLayout topbar navigation", () => {
       "Livro Contábil",
       "Sobre o Exacta",
     ]);
-    expect(collected).toHaveLength(34);
+    expect(collected).toHaveLength(35);
   });
 });
