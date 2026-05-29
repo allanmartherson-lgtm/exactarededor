@@ -112,6 +112,7 @@ const SystemAnnouncementsAdmin = lazy(loadSystemAnnouncementsAdmin);
 const FinancialJournal = lazy(loadFinancialJournal);
 const DreReport = lazy(loadDreReport);
 const MoneyHealth = lazy(loadMoneyHealth);
+const BusinessObservability = lazy(loadBusinessObservability);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
