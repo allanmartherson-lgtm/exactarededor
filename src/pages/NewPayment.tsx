@@ -1125,7 +1125,9 @@ const NewPayment = () => {
       quantity: r.quantity,
       procedure_date: r.procedure_date,
       patient_name: r.patient_name,
-      sector: currentBucket?.sectorMapping || r.sector,
+      // Preferir SEMPRE o setor lido da planilha (linha a linha).
+      // O sectorMapping do bucket é apenas fallback quando a planilha não trouxe a coluna.
+      sector: r.sector || currentBucket?.sectorMapping || null,
       attendance_character: r.attendance_character,
       raw_data: r.raw_data as never,
       tipo_linha: r.tipo_linha,
