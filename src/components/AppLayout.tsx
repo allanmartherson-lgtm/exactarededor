@@ -38,7 +38,26 @@ import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";
 import { useCurrentVersion } from "@/hooks/useSystemVersion";
+import { useConversasUnread } from "@/hooks/useConversasUnread";
 import { Link } from "react-router-dom";
+
+/** Bolinha vermelha de não lidas para o item Conversas. */
+const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolute?: boolean }) => {
+  if (count <= 0) return null;
+  const label = count > 9 ? "9+" : String(count);
+  if (absolute) {
+    return (
+      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
+      {label}
+    </span>
+  );
+};
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
