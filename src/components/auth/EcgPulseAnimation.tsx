@@ -144,50 +144,78 @@ export default function EcgPulseAnimation() {
     const T_RISE_END   = 11000;
 
     function drawParticles(ecgProgress: number, elapsed: number) {
+      const w = canvas.width;
+      const h = canvas.height;
+      const midY = h * 0.5;
+      const amp  = h * 0.30;
+
       particles.forEach(p => {
         if (ecgProgress < p.spawnAt) return;
 
-        const w = canvas.width;
-        const h = canvas.height;
-        const midY = h * 0.5;
-        const amp = h * 0.30;
-
         const px = p.xFrac * w;
-
-        const fadeInP = Math.min(1, (ecgProgress - p.spawnAt) / 0.12);
-        const mergeP  = ecgProgress >= p.mergeAt
-          ? Math.min(1, (ecgProgress - p.mergeAt) / 0.08)
-          : 0;
-        const alpha = fadeInP * (1 - mergeP) * 0.82;
-        if (alpha <= 0) return;
-
-        const floatY = Math.sin(elapsed * 0.001 * p.floatSpeed + p.floatPhase) * p.floatAmp * h;
-
         const targetLineY = midY + ecgY(p.xFrac) * amp;
-        const startY = midY + p.yOffset * h;
-        const convergeFrac = Math.pow(mergeP, 0.6);
-        const curY = startY + floatY + (targetLineY - startY) * convergeFrac;
 
-        if (mergeP > 0.4) {
-          ctx.save();
-          ctx.globalAlpha = (mergeP - 0.4) / 0.6 * 0.35;
-          ctx.fillStyle = 'white';
-          ctx.shadowColor = 'white';
-          ctx.shadowBlur = 18;
-          ctx.beginPath();
-          ctx.arc(px, targetLineY, 3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
+        const lifeP = Math.min(1, (ecgProgress - p.spawnAt) / (1 - p.spawnAt));
+
+        const mergeStart = p.mergeAt;
+        const mergeEnd   = Math.min(1, p.mergeAt + 0.10);
+        const mergeP = ecgProgress < mergeStart ? 0
+          : Math.min(1, (ecgProgress - mergeStart) / (mergeEnd - mergeStart));
+        const mergeEased = mergeP < 0.5
+          ? 2 * mergeP * mergeP
+          : -1 + (4 - 2 * mergeP) * mergeP;
+
+        if (mergeP >= 1) return;
+
+        const driftFrac = Math.pow(lifeP, 1.6);
+        const floatY    = Math.sin(elapsed * 0.001 * p.floatSpeed + p.floatPhase)
+                          * p.floatAmp * h * (1 - mergeEased);
+        const startY    = midY + p.yOffset * h;
+        const curY      = startY + floatY + (targetLineY - startY) * driftFrac;
+
+        const fadeInA  = Math.min(1, lifeP / 0.15);
+        const mergeA   = 1 - mergeEased;
+        const alpha    = fadeInA * mergeA * 0.85;
+        if (alpha <= 0.01) return;
+
+        const r = Math.round(198 + (255 - 198) * mergeEased);
+        const g = Math.round(162 + (255 - 162) * mergeEased);
+        const b = Math.round(124 + (255 - 124) * mergeEased);
+        const color = `rgba(${r},${g},${b},${alpha})`;
+
+        const scaleX = 1 + mergeEased * 0.35;
+        const scaleY = 1 - mergeEased * 0.75;
+
+        const blur = mergeEased * 4;
 
         ctx.save();
+        ctx.translate(px, curY);
+        ctx.scale(scaleX, scaleY);
+        if (blur > 0.3) ctx.filter = `blur(${blur.toFixed(1)}px)`;
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#C6A27C';
+        ctx.fillStyle = color;
         ctx.font = `500 ${Math.round(p.fontSize * h)}px system-ui`;
-        ctx.textAlign = 'center';
+        ctx.textAlign  = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(p.label, px, curY);
+        ctx.fillText(p.label, 0, 0);
+        ctx.filter = 'none';
         ctx.restore();
+
+        if (mergeP > 0.2 && mergeP < 0.95) {
+          const pulseA = Math.sin(((mergeP - 0.2) / 0.75) * Math.PI) * 0.55;
+          ctx.save();
+          ctx.globalAlpha = pulseA;
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth   = 2.5 + mergeEased * 2;
+          ctx.lineCap     = 'round';
+          ctx.shadowColor = 'white';
+          ctx.shadowBlur  = 12;
+          ctx.beginPath();
+          ctx.moveTo(px - 6, targetLineY);
+          ctx.lineTo(px + 6, targetLineY);
+          ctx.stroke();
+          ctx.restore();
+        }
       });
     }
 
