@@ -58,7 +58,7 @@ type WrappedProps = Omit<IconProps, "ref"> & {
 function makeIcon(Component: React.ComponentType<IconProps>, displayName: string) {
   const Wrapped = forwardRef<SVGSVGElement, WrappedProps>(
     ({ strokeWidth: _strokeWidth, weight, ...rest }, ref) => (
-      <Component ref={ref} weight={weight ?? "duotone"} {...rest} />
+      <Component ref={ref} weight={weight ?? "fill"} {...rest} />
     ),
   );
   Wrapped.displayName = displayName;
