@@ -1956,7 +1956,7 @@ const Rules = () => {
                                     </div>
 
                                     {fGroupLinks.length === 0 && (
-                                      <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em "Adicionar empresa" ou use médicos avulsos abaixo.</p>
+                                      <p className="text-xs text-muted-foreground italic">Nenhuma empresa vinculada. Clique em "Adicionar empresa" ou use médicos específicos abaixo.</p>
                                     )}
 
                                     {fGroupLinks.length > 0 && (
