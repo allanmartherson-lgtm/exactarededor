@@ -1019,12 +1019,18 @@ function RowMain({
         <td className={cn(cell, TEXT_BODY)} title={it.procedure_name ?? it.description ?? ""}>
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
-        {colVis.setor_lido && (
-          <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{formatSectorName(it.sector)}</td>
-        )}
+        {colVis.setor_lido && (() => {
+          // SETOR (PLANILHA): prioriza o valor cru da planilha (raw_data),
+          // pois `it.sector` pode ter sido sobrescrito por um mapeamento de bucket.
+          const rawSetor = rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? it.sector ?? null;
+          return (
+            <td className={cn(cell, TEXT_META)} title={rawSetor ?? ""}>{formatSectorName(rawSetor)}</td>
+          );
+        })()}
         {colVis.setor_inferido && (
           (() => {
-            const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? null;
+            const rawSetor = rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]);
+            const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? rawSetor ?? null;
             return (
               <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{formatSectorName(inf)}</td>
             );
