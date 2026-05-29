@@ -152,67 +152,73 @@ export default function EcgPulseAnimation() {
       particles.forEach(p => {
         if (ecgProgress < p.spawnAt) return;
 
-        const px = p.xFrac * w;
-        const targetLineY = midY + ecgY(p.xFrac) * amp;
+        const px        = p.xFrac * w;
+        const lineY     = midY + ecgY(p.xFrac) * amp;
+        const startY    = midY + p.yOffset * h;
 
-        const lifeP = Math.min(1, (ecgProgress - p.spawnAt) / (1 - p.spawnAt));
+        const driftRange = Math.max(0.01, p.mergeAt - p.spawnAt);
+        const driftRaw   = (ecgProgress - p.spawnAt) / driftRange;
+        const driftP     = Math.min(1, Math.max(0, driftRaw));
+        const driftEased = driftP < 0.5
+          ? 2 * driftP * driftP
+          : -1 + (4 - 2 * driftP) * driftP;
 
-        const mergeStart = p.mergeAt;
-        const mergeEnd   = Math.min(1, p.mergeAt + 0.10);
-        const mergeP = ecgProgress < mergeStart ? 0
-          : Math.min(1, (ecgProgress - mergeStart) / (mergeEnd - mergeStart));
+        const MERGE_DUR = 0.20;
+        const mergeRaw  = (ecgProgress - p.mergeAt) / MERGE_DUR;
+        const mergeP    = Math.min(1, Math.max(0, mergeRaw));
         const mergeEased = mergeP < 0.5
           ? 2 * mergeP * mergeP
           : -1 + (4 - 2 * mergeP) * mergeP;
 
         if (mergeP >= 1) return;
 
-        const driftFrac = Math.pow(lifeP, 1.6);
-        const floatY    = Math.sin(elapsed * 0.001 * p.floatSpeed + p.floatPhase)
-                          * p.floatAmp * h * (1 - mergeEased);
-        const startY    = midY + p.yOffset * h;
-        const curY      = startY + floatY + (targetLineY - startY) * driftFrac;
+        const floatY = Math.sin(elapsed * 0.001 * p.floatSpeed + p.floatPhase)
+                       * p.floatAmp * h
+                       * (1 - mergeEased);
 
-        const fadeInA  = Math.min(1, lifeP / 0.15);
-        const mergeA   = 1 - mergeEased;
-        const alpha    = fadeInA * mergeA * 0.85;
+        const driftY = startY + floatY + (lineY - startY) * driftEased;
+        const curY   = driftP < 1 ? driftY : lineY + floatY;
+
+        const fadeInA  = Math.min(1, driftP / 0.2);
+        const mergeOutA = mergeP > 0.7 ? 1 - (mergeP - 0.7) / 0.3 : 1;
+        const alpha    = fadeInA * mergeOutA * 0.88;
         if (alpha <= 0.01) return;
 
         const r = Math.round(198 + (255 - 198) * mergeEased);
         const g = Math.round(162 + (255 - 162) * mergeEased);
         const b = Math.round(124 + (255 - 124) * mergeEased);
-        const color = `rgba(${r},${g},${b},${alpha})`;
 
-        const scaleX = 1 + mergeEased * 0.35;
-        const scaleY = 1 - mergeEased * 0.75;
+        const scaleX = 1 + mergeEased * 0.3;
+        const scaleY = Math.max(0.02, 1 - mergeEased * 0.98);
 
-        const blur = mergeEased * 4;
+        const blur = mergeEased * 3;
 
         ctx.save();
         ctx.translate(px, curY);
         ctx.scale(scaleX, scaleY);
-        if (blur > 0.3) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+        if (blur > 0.4) ctx.filter = `blur(${blur.toFixed(1)}px)`;
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = color;
-        ctx.font = `500 ${Math.round(p.fontSize * h)}px system-ui`;
-        ctx.textAlign  = 'center';
+        ctx.fillStyle   = `rgba(${r},${g},${b},1)`;
+        ctx.font        = `500 ${Math.round(p.fontSize * h)}px system-ui`;
+        ctx.textAlign   = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(p.label, 0, 0);
-        ctx.filter = 'none';
+        ctx.filter  = 'none';
         ctx.restore();
 
-        if (mergeP > 0.2 && mergeP < 0.95) {
-          const pulseA = Math.sin(((mergeP - 0.2) / 0.75) * Math.PI) * 0.55;
+        if (mergeP > 0.1 && mergeP < 0.9) {
+          const pulseA = Math.sin(((mergeP - 0.1) / 0.8) * Math.PI) * 0.6;
+          const pulseW = 8 + mergeEased * 10;
           ctx.save();
           ctx.globalAlpha = pulseA;
-          ctx.strokeStyle = 'white';
-          ctx.lineWidth   = 2.5 + mergeEased * 2;
+          ctx.strokeStyle = `rgba(${r},${g},${b},1)`;
+          ctx.lineWidth   = 2 + mergeEased * 2;
           ctx.lineCap     = 'round';
           ctx.shadowColor = 'white';
-          ctx.shadowBlur  = 12;
+          ctx.shadowBlur  = 10 * pulseA;
           ctx.beginPath();
-          ctx.moveTo(px - 6, targetLineY);
-          ctx.lineTo(px + 6, targetLineY);
+          ctx.moveTo(px - pulseW, lineY);
+          ctx.lineTo(px + pulseW, lineY);
           ctx.stroke();
           ctx.restore();
         }
