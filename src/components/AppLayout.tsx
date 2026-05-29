@@ -827,12 +827,14 @@ export const AppLayout = () => {
             <LayoutToggle />
           </div>
           <SidebarVersionFooter />
+            </>
+          )}
         </div>
       </aside>
 
       <div
         className="nav-main flex flex-col min-h-screen"
-        style={{ marginLeft: 260, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
+        style={{ marginLeft: sidebarWidth, transition: "margin-left 0.2s ease, opacity 0.2s ease" }}
       >
         {/* Slim top bar */}
         <header
