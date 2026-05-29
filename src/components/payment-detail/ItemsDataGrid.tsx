@@ -55,6 +55,9 @@ import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { formatSectorName } from "@/lib/sectorDisplay";
 import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
+import { useSectorAliases } from "@/hooks/useSectorAliases";
+
+const SECTOR_RAW_KEYS = ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"] as const;
 import { authorRoleLabel } from "@/lib/observations";
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
@@ -945,6 +948,15 @@ function RowMain({
   const expN = expected != null ? Number(expected) : null;
   const diff = expN != null ? expN - grossN : null;
   const diverges = diff != null && Math.abs(diff) > 0.01;
+  const sectorAliases = useSectorAliases();
+  const rawSetor = rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[]) ?? null;
+  // "Setor (Sistema)": resolve via alias map a partir da planilha — assim o display fica
+  // correto mesmo quando `it.sector` foi persistido errado (override antigo do bucket).
+  const resolvedSystemSector =
+    (sectorAliases?.resolve(rawSetor) ??
+      sectorAliases?.resolve(it.sector) ??
+      it.sector ??
+      rawSetor) || null;
 
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
   const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
@@ -1020,21 +1032,13 @@ function RowMain({
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
         {colVis.setor_lido && (() => {
-          // SETOR (PLANILHA): prioriza o valor cru da planilha (raw_data),
-          // pois `it.sector` pode ter sido sobrescrito por um mapeamento de bucket.
-          const rawSetor = rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? it.sector ?? null;
+          const planilhaSetor = rawSetor ?? it.sector ?? null;
           return (
-            <td className={cn(cell, TEXT_META)} title={rawSetor ?? ""}>{formatSectorName(rawSetor)}</td>
+            <td className={cn(cell, TEXT_META)} title={planilhaSetor ?? ""}>{formatSectorName(planilhaSetor)}</td>
           );
         })()}
         {colVis.setor_inferido && (
-          (() => {
-            const rawSetor = rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]);
-            const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? rawSetor ?? null;
-            return (
-              <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{formatSectorName(inf)}</td>
-            );
-          })()
+          <td className={cn(cell, TEXT_META)} title={resolvedSystemSector ?? ""}>{formatSectorName(resolvedSystemSector)}</td>
         )}
         <td className={cn(cell, TEXT_BODY)} title={it.doctor_name ?? ""}>
           <span className="truncate block">{it.doctor_name}</span>
@@ -1268,6 +1272,7 @@ function ItemDetailsRow({
   showTipoEntrada?: boolean;
 }) {
   const alerts = (it.ai_findings?.alerts ?? []) as string[];
+  const sectorAliases = useSectorAliases();
   const matchedIds: string[] = it.ai_findings?.matched_rule_ids ?? [];
   const matchedNames: string[] = it.ai_findings?.matched_rules ?? [];
   const seen = new Set<string>();
@@ -1324,8 +1329,15 @@ function ItemDetailsRow({
     { label: "Procedimento", value: getProcedureName(it) },
     { label: "Médico", value: it.doctor_name ?? "—" },
     { label: "Função", value: getDoctorRole(it) },
-    { label: "Setor (Planilha)", value: formatSectorName(rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? it.sector ?? null) },
-    { label: "Setor (Sistema)", value: formatSectorName((it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? rawPick(it.raw_data, ["setor", "unidade", "unidade de atendimento", "departamento", "servico", "serviço"]) ?? null) },
+    { label: "Setor (Planilha)", value: formatSectorName(rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[]) ?? it.sector ?? null) },
+    { label: "Setor (Sistema)", value: formatSectorName(
+        sectorAliases?.resolve(rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[])) ??
+        sectorAliases?.resolve(it.sector) ??
+        (it.ai_findings?.engine as any)?.inferred_sector ??
+        it.sector ??
+        rawPick(it.raw_data, SECTOR_RAW_KEYS as unknown as string[]) ??
+        null
+      ) },
   ];
 
   const fmtDate = (d: string | null | undefined) => {
