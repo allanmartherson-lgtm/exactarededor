@@ -174,7 +174,7 @@ const ThemeToggle = () => {
  * Topbar nav (with dropdown groups). Only one dropdown open at
  * a time. Closes on outside click and on route change.
  * ============================================================ */
-const TopbarNav = ({ items }: { items: NavItem[] }) => {
+const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnread: number }) => {
   const location = useLocation();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLElement | null>(null);
@@ -202,6 +202,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
     >
       {items.map((item) => {
         if (!isGroup(item)) {
+          const showBadge = item.to === "/conversas" && conversasUnread > 0;
           return (
             <NavLink
               key={item.to}
@@ -209,7 +210,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -218,6 +219,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
             >
               <item.icon className="size-[22px] flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
+              {showBadge && <ConversasBadgeDot count={conversasUnread} absolute />}
             </NavLink>
           );
         }
