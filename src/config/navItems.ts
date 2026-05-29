@@ -36,6 +36,7 @@ import {
   BookOpen,
   HeadsetIcon,
   ListChecksIcon,
+  ChatsIcon,
 } from "@/config/icons/navIcons";
 
 export type Role = "analista" | "validador" | "diretor" | "admin";
@@ -93,6 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
     children: [
       { to: "/pendencias", label: "Pendências", icon: ListChecksIcon, iconName: "ListChecksIcon", roles: ALL_ROLES },
+      { to: "/conversas", label: "Conversas", icon: ChatsIcon, iconName: "ChatsIcon", roles: ALL_ROLES },
     ],
   },
   {
@@ -188,6 +190,7 @@ export const EXPECTED_SIDEBAR_ORDER: ReadonlyArray<{ label: string; iconName: st
   { label: "Ciclo de NF", iconName: "FileWarning" },
   { label: "Glosas e Conciliação", iconName: "ShieldX" },
   { label: "Pendências", iconName: "ListChecksIcon" },
+  { label: "Conversas", iconName: "ChatsIcon" },
   { label: "KPIs", iconName: "BarChart2" },
   { label: "Executivo", iconName: "BarChart3" },
   { label: "DRE & Posição em Aberto", iconName: "TrendingUp" },

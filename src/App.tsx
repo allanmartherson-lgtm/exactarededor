@@ -66,6 +66,8 @@ const loadDreReport = () => import("./pages/DreReport.tsx");
 const loadMoneyHealth = () => import("./pages/MoneyHealth.tsx");
 const loadBusinessObservability = () => import("./pages/BusinessObservability.tsx");
 const loadPendencias = () => import("./pages/Pendencias.tsx");
+const loadPendenciaDetail = () => import("./pages/PendenciaDetail.tsx");
+const loadConversas = () => import("./pages/Conversas.tsx");
 
 const Dashboard = lazy(loadDashboard);
 const ExecutiveDashboard = lazy(loadExecutiveDashboard);
@@ -115,6 +117,8 @@ const DreReport = lazy(loadDreReport);
 const MoneyHealth = lazy(loadMoneyHealth);
 const BusinessObservability = lazy(loadBusinessObservability);
 const Pendencias = lazy(loadPendencias);
+const PendenciaDetail = lazy(loadPendenciaDetail);
+const Conversas = lazy(loadConversas);
 
 // Defaults agressivos de cache: evita refetch a cada navegação entre telas,
 // mantém os dados "frescos" por 60s e os mantém no cache por 10 min após
@@ -215,6 +219,8 @@ const App = () => (
                   <Route path="/ciclo-nf" element={<NfCycle />} />
                   <Route path="/glosas" element={<ProtectedRoute roles={["diretor", "admin", "analista"]}><Glosas /></ProtectedRoute>} />
                   <Route path="/pendencias" element={<Pendencias />} />
+                  <Route path="/pendencias/:id" element={<PendenciaDetail />} />
+                  <Route path="/conversas" element={<Conversas />} />
                   <Route path="/saude" element={<ProtectedRoute roles={["diretor", "admin"]}><HealthMonitoring /></ProtectedRoute>} />
                   <Route path="/regras" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />
                   <Route path="/regras/pagamento" element={<ProtectedRoute roles={["diretor", "admin"]}><Rules /></ProtectedRoute>} />

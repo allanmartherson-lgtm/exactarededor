@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 import { ListChecksIcon } from "@/config/icons/navIcons";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -35,13 +38,9 @@ type Pendencia = {
   doctor_name: string;
   subject: string;
   description: string;
-  status:
-    | "aberta"
-    | "em_analise"
-    | "respondida"
-    | "resolvida"
-    | "cancelada";
+  status: "aberta" | "em_analise" | "respondida" | "resolvida" | "cancelada";
   priority: "baixa" | "normal" | "alta";
+  assigned_to: string | null;
   payment_id: string | null;
   created_at: string;
   resolved_at: string | null;
@@ -80,50 +79,85 @@ const EVENT_LABEL: Record<Pendencia["event_type"], string> = {
 };
 
 export default function Pendencias() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [items, setItems] = useState<Pendencia[]>([]);
+  const [companies, setCompanies] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("todas");
+  const [statusFilter, setStatusFilter] = useState<string>("abertas");
+  const [priorityFilter, setPriorityFilter] = useState<string>("todas");
+  const [companyFilter, setCompanyFilter] = useState<string>("todas");
+  const [mineOnly, setMineOnly] = useState<boolean>(false);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error } = await supabase
-        .from("pendencias" as never)
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (cancelled) return;
-      if (error) {
-        setError(error.message);
-        setItems([]);
-      } else {
-        setItems((data ?? []) as unknown as Pendencia[]);
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("pendencias" as never)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      setError(error.message);
+      setItems([]);
+    } else {
+      const list = (data ?? []) as unknown as Pendencia[];
+      setItems(list);
+      const ids = Array.from(new Set(list.map((p) => p.company_id)));
+      if (ids.length > 0) {
+        const { data: cs } = await supabase
+          .from("companies")
+          .select("id,name")
+          .in("id", ids);
+        const map: Record<string, string> = {};
+        (cs ?? []).forEach((c: { id: string; name: string }) => {
+          map[c.id] = c.name;
+        });
+        setCompanies(map);
       }
-      setLoading(false);
-    })();
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void load();
+    const channel = supabase
+      .channel("pendencias-list")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pendencias" },
+        () => void load(),
+      )
+      .subscribe();
     return () => {
-      cancelled = true;
+      void supabase.removeChannel(channel);
     };
   }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((p) => {
-      if (statusFilter !== "todas" && p.status !== statusFilter) return false;
+      if (statusFilter === "abertas") {
+        if (p.status === "resolvida" || p.status === "cancelada") return false;
+      } else if (statusFilter !== "todas" && p.status !== statusFilter) {
+        return false;
+      }
+      if (priorityFilter !== "todas" && p.priority !== priorityFilter) return false;
+      if (companyFilter !== "todas" && p.company_id !== companyFilter) return false;
+      if (mineOnly && p.assigned_to !== user?.id) return false;
       if (!q) return true;
       return (
         p.subject.toLowerCase().includes(q) ||
         p.patient_name.toLowerCase().includes(q) ||
         p.doctor_name.toLowerCase().includes(q) ||
         p.agreement_name.toLowerCase().includes(q) ||
-        (p.attendance_number?.toLowerCase().includes(q) ?? false)
+        (p.attendance_number?.toLowerCase().includes(q) ?? false) ||
+        (companies[p.company_id] ?? "").toLowerCase().includes(q)
       );
     });
-  }, [items, statusFilter, search]);
+  }, [items, statusFilter, priorityFilter, companyFilter, mineOnly, search, user?.id, companies]);
 
   const counts = useMemo(() => {
     const c = { aberta: 0, em_analise: 0, respondida: 0, resolvida: 0, cancelada: 0 };
@@ -132,6 +166,12 @@ export default function Pendencias() {
     });
     return c;
   }, [items]);
+
+  const companyOptions = useMemo(() => {
+    const entries = Object.entries(companies);
+    entries.sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+    return entries;
+  }, [companies]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -144,9 +184,11 @@ export default function Pendencias() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         {(["aberta", "em_analise", "respondida", "resolvida", "cancelada"] as const).map(
           (s) => (
-            <div
+            <button
               key={s}
-              className="rounded-lg border border-border bg-card px-3 py-2 flex flex-col gap-0.5"
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              className="rounded-lg border border-border bg-card px-3 py-2 flex flex-col gap-0.5 text-left hover:bg-muted/50 transition-colors"
             >
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 {STATUS_LABEL[s]}
@@ -154,24 +196,25 @@ export default function Pendencias() {
               <span className="text-xl font-semibold text-foreground">
                 {counts[s] ?? 0}
               </span>
-            </div>
+            </button>
           ),
         )}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-2 md:items-center">
+      <div className="flex flex-col md:flex-row md:flex-wrap gap-2 md:items-center">
         <Input
-          placeholder="Buscar por assunto, paciente, médico, convênio…"
+          placeholder="Buscar por assunto, paciente, médico, empresa…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="md:max-w-md"
+          className="md:max-w-sm"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="md:w-[180px]">
+          <SelectTrigger className="md:w-[160px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todas">Todos os status</SelectItem>
+            <SelectItem value="abertas">Em aberto</SelectItem>
+            <SelectItem value="todas">Todos status</SelectItem>
             <SelectItem value="aberta">Aberta</SelectItem>
             <SelectItem value="em_analise">Em análise</SelectItem>
             <SelectItem value="respondida">Respondida</SelectItem>
@@ -179,6 +222,38 @@ export default function Pendencias() {
             <SelectItem value="cancelada">Cancelada</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="md:w-[140px]">
+            <SelectValue placeholder="Prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            <SelectItem value="alta">Alta</SelectItem>
+            <SelectItem value="normal">Normal</SelectItem>
+            <SelectItem value="baixa">Baixa</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+          <SelectTrigger className="md:w-[200px]">
+            <SelectValue placeholder="Empresa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas empresas</SelectItem>
+            {companyOptions.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          variant={mineOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setMineOnly((v) => !v)}
+        >
+          {mineOnly ? "Mostrando minhas" : "Atribuídas a mim"}
+        </Button>
       </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -186,10 +261,10 @@ export default function Pendencias() {
           <TableHeader>
             <TableRow>
               <TableHead>Aberta em</TableHead>
+              <TableHead>Empresa</TableHead>
               <TableHead>Assunto</TableHead>
               <TableHead>Paciente</TableHead>
               <TableHead>Médico</TableHead>
-              <TableHead>Convênio</TableHead>
               <TableHead>Evento</TableHead>
               <TableHead>Prioridade</TableHead>
               <TableHead>Status</TableHead>
@@ -229,21 +304,28 @@ export default function Pendencias() {
             {!loading &&
               !error &&
               filtered.map((p) => (
-                <TableRow key={p.id}>
+                <TableRow
+                  key={p.id}
+                  className="cursor-pointer hover:bg-muted/40"
+                  onClick={() => navigate(`/pendencias/${p.id}`)}
+                >
                   <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                     {format(new Date(p.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                  </TableCell>
+                  <TableCell className="text-[12.5px] text-muted-foreground">
+                    {companies[p.company_id] ?? "—"}
                   </TableCell>
                   <TableCell className="font-medium text-foreground">
                     <div className="flex flex-col">
                       <span>{p.subject}</span>
                       <span className="text-[11px] text-muted-foreground">
                         por {p.created_by_name}
+                        {p.assigned_to === user?.id && " · você"}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>{p.patient_name}</TableCell>
                   <TableCell>{p.doctor_name}</TableCell>
-                  <TableCell>{p.agreement_name}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span>{EVENT_LABEL[p.event_type]}</span>

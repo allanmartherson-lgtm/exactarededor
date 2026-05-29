@@ -34,6 +34,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_ITEMS, isGroup, flattenNav, filterNav, type NavItem } from "@/config/navItems";
 import { useQueueNotifications } from "@/hooks/useQueueNotifications";
 import { NotificationBell } from "@/components/NotificationBell";
+import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";
 import { useCurrentVersion } from "@/hooks/useSystemVersion";
@@ -578,6 +579,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <PortalUnreadBadge />
               <NotificationBell />
               <div className="hidden md:flex items-center gap-1">
                 <ThemeToggle />
@@ -868,6 +870,7 @@ export const AppLayout = () => {
                   <span className="hidden md:inline">Nova base</span>
                 </Button>
               )}
+              <PortalUnreadBadge />
               <NotificationBell />
               <LayoutToggle />
             </div>
