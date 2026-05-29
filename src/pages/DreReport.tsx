@@ -181,7 +181,7 @@ export default function DreReport() {
                   {dre.length === 0 ? (
                     <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sem dados no período.</TableCell></TableRow>
                   ) : dre.map((r, i) => (
-                    <TableRow key={i}>
+                    <TableRow key={i} onClick={() => openDrill(r)} className="cursor-pointer hover:bg-muted/40">
                       <TableCell className="text-xs">{new Date(r.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</TableCell>
                       <TableCell>{r.company_name ?? "—"}</TableCell>
                       <TableCell>{r.doctor_name ?? "—"}</TableCell>
@@ -190,7 +190,9 @@ export default function DreReport() {
                       <TableCell className="text-right text-green-600">{fmt(r.creditos)}</TableCell>
                       <TableCell className="text-right text-red-600">{fmt(r.glosas)}</TableCell>
                       <TableCell className="text-right">{fmt(r.pool)}</TableCell>
-                      <TableCell className="text-right font-bold">{fmt(r.liquido)}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        <span className="inline-flex items-center gap-1">{fmt(r.liquido)}<ChevronRight className="h-3 w-3 text-muted-foreground" /></span>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
