@@ -2178,8 +2178,8 @@ const Rules = () => {
 
                                   <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
                                     <div>
-                                      <Label className="text-sm font-semibold">Médicos avulsos (sem empresa)</Label>
-                                      <p className="text-xs text-muted-foreground">Use quando o acordo segue o médico, independente da PJ que faturar (ex.: Dr. Narcélio recebe o acordo Coluna mesmo faturando por qualquer CNPJ). Casa por nome+CRM em qualquer empresa do item. Pode ser combinado com os vínculos por empresa acima — o motor aceita os dois caminhos (OR).</p>
+                                      <Label className="text-sm font-semibold">Médicos específicos (regra exclusiva para eles)</Label>
+                                      <p className="text-xs text-muted-foreground">Use quando o acordo segue o médico, não a PJ. Os médicos listados aqui recebem ESTA regra em qualquer empresa pela qual estejam faturando — e ficam automaticamente <strong>expurgados</strong> de outras regras que cubram a PJ inteira deles. Casa por nome+CRM em qualquer empresa do item. Pode ser combinado com os vínculos por empresa acima (OR).</p>
                                     </div>
                                     <DoctorsEditor value={fGroupDoctors} onChange={setFGroupDoctors} />
                                   </div>
