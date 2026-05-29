@@ -38,7 +38,26 @@ import { PortalUnreadBadge } from "@/components/portal/PortalUnreadBadge";
 import { InvoiceRetryMonitor } from "@/components/InvoiceRetryMonitor";
 import { SystemAnnouncementBanner } from "@/components/SystemAnnouncementBanner";
 import { useCurrentVersion } from "@/hooks/useSystemVersion";
+import { useConversasUnread } from "@/hooks/useConversasUnread";
 import { Link } from "react-router-dom";
+
+/** Bolinha vermelha de não lidas para o item Conversas. */
+const ConversasBadgeDot = ({ count, absolute = false }: { count: number; absolute?: boolean }) => {
+  if (count <= 0) return null;
+  const label = count > 9 ? "9+" : String(count);
+  if (absolute) {
+    return (
+      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold leading-none flex items-center justify-center px-1">
+      {label}
+    </span>
+  );
+};
 
 // Re-export for backward compatibility with existing importers (tests, diagnostic page).
 export { NAV_ITEMS, isGroup, flattenNav, filterNav, ALL_ROLES } from "@/config/navItems";
@@ -155,7 +174,7 @@ const ThemeToggle = () => {
  * Topbar nav (with dropdown groups). Only one dropdown open at
  * a time. Closes on outside click and on route change.
  * ============================================================ */
-const TopbarNav = ({ items }: { items: NavItem[] }) => {
+const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnread: number }) => {
   const location = useLocation();
   const [openKey, setOpenKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLElement | null>(null);
@@ -183,6 +202,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
     >
       {items.map((item) => {
         if (!isGroup(item)) {
+          const showBadge = item.to === "/conversas" && conversasUnread > 0;
           return (
             <NavLink
               key={item.to}
@@ -190,7 +210,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-[15px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -199,6 +219,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
             >
               <item.icon className="size-[22px] flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
+              {showBadge && <ConversasBadgeDot count={conversasUnread} absolute />}
             </NavLink>
           );
         }
@@ -515,6 +536,7 @@ export const AppLayout = () => {
   const { user, roles, signOut } = useAuth();
   // Notificações realtime de fila/devolução para o usuário logado.
   useQueueNotifications();
+  const conversasUnread = useConversasUnread();
   const navigate = useNavigate();
   const location = useLocation();
   const { layout } = useNavLayout();
@@ -624,6 +646,7 @@ export const AppLayout = () => {
         ? "hsl(var(--sidebar-accent-foreground))"
         : "hsl(var(--sidebar-muted-foreground))",
       fontWeight: isActive ? 500 : 400,
+      position: "relative",
     };
     const IconCmp = Icon as unknown as React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; "aria-hidden"?: boolean }>;
     return (
@@ -658,6 +681,9 @@ export const AppLayout = () => {
               >
                 {label}
               </span>
+            )}
+            {to === "/conversas" && conversasUnread > 0 && (
+              <ConversasBadgeDot count={conversasUnread} absolute={collapsed} />
             )}
           </NavLink>
         </TooltipTrigger>
@@ -705,6 +731,9 @@ export const AppLayout = () => {
               >
                 <item.icon size={20} strokeWidth={1.75} className="flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
+                {item.to === "/conversas" && conversasUnread > 0 && (
+                  <ConversasBadgeDot count={conversasUnread} />
+                )}
               </NavLink>
             );
           })}
@@ -763,7 +792,7 @@ export const AppLayout = () => {
             {MobileNavDrawer}
             <Logo />
             <div className="hidden md:flex flex-1 min-w-0">
-              <TopbarNav items={visibleTopNav} />
+              <TopbarNav items={visibleTopNav} conversasUnread={conversasUnread} />
             </div>
             <div className="flex-1 md:hidden" />
 
