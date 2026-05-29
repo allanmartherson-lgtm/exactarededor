@@ -184,14 +184,14 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[14px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )
               }
             >
-              <item.icon className="size-4 flex-shrink-0" strokeWidth={1.75} />
+              <item.icon className="size-5 flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
             </NavLink>
           );
@@ -210,13 +210,13 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
               aria-haspopup="menu"
               aria-expanded={isOpen}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[14px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 groupActive || isOpen
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <item.icon className="size-4 flex-shrink-0" strokeWidth={1.75} />
+              <item.icon className="size-5 flex-shrink-0" strokeWidth={1.75} />
               <span>{item.label}</span>
               <ChevronDown
                 className={cn(
@@ -259,14 +259,14 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
                       style={{
                         padding: "7px 10px",
                         borderRadius: 6,
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: childActive ? 500 : 400,
                         background: childActive ? "hsl(var(--accent))" : undefined,
                         color: childActive ? "hsl(var(--accent-foreground))" : undefined,
                       }}
                     >
                       <c.icon
-                        size={15}
+                        size={17}
                         strokeWidth={1.75}
                         className="flex-shrink-0"
                         style={{ color: "inherit" }}
@@ -287,7 +287,7 @@ const TopbarNav = ({ items }: { items: NavItem[] }) => {
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   <p
     style={{
-      fontSize: 9.5,
+      fontSize: 11,
       fontWeight: 500,
       color: "hsl(var(--muted-foreground))",
       letterSpacing: "0.07em",
@@ -383,7 +383,7 @@ export const AppLayout = () => {
       padding: "8px 12px",
       paddingLeft: isActive ? 9 : 12,
       borderRadius: 6,
-      fontSize: 13,
+      fontSize: 14,
       lineHeight: 1.2,
       cursor: "pointer",
       textDecoration: "none",
@@ -411,10 +411,10 @@ export const AppLayout = () => {
             style={linkStyle}
           >
             <IconCmp
-              size={17}
+              size={20}
               strokeWidth={1.75}
               aria-hidden
-              style={{ width: 17, height: 17, flexShrink: 0, color: "inherit" }}
+              style={{ width: 20, height: 20, flexShrink: 0, color: "inherit" }}
             />
             <span
               style={{
@@ -463,13 +463,13 @@ export const AppLayout = () => {
                 end={item.to === "/"}
                 onClick={() => setMobileNavOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-[15px] transition-colors",
                   isActive
                     ? "bg-accent text-accent-foreground font-medium"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <item.icon size={18} strokeWidth={1.75} className="flex-shrink-0" />
+                <item.icon size={20} strokeWidth={1.75} className="flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
               </NavLink>
             );
