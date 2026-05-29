@@ -1020,13 +1020,13 @@ function RowMain({
           <span className="truncate block">{it.procedure_name ?? it.description ?? "—"}</span>
         </td>
         {colVis.setor_lido && (
-          <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{it.sector ?? "—"}</td>
+          <td className={cn(cell, TEXT_META)} title={it.sector ?? ""}>{formatSectorName(it.sector)}</td>
         )}
         {colVis.setor_inferido && (
           (() => {
             const inf = (it.ai_findings?.engine as any)?.inferred_sector ?? it.sector ?? null;
             return (
-              <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{inf ?? "—"}</td>
+              <td className={cn(cell, TEXT_META)} title={inf ?? ""}>{formatSectorName(inf)}</td>
             );
           })()
         )}
