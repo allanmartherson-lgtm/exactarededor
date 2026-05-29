@@ -383,7 +383,7 @@ export const AppLayout = () => {
       padding: "8px 12px",
       paddingLeft: isActive ? 9 : 12,
       borderRadius: 6,
-      fontSize: 13,
+      fontSize: 14,
       lineHeight: 1.2,
       cursor: "pointer",
       textDecoration: "none",
