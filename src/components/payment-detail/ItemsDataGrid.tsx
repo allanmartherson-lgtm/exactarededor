@@ -54,7 +54,7 @@ import { cn } from "@/lib/utils";
 import { AttendanceCoherencePanel } from "./AttendanceCoherencePanel";
 import { formatDateBR, formatDateTimeBR } from "@/lib/dateUtils";
 import { formatSectorName } from "@/lib/sectorDisplay";
-import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole } from "@/lib/itemFields";
+import { getAgreement, getPatient, getAccessRoute, getProcedureCode, getProcedureName, getDoctorRole, rawPick } from "@/lib/itemFields";
 import { authorRoleLabel } from "@/lib/observations";
 
 // ============ TIPOGRAFIA UNIFICADA (tabela + painel expandido) ============
