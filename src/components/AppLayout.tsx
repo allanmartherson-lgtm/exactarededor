@@ -178,17 +178,6 @@ const ThemeToggle = () => {
 const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnread: number }) => {
   const location = useLocation();
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const containerRef = useRef<HTMLElement | null>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (openKey === null) return;
-    const onDown = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpenKey(null);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [openKey]);
 
   // Close on route change
   useEffect(() => {
@@ -197,7 +186,6 @@ const TopbarNav = ({ items, conversasUnread }: { items: NavItem[]; conversasUnre
 
   return (
     <nav
-      ref={containerRef}
       className="flex-1 min-w-0 flex items-center gap-0.5 flex-wrap"
       aria-label="Navegação principal"
     >
