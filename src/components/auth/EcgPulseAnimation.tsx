@@ -151,76 +151,44 @@ export default function EcgPulseAnimation() {
 
       particles.forEach(p => {
         if (ecgProgress < p.spawnAt) return;
+        if (ecgProgress > p.mergeAt + 0.06) return;
 
         const lineY  = midY + ecgY(p.xFrac) * amp;
         const startY = midY + p.yOffset * h;
 
-        const driftRange  = Math.max(0.01, p.mergeAt - p.spawnAt);
-        const driftP      = Math.min(1, Math.max(0, (ecgProgress - p.spawnAt) / driftRange));
-        const driftEased  = driftP < 0.5 ? 2*driftP*driftP : -1+(4-2*driftP)*driftP;
-
-        const MERGE_DUR   = 0.22;
-        const mergeP      = Math.min(1, Math.max(0, (ecgProgress - p.mergeAt) / MERGE_DUR));
-        const mergeEased  = mergeP < 0.5 ? 2*mergeP*mergeP : -1+(4-2*mergeP)*mergeP;
-
-        if (mergeP >= 1) return;
+        const driftRange = Math.max(0.01, p.mergeAt - p.spawnAt);
+        const driftRaw   = (ecgProgress - p.spawnAt) / driftRange;
+        const driftP     = Math.min(1, Math.max(0, driftRaw));
+        const driftEased = driftP < 0.5
+          ? 2 * driftP * driftP
+          : -1 + (4 - 2 * driftP) * driftP;
 
         const floatY = Math.sin(elapsed * 0.001 * p.floatSpeed + p.floatPhase)
-                       * p.floatAmp * h * (1 - mergeEased);
+                       * p.floatAmp * h
+                       * (1 - driftEased);
 
-        let curXfrac: number;
-        let curY: number;
+        const curY = startY + floatY + (lineY - startY) * driftEased;
 
-        curXfrac = p.xFrac + mergeEased * 0.07;
-        const driftY = startY + floatY + (lineY - startY) * driftEased;
-        const mergeTargetY = midY + ecgY(curXfrac) * amp;
-        curY = driftY + (mergeTargetY - driftY) * mergeEased;
-
-        const curX = curXfrac * w;
-
-        const fadeInA   = Math.min(1, driftP / 0.15);
-        const mergeOutA = mergeP > 0.65 ? 1 - (mergeP - 0.65) / 0.35 : 1;
-        const alpha     = fadeInA * mergeOutA * 0.86;
+        const fadeIn  = Math.min(1, driftP / 0.15);
+        const fadeOut = driftEased < 0.55 ? 1 : 1 - ((driftEased - 0.55) / 0.45);
+        const postMerge = ecgProgress > p.mergeAt
+          ? Math.max(0, 1 - (ecgProgress - p.mergeAt) / 0.06)
+          : 1;
+        const alpha = fadeIn * fadeOut * postMerge * 0.85;
         if (alpha <= 0.01) return;
 
-        const r = Math.round(198 + (255-198) * mergeEased);
-        const g = Math.round(162 + (255-162) * mergeEased);
-        const b = Math.round(124 + (255-124) * mergeEased);
-
-        const scaleX = 1 + mergeEased * 0.28;
-        const scaleY = Math.max(0.02, 1 - mergeEased * 0.98);
-
-        const blur = mergeEased * 2.5;
+        const scaleY = 1 - driftEased * 0.35;
 
         ctx.save();
-        ctx.translate(curX, curY);
-        ctx.scale(scaleX, scaleY);
-        if (blur > 0.3) ctx.filter = `blur(${blur.toFixed(1)}px)`;
-        ctx.globalAlpha  = alpha;
-        ctx.fillStyle    = `rgba(${r},${g},${b},1)`;
-        ctx.font         = `500 ${Math.round(p.fontSize * h)}px system-ui`;
-        ctx.textAlign    = 'center';
+        ctx.translate(p.xFrac * w, curY);
+        ctx.scale(1, scaleY);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle   = '#C6A27C';
+        ctx.font        = `500 ${Math.round(p.fontSize * h)}px system-ui`;
+        ctx.textAlign   = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(p.label, 0, 0);
-        ctx.filter = 'none';
         ctx.restore();
-
-        if (mergeP > 0.08 && mergeP < 0.92) {
-          const pulseA = Math.sin(((mergeP - 0.08) / 0.84) * Math.PI) * 0.55;
-          const pulseW = 5 + mergeEased * 14;
-          ctx.save();
-          ctx.globalAlpha = pulseA;
-          ctx.strokeStyle = `rgba(${r},${g},${b},1)`;
-          ctx.lineWidth   = 1.5 + mergeEased * 2;
-          ctx.lineCap     = 'round';
-          ctx.shadowColor = 'white';
-          ctx.shadowBlur  = 8 * pulseA;
-          ctx.beginPath();
-          ctx.moveTo(curX - pulseW, curY);
-          ctx.lineTo(curX + pulseW, curY);
-          ctx.stroke();
-          ctx.restore();
-        }
       });
     }
 
