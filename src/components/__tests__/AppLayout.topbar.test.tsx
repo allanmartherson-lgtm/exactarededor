@@ -10,7 +10,6 @@ import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Mock contexts BEFORE importing AppLayout.
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => {
     const roles = ["admin", "diretor", "validador", "analista"];
@@ -34,36 +33,46 @@ vi.mock("@/contexts/ThemeContext", () => ({
 import { AppLayout } from "@/components/AppLayout";
 
 /**
- * Topbar shows top-level entries in this exact order. Leaves with siblings
- * are grouped under a button that opens a dropdown menu.
+ * Top-level entries in fixed order. Leaves (Dashboard, Meu Perfil) render
+ * as NavLinks; groups render as buttons that open dropdown menus.
  */
 const EXPECTED_TOPBAR_TOP_LEVEL = [
   "Dashboard",
+  "Meu Perfil",
   "Financeiro",
-  "Configurações",
+  "Relatórios",
+  "Inteligência de Regras",
+  "Cadastros",
+  "Parametrização",
   "Acesso",
 ];
 
-/**
- * For each group, the children must appear in this exact order within the
- * dropdown menu. This guarantees the fixed sidebar ordering is preserved
- * across modes (topbar groups → flatten in sidebar order).
- */
 const EXPECTED_GROUP_CHILDREN: Record<string, string[]> = {
-  Financeiro: ["Pagamentos", "Notas Fiscais", "KPIs"],
-  Configurações: [
+  Financeiro: ["Pagamentos", "Pedidos de NF", "Ciclo de NF", "Glosas e Conciliação"],
+  Relatórios: ["KPIs", "Executivo", "Recebíveis", "Inteligência Financeira"],
+  "Inteligência de Regras": [
     "Regras de Pagamento",
     "Regras de Validação",
     "Simulador de Regras",
     "Tabelas de referência",
+  ],
+  Cadastros: [
     "Empresas",
-    "Apelidos aprendidos",
     "Médicos",
     "Mapa Especialidades",
+    "Setores",
     "Centros de custo",
-    "Prazos e SLA",
+    "Tipos de pagamento",
   ],
-  Acesso: ["Usuários", "Auditoria", "Anomalias de status"],
+  Parametrização: ["Pools de rateio", "Relatório de pools", "Prazos e SLA"],
+  Acesso: [
+    "Usuários",
+    "Produtividade da Equipe",
+    "Saúde do Motor",
+    "Auditoria",
+    "Anomalias de status",
+    "Insights de Observações",
+  ],
 };
 
 function renderLayout() {
@@ -84,10 +93,12 @@ describe("AppLayout topbar navigation", () => {
   it("renders the top-level entries in the fixed order without omissions", () => {
     renderLayout();
     const nav = screen.getByRole("navigation", { name: /navegação principal/i });
-    // Top-level: Dashboard is a NavLink (role=link); groups are buttons.
-    const link = within(nav).getByRole("link");
+    const links = within(nav).getAllByRole("link");
     const buttons = within(nav).getAllByRole("button");
-    const labels = [link.textContent?.trim(), ...buttons.map((b) => b.textContent?.trim())];
+    const labels = [
+      ...links.map((l) => l.textContent?.trim()),
+      ...buttons.map((b) => b.textContent?.trim()),
+    ];
     expect(labels).toEqual(EXPECTED_TOPBAR_TOP_LEVEL);
     expect(labels).toHaveLength(EXPECTED_TOPBAR_TOP_LEVEL.length);
   });
@@ -112,39 +123,48 @@ describe("AppLayout topbar navigation", () => {
     renderLayout();
     const nav = screen.getByRole("navigation", { name: /navegação principal/i });
 
-    // Dashboard (direct link) is the first leaf.
-    const collected: string[] = ["Dashboard"];
+    const collected: string[] = ["Dashboard", "Meu Perfil"];
 
-    // Open each group sequentially and collect its menuitems in order.
-    for (const groupLabel of ["Financeiro", "Configurações", "Acesso"]) {
+    for (const groupLabel of Object.keys(EXPECTED_GROUP_CHILDREN)) {
       const trigger = within(nav).getByRole("button", { name: new RegExp(`^${groupLabel}$`) });
       fireEvent.click(trigger);
       const menu = within(nav).getByRole("menu");
       const items = within(menu).getAllByRole("menuitem").map((i) => i.textContent?.trim() ?? "");
       collected.push(...items);
-      // Close by clicking trigger again so only one menu is open at a time.
       fireEvent.click(trigger);
     }
 
     expect(collected).toEqual([
       "Dashboard",
+      "Meu Perfil",
       "Pagamentos",
-      "Notas Fiscais",
+      "Pedidos de NF",
+      "Ciclo de NF",
+      "Glosas e Conciliação",
       "KPIs",
+      "Executivo",
+      "Recebíveis",
+      "Inteligência Financeira",
       "Regras de Pagamento",
       "Regras de Validação",
       "Simulador de Regras",
       "Tabelas de referência",
       "Empresas",
-      "Apelidos aprendidos",
       "Médicos",
       "Mapa Especialidades",
+      "Setores",
       "Centros de custo",
+      "Tipos de pagamento",
+      "Pools de rateio",
+      "Relatório de pools",
       "Prazos e SLA",
       "Usuários",
+      "Produtividade da Equipe",
+      "Saúde do Motor",
       "Auditoria",
       "Anomalias de status",
+      "Insights de Observações",
     ]);
-    expect(collected).toHaveLength(17);
+    expect(collected).toHaveLength(29);
   });
 });
