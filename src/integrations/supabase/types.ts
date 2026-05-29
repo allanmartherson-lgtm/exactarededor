@@ -4631,6 +4631,26 @@ export type Database = {
           pool: number
         }[]
       }
+      get_dre_drilldown: {
+        Args: {
+          p_company_id: string
+          p_competencia: string
+          p_doctor_id?: string
+        }
+        Returns: {
+          bruto: number
+          created_at: string
+          creditos: number
+          debitos: number
+          glosas: number
+          items_count: number
+          liquido: number
+          payment_id: string
+          pool: number
+          reference: string
+          status: string
+        }[]
+      }
       get_journal_balance: {
         Args: {
           p_company_id?: string

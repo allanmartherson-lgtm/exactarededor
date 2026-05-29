@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TrendingUp, RefreshCw, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TrendingUp, RefreshCw, AlertCircle, ChevronRight, ExternalLink } from "lucide-react";
 
 type DreRow = {
   competencia: string;
@@ -52,6 +54,33 @@ export default function DreReport() {
   const [dre, setDre] = useState<DreRow[]>([]);
   const [open, setOpen] = useState<OpenRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [drillOpen, setDrillOpen] = useState(false);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drillTitle, setDrillTitle] = useState("");
+  const [drillRows, setDrillRows] = useState<Array<{
+    payment_id: string; reference: string; status: string; created_at: string;
+    bruto: number; debitos: number; creditos: number; glosas: number; pool: number; liquido: number; items_count: number;
+  }>>([]);
+
+  const openDrill = async (row: DreRow) => {
+    setDrillOpen(true);
+    setDrillLoading(true);
+    const label = [
+      new Date(row.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }),
+      row.company_name ?? "—",
+      row.doctor_name ?? null,
+    ].filter(Boolean).join(" · ");
+    setDrillTitle(label);
+    const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("get_dre_drilldown", {
+      p_competencia: row.competencia,
+      p_company_id: row.company_id,
+      p_doctor_id: row.doctor_id,
+    });
+    if (!error && data) setDrillRows(data as typeof drillRows);
+    else setDrillRows([]);
+    setDrillLoading(false);
+  };
+
 
   const load = async () => {
     setLoading(true);
@@ -152,7 +181,7 @@ export default function DreReport() {
                   {dre.length === 0 ? (
                     <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Sem dados no período.</TableCell></TableRow>
                   ) : dre.map((r, i) => (
-                    <TableRow key={i}>
+                    <TableRow key={i} onClick={() => openDrill(r)} className="cursor-pointer hover:bg-muted/40">
                       <TableCell className="text-xs">{new Date(r.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</TableCell>
                       <TableCell>{r.company_name ?? "—"}</TableCell>
                       <TableCell>{r.doctor_name ?? "—"}</TableCell>
@@ -161,7 +190,9 @@ export default function DreReport() {
                       <TableCell className="text-right text-green-600">{fmt(r.creditos)}</TableCell>
                       <TableCell className="text-right text-red-600">{fmt(r.glosas)}</TableCell>
                       <TableCell className="text-right">{fmt(r.pool)}</TableCell>
-                      <TableCell className="text-right font-bold">{fmt(r.liquido)}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        <span className="inline-flex items-center gap-1">{fmt(r.liquido)}<ChevronRight className="h-3 w-3 text-muted-foreground" /></span>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -225,6 +256,50 @@ export default function DreReport() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={drillOpen} onOpenChange={setDrillOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Drill-down — {drillTitle}</DialogTitle>
+          </DialogHeader>
+          {drillLoading ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Carregando…</p>
+          ) : drillRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">Sem pagamentos para este recorte.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Referência</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Itens</TableHead>
+                  <TableHead className="text-right">Bruto</TableHead>
+                  <TableHead className="text-right">Glosas</TableHead>
+                  <TableHead className="text-right">Líquido</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {drillRows.map((d) => (
+                  <TableRow key={d.payment_id}>
+                    <TableCell className="font-mono text-xs">{d.reference}</TableCell>
+                    <TableCell><Badge variant="outline">{d.status}</Badge></TableCell>
+                    <TableCell className="text-right">{d.items_count}</TableCell>
+                    <TableCell className="text-right">{fmt(d.bruto)}</TableCell>
+                    <TableCell className="text-right text-red-600">{fmt(d.glosas)}</TableCell>
+                    <TableCell className="text-right font-semibold">{fmt(d.liquido)}</TableCell>
+                    <TableCell>
+                      <Link to={`/pagamentos/${d.payment_id}`} className="text-primary inline-flex items-center gap-1 text-xs">
+                        Abrir <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
