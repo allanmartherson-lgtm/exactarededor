@@ -156,8 +156,8 @@ export function ConversasDoctorsTab() {
       (m) => m.doctor_id === selectedDoctorId && m.author_type === "medico" && m.read_at === null,
     );
     if (!hasUnread) return;
-    void (supabase.from("doctor_messages") as never)
-      .update({ read_at: new Date().toISOString() } as never)
+    void supabase.from("doctor_messages")
+      .update({ read_at: new Date().toISOString() })
       .eq("doctor_id", selectedDoctorId)
       .eq("author_type", "medico")
       .is("read_at", null)
